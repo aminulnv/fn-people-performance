@@ -70,18 +70,13 @@ export function AppLayout({
     <div
       className={[
         'pd-app-shell',
+        isMobile ? 'pd-app-shell--mobile' : '',
         isMobile && isMobileOpen ? 'pd-app-shell--mobile-nav-open' : '',
       ]
         .filter(Boolean)
         .join(' ')}
     >
-      <div
-        className="pd-app-shell__main"
-        style={{
-          paddingRight: isMobile ? 0 : '0.5rem',
-          paddingBottom: isMobile ? 0 : '0.5rem',
-        }}
-      >
+      <div className="pd-app-shell__main">
         <Sidebar
           navItems={navItems}
           brand={brand}
@@ -89,18 +84,8 @@ export function AppLayout({
           isMobileOpen={isMobileOpen}
           onMobileClose={() => setIsMobileOpen(false)}
         />
-        <div
-          className="pd-app-content"
-          style={{
-            paddingTop: isMobile ? 0 : '0.5rem',
-          }}
-        >
-          <div
-            className="pd-app-content-card"
-            style={{
-              borderRadius: isMobile ? 0 : '0.75rem',
-            }}
-          >
+        <div className="pd-app-content">
+          <div className="pd-app-content-card">
             <TopBar
               title={currentNavItem?.label ?? 'App'}
               titleIcon={currentNavItem?.icon}
@@ -110,14 +95,7 @@ export function AppLayout({
               onMobileMenuOpen={() => setIsMobileOpen(true)}
               isMobile={isMobile}
             />
-            <main
-              style={{
-                flex: 1,
-                minHeight: 0,
-                overflowY: 'auto',
-                padding: isMobile ? '1rem' : '1.5rem',
-              }}
-            >
+            <main className="pd-app-main">
               <Outlet />
             </main>
           </div>

@@ -1,24 +1,38 @@
+import { useCallback } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
+import { QueryClientProvider } from '@tanstack/react-query'
 import { AppLayout } from './AppLayout'
-import { DEMO_USER, isSignedIn, signOut } from '@/lib/authApi'
+import { useAuth } from '@/lib/auth'
 import { layoutConfig } from '@/config/layout'
+import { queryClient } from '@/lib/queryClient'
+import '@/styles/layout-shell.css'
+
+/* Shell-only font weights — login already has Inter 400/500 + PJ 800 */
+import '@fontsource/inter/latin-600.css'
+import '@fontsource/inter/latin-700.css'
 
 export default function AuthenticatedLayout() {
   const navigate = useNavigate()
+  const { status, user, signOut } = useAuth()
 
-  if (!isSignedIn()) {
+  const handleSignOut = useCallback(async () => {
+    queryClient.clear()
+    await signOut()
+    navigate('/login', { replace: true })
+  }, [navigate, signOut])
+
+  if (status !== 'authenticated' || !user) {
     return <Navigate to="/login" replace />
   }
 
   return (
-    <AppLayout
-      {...layoutConfig}
-      userName={DEMO_USER.name}
-      profileSubtext={DEMO_USER.email}
-      onSignOut={() => {
-        signOut()
-        navigate('/login', { replace: true })
-      }}
-    />
+    <QueryClientProvider client={queryClient}>
+      <AppLayout
+        {...layoutConfig}
+        userName={user.name}
+        profileSubtext={user.email}
+        onSignOut={handleSignOut}
+      />
+    </QueryClientProvider>
   )
 }

@@ -5,7 +5,8 @@ import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import type { NavItem, BrandConfig } from './types'
 import { applySidebarExpanded } from '@/lib/sidebarPrefs'
 import { useSidebarPrefs } from './useSidebarPrefs'
-import { version as APP_VERSION } from '../../package.json'
+declare const __APP_VERSION__: string
+const APP_VERSION = __APP_VERSION__
 
 const NAV_ICON_SIZE = 17
 const NAV_ICON_STROKE = 1.75

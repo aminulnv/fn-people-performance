@@ -82,7 +82,7 @@
       color-mix(in srgb, var(--color-theme) 22%, #020814) 0%,
       color-mix(in srgb, var(--color-theme) 8%, #02040a) 100%);
 
-  /* Theme-shade glow blobs — painted on a 150% overlay (see layout.css)
+  /* Theme-shade glow blobs — painted on a 150% overlay (see layout-shell.css)
      so the drift animation never reveals hard edges. Positions keep the
      blobs over the top-left chrome for the whole loop. */
   --app-shell-glow:

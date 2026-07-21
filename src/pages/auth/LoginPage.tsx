@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { layoutConfig } from '@/config/layout'
-import { isSignedIn, signIn } from '@/lib/authApi'
+import { useAuth } from '@/lib/auth'
+import '@/styles/layout-login.css'
 
 function GoogleMark() {
   return (
@@ -33,14 +35,27 @@ function GoogleMark() {
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { status, signInWithGoogle } = useAuth()
 
-  if (isSignedIn()) {
+  // CSS backgrounds are invisible to the preload scanner — hint the AVIF early.
+  useEffect(() => {
+    const link = document.createElement('link')
+    link.rel = 'preload'
+    link.as = 'image'
+    link.href = '/images/login-f1-bg.avif'
+    link.type = 'image/avif'
+    document.head.appendChild(link)
+    return () => {
+      link.remove()
+    }
+  }, [])
+
+  if (status === 'authenticated') {
     return <Navigate to="/" replace />
   }
 
-  const handleGoogleSignIn = () => {
-    // Demo: Google is the only allowed method; real OAuth can replace this later.
-    signIn()
+  const handleGoogleSignIn = async () => {
+    await signInWithGoogle()
     navigate('/', { replace: true })
   }
 

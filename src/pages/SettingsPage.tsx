@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Monitor, Moon, MousePointerClick, PanelLeftOpen, Sun } from 'lucide-react'
+import '@/styles/layout-settings.css'
 import {
   applyAppearance,
   applyThemeColor,

@@ -1,0 +1,225 @@
+@import './layout-shared.css';
+
+/* Login — lean glass (one modest blur, no JS style objects / load state) */
+.pd-login {
+  --login-ink: #f5f7fb;
+  --login-ink-muted: color-mix(in srgb, white 72%, transparent);
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 1.5rem;
+  color: var(--login-ink);
+  /* Solid fallback paints first; photo is decorative atmosphere */
+  background-color: #0a0a14;
+  /* Fallback for browsers without image-set() */
+  background-image:
+    linear-gradient(225deg,
+      color-mix(in srgb, #1a1a3a 72%, transparent) 0%,
+      color-mix(in srgb, #12122b 55%, transparent) 45%,
+      color-mix(in srgb, #05050a 40%, transparent) 100%),
+    url('/images/login-f1-bg.jpg');
+  background-image:
+    linear-gradient(225deg,
+      color-mix(in srgb, #1a1a3a 72%, transparent) 0%,
+      color-mix(in srgb, #12122b 55%, transparent) 45%,
+      color-mix(in srgb, #05050a 40%, transparent) 100%),
+    image-set(
+      url('/images/login-f1-bg.avif') type('image/avif'),
+      url('/images/login-f1-bg.webp') type('image/webp'),
+      url('/images/login-f1-bg.jpg') type('image/jpeg')
+    );
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Desktop: card right over the dark half; car lit on the left */
+@media (min-width: 48rem) {
+  .pd-login {
+    justify-content: flex-end;
+    padding-inline: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 6vw, 5.5rem);
+    background-position: center;
+  }
+}
+
+.pd-login__corner-logo {
+  position: absolute;
+  inset-block-start: 1.5rem;
+  inset-inline-start: 1.5rem;
+  z-index: 2;
+  height: 1rem;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.92;
+  animation: pd-login-fade-in 0.45s ease both;
+}
+
+.pd-login__card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+  width: fit-content;
+  min-width: min(22rem, 100%);
+  max-width: 100%;
+  padding: 0;
+  text-align: center;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  animation: pd-login-card-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.pd-login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pd-login__brand-logo {
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  border-radius: 0.8rem;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, white 16%, transparent);
+}
+
+.pd-login__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.75rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--login-ink);
+  text-shadow: 0 1px 3px color-mix(in srgb, black 40%, transparent);
+  text-wrap: balance;
+}
+
+.pd-login__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+  width: 100%;
+}
+
+.pd-login__subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
+  white-space: nowrap;
+  color: var(--login-ink-muted);
+  text-shadow: 0 1px 3px color-mix(in srgb, black 40%, transparent);
+}
+
+.pd-login__google {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6875rem;
+  width: 100%;
+  height: 3.125rem;
+  margin: 0;
+  padding: 0 1.375rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, white 65%, transparent);
+  background: #fff;
+  color: #1f1f1f;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow:
+    0 1px 2px color-mix(in srgb, black 14%, transparent),
+    0 2px 8px color-mix(in srgb, black 10%, transparent);
+  transition:
+    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.2s ease,
+    background-color 0.15s ease;
+}
+
+.pd-login__google:hover {
+  background: #f7f7f7;
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 4px color-mix(in srgb, black 12%, transparent),
+    0 8px 18px color-mix(in srgb, black 16%, transparent);
+}
+
+.pd-login__google:active {
+  transform: translateY(0);
+  background: #f0f0f0;
+}
+
+.pd-login__google:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
+  outline-offset: 3px;
+}
+
+.pd-login__google-mark {
+  flex-shrink: 0;
+}
+
+.pd-login__hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--login-ink-muted);
+  text-shadow: 0 1px 3px color-mix(in srgb, black 40%, transparent);
+}
+
+@media (max-width: 30rem) {
+  .pd-login__subtitle {
+    white-space: normal;
+    text-wrap: pretty;
+  }
+}
+
+@keyframes pd-login-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pd-login-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.92;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .pd-login__card,
+  .pd-login__corner-logo {
+    animation: none;
+  }
+
+  .pd-login__google {
+    transition: background-color 0.15s ease;
+  }
+
+  .pd-login__google:hover {
+    transform: none;
+  }
+}

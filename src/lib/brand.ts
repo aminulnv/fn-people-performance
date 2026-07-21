@@ -8,8 +8,10 @@ export const DEFAULT_THEME_COLOR = '#473fee'
 export const DEFAULT_APPEARANCE: AppearanceMode = 'system'
 export const DEFAULT_THEME_MODE: ThemeMode = 'default'
 
-/** Inline bootstrap — theme mode/color + appearance before first paint. */
-export const THEME_COLOR_BOOTSTRAP = `(function(){try{var d=document.documentElement;var m=localStorage.getItem(${JSON.stringify(THEME_MODE_KEY)});var t=localStorage.getItem(${JSON.stringify(THEME_COLOR_KEY)});if(m==="custom"&&t&&/^#[0-9A-Fa-f]{6}$/.test(t))d.style.setProperty("--color-theme",t.toLowerCase());else if(m!=="custom")d.style.removeProperty("--color-theme");var a=localStorage.getItem(${JSON.stringify(APPEARANCE_KEY)})||${JSON.stringify(DEFAULT_APPEARANCE)};var dark=a==="dark"||(a!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);d.classList.toggle("dark",dark);d.style.colorScheme=dark?"dark":"light"}catch(e){}})();`
+/** Single source of truth for the pre-paint theme bootstrap in index.html. */
+export function getThemeBootstrapScript(): string {
+  return `(function(){try{var d=document.documentElement;var m=localStorage.getItem(${JSON.stringify(THEME_MODE_KEY)});var t=localStorage.getItem(${JSON.stringify(THEME_COLOR_KEY)});if(m==="custom"&&t&&/^#[0-9A-Fa-f]{6}$/.test(t))d.style.setProperty("--color-theme",t.toLowerCase());else if(m!=="custom")d.style.removeProperty("--color-theme");var a=localStorage.getItem(${JSON.stringify(APPEARANCE_KEY)})||${JSON.stringify(DEFAULT_APPEARANCE)};var dark=a==="dark"||(a!=="light"&&matchMedia("(prefers-color-scheme:dark)").matches);d.classList.toggle("dark",dark);d.style.colorScheme=dark?"dark":"light"}catch(e){}})();`
+}
 
 export function normalizeThemeColor(value: string): string | null {
   const t = value.trim()
