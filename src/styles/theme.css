@@ -109,8 +109,8 @@
   color-scheme: dark;
 
   /* Soft fills: mix into dark canvas (stronger than light so chips still read) */
-  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 28%, #2a322f);
-  --color-theme-mid: color-mix(in srgb, var(--color-theme) 42%, #353d3a);
+  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 28%, #222a27);
+  --color-theme-mid: color-mix(in srgb, var(--color-theme) 42%, #2c3531);
   --color-theme-bright: color-mix(in srgb, var(--color-theme) 62%, white);
   /*
    * Soft brand UI (avatars): light ink on dark tint.
@@ -123,24 +123,32 @@
   --color-text-sec: #a8b0ad;
   --color-text-muted: #7d8783;
 
-  --color-blue-light: color-mix(in srgb, var(--color-blue) 22%, #2a322f);
-  --color-amber-light: color-mix(in srgb, var(--color-amber) 22%, #2a322f);
-  --color-red-light: color-mix(in srgb, var(--color-red) 22%, #2a322f);
+  --color-blue-light: color-mix(in srgb, var(--color-blue) 22%, #222a27);
+  --color-amber-light: color-mix(in srgb, var(--color-amber) 22%, #222a27);
+  --color-red-light: color-mix(in srgb, var(--color-red) 22%, #222a27);
   --color-status-completed-surface: color-mix(in srgb,
       var(--color-status-completed) 22%,
-      #2a322f);
+      #222a27);
   --color-status-on-hold-surface: color-mix(in srgb,
       var(--color-status-on-hold) 18%,
-      #2a322f);
+      #222a27);
   --color-status-in-progress-surface: var(--color-blue-light);
   --color-status-pending-surface: var(--color-amber-light);
 
-  /* Canvas ladder — former card tone as body; cards lift above it */
-  --color-cream: #222826;
-  --color-surface: #2a322f;
-  --color-surface-raised: #353d3a;
+  /*
+   * Canvas ladder — solid tones for nested UI (menus, modals, chips).
+   * Main body uses --color-surface-glass + blur over the shell (layout-shell).
+   */
+  --color-cream: #1a1f1d;
+  --color-surface: #222a27;
+  --color-surface-raised: #2c3531;
   --color-cream-card: var(--color-theme-subtle);
-  --color-divider: #454e4a;
-  --color-muted-bg: color-mix(in srgb, var(--color-theme) 10%, #353d3a);
-  --color-neutral-hover: #454e4a;
+  --color-divider: color-mix(in srgb, white 12%, transparent);
+  --color-muted-bg: color-mix(in srgb, var(--color-theme) 12%, #2c3531);
+  --color-neutral-hover: color-mix(in srgb, white 8%, transparent);
+
+  /* Frosted main body — dark but translucent so shell glow reads through */
+  --color-surface-glass: color-mix(in srgb, #0c1210 48%, transparent);
+  --color-surface-glass-border: color-mix(in srgb, white 10%, transparent);
+  --surface-glass-blur: 22px;
 }

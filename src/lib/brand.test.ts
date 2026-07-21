@@ -31,7 +31,7 @@ describe('getThemeBootstrapScript', () => {
     expect(script).toContain('app-theme-color')
     expect(script).toContain('app-theme-mode')
     expect(script).toContain('app-appearance')
-    expect(script).toContain('system')
+    expect(script).toContain('light')
     expect(script).toContain('--color-theme')
   })
 

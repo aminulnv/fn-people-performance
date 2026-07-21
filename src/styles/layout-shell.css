@@ -190,8 +190,42 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   border-radius: 0.75rem;
 }
 
+/* Dark: frosted glass body — shell gradient/glow shows through */
+.dark .pd-app-content-card {
+  background: var(--color-surface-glass);
+  border: 1px solid var(--color-surface-glass-border);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, white 6%, transparent) inset,
+    var(--shadow-low);
+  backdrop-filter: blur(var(--surface-glass-blur)) saturate(1.25);
+  -webkit-backdrop-filter: blur(var(--surface-glass-blur)) saturate(1.25);
+}
+
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+  .dark .pd-app-content-card {
+    background: var(--color-surface);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .dark .pd-app-content-card {
+    background: var(--color-surface);
+    border-color: var(--color-divider);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: var(--shadow-low);
+  }
+}
+
 .pd-app-shell--mobile .pd-app-content-card {
   border-radius: 0;
+}
+
+.dark .pd-app-shell--mobile .pd-app-content-card {
+  border-inline: none;
+  border-block-start: none;
 }
 
 .pd-app-main {
@@ -548,11 +582,22 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   -webkit-backdrop-filter: blur(14px) saturate(1.15);
 }
 
+.dark .pd-topbar {
+  background: color-mix(in srgb, #0c1210 42%, transparent);
+  border-bottom-color: var(--color-surface-glass-border);
+  backdrop-filter: blur(18px) saturate(1.25);
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+}
+
 @supports not (
   (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
 ) {
   .pd-topbar {
     background: var(--color-bg);
+  }
+
+  .dark .pd-topbar {
+    background: var(--color-surface);
   }
 }
 
@@ -561,6 +606,11 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
     background: var(--color-bg);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  .dark .pd-topbar {
+    background: var(--color-surface);
+    border-bottom-color: var(--color-divider);
   }
 
   .pd-topbar__icon-btn,
