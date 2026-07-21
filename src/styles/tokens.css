@@ -1,0 +1,38 @@
+@import './theme.css';
+
+:root {
+  /* Bridge: primary chrome = darkest (readable on neon seeds) */
+  --primary: var(--color-sidebar);
+  --primary-foreground: var(--color-on-sidebar);
+  --secondary: var(--color-theme-subtle);
+  --secondary-foreground: var(--color-text-primary);
+  --accent: var(--color-brand-light);
+  --accent-foreground: var(--color-brand);
+  --destructive: var(--color-red);
+  --ring: var(--color-sidebar);
+  --background: var(--color-surface);
+  --foreground: var(--color-text-primary);
+
+  /* App aliases used by layout — follow surface/text tokens (flip in .dark) */
+  --color-bg: var(--color-surface);
+  --color-bg-muted: var(--color-muted-bg);
+  --color-text: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-sec);
+  --color-border: var(--color-divider);
+  --color-danger: var(--color-red);
+
+  /* Legacy primary names → active-nav accent (seed) */
+  --color-primary: var(--color-active-nav);
+  --color-primary-dark: var(--color-theme-darker);
+  --color-primary-contrast: var(--color-on-active-nav);
+
+  --font-heading: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --text-body: 1rem;
+
+  --radius-button: 12px;
+  --radius-card-lg: 20px;
+
+  --shadow-low: 0 1px 3px color-mix(in srgb, var(--color-theme) 12%, transparent);
+  --shadow-deep: rgba(9, 14, 21, 0.16) 0px 5px 40px 0px;
+}

@@ -1,0 +1,167 @@
+/**
+ * ONE knob: --color-theme
+ * Brand scale + roles derive from it.
+ * Status colors stay independent.
+ */
+
+:root {
+  /* ═══ ONLY brand hex ═══ */
+  --color-theme: #473fee;
+
+  /* Scale */
+  --color-theme-darkest: color-mix(in srgb, var(--color-theme) 28%, black);
+  --color-theme-darker: color-mix(in srgb, var(--color-theme) 38%, black);
+  --color-theme-base: var(--color-theme);
+  --color-theme-mid: color-mix(in srgb, var(--color-theme) 70%, white);
+  --color-theme-bright: color-mix(in srgb, var(--color-theme) 75%, white);
+  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 11%, white);
+
+  /* Roles */
+  --color-sidebar: var(--color-theme-darkest);
+  --color-sidebar-alt: var(--color-theme-darker);
+  /*
+   * Active on sidebar — never collapse into sidebar for near-black seeds.
+   * Floor OKLCH lightness at 0.42; keep seed hue/chroma. Bright seeds unchanged.
+   */
+  --color-active-nav: oklch(from var(--color-theme) max(0.42, l) c h);
+  --color-active-nav-soft: color-mix(
+    in srgb,
+    var(--color-active-nav) 60%,
+    var(--color-sidebar)
+  );
+  --color-brand: var(--color-theme-darker);
+  --color-brand-light: var(--color-theme-subtle);
+
+  /* Auto ink: L ≥ ~0.72 → black, else white */
+  --color-on-theme: oklch(from var(--color-theme) round(1.21 - l) 0 0);
+  --color-on-theme-darker: oklch(
+    from var(--color-theme-darker) round(1.21 - l) 0 0
+  );
+  --color-on-active-nav: oklch(
+    from var(--color-active-nav) round(1.21 - l) 0 0
+  );
+  --color-on-active-nav-soft: oklch(
+    from var(--color-active-nav-soft) round(1.21 - l) 0 0
+  );
+  --color-on-brand: oklch(from var(--color-brand) round(1.21 - l) 0 0);
+  --color-on-sidebar: oklch(from var(--color-sidebar) round(1.21 - l) 0 0);
+
+  /* Body text — fixed neutrals */
+  --color-text-primary: #0a0a0a;
+  --color-text-sec: #64748b;
+  --color-text-muted: #94a3b8;
+
+  /* Status — fixed, never from --color-theme */
+  --color-blue: #4f6fd9;
+  --color-blue-light: color-mix(in srgb, var(--color-blue) 12%, white);
+  --color-amber: #c2882c;
+  --color-amber-light: color-mix(in srgb, var(--color-amber) 12%, white);
+  --color-red: #dc2626;
+  --color-red-light: color-mix(in srgb, var(--color-red) 12%, white);
+
+  --color-status-completed: #2f7a5d;
+  --color-status-completed-surface: color-mix(
+    in srgb,
+    var(--color-status-completed) 12%,
+    white
+  );
+  --color-status-on-hold: #6b7585;
+  --color-status-on-hold-surface: color-mix(
+    in srgb,
+    var(--color-status-on-hold) 10%,
+    white
+  );
+  --color-status-in-progress: var(--color-blue);
+  --color-status-in-progress-surface: var(--color-blue-light);
+  --color-status-pending: var(--color-amber);
+  --color-status-pending-surface: var(--color-amber-light);
+
+  --color-white: #ffffff;
+  --color-divider: #e5e7eb;
+
+  /* Surfaces — flipped in .dark; brand seed stays the same */
+  --color-cream: #f7f8f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-cream-card: var(--color-theme-subtle);
+  --color-muted-bg: color-mix(in srgb, var(--color-theme) 4%, white);
+
+  /* Deep linear base */
+  --app-shell-gradient: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--color-theme) 22%, #020814) 0%,
+    color-mix(in srgb, var(--color-theme) 8%, #02040a) 100%
+  );
+
+  /* Theme-shade glow blobs — painted on a 150% overlay (see layout.css)
+     so the drift animation never reveals hard edges. Positions keep the
+     blobs over the top-left chrome for the whole loop. */
+  --app-shell-glow:
+    radial-gradient(
+      ellipse 35% 40% at 21% 18%,
+      color-mix(in srgb, var(--color-theme) 40%, transparent) 0%,
+      transparent 48%
+    ),
+    radial-gradient(
+      ellipse 27% 32% at 31% 13%,
+      color-mix(in srgb, var(--color-theme-mid) 24%, transparent) 0%,
+      transparent 46%
+    ),
+    radial-gradient(
+      ellipse 29% 27% at 15% 29%,
+      color-mix(in srgb, var(--color-theme-bright) 16%, transparent) 0%,
+      transparent 44%
+    ),
+    radial-gradient(
+      ellipse 24% 35% at 26% 26%,
+      color-mix(in srgb, var(--color-theme-darker) 32%, transparent) 0%,
+      transparent 44%
+    );
+}
+
+/**
+ * Dark mode — same --color-theme seed.
+ * Only canvases, text, soft tints, and status surfaces flip.
+ * --color-white stays pure white for ink on brand chrome.
+ */
+.dark {
+  color-scheme: dark;
+
+  /* Soft fills: mix into dark canvas (stronger than light so chips still read) */
+  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 28%, #121514);
+  --color-theme-mid: color-mix(in srgb, var(--color-theme) 42%, #1a1f1d);
+  --color-theme-bright: color-mix(in srgb, var(--color-theme) 62%, white);
+  /*
+   * Soft brand UI (avatars): light ink on dark tint.
+   * Light mode keeps darker ink on pale tint via :root --color-brand.
+   */
+  --color-brand: var(--color-theme-bright);
+  --color-brand-light: var(--color-theme-subtle);
+
+  --color-text-primary: #f2f4f3;
+  --color-text-sec: #a8b0ad;
+  --color-text-muted: #7d8783;
+
+  --color-blue-light: color-mix(in srgb, var(--color-blue) 22%, #121514);
+  --color-amber-light: color-mix(in srgb, var(--color-amber) 22%, #121514);
+  --color-red-light: color-mix(in srgb, var(--color-red) 22%, #121514);
+  --color-status-completed-surface: color-mix(
+    in srgb,
+    var(--color-status-completed) 22%,
+    #121514
+  );
+  --color-status-on-hold-surface: color-mix(
+    in srgb,
+    var(--color-status-on-hold) 18%,
+    #121514
+  );
+  --color-status-in-progress-surface: var(--color-blue-light);
+  --color-status-pending-surface: var(--color-amber-light);
+
+  --color-cream: #0e1110;
+  --color-surface: #151918;
+  --color-surface-raised: #1c211f;
+  --color-cream-card: var(--color-theme-subtle);
+  --color-divider: #2a322f;
+  --color-muted-bg: color-mix(in srgb, var(--color-theme) 10%, #1a1f1d);
+}
