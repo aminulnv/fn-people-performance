@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Monitor, Moon, MousePointerClick, PanelLeftOpen, Sun } from 'lucide-react'
 import {
   applyAppearance,
   applyThemeColor,
@@ -19,18 +19,21 @@ import { useSidebarPrefs } from '@/layout/useSidebarPrefs'
 const SIDEBAR_MODE_OPTIONS: {
   value: SidebarExpandMode
   label: string
-  description: string
+  title: string
+  icon: typeof PanelLeftOpen
 }[] = [
     {
       value: 'auto',
-      label: 'Auto expand',
-      description: 'Sidebar expands when you hover, and collapses when you leave.',
+      label: 'Auto',
+      title: 'Sidebar expands when you hover, and collapses when you leave.',
+      icon: PanelLeftOpen,
     },
     {
       value: 'manual',
-      label: 'Click to expand',
-      description:
+      label: 'Click',
+      title:
         'Use the button in the sidebar’s upper-right corner to expand or collapse.',
+      icon: MousePointerClick,
     },
   ]
 
@@ -168,27 +171,33 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div
-          className="pd-settings-segment"
-          role="radiogroup"
-          aria-label="Sidebar expand mode"
-        >
-          {SIDEBAR_MODE_OPTIONS.map((option) => {
-            const selected = sidebarMode === option.value
-            return (
-              <button
-                key={option.value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                className={`pd-settings-segment__option${selected ? ' is-selected' : ''}`}
-                onClick={() => applySidebarMode(option.value)}
-              >
-                <span className="pd-settings-segment__label">{option.label}</span>
-                <span className="pd-settings-segment__desc">{option.description}</span>
-              </button>
-            )
-          })}
+        <div className="pd-settings-row">
+          <span className="pd-settings-row__label">Expand mode</span>
+          <div
+            className="pd-appearance-toggle"
+            role="radiogroup"
+            aria-label="Expand mode"
+          >
+            {SIDEBAR_MODE_OPTIONS.map((option) => {
+              const selected = sidebarMode === option.value
+              const Icon = option.icon
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  className={`pd-appearance-toggle__option${selected ? ' is-selected' : ''}`}
+                  title={option.title}
+                  aria-label={option.title}
+                  onClick={() => applySidebarMode(option.value)}
+                >
+                  <Icon size={15} strokeWidth={2.25} aria-hidden />
+                  <span>{option.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
       </section>
     </div>

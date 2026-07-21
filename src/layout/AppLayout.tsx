@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { useBreakpoint } from './useBreakpoint'
@@ -56,7 +57,14 @@ export function AppLayout({
     }
   }, [])
 
-  const currentNavItem = matchNavItem(pathname, navItems)
+  const currentNavItem =
+    pathname === profileNavItem.path ||
+    pathname.startsWith(`${profileNavItem.path}/`)
+      ? profileNavItem
+      : pathname === settingsNavItem.path ||
+          pathname.startsWith(`${settingsNavItem.path}/`)
+        ? settingsNavItem
+        : matchNavItem(pathname, navItems)
 
   return (
     <div

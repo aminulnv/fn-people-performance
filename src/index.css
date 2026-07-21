@@ -42,18 +42,3 @@ body {
   min-height: 100vh;
   overflow: hidden;
 }
-
-.pd-topbar__dropdown-item {
-  transition: background-color 0.15s ease;
-}
-.pd-topbar__dropdown-item:hover {
-  background-color: var(--color-bg-muted) !important;
-}
-.pd-topbar__dropdown-item--danger:hover {
-  background-color: var(--color-active-nav) !important;
-  color: var(--color-on-active-nav) !important;
-}
-.pd-topbar__dropdown-item--danger:hover svg {
-  stroke: var(--color-on-active-nav) !important;
-  color: var(--color-on-active-nav) !important;
-}
