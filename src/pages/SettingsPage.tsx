@@ -11,6 +11,7 @@ import {
   readThemeMode,
   type AppearanceMode,
 } from '@/lib/brand'
+import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import {
   applySidebarMode,
   type SidebarExpandMode,
@@ -33,7 +34,7 @@ const SIDEBAR_MODE_OPTIONS: {
       value: 'manual',
       label: 'Click',
       title:
-        'Use the button in the sidebar’s upper-right corner to expand or collapse.',
+        'Use the button at the bottom of the sidebar to expand or collapse.',
       icon: MousePointerClick,
     },
   ]
@@ -199,6 +200,24 @@ export default function SettingsPage() {
               )
             })}
           </div>
+        </div>
+      </section>
+
+      <section className="pd-settings-section" aria-labelledby="about-heading">
+        <div className="pd-settings-section__header">
+          <h2 id="about-heading" className="pd-settings-section__title">
+            About
+          </h2>
+          <p className="pd-settings-section__hint">
+            App details useful for support and bug reports.
+          </p>
+        </div>
+
+        <div className="pd-settings-row">
+          <span className="pd-settings-row__label">Version</span>
+          <span className="pd-settings-version" title="Select to copy">
+            {APP_VERSION_LABEL}
+          </span>
         </div>
       </section>
     </div>

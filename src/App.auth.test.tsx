@@ -36,7 +36,7 @@ function renderRoutes(initialPath: string) {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<AuthenticatedLayout />}>
-              <Route index element={<DummyPage title="Overview" />} />
+              <Route index element={<DummyPage title="Home" />} />
             </Route>
             <Route path="*" element={<CatchAllRedirect />} />
           </Routes>

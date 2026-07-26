@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
+import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { useBreakpoint } from './useBreakpoint'
@@ -59,10 +60,10 @@ export function AppLayout({
 
   const currentNavItem =
     pathname === profileNavItem.path ||
-    pathname.startsWith(`${profileNavItem.path}/`)
+      pathname.startsWith(`${profileNavItem.path}/`)
       ? profileNavItem
       : pathname === settingsNavItem.path ||
-          pathname.startsWith(`${settingsNavItem.path}/`)
+        pathname.startsWith(`${settingsNavItem.path}/`)
         ? settingsNavItem
         : matchNavItem(pathname, navItems)
 
@@ -98,6 +99,12 @@ export function AppLayout({
             <main className="pd-app-main">
               <Outlet />
             </main>
+            <footer
+              className="pd-app-footer"
+              title={`App version ${APP_VERSION_LABEL}`}
+            >
+              <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
+            </footer>
           </div>
         </div>
       </div>

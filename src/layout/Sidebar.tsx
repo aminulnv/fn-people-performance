@@ -1,16 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
-import { createPortal } from 'react-dom'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { Tooltip } from '@/components/ui'
 import type { NavItem, BrandConfig } from './types'
 import { applySidebarExpanded } from '@/lib/sidebarPrefs'
 import { useSidebarPrefs } from './useSidebarPrefs'
-declare const __APP_VERSION__: string
-const APP_VERSION = __APP_VERSION__
 
 const NAV_ICON_SIZE = 17
 const NAV_ICON_STROKE = 1.75
-const SIDEBAR_WIDTH_COLLAPSED = '4.875rem'
+const SIDEBAR_WIDTH_COLLAPSED = '4rem'
 const SIDEBAR_WIDTH_EXPANDED = '15.5rem'
 const HOVER_CLOSE_DELAY_MS = 140
 
@@ -42,65 +40,33 @@ function NavItemLink({
   onNavigate: () => void
 }) {
   const { icon: Icon, label, path, end } = item
-  const linkRef = useRef<HTMLAnchorElement>(null)
-  const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(
-    null,
+
+  const link = (
+    <NavLink
+      to={path}
+      end={end ?? path === '/'}
+      className={({ isActive }) => navLinkClass(collapsed, isActive)}
+      aria-label={collapsed ? label : undefined}
+      onClick={(e) => {
+        e.stopPropagation()
+        onNavigate()
+      }}
+    >
+      <span className="pd-sidebar-nav__icon" aria-hidden="true">
+        <Icon size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />
+      </span>
+      <span className="pd-sidebar-nav__label" aria-hidden={collapsed}>
+        {label}
+      </span>
+    </NavLink>
   )
 
-  const hideTip = () => setTipPos(null)
-
-  const showTip = () => {
-    if (!collapsed || !linkRef.current) return
-    const linkRect = linkRef.current.getBoundingClientRect()
-    const sidebar = linkRef.current.closest('.pd-app-sidebar')
-    const sidebarRight =
-      sidebar?.getBoundingClientRect().right ?? linkRect.right
-    setTipPos({
-      top: linkRect.top + linkRect.height / 2,
-      left: sidebarRight + 6,
-    })
-  }
-
-  useEffect(() => {
-    if (!collapsed) hideTip()
-  }, [collapsed])
+  if (!collapsed) return link
 
   return (
-    <>
-      <NavLink
-        ref={linkRef}
-        to={path}
-        end={end ?? path === '/'}
-        className={({ isActive }) => navLinkClass(collapsed, isActive)}
-        aria-label={collapsed ? label : undefined}
-        onMouseEnter={showTip}
-        onMouseLeave={hideTip}
-        onFocus={showTip}
-        onBlur={hideTip}
-        onClick={(e) => {
-          e.stopPropagation()
-          hideTip()
-          onNavigate()
-        }}
-      >
-        <span className="pd-sidebar-nav__icon">
-          <Icon size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />
-        </span>
-        <span className="pd-sidebar-nav__label">{label}</span>
-      </NavLink>
-      {tipPos &&
-        collapsed &&
-        createPortal(
-          <div
-            className="pd-sidebar-nav__tip"
-            style={{ top: tipPos.top, left: tipPos.left }}
-            role="tooltip"
-          >
-            {label}
-          </div>,
-          document.body,
-        )}
-    </>
+    <Tooltip content={label} side="right" className="pd-sidebar-nav__tooltip">
+      {link}
+    </Tooltip>
   )
 }
 
@@ -125,7 +91,6 @@ export function Sidebar({
   const spaceIndex = name.indexOf(' ')
   const nameFirst = spaceIndex === -1 ? name : name.slice(0, spaceIndex)
   const nameRest = spaceIndex === -1 ? '' : name.slice(spaceIndex + 1)
-  const versionLabel = `v${APP_VERSION}`
 
   const clearHoverClose = () => {
     if (hoverCloseRef.current) {
@@ -154,12 +119,7 @@ export function Sidebar({
   const inner = (
     <>
       <div
-        className={[
-          'pd-sidebar-brand',
-          !isMobile && isManual && collapsed && 'pd-sidebar-brand--toggle-collapsed',
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className="pd-sidebar-brand"
         onClick={(e) => {
           e.stopPropagation()
           navigate('/')
@@ -200,26 +160,7 @@ export function Sidebar({
               closeMobile()
             }}
           >
-            <X size={14} strokeWidth={2.5} />
-          </button>
-        )}
-        {!isMobile && isManual && (
-          <button
-            type="button"
-            className="pd-sidebar-btn pd-sidebar-brand__toggle"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-expanded={!collapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            onClick={(e) => {
-              e.stopPropagation()
-              toggleExpanded()
-            }}
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={14} strokeWidth={2} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={14} strokeWidth={2} aria-hidden="true" />
-            )}
+            <X size={NAV_ICON_SIZE} strokeWidth={NAV_ICON_STROKE} />
           </button>
         )}
       </div>
@@ -237,13 +178,42 @@ export function Sidebar({
           ))}
         </nav>
 
-        <div
-          className={`pd-sidebar-version${collapsed ? ' pd-sidebar-version--collapsed' : ''}`}
-          title={collapsed ? undefined : versionLabel}
-          aria-hidden={collapsed}
-        >
-          {versionLabel}
-        </div>
+        {!isMobile && isManual && (
+          <div
+            className={[
+              'pd-sidebar-footer',
+              collapsed && 'pd-sidebar-footer--collapsed',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <button
+              type="button"
+              className="pd-sidebar-btn pd-sidebar-footer__toggle"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-expanded={!collapsed}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              onClick={(e) => {
+                e.stopPropagation()
+                toggleExpanded()
+              }}
+            >
+              {collapsed ? (
+                <PanelLeftOpen
+                  size={NAV_ICON_SIZE}
+                  strokeWidth={NAV_ICON_STROKE}
+                  aria-hidden="true"
+                />
+              ) : (
+                <PanelLeftClose
+                  size={NAV_ICON_SIZE}
+                  strokeWidth={NAV_ICON_STROKE}
+                  aria-hidden="true"
+                />
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </>
   )
@@ -267,7 +237,7 @@ export function Sidebar({
 
   return (
     <aside
-      className="pd-app-sidebar"
+      className={`pd-app-sidebar${collapsed ? ' pd-app-sidebar--collapsed' : ''}`}
       style={{
         width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED,
       }}
@@ -275,20 +245,20 @@ export function Sidebar({
         isManual
           ? undefined
           : () => {
-              clearHoverClose()
-              setHovered(true)
-            }
+            clearHoverClose()
+            setHovered(true)
+          }
       }
       onMouseLeave={
         isManual
           ? undefined
           : () => {
-              clearHoverClose()
-              hoverCloseRef.current = setTimeout(
-                () => setHovered(false),
-                HOVER_CLOSE_DELAY_MS,
-              )
-            }
+            clearHoverClose()
+            hoverCloseRef.current = setTimeout(
+              () => setHovered(false),
+              HOVER_CLOSE_DELAY_MS,
+            )
+          }
       }
     >
       <div className="pd-app-sidebar__inner">{inner}</div>

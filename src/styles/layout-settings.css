@@ -165,3 +165,12 @@
   font-size: 0.75rem;
   color: var(--color-text-muted, color-mix(in srgb, var(--color-text) 62%, transparent));
 }
+
+.pd-settings-version {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--color-text);
+  user-select: all;
+}

@@ -1,11 +1,4 @@
-import {
-  LayoutDashboard,
-  Users,
-  Target,
-  BarChart3,
-  Settings,
-  UserRound,
-} from 'lucide-react'
+import { Component, Home, LayoutDashboard, Settings, UserRound } from 'lucide-react'
 import type { AppLayoutConfig, NavItem } from '@/layout/types'
 
 export const profileNavItem: NavItem = {
@@ -23,14 +16,13 @@ export const settingsNavItem: NavItem = {
 export const layoutConfig: AppLayoutConfig = {
   brand: {
     name: 'People Performance',
-    icon: LayoutDashboard,
+    icon: Component,
     logoUrl: '/images/logo.png',
   },
   navItems: [
-    { path: '/', label: 'Overview', icon: LayoutDashboard, end: true },
-    { path: '/people', label: 'People', icon: Users },
-    { path: '/goals', label: 'Goals', icon: Target },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/', label: 'Home', icon: Home, end: true },
+    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/components', label: 'Components', icon: Component },
   ],
 }
 
