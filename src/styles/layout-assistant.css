@@ -1,0 +1,585 @@
+/* Clippy-style writing assistant */
+
+.pd-assistant {
+  position: fixed;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.65rem;
+  pointer-events: none;
+}
+
+.pd-assistant__trigger,
+.pd-assistant__panel {
+  pointer-events: auto;
+}
+
+/*
+ * Clip stage: during peek/walk-in the body can sit below/right of this
+ * window so only the eyes peep from the corner.
+ */
+.pd-assistant__stage {
+  position: relative;
+  width: 6.25rem;
+  height: 7.15rem;
+  overflow: hidden;
+  display: grid;
+  place-items: end;
+  pointer-events: none;
+}
+
+.pd-assistant--enter-done .pd-assistant__stage {
+  overflow: visible;
+  pointer-events: auto;
+}
+
+.pd-assistant__trigger {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--color-text-primary);
+  transform-origin: 50% 20%;
+  pointer-events: auto;
+}
+
+.pd-assistant__trigger:focus-visible {
+  outline: 0.125rem solid var(--color-theme);
+  outline-offset: 0.2rem;
+  border-radius: 50%;
+}
+
+.pd-assistant--entering .pd-assistant__trigger {
+  pointer-events: none;
+  cursor: default;
+}
+
+/* Hide ground shadow while only the head is peeping */
+.pd-assistant--enter-waiting .pd-assistant-char__shadow,
+.pd-assistant--enter-peek .pd-assistant-char__shadow {
+  opacity: 0;
+}
+
+/* Limb cycle only while Motion walks the body into place */
+.pd-assistant__trigger.is-walking .pd-assistant-char__body {
+  animation: pd-assistant-walk-bob 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__trigger.is-walking .pd-assistant-char__leg--left {
+  animation: pd-assistant-walk-left 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__trigger.is-walking .pd-assistant-char__leg--right {
+  animation: pd-assistant-walk-right 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__trigger.is-walking .pd-assistant-char__hand--left {
+  animation: pd-assistant-walk-arm-left 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__trigger.is-walking .pd-assistant-char__hand--right {
+  animation: pd-assistant-walk-arm-right 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__trigger.is-walking .pd-assistant-char__shadow {
+  animation: pd-assistant-walk-shadow 0.26s ease-in-out infinite;
+}
+
+.pd-assistant__panel {
+  width: min(19.5rem, calc(100vw - 2.5rem));
+  padding: 0.9rem 0.95rem 0.85rem;
+  border: 0.0625rem solid var(--color-divider);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-deep);
+  transform-origin: bottom right;
+}
+
+.pd-assistant__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.pd-assistant__eyebrow {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-theme);
+}
+
+.pd-assistant__title {
+  margin: 0 0 0.35rem;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+  line-height: 1.25;
+}
+
+.pd-assistant__body {
+  margin: 0 0 0.85rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-text-sec);
+}
+
+.pd-assistant__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pd-assistant__btn {
+  appearance: none;
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--color-theme);
+  color: var(--color-on-theme);
+  transition: filter 140ms ease, background 140ms ease;
+}
+
+.pd-assistant__btn:hover {
+  filter: brightness(1.05);
+}
+
+.pd-assistant__btn:focus-visible {
+  outline: 0.125rem solid var(--color-theme);
+  outline-offset: 0.125rem;
+}
+
+.pd-assistant__btn--quiet {
+  background: transparent;
+  color: var(--color-text-sec);
+}
+
+.pd-assistant__btn--quiet:hover {
+  filter: none;
+  background: var(--color-neutral-hover);
+  color: var(--color-text-primary);
+}
+
+.pd-assistant__icon-btn {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.pd-assistant__icon-btn:hover {
+  background: var(--color-neutral-hover);
+  color: var(--color-text-primary);
+}
+
+.pd-assistant__icon-btn:focus-visible {
+  outline: 0.125rem solid var(--color-theme);
+  outline-offset: 0.1rem;
+}
+
+/* Character paints — brand hue only; contrast clamped for every theme/mode */
+.pd-assistant-char {
+  display: block;
+  width: 5.25rem;
+  height: 6.1rem;
+  overflow: visible;
+
+  /*
+   * Clamp lightness only — keep the seed’s real chroma/hue.
+   * Pale seeds become a readable mid-tone; neon seeds get toned down.
+   */
+  --pd-pip-chrome: oklch(from var(--color-theme) clamp(0.38, l, 0.58) c h);
+  --pd-pip-chrome-deep: oklch(from var(--pd-pip-chrome) clamp(0.28, calc(l - 0.1), 0.48) c h);
+  --pd-pip-chrome-lit: oklch(from var(--pd-pip-chrome) clamp(0.46, calc(l + 0.1), 0.66) c h);
+
+  /* Fixed compass face — always a light dial object */
+  --pd-pip-dial: #f3f5f7;
+  --pd-pip-dial-edge: #d9dee5;
+  --pd-pip-dial-ring: color-mix(in srgb, var(--pd-pip-chrome) 22%, #c5ccd6);
+  --pd-pip-tick: color-mix(in srgb, var(--pd-pip-chrome-deep) 45%, #6b7280);
+  --pd-pip-needle-s: #7b8494;
+
+  /* Fixed face ink — never follows --color-text-primary (light in .dark) */
+  --pd-pip-ink: #141820;
+  --pd-pip-eye: #ffffff;
+  --pd-pip-shadow: rgb(0 0 0 / 0.18);
+  --pd-pip-outline: rgb(0 0 0 / 0.08);
+}
+
+.dark .pd-assistant-char {
+  /* Brighter chrome so brand colors still separate from the dark canvas */
+  --pd-pip-chrome: oklch(from var(--color-theme) clamp(0.58, l, 0.74) c h);
+  --pd-pip-chrome-deep: oklch(from var(--pd-pip-chrome) clamp(0.42, calc(l - 0.12), 0.6) c h);
+  --pd-pip-chrome-lit: oklch(from var(--pd-pip-chrome) clamp(0.66, calc(l + 0.08), 0.8) c h);
+  --pd-pip-dial: #eef1f4;
+  --pd-pip-dial-edge: #d2d7df;
+  --pd-pip-shadow: rgb(0 0 0 / 0.4);
+  --pd-pip-outline: rgb(255 255 255 / 0.22);
+}
+
+/* Character motion */
+
+.pd-assistant-char__body {
+  transform-origin: 48px 96px;
+  animation: pd-assistant-bob 3.2s ease-in-out infinite;
+}
+
+.pd-assistant-char__shadow {
+  transform-origin: 48px 104px;
+  animation: pd-assistant-shadow 3.2s ease-in-out infinite;
+}
+
+.pd-assistant-char__eyes {
+  transform-origin: 48px 27px;
+  animation: pd-assistant-blink 5.5s steps(1, end) infinite;
+}
+
+.pd-assistant-char__needle {
+  transform-origin: 48px 60px;
+  animation: pd-assistant-needle 4.8s ease-in-out infinite;
+}
+
+.pd-assistant-char__hand--left {
+  transform-origin: 24.5px 58px;
+  animation: pd-assistant-wave-left 3.4s ease-in-out infinite;
+}
+
+.pd-assistant-char__hand--right {
+  transform-origin: 71.5px 58px;
+  animation: pd-assistant-wave-right 3.4s ease-in-out infinite;
+  animation-delay: 0.35s;
+}
+
+.pd-assistant-char__leg--left {
+  transform-origin: 39px 86px;
+  animation: pd-assistant-step-left 3.2s ease-in-out infinite;
+}
+
+.pd-assistant-char__leg--right {
+  transform-origin: 57px 86px;
+  animation: pd-assistant-step-right 3.2s ease-in-out infinite;
+}
+
+.pd-assistant-char--think .pd-assistant-char__body {
+  animation: pd-assistant-tilt 1.8s ease-in-out infinite;
+}
+
+.pd-assistant-char--think .pd-assistant-char__eyes {
+  animation: none;
+}
+
+.pd-assistant-char--think .pd-assistant-char__needle {
+  animation: pd-assistant-needle-think 1.4s ease-in-out infinite;
+}
+
+.pd-assistant-char--tip .pd-assistant-char__body {
+  animation: pd-assistant-lean 2.4s ease-in-out infinite;
+}
+
+.pd-assistant-char--tip .pd-assistant-char__brow--left {
+  transform: translateY(-1.5px);
+  transform-origin: 37.8px 17px;
+}
+
+.pd-assistant-char--tip .pd-assistant-char__brow--right {
+  transform: translateY(-1.5px);
+  transform-origin: 58.2px 17px;
+}
+
+.pd-assistant-char--tip .pd-assistant-char__hand--right {
+  animation: pd-assistant-point 1.1s ease-in-out infinite;
+}
+
+.pd-assistant-char--celebrate .pd-assistant-char__body {
+  animation: pd-assistant-hop 420ms cubic-bezier(0.2, 0.9, 0.25, 1.25) 1;
+}
+
+.pd-assistant-char--celebrate .pd-assistant-char__mouth {
+  d: path('M43.4 40.4c1.5 2.5 3.1 3.6 4.6 3.6s3.1-1.1 4.6-3.6');
+}
+
+.pd-assistant-char--celebrate .pd-assistant-char__hand--left,
+.pd-assistant-char--celebrate .pd-assistant-char__hand--right {
+  animation: pd-assistant-cheer 420ms ease-out 1;
+}
+
+@keyframes pd-assistant-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes pd-assistant-shadow {
+  0%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.12;
+  }
+  50% {
+    transform: scaleX(0.86);
+    opacity: 0.08;
+  }
+}
+
+@keyframes pd-assistant-blink {
+  0%,
+  42%,
+  46%,
+  100% {
+    transform: scaleY(1);
+  }
+  44% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes pd-assistant-tilt {
+  0%,
+  100% {
+    transform: rotate(-4deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-7deg) translateY(-2px);
+  }
+}
+
+@keyframes pd-assistant-lean {
+  0%,
+  100% {
+    transform: rotate(3deg) translateY(0);
+  }
+  50% {
+    transform: rotate(6deg) translateY(-2px);
+  }
+}
+
+@keyframes pd-assistant-hop {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(-10px) scale(1.04);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes pd-assistant-needle {
+  0%,
+  100% {
+    transform: rotate(-8deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes pd-assistant-needle-think {
+  0%,
+  100% {
+    transform: rotate(-18deg);
+  }
+  50% {
+    transform: rotate(22deg);
+  }
+}
+
+@keyframes pd-assistant-wave-left {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+}
+
+@keyframes pd-assistant-wave-right {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+}
+
+@keyframes pd-assistant-step-left {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(-4deg);
+  }
+}
+
+@keyframes pd-assistant-step-right {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  50% {
+    transform: rotate(4deg);
+  }
+}
+
+@keyframes pd-assistant-point {
+  0%,
+  100% {
+    transform: rotate(8deg) translateY(0);
+  }
+  50% {
+    transform: rotate(18deg) translateY(-2px);
+  }
+}
+
+@keyframes pd-assistant-cheer {
+  0% {
+    transform: rotate(0deg);
+  }
+  40% {
+    transform: rotate(-28deg) translateY(-4px);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes pd-assistant-walk-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes pd-assistant-walk-left {
+  0%,
+  100% {
+    transform: rotate(14deg);
+  }
+  50% {
+    transform: rotate(-16deg);
+  }
+}
+
+@keyframes pd-assistant-walk-right {
+  0%,
+  100% {
+    transform: rotate(-14deg);
+  }
+  50% {
+    transform: rotate(16deg);
+  }
+}
+
+@keyframes pd-assistant-walk-arm-left {
+  0%,
+  100% {
+    transform: rotate(-12deg);
+  }
+  50% {
+    transform: rotate(14deg);
+  }
+}
+
+@keyframes pd-assistant-walk-arm-right {
+  0%,
+  100% {
+    transform: rotate(12deg);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+}
+
+@keyframes pd-assistant-walk-shadow {
+  0%,
+  100% {
+    transform: scaleX(0.92);
+    opacity: 0.1;
+  }
+  50% {
+    transform: scaleX(1);
+    opacity: 0.16;
+  }
+}
+
+@media (max-width: 640px) {
+  .pd-assistant {
+    right: 0.75rem;
+    bottom: 0.75rem;
+  }
+
+  .pd-assistant__stage {
+    width: 5.5rem;
+    height: 6.25rem;
+  }
+
+  .pd-assistant-char {
+    width: 4.5rem;
+    height: 5.25rem;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-assistant__trigger,
+  .pd-assistant__panel,
+  .pd-assistant-char__body,
+  .pd-assistant-char__shadow,
+  .pd-assistant-char__eyes,
+  .pd-assistant-char__needle,
+  .pd-assistant-char__hand--left,
+  .pd-assistant-char__hand--right,
+  .pd-assistant-char__leg--left,
+  .pd-assistant-char__leg--right {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+html.pd-motion-paused .pd-assistant-char__body,
+html.pd-motion-paused .pd-assistant-char__shadow,
+html.pd-motion-paused .pd-assistant-char__eyes,
+html.pd-motion-paused .pd-assistant-char__needle,
+html.pd-motion-paused .pd-assistant-char__hand--left,
+html.pd-motion-paused .pd-assistant-char__hand--right,
+html.pd-motion-paused .pd-assistant-char__leg--left,
+html.pd-motion-paused .pd-assistant-char__leg--right {
+  animation-play-state: paused;
+}

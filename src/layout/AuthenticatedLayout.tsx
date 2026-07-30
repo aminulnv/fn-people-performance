@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth'
 import { layoutConfig } from '@/config/layout'
 import { queryClient } from '@/lib/queryClient'
 import '@/styles/layout-shell.css'
+import '@/styles/layout-assistant.css'
 
 /* Shell-only font weights — login already has Inter 400/500 + PJ 800 */
 import '@fontsource/inter/latin-600.css'

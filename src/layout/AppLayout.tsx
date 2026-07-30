@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
+import { WritingAssistant } from '@/components/assistant/WritingAssistant'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { useBreakpoint } from './useBreakpoint'
@@ -108,6 +109,7 @@ export function AppLayout({
           </div>
         </div>
       </div>
+      <WritingAssistant />
     </div>
   )
 }

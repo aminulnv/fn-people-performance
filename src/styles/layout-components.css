@@ -100,7 +100,7 @@
 .pd-library-toast {
   pointer-events: auto;
   animation: pd-library-toast-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
-  filter: drop-shadow(0 8px 20px color-mix(in srgb, black 22%, transparent));
+  filter: var(--shadow-filter);
 }
 
 @keyframes pd-library-toast-in {
