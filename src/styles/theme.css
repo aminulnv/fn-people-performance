@@ -82,21 +82,30 @@
       color-mix(in srgb, var(--color-theme) 22%, #020814) 0%,
       color-mix(in srgb, var(--color-theme) 8%, #02040a) 100%);
 
+  /*
+   * Shell glow inks — separate from UI mid/bright (those flip in .dark
+   * for chips/avatars and would collapse the haze to smoke).
+   */
+  --app-shell-glow-core: var(--color-theme);
+  --app-shell-glow-soft: color-mix(in srgb, var(--color-theme) 70%, white);
+  --app-shell-glow-highlight: color-mix(in srgb, var(--color-theme) 75%, white);
+  --app-shell-glow-depth: var(--color-theme-darker);
+
   /* Theme-shade glow blobs — painted on a 150% overlay (see layout-shell.css)
      so the drift animation never reveals hard edges. Positions keep the
      blobs over the top-left chrome for the whole loop. */
   --app-shell-glow:
     radial-gradient(ellipse 35% 40% at 21% 18%,
-      color-mix(in srgb, var(--color-theme) 40%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-core) 40%, transparent) 0%,
       transparent 48%),
     radial-gradient(ellipse 27% 32% at 31% 13%,
-      color-mix(in srgb, var(--color-theme-mid) 24%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-soft) 24%, transparent) 0%,
       transparent 46%),
     radial-gradient(ellipse 29% 27% at 15% 29%,
-      color-mix(in srgb, var(--color-theme-bright) 16%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-highlight) 16%, transparent) 0%,
       transparent 44%),
     radial-gradient(ellipse 24% 35% at 26% 26%,
-      color-mix(in srgb, var(--color-theme-darker) 32%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-depth) 32%, transparent) 0%,
       transparent 44%);
 }
 
@@ -108,9 +117,9 @@
 .dark {
   color-scheme: dark;
 
-  /* Soft fills: mix into dark canvas (stronger than light so chips still read) */
-  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 28%, #2a322f);
-  --color-theme-mid: color-mix(in srgb, var(--color-theme) 42%, #353d3a);
+  /* Soft fills: mix into cool canvas (stronger than light so chips still read) */
+  --color-theme-subtle: color-mix(in srgb, var(--color-theme) 28%, #1e2429);
+  --color-theme-mid: color-mix(in srgb, var(--color-theme) 42%, #2a3138);
   --color-theme-bright: color-mix(in srgb, var(--color-theme) 62%, white);
   /*
    * Soft brand UI (avatars): light ink on dark tint.
@@ -119,28 +128,48 @@
   --color-brand: var(--color-theme-bright);
   --color-brand-light: var(--color-theme-subtle);
 
-  --color-text-primary: #f2f4f3;
-  --color-text-sec: #a8b0ad;
-  --color-text-muted: #7d8783;
+  --color-text-primary: #f1f3f5;
+  --color-text-sec: #9aa3ab;
+  --color-text-muted: #6f7880;
 
-  --color-blue-light: color-mix(in srgb, var(--color-blue) 22%, #2a322f);
-  --color-amber-light: color-mix(in srgb, var(--color-amber) 22%, #2a322f);
-  --color-red-light: color-mix(in srgb, var(--color-red) 22%, #2a322f);
+  --color-blue-light: color-mix(in srgb, var(--color-blue) 22%, #1e2429);
+  --color-amber-light: color-mix(in srgb, var(--color-amber) 22%, #1e2429);
+  --color-red-light: color-mix(in srgb, var(--color-red) 22%, #1e2429);
   --color-status-completed-surface: color-mix(in srgb,
       var(--color-status-completed) 22%,
-      #2a322f);
+      #1e2429);
   --color-status-on-hold-surface: color-mix(in srgb,
       var(--color-status-on-hold) 18%,
-      #2a322f);
+      #1e2429);
   --color-status-in-progress-surface: var(--color-blue-light);
   --color-status-pending-surface: var(--color-amber-light);
 
-  /* Canvas ladder — former card tone as body; cards lift above it */
-  --color-cream: #222826;
-  --color-surface: #2a322f;
-  --color-surface-raised: #353d3a;
+  /* Cool slate ladder — sits with violet chrome; cards lift above body */
+  --color-cream: #181c20;
+  --color-surface: #1e2429;
+  --color-surface-raised: #2a3138;
   --color-cream-card: var(--color-theme-subtle);
-  --color-divider: #454e4a;
-  --color-muted-bg: color-mix(in srgb, var(--color-theme) 10%, #353d3a);
-  --color-neutral-hover: #454e4a;
+  --color-divider: #3a424a;
+  --color-muted-bg: color-mix(in srgb, var(--color-theme) 10%, #2a3138);
+  --color-neutral-hover: #3a424a;
+
+  /*
+   * Dark glow boost — more theme chroma (not white tint) + larger soft
+   * falloff so the haze still reads against the deeper canvas.
+   */
+  --app-shell-glow-soft: color-mix(in srgb, var(--color-theme) 88%, white);
+  --app-shell-glow-highlight: color-mix(in srgb, var(--color-theme) 92%, white);
+  --app-shell-glow:
+    radial-gradient(ellipse 40% 46% at 21% 18%,
+      color-mix(in srgb, var(--app-shell-glow-core) 68%, transparent) 0%,
+      transparent 54%),
+    radial-gradient(ellipse 32% 38% at 31% 13%,
+      color-mix(in srgb, var(--app-shell-glow-soft) 34%, transparent) 0%,
+      transparent 52%),
+    radial-gradient(ellipse 34% 32% at 15% 29%,
+      color-mix(in srgb, var(--app-shell-glow-highlight) 18%, transparent) 0%,
+      transparent 50%),
+    radial-gradient(ellipse 28% 40% at 26% 26%,
+      color-mix(in srgb, var(--app-shell-glow-depth) 48%, transparent) 0%,
+      transparent 50%);
 }

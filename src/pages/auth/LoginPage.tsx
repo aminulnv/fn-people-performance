@@ -62,11 +62,11 @@ export default function LoginPage() {
   return (
     <div className="pd-login">
       <img
-        src="/images/fundednext-logo-white.avif"
+        src="/images/FN%20Logo.svg"
         alt="FundedNext"
         className="pd-login__corner-logo"
-        width={140}
-        height={16}
+        width={86}
+        height={44}
         decoding="async"
       />
 

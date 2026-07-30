@@ -19,6 +19,7 @@ export function ProfileDropdown({
 }) {
   const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
     isMobile,
+    closeOnEscape: true,
   })
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const initials = nameInitials(userName)
@@ -40,7 +41,7 @@ export function ProfileDropdown({
     >
       <button
         type="button"
-        onClick={isMobile ? toggle : undefined}
+        onClick={toggle}
         className="pd-topbar__profile-avatar pd-topbar__profile-avatar--btn"
         aria-label="Profile menu"
         aria-expanded={open}

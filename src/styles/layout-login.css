@@ -31,12 +31,25 @@
       color-mix(in srgb, #05050a 40%, transparent) 100%),
     image-set(
       url('/images/login-f1-bg.avif') type('image/avif'),
-      url('/images/login-f1-bg.webp') type('image/webp'),
       url('/images/login-f1-bg.jpg') type('image/jpeg')
     );
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.pd-login__corner-logo {
+  position: absolute;
+  inset-block-start: 1.5rem;
+  /* Match card: centered below 48rem, top-left on desktop */
+  inset-inline-start: 50%;
+  translate: -50% 0;
+  z-index: 2;
+  height: 1.75rem;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.92;
+  animation: pd-login-fade-in 0.45s ease both;
 }
 
 /* Desktop: card right over the dark half; car lit on the left */
@@ -46,18 +59,11 @@
     padding-inline: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 6vw, 5.5rem);
     background-position: center;
   }
-}
 
-.pd-login__corner-logo {
-  position: absolute;
-  inset-block-start: 1.5rem;
-  inset-inline-start: 1.5rem;
-  z-index: 2;
-  height: 1rem;
-  width: auto;
-  object-fit: contain;
-  opacity: 0.92;
-  animation: pd-login-fade-in 0.45s ease both;
+  .pd-login__corner-logo {
+    inset-inline-start: 1.5rem;
+    translate: none;
+  }
 }
 
 .pd-login__card {

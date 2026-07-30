@@ -11,7 +11,7 @@ type UseHoverMenuOptions = {
 
 /**
  * Shared open/close behavior for top-bar hover menus (profile, notifications).
- * Desktop: open on hover, close after a short leave delay / outside click.
+ * Desktop: open on hover; click pins open until click-outside / Escape / second click.
  * Mobile: click-to-toggle; no hover handlers.
  */
 export function useHoverMenu({
@@ -19,7 +19,8 @@ export function useHoverMenu({
   closeDelayMs = DEFAULT_CLOSE_DELAY_MS,
   closeOnEscape = false,
 }: UseHoverMenuOptions = {}) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpenState] = useState(false)
+  const [pinned, setPinned] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -29,6 +30,15 @@ export function useHoverMenu({
       closeTimeoutRef.current = null
     }
   }, [])
+
+  const setOpen = useCallback(
+    (value: boolean) => {
+      clearCloseTimeout()
+      if (!value) setPinned(false)
+      setOpenState(value)
+    },
+    [clearCloseTimeout],
+  )
 
   useEffect(() => () => clearCloseTimeout(), [clearCloseTimeout])
 
@@ -46,7 +56,7 @@ export function useHoverMenu({
 
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [open, isMobile])
+  }, [open, isMobile, setOpen])
 
   useEffect(() => {
     if (!open || !closeOnEscape) return
@@ -56,27 +66,35 @@ export function useHoverMenu({
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [open, closeOnEscape])
+  }, [open, closeOnEscape, setOpen])
 
   const hoverHandlers = isMobile
     ? undefined
     : {
         onMouseEnter: () => {
           clearCloseTimeout()
-          setOpen(true)
+          setOpenState(true)
         },
         onMouseLeave: () => {
+          if (pinned) return
           clearCloseTimeout()
           closeTimeoutRef.current = setTimeout(
-            () => setOpen(false),
+            () => setOpenState(false),
             closeDelayMs,
           )
         },
       }
 
   const toggle = useCallback(() => {
-    setOpen((value) => !value)
-  }, [])
+    clearCloseTimeout()
+    if (pinned) {
+      setPinned(false)
+      setOpenState(false)
+      return
+    }
+    setPinned(true)
+    setOpenState(true)
+  }, [clearCloseTimeout, pinned])
 
   return { open, setOpen, containerRef, hoverHandlers, toggle }
 }

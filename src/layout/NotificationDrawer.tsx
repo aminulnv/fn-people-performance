@@ -26,7 +26,6 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
   const { data: items = [], isPending, isError, refetch } = useQuery({
     queryKey: queryKeys.notifications,
     queryFn: fetchNotifications,
-    enabled: open,
   })
   const unreadCount = items.filter((item) => item.unread).length
 
@@ -59,7 +58,7 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
       <button
         type="button"
         className="pd-topbar__icon-btn pd-topbar__notif-btn"
-        onClick={isMobile ? toggle : undefined}
+        onClick={toggle}
         aria-label={
           unreadCount > 0
             ? `Notifications, ${unreadCount} unread`

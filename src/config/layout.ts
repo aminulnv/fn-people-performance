@@ -1,10 +1,21 @@
-import { Component, Home, LayoutDashboard, Settings, UserRound } from 'lucide-react'
+import {
+  BarChart3,
+  Component,
+  Home,
+  IdCard,
+  Landmark,
+  MessageCircle,
+  Settings,
+  Star,
+  Target,
+  Users,
+} from 'lucide-react'
 import type { AppLayoutConfig, NavItem } from '@/layout/types'
 
 export const profileNavItem: NavItem = {
   path: '/profile',
-  label: 'My Profile',
-  icon: UserRound,
+  label: 'My profile',
+  icon: IdCard,
 }
 
 export const settingsNavItem: NavItem = {
@@ -17,18 +28,22 @@ export const layoutConfig: AppLayoutConfig = {
   brand: {
     name: 'People Performance',
     icon: Component,
-    logoUrl: '/images/logo.png',
+    logoUrl: '/images/logo.svg',
   },
   navItems: [
     { path: '/', label: 'Home', icon: Home, end: true },
-    { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/components', label: 'Components', icon: Component },
+    profileNavItem,
+    { path: '/people', label: 'People', icon: Users },
+    { path: '/organisation', label: 'Organisation', icon: Landmark },
+    { path: '/goals', label: 'Goals', icon: Target },
+    { path: '/reviews', label: 'Reviews', icon: Star },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/engagement', label: 'Engagement', icon: MessageCircle },
   ],
 }
 
 /** Pages available in global search (nav + account pages for now). */
 export const searchablePages: NavItem[] = [
   ...layoutConfig.navItems,
-  profileNavItem,
   settingsNavItem,
 ]
