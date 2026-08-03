@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react'
 import type { AppLayoutConfig, NavItem } from '@/layout/types'
+import { publicUrl } from '@/lib/publicUrl'
 
 export const profileNavItem: NavItem = {
   path: '/profile',
@@ -28,7 +29,7 @@ export const layoutConfig: AppLayoutConfig = {
   brand: {
     name: 'People Performance',
     icon: Component,
-    logoUrl: '/images/logo.svg',
+    logoUrl: publicUrl('images/logo.svg'),
   },
   navItems: [
     { path: '/', label: 'Home', icon: Home, end: true },

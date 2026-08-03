@@ -20,9 +20,12 @@ function CatchAllRedirect() {
   )
 }
 
+/** Matches Vite `base` (`/` locally, `/platform/` in production builds). */
+const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
+
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={routerBasename}>
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />

@@ -1,0 +1,46 @@
+---
+description: Shared EC2/RDS hosting with NEXT-Performance dashboard; /platform deploy and DB rules
+alwaysApply: true
+---
+
+# Platform hosting (shared infra)
+
+This app is **not** a separate cloud project. It coexists with the HR dashboard.
+
+| Piece | Value |
+|-------|--------|
+| Domain | `https://performance.nextventures.io` |
+| This UI | `https://performance.nextventures.io/platform/` |
+| Dashboard | `https://performance.nextventures.io/` (separate repo: NEXT-Performance) |
+| Host | Same EC2; nginx routes `/platform` → `/var/www/platform`, `/` + `/api` → dashboard Express |
+| Database | Same RDS (`performance_monitoring`). No new DB/EC2/domain unless explicitly requested |
+
+## Deploy (this repo only)
+
+```bash
+cp .env.deploy.example .env.deploy   # once
+npm run deploy:ec2                   # build + rsync to /var/www/platform
+```
+
+- Needs `PERF_EC2_HOST` + `PERF_EC2_PEM` in `.env.deploy` (gitignored).
+- Does **not** redeploy the dashboard or require `DB_*` for the SPA.
+- Vite production `base` is `/platform/`; React Router uses `import.meta.env.BASE_URL`.
+
+## Frontend env
+
+- `VITE_API_BASE_URL` empty = same-origin `/api` (correct for production).
+- Never put `DB_*`, RDS passwords, PEM contents, or encryption keys in `VITE_*` or committed files.
+
+## Database (when adding tables)
+
+1. Use Postgres schema **`platform`** — do not collide with dashboard tables (`dashboard_users`, `employees`, `performance_*`, `goals_*`, etc.).
+2. Additive migrations only under `db/migrations/`; never drop/alter dashboard tables.
+3. Run migrations from EC2 (RDS is VPC-private), same pattern as the dashboard.
+4. Prefer API routes on the existing Express (`/api/platform/...`) until this repo grows its own server; server `.env` holds `DB_*`, not the Vite app.
+5. Keep dashboard Revolut-backed and usable; cut over later with a data-source flag if needed.
+
+## Do not
+
+- Ask tech for a new domain/EC2/RDS for this work
+- Submodule or merge the dashboard repo by default
+- Tunnel or depend on the Vercel deploy for production `/platform`

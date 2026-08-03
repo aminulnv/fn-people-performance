@@ -9,7 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 const pkg = require('./package.json') as { version: string }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
+  // Production (EC2): https://performance.nextventures.io/platform/
+  // Local `vite`/`vite preview` stay at `/` unless VITE_BASE_PATH is set.
+  base:
+    process.env.VITE_BASE_PATH ??
+    (command === 'build' ? '/platform/' : '/'),
   plugins: [
     react(),
     {
@@ -54,4 +59,4 @@ export default defineConfig({
     port: 8001,
     strictPort: true,
   },
-})
+}))

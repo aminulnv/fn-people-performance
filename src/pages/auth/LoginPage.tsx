@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { layoutConfig } from '@/config/layout'
 import { useAuth } from '@/lib/auth'
+import { publicUrl } from '@/lib/publicUrl'
 import '@/styles/layout-login.css'
 
 function GoogleMark() {
@@ -42,7 +43,7 @@ export default function LoginPage() {
     const link = document.createElement('link')
     link.rel = 'preload'
     link.as = 'image'
-    link.href = '/images/login-f1-bg.avif'
+    link.href = publicUrl('images/login-f1-bg.avif')
     link.type = 'image/avif'
     document.head.appendChild(link)
     return () => {
@@ -62,7 +63,7 @@ export default function LoginPage() {
   return (
     <div className="pd-login">
       <img
-        src="/images/FN%20Logo.svg"
+        src={publicUrl('images/FN Logo.svg')}
         alt="FundedNext"
         className="pd-login__corner-logo"
         width={86}
