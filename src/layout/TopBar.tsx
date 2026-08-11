@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Menu } from 'lucide-react'
 import { TopBarSearch } from './TopBarSearch'
 import { NotificationDrawer } from './NotificationDrawer'
@@ -7,8 +8,7 @@ import { ProfileDropdown } from './ProfileDropdown'
 interface TopBarProps {
   title: string
   titleIcon?: LucideIcon
-  userName?: string
-  profileSubtext?: string
+  titleAccessory?: ReactNode
   onSignOut?: () => void
   onMobileMenuOpen: () => void
   isMobile?: boolean
@@ -17,8 +17,7 @@ interface TopBarProps {
 export function TopBar({
   title,
   titleIcon: TitleIcon,
-  userName,
-  profileSubtext,
+  titleAccessory,
   onSignOut,
   onMobileMenuOpen,
   isMobile = false,
@@ -27,12 +26,23 @@ export function TopBar({
     <div className="pd-topbar__actions">
       <TopBarSearch />
       <NotificationDrawer isMobile={isMobile} />
-      <ProfileDropdown
-        userName={userName}
-        profileSubtext={profileSubtext}
-        onSignOut={onSignOut}
-        isMobile={isMobile}
-      />
+      <ProfileDropdown onSignOut={onSignOut} isMobile={isMobile} />
+    </div>
+  )
+
+  const heading = (
+    <div className="pd-topbar__heading">
+      <span className="pd-topbar__title">
+        {TitleIcon && (
+          <TitleIcon
+            size={18}
+            strokeWidth={1.75}
+            className="pd-topbar__title-icon"
+          />
+        )}
+        <span className="pd-topbar__title-text">{title}</span>
+      </span>
+      {titleAccessory}
     </div>
   )
 
@@ -48,16 +58,7 @@ export function TopBar({
           >
             <Menu size={16} strokeWidth={2} />
           </button>
-          <span className="pd-topbar__title">
-            {TitleIcon && (
-              <TitleIcon
-                size={18}
-                strokeWidth={1.75}
-                className="pd-topbar__title-icon"
-              />
-            )}
-            <span className="pd-topbar__title-text">{title}</span>
-          </span>
+          {heading}
           {actions}
         </div>
       </header>
@@ -66,16 +67,7 @@ export function TopBar({
 
   return (
     <header className="pd-topbar pd-topbar--desktop">
-      <div className="pd-topbar__title">
-        {TitleIcon && (
-          <TitleIcon
-            size={18}
-            strokeWidth={1.75}
-            className="pd-topbar__title-icon"
-          />
-        )}
-        <span className="pd-topbar__title-text">{title}</span>
-      </div>
+      {heading}
       <div style={{ flex: 1 }} />
       {actions}
     </header>

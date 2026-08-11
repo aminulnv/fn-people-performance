@@ -28,12 +28,7 @@ export default function AuthenticatedLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <AppLayout
-        {...layoutConfig}
-        userName={user.name}
-        profileSubtext={user.email}
-        onSignOut={handleSignOut}
-      />
+      <AppLayout {...layoutConfig} onSignOut={handleSignOut} />
     </QueryClientProvider>
   )
 }

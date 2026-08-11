@@ -8,6 +8,7 @@ export type AuthContextValue = {
   user: AuthUser | null
   session: AuthSession | null
   signInWithGoogle: () => Promise<void>
+  signInWithDemoAccount: (email: string) => Promise<void>
   signOut: () => Promise<void>
 }
 

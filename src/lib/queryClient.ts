@@ -12,4 +12,5 @@ export const queryClient = new QueryClient({
 
 export const queryKeys = {
   notifications: ['notifications'] as const,
+  goals: ['goals'] as const,
 }

@@ -5,7 +5,7 @@ import {
   getAccessToken,
   isSignedIn,
   readSession,
-  signInWithGoogle,
+  signInWithDemoAccount,
   signOut,
   writeSession,
 } from '@/lib/authApi'
@@ -42,15 +42,24 @@ describe('authApi session', () => {
     expect(readSession()).toBeNull()
   })
 
-  it('persists a Google demo session', async () => {
-    const session = await signInWithGoogle()
-    expect(session.user).toEqual(DEMO_USER)
+  it('persists a demo account session', async () => {
+    const session = await signInWithDemoAccount('manager@demo.com')
+    expect(session.user.email).toBe('manager@demo.com')
+    expect(session.user.role).toBe('manager')
+    expect(session.user.personId).toBe('manager')
     expect(isSignedIn()).toBe(true)
-    expect(readSession()?.user.email).toBe(DEMO_USER.email)
+    expect(readSession()?.user.email).toBe('manager@demo.com')
+  })
+
+  it('rejects unknown demo accounts', async () => {
+    await expect(signInWithDemoAccount('nobody@demo.com')).rejects.toThrow(
+      /unknown demo account/i,
+    )
+    expect(isSignedIn()).toBe(false)
   })
 
   it('clears session on sign out', async () => {
-    await signInWithGoogle()
+    await signInWithDemoAccount('employee@demo.com')
     await signOut()
     expect(isSignedIn()).toBe(false)
     expect(readSession()).toBeNull()

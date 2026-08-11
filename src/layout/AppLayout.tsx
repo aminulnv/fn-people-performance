@@ -5,14 +5,13 @@ import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { WritingAssistant } from '@/components/assistant/WritingAssistant'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { TopBarCycleSelect } from './TopBarCycleSelect'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
 
 interface AppLayoutProps extends AppLayoutConfig {
-  profileSubtext?: string
   onSignOut?: () => void
-  userName?: string
 }
 
 function matchNavItem(
@@ -32,9 +31,7 @@ function matchNavItem(
 export function AppLayout({
   navItems,
   brand,
-  profileSubtext,
   onSignOut,
-  userName,
 }: AppLayoutProps) {
   const { pathname } = useLocation()
   const { isMobile } = useBreakpoint()
@@ -93,8 +90,11 @@ export function AppLayout({
             <TopBar
               title={currentNavItem?.label ?? 'App'}
               titleIcon={currentNavItem?.icon}
-              userName={userName}
-              profileSubtext={profileSubtext}
+              titleAccessory={
+                pathname === '/goals' || pathname.startsWith('/goals/') ? (
+                  <TopBarCycleSelect isMobile={isMobile} />
+                ) : null
+              }
               onSignOut={onSignOut}
               onMobileMenuOpen={() => setIsMobileOpen(true)}
               isMobile={isMobile}

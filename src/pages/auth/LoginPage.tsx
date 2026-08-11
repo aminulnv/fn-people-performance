@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { layoutConfig } from '@/config/layout'
 import { useAuth } from '@/lib/auth'
+import { DEMO_ACCOUNTS } from '@/lib/demoAccounts'
 import { publicUrl } from '@/lib/publicUrl'
 import '@/styles/layout-login.css'
 
@@ -36,7 +37,9 @@ function GoogleMark() {
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { status, signInWithGoogle } = useAuth()
+  const { status, signInWithGoogle, signInWithDemoAccount } = useAuth()
+  const [busy, setBusy] = useState<'google' | string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   // CSS backgrounds are invisible to the preload scanner — hint the AVIF early.
   useEffect(() => {
@@ -55,9 +58,30 @@ export default function LoginPage() {
     return <Navigate to="/" replace />
   }
 
+  const finishSignIn = () => navigate('/', { replace: true })
+
   const handleGoogleSignIn = async () => {
-    await signInWithGoogle()
-    navigate('/', { replace: true })
+    setBusy('google')
+    setError(null)
+    try {
+      await signInWithGoogle()
+      finishSignIn()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed.')
+      setBusy(null)
+    }
+  }
+
+  const handleSelectAccount = async (email: string) => {
+    setBusy(email)
+    setError(null)
+    try {
+      await signInWithDemoAccount(email)
+      finishSignIn()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Sign-in failed.')
+      setBusy(null)
+    }
   }
 
   return (
@@ -95,12 +119,54 @@ export default function LoginPage() {
           <button
             type="button"
             className="pd-login__google"
-            onClick={handleGoogleSignIn}
+            disabled={busy !== null}
+            aria-busy={busy === 'google' || undefined}
+            onClick={() => void handleGoogleSignIn()}
           >
             <GoogleMark />
             Continue with Google
           </button>
 
+          <div className="pd-login__divider" role="separator">
+            <span>Or use a demo account</span>
+          </div>
+
+          <div className="pd-login__accounts" aria-label="Demo accounts">
+            {DEMO_ACCOUNTS.map((account) => {
+              const isBusy = busy === account.email
+              return (
+                <button
+                  key={account.email}
+                  type="button"
+                  className="pd-login__account"
+                  disabled={busy !== null}
+                  title={account.email}
+                  aria-label={`Sign in as ${account.roleLabel} (${account.email})`}
+                  aria-busy={isBusy || undefined}
+                  onClick={() => void handleSelectAccount(account.email)}
+                >
+                  <span
+                    className="pd-login__account-avatar"
+                    style={{
+                      background: `hsl(${account.avatarHue} 55% 42%)`,
+                    }}
+                    aria-hidden
+                  >
+                    {account.name
+                      .split(/\s+/)
+                      .map((part) => part[0])
+                      .join('')
+                      .slice(0, 2)}
+                  </span>
+                  <span className="pd-login__account-role">
+                    {account.roleLabel}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {error ? <p className="pd-login__error">{error}</p> : null}
           <p className="pd-login__hint">Authorized members only.</p>
         </div>
       </div>

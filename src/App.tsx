@@ -7,6 +7,7 @@ const ComponentsPage = lazy(() => import('@/pages/ComponentsPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const DummyPage = lazy(() => import('@/pages/DummyPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
+const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 
 function RouteFallback() {
@@ -34,7 +35,7 @@ function App() {
             <Route path="profile" element={<DummyPage title="My profile" />} />
             <Route path="people" element={<DummyPage title="People" />} />
             <Route path="organisation" element={<DummyPage title="Organisation" />} />
-            <Route path="goals" element={<DummyPage title="Goals" />} />
+            <Route path="goals" element={<GoalsPage />} />
             <Route path="reviews" element={<DummyPage title="Reviews" />} />
             <Route path="analytics" element={<DummyPage title="Analytics" />} />
             <Route path="engagement" element={<DummyPage title="Engagement" />} />

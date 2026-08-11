@@ -49,7 +49,7 @@ function renderRoutes(initialPath: string) {
 function expectAuthenticatedShell() {
   expect(document.querySelector('.pd-app-shell')).toBeTruthy()
   expect(
-    screen.queryByRole('button', { name: /continue with google/i }),
+    screen.queryByRole('button', { name: /sign in as employee/i }),
   ).not.toBeInTheDocument()
 }
 
@@ -59,7 +59,7 @@ describe('auth route guards', () => {
     renderRoutes('/')
 
     expect(
-      await screen.findByRole('button', { name: /continue with google/i }),
+      await screen.findByRole('button', { name: /sign in as employee/i }),
     ).toBeInTheDocument()
   })
 
@@ -68,7 +68,7 @@ describe('auth route guards', () => {
     renderRoutes('/login')
 
     expect(
-      await screen.findByRole('button', { name: /continue with google/i }),
+      await screen.findByRole('button', { name: /sign in as manager/i }),
     ).toBeInTheDocument()
   })
 
@@ -84,12 +84,12 @@ describe('auth route guards', () => {
     })
   })
 
-  it('signs in from the login button', async () => {
+  it('signs in from a demo account button', async () => {
     clearSession()
     renderRoutes('/login')
 
     fireEvent.click(
-      await screen.findByRole('button', { name: /continue with google/i }),
+      await screen.findByRole('button', { name: /sign in as employee/i }),
     )
 
     await waitFor(() => {

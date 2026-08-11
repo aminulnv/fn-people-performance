@@ -1,28 +1,39 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogOut, Settings, UserRound } from 'lucide-react'
+import { LogOut, Moon, Settings, Sun, UserRound } from 'lucide-react'
 import { SignOutConfirmModal } from '@/components/ConfirmModal'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
+import { applyAppearance } from '@/lib/brand'
+import { formatGoalRole } from '@/lib/demoAccounts'
+import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { nameInitials } from './utils'
 import { useHoverMenu } from './useHoverMenu'
 
+function readIsDark(): boolean {
+  if (typeof document === 'undefined') return false
+  return document.documentElement.classList.contains('dark')
+}
+
 export function ProfileDropdown({
-  userName,
-  profileSubtext,
   onSignOut,
   isMobile,
 }: {
-  userName?: string
-  profileSubtext?: string
   onSignOut?: () => void
   isMobile?: boolean
 }) {
+  const person = useCurrentPerson()
   const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
     isMobile,
     closeOnEscape: true,
   })
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
-  const initials = nameInitials(userName)
+  const [isDark, setIsDark] = useState(readIsDark)
+
+  const name = person?.name ?? 'Signed in'
+  const title = person?.title ?? ''
+  const roleLabel = person ? formatGoalRole(person.role) : ''
+  const initials = nameInitials(name)
+  const avatarHue = person?.avatarHue ?? 220
 
   const handleCloseConfirm = useCallback(() => {
     setShowSignOutConfirm(false)
@@ -32,6 +43,16 @@ export function ProfileDropdown({
     setShowSignOutConfirm(false)
     onSignOut?.()
   }, [onSignOut])
+
+  useEffect(() => {
+    if (open) setIsDark(readIsDark())
+  }, [open])
+
+  const handleToggleDarkMode = useCallback(() => {
+    const next = isDark ? 'light' : 'dark'
+    applyAppearance(next)
+    setIsDark(!isDark)
+  }, [isDark])
 
   return (
     <div
@@ -45,6 +66,7 @@ export function ProfileDropdown({
         className="pd-topbar__profile-avatar pd-topbar__profile-avatar--btn"
         aria-label="Profile menu"
         aria-expanded={open}
+        style={{ background: `hsl(${avatarHue} 55% 42%)` }}
       >
         {initials}
       </button>
@@ -55,20 +77,20 @@ export function ProfileDropdown({
           aria-label="Profile menu"
         >
           <div className="pd-topbar__dropdown-header">
-            <span className="pd-topbar__profile-avatar pd-topbar__profile-avatar--menu">
+            <span
+              className="pd-topbar__profile-avatar pd-topbar__profile-avatar--menu"
+              style={{ background: `hsl(${avatarHue} 55% 42%)` }}
+            >
               {initials}
             </span>
             <div className="pd-topbar__dropdown-header-text">
-              <div className="pd-topbar__dropdown-title">
-                {userName ?? 'User'}
+              <div className="pd-topbar__dropdown-title">{name}</div>
+              <div className="pd-topbar__dropdown-subtitle">
+                {[title, roleLabel].filter(Boolean).join(' · ')}
               </div>
-              {profileSubtext && (
-                <div className="pd-topbar__dropdown-subtitle">
-                  {profileSubtext}
-                </div>
-              )}
             </div>
           </div>
+
           <Link
             to={profileNavItem.path}
             className="pd-topbar__dropdown-item"
@@ -87,6 +109,20 @@ export function ProfileDropdown({
             <Settings size={14} strokeWidth={2} />
             {settingsNavItem.label}
           </Link>
+          <button
+            type="button"
+            className="pd-topbar__dropdown-item"
+            onClick={handleToggleDarkMode}
+            role="menuitemcheckbox"
+            aria-checked={isDark}
+          >
+            {isDark ? (
+              <Sun size={14} strokeWidth={2} aria-hidden />
+            ) : (
+              <Moon size={14} strokeWidth={2} aria-hidden />
+            )}
+            {isDark ? 'Light mode' : 'Dark mode'}
+          </button>
           <button
             type="button"
             className="pd-topbar__dropdown-item pd-topbar__dropdown-item--danger"

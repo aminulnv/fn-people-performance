@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Goal Management — Flowcharts</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <script type="module">
+    import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "base",
+      securityLevel: "loose",
+      flowchart: {
+        curve: "basis",
+        padding: 18,
+        htmlLabels: true,
+        nodeSpacing: 36,
+        rankSpacing: 52,
+        useMaxWidth: false,
+      },
+      themeVariables: {
+        primaryColor: "#eeedff",
+        primaryTextColor: "#0f1419",
+        primaryBorderColor: "#635cff",
+        secondaryColor: "#f4f5f7",
+        tertiaryColor: "#fff8e8",
+        lineColor: "#8b93a7",
+        textColor: "#0f1419",
+        mainBkg: "#eeedff",
+        nodeBorder: "#635cff",
+        clusterBkg: "#f8f8fb",
+        titleColor: "#0f1419",
+        edgeLabelBackground: "#ffffff",
+        fontSize: "14px",
+        fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+      },
+    });
+
+    await mermaid.run({ querySelector: ".mermaid" });
+
+    const links = [...document.querySelectorAll(".nav a")];
+    const sections = links
+      .map((a) => document.querySelector(a.getAttribute("href")))
+      .filter(Boolean);
+
+    const setActive = () => {
+      const y = window.scrollY + 110;
+      let current = sections[0];
+      for (const section of sections) {
+        if (section.offsetTop <= y) current = section;
+      }
+      if (!current) return;
+      links.forEach((a) => {
+        a.classList.toggle("is-active", a.getAttribute("href") === `#${current.id}`);
+      });
+    };
+    window.addEventListener("scroll", setActive, { passive: true });
+    setActive();
+  </script>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #ffffff;
+      --ink: #0f1419;
+      --muted: #5c6578;
+      --line: #e4e6ec;
+      --theme: #635cff;
+      --theme-soft: #eeedff;
+      --theme-ink: #3d36c9;
+      --radius: 12px;
+      --font: "Inter", ui-sans-serif, system-ui, sans-serif;
+      --font-heading: "Plus Jakarta Sans", "Inter", sans-serif;
+      --shadow: 0 1px 3px color-mix(in srgb, var(--theme) 12%, transparent);
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: color-mix(in srgb, var(--surface) 92%, transparent);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--line);
+      padding: 1rem 1.5rem 0.9rem;
+    }
+
+    .header-inner {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+    }
+
+    .header-top {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .eyebrow {
+      margin: 0 0 0.35rem;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--theme);
+    }
+
+    header h1 {
+      margin: 0;
+      font-family: var(--font-heading);
+      font-size: clamp(1.5rem, 2.2vw, 1.85rem);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+
+    .hint {
+      margin: 0;
+      padding: 0.45rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid color-mix(in srgb, var(--theme) 28%, var(--line));
+      background: var(--theme-soft);
+      color: var(--theme-ink);
+      font-size: 0.8125rem;
+      font-weight: 600;
+    }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.9rem;
+    }
+
+    .nav a {
+      text-decoration: none;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 0.5rem;
+      padding: 0.4rem 0.7rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+    }
+
+    .nav a:hover {
+      color: var(--ink);
+      background: color-mix(in srgb, var(--ink) 5%, transparent);
+    }
+
+    .nav a.is-active {
+      color: #fff;
+      background: var(--theme);
+      border-color: var(--theme);
+    }
+
+    main {
+      width: min(1120px, calc(100% - 2rem));
+      margin: 0 auto;
+      padding: 1.25rem 0 2.5rem;
+      display: grid;
+      gap: 0.9rem;
+    }
+
+    section {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.85rem;
+      padding: 1rem 1.1rem 0.85rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step {
+      flex: 0 0 auto;
+      width: 2rem;
+      height: 2rem;
+      display: grid;
+      place-items: center;
+      border-radius: 0.5rem;
+      background: var(--theme-soft);
+      color: var(--theme-ink);
+      font-family: var(--font-heading);
+      font-size: 0.75rem;
+      font-weight: 800;
+    }
+
+    .section-head h2 {
+      margin: 0 0 0.15rem;
+      font-family: var(--font-heading);
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .one-liner {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    .chart-wrap {
+      margin: 0;
+      padding: 1.25rem 1.1rem 1.4rem;
+      overflow-x: auto;
+      overflow-y: hidden;
+      background:
+        radial-gradient(circle at top left, color-mix(in srgb, var(--theme) 6%, transparent), transparent 42%),
+        var(--surface);
+    }
+
+    .chart-wrap::-webkit-scrollbar { height: 8px; }
+    .chart-wrap::-webkit-scrollbar-track { background: transparent; }
+    .chart-wrap::-webkit-scrollbar-thumb {
+      background: #c8cdd8;
+      border-radius: 999px;
+      border: 2px solid var(--surface);
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: flex-start;
+      min-height: 120px;
+      margin: 0;
+    }
+
+    .mermaid[data-processed="true"] {
+      min-height: 0;
+    }
+
+    .mermaid svg {
+      max-width: none !important;
+      height: auto !important;
+    }
+
+    .mermaid .nodeLabel,
+    .mermaid foreignObject div,
+    .mermaid foreignObject p {
+      line-height: 1.25 !important;
+      margin: 0 !important;
+      font-family: var(--font) !important;
+    }
+
+    .mermaid .edgeLabel {
+      font-size: 12px !important;
+      font-weight: 600 !important;
+    }
+
+    footer {
+      width: min(1120px, calc(100% - 2rem));
+      margin: 0 auto 2rem;
+      color: var(--muted);
+      font-size: 0.8125rem;
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    footer code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0.1rem 0.4rem;
+      color: var(--ink);
+    }
+
+    @media (max-width: 720px) {
+      header { padding: 0.85rem 1rem 0.75rem; }
+      main { width: calc(100% - 1.25rem); }
+      footer { width: calc(100% - 1.25rem); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="header-top">
+        <div>
+          <p class="eyebrow">Goal management</p>
+          <h1>How goals work</h1>
+        </div>
+        <p class="hint">Read left → right</p>
+      </div>
+      <nav class="nav" aria-label="Sections">
+        <a href="#big">Big picture</a>
+        <a href="#who">Who sets goals</a>
+        <a href="#write">Write goals</a>
+        <a href="#approve">Manager review</a>
+        <a href="#lock">Day 30 lock</a>
+        <a href="#move">Team / manager change</a>
+        <a href="#update">Update progress</a>
+        <a href="#score">Quarter score</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="big">
+      <div class="section-head">
+        <div class="step">01</div>
+        <div>
+          <h2>Big picture</h2>
+          <p class="one-liner">One quarter, start → finish.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Quarter starts]) --> B[People write goals]
+  B --> C[Manager reviews]
+  C --> D[Day 30: hard lock]
+  D --> E[Update progress]
+  E --> F[Manager gives score]
+  F --> J([Person sees score])
+        </pre>
+      </div>
+    </section>
+
+    <section id="who">
+      <div class="section-head">
+        <div class="step">02</div>
+        <div>
+          <h2>Who sets goals this quarter</h2>
+          <p class="one-liner">Joined on/before Day 1. Probation does not matter.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([New person]) --> B{Joined on Day 1 or before?}
+  B -->|Yes| C[Must set goals]
+  B -->|No| D[Not eligible this quarter]
+  D --> E([Starts next quarter])
+        </pre>
+      </div>
+    </section>
+
+    <section id="write">
+      <div class="section-head">
+        <div class="step">03</div>
+        <div>
+          <h2>Write goals</h2>
+          <p class="one-liner">Employee · first 30 days.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Open goals]) --> C[Write goals]
+  C --> D{2+ goals?}
+  D -->|No| E[Cannot submit]
+  E --> C
+  D -->|Yes| F{Weights = 100%?}
+  F -->|No| E
+  F -->|Yes| G{Has measures?}
+  G -->|No| E
+  G -->|Yes| H([Submit all])
+  H --> I[Pending for manager approval]
+        </pre>
+      </div>
+    </section>
+
+    <section id="approve">
+      <div class="section-head">
+        <div class="step">04</div>
+        <div>
+          <h2>Manager review</h2>
+          <p class="one-liner">All of one person’s goals, together.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Open list]) --> B[Pick person]
+  B -->|Big changes| D[Send all back]
+  D --> F[Person fixes]
+  F --> A
+  B -->|Small tweaks| G[Manager edits]
+  G --> H[Person gets a change note]
+  H --> J[Approve all]
+  B -->|Looks good| J
+  J --> L([Done])
+        </pre>
+      </div>
+    </section>
+
+    <section id="lock">
+      <div class="section-head">
+        <div class="step">05</div>
+        <div>
+          <h2>Day 30 hard lock</h2>
+          <p class="one-liner">No new submits. Pending approvals can still finish.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Day 30]) -->|Not submitted| C[Incomplete · score = 0]
+  A -->|Approved| D[Goals locked]
+  A -->|Submitted · not approved| E[Stay pending]
+  E --> F[Direct manager can still approve]
+  E --> G[HRBP delegates to +1]
+  G --> H[+1 can also approve]
+  F --> I([Approved after lock])
+  H --> I
+        </pre>
+      </div>
+    </section>
+
+    <section id="move">
+      <div class="section-head">
+        <div class="step">06</div>
+        <div>
+          <h2>Team or manager change</h2>
+          <p class="one-liner">Person and goals move together.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Team or manager changes]) --> B[Employee moves]
+  B --> C[Goals move with them]
+  C --> D([New manager owns them])
+        </pre>
+      </div>
+    </section>
+
+    <section id="update">
+      <div class="section-head">
+        <div class="step">07</div>
+        <div>
+          <h2>Update progress</h2>
+          <p class="one-liner">During the quarter, after lock.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Update progress]) --> B[Manager can look anytime]
+  B --> C{Agrees?}
+  C -->|Yes| D[Keep it]
+  C -->|No| E[Manager corrects]
+  A --> F{Blocked?}
+  F -->|Yes| G[Tell manager in chat]
+  F -->|No| I[Keep updating]
+        </pre>
+      </div>
+    </section>
+
+    <section id="score">
+      <div class="section-head">
+        <div class="step">08</div>
+        <div>
+          <h2>Quarter score</h2>
+          <p class="one-liner">Q1 / Q2 / Q3. Q4 is in the yearly review.</p>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <pre class="mermaid">
+flowchart LR
+  A([Next quarter starts]) --> B[Manager opens check-in]
+  B --> C[Shows % complete]
+  C --> D[Manager gives score and submits]
+  D --> G([Person sees score])
+        </pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span>Landscape left → right</span>
+    <span>Rules in <code>Goal_Management_Specification.md</code></span>
+  </footer>
+</body>
+</html>

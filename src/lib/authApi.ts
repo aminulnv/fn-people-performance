@@ -1,14 +1,21 @@
+import {
+  DEMO_ACCOUNTS,
+  findDemoAccount,
+  type DemoAccount,
+} from '@/lib/demoAccounts'
+import type { GoalRole } from '@/lib/goals/types'
+
 export type AuthUser = {
   id: string
   email: string
   name: string
+  personId: string
+  role: GoalRole
+  title: string
 }
 
-export const DEMO_USER: AuthUser = {
-  id: 'demo',
-  email: 'demo@example.com',
-  name: 'Demo User',
-}
+/** Default account used for legacy session migration. */
+export const DEMO_USER: AuthUser = accountToUser(DEMO_ACCOUNTS[0])
 
 const AUTH_SESSION_KEY = 'pd-auth-session'
 const LEGACY_AUTH_KEY = 'pd-demo-auth'
@@ -22,6 +29,17 @@ export type AuthSession = {
    * Prefer HttpOnly cookies in production; this field is for SPA token flows.
    */
   accessToken?: string
+}
+
+function accountToUser(account: DemoAccount): AuthUser {
+  return {
+    id: account.personId,
+    email: account.email,
+    name: account.name,
+    personId: account.personId,
+    role: account.role,
+    title: account.title,
+  }
 }
 
 function readRawSession(): string | null {
@@ -58,11 +76,15 @@ function migrateLegacySession(): AuthSession | null {
 function isValidSession(value: unknown): value is AuthSession {
   if (!value || typeof value !== 'object') return false
   const parsed = value as AuthSession
+  const user = parsed.user
   return (
-    !!parsed.user &&
-    typeof parsed.user.id === 'string' &&
-    typeof parsed.user.email === 'string' &&
-    typeof parsed.user.name === 'string' &&
+    !!user &&
+    typeof user.id === 'string' &&
+    typeof user.email === 'string' &&
+    typeof user.name === 'string' &&
+    typeof user.personId === 'string' &&
+    typeof user.role === 'string' &&
+    typeof user.title === 'string' &&
     typeof parsed.signedInAt === 'string' &&
     (parsed.accessToken === undefined || typeof parsed.accessToken === 'string')
   )
@@ -96,19 +118,29 @@ export function isSignedIn(): boolean {
   return readSession() !== null
 }
 
-/**
- * Demo Google sign-in. Replace the body with a real OAuth redirect / token
- * exchange when wiring a production identity provider. Persist `accessToken`
- * on the returned session so `apiFetch` can attach Authorization.
- */
-export async function signInWithGoogle(): Promise<AuthSession> {
+/** Sign in as a known @demo.com account (local / demo environments). */
+export async function signInWithDemoAccount(
+  email: string,
+): Promise<AuthSession> {
   await Promise.resolve()
+  const account = findDemoAccount(email)
+  if (!account) {
+    throw new Error('Unknown demo account.')
+  }
   const session: AuthSession = {
-    user: DEMO_USER,
+    user: accountToUser(account),
     signedInAt: new Date().toISOString(),
   }
   writeSession(session)
   return session
+}
+
+/**
+ * Demo Google sign-in. Currently maps to the default employee demo account.
+ * Replace with a real OAuth redirect / token exchange for production.
+ */
+export async function signInWithGoogle(): Promise<AuthSession> {
+  return signInWithDemoAccount(DEMO_USER.email)
 }
 
 export async function signOut(): Promise<void> {
