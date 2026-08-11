@@ -15,7 +15,7 @@ describe('normalizeThemeColor', () => {
   })
 
   it('accepts hex without hash', () => {
-    expect(normalizeThemeColor('473fee')).toBe('#473fee')
+    expect(normalizeThemeColor('635cff')).toBe('#635cff')
   })
 
   it('rejects invalid colors', () => {

@@ -4,7 +4,7 @@ export type ThemeMode = 'default' | 'custom'
 export const THEME_COLOR_KEY = 'app-theme-color'
 export const THEME_MODE_KEY = 'app-theme-mode'
 export const APPEARANCE_KEY = 'app-appearance'
-export const DEFAULT_THEME_COLOR = '#473fee'
+export const DEFAULT_THEME_COLOR = '#635cff'
 export const DEFAULT_APPEARANCE: AppearanceMode = 'light'
 export const DEFAULT_THEME_MODE: ThemeMode = 'default'
 

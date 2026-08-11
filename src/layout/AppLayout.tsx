@@ -5,6 +5,7 @@ import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { WritingAssistant } from '@/components/assistant/WritingAssistant'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
 
@@ -37,6 +38,7 @@ export function AppLayout({
 }: AppLayoutProps) {
   const { pathname } = useLocation()
   const { isMobile } = useBreakpoint()
+  const { enabled: assistantEnabled } = useAssistantPrefs()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   useEffect(() => {
@@ -109,7 +111,7 @@ export function AppLayout({
           </div>
         </div>
       </div>
-      <WritingAssistant />
+      {assistantEnabled ? <WritingAssistant /> : null}
     </div>
   )
 }
