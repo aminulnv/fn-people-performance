@@ -3,9 +3,8 @@ import { avatarHue } from '@/lib/employees/avatar'
 import {
   findEmployeeByEmail,
   getEmployee,
-  listEmployees,
-  subscribeEmployeesStore,
 } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
 import {
   getGoalsSnapshot,
@@ -17,23 +16,14 @@ import { useAuth } from '@/lib/useAuth'
 /** Logged-in person from auth, enriched with directory / goals profile when available. */
 export function useCurrentPerson(): DemoPerson | null {
   const { user } = useAuth()
-  const [tick, setTick] = useState(0)
+  const { employees } = useEmployees({ load: false })
+  const [goalsTick, setGoalsTick] = useState(0)
 
-  useEffect(() => {
-    const unsubGoals = subscribeGoalsStore(() => setTick((n) => n + 1))
-    const unsubEmployees = subscribeEmployeesStore(() =>
-      setTick((n) => n + 1),
-    )
-    return () => {
-      unsubGoals()
-      unsubEmployees()
-    }
-  }, [])
-  void tick
+  useEffect(() => subscribeGoalsStore(() => setGoalsTick((n) => n + 1)), [])
+  void goalsTick
 
   if (!user) return null
 
-  const directory = listEmployees()
   const employeeId = Number(user.personId)
   const fromDirectory =
     (Number.isFinite(employeeId)
@@ -41,7 +31,7 @@ export function useCurrentPerson(): DemoPerson | null {
       : null) ?? findEmployeeByEmail(user.email)
 
   if (fromDirectory) {
-    return employeeToDemoPerson(fromDirectory, directory)
+    return employeeToDemoPerson(fromDirectory, employees)
   }
 
   const fromGoals = getGoalsSnapshot().people.find(

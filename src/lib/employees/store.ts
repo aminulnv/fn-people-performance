@@ -37,9 +37,17 @@ let loadState: 'idle' | 'loading' | 'ready' | 'error' = useMemoryBackend()
   : 'idle'
 let loadError: string | null = null
 let loadPromise: Promise<void> | null = null
+/** Bumps on every store change — stable snapshot for useSyncExternalStore. */
+let storeVersion = 0
 
 function notify() {
+  storeVersion += 1
   for (const listener of listeners) listener()
+}
+
+/** Monotonic version for React subscriptions (see `useEmployees`). */
+export function getEmployeesStoreVersion(): number {
+  return storeVersion
 }
 
 function setCache(employees: PlatformEmployee[]) {
@@ -61,10 +69,15 @@ export function getEmployeesLoadError(): string | null {
 export function subscribeEmployeesStore(listener: Listener): () => void {
   listeners.add(listener)
   if (useMemoryBackend()) {
-    return subscribeMemoryEmployees(() => {
+    const unsubMemory = subscribeMemoryEmployees(() => {
       cache = listMemoryEmployees()
+      storeVersion += 1
       listener()
     })
+    return () => {
+      listeners.delete(listener)
+      unsubMemory()
+    }
   }
   return () => {
     listeners.delete(listener)

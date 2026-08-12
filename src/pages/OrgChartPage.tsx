@@ -16,13 +16,7 @@ import { Avatar, ListboxSelect } from '@/components/ui'
 import { layoutConfig } from '@/config/layout'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import {
-  getEmployeesLoadError,
-  getEmployeesLoadState,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
@@ -493,7 +487,7 @@ function OrgChartControls({
 
 export default function OrgChartPage() {
   const { user } = useAuth()
-  const [tick, setTick] = useState(0)
+  const { employees, loadState, loadError, reload } = useEmployees()
   const [departmentFilter, setDepartmentFilter] = useState('')
   const [focusId, setFocusId] = useState('')
   const [includeInactive, setIncludeInactive] = useState(false)
@@ -510,19 +504,6 @@ export default function OrgChartPage() {
   const stageRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoomInnerRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    void loadEmployees().catch(() => {})
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
-
-  const employees = useMemo(() => {
-    void tick
-    return listEmployees()
-  }, [tick])
-
-  const loadState = getEmployeesLoadState()
-  const loadError = getEmployeesLoadError()
 
   const departments = useMemo(
     () =>
@@ -834,7 +815,7 @@ export default function OrgChartPage() {
           <button
             type="button"
             className="pd-people__ghost-btn"
-            onClick={() => void loadEmployees().catch(() => {})}
+            onClick={() => void reload().catch(() => {})}
           >
             Refresh
           </button>

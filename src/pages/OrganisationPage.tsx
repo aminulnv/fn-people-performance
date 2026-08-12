@@ -14,22 +14,12 @@ import {
 import { Avatar } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import {
-  getEmployeesLoadError,
-  getEmployeesLoadState,
-  listDepartments,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
+import { listDepartments } from '@/lib/employees/store'
 import type {
   PlatformDepartment,
   PlatformEmployee,
 } from '@/lib/employees/types'
-import {
-  buildOrganisationFromEmployees,
-  mergeOrganisationWithCatalog,
-} from '@/lib/organisation/fromEmployees'
+import { useOrganisation } from '@/lib/employees/useEmployees'
 import {
   departmentDetailPath,
   teamDetailPath,
@@ -158,12 +148,13 @@ function isMyTeam(
 
 export default function OrganisationPage() {
   const { user } = useAuth()
-  const [employees, setEmployees] = useState<PlatformEmployee[]>(() =>
-    listEmployees(),
-  )
   const [catalog, setCatalog] = useState<PlatformDepartment[]>([])
-  const [loadState, setLoadState] = useState(getEmployeesLoadState)
-  const [loadError, setLoadError] = useState(getEmployeesLoadError)
+  const {
+    employees,
+    organisation: snapshot,
+    loadState,
+    loadError,
+  } = useOrganisation(catalog)
   const [structureView, setStructureView] =
     useState<StructureView>('departments')
   const [query, setQuery] = useState('')
@@ -171,28 +162,18 @@ export default function OrganisationPage() {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
-    void loadEmployees().catch(() => {})
+    let cancelled = false
     void listDepartments()
-      .then(setCatalog)
-      .catch(() => setCatalog([]))
-    return subscribeEmployeesStore(() => {
-      setEmployees(listEmployees())
-      setLoadState(getEmployeesLoadState())
-      setLoadError(getEmployeesLoadError())
-      void listDepartments()
-        .then(setCatalog)
-        .catch(() => {})
-    })
-  }, [])
-
-  const snapshot = useMemo(
-    () =>
-      mergeOrganisationWithCatalog(
-        buildOrganisationFromEmployees(employees),
-        catalog,
-      ),
-    [catalog, employees],
-  )
+      .then((rows) => {
+        if (!cancelled) setCatalog(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setCatalog([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [employees])
 
   const q = query.trim().toLowerCase()
 

@@ -8,18 +8,9 @@ import {
 } from 'lucide-react'
 import { Avatar } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
-import {
-  getEmployee,
-  listDepartments,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
+import { getEmployee, listDepartments } from '@/lib/employees/store'
 import type { PlatformDepartment } from '@/lib/employees/types'
-import {
-  buildOrganisationFromEmployees,
-  mergeOrganisationWithCatalog,
-} from '@/lib/organisation/fromEmployees'
+import { useOrganisation } from '@/lib/employees/useEmployees'
 import { teamDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
@@ -28,43 +19,32 @@ import '@/styles/layout-organisation.css'
 export default function DepartmentDetailPage() {
   const { departmentId: rawId = '' } = useParams()
   const departmentId = decodeURIComponent(rawId)
-  const [tick, setTick] = useState(0)
   const [catalog, setCatalog] = useState<PlatformDepartment[]>([])
-  const [ready, setReady] = useState(false)
+  const [catalogReady, setCatalogReady] = useState(false)
+  const { organisation, employees, isLoading } = useOrganisation(catalog)
 
   useEffect(() => {
     let cancelled = false
-    void Promise.all([
-      loadEmployees().catch(() => {}),
-      listDepartments().catch(() => [] as PlatformDepartment[]),
-    ]).then(([, departments]) => {
-      if (cancelled) return
-      setCatalog(departments)
-      setReady(true)
-    })
+    void listDepartments()
+      .then((departments) => {
+        if (cancelled) return
+        setCatalog(departments)
+        setCatalogReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCatalog([])
+          setCatalogReady(true)
+        }
+      })
     return () => {
       cancelled = true
     }
-  }, [])
-
-  useEffect(() => {
-    return subscribeEmployeesStore(() => {
-      setTick((n) => n + 1)
-      void listDepartments()
-        .then(setCatalog)
-        .catch(() => {})
-    })
-  }, [])
+  }, [employees])
 
   const { department, members } = useMemo(() => {
-    void tick
-    const employees = listEmployees()
-    const snapshot = mergeOrganisationWithCatalog(
-      buildOrganisationFromEmployees(employees),
-      catalog,
-    )
     const found =
-      snapshot.departments.find((d) => d.id === departmentId) ?? null
+      organisation.departments.find((d) => d.id === departmentId) ?? null
     const people = found
       ? found.memberIds
           .map((id) => getEmployee(id))
@@ -72,9 +52,9 @@ export default function DepartmentDetailPage() {
           .sort((a, b) => a.fullName.localeCompare(b.fullName))
       : []
     return { department: found, members: people }
-  }, [catalog, departmentId, tick])
+  }, [departmentId, organisation])
 
-  if (!ready) {
+  if (isLoading || !catalogReady) {
     return (
       <div
         className="pd-page pd-people pd-org pd-org-detail"
