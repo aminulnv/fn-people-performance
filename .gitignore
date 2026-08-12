@@ -15,6 +15,12 @@ dist
 .env.*.local
 !.env.example
 !.env.deploy.example
+!.env.platform.example
+
+# Local HR source data / generated PII (never publish)
+*.csv
+db/migrations/*_seed*.sql
+Screenshot*.png
 
 # Editor / OS
 .DS_Store

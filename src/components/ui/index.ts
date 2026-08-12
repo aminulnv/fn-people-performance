@@ -72,6 +72,9 @@ export type { SearchFieldProps } from './SearchField'
 export { DropdownMenu } from './DropdownMenu'
 export type { DropdownMenuProps, DropdownMenuItem } from './DropdownMenu'
 
+export { ListboxSelect } from './ListboxSelect'
+export type { ListboxSelectProps, ListboxOption } from './ListboxSelect'
+
 export { Pagination } from './Pagination'
 export type { PaginationProps } from './Pagination'
 

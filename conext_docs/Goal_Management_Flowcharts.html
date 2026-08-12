@@ -425,9 +425,10 @@ flowchart LR
   A([Day 30]) -->|Not submitted| C[Incomplete · score = 0]
   A -->|Approved| D[Goals locked]
   A -->|Submitted · not approved| E[Stay pending]
-  E --> F[Direct manager can still approve]
-  E --> G[HRBP delegates to +1]
-  G --> H[+1 can also approve]
+  E --> N[+2 notified]
+  N --> F[Direct manager can still approve]
+  N --> G[PTR can delegate to +2]
+  G --> H[+2 can also approve]
   F --> I([Approved after lock])
   H --> I
         </pre>

@@ -8,6 +8,20 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const DummyPage = lazy(() => import('@/pages/DummyPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
+const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
+const CreateEmployeePage = lazy(() => import('@/pages/CreateEmployeePage'))
+const EditEmployeePage = lazy(() => import('@/pages/EditEmployeePage'))
+const EmployeeProfilePage = lazy(() => import('@/pages/EmployeeProfilePage'))
+const MyProfilePage = lazy(() => import('@/pages/MyProfilePage'))
+const OrganisationPage = lazy(() => import('@/pages/OrganisationPage'))
+const OrgChartPage = lazy(() => import('@/pages/OrgChartPage'))
+const DepartmentDetailPage = lazy(
+  () => import('@/pages/DepartmentDetailPage'),
+)
+const CreateDepartmentPage = lazy(
+  () => import('@/pages/CreateDepartmentPage'),
+)
+const TeamDetailPage = lazy(() => import('@/pages/TeamDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 
 function RouteFallback() {
@@ -16,6 +30,11 @@ function RouteFallback() {
 
 function CatchAllRedirect() {
   const { status } = useAuth()
+  if (status === 'loading') {
+    return (
+      <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
+    )
+  }
   return (
     <Navigate to={status === 'authenticated' ? '/' : '/login'} replace />
   )
@@ -32,9 +51,25 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<AuthenticatedLayout />}>
             <Route index element={<DummyPage title="Home" />} />
-            <Route path="profile" element={<DummyPage title="My profile" />} />
-            <Route path="people" element={<DummyPage title="People" />} />
-            <Route path="organisation" element={<DummyPage title="Organisation" />} />
+            <Route path="profile" element={<MyProfilePage />} />
+            <Route path="people" element={<PeoplePage />} />
+            <Route path="people/new" element={<CreateEmployeePage />} />
+            <Route path="people/:employeeId/edit" element={<EditEmployeePage />} />
+            <Route path="people/:employeeId" element={<EmployeeProfilePage />} />
+            <Route path="organisation" element={<OrganisationPage />} />
+            <Route path="organisation/chart" element={<OrgChartPage />} />
+            <Route
+              path="organisation/departments/new"
+              element={<CreateDepartmentPage />}
+            />
+            <Route
+              path="organisation/departments/:departmentId"
+              element={<DepartmentDetailPage />}
+            />
+            <Route
+              path="organisation/teams/:teamId"
+              element={<TeamDetailPage />}
+            />
             <Route path="goals" element={<GoalsPage />} />
             <Route path="reviews" element={<DummyPage title="Reviews" />} />
             <Route path="analytics" element={<DummyPage title="Analytics" />} />

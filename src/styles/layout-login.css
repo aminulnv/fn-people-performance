@@ -1,5 +1,17 @@
 @import './layout-shared.css';
 
+.pd-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 /* Login — lean glass (one modest blur, no JS style objects / load state) */
 .pd-login {
   --login-ink: #f5f7fb;
@@ -145,6 +157,130 @@
   text-shadow: 0 1px 3px color-mix(in srgb, black 40%, transparent);
 }
 
+.pd-login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  width: 100%;
+}
+
+.pd-login__field {
+  display: block;
+  width: 100%;
+  margin: 0;
+}
+
+.pd-login__username {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, white 35%, transparent);
+  background: color-mix(in srgb, black 28%, transparent);
+  overflow: hidden;
+}
+
+.pd-login__input {
+  width: 100%;
+  height: 3rem;
+  margin: 0;
+  padding: 0 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid color-mix(in srgb, white 35%, transparent);
+  background: color-mix(in srgb, black 28%, transparent);
+  color: var(--login-ink);
+  font: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.pd-login__input--username {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.pd-login__domain {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 0 0.85rem 0 0.35rem;
+  color: color-mix(in srgb, white 62%, transparent);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pd-login__username:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
+  outline-offset: 2px;
+}
+
+.pd-login__input--username:focus {
+  outline: none;
+}
+
+.pd-login__input::placeholder {
+  color: color-mix(in srgb, white 55%, transparent);
+}
+
+.pd-login__input:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
+  outline-offset: 2px;
+}
+
+.pd-login__input:disabled {
+  opacity: 0.7;
+}
+
+.pd-login__submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 3.125rem;
+  margin: 0.15rem 0 0;
+  padding: 0 1.375rem;
+  border-radius: 999px;
+  border: 0;
+  background: var(--color-theme, #3b82f6);
+  color: #fff;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pd-login__submit:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.pd-login__submit:disabled {
+  opacity: 0.7;
+  cursor: wait;
+}
+
+.pd-login__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.35rem 0;
+  color: var(--login-ink-muted);
+  font-size: 0.75rem;
+  text-transform: lowercase;
+}
+
+.pd-login__divider::before,
+.pd-login__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, white 28%, transparent);
+}
+
 .pd-login__google {
   display: inline-flex;
   align-items: center;
@@ -196,110 +332,6 @@
 
 .pd-login__google-mark {
   flex-shrink: 0;
-}
-
-.pd-login__divider {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin: 0.55rem 0 0.15rem;
-  color: var(--login-ink-muted);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-
-.pd-login__divider::before,
-.pd-login__divider::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: color-mix(in srgb, white 18%, transparent);
-}
-
-.pd-login__divider span {
-  flex-shrink: 0;
-}
-
-.pd-login__accounts {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.45rem;
-  width: 100%;
-  margin-top: 0.35rem;
-}
-
-.pd-login__account {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  flex: 1 1 4.5rem;
-  min-width: 4.25rem;
-  max-width: 5.5rem;
-  margin: 0;
-  padding: 0.55rem 0.35rem 0.5rem;
-  border-radius: 0.75rem;
-  border: 1px solid color-mix(in srgb, white 22%, transparent);
-  background: color-mix(in srgb, #0c0c16 55%, transparent);
-  color: var(--login-ink);
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 1px 2px color-mix(in srgb, black 22%, transparent);
-  transition:
-    transform 0.2s cubic-bezier(0.22, 1, 0.36, 1),
-    background-color 0.15s ease,
-    border-color 0.15s ease;
-}
-
-.pd-login__account:hover:not(:disabled) {
-  background: color-mix(in srgb, #161628 70%, transparent);
-  border-color: color-mix(in srgb, white 36%, transparent);
-  transform: translateY(-1px);
-}
-
-.pd-login__account:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.pd-login__account:disabled {
-  opacity: 0.65;
-  cursor: wait;
-}
-
-.pd-login__account:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
-  outline-offset: 3px;
-}
-
-.pd-login__account-avatar {
-  flex-shrink: 0;
-  width: 2rem;
-  height: 2rem;
-  border-radius: 999px;
-  display: grid;
-  place-items: center;
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  color: #fff;
-}
-
-.pd-login__account-role {
-  font-size: 0.6875rem;
-  font-weight: 650;
-  line-height: 1.2;
-  color: var(--login-ink);
-  max-width: 100%;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .pd-login__error {
@@ -360,14 +392,6 @@
   }
 
   .pd-login__google:hover:not(:disabled) {
-    transform: none;
-  }
-
-  .pd-login__account {
-    transition: background-color 0.15s ease, border-color 0.15s ease;
-  }
-
-  .pd-login__account:hover:not(:disabled) {
     transform: none;
   }
 }

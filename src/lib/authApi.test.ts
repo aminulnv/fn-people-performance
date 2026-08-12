@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  DEMO_USER,
+  LOCAL_USER,
   clearSession,
   getAccessToken,
   isSignedIn,
   readSession,
-  signInWithDemoAccount,
+  signInWithGoogle,
   signOut,
   writeSession,
 } from '@/lib/authApi'
+import { clearEmployees, createEmployee } from '@/lib/employees/store'
 
 const store = new Map<string, string>()
 
@@ -34,6 +35,7 @@ Object.defineProperty(globalThis, 'sessionStorage', {
 
 afterEach(() => {
   store.clear()
+  clearEmployees()
 })
 
 describe('authApi session', () => {
@@ -42,24 +44,38 @@ describe('authApi session', () => {
     expect(readSession()).toBeNull()
   })
 
-  it('persists a demo account session', async () => {
-    const session = await signInWithDemoAccount('manager@demo.com')
-    expect(session.user.email).toBe('manager@demo.com')
-    expect(session.user.role).toBe('manager')
-    expect(session.user.personId).toBe('manager')
+  it('signs in with the local placeholder when the directory is empty', async () => {
+    const session = await signInWithGoogle()
+    expect(session.user).toEqual(LOCAL_USER)
     expect(isSignedIn()).toBe(true)
-    expect(readSession()?.user.email).toBe('manager@demo.com')
+    expect(readSession()?.user.email).toBe(LOCAL_USER.email)
   })
 
-  it('rejects unknown demo accounts', async () => {
-    await expect(signInWithDemoAccount('nobody@demo.com')).rejects.toThrow(
-      /unknown demo account/i,
-    )
-    expect(isSignedIn()).toBe(false)
+  it('signs in as the first active employee when one exists', async () => {
+    await createEmployee({
+      employeeId: 101,
+      fullName: 'Test Person',
+      email: 'test.person@nextventures.io',
+      startDate: '2026-01-01',
+      jobTitle: 'Manager',
+      department: 'Product',
+      team: 'Core',
+      division: 'FundedNext',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: 'M1',
+      managerEmail: '',
+    })
+
+    const session = await signInWithGoogle()
+    expect(session.user.email).toBe('test.person@nextventures.io')
+    expect(session.user.personId).toBe('101')
+    expect(session.user.role).toBe('manager')
   })
 
   it('clears session on sign out', async () => {
-    await signInWithDemoAccount('employee@demo.com')
+    await signInWithGoogle()
     await signOut()
     expect(isSignedIn()).toBe(false)
     expect(readSession()).toBeNull()
@@ -68,14 +84,14 @@ describe('authApi session', () => {
   it('migrates the legacy demo flag', () => {
     sessionStorage.setItem('pd-demo-auth', '1')
     const session = readSession()
-    expect(session?.user).toEqual(DEMO_USER)
+    expect(session?.user).toEqual(LOCAL_USER)
     expect(sessionStorage.getItem('pd-demo-auth')).toBeNull()
     expect(sessionStorage.getItem('pd-auth-session')).toBeTruthy()
   })
 
   it('round-trips writeSession', () => {
     writeSession({
-      user: DEMO_USER,
+      user: LOCAL_USER,
       signedInAt: '2026-01-01T00:00:00.000Z',
     })
     expect(readSession()?.signedInAt).toBe('2026-01-01T00:00:00.000Z')
@@ -85,7 +101,7 @@ describe('authApi session', () => {
 
   it('exposes accessToken via getAccessToken', () => {
     writeSession({
-      user: DEMO_USER,
+      user: LOCAL_USER,
       signedInAt: '2026-01-01T00:00:00.000Z',
       accessToken: 'tok',
     })

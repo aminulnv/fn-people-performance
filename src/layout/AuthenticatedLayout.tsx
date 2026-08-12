@@ -22,6 +22,12 @@ export default function AuthenticatedLayout() {
     navigate('/login', { replace: true })
   }, [navigate, signOut])
 
+  if (status === 'loading') {
+    return (
+      <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
+    )
+  }
+
   if (status !== 'authenticated' || !user) {
     return <Navigate to="/login" replace />
   }

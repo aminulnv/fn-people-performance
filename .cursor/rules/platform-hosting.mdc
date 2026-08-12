@@ -31,13 +31,14 @@ npm run deploy:ec2                   # build + rsync to /var/www/platform
 - `VITE_API_BASE_URL` empty = same-origin `/api` (correct for production).
 - Never put `DB_*`, RDS passwords, PEM contents, or encryption keys in `VITE_*` or committed files.
 
-## Database (when adding tables)
+## Database
 
-1. Use Postgres schema **`platform`** — do not collide with dashboard tables (`dashboard_users`, `employees`, `performance_*`, `goals_*`, etc.).
-2. Additive migrations only under `db/migrations/`; never drop/alter dashboard tables.
-3. Run migrations from EC2 (RDS is VPC-private), same pattern as the dashboard.
-4. Prefer API routes on the existing Express (`/api/platform/...`) until this repo grows its own server; server `.env` holds `DB_*`, not the Vite app.
-5. Keep dashboard Revolut-backed and usable; cut over later with a data-source flag if needed.
+**UI-first for now:** do not add SQL migrations, seeds, or DB setup scripts unless the user explicitly asks. Persist with local/UI stores until then.
+
+When DB work is requested later:
+1. Use Postgres schema **`platform`** — do not collide with dashboard tables.
+2. Additive migrations only; never drop/alter dashboard tables.
+3. Run from EC2 (RDS is VPC-private); prefer `/api/platform/...` on the existing Express; server `.env` holds `DB_*`, not the Vite app.
 
 ## Do not
 

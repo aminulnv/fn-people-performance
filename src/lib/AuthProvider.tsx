@@ -7,21 +7,47 @@ import {
 } from 'react'
 import {
   type AuthSession,
-  readSession,
-  signInWithDemoAccount as apiSignInWithDemoAccount,
+  fetchAuthSession,
+  signInWithEmailPassword as apiSignInWithEmailPassword,
   signInWithGoogle as apiSignInWithGoogle,
   signOut as apiSignOut,
 } from '@/lib/authApi'
+import { loadEmployees } from '@/lib/employees/store'
 import { setActivePerson } from '@/lib/goals/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
 
 function syncGoalsPersona(personId: string | undefined) {
-  if (!personId) return
+  if (!personId || personId === 'local') return
   setActivePerson(personId)
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<AuthSession | null>(() => readSession())
+  const [session, setSession] = useState<AuthSession | null>(null)
+  const [bootstrapped, setBootstrapped] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const next = await fetchAuthSession()
+        if (cancelled) return
+        setSession(next)
+        if (next) {
+          syncGoalsPersona(next.user.personId)
+          void loadEmployees().catch(() => {
+            /* load error surfaced via store subscribers */
+          })
+        }
+      } catch {
+        if (!cancelled) setSession(null)
+      } finally {
+        if (!cancelled) setBootstrapped(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     syncGoalsPersona(session?.user.personId)
@@ -31,30 +57,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const next = await apiSignInWithGoogle()
     syncGoalsPersona(next.user.personId)
     setSession(next)
+    void loadEmployees().catch(() => {})
   }, [])
 
-  const signInWithDemoAccount = useCallback(async (email: string) => {
-    const next = await apiSignInWithDemoAccount(email)
-    syncGoalsPersona(next.user.personId)
-    setSession(next)
-  }, [])
+  const signInWithEmailPassword = useCallback(
+    async (email: string, password: string) => {
+      const next = await apiSignInWithEmailPassword(email, password)
+      syncGoalsPersona(next.user.personId)
+      setSession(next)
+      void loadEmployees().catch(() => {})
+    },
+    [],
+  )
 
   const signOut = useCallback(async () => {
     await apiSignOut()
     setSession(null)
   }, [])
 
-  const value = useMemo<AuthContextValue>(
-    () => ({
+  const value = useMemo<AuthContextValue>(() => {
+    if (!bootstrapped) {
+      return {
+        status: 'loading',
+        user: null,
+        session: null,
+        signInWithGoogle,
+        signInWithEmailPassword,
+        signOut,
+      }
+    }
+    return {
       status: session ? 'authenticated' : 'anonymous',
       user: session?.user ?? null,
       session,
       signInWithGoogle,
-      signInWithDemoAccount,
+      signInWithEmailPassword,
       signOut,
-    }),
-    [session, signInWithGoogle, signInWithDemoAccount, signOut],
-  )
+    }
+  }, [
+    bootstrapped,
+    session,
+    signInWithGoogle,
+    signInWithEmailPassword,
+    signOut,
+  ])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
