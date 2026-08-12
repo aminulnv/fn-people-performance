@@ -11,7 +11,7 @@ import {
   Pencil,
   Shield,
 } from 'lucide-react'
-import { Avatar } from '@/components/ui'
+import { Avatar, EmptyState } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   findEmployeeByEmail,
@@ -20,6 +20,7 @@ import {
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { profileTabComingSoon } from '@/pages/ComingSoonPage'
 import '@/styles/layout-people.css'
 
 const PROFILE_TABS = [
@@ -189,10 +190,16 @@ export function EmployeeProfileView({
 
       {tab !== 'profile' ? (
         <div className="pd-profile__placeholder">
-          <p className="pd-people__empty">
-            {PROFILE_TABS.find((t) => t.id === tab)?.label} is coming soon
-            {isSelf ? '.' : ' for this employee.'}
-          </p>
+          <EmptyState
+            className="pd-empty--inline"
+            icon={profileTabComingSoon[tab].icon}
+            title={profileTabComingSoon[tab].title}
+            description={
+              isSelf
+                ? profileTabComingSoon[tab].descriptionSelf
+                : profileTabComingSoon[tab].descriptionOther
+            }
+          />
         </div>
       ) : (
         <div className="pd-profile__grid">

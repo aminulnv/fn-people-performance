@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
-const DummyPage = lazy(() => import('@/pages/DummyPage'))
+const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const ComponentsPage = import.meta.env.DEV
   ? lazy(() => import('@/pages/ComponentsPage'))
   : null
@@ -52,7 +52,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<AuthenticatedLayout />}>
-            <Route index element={<DummyPage title="Home" />} />
+            <Route index element={<ComingSoonPage page="home" />} />
             <Route path="profile" element={<MyProfilePage />} />
             <Route path="people" element={<PeoplePage />} />
             <Route path="people/new" element={<CreateEmployeePage />} />
@@ -73,8 +73,11 @@ function App() {
               element={<TeamDetailPage />}
             />
             <Route path="goals" element={<GoalsPage />} />
-            <Route path="reviews" element={<DummyPage title="Reviews" />} />
-            <Route path="analytics" element={<DummyPage title="Analytics" />} />
+            <Route path="reviews" element={<ComingSoonPage page="reviews" />} />
+            <Route
+              path="analytics"
+              element={<ComingSoonPage page="analytics" />}
+            />
             <Route path="dashboard" element={<DashboardPage />} />
             {ComponentsPage ? (
               <Route path="components" element={<ComponentsPage />} />

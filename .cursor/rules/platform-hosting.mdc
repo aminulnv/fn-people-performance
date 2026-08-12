@@ -1,47 +1,12 @@
 ---
-description: Shared EC2/RDS hosting with NEXT-Performance dashboard; /platform deploy and DB rules
+description: Shared EC2/RDS with Revolut dashboard — isolation + /platform deploy
 alwaysApply: true
 ---
 
-# Platform hosting (shared infra)
+# Shared infra
 
-This app is **not** a separate cloud project. It coexists with the HR dashboard.
+Coexist with NEXT-Performance (Revolut dashboard) on same domain/EC2/RDS until explicit EOY cutover. Neighbor, not merge.
 
-| Piece | Value |
-|-------|--------|
-| Domain | `https://performance.nextventures.io` |
-| This UI | `https://performance.nextventures.io/platform/` |
-| Dashboard | `https://performance.nextventures.io/` (separate repo: NEXT-Performance) |
-| Host | Same EC2; nginx routes `/platform` → `/var/www/platform`, `/` + `/api` → dashboard Express |
-| Database | Same RDS (`performance_monitoring`). No new DB/EC2/domain unless explicitly requested |
-
-## Deploy (this repo only)
-
-```bash
-cp .env.deploy.example .env.deploy   # once
-npm run deploy:ec2                   # build + rsync to /var/www/platform
-```
-
-- Needs `PERF_EC2_HOST` + `PERF_EC2_PEM` in `.env.deploy` (gitignored).
-- Does **not** redeploy the dashboard or require `DB_*` for the SPA.
-- Vite production `base` is `/platform/`; React Router uses `import.meta.env.BASE_URL`.
-
-## Frontend env
-
-- `VITE_API_BASE_URL` empty = same-origin `/api` (correct for production).
-- Never put `DB_*`, RDS passwords, PEM contents, or encryption keys in `VITE_*` or committed files.
-
-## Database
-
-**UI-first for now:** do not add SQL migrations, seeds, or DB setup scripts unless the user explicitly asks. Persist with local/UI stores until then.
-
-When DB work is requested later:
-1. Use Postgres schema **`platform`** — do not collide with dashboard tables.
-2. Additive migrations only; never drop/alter dashboard tables.
-3. Run from EC2 (RDS is VPC-private); prefer `/api/platform/...` on the existing Express; server `.env` holds `DB_*`, not the Vite app.
-
-## Do not
-
-- Ask tech for a new domain/EC2/RDS for this work
-- Submodule or merge the dashboard repo by default
-- Tunnel or depend on the Vercel deploy for production `/platform`
+- UI `/platform/` → `/var/www/platform` · API `/api/platform/*` only · auth `pd_platform_sid` + `PLATFORM_GOOGLE_*` (not dashboard cookies/OAuth)
+- DB: `platform.*` only on `performance_monitoring`. Additive migrations. Never touch `public`/`auth`. No write to Revolut/`public.employees`; don’t merge directories. Seeds ≠ `schema_migrations`. No migrations unless asked.
+- Deploy: `npm run deploy:ec2` (needs `.env.deploy`). Vite base `/platform/`. Empty `VITE_API_BASE_URL`. No secrets in `VITE_*`. No new domain/EC2/RDS. Don’t rewrite dashboard or move SPA to `/` unless cutover is requested.

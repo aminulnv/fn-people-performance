@@ -1,3 +1,5 @@
+import ComingSoonPage from '@/pages/ComingSoonPage'
+
 export default function DashboardPage() {
-  return <div className="pd-page" aria-label="Dashboard" />
+  return <ComingSoonPage page="dashboard" />
 }

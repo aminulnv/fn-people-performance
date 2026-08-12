@@ -1388,3 +1388,16 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 .pd-page--narrow {
   max-width: min(100%, 72rem);
 }
+
+/* Unbuilt modules — centered empty state only (title lives in top bar) */
+.pd-page--coming-soon {
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-page--coming-soon .pd-empty {
+  flex: 1;
+  justify-content: center;
+  padding-block: 4rem;
+  max-width: 28rem;
+}

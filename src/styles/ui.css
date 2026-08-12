@@ -24,6 +24,7 @@
   font-size: var(--btn-font);
   font-weight: 600;
   line-height: 1;
+  text-decoration: none;
   cursor: pointer;
   background: var(--color-theme);
   color: var(--color-on-theme);
@@ -35,6 +36,15 @@
     opacity 0.15s ease,
     box-shadow 0.15s ease,
     transform 0.12s ease;
+}
+
+a.pd-btn,
+a.pd-btn:link,
+a.pd-btn:visited,
+a.pd-btn:hover,
+a.pd-btn:active,
+a.pd-btn:focus {
+  text-decoration: none;
 }
 
 .pd-btn:hover:not(:disabled) {
@@ -80,6 +90,11 @@
   color: var(--color-on-theme);
 }
 
+a.pd-btn--primary,
+a.pd-btn--primary:visited {
+  color: var(--color-on-theme);
+}
+
 .pd-btn--primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--color-theme) 88%, white);
 }
@@ -89,6 +104,11 @@
   color: var(--color-text);
   border-color: var(--color-border);
   box-shadow: none;
+}
+
+a.pd-btn--secondary,
+a.pd-btn--secondary:visited {
+  color: var(--color-text);
 }
 
 .pd-btn--secondary:hover:not(:disabled) {
@@ -730,6 +750,11 @@
 
 .pd-empty__action {
   margin-top: 1rem;
+}
+
+.pd-empty--inline {
+  padding-block: 2rem;
+  max-width: 26rem;
 }
 
 /* ── Table ────────────────────────────────────────────────────────── */

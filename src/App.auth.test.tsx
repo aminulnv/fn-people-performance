@@ -11,7 +11,7 @@ import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession, LOCAL_USER } from '@/lib/authApi'
 import { useAuth } from '@/lib/useAuth'
 import AuthenticatedLayout from '@/layout/AuthenticatedLayout'
-import DummyPage from '@/pages/DummyPage'
+import ComingSoonPage from '@/pages/ComingSoonPage'
 import LoginPage from '@/pages/auth/LoginPage'
 
 afterEach(() => {
@@ -36,7 +36,7 @@ function renderRoutes(initialPath: string) {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<AuthenticatedLayout />}>
-            <Route index element={<DummyPage title="Home" />} />
+            <Route index element={<ComingSoonPage page="home" />} />
           </Route>
           <Route path="*" element={<CatchAllRedirect />} />
         </Routes>

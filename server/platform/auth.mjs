@@ -66,9 +66,16 @@ function allowedDomain() {
   )
 }
 
-/** Shared temporary password for email login (override via env). */
+/** Shared temporary password for email login — set PLATFORM_DEFAULT_PASSWORD on the server only. */
 function defaultPassword() {
-  return process.env.PLATFORM_DEFAULT_PASSWORD?.trim() 
+  const password = process.env.PLATFORM_DEFAULT_PASSWORD?.trim()
+  if (!password) {
+    throw new HttpError(
+      503,
+      'PLATFORM_DEFAULT_PASSWORD is not configured on the server.',
+    )
+  }
+  return password
 }
 
 function b64url(input) {
@@ -120,8 +127,8 @@ function cookieOptions(req, maxAge = MAX_AGE_MS) {
   const secure = isLocalDevProxy(req)
     ? false
     : process.env.NODE_ENV === 'production' ||
-      req?.secure === true ||
-      req?.get?.('x-forwarded-proto') === 'https'
+    req?.secure === true ||
+    req?.get?.('x-forwarded-proto') === 'https'
   return {
     httpOnly: true,
     secure,
