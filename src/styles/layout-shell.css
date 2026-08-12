@@ -194,7 +194,10 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 .pd-app-main {
   flex: 1 0 auto;
   min-width: 0;
-  padding: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
+  /* Fill the content pane; padding scales with viewport */
+  padding: clamp(1rem, 1.8vw, 1.75rem) clamp(1rem, 2.8vw, 2.5rem);
 }
 
 .pd-app-shell--mobile .pd-app-main {
@@ -1375,4 +1378,13 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-page {
   min-height: 100%;
+  width: 100%;
+  max-width: min(100%, 80rem);
+  margin-inline: auto;
+  box-sizing: border-box;
+}
+
+/* Readable / form surfaces — tighter column within the main pane */
+.pd-page--narrow {
+  max-width: min(100%, 72rem);
 }

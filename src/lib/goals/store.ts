@@ -1,8 +1,10 @@
+import { subscribeEmployeesStore } from '@/lib/employees/store'
 import {
   createInitialSnapshot,
   DEMO_CYCLES,
   isEligibleForCycle,
 } from './demoData'
+import { mergePeopleIntoGoalsState } from './peopleFromEmployees'
 import type {
   DemoPhase,
   Goal,
@@ -11,10 +13,12 @@ import type {
 } from './types'
 import { canSubmitGoals } from './weightage'
 
-const STORAGE_KEY = 'pd-goals-demo-v3'
+/** Bumped when demo roster was removed — clears stale seeded people from session. */
+const STORAGE_KEY = 'pd-goals-demo-v7'
 
 let memory: GoalsSnapshot | null = null
 const listeners = new Set<() => void>()
+let employeesBridgeReady = false
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -38,9 +42,29 @@ function writeStorage(snapshot: GoalsSnapshot): void {
   }
 }
 
+function withDirectoryPeople(snapshot: GoalsSnapshot): GoalsSnapshot {
+  const merged = mergePeopleIntoGoalsState(snapshot)
+  return {
+    ...snapshot,
+    people: merged.people,
+    byPerson: merged.byPerson,
+    activePersonId: merged.activePersonId,
+  }
+}
+
+function ensureEmployeesBridge() {
+  if (employeesBridgeReady) return
+  employeesBridgeReady = true
+  subscribeEmployeesStore(() => {
+    if (!memory) return
+    commit(withDirectoryPeople(memory))
+  })
+}
+
 function getState(): GoalsSnapshot {
+  ensureEmployeesBridge()
   if (!memory) {
-    memory = readStorage() ?? createInitialSnapshot()
+    memory = withDirectoryPeople(readStorage() ?? createInitialSnapshot())
   }
   return memory
 }
@@ -62,11 +86,12 @@ export function getGoalsSnapshot(): GoalsSnapshot {
 }
 
 export function resetGoalsDemo(): GoalsSnapshot {
-  return commit(createInitialSnapshot())
+  return commit(withDirectoryPeople(createInitialSnapshot()))
 }
 
 export function setActivePerson(personId: string): GoalsSnapshot {
   const state = getState()
+  if (!personId) return clone(state)
   if (!state.people.some((p) => p.id === personId)) return clone(state)
   return commit({ ...state, activePersonId: personId })
 }

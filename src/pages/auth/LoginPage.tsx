@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { layoutConfig } from '@/config/layout'
+import { ApiError } from '@/lib/apiClient'
 import { useAuth } from '@/lib/auth'
-import { DEMO_ACCOUNTS } from '@/lib/demoAccounts'
 import { publicUrl } from '@/lib/publicUrl'
 import '@/styles/layout-login.css'
 
@@ -35,13 +35,44 @@ function GoogleMark() {
   )
 }
 
+function oauthErrorMessage(code: string | null): string | null {
+  if (!code) return null
+  switch (code) {
+    case 'missing_code':
+      return 'Google did not return an authorization code. Try again.'
+    case 'invalid_state':
+      return 'Sign-in expired or was interrupted. Try again.'
+    case 'no_id_token':
+      return 'Google did not return an ID token. Try again.'
+    case 'no_email':
+      return 'Google account has no email address.'
+    case 'domain_not_allowed':
+      return 'Only @nextventures.io accounts can sign in to this app.'
+    case 'not_an_employee':
+      return 'No People Performance account found for this email. Ask an admin to add you.'
+    case 'inactive':
+      return 'This account is inactive.'
+    case 'auth_failed':
+      return 'Google sign-in failed. Try again.'
+    default:
+      return 'Sign-in failed. Try again.'
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { status, signInWithGoogle, signInWithDemoAccount } = useAuth()
-  const [busy, setBusy] = useState<'google' | string | null>(null)
+  const [params] = useSearchParams()
+  const { status, signInWithGoogle, signInWithEmailPassword } = useAuth()
+  const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
 
-  // CSS backgrounds are invisible to the preload scanner — hint the AVIF early.
+  const oauthError = useMemo(
+    () => oauthErrorMessage(params.get('error')),
+    [params],
+  )
+
   useEffect(() => {
     const link = document.createElement('link')
     link.rel = 'preload'
@@ -50,37 +81,47 @@ export default function LoginPage() {
     link.type = 'image/avif'
     document.head.appendChild(link)
     return () => {
-      link.remove()
+      document.head.removeChild(link)
     }
   }, [])
+
+  if (status === 'loading') {
+    return (
+      <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
+    )
+  }
 
   if (status === 'authenticated') {
     return <Navigate to="/" replace />
   }
 
-  const finishSignIn = () => navigate('/', { replace: true })
-
   const handleGoogleSignIn = async () => {
-    setBusy('google')
+    setBusy(true)
     setError(null)
     try {
       await signInWithGoogle()
-      finishSignIn()
+      navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.')
-      setBusy(null)
+      setBusy(false)
     }
   }
 
-  const handleSelectAccount = async (email: string) => {
-    setBusy(email)
+  const handleEmailSignIn = async (event: FormEvent) => {
+    event.preventDefault()
+    setBusy(true)
     setError(null)
     try {
-      await signInWithDemoAccount(email)
-      finishSignIn()
+      await signInWithEmailPassword(username, password)
+      navigate('/', { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed.')
-      setBusy(null)
+      if (err instanceof ApiError) {
+        const body = err.body as { error?: string } | null
+        setError(body?.error ?? 'Invalid username or password.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Sign-in failed.')
+      }
+      setBusy(false)
     }
   }
 
@@ -112,62 +153,75 @@ export default function LoginPage() {
         </div>
 
         <div className="pd-login__actions">
-          <p className="pd-login__subtitle">
-            Sign in with your NEXT Ventures account to continue.
-          </p>
+          <p className="pd-login__subtitle">Sign in to continue</p>
+
+          <form className="pd-login__form" onSubmit={(e) => void handleEmailSignIn(e)}>
+            <label className="pd-login__field">
+              <span className="pd-sr-only">Username</span>
+              <div className="pd-login__username">
+                <input
+                  type="text"
+                  name="username"
+                  autoComplete="username"
+                  required
+                  placeholder="username"
+                  value={username}
+                  onChange={(e) =>
+                    setUsername(e.target.value.replace(/@.*$/, ''))
+                  }
+                  className="pd-login__input pd-login__input--username"
+                  disabled={busy}
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+                <span className="pd-login__domain" aria-hidden>
+                  @nextventures.io
+                </span>
+              </div>
+            </label>
+            <label className="pd-login__field">
+              <span className="pd-sr-only">Password</span>
+              <input
+                type="password"
+                name="password"
+                autoComplete="current-password"
+                required
+                placeholder="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pd-login__input"
+                disabled={busy}
+              />
+            </label>
+            <button
+              type="submit"
+              className="pd-login__submit"
+              disabled={busy}
+              aria-busy={busy || undefined}
+            >
+              Sign in with email
+            </button>
+          </form>
+
+          <div className="pd-login__divider" aria-hidden>
+            <span>or</span>
+          </div>
 
           <button
             type="button"
             className="pd-login__google"
-            disabled={busy !== null}
-            aria-busy={busy === 'google' || undefined}
+            disabled={busy}
+            aria-busy={busy || undefined}
             onClick={() => void handleGoogleSignIn()}
           >
             <GoogleMark />
             Continue with Google
           </button>
 
-          <div className="pd-login__divider" role="separator">
-            <span>Or use a demo account</span>
-          </div>
-
-          <div className="pd-login__accounts" aria-label="Demo accounts">
-            {DEMO_ACCOUNTS.map((account) => {
-              const isBusy = busy === account.email
-              return (
-                <button
-                  key={account.email}
-                  type="button"
-                  className="pd-login__account"
-                  disabled={busy !== null}
-                  title={account.email}
-                  aria-label={`Sign in as ${account.roleLabel} (${account.email})`}
-                  aria-busy={isBusy || undefined}
-                  onClick={() => void handleSelectAccount(account.email)}
-                >
-                  <span
-                    className="pd-login__account-avatar"
-                    style={{
-                      background: `hsl(${account.avatarHue} 55% 42%)`,
-                    }}
-                    aria-hidden
-                  >
-                    {account.name
-                      .split(/\s+/)
-                      .map((part) => part[0])
-                      .join('')
-                      .slice(0, 2)}
-                  </span>
-                  <span className="pd-login__account-role">
-                    {account.roleLabel}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-
-          {error ? <p className="pd-login__error">{error}</p> : null}
-          <p className="pd-login__hint">Authorized members only.</p>
+          {error || oauthError ? (
+            <p className="pd-login__error">{error ?? oauthError}</p>
+          ) : null}
         </div>
       </div>
     </div>

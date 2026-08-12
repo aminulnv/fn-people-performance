@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, apiFetch } from '@/lib/apiClient'
-import { DEMO_USER, clearSession, writeSession } from '@/lib/authApi'
+import { LOCAL_USER, clearSession, writeSession } from '@/lib/authApi'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -28,7 +28,7 @@ describe('apiFetch', () => {
 
   it('attaches Bearer token from the auth session', async () => {
     writeSession({
-      user: DEMO_USER,
+      user: LOCAL_USER,
       signedInAt: '2026-01-01T00:00:00.000Z',
       accessToken: 'test-token',
     })
@@ -53,7 +53,7 @@ describe('apiFetch', () => {
 
   it('skips Authorization when skipAuth is set', async () => {
     writeSession({
-      user: DEMO_USER,
+      user: LOCAL_USER,
       signedInAt: '2026-01-01T00:00:00.000Z',
       accessToken: 'test-token',
     })

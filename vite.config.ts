@@ -58,5 +58,17 @@ export default defineConfig(({ command }) => ({
     host: true,
     port: 8001,
     strictPort: true,
+    // Same-origin /api in local dev → live Express on EC2 (or tunneled :3001).
+    // secure:false — many corp networks MITM HTTPS (self-signed in chain); Node
+    // would otherwise reject the proxy TLS handshake and login returns 500.
+    proxy: {
+      '/api': {
+        target:
+          process.env.VITE_API_PROXY_TARGET ??
+          'https://performance.nextventures.io',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 }))

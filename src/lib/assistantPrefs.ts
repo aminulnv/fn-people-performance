@@ -1,7 +1,7 @@
 export const ASSISTANT_ENABLED_KEY = 'app-assistant-enabled'
 export const ASSISTANT_PREFS_EVENT = 'assistant-prefs-change'
 
-export const DEFAULT_ASSISTANT_ENABLED = true
+export const DEFAULT_ASSISTANT_ENABLED = false
 
 export interface AssistantPrefs {
   enabled: boolean

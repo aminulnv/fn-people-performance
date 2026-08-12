@@ -1,28 +1,54 @@
 import { useEffect, useState } from 'react'
-import { useAuth } from '@/lib/useAuth'
-import { DEMO_ACCOUNTS } from '@/lib/demoAccounts'
+import { avatarHue } from '@/lib/employees/avatar'
+import {
+  findEmployeeByEmail,
+  getEmployee,
+  listEmployees,
+  subscribeEmployeesStore,
+} from '@/lib/employees/store'
+import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
 import {
   getGoalsSnapshot,
   subscribeGoalsStore,
 } from '@/lib/goals/store'
 import type { DemoPerson } from '@/lib/goals/types'
+import { useAuth } from '@/lib/useAuth'
 
-/** Logged-in person from auth, enriched with goals org profile when available. */
+/** Logged-in person from auth, enriched with directory / goals profile when available. */
 export function useCurrentPerson(): DemoPerson | null {
   const { user } = useAuth()
   const [tick, setTick] = useState(0)
 
-  useEffect(() => subscribeGoalsStore(() => setTick((n) => n + 1)), [])
+  useEffect(() => {
+    const unsubGoals = subscribeGoalsStore(() => setTick((n) => n + 1))
+    const unsubEmployees = subscribeEmployeesStore(() =>
+      setTick((n) => n + 1),
+    )
+    return () => {
+      unsubGoals()
+      unsubEmployees()
+    }
+  }, [])
   void tick
 
   if (!user) return null
+
+  const directory = listEmployees()
+  const employeeId = Number(user.personId)
+  const fromDirectory =
+    (Number.isFinite(employeeId)
+      ? getEmployee(employeeId)
+      : null) ?? findEmployeeByEmail(user.email)
+
+  if (fromDirectory) {
+    return employeeToDemoPerson(fromDirectory, directory)
+  }
 
   const fromGoals = getGoalsSnapshot().people.find(
     (p) => p.id === user.personId || p.email === user.email,
   )
   if (fromGoals) return fromGoals
 
-  const account = DEMO_ACCOUNTS.find((a) => a.personId === user.personId)
   return {
     id: user.personId,
     name: user.name,
@@ -32,7 +58,7 @@ export function useCurrentPerson(): DemoPerson | null {
     role: user.role,
     joinDate: '2020-01-01',
     reportIds: [],
-    avatarHue: account?.avatarHue ?? 220,
+    avatarHue: avatarHue(user.email || user.personId),
     blurb: '',
   }
 }

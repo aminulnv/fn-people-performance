@@ -1191,6 +1191,145 @@
   flex-shrink: 0;
 }
 
+/* ── Listbox select (custom, not native <select>) ─────────────────── */
+
+.pd-listbox {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.pd-listbox.is-open {
+  z-index: 40;
+}
+
+.pd-listbox__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.65rem 0.4rem 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, var(--color-text));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-bg) 55%, var(--color-surface));
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.pd-listbox__trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
+}
+
+.pd-listbox__trigger:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.pd-listbox.is-open .pd-listbox__trigger {
+  border-color: var(--color-primary);
+  background: var(--color-surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.pd-listbox__trigger:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.pd-listbox__trigger--placeholder .pd-listbox__value {
+  color: var(--color-text-secondary);
+  opacity: 0.75;
+}
+
+.pd-listbox__value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-listbox__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 160ms ease;
+}
+
+.pd-listbox__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.pd-listbox__panel {
+  position: absolute;
+  top: calc(100% + 0.28rem);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  max-height: min(16.5rem, 50vh);
+  overflow-y: auto;
+  padding: 0.28rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--shadow-deep, 0 12px 32px color-mix(in srgb, var(--color-text) 14%, transparent));
+}
+
+.pd-listbox__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.48rem 0.6rem;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.pd-listbox__option:hover,
+.pd-listbox__option.is-active {
+  background: var(--color-neutral-hover, color-mix(in srgb, var(--color-text) 6%, var(--color-surface)));
+}
+
+.pd-listbox__option.is-selected {
+  font-weight: 600;
+}
+
+.pd-listbox__option--empty {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.pd-listbox__option:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pd-listbox__option-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Pagination ───────────────────────────────────────────────────── */
 
 .pd-pagination {

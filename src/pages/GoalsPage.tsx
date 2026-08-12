@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import {
   Avatar,
@@ -169,8 +170,28 @@ export default function GoalsPage() {
     return { person, row }
   }, [snapshot, reviewId])
 
-  if (!snapshot || !active || !activeGoals) {
+  if (!snapshot) {
     return <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
+  }
+
+  if (!active || !activeGoals) {
+    return (
+      <div className="pd-page pd-goals" aria-label="Goals">
+        <PageHeader
+          title="Goals"
+          description={`${snapshot.cycle.label} · ${phaseLabel(snapshot.cycle.phase)}`}
+        />
+        <EmptyState
+          title="No people yet"
+          description="Create employees in People to start setting and reviewing goals."
+          action={
+            <Link to="/people/new" className="pd-btn pd-btn--primary pd-btn--md">
+              <span className="pd-btn__label">Create employee</span>
+            </Link>
+          }
+        />
+      </div>
+    )
   }
 
   const eligible = isEligibleForCycle(active, snapshot.cycle)

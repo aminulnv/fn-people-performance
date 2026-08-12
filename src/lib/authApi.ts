@@ -1,8 +1,6 @@
-import {
-  DEMO_ACCOUNTS,
-  findDemoAccount,
-  type DemoAccount,
-} from '@/lib/demoAccounts'
+import { ApiError, apiFetch } from '@/lib/apiClient'
+import { listEmployees } from '@/lib/employees/store'
+import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
 import type { GoalRole } from '@/lib/goals/types'
 
 export type AuthUser = {
@@ -14,8 +12,18 @@ export type AuthUser = {
   title: string
 }
 
-/** Default account used for legacy session migration. */
-export const DEMO_USER: AuthUser = accountToUser(DEMO_ACCOUNTS[0])
+/**
+ * Local bootstrap identity until platform Google OAuth is added.
+ * Prefer matching a People directory row when one exists.
+ */
+export const LOCAL_USER: AuthUser = {
+  id: 'local',
+  email: 'local@nextventures.io',
+  name: 'Local User',
+  personId: 'local',
+  role: 'employee',
+  title: '',
+}
 
 const AUTH_SESSION_KEY = 'pd-auth-session'
 const LEGACY_AUTH_KEY = 'pd-demo-auth'
@@ -31,14 +39,49 @@ export type AuthSession = {
   accessToken?: string
 }
 
-function accountToUser(account: DemoAccount): AuthUser {
+type PlatformAuthUser = {
+  id: string
+  email: string
+  name: string
+  employeeId?: number | null
+  title?: string
+  role?: string
+}
+
+type PlatformAuthMeResponse = {
+  authenticated: boolean
+  user?: PlatformAuthUser
+}
+
+function useTestAuth(): boolean {
+  return import.meta.env.MODE === 'test'
+}
+
+function mapRole(role: string | undefined): GoalRole {
+  const normalized = (role ?? '').trim().toLowerCase()
+  if (normalized === 'manager') return 'manager'
+  if (
+    normalized === 'seniormanager' ||
+    normalized === 'senior_manager' ||
+    normalized === 'senior-manager'
+  ) {
+    return 'seniormanager'
+  }
+  if (normalized === 'hrbp') return 'hrbp'
+  if (normalized === 'ptr') return 'ptr'
+  return 'employee'
+}
+
+function authUserFromPlatform(user: PlatformAuthUser): AuthUser {
+  const employeeId =
+    typeof user.employeeId === 'number' ? user.employeeId : null
   return {
-    id: account.personId,
-    email: account.email,
-    name: account.name,
-    personId: account.personId,
-    role: account.role,
-    title: account.title,
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    personId: employeeId != null ? String(employeeId) : user.id,
+    role: mapRole(user.role),
+    title: user.title ?? '',
   }
 }
 
@@ -58,13 +101,33 @@ export function clearSession(): void {
   sessionStorage.removeItem(AUTH_SESSION_KEY)
 }
 
+function sessionFromUser(user: AuthUser): AuthSession {
+  return {
+    user,
+    signedInAt: new Date().toISOString(),
+  }
+}
+
+function resolveLocalSignInUser(): AuthUser {
+  const directory = listEmployees().filter((e) => e.isActive)
+  const primary = directory[0]
+  if (!primary) return LOCAL_USER
+
+  const person = employeeToDemoPerson(primary, directory)
+  return {
+    id: person.id,
+    email: person.email,
+    name: person.name,
+    personId: person.id,
+    role: person.role,
+    title: person.title,
+  }
+}
+
 function migrateLegacySession(): AuthSession | null {
   try {
     if (sessionStorage.getItem(LEGACY_AUTH_KEY) !== '1') return null
-    const session: AuthSession = {
-      user: DEMO_USER,
-      signedInAt: new Date().toISOString(),
-    }
+    const session = sessionFromUser(resolveLocalSignInUser())
     writeSession(session)
     sessionStorage.removeItem(LEGACY_AUTH_KEY)
     return session
@@ -100,10 +163,7 @@ export function readSession(): AuthSession | null {
     /* migrate legacy flag stored under the new key */
   }
   if (raw === '1') {
-    const session: AuthSession = {
-      user: DEMO_USER,
-      signedInAt: new Date().toISOString(),
-    }
+    const session = sessionFromUser(resolveLocalSignInUser())
     writeSession(session)
     return session
   }
@@ -118,32 +178,126 @@ export function isSignedIn(): boolean {
   return readSession() !== null
 }
 
-/** Sign in as a known @demo.com account (local / demo environments). */
-export async function signInWithDemoAccount(
-  email: string,
+/**
+ * Resolve the current *platform* session (pd_platform_sid cookie).
+ * Independent of the dashboard Google session.
+ */
+export async function fetchAuthSession(): Promise<AuthSession | null> {
+  if (useTestAuth()) {
+    return readSession()
+  }
+
+  try {
+    const me = await apiFetch<PlatformAuthMeResponse>(
+      '/api/platform/auth/me',
+      { skipAuth: true },
+    )
+    if (!me.authenticated || !me.user) {
+      clearSession()
+      return null
+    }
+    const session = sessionFromUser(authUserFromPlatform(me.user))
+    writeSession(session)
+    return session
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 401) {
+      clearSession()
+      return null
+    }
+    throw err
+  }
+}
+
+/** Platform app path for OAuth return (includes /platform in production). */
+function platformReturnTo(): string {
+  const base = import.meta.env.BASE_URL || '/'
+  if (base === '/') return '/platform/'
+  return base.endsWith('/') ? base : `${base}/`
+}
+
+/**
+ * Platform Google OAuth — separate from the HR dashboard session.
+ * Redirects to /api/platform/auth/google (sets pd_platform_sid).
+ */
+export async function signInWithGoogle(): Promise<AuthSession> {
+  if (useTestAuth()) {
+    await Promise.resolve()
+    const session = sessionFromUser(resolveLocalSignInUser())
+    writeSession(session)
+    return session
+  }
+
+  const returnTo = platformReturnTo()
+  window.location.assign(
+    `/api/platform/auth/google?returnTo=${encodeURIComponent(returnTo)}`,
+  )
+  // Navigation away — callers should not expect this to resolve.
+  return new Promise(() => {})
+}
+
+const PLATFORM_EMAIL_DOMAIN = 'nextventures.io'
+
+/** Accept username or full email; always normalize to @nextventures.io. */
+export function normalizePlatformEmail(identity: string): string {
+  const raw = identity.trim().toLowerCase()
+  if (!raw) return ''
+  if (!raw.includes('@')) return `${raw}@${PLATFORM_EMAIL_DOMAIN}`
+  return raw
+}
+
+/**
+ * Platform email + password login (temporary shared default password).
+ * Pass username only — @nextventures.io is appended automatically.
+ */
+export async function signInWithEmailPassword(
+  identity: string,
+  password: string,
 ): Promise<AuthSession> {
-  await Promise.resolve()
-  const account = findDemoAccount(email)
-  if (!account) {
-    throw new Error('Unknown demo account.')
+  const email = normalizePlatformEmail(identity)
+
+  if (useTestAuth()) {
+    const session = sessionFromUser({
+      ...LOCAL_USER,
+      email: email || LOCAL_USER.email,
+      name: email.split('@')[0] || LOCAL_USER.name,
+      id: email || LOCAL_USER.id,
+      personId: email || LOCAL_USER.personId,
+    })
+    writeSession(session)
+    return session
   }
-  const session: AuthSession = {
-    user: accountToUser(account),
-    signedInAt: new Date().toISOString(),
+
+  const data = await apiFetch<PlatformAuthMeResponse>(
+    '/api/platform/auth/login',
+    {
+      method: 'POST',
+      skipAuth: true,
+      body: {
+        email,
+        password,
+      },
+    },
+  )
+
+  if (!data.authenticated || !data.user) {
+    throw new Error('Sign-in failed.')
   }
+
+  const session = sessionFromUser(authUserFromPlatform(data.user))
   writeSession(session)
   return session
 }
 
-/**
- * Demo Google sign-in. Currently maps to the default employee demo account.
- * Replace with a real OAuth redirect / token exchange for production.
- */
-export async function signInWithGoogle(): Promise<AuthSession> {
-  return signInWithDemoAccount(DEMO_USER.email)
-}
-
 export async function signOut(): Promise<void> {
-  await Promise.resolve()
+  if (!useTestAuth()) {
+    try {
+      await apiFetch('/api/platform/auth/logout', {
+        method: 'POST',
+        skipAuth: true,
+      })
+    } catch {
+      // Still clear local session if the API call fails.
+    }
+  }
   clearSession()
 }

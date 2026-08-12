@@ -1,13 +1,17 @@
 /* Settings page — loaded only with SettingsPage */
 .pd-settings {
   min-height: 100%;
+  width: 100%;
+  max-width: min(100%, 64rem);
+  margin-inline: auto;
 }
 
 .pd-settings__layout {
   display: grid;
-  grid-template-columns: 12.5rem minmax(0, 36rem);
+  grid-template-columns: 12.5rem minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
+  width: 100%;
 }
 
 .pd-settings-nav {
