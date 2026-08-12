@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   findEmployeeByEmail,
   getEmployee,
-  loadEmployees,
-  subscribeEmployeesStore,
 } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import { useAuth } from '@/lib/useAuth'
 import {
   EmployeeProfileView,
@@ -15,27 +14,9 @@ import '@/styles/layout-people.css'
 
 export default function MyProfilePage() {
   const { user } = useAuth()
-  const [tick, setTick] = useState(0)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    void loadEmployees()
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setReady(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
+  const { employees, isLoading } = useEmployees()
 
   const employee = useMemo(() => {
-    void tick
     if (!user) return null
     const employeeId = Number(user.personId)
     return (
@@ -43,18 +24,15 @@ export default function MyProfilePage() {
         ? getEmployee(employeeId)
         : null) ?? findEmployeeByEmail(user.email)
     )
-  }, [user, tick])
+  }, [user, employees])
 
-  const manager = useMemo(() => {
-    void tick
-    return resolveManager(employee)
-  }, [employee, tick])
+  const manager = useMemo(() => resolveManager(employee), [employee])
 
   if (!user) {
     return null
   }
 
-  if (!ready) {
+  if (isLoading) {
     return (
       <div
         className="pd-page pd-people pd-profile"

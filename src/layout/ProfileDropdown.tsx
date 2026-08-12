@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { LogOut, Moon, Settings, Sun, UserRound } from 'lucide-react'
-import { SignOutConfirmModal } from '@/components/ConfirmModal'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { applyAppearance } from '@/lib/brand'
 import { formatGoalRole } from '@/lib/goals/roles'
@@ -137,10 +137,14 @@ export function ProfileDropdown({
           </button>
         </div>
       )}
-      <SignOutConfirmModal
+      <ConfirmDialog
         open={showSignOutConfirm}
         onClose={handleCloseConfirm}
         onConfirm={handleConfirmSignOut}
+        title="Sign out?"
+        description="Are you sure you want to sign out?"
+        confirmLabel="Sign out"
+        confirmVariant="danger"
       />
     </div>
   )

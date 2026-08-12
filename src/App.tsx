@@ -3,9 +3,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
-const ComponentsPage = lazy(() => import('@/pages/ComponentsPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const DummyPage = lazy(() => import('@/pages/DummyPage'))
+const ComponentsPage = import.meta.env.DEV
+  ? lazy(() => import('@/pages/ComponentsPage'))
+  : null
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
@@ -75,7 +77,9 @@ function App() {
             <Route path="analytics" element={<DummyPage title="Analytics" />} />
             <Route path="engagement" element={<DummyPage title="Engagement" />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="components" element={<ComponentsPage />} />
+            {ComponentsPage ? (
+              <Route path="components" element={<ComponentsPage />} />
+            ) : null}
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<CatchAllRedirect />} />

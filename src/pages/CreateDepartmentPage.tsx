@@ -1,13 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Building2, Save } from 'lucide-react'
 import { ListboxSelect } from '@/components/ui'
-import {
-  createDepartment,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
+import { createDepartment } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import { departmentKey } from '@/lib/organisation/fromEmployees'
 import { departmentDetailPath } from '@/lib/organisation/paths'
 import '@/styles/layout-people.css'
@@ -15,31 +11,27 @@ import '@/styles/layout-organisation.css'
 
 export default function CreateDepartmentPage() {
   const navigate = useNavigate()
-  const [tick, setTick] = useState(0)
+  const { employees } = useEmployees()
   const [name, setName] = useState('')
   const [headEmployeeId, setHeadEmployeeId] = useState('')
   const [hrbpEmployeeId, setHrbpEmployeeId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    void loadEmployees().catch(() => {})
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
-
-  const peopleOptions = useMemo(() => {
-    void tick
-    return listEmployees()
-      .filter((e) => e.isActive)
-      .slice()
-      .sort((a, b) => a.fullName.localeCompare(b.fullName))
-      .map((e) => ({
-        value: String(e.employeeId),
-        label: e.jobTitle
-          ? `${e.fullName} · ${e.jobTitle}`
-          : e.fullName,
-      }))
-  }, [tick])
+  const peopleOptions = useMemo(
+    () =>
+      employees
+        .filter((e) => e.isActive)
+        .slice()
+        .sort((a, b) => a.fullName.localeCompare(b.fullName))
+        .map((e) => ({
+          value: String(e.employeeId),
+          label: e.jobTitle
+            ? `${e.fullName} · ${e.jobTitle}`
+            : e.fullName,
+        })),
+    [employees],
+  )
 
   const previewName = name.trim() || 'New department'
 

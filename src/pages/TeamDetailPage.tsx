@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Building2, Network, UsersRound } from 'lucide-react'
 import { Avatar } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
-import {
-  getEmployee,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
-import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
+import { getEmployee } from '@/lib/employees/store'
+import { useOrganisation } from '@/lib/employees/useEmployees'
 import { departmentDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
@@ -18,33 +13,13 @@ import '@/styles/layout-organisation.css'
 export default function TeamDetailPage() {
   const { teamId: rawId = '' } = useParams()
   const teamId = decodeURIComponent(rawId)
-  const [tick, setTick] = useState(0)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    let cancelled = false
-    void loadEmployees()
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setReady(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  useEffect(() => {
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
+  const { organisation, isLoading } = useOrganisation()
 
   const { team, departmentId, members } = useMemo(() => {
-    void tick
-    const employees = listEmployees()
-    const snapshot = buildOrganisationFromEmployees(employees)
-    const found = snapshot.teams.find((t) => t.id === teamId) ?? null
+    const found = organisation.teams.find((t) => t.id === teamId) ?? null
     const dept =
       found != null
-        ? snapshot.departments.find((d) => d.name === found.departmentName)
+        ? organisation.departments.find((d) => d.name === found.departmentName)
         : null
     const people = found
       ? found.memberIds
@@ -57,9 +32,9 @@ export default function TeamDetailPage() {
       departmentId: dept?.id ?? null,
       members: people,
     }
-  }, [teamId, tick])
+  }, [organisation, teamId])
 
-  if (!ready) {
+  if (isLoading) {
     return (
       <div
         className="pd-page pd-people pd-org pd-org-detail"

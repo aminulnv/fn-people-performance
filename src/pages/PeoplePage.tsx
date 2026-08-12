@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
@@ -11,14 +11,7 @@ import {
 import { Avatar } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import {
-  getEmployeesLoadError,
-  getEmployeesLoadState,
-  listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
-} from '@/lib/employees/store'
-import type { PlatformEmployee } from '@/lib/employees/types'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import '@/styles/layout-people.css'
 
 function PersonCell({
@@ -53,22 +46,9 @@ function PersonCell({
 
 export default function PeoplePage() {
   const { user } = useAuth()
-  const [employees, setEmployees] = useState<PlatformEmployee[]>(() =>
-    listEmployees(),
-  )
-  const [loadState, setLoadState] = useState(getEmployeesLoadState)
-  const [loadError, setLoadError] = useState(getEmployeesLoadError)
+  const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
   const [myReportsOnly, setMyReportsOnly] = useState(false)
-
-  useEffect(() => {
-    void loadEmployees().catch(() => {})
-    return subscribeEmployeesStore(() => {
-      setEmployees(listEmployees())
-      setLoadState(getEmployeesLoadState())
-      setLoadError(getEmployeesLoadError())
-    })
-  }, [])
 
   const activeCount = employees.filter((e) => e.isActive).length
 

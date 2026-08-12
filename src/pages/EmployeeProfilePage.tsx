@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   Building2,
@@ -17,9 +17,8 @@ import {
   findEmployeeByEmail,
   getEmployee,
   listEmployees,
-  loadEmployees,
-  subscribeEmployeesStore,
 } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import '@/styles/layout-people.css'
 
@@ -360,23 +359,14 @@ export function EmployeeProfileView({
 export default function EmployeeProfilePage() {
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
-  const [tick, setTick] = useState(0)
-
-  useEffect(() => {
-    void loadEmployees().catch(() => {})
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
+  const { employees } = useEmployees()
 
   const employee = useMemo(() => {
-    void tick
     if (!Number.isInteger(employeeId) || employeeId <= 0) return null
     return getEmployee(employeeId)
-  }, [employeeId, tick])
+  }, [employeeId, employees])
 
-  const manager = useMemo(() => {
-    void tick
-    return resolveManager(employee)
-  }, [employee, tick])
+  const manager = useMemo(() => resolveManager(employee), [employee])
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return <Navigate to="/people" replace />

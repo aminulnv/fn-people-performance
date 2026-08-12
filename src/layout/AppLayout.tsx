@@ -10,7 +10,8 @@ import {
 } from 'lucide-react'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
-import { getEmployee, listEmployees } from '@/lib/employees/store'
+import { getEmployee } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import { WritingAssistant } from '@/components/assistant/WritingAssistant'
 import { Sidebar } from './Sidebar'
@@ -46,6 +47,7 @@ export function AppLayout({
   const { pathname } = useLocation()
   const { isMobile } = useBreakpoint()
   const { enabled: assistantEnabled } = useAssistantPrefs()
+  const { employees } = useEmployees({ load: false })
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   useEffect(() => {
@@ -133,8 +135,8 @@ export function AppLayout({
   const teamIdParam = teamMatch?.params.teamId
   const orgSnapshot = useMemo(() => {
     if (!departmentIdParam && !teamIdParam) return null
-    return buildOrganisationFromEmployees(listEmployees())
-  }, [departmentIdParam, teamIdParam])
+    return buildOrganisationFromEmployees(employees)
+  }, [departmentIdParam, employees, teamIdParam])
   const departmentNavItem: NavItem | null = departmentIdParam
     ? {
         path: pathname,

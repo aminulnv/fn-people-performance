@@ -15,10 +15,9 @@ import {
 import {
   createEmployee,
   getEmployee,
-  listEmployees,
-  subscribeEmployeesStore,
   updateEmployee,
 } from '@/lib/employees/store'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import type { CreateEmployeeInput, UpdateEmployeeInput } from '@/lib/employees/types'
 import '@/styles/layout-people.css'
 
@@ -291,20 +290,11 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const navigate = useNavigate()
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
-  const [tick, setTick] = useState(0)
+  const { employees } = useEmployees()
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(mode === 'create')
-
-  useEffect(() => {
-    return subscribeEmployeesStore(() => setTick((n) => n + 1))
-  }, [])
-
-  const employees = useMemo(() => {
-    void tick
-    return listEmployees()
-  }, [tick])
 
   const existing = useMemo(() => {
     if (mode !== 'edit') return null
