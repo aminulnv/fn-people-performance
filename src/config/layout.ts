@@ -4,7 +4,6 @@ import {
   Home,
   IdCard,
   Landmark,
-  MessageCircle,
   Settings,
   Star,
   Target,
@@ -39,7 +38,6 @@ export const layoutConfig: AppLayoutConfig = {
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
     { path: '/analytics', label: 'Analytics', icon: BarChart3 },
-    { path: '/engagement', label: 'Engagement', icon: MessageCircle },
   ],
 }
 

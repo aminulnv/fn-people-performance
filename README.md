@@ -27,6 +27,13 @@ Open http://localhost:8001.
 cp .env.example .env   # optional; VITE_API_BASE_URL empty = same-origin /api
 ```
 
+**Local sign-in:** Add both redirect URIs in the platform Google Cloud OAuth client:
+
+- `https://performance.nextventures.io/api/platform/auth/google/callback`
+- `http://localhost:8001/api/platform/auth/google/callback`
+
+Vite proxies `/api` to production and sends `X-Forwarded-Host` so Google returns to localhost. Deploy platform API changes with `npm run deploy:platform-api`. For offline UI only, set `VITE_AUTH_MODE=local`.
+
 ## Deploy to EC2 `/platform` (from this repo)
 
 One-time:

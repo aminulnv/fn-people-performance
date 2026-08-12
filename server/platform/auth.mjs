@@ -9,8 +9,9 @@
  * Requires PLATFORM_GOOGLE_CLIENT_ID + PLATFORM_GOOGLE_CLIENT_SECRET
  * (separate Google Cloud project / OAuth client — never the dashboard's).
  *
- * Authorized redirect URI:
+ * Authorized redirect URIs (Google Cloud Console):
  *   https://performance.nextventures.io/api/platform/auth/google/callback
+ *   http://localhost:8001/api/platform/auth/google/callback
  */
 import crypto from 'crypto'
 import { OAuth2Client } from 'google-auth-library'
@@ -24,6 +25,32 @@ const OAUTH_STATE_COOKIE = 'pd_platform_oauth'
 const MAX_AGE_MS = 1000 * 60 * 60 * 24 * 14 // 14 days
 const OAUTH_STATE_MAX_AGE_MS = 1000 * 60 * 10 // 10 minutes
 
+/** Vite DEV origin — only these may override production getAppUrl via X-Forwarded-*. */
+const LOCAL_DEV_HOSTS = new Set(['localhost:8001', '127.0.0.1:8001'])
+
+function forwardedHeader(req, name) {
+  const raw = req?.get?.(name) || req?.headers?.[name]
+  if (typeof raw !== 'string' || !raw.trim()) return ''
+  return raw.split(',')[0].trim()
+}
+
+/**
+ * Public origin for OAuth redirect_uri and post-login redirects.
+ * When Vite proxies /api with X-Forwarded-Host=localhost:8001, Google returns
+ * to localhost (Console URI) and the proxy forwards the callback to EC2.
+ */
+function platformPublicOrigin(req) {
+  const host = forwardedHeader(req, 'x-forwarded-host')
+  if (LOCAL_DEV_HOSTS.has(host)) {
+    // Vite DEV is always HTTP; nginx may overwrite X-Forwarded-Proto to https.
+    return `http://${host}`
+  }
+  return getAppUrl(req)
+}
+
+function isLocalDevProxy(req) {
+  return LOCAL_DEV_HOSTS.has(forwardedHeader(req, 'x-forwarded-host'))
+}
 function sessionSecret() {
   return (
     process.env.PLATFORM_SESSION_SECRET?.trim() ||
@@ -89,10 +116,12 @@ function verifyToken(token) {
 }
 
 function cookieOptions(req, maxAge = MAX_AGE_MS) {
-  const secure =
-    process.env.NODE_ENV === 'production' ||
-    req?.secure === true ||
-    req?.get?.('x-forwarded-proto') === 'https'
+  // Proxied localhost must not get Secure cookies (HTTP Vite).
+  const secure = isLocalDevProxy(req)
+    ? false
+    : process.env.NODE_ENV === 'production' ||
+      req?.secure === true ||
+      req?.get?.('x-forwarded-proto') === 'https'
   return {
     httpOnly: true,
     secure,
@@ -147,7 +176,7 @@ function clearPlatformCookie(req, res) {
 }
 
 function platformCallbackUrl(req) {
-  return `${getAppUrl(req)}/api/platform/auth/google/callback`
+  return `${platformPublicOrigin(req)}/api/platform/auth/google/callback`
 }
 
 function getPlatformOAuthClient(req) {
@@ -164,13 +193,14 @@ function getPlatformOAuthClient(req) {
 function safeReturnTo(value) {
   if (typeof value !== 'string') return '/platform/'
   if (!value.startsWith('/') || value.startsWith('//')) return '/platform/'
-  // Keep users inside the platform app surface.
+  // Production SPA is under /platform; local Vite serves at /.
+  if (value === '/' || value === '/login' || value.startsWith('/login?')) return value
   if (value === '/platform' || value.startsWith('/platform/')) return value
   return '/platform/'
 }
 
 function redirectPlatform(res, path, req) {
-  const base = getAppUrl(req)
+  const base = platformPublicOrigin(req)
   const normalized = path.startsWith('/') ? path : `/${path}`
   return res.redirect(`${base}${normalized}`)
 }

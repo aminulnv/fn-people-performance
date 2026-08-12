@@ -75,7 +75,6 @@ function App() {
             <Route path="goals" element={<GoalsPage />} />
             <Route path="reviews" element={<DummyPage title="Reviews" />} />
             <Route path="analytics" element={<DummyPage title="Analytics" />} />
-            <Route path="engagement" element={<DummyPage title="Engagement" />} />
             <Route path="dashboard" element={<DashboardPage />} />
             {ComponentsPage ? (
               <Route path="components" element={<ComponentsPage />} />

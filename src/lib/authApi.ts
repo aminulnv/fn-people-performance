@@ -53,8 +53,17 @@ type PlatformAuthMeResponse = {
   user?: PlatformAuthUser
 }
 
-function useTestAuth(): boolean {
-  return import.meta.env.MODE === 'test'
+/**
+ * SessionStorage-only auth (no /api cookie session).
+ * - Vitest always
+ * - `VITE_AUTH_MODE=local` always
+ *
+ * Default DEV uses real Google via the Vite /api proxy (localhost callback in
+ * Google Console + X-Forwarded-Host on the platform API).
+ */
+function useSessionStorageAuth(): boolean {
+  if (import.meta.env.MODE === 'test') return true
+  return import.meta.env.VITE_AUTH_MODE === 'local'
 }
 
 function mapRole(role: string | undefined): GoalRole {
@@ -183,7 +192,7 @@ export function isSignedIn(): boolean {
  * Independent of the dashboard Google session.
  */
 export async function fetchAuthSession(): Promise<AuthSession | null> {
-  if (useTestAuth()) {
+  if (useSessionStorageAuth()) {
     return readSession()
   }
 
@@ -192,26 +201,30 @@ export async function fetchAuthSession(): Promise<AuthSession | null> {
       '/api/platform/auth/me',
       { skipAuth: true },
     )
-    if (!me.authenticated || !me.user) {
-      clearSession()
-      return null
+    if (me.authenticated && me.user) {
+      const session = sessionFromUser(authUserFromPlatform(me.user))
+      writeSession(session)
+      return session
     }
-    const session = sessionFromUser(authUserFromPlatform(me.user))
-    writeSession(session)
-    return session
   } catch (err) {
-    if (err instanceof ApiError && err.status === 401) {
-      clearSession()
-      return null
+    if (!(err instanceof ApiError && err.status === 401)) {
+      throw err
     }
-    throw err
   }
+
+  // VITE_AUTH_MODE=local keeps a sessionStorage session without cookies.
+  if (useSessionStorageAuth()) {
+    return readSession()
+  }
+
+  clearSession()
+  return null
 }
 
 /** Platform app path for OAuth return (includes /platform in production). */
 function platformReturnTo(): string {
   const base = import.meta.env.BASE_URL || '/'
-  if (base === '/') return '/platform/'
+  if (base === '/') return '/'
   return base.endsWith('/') ? base : `${base}/`
 }
 
@@ -220,7 +233,7 @@ function platformReturnTo(): string {
  * Redirects to /api/platform/auth/google (sets pd_platform_sid).
  */
 export async function signInWithGoogle(): Promise<AuthSession> {
-  if (useTestAuth()) {
+  if (useSessionStorageAuth()) {
     await Promise.resolve()
     const session = sessionFromUser(resolveLocalSignInUser())
     writeSession(session)
@@ -255,7 +268,7 @@ export async function signInWithEmailPassword(
 ): Promise<AuthSession> {
   const email = normalizePlatformEmail(identity)
 
-  if (useTestAuth()) {
+  if (useSessionStorageAuth()) {
     const session = sessionFromUser({
       ...LOCAL_USER,
       email: email || LOCAL_USER.email,
@@ -289,7 +302,7 @@ export async function signInWithEmailPassword(
 }
 
 export async function signOut(): Promise<void> {
-  if (!useTestAuth()) {
+  if (!useSessionStorageAuth()) {
     try {
       await apiFetch('/api/platform/auth/logout', {
         method: 'POST',

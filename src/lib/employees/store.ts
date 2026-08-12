@@ -125,6 +125,17 @@ export async function loadEmployees(): Promise<void> {
       loadState = 'ready'
       loadError = null
     } catch (err) {
+      // VITE_AUTH_MODE=local has no platform cookie — empty directory is fine.
+      if (
+        err instanceof ApiError &&
+        err.status === 401 &&
+        import.meta.env.VITE_AUTH_MODE === 'local'
+      ) {
+        setCache([])
+        loadState = 'ready'
+        loadError = null
+        return
+      }
       loadState = 'error'
       if (err instanceof ApiError && err.status === 401) {
         loadError = 'Sign in required to load people from the live database.'

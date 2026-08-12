@@ -68,6 +68,35 @@ export default defineConfig(({ command }) => ({
           'https://performance.nextventures.io',
         changeOrigin: true,
         secure: false,
+        configure(proxy) {
+          proxy.on('proxyReq', (proxyReq) => {
+            // Always advertise the Console-registered local origin, even if the
+            // browser opened Vite via 127.0.0.1 or a LAN IP (host: true).
+            proxyReq.setHeader('X-Forwarded-Host', 'localhost:8001')
+            proxyReq.setHeader('X-Forwarded-Proto', 'http')
+          })
+          proxy.on('proxyRes', (proxyRes) => {
+            const raw = proxyRes.headers['set-cookie']
+            if (raw) {
+              const cookies = Array.isArray(raw) ? raw : [raw]
+              proxyRes.headers['set-cookie'] = cookies.map((cookie) =>
+                cookie
+                  .replace(/;\s*Secure/gi, '')
+                  .replace(/;\s*Domain=[^;]*/gi, ''),
+              )
+            }
+            const location = proxyRes.headers.location
+            if (
+              typeof location === 'string' &&
+              /^https?:\/\/performance\.nextventures\.io(\/|$)/i.test(location)
+            ) {
+              proxyRes.headers.location = location.replace(
+                /^https?:\/\/performance\.nextventures\.io/i,
+                'http://localhost:8001',
+              )
+            }
+          })
+        },
       },
     },
   },

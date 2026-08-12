@@ -49,10 +49,6 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
     title: 'Read the signals',
     body: 'Analytics highlights trends over time — look for patterns, not one-off blips.',
   },
-  '/engagement': {
-    title: 'Stay engaged',
-    body: 'Engagement tools help you listen early and act before motivation dips.',
-  },
   '/settings': {
     title: 'Make it yours',
     body: 'Tune appearance and preferences here so the workspace fits how you work.',
