@@ -1,6 +1,6 @@
 /**
- * Canonical People directory at `/people`.
- * Soft-rect corners via `.pd-people--v3`.
+ * Soft-rect People preview at `/people-v3`.
+ * Canonical `/people` uses Organisation pill controls.
  */
 import PeoplePage from '@/pages/PeoplePage'
 import '@/styles/layout-people-v3.css'

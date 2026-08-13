@@ -58,6 +58,12 @@ export {
 export { Tabs } from './Tabs'
 export type { TabsProps, TabItem } from './Tabs'
 
+export { SegmentedControl } from './SegmentedControl'
+export type {
+  SegmentedControlProps,
+  SegmentedOption,
+} from './SegmentedControl'
+
 export { MetricTile } from './MetricTile'
 
 export { Tooltip } from './Tooltip'

@@ -6,20 +6,26 @@ import {
   Plus,
   Search,
   Settings,
+  Users,
 } from 'lucide-react'
-import { Avatar } from '@/components/ui'
+import { Avatar, EmptyState, SegmentedControl } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import '@/styles/layout-people.css'
 
 type DirectoryScope = 'all' | 'reports' | 'department'
+type StatusFilter = 'all' | 'active' | 'inactive'
 
 const SCOPES: { id: DirectoryScope; label: string }[] = [
   { id: 'all', label: 'Everyone' },
   { id: 'reports', label: 'My reports' },
   { id: 'department', label: 'My department' },
 ]
+
+function uniqueNonEmpty(values: string[]): number {
+  return new Set(values.map((v) => v.trim()).filter(Boolean)).size
+}
 
 function PersonCell({
   name,
@@ -55,7 +61,7 @@ function PersonCell({
 }
 
 export type PeoplePageProps = {
-  /** Soft-rect radius preview — compare with default pill `/people`. */
+  /** Soft-rect radius preview at `/people-v3` (canonical `/people` uses Org pills). */
   variant?: 'v3'
 }
 
@@ -64,9 +70,20 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<DirectoryScope>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
-  const activeCount = employees.filter((e) => e.isActive).length
   const isV3 = variant === 'v3'
+
+  const stats = useMemo(() => {
+    const active = employees.filter((e) => e.isActive).length
+    return {
+      total: employees.length,
+      active,
+      inactive: employees.length - active,
+      departments: uniqueNonEmpty(employees.map((e) => e.department)),
+      teams: uniqueNonEmpty(employees.map((e) => e.team)),
+    }
+  }, [employees])
 
   const me = useMemo(() => {
     const email = user?.email?.trim().toLowerCase()
@@ -85,6 +102,8 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
 
     return [...employees]
       .filter((employee) => {
+        if (statusFilter === 'active' && !employee.isActive) return false
+        if (statusFilter === 'inactive' && employee.isActive) return false
         if (me && scope === 'reports') {
           if (employee.managerEmail.trim().toLowerCase() !== myEmail) {
             return false
@@ -115,7 +134,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         return haystack.includes(q)
       })
       .sort((a, b) => a.employeeId - b.employeeId)
-  }, [employees, me, query, scope])
+  }, [employees, me, query, scope, statusFilter])
 
   return (
     <div
@@ -124,6 +143,59 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         .join(' ')}
       aria-label="People"
     >
+      <div className="pd-people__summary" role="group" aria-label="Directory totals">
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'all' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'all'}
+          onClick={() => setStatusFilter('all')}
+        >
+          <span className="pd-people__summary-value">{stats.total}</span>
+          <span className="pd-people__summary-label">People</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'active' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'active'}
+          onClick={() => setStatusFilter('active')}
+        >
+          <span className="pd-people__summary-value">{stats.active}</span>
+          <span className="pd-people__summary-label">Active</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'inactive' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'inactive'}
+          onClick={() => setStatusFilter('inactive')}
+        >
+          <span className="pd-people__summary-value">{stats.inactive}</span>
+          <span className="pd-people__summary-label">Inactive</span>
+        </button>
+        <div className="pd-people__summary-card">
+          <span className="pd-people__summary-value">{stats.departments}</span>
+          <span className="pd-people__summary-label">Departments</span>
+        </div>
+        <div className="pd-people__summary-card">
+          <span className="pd-people__summary-value">{stats.teams}</span>
+          <span className="pd-people__summary-label">Teams</span>
+        </div>
+      </div>
+
       <div className="pd-people__header pd-people__header--bar">
         <div className="pd-people__bar-start">
           <label className="pd-people__search">
@@ -139,41 +211,21 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           </label>
 
           {me ? (
-            <div
+            <SegmentedControl
               className="pd-people__scope"
-              role="group"
+              buttonClassName="pd-people__scope-btn"
+              options={SCOPES}
+              value={scope}
+              onChange={setScope}
               aria-label="Directory scope"
-            >
-              {SCOPES.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={[
-                    'pd-people__scope-btn',
-                    scope === option.id ? 'is-active' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  aria-pressed={scope === option.id}
-                  onClick={() => setScope(option.id)}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
+            />
           ) : null}
         </div>
 
         <div className="pd-people__bar-end">
-          <p className="pd-people__stat">
-            {filtered.length === employees.length
-              ? `${activeCount} Active`
-              : `${filtered.length} shown`}
-            {employees.length !== activeCount &&
-              filtered.length === employees.length
-              ? ` · ${employees.length} total`
-              : null}
-          </p>
+          {filtered.length !== employees.length || statusFilter !== 'all' ? (
+            <p className="pd-people__stat">{filtered.length} shown</p>
+          ) : null}
 
           <div
             className="pd-people__toolbar"
@@ -228,7 +280,29 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             </Link>
           </div>
         ) : filtered.length === 0 ? (
-          <p className="pd-people__empty">No people match your filters.</p>
+          <EmptyState
+            className="pd-people__empty-panel"
+            icon={Users}
+            title="No people match your filters"
+            description={
+              query.trim()
+                ? `No one matches “${query.trim()}” with the filters you have applied. Try a different search or clear filters.`
+                : 'These filters exclude everyone. Try clearing them to see the full directory.'
+            }
+            action={
+              <button
+                type="button"
+                className="pd-people__create-btn"
+                onClick={() => {
+                  setQuery('')
+                  setScope('all')
+                  setStatusFilter('all')
+                }}
+              >
+                Clear filters
+              </button>
+            }
+          />
         ) : (
           <div className="pd-people__table-wrap">
             <table className="pd-people__table">
@@ -238,9 +312,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
                     <span className="pd-people__th">
                       Employee ID
                       <ArrowUpDown size={13} strokeWidth={1.75} aria-hidden />
-                      <span className="pd-people__th-count">
-                        {filtered.length}
-                      </span>
                     </span>
                   </th>
                   <th>Name</th>

@@ -1,10 +1,18 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronLeft } from 'lucide-react'
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Send,
+  Target,
+  Trash2,
+  Users,
+} from 'lucide-react'
 import {
   Avatar,
   Badge,
-  Button,
   Card,
   Checkbox,
   EmptyState,
@@ -41,6 +49,7 @@ import {
 import { CURRENT_CYCLE_ID } from '@/lib/goals/demoData'
 import { DEMO_PHASES } from '@/lib/goals/phases'
 import { statusLabel, statusVariant } from './goals/statusLabels'
+import '@/styles/layout-people.css'
 import '@/styles/layout-goals.css'
 
 function blankGoal(): Goal {
@@ -182,11 +191,13 @@ export default function GoalsPage() {
           description={`${snapshot.cycle.label} · ${phaseLabel(snapshot.cycle.phase)}`}
         />
         <EmptyState
+          icon={Users}
           title="No people yet"
-          description="Create employees in People to start setting and reviewing goals."
+          description="Add employees in People to start setting and reviewing goals."
           action={
-            <Link to="/people/new" className="pd-btn pd-btn--primary pd-btn--md">
-              <span className="pd-btn__label">Create employee</span>
+            <Link to="/people/new" className="pd-people__create-btn">
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add employee
             </Link>
           }
         />
@@ -426,6 +437,7 @@ function ManagerPanel({
   if (queue.length === 0) {
     return (
       <EmptyState
+        icon={Users}
         title={
           snapshot.cycle.phase === 'check_in'
             ? 'No team members ready'
@@ -528,19 +540,23 @@ function ManagerPanel({
                 rows={2}
               />
               <div className="pd-goals__footer-actions">
-                <Button
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
                   disabled={busy}
                   onClick={() => onApprove(active.person.id, active.row.goals)}
                 >
-                  Approve all
-                </Button>
-                <Button
-                  variant="secondary"
+                  <Check size={16} strokeWidth={1.75} aria-hidden />
+                  Approve
+                </button>
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn"
                   disabled={busy || !sendBackReason.trim()}
                   onClick={() => onSendBack(active.person.id)}
                 >
                   Send back
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
@@ -555,16 +571,22 @@ function ManagerPanel({
                 <p className="pd-goal-aside-row__value">
                   {Math.round(overallCompletion(active.row.goals))}% complete
                 </p>
-                <div className="pd-goals-rate__tiers">
+                <div className="pd-goals-rate__tiers" role="group" aria-label="Quarter score">
                   {([1, 2, 3, 4, 5] as const).map((tier) => (
-                    <Button
+                    <button
                       key={tier}
-                      size="sm"
-                      variant={ratingTier === tier ? 'primary' : 'secondary'}
+                      type="button"
+                      className={[
+                        'pd-people__chip',
+                        ratingTier === tier ? 'is-active' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      aria-pressed={ratingTier === tier}
                       onClick={() => onRatingTier(tier)}
                     >
                       {tier}
-                    </Button>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -576,9 +598,15 @@ function ManagerPanel({
               />
               <Progress value={overallCompletion(active.row.goals)} />
               <div className="pd-goals__footer-actions">
-                <Button disabled={busy} onClick={() => onRate(active.person.id)}>
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+                  disabled={busy}
+                  onClick={() => onRate(active.person.id)}
+                >
+                  <Send size={16} strokeWidth={1.75} aria-hidden />
                   Submit score
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
@@ -665,6 +693,7 @@ function EmployeePanel({
   if (!eligible || row.status === 'not_eligible') {
     return (
       <EmptyState
+        icon={Target}
         title="Not eligible this quarter"
         description={`${personName} joined after Day 1, so goal setting starts next quarter.`}
       />
@@ -743,43 +772,63 @@ function EmployeePanel({
         </Notice>
       ) : null}
 
-      <div className="pd-goals-toolbar">
-        <div className="pd-goals-shell__actions">
-          {canEditDraft ? (
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => void onPersistGoals(goals)}
-              >
-                Save draft
-              </Button>
-              <Button
-                size="sm"
-                disabled={busy || !submitCheck.ok}
-                onClick={() => {
-                  onPersistGoals(goals)
-                  onSubmit()
-                }}
-              >
-                Submit all
-              </Button>
-              <Button size="sm" disabled={busy} onClick={addGoal}>
-                + Add new goal
-              </Button>
-            </>
-          ) : null}
+      {canEditDraft && goals.length > 0 ? (
+        <div className="pd-goals-toolbar">
+          <div
+            className="pd-people__toolbar"
+            role="toolbar"
+            aria-label="Goal actions"
+          >
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              disabled={busy}
+              onClick={() => void onPersistGoals(goals)}
+            >
+              Save draft
+            </button>
+            <button
+              type="button"
+              className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+              disabled={busy || !submitCheck.ok}
+              onClick={() => {
+                onPersistGoals(goals)
+                onSubmit()
+              }}
+            >
+              <Send size={16} strokeWidth={1.75} aria-hidden />
+              Submit all
+            </button>
+            <button
+              type="button"
+              className="pd-people__create-btn"
+              disabled={busy}
+              onClick={addGoal}
+            >
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add goal
+            </button>
+          </div>
         </div>
-      </div>
+      ) : null}
 
       {goals.length === 0 ? (
         <EmptyState
+          className="pd-goals__empty"
+          icon={Target}
           title="No goals yet"
           description="Add a goal to get started. Each needs measurements, and weights must total 100%."
           action={
             canEditDraft ? (
-              <Button onClick={addGoal}>+ Add new goal</Button>
+              <button
+                type="button"
+                className="pd-people__create-btn"
+                disabled={busy}
+                onClick={addGoal}
+              >
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add goal
+              </button>
             ) : undefined
           }
         />
@@ -943,32 +992,37 @@ function GoalDetail({
           </div>
           <div className="pd-goal-detail__actions">
             {onRemove ? (
-              <Button size="sm" variant="ghost" onClick={onRemove}>
+              <button
+                type="button"
+                className="pd-people__ghost-btn"
+                onClick={onRemove}
+              >
+                <Trash2 size={15} strokeWidth={1.75} aria-hidden />
                 Remove
-              </Button>
+              </button>
             ) : null}
             <div className="pd-goal-detail__pager">
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
+                type="button"
+                className="pd-people__icon-btn"
                 disabled={index <= 0}
                 aria-label="Previous goal"
                 onClick={() => onSelectIndex(index - 1)}
               >
-                ‹
-              </Button>
+                <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
+              </button>
               <span>
                 {index + 1}/{total}
               </span>
-              <Button
-                size="sm"
-                variant="ghost"
+              <button
+                type="button"
+                className="pd-people__icon-btn"
                 disabled={index >= total - 1}
                 aria-label="Next goal"
                 onClick={() => onSelectIndex(index + 1)}
               >
-                ›
-              </Button>
+                <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
+              </button>
             </div>
           </div>
         </div>
@@ -1100,9 +1154,9 @@ function GoalDetail({
 
           {!locked ? (
             <div className="pd-goal-todos__add">
-              <Button
-                size="sm"
-                variant="secondary"
+              <button
+                type="button"
+                className="pd-people__ghost-btn"
                 onClick={() =>
                   onChange({
                     ...goal,
@@ -1110,8 +1164,9 @@ function GoalDetail({
                   })
                 }
               >
+                <Plus size={16} strokeWidth={1.75} aria-hidden />
                 Add to-do
-              </Button>
+              </button>
             </div>
           ) : null}
         </section>

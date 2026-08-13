@@ -1,6 +1,6 @@
 .pd-page.pd-people,
 .pd-people {
-  /* Default People UI: pill controls. Soft-rect lives on .pd-people--v3 */
+  /* Default People/Org UI: pill controls. Soft-rect lives on .pd-people--v3 */
   --people-radius: 999px;
   --people-radius-sm: 999px;
   --people-radius-panel: 16px;
@@ -27,6 +27,63 @@
   border: 0;
 }
 
+.pd-people__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pd-people__summary-btn,
+.pd-people__summary-card {
+  appearance: none;
+  border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
+  background: var(--color-surface, #fff);
+  color: var(--color-text-secondary);
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.85rem;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 8.5rem;
+  text-align: left;
+}
+
+.pd-people__summary-btn {
+  cursor: pointer;
+}
+
+.pd-people__summary-btn:hover {
+  border-color: color-mix(in srgb, var(--color-text) 18%, transparent);
+}
+
+.pd-people__summary-btn.is-active {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--color-text) 28%, transparent);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+
+.pd-people__summary-card {
+  cursor: default;
+}
+
+.pd-people__summary-value {
+  display: block;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.pd-people__summary-label {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
 .pd-people__header {
   display: grid;
   gap: 0.35rem;
@@ -39,17 +96,17 @@
   gap: 0.5rem 0.75rem;
 }
 
-.pd-people__header--row > .pd-people__stat {
+.pd-people__header--row>.pd-people__stat {
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.pd-people__header--row > .pd-people__filters {
+.pd-people__header--row>.pd-people__filters {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.pd-people__header--row > .pd-people__toolbar {
+.pd-people__header--row>.pd-people__toolbar {
   flex: 0 1 auto;
   margin-inline-start: auto;
 }
@@ -81,17 +138,17 @@
   margin-inline-start: auto;
 }
 
-.pd-people__bar-end > .pd-people__stat {
+.pd-people__bar-end>.pd-people__stat {
   white-space: nowrap;
 }
 
-.pd-people__bar-start > .pd-people__search {
+.pd-people__bar-start>.pd-people__search {
   flex: 1 1 12rem;
   min-width: min(12rem, 100%);
   max-width: 18rem;
 }
 
-.pd-people__bar-start > .pd-people__scope {
+.pd-people__bar-start>.pd-people__scope {
   flex: 0 0 auto;
 }
 
@@ -218,23 +275,34 @@
 }
 
 .pd-people__create-btn {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
   flex-shrink: 0;
+  box-sizing: border-box;
   min-height: 2.35rem;
   padding: 0.4rem 0.95rem;
+  border: 0;
   border-radius: var(--people-radius);
   background: var(--color-cta);
   color: var(--color-on-cta);
+  font: inherit;
   font-size: 0.875rem;
   font-weight: 650;
+  line-height: 1.2;
   text-decoration: none;
+  cursor: pointer;
 }
 
-.pd-people__create-btn:hover {
+.pd-people__create-btn:hover:not(:disabled) {
   opacity: 0.9;
+}
+
+.pd-people__create-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .pd-people__create-btn--secondary {
@@ -243,7 +311,7 @@
   border: 1px solid var(--color-border);
 }
 
-.pd-people__create-btn--secondary:hover {
+.pd-people__create-btn--secondary:hover:not(:disabled) {
   background: var(--color-neutral-hover, var(--color-bg-muted));
   opacity: 1;
 }
@@ -308,51 +376,8 @@
 }
 
 .pd-people__scope {
-  --people-scope-pad: 3px;
-  display: inline-flex;
-  align-items: stretch;
-  box-sizing: border-box;
-  min-height: 2.35rem;
-  padding: var(--people-scope-pad);
-  border: 1px solid var(--color-border);
-  border-radius: var(--people-radius);
-  background: var(--color-surface-raised, var(--color-surface));
-}
-
-.pd-people__scope-btn {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0;
-  padding: 0 0.85rem;
-  border: 0;
-  /* Keep the active fill concentric with the outer shell (same curve as search/toolbar). */
-  border-radius: max(0px, calc(var(--people-radius) - var(--people-scope-pad)));
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: none;
-}
-
-.pd-people__scope-btn:hover {
-  background: var(--color-neutral-hover, var(--color-bg-muted));
-}
-
-.pd-people__scope-btn.is-active {
-  background: var(--color-cta);
-  color: var(--color-on-cta);
-}
-
-.pd-people__scope-btn.is-active:hover {
-  background: var(--color-cta);
-  color: var(--color-on-cta);
-  filter: brightness(1.05);
+  --segmented-pad: 3px;
+  --segmented-radius: var(--people-radius);
 }
 
 .pd-people__empty-state {
@@ -397,6 +422,12 @@
 .pd-people__panel--table .pd-people__empty-state,
 .pd-people__panel--table .pd-people__empty {
   padding: 1.5rem 1.35rem;
+}
+
+.pd-people__panel--table .pd-people__empty-panel {
+  justify-content: center;
+  padding-block: 3.5rem;
+  max-width: 28rem;
 }
 
 .pd-people__panel-title {
@@ -461,6 +492,7 @@
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -486,11 +518,9 @@
   border-radius: 14px 0 0 14px;
   overflow: hidden;
   background:
-    linear-gradient(
-      165deg,
+    linear-gradient(165deg,
       color-mix(in srgb, var(--color-primary) 10%, var(--color-surface)) 0%,
-      var(--color-surface) 55%
-    );
+      var(--color-surface) 55%);
 }
 
 .pd-people__form-avatar.pd-avatar {
@@ -545,11 +575,9 @@
   border-radius: 0 14px 14px 0;
   overflow: visible;
   background:
-    radial-gradient(
-      120% 80% at 100% 0%,
+    radial-gradient(120% 80% at 100% 0%,
       color-mix(in srgb, var(--color-primary) 5%, transparent),
-      transparent 55%
-    ),
+      transparent 55%),
     var(--color-surface);
 }
 
@@ -577,6 +605,7 @@
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: none;
@@ -861,12 +890,12 @@
     justify-content: flex-start;
   }
 
-  .pd-people__header--row > .pd-people__toolbar {
+  .pd-people__header--row>.pd-people__toolbar {
     margin-inline-start: 0;
     width: 100%;
   }
 
-  .pd-people__header--row > .pd-people__filters {
+  .pd-people__header--row>.pd-people__filters {
     flex: 1 1 100%;
   }
 
@@ -885,7 +914,7 @@
     justify-content: space-between;
   }
 
-  .pd-people__bar-start > .pd-people__search {
+  .pd-people__bar-start>.pd-people__search {
     flex: 1 1 auto;
     max-width: none;
   }
@@ -894,7 +923,7 @@
     width: 100%;
   }
 
-  .pd-people__scope-btn {
+  .pd-people__scope .pd-segmented__btn {
     flex: 1;
   }
 }
@@ -1032,9 +1061,9 @@
   width: 100%;
 }
 
-.pd-profile--editing .pd-profile__detail-value > .pd-listbox,
-.pd-profile--editing .pd-profile__detail-value > .pd-profile__inline-input,
-.pd-profile--editing .pd-profile__detail-value > .pd-profile__readonly {
+.pd-profile--editing .pd-profile__detail-value>.pd-listbox,
+.pd-profile--editing .pd-profile__detail-value>.pd-profile__inline-input,
+.pd-profile--editing .pd-profile__detail-value>.pd-profile__readonly {
   width: 100%;
 }
 
@@ -1125,42 +1154,29 @@
 }
 
 .pd-profile__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.2rem;
-  padding: 0.2rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--people-radius);
-  background: var(--color-surface);
+  --segmented-pad: 0.2rem;
+  --segmented-radius: var(--people-radius);
   width: fit-content;
   max-width: 100%;
+  flex-wrap: nowrap;
+  background: var(--color-surface);
 }
 
 .pd-profile__tab {
-  appearance: none;
-  border: 0;
-  background: transparent;
   color: var(--color-text-secondary);
-  font: inherit;
   font-size: 0.86rem;
   font-weight: 550;
   padding: 0.45rem 0.85rem;
-  border-radius: var(--people-radius-sm);
-  cursor: pointer;
-  white-space: nowrap;
-  display: inline-flex;
-  align-items: center;
   gap: 0.4rem;
 }
 
-.pd-profile__tab:hover {
+.pd-profile__tab:hover:not(.is-active) {
   color: var(--color-text);
   background: color-mix(in srgb, var(--color-text) 5%, transparent);
 }
 
 .pd-profile__tab.is-active {
-  background: var(--color-cta);
+  background: transparent;
   color: var(--color-on-cta);
 }
 
@@ -1415,7 +1431,7 @@
   }
 
   .pd-profile__tabs {
-    border-radius: var(--radius-lg, 12px);
+    --segmented-radius: var(--radius-lg, 12px);
   }
 
   .pd-profile__name {

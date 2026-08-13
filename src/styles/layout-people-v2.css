@@ -1334,16 +1334,19 @@
 }
 
 @keyframes pd-pv2-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.45;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pd-pv2-skeleton__avatar,
   .pd-pv2-skeleton__line {
     animation: none;
@@ -1730,6 +1733,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pd-pv2-overlay__scrim,
   .pd-pv2-panel--overlay,
   .pd-pv2-rail--overlay {
@@ -1833,6 +1837,7 @@
 }
 
 @media (max-width: 767px) {
+
   .pd-page.pd-pv2,
   .pd-pv2 {
     --pv2-top: 3.25rem;
@@ -1872,7 +1877,7 @@
     flex: 1;
   }
 
-  .pd-pv2-header__actions > .pd-pv2-btn {
+  .pd-pv2-header__actions>.pd-pv2-btn {
     justify-content: center;
     width: 100%;
   }
@@ -1919,7 +1924,7 @@
   }
 
   /* Only data cells carry data-column; identity and actions stay on row 1. */
-  .pd-pv2-row > .pd-pv2-cell[data-column] {
+  .pd-pv2-row>.pd-pv2-cell[data-column] {
     grid-column: 2 / -1;
     display: flex;
     align-items: baseline;
@@ -1932,8 +1937,8 @@
   }
 
   /* Role lives under the name on mobile; email is too long for the card. */
-  .pd-pv2-row > .pd-pv2-cell[data-column='jobTitle'],
-  .pd-pv2-row > .pd-pv2-cell[data-column='email'] {
+  .pd-pv2-row>.pd-pv2-cell[data-column='jobTitle'],
+  .pd-pv2-row>.pd-pv2-cell[data-column='email'] {
     display: none;
   }
 
@@ -1945,7 +1950,7 @@
     display: block;
   }
 
-  .pd-pv2-row > .pd-pv2-cell[data-label]::before {
+  .pd-pv2-row>.pd-pv2-cell[data-label]::before {
     content: attr(data-label);
     flex: none;
     font-size: 0.6875rem;

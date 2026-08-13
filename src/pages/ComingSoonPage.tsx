@@ -61,7 +61,7 @@ export default function ComingSoonPage({ page }: { page: ComingSoonPageId }) {
           config.action ? (
             <Link
               to={config.action.to}
-              className="pd-btn pd-btn--primary pd-btn--md"
+              className="pd-btn pd-btn--primary pd-btn--md pd-btn--pill"
             >
               <span className="pd-btn__label">{config.action.label}</span>
             </Link>

@@ -24,7 +24,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import { Avatar, EmptyState } from '@/components/ui'
+import { Avatar, EmptyState, SegmentedControl } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   findEmployeeByEmail,
@@ -46,6 +46,16 @@ const PROFILE_TABS: {
   { id: 'goals', label: 'Goals', icon: Target },
   { id: 'team', label: 'Team', icon: Users },
 ]
+
+const PROFILE_TAB_OPTIONS = PROFILE_TABS.map((item) => ({
+  id: item.id,
+  label: (
+    <>
+      <item.icon size={15} strokeWidth={1.75} aria-hidden />
+      {item.label}
+    </>
+  ),
+}))
 
 function formatStartDate(iso: string): string {
   if (!iso) return '—'
@@ -186,26 +196,14 @@ export function EmployeeProfileView({
         </div>
       </section>
 
-      <div className="pd-profile__tabs" role="tablist" aria-label="Employee sections">
-        {PROFILE_TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            className={[
-              'pd-profile__tab',
-              tab === item.id ? 'is-active' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => setTab(item.id)}
-          >
-            <item.icon size={15} strokeWidth={1.75} aria-hidden />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="pd-profile__tabs"
+        buttonClassName="pd-profile__tab"
+        options={PROFILE_TAB_OPTIONS}
+        value={tab}
+        onChange={setTab}
+        aria-label="Employee sections"
+      />
 
       {tab !== 'profile' ? (
         <div className="pd-profile__placeholder">

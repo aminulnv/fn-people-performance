@@ -7,7 +7,9 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
-/** Soft-rect People directory (canonical `/people`). */
+/** Canonical People directory — same pill controls as Organisation. */
+const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
+/** Soft-rect radius preview (optional). */
 const PeopleV3Page = lazy(() => import('@/pages/PeopleV3Page'))
 /** Redesign under review — lives beside `people` until one direction wins. */
 const PeopleV2Page = lazy(() => import('@/pages/PeopleV2Page'))
@@ -58,12 +60,9 @@ function App() {
           <Route path="/" element={<AuthenticatedLayout />}>
             <Route index element={<ComingSoonPage page="home" />} />
             <Route path="profile" element={<MyProfilePage />} />
-            <Route path="people" element={<PeopleV3Page />} />
+            <Route path="people" element={<PeoplePage />} />
             <Route path="people-v2" element={<PeopleV2Page />} />
-            <Route
-              path="people-v3"
-              element={<Navigate to="/people" replace />}
-            />
+            <Route path="people-v3" element={<PeopleV3Page />} />
             <Route
               path="people-v2/:employeeId"
               element={<EmployeeProfileV2Page />}
