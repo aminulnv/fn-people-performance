@@ -1,12 +1,11 @@
 ---
 description: Shared EC2/RDS with Revolut dashboard — isolation + /platform deploy
-alwaysApply: true
+alwaysApply: false
 ---
-
 # Shared infra
 
 Coexist with NEXT-Performance (Revolut dashboard) on same domain/EC2/RDS until explicit EOY cutover. Neighbor, not merge.
 
-- UI `/platform/` → `/var/www/platform` · API `/api/platform/*` only · auth `pd_platform_sid` + `PLATFORM_GOOGLE_*` (not dashboard cookies/OAuth)
+- UI `/platform/` → `/var/www/platform` · API `/api/platform/*` on **standalone** Docker `:3002` (not inside dashboard container) · auth `pd_platform_sid` + `PLATFORM_GOOGLE_*` (not dashboard cookies/OAuth)
 - DB: `platform.*` only on `performance_monitoring`. Additive migrations. Never touch `public`/`auth`. No write to Revolut/`public.employees`; don’t merge directories. Seeds ≠ `schema_migrations`. No migrations unless asked.
-- Deploy: `npm run deploy:ec2` (needs `.env.deploy`). Vite base `/platform/`. Empty `VITE_API_BASE_URL`. No secrets in `VITE_*`. No new domain/EC2/RDS. Don’t rewrite dashboard or move SPA to `/` unless cutover is requested.
+- Deploy: `npm run deploy:ec2` (UI) · `npm run deploy:platform-api` (API). Vite base `/platform/`. Empty `VITE_API_BASE_URL`. No secrets in `VITE_*`. No new domain/EC2/RDS. Don’t rewrite dashboard or move SPA to `/` unless cutover is requested.

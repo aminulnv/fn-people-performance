@@ -31,13 +31,13 @@ export const layoutConfig: AppLayoutConfig = {
     logoUrl: publicUrl('images/logo.svg'),
   },
   navItems: [
-    { path: '/', label: 'Home', icon: Home, end: true },
+    { path: '/', label: 'Home', icon: Home, end: true, comingSoon: true },
     profileNavItem,
     { path: '/people', label: 'People', icon: Users },
     { path: '/organisation', label: 'Organisation', icon: Landmark },
     { path: '/goals', label: 'Goals', icon: Target },
-    { path: '/reviews', label: 'Reviews', icon: Star },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/reviews', label: 'Reviews', icon: Star, comingSoon: true },
+    { path: '/analytics', label: 'Analytics', icon: BarChart3, comingSoon: true },
   ],
 }
 

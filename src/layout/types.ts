@@ -5,6 +5,8 @@ export interface NavItem {
   label: string
   icon: LucideIcon
   end?: boolean
+  /** Sidebar shows a right-aligned construction marker when true. */
+  comingSoon?: boolean
 }
 
 export interface BrandConfig {

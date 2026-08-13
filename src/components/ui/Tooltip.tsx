@@ -16,6 +16,8 @@ export type TooltipProps = {
   children: ReactNode
   side?: TooltipSide
   className?: string
+  /** Hover/focus show delay in ms. Default 120; use 0 for instant. */
+  delayMs?: number
 }
 
 const PORTAL_SIDES: TooltipSide[] = ['left', 'right']
@@ -66,6 +68,7 @@ export function Tooltip({
   children,
   side = 'top',
   className,
+  delayMs = 120,
 }: TooltipProps) {
   const tipId = useId()
   const [open, setOpen] = useState(false)
@@ -83,7 +86,11 @@ export function Tooltip({
 
   const show = () => {
     clearShowTimer()
-    showTimer.current = setTimeout(() => setOpen(true), 120)
+    if (delayMs <= 0) {
+      setOpen(true)
+      return
+    }
+    showTimer.current = setTimeout(() => setOpen(true), delayMs)
   }
 
   const hide = () => {

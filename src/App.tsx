@@ -11,9 +11,15 @@ const ComponentsPage = import.meta.env.DEV
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
+/** Redesign under review — lives beside `people` until one direction wins. */
+const PeopleV2Page = lazy(() => import('@/pages/PeopleV2Page'))
 const CreateEmployeePage = lazy(() => import('@/pages/CreateEmployeePage'))
 const EditEmployeePage = lazy(() => import('@/pages/EditEmployeePage'))
 const EmployeeProfilePage = lazy(() => import('@/pages/EmployeeProfilePage'))
+/** Profile redesign paired with people-v2. */
+const EmployeeProfileV2Page = lazy(
+  () => import('@/pages/EmployeeProfileV2Page'),
+)
 const MyProfilePage = lazy(() => import('@/pages/MyProfilePage'))
 const OrganisationPage = lazy(() => import('@/pages/OrganisationPage'))
 const OrgChartPage = lazy(() => import('@/pages/OrgChartPage'))
@@ -55,6 +61,11 @@ function App() {
             <Route index element={<ComingSoonPage page="home" />} />
             <Route path="profile" element={<MyProfilePage />} />
             <Route path="people" element={<PeoplePage />} />
+            <Route path="people-v2" element={<PeopleV2Page />} />
+            <Route
+              path="people-v2/:employeeId"
+              element={<EmployeeProfileV2Page />}
+            />
             <Route path="people/new" element={<CreateEmployeePage />} />
             <Route path="people/:employeeId/edit" element={<EditEmployeePage />} />
             <Route path="people/:employeeId" element={<EmployeeProfilePage />} />

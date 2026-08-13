@@ -1,0 +1,12 @@
+services:
+  platform-api:
+    build: .
+    image: fn-people-platform-api:latest
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      PORT: "3002"

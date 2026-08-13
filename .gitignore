@@ -27,3 +27,7 @@ Screenshot*.png
 Thumbs.db
 *.log
 *.tsbuildinfo
+
+# Platform API runtime (CA fetched at deploy; deps installed in Docker)
+server/certs/
+server/node_modules/

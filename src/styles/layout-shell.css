@@ -607,15 +607,30 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
     max-width var(--sidebar-duration, 0.32s) var(--sidebar-ease, cubic-bezier(0.22, 1, 0.36, 1));
 }
 
+.pd-sidebar-nav__coming-soon {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #e8c547;
+}
+
+.pd-sidebar-nav__link.is-active .pd-sidebar-nav__coming-soon {
+  color: #f0d35c;
+}
+
 /* Collapsed: hide labels without shifting the icon (gap must be 0) */
 .pd-sidebar-nav__link--collapsed {
   gap: 0;
 }
 
-.pd-sidebar-nav__link--collapsed .pd-sidebar-nav__label {
+.pd-sidebar-nav__link--collapsed .pd-sidebar-nav__label,
+.pd-sidebar-nav__link--collapsed .pd-sidebar-nav__coming-soon {
   opacity: 0;
   max-width: 0;
   min-width: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 

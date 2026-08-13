@@ -9,8 +9,9 @@ mounted only at `/platform`.
 |---------|-----|
 | Dashboard (separate repo) | https://performance.nextventures.io/ |
 | **This app** | https://performance.nextventures.io/platform/ |
+| **Platform API** | https://performance.nextventures.io/api/platform/* |
 
-Same machine, same domain. nginx routes `/platform` → this build. Dashboard stays on `/`.
+Same machine, same domain. nginx routes `/platform` → this UI and `/api/platform/` → a **standalone** platform API container (`:3002`). Dashboard stays on `/` and its own API on `:3001`. Dashboard rebuilds do not wipe platform login.
 
 You can ship **millions of UI changes** from this repo alone. No dashboard redeploy, no DB env required for the SPA.
 
@@ -51,7 +52,13 @@ npm run deploy:ec2
 
 That builds with `base: /platform/`, uploads to `/var/www/platform`, reloads nginx if needed.
 
-**Not required for deploy:** `DB_*`, RDS, Revolut, encryption keys. Those stay with the dashboard API until this platform has its own backend.
+API (own Docker service — safe from dashboard deploys):
+
+```bash
+npm run deploy:platform-api
+```
+
+**Not required for UI deploy:** `DB_*`, RDS, Revolut, encryption keys. Platform API reuses `DB_*` + `PLATFORM_*` from the host dashboard `.env` into its own container env.
 
 ## Scripts
 
@@ -59,6 +66,7 @@ That builds with `base: /platform/`, uploads to `/var/www/platform`, reloads ngi
 |---------|-------------|
 | `npm run dev` | Local Vite (:8001) |
 | `npm run build` | Production build (`/platform/` base) |
-| `npm run deploy:ec2` | Build + ship to EC2 `/platform` |
+| `npm run deploy:ec2` | Build + ship UI to EC2 `/platform` |
+| `npm run deploy:platform-api` | Ship standalone `/api/platform` Docker service |
 | `npm test` | Vitest |
 | `npm run lint` | ESLint |

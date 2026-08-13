@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import { Construction, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { Tooltip } from '@/components/ui'
 import type { NavItem, BrandConfig } from './types'
 import { applySidebarExpanded } from '@/lib/sidebarPrefs'
@@ -39,14 +39,19 @@ function NavItemLink({
   collapsed: boolean
   onNavigate: () => void
 }) {
-  const { icon: Icon, label, path, end } = item
+  const { icon: Icon, label, path, end, comingSoon } = item
+  const ariaLabel = collapsed
+    ? comingSoon
+      ? `${label} (coming soon)`
+      : label
+    : undefined
 
   const link = (
     <NavLink
       to={path}
       end={end ?? path === '/'}
       className={({ isActive }) => navLinkClass(collapsed, isActive)}
-      aria-label={collapsed ? label : undefined}
+      aria-label={ariaLabel}
       onClick={(e) => {
         e.stopPropagation()
         onNavigate()
@@ -58,13 +63,37 @@ function NavItemLink({
       <span className="pd-sidebar-nav__label" aria-hidden={collapsed}>
         {label}
       </span>
+      {comingSoon ? (
+        collapsed ? (
+          <span className="pd-sidebar-nav__coming-soon" aria-hidden="true">
+            <Construction size={14} strokeWidth={NAV_ICON_STROKE} />
+          </span>
+        ) : (
+          <Tooltip
+            content="Coming soon"
+            side="right"
+            delayMs={0}
+            className="pd-sidebar-nav__coming-soon"
+          >
+            <Construction
+              size={14}
+              strokeWidth={NAV_ICON_STROKE}
+              aria-hidden="true"
+            />
+          </Tooltip>
+        )
+      ) : null}
     </NavLink>
   )
 
   if (!collapsed) return link
 
   return (
-    <Tooltip content={label} side="right" className="pd-sidebar-nav__tooltip">
+    <Tooltip
+      content={comingSoon ? `${label} · Coming soon` : label}
+      side="right"
+      className="pd-sidebar-nav__tooltip"
+    >
       {link}
     </Tooltip>
   )

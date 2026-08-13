@@ -72,7 +72,7 @@ export function OrgMembersTable({
               </td>
               <td>
                 {member.email ? (
-                  <a href={`mailto:${member.email}`} className="pd-profile__link">
+                  <a href={`mailto:${member.email}`} className="pd-org-detail__inline-link">
                     {member.email}
                   </a>
                 ) : (

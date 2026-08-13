@@ -1,6 +1,6 @@
 /**
  * platform.* table access for /api/platform/*
- * Runs inside NEXT-Performance Express (shared RDS pool).
+ * Used by the standalone platform API (shared RDS, platform schema only).
  */
 import { getPool } from '../db.mjs'
 

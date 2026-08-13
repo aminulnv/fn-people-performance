@@ -80,6 +80,12 @@ export function AppLayout({
     label: 'Add department',
     icon: Plus,
   }
+  /** Directory redesign under review — titled like People, not linked in nav. */
+  const peopleV2NavItem: NavItem = {
+    path: '/people-v2',
+    label: 'People',
+    icon: Users,
+  }
 
   const employeeEditMatch = matchPath(
     { path: '/people/:employeeId/edit', end: true },
@@ -89,9 +95,14 @@ export function AppLayout({
     { path: '/people/:employeeId', end: true },
     pathname,
   )
+  const employeeProfileV2Match = matchPath(
+    { path: '/people-v2/:employeeId', end: true },
+    pathname,
+  )
   const profileEmployeeId = Number(
     employeeEditMatch?.params.employeeId ??
-      employeeProfileMatch?.params.employeeId,
+      employeeProfileMatch?.params.employeeId ??
+      employeeProfileV2Match?.params.employeeId,
   )
   const profileEmployee =
     Number.isInteger(profileEmployeeId) && profileEmployeeId > 0
@@ -100,24 +111,32 @@ export function AppLayout({
 
   const editEmployeeNavItem: NavItem | null = employeeEditMatch
     ? {
-        path: pathname,
-        label: profileEmployee
-          ? `Edit ${profileEmployee.fullName}`
-          : 'Edit employee',
-        icon: Pencil,
-      }
+      path: pathname,
+      label: profileEmployee
+        ? `Edit ${profileEmployee.fullName}`
+        : 'Edit employee',
+      icon: Pencil,
+    }
     : null
 
   const employeeProfileNavItem: NavItem | null =
     !employeeEditMatch &&
-    employeeProfileMatch &&
-    employeeProfileMatch.params.employeeId !== 'new'
+      employeeProfileMatch &&
+      employeeProfileMatch.params.employeeId !== 'new'
       ? {
-          path: pathname,
-          label: profileEmployee?.fullName ?? 'Employee',
-          icon: Users,
-        }
+        path: pathname,
+        label: profileEmployee?.fullName ?? 'Employee',
+        icon: Users,
+      }
       : null
+
+  const employeeProfileV2NavItem: NavItem | null = employeeProfileV2Match
+    ? {
+        path: pathname,
+        label: profileEmployee?.fullName ?? 'Employee',
+        icon: Users,
+      }
+    : null
 
   const departmentMatch = matchPath(
     { path: '/organisation/departments/:departmentId', end: true },
@@ -129,7 +148,7 @@ export function AppLayout({
   )
   const departmentIdParam =
     departmentMatch?.params.departmentId &&
-    departmentMatch.params.departmentId !== 'new'
+      departmentMatch.params.departmentId !== 'new'
       ? departmentMatch.params.departmentId
       : undefined
   const teamIdParam = teamMatch?.params.teamId
@@ -139,45 +158,49 @@ export function AppLayout({
   }, [departmentIdParam, employees, teamIdParam])
   const departmentNavItem: NavItem | null = departmentIdParam
     ? {
-        path: pathname,
-        label:
-          orgSnapshot?.departments.find(
-            (d) => d.id === decodeURIComponent(departmentIdParam),
-          )?.name ?? 'Department',
-        icon: Building2,
-      }
+      path: pathname,
+      label:
+        orgSnapshot?.departments.find(
+          (d) => d.id === decodeURIComponent(departmentIdParam),
+        )?.name ?? 'Department',
+      icon: Building2,
+    }
     : null
   const teamNavItem: NavItem | null = teamIdParam
     ? {
-        path: pathname,
-        label:
-          orgSnapshot?.teams.find(
-            (t) => t.id === decodeURIComponent(teamIdParam),
-          )?.name ?? 'Team',
-        icon: UsersRound,
-      }
+      path: pathname,
+      label:
+        orgSnapshot?.teams.find(
+          (t) => t.id === decodeURIComponent(teamIdParam),
+        )?.name ?? 'Team',
+      icon: UsersRound,
+    }
     : null
 
   const currentNavItem =
-    pathname === '/people/new' || pathname.startsWith('/people/new/')
-      ? addEmployeeNavItem
-      : pathname === '/organisation/departments/new'
-        ? addDepartmentNavItem
-        : editEmployeeNavItem
-          ? editEmployeeNavItem
-          : employeeProfileNavItem
-            ? employeeProfileNavItem
-            : departmentNavItem
-              ? departmentNavItem
-              : teamNavItem
-                ? teamNavItem
-                : pathname === profileNavItem.path ||
-                    pathname.startsWith(`${profileNavItem.path}/`)
-                  ? profileNavItem
-                  : pathname === settingsNavItem.path ||
-                      pathname.startsWith(`${settingsNavItem.path}/`)
-                    ? settingsNavItem
-                    : matchNavItem(pathname, navItems)
+    pathname === '/people-v2'
+      ? peopleV2NavItem
+      : employeeProfileV2NavItem
+        ? employeeProfileV2NavItem
+        : pathname === '/people/new' || pathname.startsWith('/people/new/')
+          ? addEmployeeNavItem
+          : pathname === '/organisation/departments/new'
+            ? addDepartmentNavItem
+            : editEmployeeNavItem
+              ? editEmployeeNavItem
+              : employeeProfileNavItem
+                ? employeeProfileNavItem
+                : departmentNavItem
+                  ? departmentNavItem
+                  : teamNavItem
+                    ? teamNavItem
+                    : pathname === profileNavItem.path ||
+                        pathname.startsWith(`${profileNavItem.path}/`)
+                      ? profileNavItem
+                      : pathname === settingsNavItem.path ||
+                          pathname.startsWith(`${settingsNavItem.path}/`)
+                        ? settingsNavItem
+                        : matchNavItem(pathname, navItems)
 
   return (
     <div
