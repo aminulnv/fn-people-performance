@@ -438,6 +438,7 @@ a.pd-btn--secondary:visited {
 /* ── Avatar ───────────────────────────────────────────────────────── */
 
 .pd-avatar {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -470,9 +471,12 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-avatar__image {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 

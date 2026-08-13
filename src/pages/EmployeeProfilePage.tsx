@@ -146,6 +146,7 @@ export function EmployeeProfileView({
         <div className="pd-profile__hero-main">
           <Avatar
             name={employee.fullName}
+            src={employee.avatarUrl || undefined}
             size="lg"
             className="pd-profile__hero-avatar"
             style={avatarStyle(employee.fullName)}
