@@ -154,8 +154,8 @@
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
-  background: var(--color-theme);
-  color: var(--color-on-theme);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
   transition: filter 140ms ease, background 140ms ease;
 }
 
@@ -164,7 +164,7 @@
 }
 
 .pd-assistant__btn:focus-visible {
-  outline: 0.125rem solid var(--color-theme);
+  outline: 0.125rem solid var(--color-cta);
   outline-offset: 0.125rem;
 }
 

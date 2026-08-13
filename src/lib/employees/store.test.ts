@@ -30,6 +30,7 @@ describe('employees store', () => {
       departmentHeadName: 'Head Name',
       hrbpName: 'HRBP Name',
       jobGrade: 'IC1',
+      site: '',
       managerEmail: 'manager@nextventures.io',
     })
 
@@ -53,6 +54,7 @@ describe('employees store', () => {
       departmentHeadName: '',
       hrbpName: '',
       jobGrade: '',
+      site: '',
       managerEmail: '',
     }
     expect((await createEmployee(input)).ok).toBe(true)
@@ -81,6 +83,7 @@ describe('employees store', () => {
           departmentHeadName: '',
           hrbpName: '',
           jobGrade: 'IC1',
+          site: '',
           managerEmail: '',
         })
       ).ok,
@@ -99,6 +102,7 @@ describe('employees store', () => {
       departmentHeadName: '',
       hrbpName: '',
       jobGrade: 'IC2',
+      site: '',
       managerEmail: 'manager@nextventures.io',
       isActive: false,
     })
@@ -127,6 +131,7 @@ describe('employees store', () => {
           departmentHeadName: '',
           hrbpName: '',
           jobGrade: '',
+          site: '',
           managerEmail: '',
         })
       ).ok,
@@ -145,6 +150,7 @@ describe('employees store', () => {
       departmentHeadName: '',
       hrbpName: '',
       jobGrade: '',
+      site: '',
       managerEmail: '',
       isActive: true,
     })

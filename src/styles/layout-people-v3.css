@@ -1,0 +1,12 @@
+/**
+ * People v3 — soft rectangular radii (Goals / shared .pd-btn language).
+ * Must beat `.pd-page.pd-people` specificity so radius tokens actually apply.
+ */
+
+.pd-page.pd-people.pd-people--v3,
+.pd-people.pd-people--v3 {
+  --people-radius: var(--radius-button, 0.5rem);
+  /* Nested controls: ~3px inset from the 12px button radius. */
+  --people-radius-sm: calc(var(--people-radius) - 3px);
+  --people-radius-panel: 0.875rem;
+}

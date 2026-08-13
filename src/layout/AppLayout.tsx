@@ -1,42 +1,23 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Outlet, useLocation, matchPath } from 'react-router-dom'
-import {
-  Building2,
-  Pencil,
-  Plus,
-  UserPlus,
-  Users,
-  UsersRound,
-} from 'lucide-react'
-import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { getEmployee } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import { WritingAssistant } from '@/components/assistant/WritingAssistant'
+import {
+  buildBreadcrumbs,
+  resolveTopBarIcon,
+} from './buildBreadcrumbs'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { TopBarCycleSelect } from './TopBarCycleSelect'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
-import type { AppLayoutConfig, NavItem } from './types'
+import type { AppLayoutConfig } from './types'
 
 interface AppLayoutProps extends AppLayoutConfig {
   onSignOut?: () => void
-}
-
-function matchNavItem(
-  pathname: string,
-  navItems: AppLayoutConfig['navItems'],
-) {
-  return (
-    navItems.find((item) => {
-      const exact = item.end ?? item.path === '/'
-      return exact
-        ? pathname === item.path
-        : pathname === item.path || pathname.startsWith(`${item.path}/`)
-    }) ?? navItems[0]
-  )
 }
 
 export function AppLayout({
@@ -70,23 +51,6 @@ export function AppLayout({
     }
   }, [])
 
-  const addEmployeeNavItem: NavItem = {
-    path: '/people/new',
-    label: 'Add employee',
-    icon: UserPlus,
-  }
-  const addDepartmentNavItem: NavItem = {
-    path: '/organisation/departments/new',
-    label: 'Add department',
-    icon: Plus,
-  }
-  /** Directory redesign under review — titled like People, not linked in nav. */
-  const peopleV2NavItem: NavItem = {
-    path: '/people-v2',
-    label: 'People',
-    icon: Users,
-  }
-
   const employeeEditMatch = matchPath(
     { path: '/people/:employeeId/edit', end: true },
     pathname,
@@ -109,35 +73,6 @@ export function AppLayout({
       ? getEmployee(profileEmployeeId)
       : null
 
-  const editEmployeeNavItem: NavItem | null = employeeEditMatch
-    ? {
-      path: pathname,
-      label: profileEmployee
-        ? `Edit ${profileEmployee.fullName}`
-        : 'Edit employee',
-      icon: Pencil,
-    }
-    : null
-
-  const employeeProfileNavItem: NavItem | null =
-    !employeeEditMatch &&
-      employeeProfileMatch &&
-      employeeProfileMatch.params.employeeId !== 'new'
-      ? {
-        path: pathname,
-        label: profileEmployee?.fullName ?? 'Employee',
-        icon: Users,
-      }
-      : null
-
-  const employeeProfileV2NavItem: NavItem | null = employeeProfileV2Match
-    ? {
-        path: pathname,
-        label: profileEmployee?.fullName ?? 'Employee',
-        icon: Users,
-      }
-    : null
-
   const departmentMatch = matchPath(
     { path: '/organisation/departments/:departmentId', end: true },
     pathname,
@@ -156,51 +91,35 @@ export function AppLayout({
     if (!departmentIdParam && !teamIdParam) return null
     return buildOrganisationFromEmployees(employees)
   }, [departmentIdParam, employees, teamIdParam])
-  const departmentNavItem: NavItem | null = departmentIdParam
-    ? {
-      path: pathname,
-      label:
-        orgSnapshot?.departments.find(
-          (d) => d.id === decodeURIComponent(departmentIdParam),
-        )?.name ?? 'Department',
-      icon: Building2,
-    }
-    : null
-  const teamNavItem: NavItem | null = teamIdParam
-    ? {
-      path: pathname,
-      label:
-        orgSnapshot?.teams.find(
-          (t) => t.id === decodeURIComponent(teamIdParam),
-        )?.name ?? 'Team',
-      icon: UsersRound,
-    }
-    : null
 
-  const currentNavItem =
-    pathname === '/people-v2'
-      ? peopleV2NavItem
-      : employeeProfileV2NavItem
-        ? employeeProfileV2NavItem
-        : pathname === '/people/new' || pathname.startsWith('/people/new/')
-          ? addEmployeeNavItem
-          : pathname === '/organisation/departments/new'
-            ? addDepartmentNavItem
-            : editEmployeeNavItem
-              ? editEmployeeNavItem
-              : employeeProfileNavItem
-                ? employeeProfileNavItem
-                : departmentNavItem
-                  ? departmentNavItem
-                  : teamNavItem
-                    ? teamNavItem
-                    : pathname === profileNavItem.path ||
-                        pathname.startsWith(`${profileNavItem.path}/`)
-                      ? profileNavItem
-                      : pathname === settingsNavItem.path ||
-                          pathname.startsWith(`${settingsNavItem.path}/`)
-                        ? settingsNavItem
-                        : matchNavItem(pathname, navItems)
+  const breadcrumbs = useMemo(
+    () =>
+      buildBreadcrumbs({
+        pathname,
+        navItems,
+        employeeName: profileEmployee?.fullName,
+        departmentName: departmentIdParam
+          ? orgSnapshot?.departments.find(
+              (d) => d.id === decodeURIComponent(departmentIdParam),
+            )?.name
+          : undefined,
+        teamName: teamIdParam
+          ? orgSnapshot?.teams.find(
+              (t) => t.id === decodeURIComponent(teamIdParam),
+            )?.name
+          : undefined,
+      }),
+    [
+      departmentIdParam,
+      navItems,
+      orgSnapshot,
+      pathname,
+      profileEmployee?.fullName,
+      teamIdParam,
+    ],
+  )
+
+  const titleIcon = resolveTopBarIcon(pathname, navItems)
 
   return (
     <div
@@ -223,8 +142,8 @@ export function AppLayout({
         <div className="pd-app-content">
           <div className="pd-app-content-card">
             <TopBar
-              title={currentNavItem?.label ?? 'App'}
-              titleIcon={currentNavItem?.icon}
+              breadcrumbs={breadcrumbs}
+              titleIcon={titleIcon}
               titleAccessory={
                 pathname === '/goals' || pathname.startsWith('/goals/') ? (
                   <TopBarCycleSelect isMobile={isMobile} />

@@ -228,6 +228,7 @@ function OrgChartCard({
   meta,
   href,
   logoUrl,
+  avatarUrl,
   employeeId,
   highlight,
 }: {
@@ -236,6 +237,7 @@ function OrgChartCard({
   meta?: string
   href?: string
   logoUrl?: string
+  avatarUrl?: string
   employeeId?: string
   highlight?: boolean
 }) {
@@ -251,6 +253,7 @@ function OrgChartCard({
       ) : (
         <Avatar
           name={name}
+          src={avatarUrl || undefined}
           size="lg"
           className="pd-org-card-avatar"
           style={avatarStyle(name)}
@@ -301,6 +304,7 @@ function OrgChartNode({
           title={titleFor(employee)}
           meta={metaFor(employee)}
           href={`/people/${employee.employeeId}`}
+          avatarUrl={employee.avatarUrl}
           employeeId={id}
           highlight={highlightId === id}
         />

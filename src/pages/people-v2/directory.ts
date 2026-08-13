@@ -51,6 +51,7 @@ export type DirectoryPerson = {
   tenureBand: TenureBandId
   directReportCount: number
   isActive: boolean
+  avatarUrl: string
   gaps: DataGapId[]
   /** Pre-lowercased haystack for token search. */
   searchText: string
@@ -152,6 +153,7 @@ export function buildDirectory(
       tenureBand: tenureBandOf(tenureMonths),
       directReportCount: reportCounts.get(employee.employeeId) ?? 0,
       isActive: employee.isActive,
+      avatarUrl: employee.avatarUrl ?? '',
       gaps,
       searchText: [
         employee.employeeId,

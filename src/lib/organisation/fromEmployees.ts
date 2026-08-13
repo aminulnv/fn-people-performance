@@ -28,6 +28,7 @@ function personFromEmployee(employee: PlatformEmployee): OrgPersonRef {
   return {
     employeeId: employee.employeeId,
     fullName: employee.fullName,
+    avatarUrl: employee.avatarUrl || undefined,
   }
 }
 

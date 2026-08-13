@@ -60,13 +60,13 @@
 }
 
 .pd-settings-nav__item.is-selected {
-  color: var(--color-on-theme);
-  background: var(--color-theme);
+  color: var(--color-on-cta);
+  background: var(--color-cta);
 }
 
 .pd-settings-nav__item.is-selected:hover {
-  color: var(--color-on-theme);
-  background: var(--color-theme);
+  color: var(--color-on-cta);
+  background: var(--color-cta);
 }
 
 .pd-settings__panel {
@@ -195,8 +195,8 @@
 }
 
 .pd-appearance-toggle__option.is-selected {
-  background: var(--color-theme);
-  color: var(--color-on-theme);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
   box-shadow: none;
 }
 

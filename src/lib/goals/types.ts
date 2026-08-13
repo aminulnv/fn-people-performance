@@ -87,6 +87,7 @@ export type DemoPerson = {
   managerId?: string
   reportIds: string[]
   avatarHue: number
+  avatarUrl?: string
   blurb: string
 }
 

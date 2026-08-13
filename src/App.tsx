@@ -5,12 +5,10 @@ import { useAuth } from '@/lib/auth'
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
-const ComponentsPage = import.meta.env.DEV
-  ? lazy(() => import('@/pages/ComponentsPage'))
-  : null
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
-const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
+/** Soft-rect People directory (canonical `/people`). */
+const PeopleV3Page = lazy(() => import('@/pages/PeopleV3Page'))
 /** Redesign under review — lives beside `people` until one direction wins. */
 const PeopleV2Page = lazy(() => import('@/pages/PeopleV2Page'))
 const CreateEmployeePage = lazy(() => import('@/pages/CreateEmployeePage'))
@@ -60,8 +58,12 @@ function App() {
           <Route path="/" element={<AuthenticatedLayout />}>
             <Route index element={<ComingSoonPage page="home" />} />
             <Route path="profile" element={<MyProfilePage />} />
-            <Route path="people" element={<PeoplePage />} />
+            <Route path="people" element={<PeopleV3Page />} />
             <Route path="people-v2" element={<PeopleV2Page />} />
+            <Route
+              path="people-v3"
+              element={<Navigate to="/people" replace />}
+            />
             <Route
               path="people-v2/:employeeId"
               element={<EmployeeProfileV2Page />}
@@ -90,9 +92,6 @@ function App() {
               element={<ComingSoonPage page="analytics" />}
             />
             <Route path="dashboard" element={<DashboardPage />} />
-            {ComponentsPage ? (
-              <Route path="components" element={<ComponentsPage />} />
-            ) : null}
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<CatchAllRedirect />} />

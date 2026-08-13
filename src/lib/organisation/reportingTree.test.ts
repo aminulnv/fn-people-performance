@@ -21,6 +21,8 @@ function employee(
     departmentHeadName: '',
     hrbpName: '',
     jobGrade: '',
+    site: '',
+    avatarUrl: '',
     managerEmail: '',
     isActive: true,
     createdAt: new Date(0).toISOString(),

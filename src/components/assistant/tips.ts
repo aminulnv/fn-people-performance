@@ -21,13 +21,13 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
     title: 'Find your people',
     body: 'Browse the employee directory, or use Create employee to add someone new.',
   },
-  '/people/:employeeId/edit': {
-    title: 'Edit employee',
-    body: 'Update directory fields for this person. Employee ID stays fixed.',
-  },
   '/people/new': {
-    title: 'Add someone carefully',
-    body: 'Employee ID and email must be unique — fill the org fields so reporting lines stay clear.',
+    title: 'Fill the profile you see',
+    body: 'Add someone in the same layout as their profile — name, work details, and reporting line update live as you type.',
+  },
+  '/people/:employeeId/edit': {
+    title: 'Edit in place',
+    body: 'Change fields on the profile itself. Employee ID stays fixed after create.',
   },
   '/organisation': {
     title: 'See the structure',
@@ -64,10 +64,6 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   '/organisation/teams/:teamId': {
     title: 'Team view',
     body: 'Review this team’s owner and members, or jump back to the parent department.',
-  },
-  '/components': {
-    title: 'Design system playground',
-    body: 'This page showcases shared UI pieces — reuse them so the product stays consistent.',
   },
 }
 

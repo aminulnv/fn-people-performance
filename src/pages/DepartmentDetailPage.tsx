@@ -122,6 +122,7 @@ export default function DepartmentDetailPage() {
               <span className="pd-people__person">
                 <Avatar
                   name={head.fullName}
+                  src={head.avatarUrl || undefined}
                   size="sm"
                   style={avatarStyle(head.fullName)}
                 />
@@ -195,6 +196,7 @@ export default function DepartmentDetailPage() {
                         <span className="pd-people__person">
                           <Avatar
                             name={team.manager.fullName}
+                            src={team.manager.avatarUrl || undefined}
                             size="sm"
                             style={avatarStyle(team.manager.fullName)}
                           />

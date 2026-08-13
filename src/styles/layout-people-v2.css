@@ -194,9 +194,9 @@
 }
 
 .pd-pv2-scope__btn.is-active {
-  background: var(--color-surface);
-  color: var(--pv2-ink);
-  box-shadow: 0 1px 2px color-mix(in srgb, black 8%, transparent);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  box-shadow: none;
 }
 
 /* ── Buttons ───────────────────────────────────────────────────────── */
@@ -229,13 +229,13 @@
 }
 
 .pd-pv2-btn--primary {
-  border-color: var(--pv2-ink);
-  background: var(--pv2-ink);
-  color: var(--color-surface);
+  border-color: var(--color-cta);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
 }
 
 .pd-pv2-btn--primary:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--pv2-ink) 88%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-cta) 88%, white);
 }
 
 .pd-pv2-icon-btn {
@@ -746,9 +746,9 @@
 }
 
 .pd-pv2-segment__btn.is-active {
-  background: var(--color-surface);
-  color: var(--pv2-ink);
-  box-shadow: 0 1px 2px color-mix(in srgb, black 8%, transparent);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  box-shadow: none;
 }
 
 /* ── Filter chips ──────────────────────────────────────────────────── */
@@ -1973,12 +1973,6 @@
 .dark .pd-pv2-rail__reset,
 .dark .pd-pv2-facet__more {
   color: var(--color-theme-bright);
-}
-
-.dark .pd-pv2-scope__btn.is-active,
-.dark .pd-pv2-segment__btn.is-active {
-  background: var(--color-surface-raised);
-  box-shadow: none;
 }
 
 .dark .pd-pv2-selection {

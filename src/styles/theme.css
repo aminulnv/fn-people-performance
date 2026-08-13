@@ -38,6 +38,15 @@
   --color-on-brand: oklch(from var(--color-brand) round(1.21 - l) 0 0);
   --color-on-sidebar: oklch(from var(--color-sidebar) round(1.21 - l) 0 0);
 
+  /*
+   * Appearance-aware filled actions (buttons, selected controls, empty CTAs).
+   * Light: darker mix so seed purple stays readable on white.
+   * Dark: seed so the fill stays vivid on slate canvases.
+   * Prefer these over raw --color-theme for any solid brand fill + ink.
+   */
+  --color-cta: var(--color-theme-darker);
+  --color-on-cta: var(--color-on-theme-darker);
+
   /* Body text — fixed neutrals */
   --color-text-primary: #0a0a0a;
   --color-text-sec: #64748b;
@@ -127,6 +136,10 @@
    */
   --color-brand: var(--color-theme-bright);
   --color-brand-light: var(--color-theme-subtle);
+
+  /* Filled CTAs — seed on dark canvases (see :root --color-cta) */
+  --color-cta: var(--color-theme);
+  --color-on-cta: var(--color-on-theme);
 
   --color-text-primary: #f1f3f5;
   --color-text-sec: #9aa3ab;

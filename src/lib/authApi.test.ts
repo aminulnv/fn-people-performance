@@ -65,6 +65,7 @@ describe('authApi session', () => {
       departmentHeadName: '',
       hrbpName: '',
       jobGrade: 'M1',
+      site: '',
       managerEmail: '',
     })
 

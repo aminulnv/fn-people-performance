@@ -13,6 +13,8 @@ const EMPLOYEE_SELECT = `
     e.status,
     e.job_title,
     e.job_grade,
+    e.site,
+    e.avatar_url,
     e.department_id,
     e.team_id,
     e.division_id,
@@ -66,6 +68,8 @@ export function mapEmployeeRow(row) {
     departmentHeadName: row.department_head_name ?? '',
     hrbpName: row.hrbp_name ?? '',
     jobGrade: row.job_grade ?? '',
+    site: row.site ?? '',
+    avatarUrl: row.avatar_url ?? '',
     managerEmail: row.manager_email ?? '',
     reportsToId: row.manager_id ?? undefined,
     departmentHeadId: row.department_head_id ?? undefined,
@@ -258,14 +262,21 @@ export async function upsertPlatformEmployee(input, options = {}) {
       input.departmentHeadName ?? '',
       null,
     )
+    const avatarUrlProvided = Object.prototype.hasOwnProperty.call(
+      input,
+      'avatarUrl',
+    )
+    const avatarUrl = avatarUrlProvided
+      ? String(input.avatarUrl ?? '').trim()
+      : null
 
     if (replaceId == null) {
       await client.query(
         `INSERT INTO platform.employees (
            employee_id, email, name, joining_date, status,
-           job_title, job_grade, department_id, team_id, division_id,
+           job_title, job_grade, site, avatar_url, department_id, team_id, division_id,
            reports_to_employee_id, department_head_employee_id
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
         [
           employeeId,
           email,
@@ -274,6 +285,8 @@ export async function upsertPlatformEmployee(input, options = {}) {
           status,
           String(input.jobTitle ?? '').trim(),
           String(input.jobGrade ?? '').trim(),
+          String(input.site ?? '').trim(),
+          avatarUrl ?? '',
           departmentId,
           teamId,
           divisionId,
@@ -291,11 +304,13 @@ export async function upsertPlatformEmployee(input, options = {}) {
            status = $6,
            job_title = $7,
            job_grade = $8,
-           department_id = $9,
-           team_id = $10,
-           division_id = $11,
-           reports_to_employee_id = $12,
-           department_head_employee_id = $13,
+           site = $9,
+           avatar_url = COALESCE($10, avatar_url),
+           department_id = $11,
+           team_id = $12,
+           division_id = $13,
+           reports_to_employee_id = $14,
+           department_head_employee_id = $15,
            updated_at = now()
          WHERE employee_id = $1`,
         [
@@ -307,6 +322,8 @@ export async function upsertPlatformEmployee(input, options = {}) {
           status,
           String(input.jobTitle ?? '').trim(),
           String(input.jobGrade ?? '').trim(),
+          String(input.site ?? '').trim(),
+          avatarUrl,
           departmentId,
           teamId,
           divisionId,

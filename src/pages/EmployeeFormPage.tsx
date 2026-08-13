@@ -1,6 +1,26 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Save } from 'lucide-react'
+import {
+  Award,
+  Briefcase,
+  Building2,
+  Calendar,
+  ChevronRight,
+  CircleDot,
+  GitBranch,
+  Hash,
+  HeartHandshake,
+  History,
+  Mail,
+  MapPin,
+  Network,
+  Save,
+  Star,
+  Target,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { Avatar, ListboxSelect } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
@@ -9,12 +29,13 @@ import {
   DIVISION_OPTIONS,
   JOB_GRADE_OPTIONS,
   JOB_TITLE_OPTIONS,
+  SITE_OPTIONS,
   TEAM_OPTIONS,
-  type CatalogOption,
 } from '@/lib/employees/catalog'
 import {
   createEmployee,
   getEmployee,
+  listEmployees,
   updateEmployee,
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -24,6 +45,8 @@ import '@/styles/layout-people.css'
 type FormMode = 'create' | 'edit'
 
 type FormState = CreateEmployeeInput & { isActive: boolean }
+
+type FieldKey = keyof FormState
 
 const EMPTY_FORM: FormState = {
   employeeId: 0,
@@ -38,115 +61,20 @@ const EMPTY_FORM: FormState = {
   departmentHeadName: '',
   hrbpName: '',
   jobGrade: '',
+  site: '',
   managerEmail: '',
   isActive: true,
 }
 
-type FieldKey = keyof FormState
-
-type Field = {
-  key: FieldKey
+const PROFILE_TABS: {
+  id: 'profile' | 'performance' | 'goals' | 'team'
   label: string
-  type?:
-    | 'text'
-    | 'email'
-    | 'date'
-    | 'number'
-    | 'status'
-    | 'select'
-    | 'reportsTo'
-    | 'departmentHead'
-  required?: boolean
-  placeholder?: string
-  readOnly?: boolean
-  optionsKey?: 'jobTitle' | 'jobGrade' | 'department' | 'team' | 'division'
-}
-
-/** Flat equal-width fields — keep a consistent column rhythm. */
-const FIELDS: Field[] = [
-  {
-    key: 'employeeId',
-    label: 'Employee ID',
-    type: 'number',
-    required: true,
-    placeholder: '101',
-  },
-  {
-    key: 'isActive',
-    label: 'Status',
-    type: 'status',
-  },
-  {
-    key: 'fullName',
-    label: 'Name',
-    required: true,
-    placeholder: 'Full name',
-  },
-  {
-    key: 'email',
-    label: 'Work email',
-    type: 'email',
-    required: true,
-    placeholder: 'name@nextventures.io',
-  },
-  {
-    key: 'startDate',
-    label: 'Start date',
-    type: 'date',
-  },
-  {
-    key: 'jobTitle',
-    label: 'Job title',
-    type: 'select',
-    optionsKey: 'jobTitle',
-    placeholder: 'Select job title',
-  },
-  {
-    key: 'jobGrade',
-    label: 'Job grade',
-    type: 'select',
-    optionsKey: 'jobGrade',
-    placeholder: 'Select job grade',
-  },
-  {
-    key: 'department',
-    label: 'Department',
-    type: 'select',
-    optionsKey: 'department',
-    placeholder: 'Select department',
-  },
-  {
-    key: 'team',
-    label: 'Team',
-    type: 'select',
-    optionsKey: 'team',
-    placeholder: 'Select team',
-  },
-  {
-    key: 'division',
-    label: 'Division',
-    type: 'select',
-    optionsKey: 'division',
-    placeholder: 'Select division',
-  },
-  {
-    key: 'reportsToName',
-    label: 'Reports to',
-    type: 'reportsTo',
-    placeholder: 'Select manager',
-  },
-  {
-    key: 'departmentHeadName',
-    label: 'Department head',
-    type: 'departmentHead',
-    placeholder: 'Select department head',
-  },
-  {
-    key: 'hrbpName',
-    label: 'HRBP',
-    placeholder: 'Not set yet',
-    readOnly: true,
-  },
+  icon: LucideIcon
+}[] = [
+  { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'performance', label: 'Performance', icon: Star },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'team', label: 'Team', icon: Users },
 ]
 
 function toUpdateInput(form: FormState): UpdateEmployeeInput {
@@ -163,126 +91,74 @@ function toUpdateInput(form: FormState): UpdateEmployeeInput {
     departmentHeadName: form.departmentHeadName,
     hrbpName: form.hrbpName,
     jobGrade: form.jobGrade,
+    site: form.site,
     managerEmail: form.managerEmail,
     isActive: form.isActive,
   }
 }
 
-function fieldValue(form: FormState, key: FieldKey): string {
-  if (key === 'employeeId') {
-    return form.employeeId === 0 ? '' : String(form.employeeId)
-  }
-  if (key === 'isActive') return form.isActive ? 'active' : 'inactive'
-  return String(form[key] ?? '')
+function DetailRow({
+  label,
+  icon: Icon,
+  children,
+}: {
+  label: string
+  icon: LucideIcon
+  children: ReactNode
+}) {
+  return (
+    <div className="pd-profile__detail-row">
+      <dt className="pd-profile__detail-label">
+        <Icon
+          className="pd-profile__detail-icon"
+          size={14}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <span className="pd-profile__detail-label-text">{label}</span>
+      </dt>
+      <dd className="pd-profile__detail-value">{children}</dd>
+    </div>
+  )
 }
 
-function FormField({
-  field,
-  form,
-  index,
-  options,
-  reportsToValue,
-  departmentHeadValue,
+function InlineInput({
+  label,
+  type = 'text',
+  value,
   onChange,
-  onReportsToChange,
-  onDepartmentHeadChange,
+  placeholder,
+  required,
+  readOnly,
+  min,
+  step,
 }: {
-  field: Field
-  form: FormState
-  index: number
-  options?: CatalogOption[]
-  reportsToValue?: string
-  departmentHeadValue?: string
-  onChange: (key: FieldKey, value: string) => void
-  onReportsToChange?: (employeeId: string) => void
-  onDepartmentHeadChange?: (employeeId: string) => void
+  label: string
+  type?: 'text' | 'email' | 'date' | 'number'
+  value: string
+  onChange?: (value: string) => void
+  placeholder?: string
+  required?: boolean
+  readOnly?: boolean
+  min?: number
+  step?: number
 }) {
-  const fieldId = useId()
-
-  const isLocked = Boolean(field.readOnly)
-
+  const id = useId()
   return (
-    <div
-      className={
-        isLocked ? 'pd-people__field pd-people__field--locked' : 'pd-people__field'
-      }
-      style={{ ['--pd-field-i' as string]: String(index) }}
-    >
-      <label className="pd-people__label" htmlFor={fieldId}>
-        {field.label}
-        {field.required ? (
-          <span className="pd-people__required" aria-hidden>
-            *
-          </span>
-        ) : null}
-      </label>
-      {field.type === 'status' ? (
-        <ListboxSelect
-          id={fieldId}
-          name={field.key}
-          aria-label={field.label}
-          value={fieldValue(form, field.key)}
-          onValueChange={(next) => onChange(field.key, next)}
-          allowEmpty={false}
-          options={[
-            { value: 'active', label: 'Active' },
-            { value: 'inactive', label: 'Inactive' },
-          ]}
-        />
-      ) : field.type === 'select' ? (
-        <ListboxSelect
-          id={fieldId}
-          name={field.key}
-          aria-label={field.label}
-          value={fieldValue(form, field.key)}
-          onValueChange={(next) => onChange(field.key, next)}
-          placeholder={field.placeholder ?? 'Select…'}
-          options={options ?? []}
-        />
-      ) : field.type === 'reportsTo' ? (
-        <ListboxSelect
-          id={fieldId}
-          name={field.key}
-          aria-label={field.label}
-          value={reportsToValue ?? ''}
-          onValueChange={(next) => onReportsToChange?.(next)}
-          placeholder={field.placeholder ?? 'Select manager'}
-          options={options ?? []}
-        />
-      ) : field.type === 'departmentHead' ? (
-        <ListboxSelect
-          id={fieldId}
-          name={field.key}
-          aria-label={field.label}
-          value={departmentHeadValue ?? ''}
-          onValueChange={(next) => onDepartmentHeadChange?.(next)}
-          placeholder={field.placeholder ?? 'Select department head'}
-          options={options ?? []}
-        />
-      ) : isLocked ? (
-        <div
-          id={fieldId}
-          className="pd-people__readonly"
-          aria-readonly="true"
-          data-empty={!fieldValue(form, field.key) || undefined}
-        >
-          {fieldValue(form, field.key) || '—'}
-        </div>
-      ) : (
-        <input
-          id={fieldId}
-          className="pd-people__input"
-          type={field.type ?? 'text'}
-          name={field.key}
-          required={field.required}
-          placeholder={field.placeholder}
-          value={fieldValue(form, field.key)}
-          min={field.type === 'number' ? 1 : undefined}
-          step={field.type === 'number' ? 1 : undefined}
-          onChange={(e) => onChange(field.key, e.target.value)}
-        />
-      )}
-    </div>
+    <input
+      id={id}
+      className="pd-profile__inline-input"
+      type={type}
+      aria-label={label}
+      required={required}
+      readOnly={readOnly}
+      disabled={readOnly}
+      placeholder={placeholder}
+      value={value}
+      min={min}
+      step={step}
+      onChange={(e) => onChange?.(e.target.value)}
+    />
   )
 }
 
@@ -295,6 +171,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(mode === 'create')
+  const [tab, setTab] = useState<(typeof PROFILE_TABS)[number]['id']>('profile')
 
   const existing = useMemo(() => {
     if (mode !== 'edit') return null
@@ -306,6 +183,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     const extras = {
       jobTitle: employees.map((e) => e.jobTitle),
       jobGrade: employees.map((e) => e.jobGrade),
+      site: employees.map((e) => e.site),
       department: employees.map((e) => e.department),
       team: employees.map((e) => e.team),
       division: employees.map((e) => e.division),
@@ -319,17 +197,27 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
         ...extras.jobGrade,
         form.jobGrade,
       ]),
+      site: buildCatalogOptions(SITE_OPTIONS, [...extras.site, form.site]),
       department: buildCatalogOptions(DEPARTMENT_OPTIONS, [
         ...extras.department,
         form.department,
       ]),
       team: buildCatalogOptions(TEAM_OPTIONS, [...extras.team, form.team]),
-      // Divisions are a fixed catalog in platform.divisions — do not invent extras.
-      division: buildCatalogOptions(DIVISION_OPTIONS, [form.division].filter(Boolean)),
+      division: buildCatalogOptions(DIVISION_OPTIONS, [
+        form.division,
+      ].filter(Boolean)),
     }
-  }, [employees, form.jobTitle, form.jobGrade, form.department, form.team, form.division])
+  }, [
+    employees,
+    form.jobTitle,
+    form.jobGrade,
+    form.site,
+    form.department,
+    form.team,
+    form.division,
+  ])
 
-  const reportsToOptions = useMemo(() => {
+  const personOptions = useMemo(() => {
     const excludeId = mode === 'edit' ? employeeId : undefined
     return employees
       .filter((person) => person.employeeId !== excludeId)
@@ -364,6 +252,23 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     return ''
   }, [employees, form.managerEmail, form.reportsToName, mode, employeeId])
 
+  const departmentHeadValue = useMemo(() => {
+    const excludeId = mode === 'edit' ? employeeId : undefined
+    const byName = form.departmentHeadName.trim().toLowerCase()
+    if (!byName) return ''
+    const match = employees.find(
+      (person) =>
+        person.fullName.trim().toLowerCase() === byName &&
+        person.employeeId !== excludeId,
+    )
+    return match ? String(match.employeeId) : ''
+  }, [employees, form.departmentHeadName, mode, employeeId])
+
+  const manager = useMemo(() => {
+    if (!reportsToValue) return null
+    return getEmployee(Number(reportsToValue))
+  }, [reportsToValue, employees])
+
   useEffect(() => {
     if (mode !== 'edit') return
     if (!existing) {
@@ -383,23 +288,12 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       departmentHeadName: existing.departmentHeadName,
       hrbpName: existing.hrbpName,
       jobGrade: existing.jobGrade,
+      site: existing.site,
       managerEmail: existing.managerEmail,
       isActive: existing.isActive,
     })
     setHydrated(true)
   }, [mode, existing])
-
-  const departmentHeadValue = useMemo(() => {
-    const excludeId = mode === 'edit' ? employeeId : undefined
-    const byName = form.departmentHeadName.trim().toLowerCase()
-    if (!byName) return ''
-    const match = employees.find(
-      (person) =>
-        person.fullName.trim().toLowerCase() === byName &&
-        person.employeeId !== excludeId,
-    )
-    return match ? String(match.employeeId) : ''
-  }, [employees, form.departmentHeadName, mode, employeeId])
 
   if (mode === 'edit') {
     if (!Number.isInteger(employeeId) || employeeId <= 0) {
@@ -413,9 +307,11 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const backTo = mode === 'edit' ? `/people/${employeeId}` : '/people'
   const previewName =
     form.fullName.trim() || (mode === 'edit' ? 'Employee' : 'New employee')
-  const previewRole = [form.jobTitle.trim(), form.department.trim()]
+  const previewMeta = [form.jobTitle.trim(), form.department.trim(), form.division.trim()]
     .filter(Boolean)
     .join(' · ')
+  const directoryCount = listEmployees().length
+  const managerName = manager?.fullName || form.reportsToName.trim()
 
   const onFieldChange = (key: FieldKey, value: string) => {
     setForm((prev) => ({
@@ -440,12 +336,12 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       }))
       return
     }
-    const manager = getEmployee(Number(selectedId))
-    if (!manager) return
+    const nextManager = getEmployee(Number(selectedId))
+    if (!nextManager) return
     setForm((prev) => ({
       ...prev,
-      reportsToName: manager.fullName,
-      managerEmail: manager.email,
+      reportsToName: nextManager.fullName,
+      managerEmail: nextManager.email,
     }))
   }
 
@@ -493,96 +389,321 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     })()
   }
 
-  return (
-    <div
-      className="pd-page pd-people pd-people--form"
-      aria-label={mode === 'edit' ? 'Edit employee' : 'Create employee'}
-    >
-      {mode === 'edit' && !hydrated ? (
+  if (mode === 'edit' && !hydrated) {
+    return (
+      <div className="pd-page pd-people pd-profile" aria-label="Loading employee">
         <p className="pd-people__empty">Loading employee…</p>
-      ) : (
-        <form className="pd-people__form-layout" onSubmit={onSubmit} noValidate>
-          <div className="pd-people__form-toolbar">
-            <Link to={backTo} className="pd-people__back pd-people__back--toolbar">
-              <ArrowLeft size={16} strokeWidth={2} aria-hidden />
-              {mode === 'edit' ? 'Profile' : 'People'}
-            </Link>
-            <div className="pd-people__form-toolbar-end">
-              {error ? (
-                <p
-                  className="pd-people__message pd-people__message--error"
-                  role="alert"
-                >
-                  {error}
-                </p>
-              ) : null}
-              <Link to={backTo} className="pd-people__cancel">
-                Cancel
-              </Link>
-              <button
-                type="submit"
-                className="pd-people__submit pd-people__submit--with-icon"
-                disabled={busy}
-              >
-                <Save size={16} strokeWidth={1.85} aria-hidden />
-                {mode === 'edit' ? 'Save changes' : 'Add employee'}
-              </button>
-            </div>
-          </div>
+      </div>
+    )
+  }
 
-          <div className="pd-people__form-shell">
-            <aside className="pd-people__form-aside">
-              <Avatar
-                name={previewName}
-                size="lg"
-                className="pd-people__form-avatar"
-                style={avatarStyle(previewName)}
+  return (
+    <form
+      className="pd-page pd-people pd-profile pd-profile--editing"
+      aria-label={mode === 'edit' ? 'Edit employee' : 'Add employee'}
+      onSubmit={onSubmit}
+      noValidate
+    >
+      <section className="pd-profile__hero">
+        <div className="pd-profile__hero-main">
+          <Avatar
+            name={previewName}
+            size="lg"
+            className="pd-profile__hero-avatar"
+            style={avatarStyle(previewName)}
+          />
+          <div className="pd-profile__hero-text">
+            <div className="pd-profile__hero-title-row">
+              <input
+                className="pd-profile__name-input"
+                aria-label="Name"
+                required
+                placeholder="Full name"
+                value={form.fullName}
+                onChange={(e) => onFieldChange('fullName', e.target.value)}
               />
-              <div className="pd-people__form-aside-copy">
-                <p className="pd-people__form-kicker">
-                  {mode === 'edit' ? 'Editing' : 'Creating'}
-                </p>
-                <h1 className="pd-people__form-title">{previewName}</h1>
-                {previewRole ? (
-                  <p className="pd-people__form-subtitle">{previewRole}</p>
-                ) : null}
-              </div>
-            </aside>
-
-            <div className="pd-people__form-main">
-              <div className="pd-people__grid">
-                {FIELDS.map((field, index) => (
-                  <FormField
-                    key={field.key}
-                    field={field}
-                    form={form}
-                    index={index}
-                    options={
-                      field.type === 'reportsTo' ||
-                      field.type === 'departmentHead'
-                        ? reportsToOptions
-                        : field.optionsKey
-                          ? catalogOptions[field.optionsKey]
-                          : undefined
-                    }
-                    reportsToValue={
-                      field.type === 'reportsTo' ? reportsToValue : undefined
-                    }
-                    departmentHeadValue={
-                      field.type === 'departmentHead'
-                        ? departmentHeadValue
-                        : undefined
-                    }
-                    onChange={onFieldChange}
-                    onReportsToChange={onReportsToChange}
-                    onDepartmentHeadChange={onDepartmentHeadChange}
-                  />
-                ))}
-              </div>
             </div>
+            <p className="pd-profile__hero-meta">
+              {previewMeta || 'Role details appear as you fill them in'}
+            </p>
           </div>
-        </form>
+        </div>
+
+        <div className="pd-profile__hero-actions">
+          {error ? (
+            <p
+              className="pd-people__message pd-people__message--error"
+              role="alert"
+            >
+              {error}
+            </p>
+          ) : null}
+          <Link to={backTo} className="pd-people__ghost-btn">
+            Cancel
+          </Link>
+          <button
+            type="submit"
+            className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+            disabled={busy}
+          >
+            <Save size={15} strokeWidth={1.75} aria-hidden />
+            {mode === 'edit' ? 'Save changes' : 'Add employee'}
+          </button>
+        </div>
+      </section>
+
+      <div className="pd-profile__tabs" role="tablist" aria-label="Employee sections">
+        {PROFILE_TABS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            role="tab"
+            aria-selected={tab === item.id}
+            className={[
+              'pd-profile__tab',
+              tab === item.id ? 'is-active' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => setTab(item.id)}
+          >
+            <item.icon size={15} strokeWidth={1.75} aria-hidden />
+            {item.label}
+          </button>
+        ))}
+      </div>
+
+      {tab !== 'profile' ? (
+        <div className="pd-profile__placeholder">
+          <p className="pd-people__empty">
+            Finish adding this person on Profile first. Other sections unlock after
+            they’re saved.
+          </p>
+        </div>
+      ) : (
+        <div className="pd-profile__grid">
+          <div className="pd-profile__col">
+            <section className="pd-profile__card">
+              <header className="pd-profile__card-head">
+                <h2 className="pd-profile__card-title">Employee details</h2>
+              </header>
+              <dl className="pd-profile__details">
+                <DetailRow label="Email" icon={Mail}>
+                  <InlineInput
+                    label="Email"
+                    type="email"
+                    required
+                    placeholder="name@nextventures.io"
+                    value={form.email}
+                    onChange={(value) => onFieldChange('email', value)}
+                  />
+                </DetailRow>
+                <DetailRow label="Employee ID" icon={Hash}>
+                  <InlineInput
+                    label="Employee ID"
+                    type="number"
+                    required
+                    readOnly={mode === 'edit'}
+                    placeholder="101"
+                    min={1}
+                    step={1}
+                    value={form.employeeId === 0 ? '' : String(form.employeeId)}
+                    onChange={(value) => onFieldChange('employeeId', value)}
+                  />
+                </DetailRow>
+                <DetailRow label="Status" icon={CircleDot}>
+                  <ListboxSelect
+                    name="isActive"
+                    aria-label="Status"
+                    value={form.isActive ? 'active' : 'inactive'}
+                    onValueChange={(next) => onFieldChange('isActive', next)}
+                    allowEmpty={false}
+                    options={[
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
+                    ]}
+                  />
+                </DetailRow>
+                <DetailRow label="Role" icon={Briefcase}>
+                  <ListboxSelect
+                    name="jobTitle"
+                    aria-label="Role"
+                    value={form.jobTitle}
+                    onValueChange={(next) => onFieldChange('jobTitle', next)}
+                    placeholder="Select job title"
+                    options={catalogOptions.jobTitle}
+                  />
+                </DetailRow>
+                <DetailRow label="Seniority" icon={Award}>
+                  <ListboxSelect
+                    name="jobGrade"
+                    aria-label="Seniority"
+                    value={form.jobGrade}
+                    onValueChange={(next) => onFieldChange('jobGrade', next)}
+                    placeholder="Select job grade"
+                    options={catalogOptions.jobGrade}
+                  />
+                </DetailRow>
+                <DetailRow label="Department" icon={Building2}>
+                  <ListboxSelect
+                    name="department"
+                    aria-label="Department"
+                    value={form.department}
+                    onValueChange={(next) => onFieldChange('department', next)}
+                    placeholder="Select department"
+                    options={catalogOptions.department}
+                  />
+                </DetailRow>
+                <DetailRow label="Team" icon={Users}>
+                  <ListboxSelect
+                    name="team"
+                    aria-label="Team"
+                    value={form.team}
+                    onValueChange={(next) => onFieldChange('team', next)}
+                    placeholder="Select team"
+                    options={catalogOptions.team}
+                  />
+                </DetailRow>
+                <DetailRow label="Division" icon={GitBranch}>
+                  <ListboxSelect
+                    name="division"
+                    aria-label="Division"
+                    value={form.division}
+                    onValueChange={(next) => onFieldChange('division', next)}
+                    placeholder="Select division"
+                    options={catalogOptions.division}
+                  />
+                </DetailRow>
+                <DetailRow label="Site" icon={MapPin}>
+                  <ListboxSelect
+                    name="site"
+                    aria-label="Site"
+                    value={form.site}
+                    onValueChange={(next) => onFieldChange('site', next)}
+                    placeholder="Select site"
+                    options={catalogOptions.site}
+                  />
+                </DetailRow>
+                <DetailRow label="Line manager" icon={UserRound}>
+                  <ListboxSelect
+                    name="reportsTo"
+                    aria-label="Line manager"
+                    value={reportsToValue}
+                    onValueChange={onReportsToChange}
+                    placeholder="Select manager"
+                    options={personOptions}
+                  />
+                </DetailRow>
+                <DetailRow label="Department Head" icon={Network}>
+                  <ListboxSelect
+                    name="departmentHead"
+                    aria-label="Department Head"
+                    value={departmentHeadValue}
+                    onValueChange={onDepartmentHeadChange}
+                    placeholder="Select department head"
+                    options={personOptions}
+                  />
+                </DetailRow>
+                <DetailRow label="HRBP" icon={HeartHandshake}>
+                  <div className="pd-profile__readonly">
+                    {form.hrbpName.trim() || 'Set after save via department'}
+                  </div>
+                </DetailRow>
+                <DetailRow label="Start date" icon={Calendar}>
+                  <InlineInput
+                    label="Start date"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(value) => onFieldChange('startDate', value)}
+                  />
+                </DetailRow>
+              </dl>
+            </section>
+          </div>
+
+          <aside className="pd-profile__col pd-profile__col--side">
+            <section className="pd-profile__card">
+              <header className="pd-profile__card-head">
+                <h2 className="pd-profile__card-title">Org chart</h2>
+              </header>
+              <div className="pd-profile__org">
+                {managerName ? (
+                  <>
+                    <div className="pd-profile__org-node">
+                      <Avatar
+                        name={managerName}
+                        src={manager?.avatarUrl || undefined}
+                        size="md"
+                        style={avatarStyle(managerName)}
+                      />
+                      <div>
+                        <p className="pd-profile__org-name">{managerName}</p>
+                        <p className="pd-profile__org-role">
+                          {manager?.jobTitle || 'Line manager'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="pd-profile__org-connector" aria-hidden>
+                      <span className="pd-profile__org-count">2</span>
+                    </div>
+                  </>
+                ) : null}
+                <div className="pd-profile__org-node is-current">
+                  <Avatar
+                    name={previewName}
+                    src={existing?.avatarUrl || undefined}
+                    size="md"
+                    style={avatarStyle(previewName)}
+                  />
+                  <div>
+                    <p className="pd-profile__org-name">{previewName}</p>
+                    <p className="pd-profile__org-role">
+                      {form.jobTitle.trim() || 'Employee'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <nav className="pd-profile__nav-cards" aria-label="More about this person">
+              <button type="button" className="pd-profile__nav-card" disabled>
+                <Building2 size={18} strokeWidth={1.75} aria-hidden />
+                <span>
+                  <span className="pd-profile__nav-title">Ownership</span>
+                </span>
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              </button>
+              <button type="button" className="pd-profile__nav-card" disabled>
+                <History size={18} strokeWidth={1.75} aria-hidden />
+                <span>
+                  <span className="pd-profile__nav-title">Timeline</span>
+                  <span className="pd-profile__nav-sub">
+                    Main changes and events
+                  </span>
+                </span>
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              </button>
+              <button type="button" className="pd-profile__nav-card" disabled>
+                <Network size={18} strokeWidth={1.75} aria-hidden />
+                <span>
+                  <span className="pd-profile__nav-title">Org Structures</span>
+                  <span className="pd-profile__nav-sub">
+                    {directoryCount} people in directory
+                  </span>
+                </span>
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              </button>
+              <Link to="/people" className="pd-profile__nav-card">
+                <GitBranch size={18} strokeWidth={1.75} aria-hidden />
+                <span>
+                  <span className="pd-profile__nav-title">Back to people</span>
+                </span>
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              </Link>
+            </nav>
+          </aside>
+        </div>
       )}
-    </div>
+    </form>
   )
 }

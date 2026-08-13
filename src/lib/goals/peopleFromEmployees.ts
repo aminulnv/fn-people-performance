@@ -49,6 +49,7 @@ export function employeeToDemoPerson(
       employee.reportsToId != null ? String(employee.reportsToId) : undefined,
     reportIds,
     avatarHue: avatarHue(employee.email || id),
+    avatarUrl: employee.avatarUrl || undefined,
     blurb: '',
   }
 }

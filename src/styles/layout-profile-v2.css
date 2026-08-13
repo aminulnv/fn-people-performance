@@ -159,6 +159,14 @@
   font-weight: 650;
   color: color-mix(in srgb, var(--pd-pf-on-header) 92%, transparent);
   letter-spacing: -0.02em;
+  overflow: hidden;
+}
+
+.pd-profile-v2__av-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .pd-profile-v2__av-dot {
@@ -222,6 +230,9 @@
   border: 0;
   background: transparent;
   transition: color 0.15s, background 0.15s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .pd-profile-v2__tab.is-active {
@@ -444,7 +455,7 @@ a.pd-profile-v2__ql-item:hover {
 
 .pd-profile-v2__field {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 1rem;
   padding: 0.6rem 0;
   border-bottom: 0.5px solid var(--pd-pf-border);
@@ -457,7 +468,14 @@ a.pd-profile-v2__ql-item:hover {
 .pd-profile-v2__fkey {
   font-size: 0.8125rem;
   color: var(--pd-pf-text-2);
-  min-width: 8.5rem;
+  min-width: 10rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.pd-profile-v2__fkey svg {
   flex-shrink: 0;
 }
 
@@ -512,6 +530,7 @@ a.pd-profile-v2__ql-item:hover {
   font-size: 0.65rem;
   font-weight: 650;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .pd-profile-v2__org-av--mgr {

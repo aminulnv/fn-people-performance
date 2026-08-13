@@ -133,6 +133,7 @@ function DirectoryRow({
       <div className="pd-pv2-cell pd-pv2-cell--person" role="gridcell">
         <Avatar
           name={person.name}
+          src={person.avatarUrl || undefined}
           size="sm"
           className="pd-pv2-avatar"
           style={avatarStyle(person.email || String(person.id))}

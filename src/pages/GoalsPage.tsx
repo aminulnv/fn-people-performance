@@ -461,7 +461,11 @@ function ManagerPanel({
             }`}
             onClick={() => onSelect(person.id)}
           >
-            <Avatar name={person.name} size="sm" />
+            <Avatar
+              name={person.name}
+              src={person.avatarUrl || undefined}
+              size="sm"
+            />
             <span className="pd-goals-team__row-text">
               <span className="pd-goals-team__name">{person.name}</span>
               <span className="pd-goals-team__sub">

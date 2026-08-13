@@ -1,12 +1,13 @@
 import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Menu } from 'lucide-react'
+import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui'
 import { TopBarSearch } from './TopBarSearch'
 import { NotificationDrawer } from './NotificationDrawer'
 import { ProfileDropdown } from './ProfileDropdown'
 
 interface TopBarProps {
-  title: string
+  breadcrumbs: BreadcrumbItem[]
   titleIcon?: LucideIcon
   titleAccessory?: ReactNode
   onSignOut?: () => void
@@ -15,7 +16,7 @@ interface TopBarProps {
 }
 
 export function TopBar({
-  title,
+  breadcrumbs,
   titleIcon: TitleIcon,
   titleAccessory,
   onSignOut,
@@ -32,16 +33,20 @@ export function TopBar({
 
   const heading = (
     <div className="pd-topbar__heading">
-      <span className="pd-topbar__title">
-        {TitleIcon && (
+      <div className="pd-topbar__title">
+        {TitleIcon ? (
           <TitleIcon
             size={18}
             strokeWidth={1.75}
             className="pd-topbar__title-icon"
+            aria-hidden
           />
-        )}
-        <span className="pd-topbar__title-text">{title}</span>
-      </span>
+        ) : null}
+        <Breadcrumbs
+          items={breadcrumbs}
+          className="pd-topbar__breadcrumbs"
+        />
+      </div>
       {titleAccessory}
     </div>
   )

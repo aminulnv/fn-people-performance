@@ -19,6 +19,7 @@ function normalizeEmployee(
   return {
     ...rest,
     team: typeof rest.team === 'string' ? rest.team : (wing ?? ''),
+    avatarUrl: typeof rest.avatarUrl === 'string' ? rest.avatarUrl : '',
   }
 }
 
@@ -118,6 +119,9 @@ export function createMemoryEmployee(
     departmentHeadName: input.departmentHeadName.trim(),
     hrbpName: input.hrbpName.trim(),
     jobGrade: input.jobGrade.trim(),
+    site: (input.site ?? '').trim(),
+    avatarUrl:
+      input.avatarUrl !== undefined ? input.avatarUrl.trim() : '',
     managerEmail,
     reportsToId:
       resolveIdByEmail(managerEmail) ??
@@ -182,6 +186,11 @@ export function updateMemoryEmployee(
     departmentHeadName: input.departmentHeadName.trim(),
     hrbpName: input.hrbpName.trim(),
     jobGrade: input.jobGrade.trim(),
+    site: (input.site ?? '').trim(),
+    avatarUrl:
+      input.avatarUrl !== undefined
+        ? input.avatarUrl.trim()
+        : existing.avatarUrl,
     managerEmail,
     reportsToId:
       resolveIdByEmail(managerEmail, nextId) ??

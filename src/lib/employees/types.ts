@@ -15,6 +15,9 @@ export type PlatformEmployee = {
   departmentHeadName: string
   hrbpName: string
   jobGrade: string
+  site: string
+  /** External image URL; empty when unset (initials fallback in UI). */
+  avatarUrl: string
   managerEmail: string
   reportsToId?: number
   departmentHeadId?: number
@@ -37,6 +40,9 @@ export type CreateEmployeeInput = {
   departmentHeadName: string
   hrbpName: string
   jobGrade: string
+  site: string
+  /** Omit on form saves to leave the stored URL unchanged. */
+  avatarUrl?: string
   managerEmail: string
   isActive?: boolean
 }

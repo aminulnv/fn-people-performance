@@ -27,6 +27,8 @@ function employee(overrides: Partial<PlatformEmployee> = {}): PlatformEmployee {
     departmentHeadName: 'Kabir Hasan',
     hrbpName: 'Nadia Islam',
     jobGrade: 'L4',
+    site: '',
+    avatarUrl: '',
     managerEmail: 'kabir@example.com',
     reportsToId: 2,
     isActive: true,

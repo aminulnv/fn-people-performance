@@ -46,6 +46,7 @@ function PersonLink({
     >
       <Avatar
         name={person.name}
+        src={person.avatarUrl || undefined}
         size="sm"
         className="pd-pv2-avatar"
         style={avatarStyle(person.email || String(person.id))}
@@ -116,6 +117,7 @@ export function PersonPanel({
         <header className="pd-pv2-panel__head">
           <Avatar
             name={person.name}
+            src={person.avatarUrl || undefined}
             size="lg"
             className="pd-pv2-panel__avatar"
             style={avatarStyle(person.email || String(person.id))}

@@ -56,6 +56,7 @@ function PersonCell({
     <div className="pd-people__person">
       <Avatar
         name={person.fullName}
+        src={person.avatarUrl || undefined}
         size={size}
         className="pd-people__avatar"
         style={avatarStyle(person.fullName)}

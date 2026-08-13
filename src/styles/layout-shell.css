@@ -750,24 +750,85 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
-  font-family: var(--font-heading);
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--color-text);
   overflow: hidden;
-  min-width: 0;
-  letter-spacing: -0.02em;
-}
-
-.pd-topbar__title-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pd-topbar__title-icon {
   flex-shrink: 0;
   color: var(--color-text);
+}
+
+.pd-topbar__breadcrumbs {
+  min-width: 0;
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__list {
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__item {
+  min-width: 0;
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__link,
+.pd-topbar__breadcrumbs .pd-breadcrumbs__current {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 14rem;
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__link {
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-secondary);
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__link:hover {
+  color: var(--color-theme);
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__current {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.pd-topbar__breadcrumbs .pd-breadcrumbs__sep {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.pd-topbar--mobile .pd-topbar__breadcrumbs .pd-breadcrumbs__link,
+.pd-topbar--mobile .pd-topbar__breadcrumbs .pd-breadcrumbs__current {
+  max-width: 7.5rem;
+}
+
+/* On narrow screens keep parent + current only */
+.pd-topbar--mobile
+  .pd-topbar__breadcrumbs
+  .pd-breadcrumbs__item:not(:nth-last-child(-n + 3)),
+.pd-topbar--mobile
+  .pd-topbar__breadcrumbs
+  .pd-breadcrumbs__sep:not(:nth-last-child(-n + 2)) {
+  display: none;
+}
+
+.pd-topbar--mobile
+  .pd-topbar__breadcrumbs
+  .pd-breadcrumbs__item:nth-last-child(3)
+  .pd-breadcrumbs__link,
+.pd-topbar--mobile
+  .pd-topbar__breadcrumbs
+  .pd-breadcrumbs__item:nth-last-child(3)
+  .pd-breadcrumbs__current {
+  max-width: 5.5rem;
 }
 
 .pd-topbar__cycle {
@@ -1066,6 +1127,14 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   flex-shrink: 0;
   letter-spacing: 0.02em;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-brand) 28%, transparent);
+  overflow: hidden;
+}
+
+.pd-topbar__profile-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .pd-topbar__profile-avatar--btn {

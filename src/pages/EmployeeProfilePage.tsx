@@ -1,15 +1,28 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
+  Award,
+  Briefcase,
   Building2,
+  Calendar,
   ChevronRight,
+  CircleDot,
   Copy,
   GitBranch,
+  Hash,
+  HeartHandshake,
   History,
+  KeyRound,
+  Mail,
+  MapPin,
   MoreHorizontal,
   Network,
   Pencil,
-  Shield,
+  Star,
+  Target,
+  UserRound,
+  Users,
+  type LucideIcon,
 } from 'lucide-react'
 import { Avatar, EmptyState } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
@@ -23,12 +36,16 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import { profileTabComingSoon } from '@/pages/ComingSoonPage'
 import '@/styles/layout-people.css'
 
-const PROFILE_TABS = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'goals', label: 'Goals' },
-  { id: 'team', label: 'Team' },
-] as const
+const PROFILE_TABS: {
+  id: 'profile' | 'performance' | 'goals' | 'team'
+  label: string
+  icon: LucideIcon
+}[] = [
+  { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'performance', label: 'Performance', icon: Star },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'team', label: 'Team', icon: Users },
+]
 
 function formatStartDate(iso: string): string {
   if (!iso) return '—'
@@ -43,14 +60,24 @@ function formatStartDate(iso: string): string {
 
 function DetailRow({
   label,
+  icon: Icon,
   children,
 }: {
   label: string
+  icon: LucideIcon
   children: ReactNode
 }) {
   return (
     <div className="pd-profile__detail-row">
-      <dt className="pd-profile__detail-label">{label}</dt>
+      <dt className="pd-profile__detail-label">
+        <Icon
+          className="pd-profile__detail-icon"
+          size={14}
+          strokeWidth={1.75}
+          aria-hidden
+        />
+        <span className="pd-profile__detail-label-text">{label}</span>
+      </dt>
       <dd className="pd-profile__detail-value">{children}</dd>
     </div>
   )
@@ -126,16 +153,6 @@ export function EmployeeProfileView({
           <div className="pd-profile__hero-text">
             <div className="pd-profile__hero-title-row">
               <h1 className="pd-profile__name">{employee.fullName}</h1>
-              <span
-                className={[
-                  'pd-people__status',
-                  employee.isActive
-                    ? 'pd-people__status--active'
-                    : 'pd-people__status--inactive',
-                ].join(' ')}
-              >
-                {employee.isActive ? 'Active' : 'Inactive'}
-              </span>
             </div>
             <p className="pd-profile__hero-meta">
               {[employee.jobTitle, employee.department, employee.division]
@@ -154,8 +171,8 @@ export function EmployeeProfileView({
             Edit
           </Link>
           <button type="button" className="pd-people__ghost-btn" disabled>
-            <Shield size={15} strokeWidth={1.75} aria-hidden />
-            Manage permissions
+            <KeyRound size={15} strokeWidth={1.75} aria-hidden />
+            Permissions
           </button>
           <button
             type="button"
@@ -183,6 +200,7 @@ export function EmployeeProfileView({
               .join(' ')}
             onClick={() => setTab(item.id)}
           >
+            <item.icon size={15} strokeWidth={1.75} aria-hidden />
             {item.label}
           </button>
         ))}
@@ -206,34 +224,53 @@ export function EmployeeProfileView({
           <div className="pd-profile__col">
             <section className="pd-profile__card">
               <header className="pd-profile__card-head">
-                <h2 className="pd-profile__card-title">Work details</h2>
+                <h2 className="pd-profile__card-title">Employee details</h2>
                 <Link
                   to={`/people/${employee.employeeId}/edit`}
                   className="pd-profile__icon-action"
-                  aria-label="Edit work details"
+                  aria-label="Edit employee details"
                 >
                   <Pencil size={14} strokeWidth={1.75} aria-hidden />
                 </Link>
               </header>
               <dl className="pd-profile__details">
-                <DetailRow label="Work email">
+                <DetailRow label="Email" icon={Mail}>
                   {employee.email ? (
                     <CopyEmail email={employee.email} />
                   ) : (
                     '—'
                   )}
                 </DetailRow>
-                <DetailRow label="Employee ID">{employee.employeeId}</DetailRow>
-                <DetailRow label="Role">{employee.jobTitle || '—'}</DetailRow>
-                <DetailRow label="Seniority">{employee.jobGrade || '—'}</DetailRow>
-                <DetailRow label="Department">{employee.department || '—'}</DetailRow>
-                <DetailRow label="Team">{employee.team || '—'}</DetailRow>
-                <DetailRow label="Division">{employee.division || '—'}</DetailRow>
-                <DetailRow label="Line manager">
+                <DetailRow label="Employee ID" icon={Hash}>
+                  {employee.employeeId}
+                </DetailRow>
+                <DetailRow label="Status" icon={CircleDot}>
+                  {employee.isActive ? 'Active' : 'Inactive'}
+                </DetailRow>
+                <DetailRow label="Role" icon={Briefcase}>
+                  {employee.jobTitle || '—'}
+                </DetailRow>
+                <DetailRow label="Seniority" icon={Award}>
+                  {employee.jobGrade || '—'}
+                </DetailRow>
+                <DetailRow label="Department" icon={Building2}>
+                  {employee.department || '—'}
+                </DetailRow>
+                <DetailRow label="Team" icon={Users}>
+                  {employee.team || '—'}
+                </DetailRow>
+                <DetailRow label="Division" icon={GitBranch}>
+                  {employee.division || '—'}
+                </DetailRow>
+                <DetailRow label="Site" icon={MapPin}>
+                  {employee.site || '—'}
+                </DetailRow>
+                <DetailRow label="Line manager" icon={UserRound}>
                   {managerName ? (
                     <span className="pd-people__person">
                       <Avatar
                         name={managerName}
+                        src={manager?.avatarUrl || undefined}
                         size="sm"
                         style={avatarStyle(managerName)}
                       />
@@ -243,31 +280,14 @@ export function EmployeeProfileView({
                     '—'
                   )}
                 </DetailRow>
-                <DetailRow label="Department Head">
+                <DetailRow label="Department Head" icon={Network}>
                   {employee.departmentHeadName || '—'}
                 </DetailRow>
-                <DetailRow label="HRBP">{employee.hrbpName || '—'}</DetailRow>
-                <DetailRow label="Start date">
-                  {formatStartDate(employee.startDate)}
+                <DetailRow label="HRBP" icon={HeartHandshake}>
+                  {employee.hrbpName || '—'}
                 </DetailRow>
-              </dl>
-            </section>
-
-            <section className="pd-profile__card">
-              <header className="pd-profile__card-head">
-                <h2 className="pd-profile__card-title">Personal details</h2>
-                <button
-                  type="button"
-                  className="pd-profile__icon-action"
-                  aria-label="Edit personal details"
-                  disabled
-                >
-                  <Pencil size={14} strokeWidth={1.75} aria-hidden />
-                </button>
-              </header>
-              <dl className="pd-profile__details">
-                <DetailRow label="Personal email">
-                  <span className="pd-profile__muted">Not collected yet</span>
+                <DetailRow label="Start date" icon={Calendar}>
+                  {formatStartDate(employee.startDate)}
                 </DetailRow>
               </dl>
             </section>
@@ -284,6 +304,7 @@ export function EmployeeProfileView({
                     <div className="pd-profile__org-node">
                       <Avatar
                         name={managerName}
+                        src={manager?.avatarUrl || undefined}
                         size="md"
                         style={avatarStyle(managerName)}
                       />
@@ -302,6 +323,7 @@ export function EmployeeProfileView({
                 <div className="pd-profile__org-node is-current">
                   <Avatar
                     name={employee.fullName}
+                    src={employee.avatarUrl || undefined}
                     size="md"
                     style={avatarStyle(employee.fullName)}
                   />

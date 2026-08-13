@@ -42,6 +42,7 @@ export function OrgMembersTable({
                 <div className="pd-people__person">
                   <Avatar
                     name={member.fullName}
+                    src={member.avatarUrl || undefined}
                     size="md"
                     className="pd-people__avatar"
                     style={avatarStyle(member.fullName)}

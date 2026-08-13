@@ -34,6 +34,7 @@ export function ProfileDropdown({
   const roleLabel = person ? formatGoalRole(person.role) : ''
   const initials = nameInitials(name)
   const avatarHue = person?.avatarHue ?? 220
+  const avatarUrl = person?.avatarUrl?.trim() || ''
 
   const handleCloseConfirm = useCallback(() => {
     setShowSignOutConfirm(false)
@@ -54,6 +55,12 @@ export function ProfileDropdown({
     setIsDark(!isDark)
   }, [isDark])
 
+  const avatarFace = avatarUrl ? (
+    <img className="pd-topbar__profile-avatar-image" src={avatarUrl} alt="" />
+  ) : (
+    initials
+  )
+
   return (
     <div
       ref={containerRef}
@@ -66,9 +73,11 @@ export function ProfileDropdown({
         className="pd-topbar__profile-avatar pd-topbar__profile-avatar--btn"
         aria-label="Profile menu"
         aria-expanded={open}
-        style={{ background: `hsl(${avatarHue} 55% 42%)` }}
+        style={
+          avatarUrl ? undefined : { background: `hsl(${avatarHue} 55% 42%)` }
+        }
       >
-        {initials}
+        {avatarFace}
       </button>
       {open && (
         <div
@@ -79,9 +88,13 @@ export function ProfileDropdown({
           <div className="pd-topbar__dropdown-header">
             <span
               className="pd-topbar__profile-avatar pd-topbar__profile-avatar--menu"
-              style={{ background: `hsl(${avatarHue} 55% 42%)` }}
+              style={
+                avatarUrl
+                  ? undefined
+                  : { background: `hsl(${avatarHue} 55% 42%)` }
+              }
             >
-              {initials}
+              {avatarFace}
             </span>
             <div className="pd-topbar__dropdown-header-text">
               <div className="pd-topbar__dropdown-title">{name}</div>

@@ -3,6 +3,7 @@
 export type OrgPersonRef = {
   employeeId?: number
   fullName: string
+  avatarUrl?: string
 }
 
 export type OrgTeam = {

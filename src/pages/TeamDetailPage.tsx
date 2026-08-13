@@ -113,6 +113,7 @@ export default function TeamDetailPage() {
               <span className="pd-people__person">
                 <Avatar
                   name={owner.fullName}
+                  src={owner.avatarUrl || undefined}
                   size="sm"
                   style={avatarStyle(owner.fullName)}
                 />

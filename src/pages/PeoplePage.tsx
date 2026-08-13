@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
-  MoreHorizontal,
   Network,
   Plus,
   Search,
@@ -14,14 +13,24 @@ import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import '@/styles/layout-people.css'
 
+type DirectoryScope = 'all' | 'reports' | 'department'
+
+const SCOPES: { id: DirectoryScope; label: string }[] = [
+  { id: 'all', label: 'Everyone' },
+  { id: 'reports', label: 'My reports' },
+  { id: 'department', label: 'My department' },
+]
+
 function PersonCell({
   name,
   size = 'md',
   to,
+  avatarUrl,
 }: {
   name: string
   size?: 'sm' | 'md'
   to?: string
+  avatarUrl?: string
 }) {
   const label = to ? (
     <Link to={to} className="pd-people__person-link">
@@ -35,6 +44,7 @@ function PersonCell({
     <div className="pd-people__person">
       <Avatar
         name={name}
+        src={avatarUrl || undefined}
         size={size}
         className="pd-people__avatar"
         style={avatarStyle(name)}
@@ -44,23 +54,44 @@ function PersonCell({
   )
 }
 
-export default function PeoplePage() {
+export type PeoplePageProps = {
+  /** Soft-rect radius preview — compare with default pill `/people`. */
+  variant?: 'v3'
+}
+
+export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const { user } = useAuth()
   const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
-  const [myReportsOnly, setMyReportsOnly] = useState(false)
+  const [scope, setScope] = useState<DirectoryScope>('all')
 
   const activeCount = employees.filter((e) => e.isActive).length
+  const isV3 = variant === 'v3'
+
+  const me = useMemo(() => {
+    const email = user?.email?.trim().toLowerCase()
+    if (!email) return null
+    return (
+      employees.find(
+        (employee) => employee.email.trim().toLowerCase() === email,
+      ) ?? null
+    )
+  }, [employees, user?.email])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
+    const myEmail = me?.email.trim().toLowerCase() ?? ''
+    const myDepartment = me?.department.trim() ?? ''
+
     return [...employees]
       .filter((employee) => {
-        if (myReportsOnly && user?.email) {
-          if (
-            employee.managerEmail.trim().toLowerCase() !==
-            user.email.trim().toLowerCase()
-          ) {
+        if (me && scope === 'reports') {
+          if (employee.managerEmail.trim().toLowerCase() !== myEmail) {
+            return false
+          }
+        }
+        if (me && scope === 'department') {
+          if (!myDepartment || employee.department.trim() !== myDepartment) {
             return false
           }
         }
@@ -84,82 +115,107 @@ export default function PeoplePage() {
         return haystack.includes(q)
       })
       .sort((a, b) => a.employeeId - b.employeeId)
-  }, [employees, myReportsOnly, query, user?.email])
+  }, [employees, me, query, scope])
 
   return (
-    <div className="pd-page pd-people" aria-label="People">
-      <div className="pd-people__header pd-people__header--row">
-        <p className="pd-people__stat">
-          {activeCount} Active
-          {employees.length !== activeCount
-            ? ` · ${employees.length} total`
-            : null}
-        </p>
+    <div
+      className={['pd-page', 'pd-people', isV3 ? 'pd-people--v3' : '']
+        .filter(Boolean)
+        .join(' ')}
+      aria-label="People"
+    >
+      <div className="pd-people__header pd-people__header--bar">
+        <div className="pd-people__bar-start">
+          <label className="pd-people__search">
+            <Search size={16} strokeWidth={1.75} aria-hidden />
+            <span className="pd-sr-only">Search people</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search people…"
+              className="pd-people__search-input"
+            />
+          </label>
 
-        <div className="pd-people__toolbar">
-          <button
-            type="button"
-            className="pd-people__icon-btn"
-            aria-label="More actions"
-            title="More actions"
+          {me ? (
+            <div
+              className="pd-people__scope"
+              role="group"
+              aria-label="Directory scope"
+            >
+              {SCOPES.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className={[
+                    'pd-people__scope-btn',
+                    scope === option.id ? 'is-active' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-pressed={scope === option.id}
+                  onClick={() => setScope(option.id)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="pd-people__bar-end">
+          <p className="pd-people__stat">
+            {filtered.length === employees.length
+              ? `${activeCount} Active`
+              : `${filtered.length} shown`}
+            {employees.length !== activeCount &&
+              filtered.length === employees.length
+              ? ` · ${employees.length} total`
+              : null}
+          </p>
+
+          <div
+            className="pd-people__toolbar"
+            role="toolbar"
+            aria-label="People actions"
           >
-            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pd-people__ghost-btn"
-            title="People settings"
-          >
-            <Settings size={16} strokeWidth={1.75} aria-hidden />
-            Settings
-          </button>
-          <Link to="/people/new" className="pd-people__create-btn">
-            <Plus size={18} strokeWidth={2} aria-hidden />
-            Add employee
-          </Link>
-          <Link to="/organisation/chart" className="pd-people__ghost-btn">
-            <Network size={16} strokeWidth={1.75} aria-hidden />
-            View org chart
-          </Link>
+            <Link to="/organisation/chart" className="pd-people__ghost-btn">
+              <Network size={16} strokeWidth={1.75} aria-hidden />
+              Org chart
+            </Link>
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              title="People settings"
+            >
+              <Settings size={16} strokeWidth={1.75} aria-hidden />
+              Settings
+            </button>
+            <Link to="/people/new" className="pd-people__create-btn">
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add employee
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div className="pd-people__filters" role="toolbar" aria-label="People filters">
-        <label className="pd-people__search">
-          <Search size={16} strokeWidth={1.75} aria-hidden />
-          <span className="pd-sr-only">Search people</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search people…"
-            className="pd-people__search-input"
-          />
-        </label>
-        <button
-          type="button"
-          className={[
-            'pd-people__chip',
-            myReportsOnly ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={myReportsOnly}
-          onClick={() => setMyReportsOnly((v) => !v)}
-        >
-          My reports
-        </button>
-      </div>
-
-      <section className="pd-people__panel pd-people__panel--table" aria-labelledby="directory-heading">
+      <section
+        className="pd-people__panel pd-people__panel--table"
+        aria-labelledby="directory-heading"
+      >
         <h2 id="directory-heading" className="pd-sr-only">
           People directory
         </h2>
 
         {loadState === 'loading' && employees.length === 0 ? (
-          <p className="pd-people__empty">Loading people from the live database…</p>
+          <p className="pd-people__empty">
+            Loading people from the live database…
+          </p>
         ) : loadState === 'error' && employees.length === 0 ? (
-          <p className="pd-people__empty">{loadError ?? 'Failed to load people.'}</p>
+          <p className="pd-people__empty">
+            {loadError ?? 'Failed to load people.'}
+          </p>
         ) : employees.length === 0 ? (
           <div className="pd-people__empty-state">
             <p className="pd-people__empty">No employees yet.</p>
@@ -208,6 +264,7 @@ export default function PeoplePage() {
                     <td>
                       <PersonCell
                         name={employee.fullName}
+                        avatarUrl={employee.avatarUrl}
                         to={`/people/${employee.employeeId}`}
                       />
                     </td>

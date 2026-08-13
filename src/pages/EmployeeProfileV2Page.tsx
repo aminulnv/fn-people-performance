@@ -1,6 +1,23 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { Mail } from 'lucide-react'
+import {
+  Award,
+  Briefcase,
+  Building2,
+  Calendar,
+  CircleDot,
+  GitBranch,
+  Hash,
+  HeartHandshake,
+  Mail,
+  MapPin,
+  Network,
+  Star,
+  Target,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { EmptyState } from '@/components/ui'
 import {
   findEmployeeByEmail,
@@ -14,12 +31,16 @@ import { profileTabComingSoon } from '@/pages/ComingSoonPage'
 import '@/styles/layout-people.css'
 import '@/styles/layout-profile-v2.css'
 
-const PROFILE_TABS = [
-  { id: 'profile', label: 'Profile' },
-  { id: 'performance', label: 'Performance' },
-  { id: 'goals', label: 'Goals' },
-  { id: 'team', label: 'Team' },
-] as const
+const PROFILE_TABS: {
+  id: 'profile' | 'performance' | 'goals' | 'team'
+  label: string
+  icon: LucideIcon
+}[] = [
+  { id: 'profile', label: 'Profile', icon: UserRound },
+  { id: 'performance', label: 'Performance', icon: Star },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'team', label: 'Team', icon: Users },
+]
 
 function formatStartDate(iso: string): string {
   if (!iso) return ''
@@ -55,10 +76,12 @@ function displayValue(value: string | null | undefined): string {
 
 function Field({
   label,
+  icon: Icon,
   children,
   empty = '—',
 }: {
   label: string
+  icon: LucideIcon
   children?: ReactNode
   empty?: string
 }) {
@@ -70,7 +93,10 @@ function Field({
 
   return (
     <div className="pd-profile-v2__field">
-      <span className="pd-profile-v2__fkey">{label}</span>
+      <span className="pd-profile-v2__fkey">
+        <Icon size={14} strokeWidth={1.75} aria-hidden />
+        <span>{label}</span>
+      </span>
       {hasContent ? (
         <span className="pd-profile-v2__fval">{children}</span>
       ) : (
@@ -157,7 +183,15 @@ function EmployeeProfileV2View({
           <div className="pd-profile-v2__hero">
             <div className="pd-profile-v2__av-wrap">
               <div className="pd-profile-v2__av" aria-hidden>
-                {initials}
+                {employee.avatarUrl ? (
+                  <img
+                    className="pd-profile-v2__av-image"
+                    src={employee.avatarUrl}
+                    alt=""
+                  />
+                ) : (
+                  initials
+                )}
               </div>
               <div
                 className={[
@@ -197,6 +231,7 @@ function EmployeeProfileV2View({
                   .join(' ')}
                 onClick={() => setTab(item.id)}
               >
+                <item.icon size={15} strokeWidth={1.75} aria-hidden />
                 {item.label}
               </button>
             ))}
@@ -255,6 +290,10 @@ function EmployeeProfileV2View({
                   <dt>Division</dt>
                   <dd>{displayValue(employee.division) || '—'}</dd>
                 </div>
+                <div>
+                  <dt>Site</dt>
+                  <dd>{displayValue(employee.site) || '—'}</dd>
+                </div>
               </dl>
             </section>
 
@@ -299,9 +338,9 @@ function EmployeeProfileV2View({
 
           <div className="pd-profile-v2__main">
             <section className="pd-profile-v2__section">
-              <h2 className="pd-profile-v2__section-title">Work details</h2>
+              <h2 className="pd-profile-v2__section-title">Employee details</h2>
               <div className="pd-profile-v2__fields">
-                <Field label="Work email">
+                <Field label="Email" icon={Mail}>
                   {employee.email ? (
                     <a
                       href={`mailto:${employee.email}`}
@@ -311,32 +350,42 @@ function EmployeeProfileV2View({
                     </a>
                   ) : null}
                 </Field>
-                <Field label="Employee ID">{employee.employeeId}</Field>
-                <Field label="Role">
+                <Field label="Employee ID" icon={Hash}>
+                  {employee.employeeId}
+                </Field>
+                <Field label="Status" icon={CircleDot}>
+                  {employee.isActive ? 'Active' : 'Inactive'}
+                </Field>
+                <Field label="Role" icon={Briefcase}>
                   {displayValue(employee.jobTitle) || null}
                 </Field>
-                <Field label="Seniority">
+                <Field label="Seniority" icon={Award}>
                   {displayValue(employee.jobGrade) || null}
                 </Field>
-                <Field label="Department">
+                <Field label="Department" icon={Building2}>
                   {displayValue(employee.department) || null}
                 </Field>
-                <Field label="Team">
+                <Field label="Team" icon={Users}>
                   {displayValue(employee.team) || null}
                 </Field>
-                <Field label="Division">
+                <Field label="Division" icon={GitBranch}>
                   {displayValue(employee.division) || null}
                 </Field>
-                <Field label="Line manager">
+                <Field label="Site" icon={MapPin}>
+                  {displayValue(employee.site) || null}
+                </Field>
+                <Field label="Line manager" icon={UserRound}>
                   {displayValue(managerName) || null}
                 </Field>
-                <Field label="Department head">
+                <Field label="Department head" icon={Network}>
                   {displayValue(departmentHeadName) || null}
                 </Field>
-                <Field label="HRBP">
+                <Field label="HRBP" icon={HeartHandshake}>
                   {displayValue(employee.hrbpName) || null}
                 </Field>
-                <Field label="Start date">{startDate || null}</Field>
+                <Field label="Start date" icon={Calendar}>
+                  {startDate || null}
+                </Field>
               </div>
             </section>
 
@@ -365,7 +414,15 @@ function EmployeeProfileV2View({
 
                 <div className="pd-profile-v2__org-node is-you">
                   <div className="pd-profile-v2__org-av pd-profile-v2__org-av--you">
-                    {initials}
+                    {employee.avatarUrl ? (
+                      <img
+                        className="pd-profile-v2__av-image"
+                        src={employee.avatarUrl}
+                        alt=""
+                      />
+                    ) : (
+                      initials
+                    )}
                   </div>
                   <div className="pd-profile-v2__org-text">
                     <div className="pd-profile-v2__org-name">
@@ -401,13 +458,6 @@ function EmployeeProfileV2View({
                     </div>
                   </>
                 ) : null}
-              </div>
-            </section>
-
-            <section className="pd-profile-v2__section">
-              <h2 className="pd-profile-v2__section-title">Personal</h2>
-              <div className="pd-profile-v2__fields">
-                <Field label="Personal email" empty="Not collected yet" />
               </div>
             </section>
           </div>

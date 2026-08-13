@@ -66,6 +66,14 @@ export const DIVISION_OPTIONS = [
   'Core',
 ] as const
 
+export const SITE_OPTIONS = [
+  'NEXT Ventures Bangladesh',
+  'NEXT Ventures Lanka',
+  'NEXT Malaysia',
+  'NEXT UAE',
+  'NEXT Cyprus',
+] as const
+
 export type CatalogOption = {
   value: string
   label: string
