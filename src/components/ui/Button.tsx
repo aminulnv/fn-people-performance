@@ -11,6 +11,8 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: ButtonSize
+  /** Fully rounded ends — matches People/Org action chrome. */
+  pill?: boolean
   loading?: boolean
   children?: ReactNode
 }
@@ -20,6 +22,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     {
       variant = 'primary',
       size = 'md',
+      pill = false,
       loading = false,
       disabled,
       className,
@@ -37,6 +40,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           'pd-btn',
           `pd-btn--${variant}`,
           `pd-btn--${size}`,
+          pill && 'pd-btn--pill',
           loading && 'is-loading',
           className,
         )}

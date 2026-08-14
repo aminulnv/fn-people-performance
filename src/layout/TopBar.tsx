@@ -10,6 +10,8 @@ interface TopBarProps {
   breadcrumbs: BreadcrumbItem[]
   titleIcon?: LucideIcon
   titleAccessory?: ReactNode
+  /** Section links (e.g. Reviews subpages) — centered on desktop, own row on mobile. */
+  centerSlot?: ReactNode
   onSignOut?: () => void
   onMobileMenuOpen: () => void
   isMobile?: boolean
@@ -19,6 +21,7 @@ export function TopBar({
   breadcrumbs,
   titleIcon: TitleIcon,
   titleAccessory,
+  centerSlot,
   onSignOut,
   onMobileMenuOpen,
   isMobile = false,
@@ -66,6 +69,9 @@ export function TopBar({
           {heading}
           {actions}
         </div>
+        {centerSlot ? (
+          <div className="pd-topbar__subnav">{centerSlot}</div>
+        ) : null}
       </header>
     )
   }
@@ -73,7 +79,7 @@ export function TopBar({
   return (
     <header className="pd-topbar pd-topbar--desktop">
       {heading}
-      <div style={{ flex: 1 }} />
+      <div className="pd-topbar__center">{centerSlot}</div>
       {actions}
     </header>
   )

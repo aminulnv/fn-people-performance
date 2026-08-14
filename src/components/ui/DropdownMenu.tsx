@@ -72,11 +72,6 @@ export function DropdownMenu({
     setActiveIndex(firstEnabled >= 0 ? firstEnabled : 0)
   }, [open, items])
 
-  useEffect(() => {
-    if (!open) return
-    itemRefs.current[activeIndex]?.focus()
-  }, [open, activeIndex])
-
   const moveActive = (delta: number) => {
     if (!enabledItems.length) return
     const currentId = items[activeIndex]?.id
@@ -87,6 +82,7 @@ export function DropdownMenu({
       ]
     const nextIndex = items.findIndex((item) => item.id === nextEnabled.id)
     setActiveIndex(nextIndex)
+    queueMicrotask(() => itemRefs.current[nextIndex]?.focus())
   }
 
   return (

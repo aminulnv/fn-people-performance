@@ -20,14 +20,6 @@ const PAGES = {
       'Updates, priorities, and quick links across people, goals, and reviews will land here.',
     action: { to: '/people', label: 'Go to People' },
   },
-  reviews: {
-    title: 'Reviews',
-    icon: Star,
-    emptyTitle: 'Coming soon',
-    emptyDescription:
-      'Review cycles and feedback will live here. Keep goals current until this module ships.',
-    action: { to: '/goals', label: 'Go to Goals' },
-  },
   analytics: {
     title: 'Analytics',
     icon: BarChart3,

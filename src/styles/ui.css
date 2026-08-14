@@ -336,6 +336,7 @@ a.pd-btn--secondary:visited {
 /* ── Switch ───────────────────────────────────────────────────────── */
 
 .pd-switch {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.625rem;
@@ -778,6 +779,7 @@ a.pd-btn--secondary:visited {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.875rem;
+  line-height: 1.35;
 }
 
 .pd-table__th,
@@ -808,6 +810,8 @@ a.pd-btn--secondary:visited {
 .pd-table__td {
   color: var(--color-text);
   border-top: 0.0625rem solid var(--color-border);
+  font-size: inherit;
+  font-weight: 500;
 }
 
 .pd-table__body .pd-table__row:hover .pd-table__td {
@@ -1241,11 +1245,11 @@ a.pd-btn--secondary:visited {
 
 .pd-menu__panel {
   position: absolute;
-  top: calc(100% + 0.25rem);
-  z-index: 50;
+  top: calc(100% + 0.35rem);
+  z-index: 60;
   min-width: 11rem;
-  padding: 0;
-  border-radius: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
   border: 0.0625rem solid var(--color-border);
   background: var(--color-surface-raised, var(--color-bg));
   box-shadow: var(--shadow-deep);
@@ -1265,11 +1269,13 @@ a.pd-btn--secondary:visited {
   align-items: center;
   gap: 0.5rem;
   width: 100%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.55rem 0.75rem;
   border: none;
+  border-radius: 0.5rem;
   background: none;
   font-family: inherit;
   font-size: 0.8125rem;
+  font-weight: 600;
   color: var(--color-text);
   text-align: left;
   cursor: pointer;
@@ -1290,18 +1296,35 @@ a.pd-btn--secondary:visited {
   color: var(--color-red);
 }
 
-.pd-menu__item--danger:hover,
 .pd-menu__item--danger.is-active {
-  background: var(--color-red);
-  color: var(--color-white);
+  background: transparent;
+  color: var(--color-red);
+}
+
+.pd-menu__item--danger:hover {
+  background: var(--color-red-light);
+  color: var(--color-red);
+}
+
+.pd-menu__item--danger.is-active .pd-menu__item-icon,
+.pd-menu__item--danger.is-active svg {
+  color: var(--color-red);
+  stroke: var(--color-red);
 }
 
 .pd-menu__item--danger:hover .pd-menu__item-icon,
-.pd-menu__item--danger.is-active .pd-menu__item-icon,
-.pd-menu__item--danger:hover svg,
-.pd-menu__item--danger.is-active svg {
-  color: var(--color-white);
-  stroke: var(--color-white);
+.pd-menu__item--danger:hover svg {
+  color: var(--color-red);
+  stroke: var(--color-red);
+}
+
+.pd-menu__item:focus {
+  outline: none;
+}
+
+.pd-menu__item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: -2px;
 }
 
 .pd-menu__item-icon {
@@ -1787,7 +1810,7 @@ a.pd-btn--secondary:visited {
 
 .pd-breadcrumbs__link {
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text-secondary);
   text-decoration: none;
 }
@@ -1799,7 +1822,7 @@ a.pd-btn--secondary:visited {
 
 .pd-breadcrumbs__current {
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--color-text);
 }
 

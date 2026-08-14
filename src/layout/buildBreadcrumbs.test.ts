@@ -102,6 +102,41 @@ describe('buildBreadcrumbs', () => {
       { label: 'Grace Hopper' },
     ])
   })
+
+  it('builds Reviews > cycle for cycle detail routes', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/reviews/cycles/q1-2027/settings',
+        navItems: [
+          ...navItems,
+          { path: '/reviews', label: 'Reviews', icon: Home },
+        ],
+        cycleName: 'Q1 2027',
+      }),
+    ).toEqual([
+      { label: 'Reviews', href: '/reviews/cycles' },
+      { label: 'Q1 2027' },
+    ])
+  })
+
+  it('builds Reviews > Scorecards > cycle > full name for scorecard detail', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/reviews/scorecards/q2-2026/42',
+        navItems: [
+          ...navItems,
+          { path: '/reviews', label: 'Reviews', icon: Home },
+        ],
+        employeeName: 'Aminul Islam Borhan',
+        scorecardCycleLabel: 'Q2 2026',
+      }),
+    ).toEqual([
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards', href: '/reviews/scorecards' },
+      { label: 'Q2 2026', href: '/reviews/scorecards' },
+      { label: 'Aminul Islam Borhan' },
+    ])
+  })
 })
 
 describe('resolveTopBarIcon', () => {

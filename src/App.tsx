@@ -7,6 +7,9 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
+const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
+const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
+const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
 /** Canonical People directory — same pill controls as Organisation. */
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
 /** Soft-rect radius preview (optional). */
@@ -85,7 +88,23 @@ function App() {
               element={<TeamDetailPage />}
             />
             <Route path="goals" element={<GoalsPage />} />
-            <Route path="reviews" element={<ComingSoonPage page="reviews" />} />
+            <Route
+              path="reviews"
+              element={<Navigate to="/reviews/scorecards" replace />}
+            />
+            <Route
+              path="reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardDetailPage />}
+            />
+            <Route
+              path="reviews/cycles/:cycleId/:section"
+              element={<CycleDetailPage />}
+            />
+            <Route
+              path="reviews/cycles/:cycleId"
+              element={<Navigate to="settings" replace />}
+            />
+            <Route path="reviews/:tab" element={<ReviewsPage />} />
             <Route
               path="analytics"
               element={<ComingSoonPage page="analytics" />}

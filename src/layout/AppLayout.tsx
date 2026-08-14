@@ -11,7 +11,11 @@ import {
 } from './buildBreadcrumbs'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
+import { getReviewCycle } from '@/lib/reviews/store'
+import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
+import { TopBarCycleNav } from './TopBarCycleNav'
 import { TopBarCycleSelect } from './TopBarCycleSelect'
+import { TopBarReviewsNav } from './TopBarReviewsNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
@@ -63,10 +67,15 @@ export function AppLayout({
     { path: '/people-v2/:employeeId', end: true },
     pathname,
   )
+  const scorecardDetailMatch = matchPath(
+    { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
+    pathname,
+  )
   const profileEmployeeId = Number(
     employeeEditMatch?.params.employeeId ??
-      employeeProfileMatch?.params.employeeId ??
-      employeeProfileV2Match?.params.employeeId,
+    employeeProfileMatch?.params.employeeId ??
+    employeeProfileV2Match?.params.employeeId ??
+    scorecardDetailMatch?.params.employeeId,
   )
   const profileEmployee =
     Number.isInteger(profileEmployeeId) && profileEmployeeId > 0
@@ -92,6 +101,25 @@ export function AppLayout({
     return buildOrganisationFromEmployees(employees)
   }, [departmentIdParam, employees, teamIdParam])
 
+  const cycleDetailMatch =
+    matchPath(
+      { path: '/reviews/cycles/:cycleId/:section', end: true },
+      pathname,
+    ) ??
+    matchPath({ path: '/reviews/cycles/:cycleId', end: true }, pathname)
+  const cycleIdParam = cycleDetailMatch?.params.cycleId
+  const cycleName = cycleIdParam
+    ? getReviewCycle(cycleIdParam)?.name
+    : undefined
+  const isCycleDetail = Boolean(cycleIdParam)
+  const isScorecardDetail = Boolean(scorecardDetailMatch?.params.employeeId)
+  const scorecardCycleKey = scorecardDetailMatch?.params.cycleKey
+    ? decodeURIComponent(scorecardDetailMatch.params.cycleKey)
+    : undefined
+  const scorecardCycleLabel = scorecardCycleKey
+    ? cycleLabelFromKey(scorecardCycleKey)
+    : undefined
+
   const breadcrumbs = useMemo(
     () =>
       buildBreadcrumbs({
@@ -100,21 +128,25 @@ export function AppLayout({
         employeeName: profileEmployee?.fullName,
         departmentName: departmentIdParam
           ? orgSnapshot?.departments.find(
-              (d) => d.id === decodeURIComponent(departmentIdParam),
-            )?.name
+            (d) => d.id === decodeURIComponent(departmentIdParam),
+          )?.name
           : undefined,
         teamName: teamIdParam
           ? orgSnapshot?.teams.find(
-              (t) => t.id === decodeURIComponent(teamIdParam),
-            )?.name
+            (t) => t.id === decodeURIComponent(teamIdParam),
+          )?.name
           : undefined,
+        cycleName,
+        scorecardCycleLabel,
       }),
     [
+      cycleName,
       departmentIdParam,
       navItems,
       orgSnapshot,
       pathname,
       profileEmployee?.fullName,
+      scorecardCycleLabel,
       teamIdParam,
     ],
   )
@@ -147,6 +179,14 @@ export function AppLayout({
               titleAccessory={
                 pathname === '/goals' || pathname.startsWith('/goals/') ? (
                   <TopBarCycleSelect isMobile={isMobile} />
+                ) : null
+              }
+              centerSlot={
+                isCycleDetail ? (
+                  <TopBarCycleNav />
+                ) : pathname === '/reviews' ||
+                  (pathname.startsWith('/reviews/') && !isScorecardDetail) ? (
+                  <TopBarReviewsNav />
                 ) : null
               }
               onSignOut={onSignOut}

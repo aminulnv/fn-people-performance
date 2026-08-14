@@ -36,7 +36,7 @@ export const layoutConfig: AppLayoutConfig = {
     { path: '/people', label: 'People', icon: Users },
     { path: '/organisation', label: 'Organisation', icon: Landmark },
     { path: '/goals', label: 'Goals', icon: Target },
-    { path: '/reviews', label: 'Reviews', icon: Star, comingSoon: true },
+    { path: '/reviews', label: 'Reviews', icon: Star },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, comingSoon: true },
   ],
 }

@@ -9,6 +9,8 @@ export type BreadcrumbContext = {
   employeeName?: string | null
   departmentName?: string | null
   teamName?: string | null
+  cycleName?: string | null
+  scorecardCycleLabel?: string | null
 }
 
 function matchNavItem(
@@ -40,6 +42,8 @@ export function buildBreadcrumbs({
   employeeName,
   departmentName,
   teamName,
+  cycleName,
+  scorecardCycleLabel,
 }: BreadcrumbContext): BreadcrumbItem[] {
   if (pathname === '/people-v2') {
     return [{ label: 'People' }]
@@ -130,6 +134,40 @@ export function buildBreadcrumbs({
       {
         label: teamName?.trim() || decodeURIComponent(team.params.teamId),
       },
+    ]
+  }
+
+  const cycleDetail =
+    matchPath(
+      { path: '/reviews/cycles/:cycleId/:section', end: true },
+      pathname,
+    ) ?? matchPath({ path: '/reviews/cycles/:cycleId', end: true }, pathname)
+  if (cycleDetail?.params.cycleId) {
+    return [
+      { label: 'Reviews', href: '/reviews/cycles' },
+      {
+        label:
+          cycleName?.trim() ||
+          decodeURIComponent(cycleDetail.params.cycleId),
+      },
+    ]
+  }
+
+  const scorecardDetail = matchPath(
+    { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
+    pathname,
+  )
+  if (scorecardDetail?.params.employeeId) {
+    const cycleKey = scorecardDetail.params.cycleKey
+      ? decodeURIComponent(scorecardDetail.params.cycleKey)
+      : ''
+    const cycleLabel =
+      scorecardCycleLabel?.trim() || cycleKey || 'Cycle'
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards', href: '/reviews/scorecards' },
+      { label: cycleLabel, href: '/reviews/scorecards' },
+      { label: employeeName?.trim() || 'Scorecard' },
     ]
   }
 
