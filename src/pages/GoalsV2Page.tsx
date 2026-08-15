@@ -35,7 +35,11 @@ import {
   type PersonGoals,
 } from '@/lib/goalsApi'
 import { blankGoal } from '@/lib/goals/measurements'
-import type { GoalOwnerOption } from '@/lib/goals/operations'
+import type {
+  CascadeRecipient,
+  GoalOwnerOption,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 import type { GoalCapabilities } from '@/lib/goals/permissions'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
@@ -50,6 +54,7 @@ import {
   goalsV2GoalPath,
   goalsV2OverviewPath,
 } from './goals-v2/paths'
+import { ReportGoalsCard } from './goals/ReportGoalsCard'
 import { GoalsCycleSelect } from './goals/GoalsCycleSelect'
 import {
   useGoalsController,
@@ -300,12 +305,12 @@ function GoalsOverview() {
     label: string
     value: number
   }[] = [
-    { id: 'all', label: 'Goals', value: counts.all },
-    { id: 'draft', label: 'Draft', value: counts.draft },
-    { id: 'submitted', label: 'Pending Approval', value: counts.submitted },
-    { id: 'approved', label: 'Approved', value: counts.approved },
-    { id: 'incomplete', label: 'Incomplete', value: counts.incomplete },
-  ]
+      { id: 'all', label: 'Goals', value: counts.all },
+      { id: 'draft', label: 'Draft', value: counts.draft },
+      { id: 'submitted', label: 'Pending Approval', value: counts.submitted },
+      { id: 'approved', label: 'Approved', value: counts.approved },
+      { id: 'incomplete', label: 'Incomplete', value: counts.incomplete },
+    ]
 
   return (
     <div className="pd-page pd-goals pd-goals-overview" aria-label="Goals">
@@ -452,10 +457,10 @@ function GoalsOverview() {
                   )
                   const to = row.goalId
                     ? goalsV2GoalPath(
-                        snapshot.cycle.id,
-                        row.person.id,
-                        row.goalId,
-                      )
+                      snapshot.cycle.id,
+                      row.person.id,
+                      row.goalId,
+                    )
                     : personTo
                   const track = trackLabel(
                     row.status,
@@ -590,6 +595,9 @@ function GoalsPersonDetail({
     subjectGoals: activeGoals,
     reports,
     ownerOptions,
+    cascadeFrom,
+    cascadeFromFor,
+    cascadeRecipientsFor,
     capabilities,
     capabilitiesFor,
     resolveOwner,
@@ -603,6 +611,11 @@ function GoalsPersonDetail({
   const [ratingComment, setRatingComment] = useState('')
   const [managerTab, setManagerTab] = useState<ManagerTab>('mine')
   const [teamDetailOpen, setTeamDetailOpen] = useState(false)
+
+  useEffect(() => {
+    if (!goalId || !activeGoals?.goals.some((goal) => goal.id === goalId)) return
+    setManagerTab('mine')
+  }, [goalId, activeGoals])
 
   /** The Reports section belongs to the profile owner, so it follows them. */
   const hasReports = Boolean(active && active.reportIds.length > 0)
@@ -687,9 +700,17 @@ function GoalsPersonDetail({
   const completion = Math.round(overallCompletion(activeGoals.goals))
   const canEditDraft = Boolean(capabilities?.canEditStructure)
   const canUpdateProgress = Boolean(capabilities?.canUpdateProgress)
+  const canApprove = Boolean(capabilities?.canApprove)
+  const canSendBack = Boolean(capabilities?.canSendBack)
   const pendingCount = reports.filter((r) => r.row.status === 'submitted').length
   const isCurrentCycle = snapshot.cycleStatus === 'current'
   const showsReports = hasReports && managerTab === 'team'
+  const viewingAsManager = Boolean(
+    actor &&
+      active &&
+      actor.id !== active.id &&
+      capabilities?.canViewAsManager,
+  )
   const detailOpen = Boolean(goalId) || teamDetailOpen
 
   const managerTabs = (
@@ -757,6 +778,18 @@ function GoalsPersonDetail({
       canDuplicate={Boolean(capabilities?.canDuplicate)}
       canCascade={Boolean(capabilities?.canCascade)}
       canSubmit={Boolean(capabilities?.canSubmit)}
+      canApprove={canApprove}
+      canSendBack={canSendBack}
+      sendBackReason={sendBackReason}
+      onSendBackReason={setSendBackReason}
+      onApprove={() => void actions.approve(active.id, activeGoals.goals)}
+      onSendBack={() =>
+        void actions.sendBack(active.id, sendBackReason).then(() => {
+          setSendBackReason('')
+        })
+      }
+      nestedReview={viewingAsManager}
+      personAvatar={active.avatarUrl}
       showOwnScore={Boolean(activeGoals.rating)}
       busy={busy}
       openGoalId={goalId}
@@ -771,6 +804,9 @@ function GoalsPersonDetail({
       }
       toolbarOnly={showsReports}
       ownerOptions={ownerOptions}
+      cascadeFrom={cascadeFrom}
+      cascadeRecipientsFor={cascadeRecipientsFor}
+      cascadeHref={(pid, gid) => goalsV2GoalPath(snapshot.cycle.id, pid, gid)}
       resolveOwner={(goal) =>
         resolveOwner(goal, active.id) ?? {
           id: active.id,
@@ -786,7 +822,15 @@ function GoalsPersonDetail({
         void actions.saveProgress(active.id, goals)
       }}
       onDuplicateGoal={(goalId) => actions.duplicateGoal(active.id, goalId)}
-      onCascadeGoal={(goalId) => actions.cascadeGoal(active.id, goalId)}
+      cascadeTargets={reports.map(({ person }) => ({
+        id: person.id,
+        name: person.name,
+        title: person.title,
+        avatarUrl: person.avatarUrl,
+      }))}
+      onCascadeGoal={(goalId, reportIds) =>
+        actions.cascadeGoal(active.id, goalId, reportIds)
+      }
       onSubmit={(goals) => void actions.saveAndSubmit(active.id, goals)}
     />
   )
@@ -838,7 +882,7 @@ function GoalsPersonDetail({
             </div>
             <div className="pd-people__summary-card">
               <span className="pd-people__summary-value">{weightTotal}%</span>
-              <span className="pd-people__summary-label">Goal weight</span>
+              <span className="pd-people__summary-label">Total weight</span>
             </div>
             <div className="pd-people__summary-card">
               <span className="pd-people__summary-value">{completion}%</span>
@@ -860,6 +904,8 @@ function GoalsPersonDetail({
           reports={reports}
           selected={selectedReview}
           ownerOptions={ownerOptions}
+          cascadeFromFor={cascadeFromFor}
+          cascadeRecipientsFor={cascadeRecipientsFor}
           commentAuthorName={actor?.name ?? ''}
           capabilitiesFor={capabilitiesFor}
           resolveOwner={resolveOwner}
@@ -939,6 +985,8 @@ function ManagerPanel({
   reports,
   selected,
   ownerOptions,
+  cascadeFromFor,
+  cascadeRecipientsFor,
   commentAuthorName,
   capabilitiesFor,
   resolveOwner,
@@ -961,6 +1009,8 @@ function ManagerPanel({
   reports: { person: GoalsSnapshot['people'][number]; row: PersonGoals }[]
   selected: { person: GoalsSnapshot['people'][number]; row: PersonGoals } | null
   ownerOptions: GoalOwnerOption[]
+  cascadeFromFor: (subjectId: string) => LineManagerCascade
+  cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
   commentAuthorName: string
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null
   resolveOwner: (
@@ -1023,9 +1073,8 @@ function ManagerPanel({
           <button
             key={person.id}
             type="button"
-            className={`pd-goals-team__row${
-              active?.person.id === person.id ? ' is-active' : ''
-            }`}
+            className={`pd-goals-team__row${active?.person.id === person.id ? ' is-active' : ''
+              }`}
             onClick={() => onSelect(person.id)}
           >
             <Avatar
@@ -1074,6 +1123,11 @@ function ManagerPanel({
               }
               defaultOwnerId={active.person.id}
               ownerOptions={ownerOptions}
+              cascadeFrom={cascadeFromFor(active.person.id)}
+              cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+              cascadeHref={(pid, gid) =>
+                goalsV2GoalPath(snapshot.cycle.id, pid, gid)
+              }
               cycleLabel={snapshot.cycle.label}
               isCurrentCycle={snapshot.cycleStatus === 'current'}
               status={active.row.status}
@@ -1096,12 +1150,12 @@ function ManagerPanel({
               onRemove={
                 caps?.canEditStructure
                   ? () => {
-                      onSaveGoals(
-                        active.person.id,
-                        goals.filter((item) => item.id !== selectedGoal.id),
-                      )
-                      setOpenGoalId(null)
-                    }
+                    onSaveGoals(
+                      active.person.id,
+                      goals.filter((item) => item.id !== selectedGoal.id),
+                    )
+                    setOpenGoalId(null)
+                  }
                   : undefined
               }
               onBack={() => setOpenGoalId(null)}
@@ -1223,7 +1277,16 @@ function EmployeePanel({
   canUpdateProgress,
   canDuplicate,
   canCascade,
+  cascadeTargets,
   canSubmit,
+  canApprove = false,
+  canSendBack = false,
+  sendBackReason = '',
+  onSendBackReason,
+  onApprove,
+  onSendBack,
+  nestedReview = false,
+  personAvatar,
   showOwnScore,
   busy,
   openGoalId,
@@ -1231,6 +1294,9 @@ function EmployeePanel({
   toolbarStart,
   toolbarOnly = false,
   ownerOptions,
+  cascadeFrom,
+  cascadeRecipientsFor,
+  cascadeHref,
   resolveOwner,
   onOpenGoal,
   onPersistGoals,
@@ -1250,6 +1316,14 @@ function EmployeePanel({
   canDuplicate: boolean
   canCascade: boolean
   canSubmit: boolean
+  canApprove?: boolean
+  canSendBack?: boolean
+  sendBackReason?: string
+  onSendBackReason?: (value: string) => void
+  onApprove?: () => void
+  onSendBack?: () => void
+  nestedReview?: boolean
+  personAvatar?: string
   showOwnScore: boolean
   busy: boolean
   openGoalId?: string
@@ -1262,6 +1336,9 @@ function EmployeePanel({
    */
   toolbarOnly?: boolean
   ownerOptions: GoalOwnerOption[]
+  cascadeFrom: LineManagerCascade
+  cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
+  cascadeHref: (personId: string, goalId: string) => string
   resolveOwner: (goal: Goal) => {
     id: string
     name: string
@@ -1272,11 +1349,13 @@ function EmployeePanel({
   onPersistGoals: (goals: Goal[]) => void
   onPersistProgress: (goals: Goal[]) => void
   onDuplicateGoal: (goalId: string) => Promise<Goal | null>
-  onCascadeGoal: (goalId: string) => Promise<void>
+  cascadeTargets: { id: string; name: string; title?: string; avatarUrl?: string }[]
+  onCascadeGoal: (goalId: string, reportIds: string[]) => Promise<void>
   onSubmit: (goals: Goal[]) => void
 }) {
   const [goals, setGoals] = useState(row.goals)
   const [creatingIds, setCreatingIds] = useState<Set<string>>(() => new Set())
+  const [sendBackOpen, setSendBackOpen] = useState(false)
 
   useEffect(() => {
     setGoals(row.goals)
@@ -1377,6 +1456,9 @@ function EmployeePanel({
           owner={ownerFor(selectedGoal)}
           defaultOwnerId={personId}
           ownerOptions={ownerOptions}
+          cascadeFrom={cascadeFrom}
+          cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+          cascadeHref={cascadeHref}
           cycleLabel={cycleLabel}
           isCurrentCycle={isCurrentCycle}
           status={row.status}
@@ -1385,6 +1467,7 @@ function EmployeePanel({
           canUpdateProgress={canUpdateProgress}
           canRemove={canEditDraft}
           canCascade={canCascade}
+          cascadeTargets={cascadeTargets}
           onBack={closeGoal}
           onDiscardNew={() => {
             setGoals(row.goals)
@@ -1404,16 +1487,16 @@ function EmployeePanel({
           onDuplicate={
             canDuplicate
               ? () => {
-                  void onDuplicateGoal(selectedGoal.id).then((copy) => {
-                    if (copy) onOpenGoal(copy.id)
-                  })
-                }
+                void onDuplicateGoal(selectedGoal.id).then((copy) => {
+                  if (copy) onOpenGoal(copy.id)
+                })
+              }
               : undefined
           }
           onCascade={
             canCascade
-              ? () => {
-                  void onCascadeGoal(selectedGoal.id)
+              ? (reportIds) => {
+                  void onCascadeGoal(selectedGoal.id, reportIds)
                 }
               : undefined
           }
@@ -1424,11 +1507,11 @@ function EmployeePanel({
           onRemove={
             canEditDraft
               ? () => {
-                  const updated = goals.filter((g) => g.id !== selectedGoal.id)
-                  clearCreating()
-                  setAndPersist(updated)
-                  closeGoal()
-                }
+                const updated = goals.filter((g) => g.id !== selectedGoal.id)
+                clearCreating()
+                setAndPersist(updated)
+                closeGoal()
+              }
               : undefined
           }
         />
@@ -1486,7 +1569,7 @@ function EmployeePanel({
                   : 'Save Changes'}
               </button>
               {canSubmit &&
-              (row.status === 'draft' || row.status === 'sent_back') ? (
+                (row.status === 'draft' || row.status === 'sent_back') ? (
                 <button
                   type="button"
                   className="pd-people__ghost-btn pd-people__ghost-btn--primary"
@@ -1513,7 +1596,37 @@ function EmployeePanel({
         </div>
       ) : null}
 
-      {!showsGoals ? null : goals.length === 0 ? (
+      {!showsGoals ? null : nestedReview ? (
+        <ReportGoalsCard
+          person={{ name: personName, avatarUrl: personAvatar }}
+          status={row.status}
+          goalCount={goals.length}
+          canApprove={canApprove}
+          canSendBack={canSendBack}
+          busy={busy}
+          sendBackOpen={sendBackOpen}
+          sendBackReason={sendBackReason}
+          onToggleSendBack={() => setSendBackOpen((open) => !open)}
+          onSendBackReason={onSendBackReason ?? (() => {})}
+          onApprove={() => onApprove?.()}
+          onSendBack={() => {
+            onSendBack?.()
+            setSendBackOpen(false)
+          }}
+        >
+          {goals.length > 0 ? (
+            <GoalsTable
+              goals={goals}
+              status={row.status}
+              onOpen={(id) => onOpenGoal(id)}
+            />
+          ) : (
+            <p className="pd-goals-approval__empty">
+              No goals added for this cycle yet.
+            </p>
+          )}
+        </ReportGoalsCard>
+      ) : goals.length === 0 ? (
         <EmptyState
           className="pd-goals__empty"
           icon={Target}

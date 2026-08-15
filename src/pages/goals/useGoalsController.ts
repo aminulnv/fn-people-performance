@@ -15,10 +15,14 @@ import {
   buildOwnerOptions,
   cascadeGoal,
   duplicateGoal,
+  cascadeRecipients,
+  lineManagerCascade,
   removeGoal,
   replaceGoal,
   resolveGoalOwner,
   type GoalOwnerOption,
+  type CascadeRecipient,
+  type LineManagerCascade,
   type ResolvedGoalOwner,
 } from '@/lib/goals/operations'
 import {
@@ -52,7 +56,11 @@ export type GoalsControllerActions = {
     subjectId: string,
     goalId: string,
   ) => Promise<Goal | null>
-  cascadeGoal: (subjectId: string, goalId: string) => Promise<void>
+  cascadeGoal: (
+    subjectId: string,
+    goalId: string,
+    reportIds: string[],
+  ) => Promise<void>
   saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<void>
   approve: (subjectId: string, goals?: Goal[]) => Promise<void>
   sendBack: (subjectId: string, reason: string) => Promise<void>
@@ -70,6 +78,10 @@ export type GoalsController = {
   /** Direct reports of `subject`, not of the signed-in actor. */
   reports: { person: DemoPerson; row: PersonGoals }[]
   ownerOptions: GoalOwnerOption[]
+  /** Line manager goals the page subject can cascade from. */
+  cascadeFrom: LineManagerCascade
+  cascadeFromFor: (subjectId: string) => LineManagerCascade
+  cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
   capabilities: GoalCapabilities | null
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null
   resolveOwner: (goal: Goal, subjectId: string) => ResolvedGoalOwner | null
@@ -124,6 +136,22 @@ export function useGoalsController({
 
   const ownerOptions = useMemo(
     () => (snapshot ? buildOwnerOptions(snapshot.people) : []),
+    [snapshot],
+  )
+
+  const cascadeFromFor = useCallback(
+    (targetSubjectId: string): LineManagerCascade => {
+      if (!snapshot) return { managerName: null, options: [] }
+      const target = snapshot.people.find((person) => person.id === targetSubjectId)
+      return lineManagerCascade(target ?? null, snapshot)
+    },
+    [snapshot],
+  )
+
+  const cascadeFrom = subject ? cascadeFromFor(subject.id) : { managerName: null, options: [] }
+
+  const cascadeRecipientsFor = useCallback(
+    (goalId: string) => cascadeRecipients(goalId, snapshot),
     [snapshot],
   )
 
@@ -258,18 +286,31 @@ export function useGoalsController({
         )
         return copy
       },
-      async cascadeGoal(targetSubjectId, goalId) {
+      async cascadeGoal(targetSubjectId, goalId, reportIds) {
         if (!actor || !snapshot) throw new Error('Goals are still loading.')
         const row = snapshot.byPerson[targetSubjectId]
         const source = row?.goals.find((goal) => goal.id === goalId)
         if (!source) throw new Error('Goal not found.')
+        const chosenIds = [...new Set(reportIds)].filter((reportId) =>
+          actor.reportIds.includes(reportId),
+        )
+        if (chosenIds.length === 0) {
+          throw new Error('Select at least one report to cascade this goal to.')
+        }
         const sourceTitle = source.description.trim() || 'Untitled goal'
+        const sourceOwnerId = source.ownerId ?? targetSubjectId
+        const sourcePersonName =
+          snapshot.people.find((person) => person.id === sourceOwnerId)?.name ??
+          actor.name
         const failures: string[] = []
         await run(async () => {
-          for (const reportId of actor.reportIds) {
+          for (const reportId of chosenIds) {
             const reportRow = snapshot.byPerson[reportId]
             if (!reportRow) continue
-            const copy = cascadeGoal(source, reportId, { sourceTitle })
+            const copy = cascadeGoal(source, reportId, {
+              sourceTitle,
+              sourcePersonName,
+            })
             try {
               await saveGoals(mutationContext(reportId), [
                 ...reportRow.goals,
@@ -314,6 +355,9 @@ export function useGoalsController({
     subjectGoals,
     reports,
     ownerOptions,
+    cascadeFrom,
+    cascadeFromFor,
+    cascadeRecipientsFor,
     capabilities,
     capabilitiesFor,
     resolveOwner,

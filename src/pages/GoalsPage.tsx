@@ -9,7 +9,6 @@ import {
   Search,
   Send,
   Target,
-  Undo2,
   Users,
 } from 'lucide-react'
 import {
@@ -39,7 +38,11 @@ import {
 } from '@/lib/goalsApi'
 import type { GoalProgressStatus } from '@/lib/goals/types'
 import { blankGoal } from '@/lib/goals/measurements'
-import type { GoalOwnerOption } from '@/lib/goals/operations'
+import type {
+  CascadeRecipient,
+  GoalOwnerOption,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 import type { GoalCapabilities } from '@/lib/goals/permissions'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
@@ -51,6 +54,7 @@ import { DEMO_PHASES } from '@/lib/goals/phases'
 import { GoalCreateDrawer } from './goals/GoalCreateDrawer'
 import { GoalCreateForm } from './goals/GoalCreateForm'
 import { GoalDetailView } from './goals/GoalDetailView'
+import { ReportGoalsCard } from './goals/ReportGoalsCard'
 import { GoalsCycleSelect } from './goals/GoalsCycleSelect'
 import {
   useGoalsController,
@@ -330,8 +334,8 @@ function GoalsOverview() {
             aria-pressed={statusFilter === item.id}
             onClick={() => setStatusFilter(item.id)}
           >
-            <span className="pd-people__summary-value">{item.value}</span>
             <span className="pd-people__summary-label">{item.label}</span>
+            <span className="pd-people__summary-value">{item.value}</span>
           </button>
         ))}
       </div>
@@ -582,6 +586,9 @@ export function GoalsPersonDetail({
     subjectGoals: activeGoals,
     reports,
     ownerOptions,
+    cascadeFrom,
+    cascadeFromFor,
+    cascadeRecipientsFor,
     capabilities,
     capabilitiesFor,
     resolveOwner,
@@ -595,6 +602,11 @@ export function GoalsPersonDetail({
   const [managerTab, setManagerTab] = useState<ManagerTab>('mine')
   const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
   const [embeddedGoalId, setEmbeddedGoalId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!goalId || !activeGoals?.goals.some((goal) => goal.id === goalId)) return
+    setManagerTab('mine')
+  }, [goalId, activeGoals])
 
   /** The Reports section belongs to the profile owner, so it follows them. */
   const hasReports = Boolean(active && active.reportIds.length > 0)
@@ -672,6 +684,16 @@ export function GoalsPersonDetail({
   const activeGoalId = embedded ? embeddedGoalId ?? undefined : goalId
   const sectionLabels = goalSectionLabels(active.name, actor?.id === active.id)
   const showsReports = hasReports && managerTab === 'team'
+  const viewingAsManager = Boolean(
+    actor &&
+      active &&
+      actor.id !== active.id &&
+      capabilities?.canViewAsManager,
+  )
+  const showsSubjectReview = viewingAsManager && !showsReports
+  const managerPanelReports = showsSubjectReview
+    ? [{ person: active, row: activeGoals }]
+    : reports
 
   const selectCycle = (nextCycleId: string) => {
     setActiveCycle(nextCycleId)
@@ -764,8 +786,11 @@ export function GoalsPersonDetail({
           {hasReports ? managerTabs : null}
         </div>
       }
-      toolbarOnly={showsReports}
+      toolbarOnly={showsReports || showsSubjectReview}
       ownerOptions={ownerOptions}
+      cascadeFrom={cascadeFrom}
+      cascadeRecipientsFor={cascadeRecipientsFor}
+      cascadeHref={(pid, gid) => goalsGoalPath(snapshot.cycle.id, pid, gid)}
       resolveOwner={(goal) =>
         resolveOwner(goal, active.id) ?? {
           id: active.id,
@@ -782,7 +807,15 @@ export function GoalsPersonDetail({
         void actions.saveProgress(active.id, goals)
       }}
       onDuplicateGoal={(goalId) => actions.duplicateGoal(active.id, goalId)}
-      onCascadeGoal={(goalId) => actions.cascadeGoal(active.id, goalId)}
+      cascadeTargets={reports.map(({ person }) => ({
+        id: person.id,
+        name: person.name,
+        title: person.title,
+        avatarUrl: person.avatarUrl,
+      }))}
+      onCascadeGoal={(goalId, reportIds) =>
+        actions.cascadeGoal(active.id, goalId, reportIds)
+      }
       onSubmit={(goals) => void actions.saveAndSubmit(active.id, goals)}
     />
   )
@@ -827,24 +860,24 @@ export function GoalsPersonDetail({
           aria-label={`${active.name} goal totals`}
         >
           <div className="pd-people__summary-card">
+            <span className="pd-people__summary-label">Status</span>
             <span className="pd-people__summary-value">
               {statusLabel(activeGoals.status)}
             </span>
-            <span className="pd-people__summary-label">Status</span>
           </div>
           <div className="pd-people__summary-card">
+            <span className="pd-people__summary-label">Goals</span>
             <span className="pd-people__summary-value">
               {activeGoals.goals.length}
             </span>
-            <span className="pd-people__summary-label">Goals</span>
           </div>
           <div className="pd-people__summary-card">
+            <span className="pd-people__summary-label">Total weight</span>
             <span className="pd-people__summary-value">{weightTotal}%</span>
-            <span className="pd-people__summary-label">Goal weight</span>
           </div>
           <div className="pd-people__summary-card">
-            <span className="pd-people__summary-value">{completion}%</span>
             <span className="pd-people__summary-label">Completion</span>
+            <span className="pd-people__summary-value">{completion}%</span>
           </div>
         </div>
       </header>
@@ -855,11 +888,13 @@ export function GoalsPersonDetail({
 
       {myGoalsPanel}
 
-      {showsReports ? (
+      {showsReports || showsSubjectReview ? (
         <ManagerPanel
           snapshot={snapshot}
-          reports={reports}
+          reports={managerPanelReports}
           ownerOptions={ownerOptions}
+          cascadeFromFor={cascadeFromFor}
+          cascadeRecipientsFor={cascadeRecipientsFor}
           commentAuthorName={actor?.name ?? ''}
           capabilitiesFor={capabilitiesFor}
           resolveOwner={resolveOwner}
@@ -878,6 +913,8 @@ export function GoalsPersonDetail({
               setSendBackReason('')
             })
           }
+          openedGoalId={showsSubjectReview ? activeGoalId ?? null : undefined}
+          onOpenedGoalChange={showsSubjectReview ? openGoal : undefined}
           onRate={(id) =>
             void actions
               .rate(id, {
@@ -936,6 +973,8 @@ function ManagerPanel({
   snapshot,
   reports,
   ownerOptions,
+  cascadeFromFor,
+  cascadeRecipientsFor,
   commentAuthorName,
   capabilitiesFor,
   resolveOwner,
@@ -951,10 +990,14 @@ function ManagerPanel({
   onRate,
   onSaveGoals,
   onSaveProgress,
+  openedGoalId,
+  onOpenedGoalChange,
 }: {
   snapshot: GoalsSnapshot
   reports: { person: GoalsSnapshot['people'][number]; row: PersonGoals }[]
   ownerOptions: GoalOwnerOption[]
+  cascadeFromFor: (subjectId: string) => LineManagerCascade
+  cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
   commentAuthorName: string
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null
   resolveOwner: (
@@ -973,10 +1016,18 @@ function ManagerPanel({
   onRate: (id: string) => void
   onSaveGoals: (id: string, goals: Goal[]) => void
   onSaveProgress: (id: string, goals: Goal[]) => void
+  openedGoalId?: string | null
+  onOpenedGoalChange?: (goalId: string | null) => void
 }) {
   const orderedReports = reports
 
-  const [openGoalId, setOpenGoalId] = useState<string | null>(null)
+  const [localOpenGoalId, setLocalOpenGoalId] = useState<string | null>(null)
+  const openGoalId =
+    openedGoalId !== undefined ? openedGoalId : localOpenGoalId
+  const setOpenGoalId = (next: string | null) => {
+    if (onOpenedGoalChange) onOpenedGoalChange(next)
+    else setLocalOpenGoalId(next)
+  }
   const [sendBackFor, setSendBackFor] = useState<string | null>(null)
   /** Manager's in-progress edit of a report's goal, before it is saved. */
   const [editDraft, setEditDraft] = useState<Goal | null>(null)
@@ -1003,121 +1054,53 @@ function ManagerPanel({
     <>
       {orderedReports.map(({ person, row }) => {
         const reportCaps = capabilitiesFor(person.id)
-        const canApprove = Boolean(reportCaps?.canApprove)
-        const canSendBack = Boolean(reportCaps?.canSendBack)
-        const awaitsApproval = row.status === 'submitted'
-        const goalCount = `${row.goals.length} goal${row.goals.length === 1 ? '' : 's'
-          }`
         return (
-          <section
+          <ReportGoalsCard
             key={person.id}
-            className="pd-goals-approval"
-            aria-label={`${person.name} goals`}
+            person={person}
+            status={row.status}
+            goalCount={row.goals.length}
+            canApprove={Boolean(reportCaps?.canApprove)}
+            canSendBack={Boolean(reportCaps?.canSendBack)}
+            busy={busy}
+            sendBackOpen={sendBackFor === person.id}
+            sendBackReason={sendBackReason}
+            onToggleSendBack={() =>
+              setSendBackFor(sendBackFor === person.id ? null : person.id)
+            }
+            onSendBackReason={onSendBackReason}
+            onApprove={() => onApprove(person.id, row.goals)}
+            onSendBack={() => {
+              onSendBack(person.id)
+              setSendBackFor(null)
+            }}
           >
-            <div className="pd-goals-approval__head">
-              <div className="pd-goals-approval__who">
-                <Avatar
-                  name={person.name}
-                  src={person.avatarUrl || undefined}
-                  size="sm"
-                />
-                <div className="pd-goals-approval__text">
-                  <span className="pd-goals-approval__name">{person.name}</span>
-                  <span className="pd-goals-approval__sub">
-                    {awaitsApproval && canApprove
-                      ? `${goalCount} awaiting your approval`
-                      : `${goalCount} · ${statusLabel(row.status)}`}
-                  </span>
-                </div>
-              </div>
-              {canApprove || canSendBack ? (
-                <div className="pd-goals__footer-actions">
-                  {canApprove ? (
-                    <button
-                      type="button"
-                      className="pd-people__ghost-btn pd-people__ghost-btn--success"
-                      disabled={busy}
-                      onClick={() => onApprove(person.id, row.goals)}
-                    >
-                      <Check size={16} strokeWidth={1.75} aria-hidden />
-                      Approve
-                    </button>
-                  ) : null}
-                  {canSendBack ? (
-                    <button
-                      type="button"
-                      className="pd-people__ghost-btn"
-                      disabled={busy}
-                      aria-expanded={sendBackFor === person.id}
-                      onClick={() =>
-                        setSendBackFor(
-                          sendBackFor === person.id ? null : person.id,
-                        )
-                      }
-                    >
-                      <Undo2 size={16} strokeWidth={1.75} aria-hidden />
-                      Send Back
-                    </button>
-                  ) : null}
-                </div>
-              ) : (
-                <Badge variant={statusVariant(row.status)}>
-                  {statusLabel(row.status)}
-                </Badge>
-              )}
-            </div>
-            {sendBackFor === person.id ? (
-              <div className="pd-goals-approval__reason">
-                <Textarea
-                  label="Send back reason"
-                  value={sendBackReason}
-                  onChange={(e) => onSendBackReason(e.target.value)}
-                  placeholder={`Tell ${person.name} what to revise`}
-                  rows={2}
-                />
-                <div className="pd-goals__footer-actions">
-                  <button
-                    type="button"
-                    className="pd-people__ghost-btn"
-                    disabled={busy || !sendBackReason.trim()}
-                    onClick={() => {
-                      onSendBack(person.id)
-                      setSendBackFor(null)
-                    }}
-                  >
-                    Confirm Send Back
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            <div className="pd-goals-approval__goals">
-              {row.goals.length > 0 ? (
-                <GoalsTable
-                  label={`${person.name} goals`}
-                  rows={row.goals.map((goal, index) => ({
-                    goal,
-                    status: row.status,
-                    title: goalTitle(goal, index),
-                  }))}
-                  onOpen={setOpenGoalId}
-                  canEditStatus
-                  showApproval={false}
-                  onStatusChange={(goalId, progressStatus) => {
-                    onSaveGoals(
-                      person.id,
-                      row.goals.map((goal) =>
-                        goal.id === goalId ? { ...goal, progressStatus } : goal,
-                      ),
-                    )
-                  }}
-                />
-              ) : (
-                <p className="pd-goals-approval__empty">
-                  No goals added for this cycle yet.
-                </p>
-              )}
-            </div>
-          </section>
+            {row.goals.length > 0 ? (
+              <GoalsTable
+                label={`${person.name} goals`}
+                rows={row.goals.map((goal, index) => ({
+                  goal,
+                  status: row.status,
+                  title: goalTitle(goal, index),
+                }))}
+                onOpen={setOpenGoalId}
+                canEditStatus
+                showApproval={false}
+                onStatusChange={(goalId, progressStatus) => {
+                  onSaveGoals(
+                    person.id,
+                    row.goals.map((goal) =>
+                      goal.id === goalId ? { ...goal, progressStatus } : goal,
+                    ),
+                  )
+                }}
+              />
+            ) : (
+              <p className="pd-goals-approval__empty">
+                No goals added for this cycle yet.
+              </p>
+            )}
+          </ReportGoalsCard>
         )
       })}
     </>
@@ -1175,6 +1158,11 @@ function ManagerPanel({
               total={goals.length}
               defaultOwnerId={active.person.id}
               ownerOptions={ownerOptions}
+              cascadeFrom={cascadeFromFor(active.person.id)}
+              cascadedTo={cascadeRecipientsFor(editDraft.id)}
+              cascadeHref={(pid, gid) =>
+                goalsGoalPath(snapshot.cycle.id, pid, gid)
+              }
               onChange={setEditDraft}
               onBack={() => setEditDraft(null)}
               onSave={() => {
@@ -1195,6 +1183,11 @@ function ManagerPanel({
               index={selectedIndex}
               total={goals.length}
               owner={owner}
+              cascadeFrom={cascadeFromFor(active.person.id)}
+              cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+              cascadeHref={(pid, gid) =>
+                goalsGoalPath(snapshot.cycle.id, pid, gid)
+              }
               cycleLabel={snapshot.cycle.label}
               isCurrentCycle={snapshot.cycleStatus === 'current'}
               status={active.row.status}
@@ -1294,6 +1287,7 @@ function EmployeePanel({
   canUpdateProgress,
   canDuplicate,
   canCascade,
+  cascadeTargets,
   canSubmit,
   showOwnScore,
   busy,
@@ -1303,6 +1297,9 @@ function EmployeePanel({
   toolbarStart,
   toolbarOnly = false,
   ownerOptions,
+  cascadeFrom,
+  cascadeRecipientsFor,
+  cascadeHref,
   resolveOwner,
   onOpenGoal,
   onEditGoal,
@@ -1336,6 +1333,9 @@ function EmployeePanel({
    */
   toolbarOnly?: boolean
   ownerOptions: GoalOwnerOption[]
+  cascadeFrom: LineManagerCascade
+  cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
+  cascadeHref: (personId: string, goalId: string) => string
   resolveOwner: (goal: Goal) => {
     id: string
     name: string
@@ -1348,7 +1348,8 @@ function EmployeePanel({
   /** Progress-only updates never send goals back for approval. */
   onPersistProgress: (goals: Goal[]) => void
   onDuplicateGoal: (goalId: string) => Promise<Goal | null>
-  onCascadeGoal: (goalId: string) => Promise<void>
+  cascadeTargets: { id: string; name: string; title?: string; avatarUrl?: string }[]
+  onCascadeGoal: (goalId: string, reportIds: string[]) => Promise<void>
   onSubmit: (goals: Goal[]) => void
 }) {
   const [goals, setGoals] = useState(row.goals)
@@ -1457,6 +1458,9 @@ function EmployeePanel({
         isNew={isNew}
         defaultOwnerId={personId}
         ownerOptions={ownerOptions}
+        cascadeFrom={cascadeFrom}
+        cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+        cascadeHref={cascadeHref}
         onBack={isNew ? discardNewGoal : closeGoal}
         onSave={() => {
           onPersistGoals(goals)
@@ -1506,6 +1510,9 @@ function EmployeePanel({
               index={selectedIndex}
               total={goals.length}
               owner={ownerFor(selectedGoal)}
+              cascadeFrom={cascadeFrom}
+              cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+              cascadeHref={cascadeHref}
               cycleLabel={cycleLabel}
               isCurrentCycle={isCurrentCycle}
               status={row.status}
@@ -1514,6 +1521,7 @@ function EmployeePanel({
               canUpdateProgress={canUpdateProgress}
               canRemove={canEditDraft}
               canCascade={canCascade}
+              cascadeTargets={cascadeTargets}
               onEdit={
                 canEditDraft ? () => onEditGoal(selectedGoal.id) : undefined
               }
@@ -1528,8 +1536,8 @@ function EmployeePanel({
               }
               onCascade={
                 canCascade
-                  ? () => {
-                      void onCascadeGoal(selectedGoal.id)
+                  ? (reportIds) => {
+                      void onCascadeGoal(selectedGoal.id, reportIds)
                     }
                   : undefined
               }

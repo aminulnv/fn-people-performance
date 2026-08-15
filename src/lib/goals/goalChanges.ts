@@ -35,6 +35,7 @@ function structuralGoal(goal: Goal) {
     weight: goal.weight,
     ownerId: goal.ownerId,
     details: goal.details,
+    cascadedFromGoalId: goal.cascadedFromGoalId,
     linkedGoalLabel: goal.linkedGoalLabel,
     measurements: goal.measurements.map(structuralMeasurement),
   }

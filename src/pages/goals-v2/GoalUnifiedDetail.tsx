@@ -9,7 +9,6 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clock,
   Copy,
   GitFork,
   Hash,
@@ -57,6 +56,22 @@ import {
 } from '@/pages/goals/goalHelpers'
 import { statusLabel } from '@/pages/goals/statusLabels'
 import { isGoalDraftDirty, validateGoalDraft } from './draftHelpers'
+import {
+  EMPTY_LINE_MANAGER_CASCADE,
+  CascadeLabel,
+  GoalCascadeField,
+  GoalCascadeFromReadout,
+  GoalCascadedTo,
+  type CascadeGoalHref,
+} from '@/pages/goals/GoalCascadeField'
+import {
+  GoalCascadeTargetDialog,
+  type CascadeTarget,
+} from '@/pages/goals/GoalCascadeTargetDialog'
+import type {
+  CascadeRecipient,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 
 export type GoalOwnerOption = {
   id: string
@@ -79,6 +94,9 @@ type GoalUnifiedDetailProps = {
   owner: GoalUnifiedOwner
   defaultOwnerId: string
   ownerOptions: GoalOwnerOption[]
+  cascadeFrom?: LineManagerCascade
+  cascadedTo?: CascadeRecipient[]
+  cascadeHref?: CascadeGoalHref
   cycleLabel: string
   isCurrentCycle?: boolean
   status: PersonGoals['status']
@@ -87,12 +105,13 @@ type GoalUnifiedDetailProps = {
   canUpdateProgress?: boolean
   canRemove?: boolean
   canCascade?: boolean
+  cascadeTargets?: CascadeTarget[]
   /** Persist structural edits (save from edit mode). */
   onSave: (goal: Goal) => void
   /** Persist lightweight progress mutations while viewing. */
   onProgressChange: (goal: Goal) => void
   onDuplicate?: () => void
-  onCascade?: () => void
+  onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
   onSelectIndex: (index: number) => void
   onBack: () => void
@@ -789,6 +808,9 @@ export function GoalUnifiedDetail({
   owner,
   defaultOwnerId,
   ownerOptions,
+  cascadeFrom = EMPTY_LINE_MANAGER_CASCADE,
+  cascadedTo = [],
+  cascadeHref,
   cycleLabel,
   isCurrentCycle = false,
   status,
@@ -797,6 +819,7 @@ export function GoalUnifiedDetail({
   canUpdateProgress = false,
   canRemove = false,
   canCascade = false,
+  cascadeTargets = [],
   onSave,
   onProgressChange,
   onDuplicate,
@@ -812,9 +835,10 @@ export function GoalUnifiedDetail({
   const [comment, setComment] = useState('')
   const [statusOpen, setStatusOpen] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  const [cascadeOpen, setCascadeOpen] = useState(false)
   const [pendingNav, setPendingNav] = useState<null | (() => void)>(null)
-  const [showLinkedField, setShowLinkedField] = useState(
-    Boolean(goal.linkedGoalLabel),
+  const [showCascadeField, setShowCascadeField] = useState(
+    Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
   )
   const statusRef = useRef<HTMLDivElement>(null)
   const editingRef = useRef(false)
@@ -827,7 +851,7 @@ export function GoalUnifiedDetail({
   useEffect(() => {
     setDraft(goal)
     setBaseline(goal)
-    setShowLinkedField(Boolean(goal.linkedGoalLabel))
+    setShowCascadeField(Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId))
     setMode(isNew ? 'edit' : 'view')
     // Reset only when the opened goal identity changes; content sync while
     // viewing is handled by the effect below so in-progress edits are kept.
@@ -838,7 +862,7 @@ export function GoalUnifiedDetail({
     if (editingRef.current) return
     setDraft(goal)
     setBaseline(goal)
-    setShowLinkedField(Boolean(goal.linkedGoalLabel))
+    setShowCascadeField(Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId))
   }, [goal])
 
   useEffect(() => {
@@ -880,6 +904,9 @@ export function GoalUnifiedDetail({
   const validation = useMemo(() => validateGoalDraft(draft), [draft])
   const measureWeight = sumMeasurementWeights(draft.measurements)
   const ownerId = draft.ownerId ?? defaultOwnerId
+  const cascadeFromSelected = Boolean(
+    activeGoal.cascadedFromGoalId || activeGoal.linkedGoalLabel,
+  )
 
   const requestNav = (action: () => void) => {
     if (isEditing && (dirty || isNew)) {
@@ -1096,10 +1123,10 @@ export function GoalUnifiedDetail({
                 disabled={!canCascade}
                 title={
                   canCascade
-                    ? 'Copy this goal to your direct reports'
+                    ? 'Create a child goal for selected reports'
                     : 'No direct reports to cascade to'
                 }
-                onClick={onCascade}
+                onClick={() => setCascadeOpen(true)}
               >
                 <GitFork size={15} strokeWidth={1.75} aria-hidden />
                 Cascade This Goal
@@ -1536,32 +1563,27 @@ export function GoalUnifiedDetail({
                   />
                 </label>
 
-                {showLinkedField || draft.linkedGoalLabel ? (
-                  <label className="pd-goal-v2__field">
-                    <span className="pd-goal-v2__field-label">Linked goal</span>
-                    <input
-                      className="pd-goal-v2__linked-input"
-                      value={draft.linkedGoalLabel ?? ''}
-                      placeholder="Parent or related goal"
-                      onChange={(event) =>
-                        patchDraft({
-                          linkedGoalLabel: event.target.value.trim()
-                            ? event.target.value
-                            : undefined,
-                        })
-                      }
+                {showCascadeField ||
+                draft.linkedGoalLabel ||
+                draft.cascadedFromGoalId ? (
+                  <div className="pd-goal-v2__field">
+                    <GoalCascadeField
+                      goal={draft}
+                      cascadeFrom={cascadeFrom}
+                      onChange={(next) => patchDraft(next)}
                     />
-                  </label>
-                ) : (
+                  </div>
+                ) : cascadeFrom.managerName ? (
                   <button
                     type="button"
                     className="pd-goal-v2__quiet-btn"
-                    onClick={() => setShowLinkedField(true)}
+                    onClick={() => setShowCascadeField(true)}
                   >
-                    <Plus size={15} strokeWidth={2} aria-hidden />
-                    Link to Another Goal
+                    <GitFork size={15} strokeWidth={2} aria-hidden />
+                    Add cascading from
                   </button>
-                )}
+                ) : null}
+                <GoalCascadedTo recipients={cascadedTo} hrefFor={cascadeHref} />
               </div>
             </section>
           ) : (
@@ -1592,14 +1614,6 @@ export function GoalUnifiedDetail({
                   </div>
                 </div>
 
-                <div className="pd-goal-v2__fact">
-                  <p className="pd-goal-v2__fact-label">Last refresh</p>
-                  <p className="pd-goal-v2__fact-value">
-                    <Clock size={14} strokeWidth={1.75} aria-hidden />
-                    {formatRefreshAge(activeGoal.updatedAt)}
-                  </p>
-                </div>
-
                 {activeGoal.details?.trim() ? (
                   <div className="pd-goal-v2__fact">
                     <p className="pd-goal-v2__fact-label">Description</p>
@@ -1609,12 +1623,25 @@ export function GoalUnifiedDetail({
                   </div>
                 ) : null}
 
-                {activeGoal.linkedGoalLabel ? (
+                {cascadeFromSelected ? (
                   <div className="pd-goal-v2__fact">
-                    <p className="pd-goal-v2__fact-label">Linked goal</p>
-                    <p className="pd-goal-v2__description">
-                      {activeGoal.linkedGoalLabel}
-                    </p>
+                    <CascadeLabel as="p" className="pd-goal-v2__fact-label">
+                      Cascading from
+                    </CascadeLabel>
+                    <GoalCascadeFromReadout
+                      goal={activeGoal}
+                      cascadeFrom={cascadeFrom}
+                      hrefFor={cascadeHref}
+                    />
+                  </div>
+                ) : null}
+
+                {cascadedTo.length > 0 ? (
+                  <div className="pd-goal-v2__fact">
+                    <GoalCascadedTo
+                      recipients={cascadedTo}
+                      hrefFor={cascadeHref}
+                    />
                   </div>
                 ) : null}
               </div>
@@ -1644,6 +1671,14 @@ export function GoalUnifiedDetail({
         cancelLabel="Keep Editing"
         confirmVariant="danger"
       />
+      {onCascade ? (
+        <GoalCascadeTargetDialog
+          open={cascadeOpen}
+          targets={cascadeTargets}
+          onClose={() => setCascadeOpen(false)}
+          onConfirm={onCascade}
+        />
+      ) : null}
     </div>
   )
 }

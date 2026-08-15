@@ -67,7 +67,11 @@ describe('hasStructuralGoalChanges', () => {
     ['description', (draft: Goal) => void (draft.details = 'New details')],
     ['goal weight', (draft: Goal) => void (draft.weight = 75)],
     ['owner', (draft: Goal) => void (draft.ownerId = 'person-2')],
-    ['linked goal', (draft: Goal) => void (draft.linkedGoalLabel = 'New link')],
+    ['cascading goal label', (draft: Goal) => void (draft.linkedGoalLabel = 'New link')],
+    [
+      'cascading goal id',
+      (draft: Goal) => void (draft.cascadedFromGoalId = 'manager-goal-2'),
+    ],
     [
       'to-do wording',
       (draft: Goal) => void (draft.measurements[0].title = 'New wording'),

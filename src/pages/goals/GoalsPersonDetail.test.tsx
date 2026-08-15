@@ -1,0 +1,133 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { AuthProvider } from '@/lib/AuthProvider'
+import { clearSession, writeSession } from '@/lib/authApi'
+import { clearEmployees, createEmployee } from '@/lib/employees/store'
+import {
+  getGoalsSnapshot,
+  resetGoalsDemo,
+  setSignedInPerson,
+} from '@/lib/goals/store'
+import { GoalsPersonDetail } from '@/pages/GoalsPage'
+
+const MANAGER_ID = '2'
+const REPORT_ID = '1'
+
+async function seedDirectory() {
+  const rows = [
+    {
+      employeeId: 2,
+      fullName: 'Line Manager',
+      email: 'manager@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Manager',
+      managerEmail: '',
+      reportsToName: '',
+    },
+    {
+      employeeId: 1,
+      fullName: 'Direct Report',
+      email: 'report@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Executive',
+      managerEmail: 'manager@example.com',
+      reportsToName: 'Line Manager',
+    },
+  ]
+
+  for (const row of rows) {
+    const created = await createEmployee({
+      department: 'People',
+      team: '',
+      division: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      ...row,
+    })
+    if (!created.ok) throw new Error(created.error)
+  }
+}
+
+function signInManager() {
+  writeSession({
+    user: {
+      id: MANAGER_ID,
+      email: 'manager@example.com',
+      name: 'Line Manager',
+      personId: MANAGER_ID,
+      role: 'manager',
+      title: 'Manager',
+    },
+    signedInAt: '2026-01-01T00:00:00.000Z',
+  })
+}
+
+function renderReportGoals() {
+  return render(
+    <MemoryRouter>
+      <AuthProvider>
+        <GoalsPersonDetail personId={REPORT_ID} embedded />
+      </AuthProvider>
+    </MemoryRouter>,
+  )
+}
+
+describe('GoalsPersonDetail manager review', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    clearSession()
+    clearEmployees()
+    await seedDirectory()
+    setSignedInPerson(MANAGER_ID)
+    resetGoalsDemo()
+    signInManager()
+  })
+
+  afterEach(() => {
+    cleanup()
+    clearEmployees()
+    clearSession()
+  })
+
+  it('nests the report goals under the same review card as My Reports', async () => {
+    renderReportGoals()
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('region', { name: 'Direct Report goals' }),
+      ).toBeInTheDocument()
+    })
+    const card = screen.getByRole('region', { name: 'Direct Report goals' })
+    expect(card).toHaveTextContent(/awaiting your approval/)
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send Back' })).toBeInTheDocument()
+  })
+
+  it('opens the specific goal window from a deep link', async () => {
+    const snapshot = getGoalsSnapshot()
+    const goal = snapshot.byPerson[REPORT_ID]?.goals[0]
+    expect(goal).toBeTruthy()
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail
+            cycleId={snapshot.cycle.id}
+            personId={REPORT_ID}
+            goalId={goal.id}
+          />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('dialog', { name: new RegExp(goal.description) }),
+      ).toBeInTheDocument()
+    })
+  })
+})

@@ -1,5 +1,6 @@
+import { blankGoal } from './measurements'
 import { newId } from './weightage'
-import type { DemoPerson, Goal, Measurement } from './types'
+import type { DemoPerson, Goal, GoalsSnapshot, Measurement } from './types'
 
 export type GoalOwnerOption = {
   id: string
@@ -24,6 +25,113 @@ export function buildOwnerOptions(people: DemoPerson[]): GoalOwnerOption[] {
       avatarUrl: person.avatarUrl,
     }))
     .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export type CascadeGoalOption = {
+  id: string
+  title: string
+  managerName: string
+  managerId?: string
+  managerAvatarUrl?: string
+}
+
+export type LineManagerCascade = {
+  managerId?: string | null
+  managerName: string | null
+  managerAvatarUrl?: string
+  options: CascadeGoalOption[]
+}
+
+const EMPTY_CASCADE: LineManagerCascade = { managerName: null, options: [] }
+
+function cascadeGoalTitle(goal: Goal, index: number): string {
+  return goal.description.trim() || `Untitled goal ${index + 1}`
+}
+
+/** Goals of the subject's line manager only — one level up the tree. */
+export function lineManagerCascade(
+  subject: DemoPerson | null,
+  snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
+): LineManagerCascade {
+  if (!subject?.managerId || !snapshot) return EMPTY_CASCADE
+  const manager = snapshot.people.find((person) => person.id === subject.managerId)
+  if (!manager) return EMPTY_CASCADE
+  const goals = snapshot.byPerson[manager.id]?.goals ?? []
+  return {
+    managerId: manager.id,
+    managerName: manager.name,
+    managerAvatarUrl: manager.avatarUrl,
+    options: goals.map((goal, index) => ({
+      id: goal.id,
+      title: cascadeGoalTitle(goal, index),
+      managerName: manager.name,
+      managerId: manager.id,
+      managerAvatarUrl: manager.avatarUrl,
+    })),
+  }
+}
+
+export function selectedCascadeOption(
+  goal: Pick<Goal, 'cascadedFromGoalId' | 'linkedGoalLabel'>,
+  options: CascadeGoalOption[],
+): CascadeGoalOption | null {
+  if (goal.cascadedFromGoalId) {
+    const match = options.find((option) => option.id === goal.cascadedFromGoalId)
+    if (match) return match
+  }
+  const label = goal.linkedGoalLabel?.trim()
+  if (!label) return null
+  return (
+    options.find((option) => option.title === label) ?? {
+      id: goal.cascadedFromGoalId ?? '',
+      title: label,
+      managerName: '',
+    }
+  )
+}
+
+export function applyCascadeSelection(
+  option: CascadeGoalOption | null,
+): Pick<Goal, 'cascadedFromGoalId' | 'linkedGoalLabel'> {
+  if (!option) {
+    return { cascadedFromGoalId: undefined, linkedGoalLabel: undefined }
+  }
+  return {
+    cascadedFromGoalId: option.id || undefined,
+    linkedGoalLabel: option.title,
+  }
+}
+
+export type CascadeRecipient = {
+  goalId: string
+  goalTitle: string
+  personId: string
+  personName: string
+  avatarUrl?: string
+}
+
+/** Child goals already cascaded from this one — live title + owner. */
+export function cascadeRecipients(
+  sourceGoalId: string,
+  snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
+): CascadeRecipient[] {
+  if (!snapshot || !sourceGoalId) return []
+  return snapshot.people.flatMap((person) => {
+    const row = snapshot.byPerson[person.id]
+    if (!row) return []
+    return row.goals.flatMap((goal, index) => {
+      if (goal.cascadedFromGoalId !== sourceGoalId) return []
+      return [
+        {
+          goalId: goal.id,
+          goalTitle: cascadeGoalTitle(goal, index),
+          personId: person.id,
+          personName: person.name,
+          avatarUrl: person.avatarUrl,
+        },
+      ]
+    })
+  })
 }
 
 /** Prefer the goal's ownerId; fall back to the subject's bucket owner. */
@@ -103,21 +211,26 @@ export function duplicateGoal(
     ...reset,
     description: `${options.sourceTitle} (copy)`,
     ownerId: options.ownerId,
-    linkedGoalLabel: source.description.trim() || undefined,
+    cascadedFromGoalId: source.cascadedFromGoalId,
+    linkedGoalLabel: source.linkedGoalLabel,
   }
 }
 
+/** Placeholder child linked to a parent — title only; recipient sets measures. */
 export function cascadeGoal(
   source: Goal,
   targetPersonId: string,
   options: {
     sourceTitle: string
+    sourcePersonName: string
   },
 ): Goal {
-  const reset = resetGoalProgress(source)
   return {
-    ...reset,
-    ownerId: targetPersonId,
+    ...blankGoal({ withDefaultMetric: false, ownerId: targetPersonId }),
+    description: `Untitled Cascading Goal from ${options.sourcePersonName}`,
+    cascadedFromGoalId: source.id,
     linkedGoalLabel: options.sourceTitle,
+    comments: [],
+    updatedAt: new Date().toISOString(),
   }
 }

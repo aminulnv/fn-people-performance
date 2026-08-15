@@ -36,6 +36,9 @@
 .pd-people__summary-btn,
 .pd-people__summary-card {
   appearance: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
   border: 1px solid var(--color-border, rgba(0, 0, 0, 0.1));
   background: var(--color-surface, #fff);
   color: var(--color-text-secondary);
@@ -78,7 +81,7 @@
 
 .pd-people__summary-label {
   display: block;
-  margin-top: 0.1rem;
+  margin: 0;
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--color-text-secondary);

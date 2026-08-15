@@ -83,12 +83,12 @@ export const GOAL_PROGRESS_STATUS_OPTIONS: {
   id: GoalProgressStatus
   label: string
 }[] = [
-  { id: 'on_track', label: 'On track' },
-  { id: 'at_risk', label: 'At risk' },
-  { id: 'off_track', label: 'Delayed' },
-  { id: 'on_hold', label: 'On hold' },
-  { id: 'complete', label: 'Complete' },
-]
+    { id: 'on_track', label: 'On track' },
+    { id: 'at_risk', label: 'At risk' },
+    { id: 'off_track', label: 'Delayed' },
+    { id: 'on_hold', label: 'On hold' },
+    { id: 'complete', label: 'Complete' },
+  ]
 
 export function progressStatusClass(
   progressStatus?: GoalProgressStatus | null,

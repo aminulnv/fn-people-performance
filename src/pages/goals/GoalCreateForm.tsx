@@ -9,6 +9,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  GitFork,
   Hash,
   ListTodo,
   Plus,
@@ -37,7 +38,17 @@ import type {
   Milestone,
 } from '@/lib/goals/types'
 import { validateGoalDraft } from '@/lib/goals/draft'
+import type {
+  CascadeRecipient,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 import { sumMeasurementWeights } from '@/lib/goals/weightage'
+import {
+  EMPTY_LINE_MANAGER_CASCADE,
+  GoalCascadeField,
+  GoalCascadedTo,
+  type CascadeGoalHref,
+} from './GoalCascadeField'
 
 export type GoalOwnerOption = {
   id: string
@@ -54,6 +65,9 @@ type GoalCreateFormProps = {
   /** Fallback owner when the goal has no ownerId yet (page person). */
   defaultOwnerId: string
   ownerOptions: GoalOwnerOption[]
+  cascadeFrom?: LineManagerCascade
+  cascadedTo?: CascadeRecipient[]
+  cascadeHref?: CascadeGoalHref
   onChange: (goal: Goal) => void
   onBack: () => void
   onSave: () => void
@@ -823,14 +837,17 @@ export function GoalCreateForm({
   isNew = false,
   defaultOwnerId,
   ownerOptions,
+  cascadeFrom = EMPTY_LINE_MANAGER_CASCADE,
+  cascadedTo = [],
+  cascadeHref,
   onChange,
   onBack,
   onSave,
   onRemove,
   onSelectIndex,
 }: GoalCreateFormProps) {
-  const [showLinkedField, setShowLinkedField] = useState(
-    Boolean(goal.linkedGoalLabel),
+  const [showCascadeField, setShowCascadeField] = useState(
+    Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
   )
   const titleFieldId = useId()
   const measureWeight = sumMeasurementWeights(goal.measurements)
@@ -1007,29 +1024,23 @@ export function GoalCreateForm({
           }
         />
 
-        {showLinkedField ? (
-          <Input
-            label="Linked goal"
-            value={goal.linkedGoalLabel ?? ''}
-            placeholder="Linked goal (optional)"
-            onChange={(event) =>
-              patch({
-                linkedGoalLabel: event.target.value.trim()
-                  ? event.target.value
-                  : undefined,
-              })
-            }
+        {showCascadeField ? (
+          <GoalCascadeField
+            goal={goal}
+            cascadeFrom={cascadeFrom}
+            onChange={(next) => patch(next)}
           />
-        ) : (
+        ) : cascadeFrom.managerName ? (
           <button
             type="button"
             className="pd-people__ghost-btn pd-goal-create__add-field"
-            onClick={() => setShowLinkedField(true)}
+            onClick={() => setShowCascadeField(true)}
           >
-            <Plus size={16} strokeWidth={2} aria-hidden />
-            Add Field
+            <GitFork size={16} strokeWidth={2} aria-hidden />
+            Add cascading from
           </button>
-        )}
+        ) : null}
+        <GoalCascadedTo recipients={cascadedTo} hrefFor={cascadeHref} />
 
         <section
           className="pd-goal-create__progress"

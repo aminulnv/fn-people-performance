@@ -180,6 +180,55 @@ describe('GoalUnifiedDetail', () => {
     expect(onBack).toHaveBeenCalledTimes(1)
   })
 
+  it('picks a line manager goal as the cascade in edit mode', () => {
+    const { onSave } = renderDetail({
+      cascadeFrom: {
+        managerName: 'Grace Hopper',
+        options: [
+          {
+            id: 'mgr-goal',
+            title: 'Raise the quality bar',
+            managerName: 'Grace Hopper',
+          },
+        ],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add cascading from' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cascading from' }))
+    fireEvent.click(
+      screen.getByRole('option', { name: /Raise the quality bar/ }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0][0]).toMatchObject({
+      cascadedFromGoalId: 'mgr-goal',
+      linkedGoalLabel: 'Raise the quality bar',
+    })
+  })
+
+  it('shows who this goal was cascaded to in view mode', () => {
+    renderDetail({
+      cascadedTo: [
+        {
+          goalId: 'c1',
+          goalTitle: 'Untitled Cascading Goal from Line Manager',
+          personId: 'r1',
+          personName: 'Direct Report',
+        },
+      ],
+    })
+
+    expect(screen.getByText('Cascaded to')).toBeInTheDocument()
+    expect(
+      screen.getByText('Untitled Cascading Goal from Line Manager'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Direct Report')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Direct Report' })).toBeInTheDocument()
+  })
+
   it('hides edit controls when the goal is read-only', () => {
     renderDetail({ canEdit: false, canUpdateProgress: false, canRemove: false })
 
@@ -205,6 +254,14 @@ describe('GoalUnifiedDetail', () => {
     expect(onProgressChange).toHaveBeenCalledTimes(1)
     const updated = onProgressChange.mock.calls[0][0] as Goal
     expect(updated.measurements[0]).toMatchObject({ currentValue: 25 })
+  })
+
+  it('does not put batch approve on a single goal', () => {
+    renderDetail({ status: 'submitted' })
+
+    expect(screen.getByText('Pending approval')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Send Back' })).toBeNull()
   })
 
   it('changes a metric into a to-do list from the card menu', () => {

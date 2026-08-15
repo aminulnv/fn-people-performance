@@ -1304,6 +1304,14 @@
   color: var(--color-text-secondary);
 }
 
+.pd-goals-approval--subject {
+  margin-top: 0.25rem;
+}
+
+.pd-goal-view__approval-actions .pd-goals-approval__reason {
+  flex-basis: 100%;
+}
+
 /* Manager review of a report's goal, rendered inside the goal drawer */
 .pd-goals-review__head {
   display: flex;
@@ -2785,6 +2793,104 @@
 
 .pd-goal-create__add-field {
   align-self: start;
+}
+
+.pd-goal-cascade {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.pd-goal-cascade__heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pd-goal-cascade__heading svg {
+  flex-shrink: 0;
+}
+
+.pd-goal-cascade__label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-cascade__empty,
+.pd-goal-cascade__value {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+}
+
+.pd-goal-cascade__value {
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-cascade__people {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd-goal-cascade__chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.pd-goal-cascade__chip--link {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: 0.45rem;
+}
+
+.pd-goal-cascade__chip--link:hover .pd-goal-cascade__chip-title {
+  color: var(--color-link, #3b82f6);
+  text-decoration: underline;
+}
+
+.pd-goal-cascade__chip--link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.pd-goal-cascade__chip .pd-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.6rem;
+  flex-shrink: 0;
+}
+
+.pd-goal-cascade__chip-copy {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.pd-goal-cascade__chip-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.pd-goal-cascade__chip-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-cascade-targets {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .pd-goal-create__text-btn {

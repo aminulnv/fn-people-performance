@@ -96,6 +96,9 @@ export type Goal = {
   ownerId?: string
   /** Longer free-text description (goal name lives in `description`). */
   details?: string
+  /** Line manager goal this one cascades from. */
+  cascadedFromGoalId?: string
+  /** Snapshot title of the cascaded manager goal (survives if the source is gone). */
   linkedGoalLabel?: string
   measurements: Measurement[]
   /** Optional override for the computed on-track / off-track label. */

@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   buildOwnerOptions,
   cascadeGoal,
+  cascadeRecipients,
   duplicateGoal,
+  lineManagerCascade,
   removeGoal,
   replaceGoal,
   resetGoalProgress,
   resolveGoalOwner,
+  selectedCascadeOption,
 } from './operations'
 import type { DemoPerson, Goal } from './types'
 
@@ -19,6 +22,7 @@ const people: DemoPerson[] = [
     department: 'Product',
     role: 'employee',
     joinDate: '2025-01-01',
+    managerId: 'p2',
     reportIds: [],
     avatarHue: 1,
     blurb: '',
@@ -139,10 +143,114 @@ describe('duplicateGoal / cascadeGoal', () => {
     expect(copy.comments).toEqual([])
   })
 
-  it('cascades to a report with a linked source title', () => {
-    const copy = cascadeGoal(source, 'p2', { sourceTitle: 'Ship quality' })
-    expect(copy.ownerId).toBe('p2')
-    expect(copy.linkedGoalLabel).toBe('Ship quality')
-    expect(copy.comments).toEqual([])
+  it('creates a child goal linked to the parent without copying the title', () => {
+    const child = cascadeGoal(source, 'p2', {
+      sourceTitle: 'Ship quality',
+      sourcePersonName: 'Ada',
+    })
+    expect(child.ownerId).toBe('p2')
+    expect(child.description).toBe('Untitled Cascading Goal from Ada')
+    expect(child.details).toBeUndefined()
+    expect(child.cascadedFromGoalId).toBe('g1')
+    expect(child.linkedGoalLabel).toBe('Ship quality')
+    expect(child.comments).toEqual([])
+    expect(child.measurements).toEqual([])
+    expect(child.weight).toBe(0)
+  })
+})
+
+describe('lineManagerCascade', () => {
+  const snapshot = {
+    people,
+    byPerson: {
+      p2: {
+        personId: 'p2',
+        status: 'approved' as const,
+        goals: [source],
+      },
+    },
+  }
+
+  it('lists only the line manager’s goals', () => {
+    const result = lineManagerCascade(people[0], snapshot)
+    expect(result.managerName).toBe('Ben')
+    expect(result.managerId).toBe('p2')
+    expect(result.options).toEqual([
+      {
+        id: 'g1',
+        title: 'Ship quality',
+        managerName: 'Ben',
+        managerId: 'p2',
+        managerAvatarUrl: undefined,
+      },
+    ])
+  })
+
+  it('is empty at the top of the tree', () => {
+    expect(lineManagerCascade(people[1], snapshot)).toEqual({
+      managerName: null,
+      options: [],
+    })
+  })
+
+  it('lists people who already received a cascaded copy', () => {
+    const copy = cascadeGoal(source, 'p1', {
+      sourceTitle: 'Ship quality',
+      sourcePersonName: 'Ben',
+    })
+    expect(
+      cascadeRecipients('g1', {
+        people,
+        byPerson: {
+          p1: { personId: 'p1', status: 'draft', goals: [copy] },
+          p2: { personId: 'p2', status: 'approved', goals: [source] },
+        },
+      }),
+    ).toEqual([
+      {
+        goalId: copy.id,
+        goalTitle: 'Untitled Cascading Goal from Ben',
+        personId: 'p1',
+        personName: 'Ada',
+        avatarUrl: undefined,
+      },
+    ])
+  })
+
+  it('uses the child’s current title after the recipient renames it', () => {
+    const copy = {
+      ...cascadeGoal(source, 'p1', {
+        sourceTitle: 'Ship quality',
+        sourcePersonName: 'Ben',
+      }),
+      description: 'Cut defects in my team',
+    }
+    expect(
+      cascadeRecipients('g1', {
+        people,
+        byPerson: {
+          p1: { personId: 'p1', status: 'draft', goals: [copy] },
+          p2: { personId: 'p2', status: 'approved', goals: [source] },
+        },
+      }),
+    ).toEqual([
+      {
+        goalId: copy.id,
+        goalTitle: 'Cut defects in my team',
+        personId: 'p1',
+        personName: 'Ada',
+        avatarUrl: undefined,
+      },
+    ])
+  })
+
+  it('resolves a cascade by id, then by title', () => {
+    const options = lineManagerCascade(people[0], snapshot).options
+    expect(
+      selectedCascadeOption({ cascadedFromGoalId: 'g1' }, options)?.title,
+    ).toBe('Ship quality')
+    expect(
+      selectedCascadeOption({ linkedGoalLabel: 'Ship quality' }, options)?.id,
+    ).toBe('g1')
   })
 })

@@ -36,8 +36,8 @@ export type GoalMutationContext = {
   subjectId: string
 }
 
-/** v12: reports of the signed-in person now seed as pending approval. */
-const STORAGE_KEY = 'pd-goals-demo-v12'
+/** v13: mixed seed measurements share 100% instead of parking it on the metric. */
+const STORAGE_KEY = 'pd-goals-demo-v13'
 /** Skip v9 so uniform “all approved” demo rows are not carried over. */
 const LEGACY_STORAGE_KEY = 'pd-goals-demo-v8'
 const OLDER_STORAGE_KEY = 'pd-goals-demo-v7'

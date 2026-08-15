@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Check,
@@ -30,6 +30,21 @@ import {
   trackToneClass,
 } from './goalHelpers'
 import { statusLabel } from './statusLabels'
+import {
+  EMPTY_LINE_MANAGER_CASCADE,
+  CascadeLabel,
+  GoalCascadeFromReadout,
+  GoalCascadedTo,
+  type CascadeGoalHref,
+} from './GoalCascadeField'
+import {
+  GoalCascadeTargetDialog,
+  type CascadeTarget,
+} from './GoalCascadeTargetDialog'
+import type {
+  CascadeRecipient,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 
 export type GoalOwner = {
   id?: string
@@ -42,6 +57,9 @@ type GoalDetailViewProps = {
   index: number
   total: number
   owner: GoalOwner
+  cascadeFrom?: LineManagerCascade
+  cascadedTo?: CascadeRecipient[]
+  cascadeHref?: CascadeGoalHref
   cycleLabel: string
   isCurrentCycle?: boolean
   status: PersonGoals['status']
@@ -50,13 +68,11 @@ type GoalDetailViewProps = {
   canUpdateProgress?: boolean
   canRemove?: boolean
   canCascade?: boolean
-  approvalActions?: ReactNode
-  /** Expanded panel under the approval actions, e.g. a send back reason. */
-  approvalReason?: ReactNode
+  cascadeTargets?: CascadeTarget[]
   onChange: (goal: Goal) => void
   onEdit?: () => void
   onDuplicate?: () => void
-  onCascade?: () => void
+  onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
   onSelectIndex: (index: number) => void
 }
@@ -87,6 +103,9 @@ export function GoalDetailView({
   index,
   total,
   owner,
+  cascadeFrom = EMPTY_LINE_MANAGER_CASCADE,
+  cascadedTo = [],
+  cascadeHref,
   cycleLabel,
   isCurrentCycle = false,
   status,
@@ -95,8 +114,7 @@ export function GoalDetailView({
   canUpdateProgress = false,
   canRemove = false,
   canCascade = false,
-  approvalActions,
-  approvalReason,
+  cascadeTargets = [],
   onChange,
   onEdit,
   onDuplicate,
@@ -107,6 +125,7 @@ export function GoalDetailView({
   const [comment, setComment] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
+  const [cascadeOpen, setCascadeOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const statusRef = useRef<HTMLDivElement>(null)
   const commentFieldId = useId()
@@ -142,6 +161,9 @@ export function GoalDetailView({
   const metrics = goal.measurements.filter((item) => item.kind === 'metric')
   const comments = goal.comments ?? []
   const canMutate = canEdit || canUpdateProgress
+  const cascadeFromSelected = Boolean(
+    goal.cascadedFromGoalId || goal.linkedGoalLabel,
+  )
 
   const patchMeasurement = (id: string, next: Measurement) => {
     onChange(
@@ -185,6 +207,7 @@ export function GoalDetailView({
   )
 
   return (
+    <>
     <div className="pd-goal-view" aria-label={title}>
       <header className="pd-goal-view__header">
         <div className="pd-goal-view__chrome">
@@ -266,13 +289,13 @@ export function GoalDetailView({
                         disabled={!canCascade}
                         title={
                           canCascade
-                            ? 'Copy this goal to your direct reports'
+                            ? 'Create a child goal for selected reports'
                             : 'No direct reports to cascade to'
                         }
                         onClick={() => {
                           if (!canCascade) return
                           setMenuOpen(false)
-                          onCascade()
+                          setCascadeOpen(true)
                         }}
                       >
                         <GitFork size={15} strokeWidth={1.75} aria-hidden />
@@ -330,7 +353,6 @@ export function GoalDetailView({
             </div>
           )}
           <div className="pd-goal-view__meta">
-            <p>Last refresh {formatRefreshAge(goal.updatedAt)}</p>
             <p>Late update 15 days</p>
           </div>
         </div>
@@ -344,6 +366,31 @@ export function GoalDetailView({
             <p className="pd-goal-view__description">{goal.details}</p>
           </section>
         ) : null}
+
+        {cascadeFromSelected ? (
+          <section
+            className="pd-goal-view__description-card"
+            aria-label="Cascading from"
+          >
+            <CascadeLabel as="p" className="pd-goal-view__description-label">
+              Cascading from
+            </CascadeLabel>
+            <GoalCascadeFromReadout
+              goal={goal}
+              cascadeFrom={cascadeFrom}
+              hrefFor={cascadeHref}
+            />
+          </section>
+        ) : null}
+
+        {cascadedTo.length > 0 ? (
+          <section
+            className="pd-goal-view__description-card"
+            aria-label="Cascaded to"
+          >
+            <GoalCascadedTo recipients={cascadedTo} hrefFor={cascadeHref} />
+          </section>
+        ) : null}
       </header>
 
       <div className={`pd-goal-view__approval pd-goal-view__approval--${approval.tone}`}>
@@ -354,14 +401,6 @@ export function GoalDetailView({
           <p className="pd-goal-view__approval-title">{approval.title}</p>
           <p className="pd-goal-view__approval-sub">{approval.sub}</p>
         </div>
-        {approvalActions ? (
-          <div className="pd-goal-view__approval-actions">
-            {approvalActions}
-          </div>
-        ) : null}
-        {approvalReason ? (
-          <div className="pd-goal-view__approval-reason">{approvalReason}</div>
-        ) : null}
       </div>
 
       <div
@@ -562,5 +601,14 @@ export function GoalDetailView({
         </label>
       </section>
     </div>
+    {onCascade ? (
+      <GoalCascadeTargetDialog
+        open={cascadeOpen}
+        targets={cascadeTargets}
+        onClose={() => setCascadeOpen(false)}
+        onConfirm={onCascade}
+      />
+    ) : null}
+    </>
   )
 }

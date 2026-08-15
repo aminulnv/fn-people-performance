@@ -1,3 +1,4 @@
+import { rebalanceMeasurementWeights } from './measurements'
 import type { Goal, PersonGoals, SubmissionStatus } from './types'
 
 function seedId(cycleId: string, personId: string, suffix: string): string {
@@ -17,12 +18,12 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
         'Close critical defects faster than last quarter and keep reopen rate down. Success: 80 defects closed with quality held.',
       weight: 40,
       progressStatus: 'on_track',
-      measurements: [
+      measurements: rebalanceMeasurementWeights([
         {
           id: seedId(cycleId, personId, 'defects-closed'),
           kind: 'metric',
           title: 'Defects closed',
-          weight: 100,
+          weight: 0,
           unit: 'number',
           direction: 'greater_than',
           startValue: 0,
@@ -43,7 +44,7 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
           weight: 0,
           complete: false,
         },
-      ],
+      ]),
     },
     {
       id: seedId(cycleId, personId, 'roadmap'),

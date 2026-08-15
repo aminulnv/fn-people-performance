@@ -33,6 +33,7 @@ export function isGoalDraftDirty(baseline: Goal, draft: Goal): boolean {
     weight: goal.weight,
     ownerId: goal.ownerId,
     details: goal.details ?? '',
+    cascadedFromGoalId: goal.cascadedFromGoalId ?? '',
     linkedGoalLabel: goal.linkedGoalLabel ?? '',
     progressStatus: goal.progressStatus,
     measurements: goal.measurements.map((item) => {
