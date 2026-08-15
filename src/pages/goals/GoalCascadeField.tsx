@@ -187,7 +187,7 @@ export function GoalCascadeField({
     options.unshift({
       value: selected.id,
       label: selected.title,
-      description: selected.managerName || undefined,
+      description: selected.managerName,
     })
   }
 
