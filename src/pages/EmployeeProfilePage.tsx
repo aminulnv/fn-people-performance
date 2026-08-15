@@ -34,10 +34,13 @@ import {
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { profileTabComingSoon } from '@/pages/ComingSoonPage'
+import { GoalsPersonDetail } from '@/pages/GoalsPage'
 import '@/styles/layout-people.css'
 
+export type ProfileTabId = 'profile' | 'performance' | 'goals' | 'team'
+
 const PROFILE_TABS: {
-  id: 'profile' | 'performance' | 'goals' | 'team'
+  id: ProfileTabId
   label: string
   icon: LucideIcon
 }[] = [
@@ -47,7 +50,8 @@ const PROFILE_TABS: {
   { id: 'team', label: 'Team', icon: Users },
 ]
 
-const PROFILE_TAB_OPTIONS = PROFILE_TABS.map((item) => ({
+/** Shared with the create/edit form so both modes render the same tab strip. */
+export const PROFILE_TAB_OPTIONS = PROFILE_TABS.map((item) => ({
   id: item.id,
   label: (
     <>
@@ -68,7 +72,7 @@ function formatStartDate(iso: string): string {
   })
 }
 
-function DetailRow({
+export function DetailRow({
   label,
   icon: Icon,
   children,
@@ -205,7 +209,9 @@ export function EmployeeProfileView({
         aria-label="Employee sections"
       />
 
-      {tab !== 'profile' ? (
+      {tab === 'goals' ? (
+        <GoalsPersonDetail personId={String(employee.employeeId)} embedded />
+      ) : tab !== 'profile' ? (
         <div className="pd-profile__placeholder">
           <EmptyState
             className="pd-empty--inline"
@@ -371,7 +377,7 @@ export function EmployeeProfileView({
                 <GitBranch size={18} strokeWidth={1.75} aria-hidden />
                 <span>
                   <span className="pd-profile__nav-title">
-                    {isSelf ? 'View org chart' : 'Back to people'}
+                    {isSelf ? 'View Org Chart' : 'Back to People'}
                   </span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
@@ -405,7 +411,7 @@ export default function EmployeeProfilePage() {
       <div className="pd-page pd-people pd-profile" aria-label="Employee not found">
         <p className="pd-people__empty">Employee not found.</p>
         <Link to="/people" className="pd-people__back">
-          Back to people
+          Back to People
         </Link>
       </div>
     )

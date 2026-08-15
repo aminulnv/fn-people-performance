@@ -1,112 +1,88 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  ArrowLeft,
   Check,
-  ChevronLeft,
-  ChevronRight,
+  Columns3,
+  MoreHorizontal,
   Plus,
+  Search,
   Send,
   Target,
-  Trash2,
+  Undo2,
   Users,
 } from 'lucide-react'
 import {
   Avatar,
   Badge,
   Card,
-  Checkbox,
   EmptyState,
-  Input,
-  MetricTile,
   PageHeader,
   Progress,
-  Select,
-  Tabs,
+  SegmentedControl,
   Textarea,
+  Tooltip,
+  ListboxSelect,
 } from '@/components/ui'
 import {
-  approveGoals,
   canSubmitGoals,
   fetchGoalsSnapshot,
   goalCompletion,
   isEligibleForCycle,
-  newId,
   overallCompletion,
-  ratePerson,
-  saveGoals,
-  saveProgress,
-  sendBackGoals,
-  submitGoals,
   sumGoalWeights,
-  sumMeasurementWeights,
   watchGoalsSnapshot,
   type DemoPhase,
   type Goal,
   type GoalsSnapshot,
-  type Measurement,
   type PersonGoals,
 } from '@/lib/goalsApi'
-import { CURRENT_CYCLE_ID } from '@/lib/goals/demoData'
+import type { GoalProgressStatus } from '@/lib/goals/types'
+import { blankGoal } from '@/lib/goals/measurements'
+import type { GoalOwnerOption } from '@/lib/goals/operations'
+import type { GoalCapabilities } from '@/lib/goals/permissions'
+import { useAuth } from '@/lib/auth'
+import { avatarStyle } from '@/lib/employees/avatar'
+import { getEmployee } from '@/lib/employees/store'
+import {
+  setActiveCycle,
+} from '@/lib/goals/store'
 import { DEMO_PHASES } from '@/lib/goals/phases'
+import { GoalCreateDrawer } from './goals/GoalCreateDrawer'
+import { GoalCreateForm } from './goals/GoalCreateForm'
+import { GoalDetailView } from './goals/GoalDetailView'
+import { GoalsCycleSelect } from './goals/GoalsCycleSelect'
+import {
+  useGoalsController,
+  subjectIsEligible,
+} from './goals/useGoalsController'
+import {
+  goalTitle,
+  goalSectionLabels,
+  goalsDetailPath,
+  goalsGoalPath,
+  GOAL_PROGRESS_STATUS_OPTIONS,
+  metricCountLabel,
+  metricSummary,
+  metricTipDetails,
+  personMatchesScope,
+  progressStatusClass,
+  trackLabel,
+  trackToneClass,
+  type GoalsDirectoryScope,
+} from './goals/goalHelpers'
 import { statusLabel, statusVariant } from './goals/statusLabels'
+import { reviewsTabPath } from '@/lib/reviews/paths'
 import '@/styles/layout-people.css'
 import '@/styles/layout-goals.css'
-
-function blankGoal(): Goal {
-  return {
-    id: newId('goal'),
-    description: '',
-    goalType: 'Outcome',
-    processType: 'OKR',
-    priority: 'Medium',
-    weight: 0,
-    measurements: [],
-  }
-}
-
-function blankMilestone(): Measurement {
-  return {
-    id: newId('ms'),
-    kind: 'milestone',
-    title: '',
-    weight: 0,
-    complete: false,
-  }
-}
 
 function phaseLabel(phase: DemoPhase): string {
   return DEMO_PHASES.find((p) => p.id === phase)?.label ?? phase
 }
-
-function goalTitle(goal: Goal, index: number): string {
-  const trimmed = goal.description.trim()
-  return trimmed || `Untitled goal ${index + 1}`
-}
-
-function metricSummary(goal: Goal): string {
-  const metrics = goal.measurements.filter((m) => m.kind === 'metric')
-  if (metrics.length === 1) {
-    const m = metrics[0]
-    return `${m.currentValue} → ${m.targetValue}`
-  }
-  const done = goal.measurements.filter(
-    (m) => m.kind === 'milestone' && m.complete,
-  ).length
-  const total = goal.measurements.length
-  return `${done} → ${total}`
-}
-
-function trackLabel(
-  status: PersonGoals['status'],
-  completion: number,
-): { label: string; tone: 'ok' | 'warn' | 'muted' | 'danger' } {
-  if (status === 'incomplete') return { label: 'Off track', tone: 'danger' }
-  if (completion >= 100) return { label: 'Completed', tone: 'ok' }
-  if (status === 'approved' || status === 'submitted') {
-    return { label: 'On track', tone: 'ok' }
-  }
-  if (status === 'sent_back') return { label: 'Needs work', tone: 'warn' }
-  return { label: 'Not started', tone: 'muted' }
+/** Role line under the name — mirrors the employee profile hero. */
+function personMeta(person: GoalsSnapshot['people'][number]): string {
+  const division = getEmployee(Number(person.id))?.division
+  return [person.title, person.department, division].filter(Boolean).join(' · ')
 }
 
 function Notice({
@@ -121,66 +97,546 @@ function Notice({
   return <p className={`pd-goals__notice${mod}`}>{children}</p>
 }
 
-export default function GoalsPage() {
-  const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  const [reviewId, setReviewId] = useState<string | null>(null)
-  const [sendBackReason, setSendBackReason] = useState('')
-  const [ratingTier, setRatingTier] = useState<1 | 2 | 3 | 4 | 5>(3)
-  const [ratingComment, setRatingComment] = useState('')
-  const [managerTab, setManagerTab] = useState('mine')
-  const [detailOpen, setDetailOpen] = useState(false)
+type ManagerTab = 'mine' | 'team'
 
-  const refresh = async () => {
-    setSnapshot(await fetchGoalsSnapshot())
+const OVERVIEW_SCOPES: { id: GoalsDirectoryScope; label: string }[] = [
+  { id: 'mine', label: 'My Goals' },
+  { id: 'reports', label: 'My Reports' },
+]
+
+type GoalsListFilter =
+  | 'all'
+  | 'draft'
+  | 'submitted'
+  | 'approved'
+  | 'incomplete'
+
+/** One row per goal — a person with three goals appears on three rows. */
+type GoalRow = {
+  key: string
+  person: GoalsSnapshot['people'][number]
+  status: PersonGoals['status']
+  title: string
+  hasGoal: boolean
+  goalId?: string
+  weight: number
+  completion: number
+  metric: string
+  progressStatus?: Goal['progressStatus']
+}
+
+export default function GoalsPage() {
+  const { cycleId, personId, goalId } = useParams()
+
+  if (cycleId && personId) {
+    return (
+      <GoalsPersonDetail
+        cycleId={cycleId}
+        personId={personId}
+        goalId={goalId}
+      />
+    )
   }
 
+  return <GoalsOverview />
+}
+
+function GoalsOverview() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(null)
+  const [query, setQuery] = useState('')
+  const [scope, setScope] = useState<GoalsDirectoryScope>('mine')
+  const [statusFilter, setStatusFilter] = useState<GoalsListFilter>('all')
+
   useEffect(() => {
-    void refresh()
-    return watchGoalsSnapshot(() => {
-      void refresh()
-      setReviewId(null)
-      setDetailOpen(false)
+    let isMounted = true
+    void fetchGoalsSnapshot().then((next) => {
+      if (isMounted) setSnapshot(next)
     })
+    const unsubscribe = watchGoalsSnapshot(() => {
+      void fetchGoalsSnapshot().then((next) => {
+        if (isMounted) setSnapshot(next)
+      })
+    })
+    return () => {
+      isMounted = false
+      unsubscribe()
+    }
   }, [])
 
-  const active = useMemo(() => {
-    if (!snapshot) return null
-    return snapshot.people.find((p) => p.id === snapshot.activePersonId) ?? null
+  const rows = useMemo<GoalRow[]>(() => {
+    if (!snapshot) return []
+    return snapshot.people.flatMap((person): GoalRow[] => {
+      const personGoals = snapshot.byPerson[person.id]
+      const status = personGoals?.status ?? 'draft'
+      const goals = personGoals?.goals ?? []
+      if (goals.length === 0) {
+        return [
+          {
+            key: person.id,
+            person,
+            status,
+            title: 'No goals set',
+            hasGoal: false,
+            weight: 0,
+            completion: 0,
+            metric: '—',
+          },
+        ]
+      }
+      return goals.map((goal, index) => ({
+        key: `${person.id}:${goal.id}`,
+        person,
+        status,
+        title: goalTitle(goal, index),
+        hasGoal: true,
+        goalId: goal.id,
+        weight: goal.weight,
+        completion: Math.round(goalCompletion(goal)),
+        metric: metricCountLabel(goal),
+        progressStatus: goal.progressStatus,
+      }))
+    })
   }, [snapshot])
 
-  const activeGoals = active ? snapshot?.byPerson[active.id] : undefined
+  const me = useMemo(() => {
+    if (!snapshot) return null
+    const email = user?.email?.trim().toLowerCase()
+    const personId = user?.personId
+    return (
+      snapshot.people.find((person) => {
+        if (email && person.email.trim().toLowerCase() === email) return true
+        if (personId && personId !== 'local' && person.id === personId) {
+          return true
+        }
+        return false
+      }) ?? null
+    )
+  }, [snapshot, user?.email, user?.personId])
 
-  const isManagerial =
-    active?.role === 'manager' || active?.role === 'seniormanager'
-  const isPeopleOps = active?.role === 'ptr' || active?.role === 'hrbp'
+  const scopedRows = useMemo(
+    () => rows.filter((row) => personMatchesScope(row.person, scope, me)),
+    [me, rows, scope],
+  )
 
-  const reports = useMemo(() => {
-    if (!snapshot || !active || !isManagerial) return []
-    return active.reportIds
-      .map((id) => {
-        const person = snapshot.people.find((p) => p.id === id)
-        const row = snapshot.byPerson[id]
-        if (!person || !row) return null
-        return { person, row }
+  const counts = useMemo(() => {
+    const result = {
+      all: scopedRows.length,
+      draft: 0,
+      submitted: 0,
+      approved: 0,
+      incomplete: 0,
+    }
+    for (const row of scopedRows) {
+      if (row.status === 'draft' || row.status === 'sent_back') {
+        result.draft += 1
+      } else if (row.status === 'submitted') {
+        result.submitted += 1
+      } else if (row.status === 'approved') {
+        result.approved += 1
+      } else if (row.status === 'incomplete' || row.status === 'not_eligible') {
+        result.incomplete += 1
+      }
+    }
+    return result
+  }, [scopedRows])
+
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+    return scopedRows
+      .filter((row) => {
+        if (statusFilter !== 'all') {
+          const isDraftGroup =
+            statusFilter === 'draft' &&
+            (row.status === 'draft' || row.status === 'sent_back')
+          const isIncompleteGroup =
+            statusFilter === 'incomplete' &&
+            (row.status === 'incomplete' || row.status === 'not_eligible')
+          if (
+            !isDraftGroup &&
+            !isIncompleteGroup &&
+            row.status !== statusFilter
+          ) {
+            return false
+          }
+        }
+        if (!normalizedQuery) return true
+        return [
+          row.title,
+          row.person.name,
+          row.person.title,
+          row.person.department,
+          statusLabel(row.status),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .includes(normalizedQuery)
       })
-      .filter(Boolean) as {
-      person: NonNullable<typeof active>
-      row: PersonGoals
-    }[]
-  }, [snapshot, active, isManagerial])
-
-  const selectedReview = useMemo(() => {
-    if (!snapshot || !reviewId) return null
-    const person = snapshot.people.find((p) => p.id === reviewId)
-    const row = snapshot.byPerson[reviewId]
-    if (!person || !row) return null
-    return { person, row }
-  }, [snapshot, reviewId])
+      .sort((a, b) => {
+        const aDept = a.person.department.trim()
+        const bDept = b.person.department.trim()
+        const aBlank = aDept === ''
+        const bBlank = bDept === ''
+        if (aBlank !== bBlank) return aBlank ? 1 : -1
+        const byDept = aDept.localeCompare(bDept, undefined, {
+          sensitivity: 'base',
+        })
+        if (byDept !== 0) return byDept
+        const byName = a.person.name.localeCompare(b.person.name, undefined, {
+          sensitivity: 'base',
+        })
+        if (byName !== 0) return byName
+        return a.title.localeCompare(b.title, undefined, {
+          sensitivity: 'base',
+        })
+      })
+  }, [query, scopedRows, statusFilter])
 
   if (!snapshot) {
     return <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
+  }
+
+  const summaryItems: {
+    id: GoalsListFilter
+    label: string
+    value: number
+  }[] = [
+      { id: 'all', label: 'Goals', value: counts.all },
+      { id: 'draft', label: 'Draft', value: counts.draft },
+      { id: 'submitted', label: 'Pending Approval', value: counts.submitted },
+      { id: 'approved', label: 'Approved', value: counts.approved },
+      { id: 'incomplete', label: 'Incomplete', value: counts.incomplete },
+    ]
+
+  return (
+    <div className="pd-page pd-goals pd-goals-overview" aria-label="Goals">
+      <div
+        className="pd-people__summary"
+        role="group"
+        aria-label="Goal submission totals"
+      >
+        {summaryItems.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={[
+              'pd-people__summary-btn',
+              statusFilter === item.id ? 'is-active' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            aria-pressed={statusFilter === item.id}
+            onClick={() => setStatusFilter(item.id)}
+          >
+            <span className="pd-people__summary-value">{item.value}</span>
+            <span className="pd-people__summary-label">{item.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="pd-people__header pd-people__header--bar">
+        <div className="pd-people__bar-start">
+          <GoalsCycleSelect
+            cycles={snapshot.availableCycles}
+            activeCycleId={snapshot.cycle.id}
+          />
+          {me ? (
+            <SegmentedControl
+              className="pd-people__scope pd-goals-overview__scope"
+              buttonClassName="pd-people__scope-btn"
+              options={OVERVIEW_SCOPES}
+              value={scope}
+              onChange={setScope}
+              aria-label="Goals scope"
+            />
+          ) : null}
+          <label className="pd-people__search pd-goals-overview__search">
+            <Search size={16} strokeWidth={1.75} aria-hidden />
+            <span className="pd-sr-only">Search goals</span>
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search goals or people…"
+              className="pd-people__search-input"
+            />
+          </label>
+        </div>
+
+        <div className="pd-people__toolbar">
+          <button
+            type="button"
+            className="pd-people__icon-btn"
+            aria-label="More actions"
+            title="More actions"
+          >
+            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
+          </button>
+          <button type="button" className="pd-people__ghost-btn">
+            <Columns3 size={16} strokeWidth={1.75} aria-hidden />
+            Column Settings
+          </button>
+        </div>
+      </div>
+
+      <section
+        className="pd-people__panel pd-people__panel--table"
+        aria-labelledby="goals-people-heading"
+      >
+        <h2 id="goals-people-heading" className="pd-sr-only">
+          {scope === 'mine'
+            ? 'My goals'
+            : "My Reports' goals"}
+        </h2>
+        {filtered.length === 0 ? (
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-empty--inline"
+              icon={Target}
+              title={
+                rows.length === 0
+                  ? 'No goals yet'
+                  : scopedRows.length === 0
+                    ? 'No people in this scope'
+                    : 'No matches'
+              }
+              description={
+                rows.length === 0
+                  ? 'Add people to the directory to start setting goals.'
+                  : scopedRows.length === 0
+                    ? scope === 'reports'
+                      ? 'You have no direct reports with goals in this cycle.'
+                      : 'No goals are available in this scope.'
+                    : 'Try a different search or status filter.'
+              }
+            />
+          </div>
+        ) : (
+          <div className="pd-people__table-wrap">
+            <table className="pd-people__table pd-goals-overview__table">
+              <thead>
+                <tr>
+                  <th>
+                    Goals
+                    <span className="pd-people__th-count">
+                      · {filtered.length}
+                    </span>
+                  </th>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th>Weight</th>
+                  <th>Progress</th>
+                  <th>Metric</th>
+                  <th>Owner</th>
+                  <th>Status</th>
+                  <th>Approval</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => {
+                  const personTo = goalsDetailPath(
+                    snapshot.cycle.id,
+                    row.person.id,
+                  )
+                  const to = row.goalId
+                    ? goalsGoalPath(
+                      snapshot.cycle.id,
+                      row.person.id,
+                      row.goalId,
+                    )
+                    : personTo
+                  const track = trackLabel(
+                    row.status,
+                    row.completion,
+                    row.progressStatus,
+                  )
+                  return (
+                    <tr
+                      key={row.key}
+                      className="pd-goals-overview__row"
+                      tabIndex={0}
+                      onClick={(event) => {
+                        const target = event.target as HTMLElement
+                        if (target.closest('a, button')) return
+                        navigate(to)
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        event.preventDefault()
+                        navigate(to)
+                      }}
+                    >
+                      <td>
+                        <Link
+                          to={to}
+                          className={[
+                            'pd-goals-overview__goal',
+                            row.hasGoal ? '' : 'pd-goals-overview__muted',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')}
+                          title={row.title}
+                        >
+                          <span className="pd-goals-overview__goal-dot" aria-hidden />
+                          {row.title}
+                        </Link>
+                      </td>
+                      <td>
+                        <Link
+                          to={personTo}
+                          className="pd-people__person pd-people__person-link"
+                          title={`Open ${row.person.name}'s goals`}
+                        >
+                          <Avatar
+                            name={row.person.name}
+                            src={row.person.avatarUrl}
+                            size="sm"
+                            className="pd-people__avatar"
+                            style={avatarStyle(row.person.name)}
+                          />
+                          <span className="pd-people__person-name">
+                            {row.person.name}
+                          </span>
+                        </Link>
+                      </td>
+                      <td>{row.person.department.trim() || '—'}</td>
+                      <td>
+                        <span className="pd-goals-overview__weight">
+                          {row.weight}%
+                        </span>
+                      </td>
+                      <td>
+                        <div className="pd-goals-overview__progress">
+                          <span className="pd-goals-overview__progress-label">
+                            {row.completion}%
+                          </span>
+                          <Progress value={row.completion} />
+                        </div>
+                      </td>
+                      <td className="pd-goals-overview__muted">{row.metric}</td>
+                      <td>
+                        <div className="pd-people__person">
+                          <Avatar
+                            name={row.person.name}
+                            src={row.person.avatarUrl}
+                            size="sm"
+                            className="pd-people__avatar"
+                            style={avatarStyle(row.person.name)}
+                          />
+                          <span className="pd-people__person-name">
+                            {row.person.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          className={`pd-goals-overview__track ${trackToneClass(track.tone)}`}
+                        >
+                          {track.label}
+                        </span>
+                      </td>
+                      <td>
+                        {row.status === 'approved' ? (
+                          <span
+                            className="pd-goals-overview__check"
+                            aria-label="Approved"
+                          >
+                            <Check size={14} strokeWidth={2.5} aria-hidden />
+                          </span>
+                        ) : row.status === 'submitted' ? (
+                          <Badge variant="pending">Pending</Badge>
+                        ) : (
+                          <span className="pd-goals-overview__muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+export function GoalsPersonDetail({
+  cycleId,
+  personId,
+  goalId,
+  embedded = false,
+}: {
+  cycleId?: string
+  personId: string
+  goalId?: string
+  embedded?: boolean
+}) {
+  const navigate = useNavigate()
+  const {
+    snapshot,
+    actor,
+    subject: active,
+    subjectGoals: activeGoals,
+    reports,
+    ownerOptions,
+    capabilities,
+    capabilitiesFor,
+    resolveOwner,
+    busy,
+    error,
+    actions,
+  } = useGoalsController({ cycleId, subjectId: personId })
+  const [sendBackReason, setSendBackReason] = useState('')
+  const [ratingTier, setRatingTier] = useState<1 | 2 | 3 | 4 | 5>(3)
+  const [ratingComment, setRatingComment] = useState('')
+  const [managerTab, setManagerTab] = useState<ManagerTab>('mine')
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null)
+  const [embeddedGoalId, setEmbeddedGoalId] = useState<string | null>(null)
+
+  /** The Reports section belongs to the profile owner, so it follows them. */
+  const hasReports = Boolean(active && active.reportIds.length > 0)
+  const isPeopleOps = actor?.role === 'ptr' || actor?.role === 'hrbp'
+
+  if (!snapshot) {
+    return <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
+  }
+
+  const cycleToolbar = (
+    <div className="pd-goals-shell__top">
+      <GoalsCycleSelect
+        cycles={snapshot.availableCycles}
+        activeCycleId={snapshot.cycle.id}
+        onSelect={(nextCycleId) => {
+          setActiveCycle(nextCycleId)
+          navigate(goalsDetailPath(nextCycleId, personId))
+        }}
+      />
+    </div>
+  )
+
+  if (snapshot.availableCycles.length === 0) {
+    return (
+      <div className="pd-page pd-goals" aria-label="Goals">
+        <PageHeader
+          title="Goals"
+          description="Select a review cycle to set goals under it."
+        />
+        <EmptyState
+          icon={Target}
+          title="No goal cycles yet"
+          description="Review cycles are also goal cycles. Add a cycle in Reviews, then come back to set goals."
+          action={
+            <Link to={reviewsTabPath('cycles')} className="pd-people__create-btn">
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add Review Cycle
+            </Link>
+          }
+        />
+      </div>
+    )
   }
 
   if (!active || !activeGoals) {
@@ -190,6 +646,7 @@ export default function GoalsPage() {
           title="Goals"
           description={`${snapshot.cycle.label} · ${phaseLabel(snapshot.cycle.phase)}`}
         />
+        {cycleToolbar}
         <EmptyState
           icon={Users}
           title="No people yet"
@@ -197,7 +654,7 @@ export default function GoalsPage() {
           action={
             <Link to="/people/new" className="pd-people__create-btn">
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Add employee
+              Add Employee
             </Link>
           }
         />
@@ -205,33 +662,83 @@ export default function GoalsPage() {
     )
   }
 
-  const eligible = isEligibleForCycle(active, snapshot.cycle)
+  const eligible = subjectIsEligible(active, snapshot)
   const weightTotal = sumGoalWeights(activeGoals.goals)
   const completion = Math.round(overallCompletion(activeGoals.goals))
-  const canEditDraft =
-    eligible &&
-    (activeGoals.status === 'draft' || activeGoals.status === 'sent_back') &&
-    snapshot.cycle.phase === 'window_open'
-  const showProgress =
-    activeGoals.status === 'approved' &&
-    (snapshot.cycle.phase === 'hard_lock' ||
-      snapshot.cycle.phase === 'check_in')
+  const canEditDraft = Boolean(capabilities?.canEditStructure)
   const pendingCount = reports.filter((r) => r.row.status === 'submitted').length
 
-  const run = async (fn: () => Promise<unknown>) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await fn()
-      await refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-    } finally {
-      setBusy(false)
+  const isCurrentCycle = snapshot.cycleStatus === 'current'
+  const activeGoalId = embedded ? embeddedGoalId ?? undefined : goalId
+  const sectionLabels = goalSectionLabels(active.name, actor?.id === active.id)
+  const showsReports = hasReports && managerTab === 'team'
+
+  const selectCycle = (nextCycleId: string) => {
+    setActiveCycle(nextCycleId)
+    if (embedded) {
+      setEmbeddedGoalId(null)
+      return
     }
+    navigate(goalsDetailPath(nextCycleId, personId))
   }
 
-  const isCurrentCycle = snapshot.cycle.id === CURRENT_CYCLE_ID
+  const managerTabs = (
+    <SegmentedControl
+      className="pd-people__scope pd-goals__tabs"
+      buttonClassName="pd-people__scope-btn"
+      options={[
+        { id: 'mine', label: sectionLabels.goals },
+        {
+          id: 'team',
+          label: (
+            <>
+              {sectionLabels.reports}
+              {pendingCount > 0 ? (
+                <span
+                  className="pd-segmented__badge"
+                  aria-label={`${pendingCount} awaiting review`}
+                >
+                  {pendingCount}
+                </span>
+              ) : null}
+            </>
+          ),
+        },
+      ]}
+      value={managerTab}
+      onChange={(tab) => {
+        setManagerTab(tab)
+        setEditingGoalId(null)
+        if (embedded) {
+          setEmbeddedGoalId(null)
+        } else if (goalId) {
+          navigate(goalsDetailPath(snapshot.cycle.id, personId))
+        }
+      }}
+      aria-label="Goal sections"
+    />
+  )
+
+  const openGoal = (nextGoalId: string | null) => {
+    setEditingGoalId(null)
+    if (embedded) {
+      setEmbeddedGoalId(nextGoalId)
+      return
+    }
+    if (nextGoalId) {
+      navigate(goalsGoalPath(snapshot.cycle.id, personId, nextGoalId))
+      return
+    }
+    navigate(goalsDetailPath(snapshot.cycle.id, personId))
+  }
+
+  const cycleSelect = (
+    <GoalsCycleSelect
+      cycles={snapshot.availableCycles}
+      activeCycleId={snapshot.cycle.id}
+      onSelect={selectCycle}
+    />
+  )
 
   const myGoalsPanel = (
     <EmployeePanel
@@ -242,101 +749,147 @@ export default function GoalsPage() {
       row={activeGoals}
       eligible={eligible}
       canEditDraft={canEditDraft}
-      showProgress={showProgress}
+      canUpdateProgress={Boolean(capabilities?.canUpdateProgress)}
+      canDuplicate={Boolean(capabilities?.canDuplicate)}
+      canCascade={Boolean(capabilities?.canCascade)}
+      canSubmit={Boolean(capabilities?.canSubmit)}
       showOwnScore={Boolean(activeGoals.rating)}
-      phase={snapshot.cycle.phase}
       busy={busy}
-      onDetailOpenChange={setDetailOpen}
+      openGoalId={activeGoalId}
+      editingGoalId={editingGoalId}
+      commentAuthorName={actor?.name ?? active.name}
+      toolbarStart={
+        <div className="pd-goals-toolbar__start">
+          {cycleSelect}
+          {hasReports ? managerTabs : null}
+        </div>
+      }
+      toolbarOnly={showsReports}
+      ownerOptions={ownerOptions}
+      resolveOwner={(goal) =>
+        resolveOwner(goal, active.id) ?? {
+          id: active.id,
+          name: active.name,
+          avatarUrl: active.avatarUrl,
+        }
+      }
+      onOpenGoal={openGoal}
+      onEditGoal={setEditingGoalId}
       onPersistGoals={(goals) => {
-        if (canEditDraft) void run(() => saveGoals(active.id, goals))
-        else if (showProgress) void run(() => saveProgress(active.id, goals))
+        void actions.saveGoals(active.id, goals)
       }}
-      onSubmit={() => void run(() => submitGoals(active.id))}
+      onPersistProgress={(goals) => {
+        void actions.saveProgress(active.id, goals)
+      }}
+      onDuplicateGoal={(goalId) => actions.duplicateGoal(active.id, goalId)}
+      onCascadeGoal={(goalId) => actions.cascadeGoal(active.id, goalId)}
+      onSubmit={(goals) => void actions.saveAndSubmit(active.id, goals)}
     />
   )
 
   return (
-    <div className="pd-page pd-goals" aria-label="Goals">
-      {!detailOpen ? (
-        <>
-          <PageHeader
-            title="Goals"
-            description={`${snapshot.cycle.label} · ${phaseLabel(snapshot.cycle.phase)} · ${active.name}`}
-          />
-          <div className="pd-goals__summary">
-            <MetricTile
-              label="Status"
-              value={statusLabel(activeGoals.status)}
-              hint={eligible ? active.title : 'Not eligible this quarter'}
-            />
-            <MetricTile
-              label="Goal weight"
-              value={`${weightTotal}%`}
-              hint={weightTotal === 100 ? 'Ready' : 'Must total 100%'}
-            />
-            <MetricTile
-              label="Completion"
-              value={`${completion}%`}
-              hint={`${activeGoals.goals.length} goals`}
-            />
+    <div
+      className={embedded ? 'pd-goals pd-goals--embedded' : 'pd-page pd-goals'}
+      aria-label={`${active.name} goals`}
+    >
+      <header className="pd-goals-detail-header">
+        {!embedded ? (
+          <>
+            <Link
+              to="/goals"
+              className="pd-people__back pd-people__back--toolbar"
+            >
+              <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
+              Back to All Goals
+            </Link>
+            <section className="pd-profile__hero pd-goals-detail-header__hero">
+              <div className="pd-profile__hero-main">
+                <Avatar
+                  name={active.name}
+                  src={active.avatarUrl || undefined}
+                  size="lg"
+                  className="pd-profile__hero-avatar"
+                  style={avatarStyle(active.name)}
+                />
+                <div className="pd-profile__hero-text">
+                  <h1 className="pd-profile__name">{active.name}</h1>
+                  <p className="pd-profile__hero-meta">
+                    {personMeta(active) || phaseLabel(snapshot.cycle.phase)}
+                  </p>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : null}
+        <div
+          className="pd-people__summary pd-goals-detail-header__summary"
+          role="group"
+          aria-label={`${active.name} goal totals`}
+        >
+          <div className="pd-people__summary-card">
+            <span className="pd-people__summary-value">
+              {statusLabel(activeGoals.status)}
+            </span>
+            <span className="pd-people__summary-label">Status</span>
           </div>
-        </>
-      ) : null}
+          <div className="pd-people__summary-card">
+            <span className="pd-people__summary-value">
+              {activeGoals.goals.length}
+            </span>
+            <span className="pd-people__summary-label">Goals</span>
+          </div>
+          <div className="pd-people__summary-card">
+            <span className="pd-people__summary-value">{weightTotal}%</span>
+            <span className="pd-people__summary-label">Goal weight</span>
+          </div>
+          <div className="pd-people__summary-card">
+            <span className="pd-people__summary-value">{completion}%</span>
+            <span className="pd-people__summary-label">Completion</span>
+          </div>
+        </div>
+      </header>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
       {isPeopleOps ? <PtrOverview snapshot={snapshot} /> : null}
 
-      {isManagerial ? (
-        <Tabs
-          value={managerTab}
-          onValueChange={(tab) => {
-            setManagerTab(tab)
-            setDetailOpen(false)
-          }}
-          items={[
-            { id: 'mine', label: 'My goals', content: myGoalsPanel },
-            {
-              id: 'team',
-              label: pendingCount > 0 ? `Team (${pendingCount})` : 'Team',
-              content: (
-                <ManagerPanel
-                  snapshot={snapshot}
-                  reports={reports}
-                  selected={selectedReview}
-                  sendBackReason={sendBackReason}
-                  onSendBackReason={setSendBackReason}
-                  ratingTier={ratingTier}
-                  ratingComment={ratingComment}
-                  onRatingTier={setRatingTier}
-                  onRatingComment={setRatingComment}
-                  busy={busy}
-                  onDetailOpenChange={setDetailOpen}
-                  onSelect={setReviewId}
-                  onApprove={(id, goals) => void run(() => approveGoals(id, goals))}
-                  onSendBack={(id) =>
-                    void run(async () => {
-                      await sendBackGoals(id, sendBackReason)
-                      setSendBackReason('')
-                    })
-                  }
-                  onRate={(id) =>
-                    void run(async () => {
-                      await ratePerson(id, {
-                        tier: ratingTier,
-                        comment: ratingComment,
-                      })
-                      setRatingComment('')
-                    })
-                  }
-                />
-              ),
-            },
-          ]}
+      {myGoalsPanel}
+
+      {showsReports ? (
+        <ManagerPanel
+          snapshot={snapshot}
+          reports={reports}
+          ownerOptions={ownerOptions}
+          commentAuthorName={actor?.name ?? ''}
+          capabilitiesFor={capabilitiesFor}
+          resolveOwner={resolveOwner}
+          sendBackReason={sendBackReason}
+          onSendBackReason={setSendBackReason}
+          ratingTier={ratingTier}
+          ratingComment={ratingComment}
+          onRatingTier={setRatingTier}
+          onRatingComment={setRatingComment}
+          busy={busy}
+          onSaveGoals={(id, goals) => void actions.saveGoals(id, goals)}
+          onSaveProgress={(id, goals) => void actions.saveProgress(id, goals)}
+          onApprove={(id, goals) => void actions.approve(id, goals)}
+          onSendBack={(id) =>
+            void actions.sendBack(id, sendBackReason).then(() => {
+              setSendBackReason('')
+            })
+          }
+          onRate={(id) =>
+            void actions
+              .rate(id, {
+                tier: ratingTier,
+                comment: ratingComment,
+              })
+              .then(() => {
+                setRatingComment('')
+              })
+          }
         />
       ) : null}
-
-      {active.role === 'employee' ? myGoalsPanel : null}
     </div>
   )
 }
@@ -382,7 +935,10 @@ function PtrOverview({ snapshot }: { snapshot: GoalsSnapshot }) {
 function ManagerPanel({
   snapshot,
   reports,
-  selected,
+  ownerOptions,
+  commentAuthorName,
+  capabilitiesFor,
+  resolveOwner,
   sendBackReason,
   onSendBackReason,
   ratingTier,
@@ -390,15 +946,21 @@ function ManagerPanel({
   onRatingTier,
   onRatingComment,
   busy,
-  onSelect,
   onApprove,
   onSendBack,
   onRate,
-  onDetailOpenChange,
+  onSaveGoals,
+  onSaveProgress,
 }: {
   snapshot: GoalsSnapshot
   reports: { person: GoalsSnapshot['people'][number]; row: PersonGoals }[]
-  selected: { person: GoalsSnapshot['people'][number]; row: PersonGoals } | null
+  ownerOptions: GoalOwnerOption[]
+  commentAuthorName: string
+  capabilitiesFor: (subjectId: string) => GoalCapabilities | null
+  resolveOwner: (
+    goal: Goal,
+    subjectId: string,
+  ) => { id: string; name: string; title?: string; avatarUrl?: string } | null
   sendBackReason: string
   onSendBackReason: (v: string) => void
   ratingTier: 1 | 2 | 3 | 4 | 5
@@ -406,165 +968,263 @@ function ManagerPanel({
   onRatingTier: (v: 1 | 2 | 3 | 4 | 5) => void
   onRatingComment: (v: string) => void
   busy: boolean
-  onSelect: (id: string) => void
   onApprove: (id: string, goals: Goal[]) => void
   onSendBack: (id: string) => void
   onRate: (id: string) => void
-  onDetailOpenChange?: (open: boolean) => void
+  onSaveGoals: (id: string, goals: Goal[]) => void
+  onSaveProgress: (id: string, goals: Goal[]) => void
 }) {
-  const pending = reports.filter((r) => r.row.status === 'submitted')
-  const approved = reports.filter((r) => r.row.status === 'approved')
-  const queue =
-    snapshot.cycle.phase === 'check_in'
-      ? [...pending, ...approved]
-      : pending
-
-  const active =
-    (selected && queue.find((r) => r.person.id === selected.person.id)) ||
-    queue[0] ||
-    null
+  const orderedReports = reports
 
   const [openGoalId, setOpenGoalId] = useState<string | null>(null)
+  const [sendBackFor, setSendBackFor] = useState<string | null>(null)
+  /** Manager's in-progress edit of a report's goal, before it is saved. */
+  const [editDraft, setEditDraft] = useState<Goal | null>(null)
 
-  useEffect(() => {
-    setOpenGoalId(null)
-  }, [active?.person.id])
-
-  useEffect(() => {
-    onDetailOpenChange?.(Boolean(openGoalId))
-  }, [openGoalId, onDetailOpenChange])
-
-  if (queue.length === 0) {
+  if (reports.length === 0) {
     return (
       <EmptyState
         icon={Users}
-        title={
-          snapshot.cycle.phase === 'check_in'
-            ? 'No team members ready'
-            : 'No pending approvals'
-        }
-        description={
-          snapshot.cycle.phase === 'check_in'
-            ? 'Approved goals will appear here for check-in.'
-            : 'Submitted goals from your team will show up here.'
-        }
+        title="No direct reports"
+        description="People who report to you will show up here with their goals."
       />
     )
   }
 
+  const active =
+    reports.find((r) =>
+      r.row.goals.some((goal) => goal.id === openGoalId),
+    ) ?? null
   const goals = active?.row.goals ?? []
-  const selectedIndex = openGoalId
-    ? Math.max(
-        0,
-        goals.findIndex((g) => g.id === openGoalId),
-      )
-    : -1
+  const selectedIndex = goals.findIndex((goal) => goal.id === openGoalId)
   const selectedGoal = selectedIndex >= 0 ? goals[selectedIndex] : null
 
-  return (
-    <div className="pd-goals-team">
-      <div className="pd-goals-team__list" role="list">
-        {queue.map(({ person, row }) => (
-          <button
+  const table = (
+    <>
+      {orderedReports.map(({ person, row }) => {
+        const reportCaps = capabilitiesFor(person.id)
+        const canApprove = Boolean(reportCaps?.canApprove)
+        const canSendBack = Boolean(reportCaps?.canSendBack)
+        const awaitsApproval = row.status === 'submitted'
+        const goalCount = `${row.goals.length} goal${row.goals.length === 1 ? '' : 's'
+          }`
+        return (
+          <section
             key={person.id}
-            type="button"
-            className={`pd-goals-team__row${
-              active?.person.id === person.id ? ' is-active' : ''
-            }`}
-            onClick={() => onSelect(person.id)}
+            className="pd-goals-approval"
+            aria-label={`${person.name} goals`}
           >
-            <Avatar
-              name={person.name}
-              src={person.avatarUrl || undefined}
-              size="sm"
-            />
-            <span className="pd-goals-team__row-text">
-              <span className="pd-goals-team__name">{person.name}</span>
-              <span className="pd-goals-team__sub">
-                {row.status === 'submitted'
-                  ? `${row.goals.length} goals · pending`
-                  : row.rating
-                    ? `Rated ${row.rating.tier}/5`
-                    : `${Math.round(overallCompletion(row.goals))}% complete`}
-              </span>
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {active ? (
-        <div className="pd-goals-team__detail">
-          <div className="pd-goals-team__detail-head">
-            <div>
-              <h3>{active.person.name}</h3>
-              <p className="pd-goals-team__title">{active.person.title}</p>
+            <div className="pd-goals-approval__head">
+              <div className="pd-goals-approval__who">
+                <Avatar
+                  name={person.name}
+                  src={person.avatarUrl || undefined}
+                  size="sm"
+                />
+                <div className="pd-goals-approval__text">
+                  <span className="pd-goals-approval__name">{person.name}</span>
+                  <span className="pd-goals-approval__sub">
+                    {awaitsApproval && canApprove
+                      ? `${goalCount} awaiting your approval`
+                      : `${goalCount} · ${statusLabel(row.status)}`}
+                  </span>
+                </div>
+              </div>
+              {canApprove || canSendBack ? (
+                <div className="pd-goals__footer-actions">
+                  {canApprove ? (
+                    <button
+                      type="button"
+                      className="pd-people__ghost-btn pd-people__ghost-btn--success"
+                      disabled={busy}
+                      onClick={() => onApprove(person.id, row.goals)}
+                    >
+                      <Check size={16} strokeWidth={1.75} aria-hidden />
+                      Approve
+                    </button>
+                  ) : null}
+                  {canSendBack ? (
+                    <button
+                      type="button"
+                      className="pd-people__ghost-btn"
+                      disabled={busy}
+                      aria-expanded={sendBackFor === person.id}
+                      onClick={() =>
+                        setSendBackFor(
+                          sendBackFor === person.id ? null : person.id,
+                        )
+                      }
+                    >
+                      <Undo2 size={16} strokeWidth={1.75} aria-hidden />
+                      Send Back
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
+                <Badge variant={statusVariant(row.status)}>
+                  {statusLabel(row.status)}
+                </Badge>
+              )}
             </div>
-            <Badge variant={statusVariant(active.row.status)}>
-              {statusLabel(active.row.status)}
-            </Badge>
-          </div>
+            {sendBackFor === person.id ? (
+              <div className="pd-goals-approval__reason">
+                <Textarea
+                  label="Send back reason"
+                  value={sendBackReason}
+                  onChange={(e) => onSendBackReason(e.target.value)}
+                  placeholder={`Tell ${person.name} what to revise`}
+                  rows={2}
+                />
+                <div className="pd-goals__footer-actions">
+                  <button
+                    type="button"
+                    className="pd-people__ghost-btn"
+                    disabled={busy || !sendBackReason.trim()}
+                    onClick={() => {
+                      onSendBack(person.id)
+                      setSendBackFor(null)
+                    }}
+                  >
+                    Confirm Send Back
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            <div className="pd-goals-approval__goals">
+              {row.goals.length > 0 ? (
+                <GoalsTable
+                  label={`${person.name} goals`}
+                  rows={row.goals.map((goal, index) => ({
+                    goal,
+                    status: row.status,
+                    title: goalTitle(goal, index),
+                  }))}
+                  onOpen={setOpenGoalId}
+                  canEditStatus
+                  showApproval={false}
+                  onStatusChange={(goalId, progressStatus) => {
+                    onSaveGoals(
+                      person.id,
+                      row.goals.map((goal) =>
+                        goal.id === goalId ? { ...goal, progressStatus } : goal,
+                      ),
+                    )
+                  }}
+                />
+              ) : (
+                <p className="pd-goals-approval__empty">
+                  No goals added for this cycle yet.
+                </p>
+              )}
+            </div>
+          </section>
+        )
+      })}
+    </>
+  )
 
-          {selectedGoal ? (
-            <GoalDetail
+  if (!active || !selectedGoal) return table
+
+  const caps = capabilitiesFor(active.person.id)
+  const canEditReport = Boolean(caps?.canEditStructure)
+  const canUpdateProgress = Boolean(caps?.canUpdateProgress)
+  const owner =
+    resolveOwner(selectedGoal, active.person.id) ?? {
+      id: active.person.id,
+      name: active.person.name,
+      title: active.person.title,
+      avatarUrl: active.person.avatarUrl,
+    }
+
+  const saveGoal = (next: Goal) => {
+    onSaveGoals(
+      active.person.id,
+      goals.map((goal) => (goal.id === next.id ? next : goal)),
+    )
+  }
+
+  const saveProgressGoal = (next: Goal) => {
+    onSaveProgress(
+      active.person.id,
+      goals.map((goal) => (goal.id === next.id ? next : goal)),
+    )
+  }
+
+  const closeDrawer = () => {
+    setOpenGoalId(null)
+    setEditDraft(null)
+  }
+
+  return (
+    <>
+      {table}
+      <GoalCreateDrawer
+        label={
+          editDraft
+            ? 'Edit goal'
+            : `View ${goalTitle(selectedGoal, selectedIndex)}`
+        }
+        closeLabel="Close goal"
+        onClose={closeDrawer}
+      >
+        <div className="pd-goals-review">
+          {editDraft ? (
+            <GoalCreateForm
+              goal={editDraft}
+              index={selectedIndex}
+              total={goals.length}
+              defaultOwnerId={active.person.id}
+              ownerOptions={ownerOptions}
+              onChange={setEditDraft}
+              onBack={() => setEditDraft(null)}
+              onSave={() => {
+                saveGoal(editDraft)
+                setEditDraft(null)
+              }}
+              onSelectIndex={(nextIndex) => {
+                const next = goals[nextIndex]
+                if (next) {
+                  setOpenGoalId(next.id)
+                  setEditDraft(next)
+                }
+              }}
+            />
+          ) : (
+            <GoalDetailView
               goal={selectedGoal}
               index={selectedIndex}
               total={goals.length}
-              ownerName={active.person.name}
+              owner={owner}
               cycleLabel={snapshot.cycle.label}
-              isCurrentCycle={snapshot.cycle.id === CURRENT_CYCLE_ID}
+              isCurrentCycle={snapshot.cycleStatus === 'current'}
               status={active.row.status}
-              readOnly
-              progressMode={false}
-              onChange={() => undefined}
-              onBack={() => setOpenGoalId(null)}
+              commentAuthorName={commentAuthorName}
+              canEdit={canEditReport}
+              canUpdateProgress={canUpdateProgress}
+              canRemove={canEditReport}
+              onEdit={
+                canEditReport ? () => setEditDraft(selectedGoal) : undefined
+              }
+              onChange={saveProgressGoal}
+              onRemove={
+                canEditReport
+                  ? () => {
+                    onSaveGoals(
+                      active.person.id,
+                      goals.filter((goal) => goal.id !== selectedGoal.id),
+                    )
+                    closeDrawer()
+                  }
+                  : undefined
+              }
               onSelectIndex={(nextIndex) => {
                 const next = goals[nextIndex]
                 if (next) setOpenGoalId(next.id)
               }}
             />
-          ) : (
-            <GoalsTable
-              goals={goals}
-              status={active.row.status}
-              onOpen={setOpenGoalId}
-            />
           )}
 
-          {!selectedGoal && active.row.status === 'submitted' ? (
-            <div className="pd-goals-rate">
-              <Textarea
-                label="Send back reason"
-                value={sendBackReason}
-                onChange={(e) => onSendBackReason(e.target.value)}
-                placeholder="Required only if you send back"
-                rows={2}
-              />
-              <div className="pd-goals__footer-actions">
-                <button
-                  type="button"
-                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-                  disabled={busy}
-                  onClick={() => onApprove(active.person.id, active.row.goals)}
-                >
-                  <Check size={16} strokeWidth={1.75} aria-hidden />
-                  Approve
-                </button>
-                <button
-                  type="button"
-                  className="pd-people__ghost-btn"
-                  disabled={busy || !sendBackReason.trim()}
-                  onClick={() => onSendBack(active.person.id)}
-                >
-                  Send back
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {!selectedGoal &&
-          snapshot.cycle.phase === 'check_in' &&
-          active.row.status === 'approved' &&
-          !active.row.rating ? (
+          {caps?.canRate ? (
             <div className="pd-goals-rate">
               <div>
                 <p className="pd-goal-aside-row__label">Quarter score</p>
@@ -605,7 +1265,7 @@ function ManagerPanel({
                   onClick={() => onRate(active.person.id)}
                 >
                   <Send size={16} strokeWidth={1.75} aria-hidden />
-                  Submit score
+                  Submit Score
                 </button>
               </div>
             </div>
@@ -618,8 +1278,8 @@ function ManagerPanel({
             </Notice>
           ) : null}
         </div>
-      ) : null}
-    </div>
+      </GoalCreateDrawer>
+    </>
   )
 }
 
@@ -631,13 +1291,26 @@ function EmployeePanel({
   row,
   eligible,
   canEditDraft,
-  showProgress,
+  canUpdateProgress,
+  canDuplicate,
+  canCascade,
+  canSubmit,
   showOwnScore,
-  phase,
   busy,
+  openGoalId,
+  editingGoalId,
+  commentAuthorName,
+  toolbarStart,
+  toolbarOnly = false,
+  ownerOptions,
+  resolveOwner,
+  onOpenGoal,
+  onEditGoal,
   onPersistGoals,
+  onPersistProgress,
+  onDuplicateGoal,
+  onCascadeGoal,
   onSubmit,
-  onDetailOpenChange,
 }: {
   personName: string
   personId: string
@@ -646,35 +1319,56 @@ function EmployeePanel({
   row: PersonGoals
   eligible: boolean
   canEditDraft: boolean
-  showProgress: boolean
+  canUpdateProgress: boolean
+  canDuplicate: boolean
+  canCascade: boolean
+  canSubmit: boolean
   showOwnScore: boolean
-  phase: DemoPhase
   busy: boolean
+  openGoalId?: string
+  editingGoalId: string | null
+  commentAuthorName: string
+  toolbarStart?: ReactNode
+  /**
+   * Renders the toolbar row without the goals below it. The panel stays mounted
+   * while another section is on screen, so the section tabs inside `toolbarStart`
+   * keep their sliding indicator instead of remounting on every switch.
+   */
+  toolbarOnly?: boolean
+  ownerOptions: GoalOwnerOption[]
+  resolveOwner: (goal: Goal) => {
+    id: string
+    name: string
+    title?: string
+    avatarUrl?: string
+  }
+  onOpenGoal: (goalId: string | null) => void
+  onEditGoal: (goalId: string | null) => void
   onPersistGoals: (goals: Goal[]) => void
-  onSubmit: () => void
-  onDetailOpenChange?: (open: boolean) => void
+  /** Progress-only updates never send goals back for approval. */
+  onPersistProgress: (goals: Goal[]) => void
+  onDuplicateGoal: (goalId: string) => Promise<Goal | null>
+  onCascadeGoal: (goalId: string) => Promise<void>
+  onSubmit: (goals: Goal[]) => void
 }) {
   const [goals, setGoals] = useState(row.goals)
-  /** null = list view; id = single-goal detail */
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [creatingIds, setCreatingIds] = useState<Set<string>>(() => new Set())
 
   useEffect(() => {
     setGoals(row.goals)
-    setOpenId((prev) =>
-      prev && row.goals.some((g) => g.id === prev) ? prev : null,
-    )
+    setCreatingIds((prev) => {
+      const next = new Set(
+        [...prev].filter((id) => row.goals.some((goal) => goal.id === id)),
+      )
+      return next.size === prev.size ? prev : next
+    })
   }, [personId, row.status, row.goals])
 
-  useEffect(() => {
-    onDetailOpenChange?.(Boolean(openId))
-  }, [openId, onDetailOpenChange])
-
   const submitCheck = canSubmitGoals(goals)
-  const selectedIndex = openId
-    ? Math.max(
-        0,
-        goals.findIndex((g) => g.id === openId),
-      )
+  const creatingGoalId = [...creatingIds][0] ?? null
+  const selectedGoalId = openGoalId ?? creatingGoalId
+  const selectedIndex = selectedGoalId
+    ? goals.findIndex((goal) => goal.id === selectedGoalId)
     : -1
   const selectedGoal = selectedIndex >= 0 ? goals[selectedIndex] : null
 
@@ -685,134 +1379,267 @@ function EmployeePanel({
   }
 
   const addGoal = () => {
-    const next = blankGoal()
-    setAndPersist([...goals, next])
-    setOpenId(next.id)
+    const next = blankGoal({ ownerId: personId })
+    setCreatingIds((prev) => new Set(prev).add(next.id))
+    setLocal([...goals, next])
   }
 
-  if (!eligible || row.status === 'not_eligible') {
+  const ownerFor = (goal: Goal) => resolveOwner(goal)
+
+  if (toolbarOnly && !toolbarStart) return null
+
+  if (!toolbarOnly && (!eligible || row.status === 'not_eligible')) {
     return (
-      <EmptyState
-        icon={Target}
-        title="Not eligible this quarter"
-        description={`${personName} joined after Day 1, so goal setting starts next quarter.`}
+      <>
+        {toolbarStart ? (
+          <div className="pd-goals-toolbar">{toolbarStart}</div>
+        ) : null}
+        <EmptyState
+          icon={Target}
+          title="Not eligible this quarter"
+          description={`${personName} joined after Day 1, so goal setting starts next quarter.`}
+        />
+      </>
+    )
+  }
+
+  if (!toolbarOnly && row.status === 'incomplete') {
+    return (
+      <>
+        {toolbarStart ? (
+          <div className="pd-goals-toolbar">{toolbarStart}</div>
+        ) : null}
+        <Notice tone="danger">
+          No submission by Day 30 — flagged incomplete. Quarter score is 0.
+        </Notice>
+      </>
+    )
+  }
+
+  let goalDrawer: ReactNode = null
+
+  if (!toolbarOnly && selectedGoal) {
+    const isNew = creatingIds.has(selectedGoal.id)
+    const useCreateForm = isNew || editingGoalId === selectedGoal.id
+
+    const closeGoal = () => {
+      setCreatingIds((prev) => {
+        if (!prev.has(selectedGoal.id)) return prev
+        const next = new Set(prev)
+        next.delete(selectedGoal.id)
+        return next
+      })
+      onEditGoal(null)
+      onOpenGoal(null)
+    }
+
+    const replaceGoal = (next: Goal, persist: boolean) => {
+      const updated = goals.map((g) => (g.id === selectedGoal.id ? next : g))
+      if (persist) setAndPersist(updated)
+      else setLocal(updated)
+    }
+
+    const discardNewGoal = () => {
+      setGoals(row.goals)
+      setCreatingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(selectedGoal.id)
+        return next
+      })
+      onEditGoal(null)
+    }
+
+    const createForm = (
+      <GoalCreateForm
+        goal={selectedGoal}
+        index={isNew ? 0 : selectedIndex}
+        total={isNew ? 1 : goals.length}
+        isNew={isNew}
+        defaultOwnerId={personId}
+        ownerOptions={ownerOptions}
+        onBack={isNew ? discardNewGoal : closeGoal}
+        onSave={() => {
+          onPersistGoals(goals)
+          setCreatingIds((prev) => {
+            if (!prev.has(selectedGoal.id)) return prev
+            const next = new Set(prev)
+            next.delete(selectedGoal.id)
+            return next
+          })
+          onEditGoal(null)
+        }}
+        onSelectIndex={(nextIndex) => {
+          const next = goals[nextIndex]
+          if (next) onOpenGoal(next.id)
+        }}
+        onChange={(next) => replaceGoal(next, false)}
+        onRemove={
+          canEditDraft
+            ? isNew
+              ? discardNewGoal
+              : () => {
+                const updated = goals.filter((g) => g.id !== selectedGoal.id)
+                setAndPersist(updated)
+                closeGoal()
+              }
+            : undefined
+        }
       />
     )
+
+    if (isNew) {
+      goalDrawer = (
+        <GoalCreateDrawer onClose={discardNewGoal}>{createForm}</GoalCreateDrawer>
+      )
+    } else {
+      goalDrawer = (
+        <GoalCreateDrawer
+          label={useCreateForm ? 'Edit goal' : `View ${goalTitle(selectedGoal, selectedIndex)}`}
+          closeLabel="Close goal"
+          onClose={closeGoal}
+        >
+          {useCreateForm ? (
+            createForm
+          ) : (
+            <GoalDetailView
+              goal={selectedGoal}
+              index={selectedIndex}
+              total={goals.length}
+              owner={ownerFor(selectedGoal)}
+              cycleLabel={cycleLabel}
+              isCurrentCycle={isCurrentCycle}
+              status={row.status}
+              commentAuthorName={commentAuthorName}
+              canEdit={canEditDraft}
+              canUpdateProgress={canUpdateProgress}
+              canRemove={canEditDraft}
+              canCascade={canCascade}
+              onEdit={
+                canEditDraft ? () => onEditGoal(selectedGoal.id) : undefined
+              }
+              onDuplicate={
+                canDuplicate
+                  ? () => {
+                      void onDuplicateGoal(selectedGoal.id).then((copy) => {
+                        if (copy) onOpenGoal(copy.id)
+                      })
+                    }
+                  : undefined
+              }
+              onCascade={
+                canCascade
+                  ? () => {
+                      void onCascadeGoal(selectedGoal.id)
+                    }
+                  : undefined
+              }
+              onSelectIndex={(nextIndex) => {
+                const next = goals[nextIndex]
+                if (next) onOpenGoal(next.id)
+              }}
+              onChange={(next) => {
+                const updated = goals.map((goal) =>
+                  goal.id === selectedGoal.id ? next : goal,
+                )
+                setGoals(updated)
+                onPersistProgress(updated)
+              }}
+              onRemove={
+                canEditDraft
+                  ? () => {
+                    const updated = goals.filter(
+                      (goal) => goal.id !== selectedGoal.id,
+                    )
+                    setAndPersist(updated)
+                    closeGoal()
+                  }
+                  : undefined
+              }
+            />
+          )}
+        </GoalCreateDrawer>
+      )
+    }
   }
 
-  if (row.status === 'incomplete') {
-    return (
-      <Notice tone="danger">
-        No submission by Day 30 — flagged incomplete. Quarter score is 0.
-      </Notice>
-    )
-  }
-
-  if (selectedGoal) {
-    return (
-      <div className="pd-goals-shell" aria-label="Goal detail">
-        <GoalDetail
-          goal={selectedGoal}
-          index={selectedIndex}
-          total={goals.length}
-          ownerName={personName}
-          cycleLabel={cycleLabel}
-          isCurrentCycle={isCurrentCycle}
-          status={row.status}
-          readOnly={!canEditDraft && !showProgress}
-          progressMode={showProgress}
-          onBack={() => {
-            if (canEditDraft) onPersistGoals(goals)
-            setOpenId(null)
-          }}
-          onSelectIndex={(nextIndex) => {
-            const next = goals[nextIndex]
-            if (next) setOpenId(next.id)
-          }}
-          onChange={(next) => {
-            const updated = goals.map((g) =>
-              g.id === selectedGoal.id ? next : g,
-            )
-            if (showProgress) setAndPersist(updated)
-            else setLocal(updated)
-          }}
-          onRemove={
-            canEditDraft
-              ? () => {
-                  const updated = goals.filter((g) => g.id !== selectedGoal.id)
-                  setAndPersist(updated)
-                  setOpenId(null)
-                }
-              : undefined
-          }
-        />
-      </div>
-    )
-  }
+  const showsGoals = !toolbarOnly
 
   return (
-    <div className="pd-goals-shell" aria-label="My goals">
-      {row.status === 'sent_back' && row.sendBackReason ? (
-        <Notice tone="warn">Sent back: {row.sendBackReason}</Notice>
+    <div
+      className={
+        toolbarOnly ? 'pd-goals-shell pd-goals-shell--toolbar-only' : 'pd-goals-shell'
+      }
+      aria-label={showsGoals ? 'My goals' : undefined}
+    >
+      {showsGoals ? (
+        <>
+          {row.status === 'sent_back' && row.sendBackReason ? (
+            <Notice tone="warn">Sent back: {row.sendBackReason}</Notice>
+          ) : null}
+          {row.status === 'approved' && canEditDraft ? (
+            <Notice tone="warn">
+              Editing goal details will require approval again. Progress updates
+              do not affect approval.
+            </Notice>
+          ) : null}
+
+          {showOwnScore && row.rating ? (
+            <Notice tone="ok">
+              Your quarter score: {row.rating.tier}/5
+              {row.rating.comment ? ` — ${row.rating.comment}` : ''}
+            </Notice>
+          ) : null}
+        </>
       ) : null}
 
-      {row.status === 'submitted' ? (
-        <Notice>
-          Pending manager approval
-          {phase !== 'window_open'
-            ? '. Hard lock has passed — your manager can still approve.'
-            : '.'}
-        </Notice>
-      ) : null}
-
-      {showOwnScore && row.rating ? (
-        <Notice tone="ok">
-          Your quarter score: {row.rating.tier}/5
-          {row.rating.comment ? ` — ${row.rating.comment}` : ''}
-        </Notice>
-      ) : null}
-
-      {canEditDraft && goals.length > 0 ? (
+      {toolbarStart || (showsGoals && canEditDraft && goals.length > 0) ? (
         <div className="pd-goals-toolbar">
-          <div
-            className="pd-people__toolbar"
-            role="toolbar"
-            aria-label="Goal actions"
-          >
-            <button
-              type="button"
-              className="pd-people__ghost-btn"
-              disabled={busy}
-              onClick={() => void onPersistGoals(goals)}
+          {toolbarStart}
+          {showsGoals && canEditDraft && goals.length > 0 ? (
+            <div
+              className="pd-people__toolbar"
+              role="toolbar"
+              aria-label="Goal actions"
             >
-              Save draft
-            </button>
-            <button
-              type="button"
-              className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-              disabled={busy || !submitCheck.ok}
-              onClick={() => {
-                onPersistGoals(goals)
-                onSubmit()
-              }}
-            >
-              <Send size={16} strokeWidth={1.75} aria-hidden />
-              Submit all
-            </button>
-            <button
-              type="button"
-              className="pd-people__create-btn"
-              disabled={busy}
-              onClick={addGoal}
-            >
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add goal
-            </button>
-          </div>
+              <button
+                type="button"
+                className="pd-people__ghost-btn"
+                disabled={busy}
+                onClick={() => void onPersistGoals(goals)}
+              >
+                {row.status === 'draft' || row.status === 'sent_back'
+                  ? 'Save Draft'
+                  : 'Save Changes'}
+              </button>
+              {canSubmit &&
+              (row.status === 'draft' || row.status === 'sent_back') ? (
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+                  disabled={busy || !submitCheck.ok}
+                  onClick={() => {
+                    onSubmit(goals)
+                  }}
+                >
+                  <Send size={16} strokeWidth={1.75} aria-hidden />
+                  Submit All
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="pd-people__create-btn"
+                disabled={busy}
+                onClick={addGoal}
+              >
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Goal
+              </button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
-      {goals.length === 0 ? (
+      {!showsGoals ? null : goals.length === 0 ? (
         <EmptyState
           className="pd-goals__empty"
           icon={Target}
@@ -827,451 +1654,255 @@ function EmployeePanel({
                 onClick={addGoal}
               >
                 <Plus size={18} strokeWidth={2} aria-hidden />
-                Add goal
+                Add Goal
               </button>
             ) : undefined
           }
         />
       ) : (
-        <>
-          <GoalsTable
-            goals={goals}
-            status={row.status}
-            onOpen={(id) => setOpenId(id)}
-          />
-        </>
+        <GoalsTable
+          rows={goals.map((goal, index) => ({
+            goal,
+            status: row.status,
+            title: goalTitle(goal, index),
+          }))}
+          onOpen={(id) => onOpenGoal(id)}
+          canEditWeight={canEditDraft}
+          canEditStatus={canUpdateProgress}
+          onWeightChange={(goalId, weight) => {
+            setLocal(
+              goals.map((goal) =>
+                goal.id === goalId ? { ...goal, weight } : goal,
+              ),
+            )
+          }}
+          onStatusChange={(goalId, progressStatus) => {
+            const updated = goals.map((goal) =>
+              goal.id === goalId ? { ...goal, progressStatus } : goal,
+            )
+            setGoals(updated)
+            onPersistProgress(updated)
+          }}
+        />
       )}
+      {goalDrawer}
     </div>
   )
 }
 
-function GoalsTable({
-  goals,
-  status,
-  onOpen,
-}: {
-  goals: Goal[]
+const PROGRESS_STATUS_OPTIONS = GOAL_PROGRESS_STATUS_OPTIONS.map((option) => ({
+  value: option.id,
+  label: option.label,
+  className: progressStatusClass(option.id),
+}))
+
+type GoalsTableRow = {
+  goal: Goal
   status: PersonGoals['status']
+  title: string
+  /** Set only when the table spans several people, e.g. a manager's reports. */
+  owner?: { id: string; name: string; avatarUrl?: string }
+}
+
+function GoalsTable({
+  rows,
+  onOpen,
+  label = 'All goals',
+  canEditWeight = false,
+  canEditStatus = false,
+  showApproval = true,
+  onWeightChange,
+  onStatusChange,
+}: {
+  rows: GoalsTableRow[]
   onOpen: (id: string) => void
+  label?: string
+  canEditWeight?: boolean
+  canEditStatus?: boolean
+  /** Off when the surrounding card already states the submission status. */
+  showApproval?: boolean
+  onWeightChange?: (goalId: string, weight: number) => void
+  onStatusChange?: (
+    goalId: string,
+    progressStatus: GoalProgressStatus | undefined,
+  ) => void
 }) {
+  const showOwner = rows.some((row) => row.owner)
   return (
-    <div className="pd-goals-table" role="table" aria-label="All goals">
+    <div
+      className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${showApproval ? '' : ' pd-goals-table--no-approval'
+        }`}
+      role="table"
+      aria-label={label}
+    >
       <div className="pd-goals-table__head" role="row">
+        {showOwner ? <div role="columnheader">Owner</div> : null}
         <div role="columnheader">Goals</div>
         <div role="columnheader">Weight</div>
         <div role="columnheader">Progress</div>
         <div role="columnheader">Metric</div>
-        <div role="columnheader">Status</div>
-        <div role="columnheader">Approval</div>
+        <div role="columnheader">Progress Status</div>
+        {showApproval ? <div role="columnheader">Approval</div> : null}
       </div>
-      {goals.map((goal, index) => {
+      {rows.map(({ goal, status, title, owner }) => {
         const completion = Math.round(goalCompletion(goal))
-        const track = trackLabel(status, completion)
+        const track = trackLabel(status, completion, goal.progressStatus)
+        const metricTip = metricTipDetails(goal)
+        const metricLabel = metricSummary(goal)
+        const openGoal = () => onOpen(goal.id)
         return (
-          <button
+          <div
             key={goal.id}
-            type="button"
             className="pd-goals-table__row"
             role="row"
-            onClick={() => onOpen(goal.id)}
+            tabIndex={0}
+            onClick={openGoal}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                openGoal()
+              }
+            }}
           >
+            {owner ? (
+              <div className="pd-goals-table__owner" role="cell">
+                <Avatar
+                  name={owner.name}
+                  src={owner.avatarUrl || undefined}
+                  size="sm"
+                />
+                <span className="pd-goals-table__owner-name">{owner.name}</span>
+              </div>
+            ) : null}
             <div className="pd-goals-table__goal" role="cell">
-              <span className="pd-goals-table__title">
-                {goalTitle(goal, index)}
-              </span>
+              <span className="pd-goals-table__title">{title}</span>
             </div>
             <div className="pd-goals-table__weight" role="cell">
-              <span className="pd-goals-table__weight-pill">{goal.weight}%</span>
+              {canEditWeight && onWeightChange ? (
+                <div
+                  className="pd-goals-table__weight-edit"
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="numeric"
+                    className="pd-goals-table__weight-input"
+                    value={goal.weight}
+                    aria-label={`Weight for ${title}`}
+                    onChange={(event) => {
+                      const next = Math.min(
+                        100,
+                        Math.max(0, Number(event.target.value) || 0),
+                      )
+                      onWeightChange(goal.id, next)
+                    }}
+                  />
+                  <span className="pd-goals-table__weight-suffix" aria-hidden>
+                    %
+                  </span>
+                </div>
+              ) : (
+                <span className="pd-goals-table__weight-pill">{goal.weight}%</span>
+              )}
             </div>
             <div className="pd-goals-table__progress" role="cell">
               <span className="pd-goals-table__progress-label">{completion}%</span>
               <Progress value={completion} />
             </div>
             <div className="pd-goals-table__metric" role="cell">
-              {metricSummary(goal)}
-            </div>
-            <div
-              className={`pd-goals-table__track pd-goals-table__track--${track.tone}`}
-              role="cell"
-            >
-              {track.label}
-            </div>
-            <div className="pd-goals-table__approval" role="cell">
-              {status === 'approved' ? (
-                <span className="pd-goals-table__check" aria-label="Approved">
-                  ✓
-                </span>
-              ) : status === 'submitted' ? (
-                <Badge variant="pending">Pending</Badge>
+              {metricTip ? (
+                <Tooltip
+                  side="left"
+                  delayMs={80}
+                  content={
+                    <div className="pd-goals-table__metric-tip">
+                      <div className="pd-goals-table__metric-tip-title">
+                        {metricTip.title}
+                      </div>
+                      <div className="pd-goals-table__metric-tip-rows">
+                        <div className="pd-goals-table__metric-tip-row">
+                          <span>Initial value</span>
+                          <span>{metricTip.initial}</span>
+                        </div>
+                        <div className="pd-goals-table__metric-tip-row">
+                          <span>
+                            Current value (
+                            <span
+                              className={`pd-goals-table__metric-tip-status pd-goals-table__metric-tip-status--${track.tone}`}
+                            >
+                              {track.label}
+                            </span>
+                            )
+                          </span>
+                          <span>{metricTip.current}</span>
+                        </div>
+                        <div className="pd-goals-table__metric-tip-row">
+                          <span>Target value</span>
+                          <span>{metricTip.target}</span>
+                        </div>
+                        <div className="pd-goals-table__metric-tip-row">
+                          <span>Unit</span>
+                          <span>{metricTip.unit}</span>
+                        </div>
+                      </div>
+                    </div>
+                  }
+                >
+                  <span className="pd-goals-table__metric-value">{metricLabel}</span>
+                </Tooltip>
               ) : (
-                <span className="pd-goals-table__dash">—</span>
+                metricLabel
               )}
             </div>
-          </button>
+            <div className="pd-goals-table__status" role="cell">
+              {canEditStatus && onStatusChange ? (
+                <div
+                  className={`pd-goals-table__status-edit ${progressStatusClass(
+                    goal.progressStatus ?? 'on_track',
+                  )}`}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}
+                >
+                  <ListboxSelect
+                    className="pd-goals-table__status-listbox"
+                    value={goal.progressStatus ?? 'on_track'}
+                    aria-label={`Progress status for ${title}`}
+                    allowEmpty={false}
+                    options={PROGRESS_STATUS_OPTIONS}
+                    onValueChange={(next) => {
+                      onStatusChange(goal.id, next as GoalProgressStatus)
+                    }}
+                  />
+                </div>
+              ) : (
+                <span
+                  className={`pd-goals-table__track ${trackToneClass(track.tone)}`}
+                >
+                  <span className="pd-goals-table__track-label">{track.label}</span>
+                </span>
+              )}
+            </div>
+            {showApproval ? (
+              <div className="pd-goals-table__approval" role="cell">
+                {status === 'approved' ? (
+                  <span className="pd-goals-table__check" aria-label="Approved">
+                    ✓
+                  </span>
+                ) : status === 'submitted' ? (
+                  <Badge variant="pending">Pending</Badge>
+                ) : (
+                  <Badge variant={statusVariant(status)}>
+                    {statusLabel(status)}
+                  </Badge>
+                )}
+              </div>
+            ) : null}
+          </div>
         )
       })}
-    </div>
-  )
-}
-
-function GoalDetail({
-  goal,
-  index,
-  total,
-  ownerName,
-  cycleLabel,
-  isCurrentCycle = false,
-  status,
-  readOnly,
-  progressMode,
-  onChange,
-  onRemove,
-  onSelectIndex,
-  onBack,
-}: {
-  goal: Goal
-  index: number
-  total: number
-  ownerName: string
-  cycleLabel: string
-  isCurrentCycle?: boolean
-  status: PersonGoals['status']
-  readOnly: boolean
-  progressMode: boolean
-  onChange: (goal: Goal) => void
-  onRemove?: () => void
-  onSelectIndex: (index: number) => void
-  onBack?: () => void
-}) {
-  const patch = (partial: Partial<Goal>) => onChange({ ...goal, ...partial })
-  const patchMeasurement = (id: string, next: Measurement) => {
-    onChange({
-      ...goal,
-      measurements: goal.measurements.map((m) => (m.id === id ? next : m)),
-    })
-  }
-  const locked = readOnly || progressMode
-  const completion = Math.round(goalCompletion(goal))
-  const measureWeight = sumMeasurementWeights(goal.measurements)
-
-  const statusTone =
-    status === 'approved'
-      ? ''
-      : status === 'submitted'
-        ? ' is-pending'
-        : ' is-draft'
-
-  return (
-    <div className="pd-goal-detail-page">
-      <header className="pd-goal-detail__header">
-        {onBack ? (
-          <button
-            type="button"
-            className="pd-goal-detail__back"
-            onClick={onBack}
-          >
-            <ChevronLeft size={16} strokeWidth={2.25} aria-hidden />
-            All goals
-          </button>
-        ) : null}
-
-        <div className="pd-goal-detail__heading-row">
-          <div className="pd-goal-detail__heading">
-            {locked ? (
-              <h1 className="pd-goal-detail__title">{goalTitle(goal, index)}</h1>
-            ) : (
-              <textarea
-                className="pd-goal-detail__title-input"
-                value={goal.description}
-                rows={2}
-                placeholder="Goal title"
-                aria-label="Goal title"
-                onChange={(e) => patch({ description: e.target.value })}
-              />
-            )}
-          </div>
-          <div className="pd-goal-detail__actions">
-            {onRemove ? (
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                onClick={onRemove}
-              >
-                <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-                Remove
-              </button>
-            ) : null}
-            <div className="pd-goal-detail__pager">
-              <button
-                type="button"
-                className="pd-people__icon-btn"
-                disabled={index <= 0}
-                aria-label="Previous goal"
-                onClick={() => onSelectIndex(index - 1)}
-              >
-                <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
-              </button>
-              <span>
-                {index + 1}/{total}
-              </span>
-              <button
-                type="button"
-                className="pd-people__icon-btn"
-                disabled={index >= total - 1}
-                aria-label="Next goal"
-                onClick={() => onSelectIndex(index + 1)}
-              >
-                <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <dl className="pd-goal-detail__meta">
-          <div className="pd-goal-detail__meta-item">
-            <dt>Cycle</dt>
-            <dd>
-              <strong>{cycleLabel}</strong>
-              {isCurrentCycle ? (
-                <Badge variant="completed">Current</Badge>
-              ) : null}
-            </dd>
-          </div>
-          <div className="pd-goal-detail__meta-item">
-            <dt>Status</dt>
-            <dd>
-              <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
-            </dd>
-          </div>
-          <div className="pd-goal-detail__meta-item pd-goal-detail__progress">
-            <dt>Progress</dt>
-            <dd>
-              <strong>{completion}%</strong>
-              <Progress value={completion} />
-            </dd>
-          </div>
-        </dl>
-      </header>
-
-      <div className="pd-goal-detail">
-      <div className="pd-goal-detail__main">
-        <section className="pd-goal-todos" aria-label="To dos">
-          <div className="pd-goal-todos__head">
-            <h3>To Do&apos;s</h3>
-            <span className="pd-goal-todos__weight">
-              {measureWeight}% / 100%
-            </span>
-          </div>
-
-          {goal.measurements.length === 0 ? (
-            <div className="pd-goal-todos__empty">
-              {locked
-                ? 'No measurements on this goal.'
-                : 'Add milestones or metrics that prove this goal.'}
-            </div>
-          ) : (
-            <div className="pd-goal-todos__list">
-              {goal.measurements.map((m) => (
-                <div key={m.id} className="pd-goal-todo">
-                  {m.kind === 'milestone' ? (
-                    <Checkbox
-                      className="pd-goal-todo__check"
-                      label={m.title || 'Mark done'}
-                      checked={m.complete}
-                      disabled={readOnly && !progressMode}
-                      onChange={(e) =>
-                        patchMeasurement(m.id, {
-                          ...m,
-                          complete: e.target.checked,
-                        })
-                      }
-                    />
-                  ) : (
-                    <span aria-hidden="true" className="pd-goal-todo__check-spacer" />
-                  )}
-                  <div>
-                    {locked || progressMode ? (
-                      <p
-                        className={`pd-goal-todo__title${
-                          m.kind === 'milestone' && m.complete ? ' is-done' : ''
-                        }`}
-                      >
-                        {m.title || 'Untitled measurement'}
-                      </p>
-                    ) : (
-                      <Input
-                        aria-label="Measurement title"
-                        value={m.title}
-                        placeholder="Measurement"
-                        onChange={(e) =>
-                          patchMeasurement(m.id, {
-                            ...m,
-                            title: e.target.value,
-                          })
-                        }
-                      />
-                    )}
-                    <p className="pd-goal-todo__meta">
-                      {m.kind === 'milestone'
-                        ? `Milestone · ${m.weight}%`
-                        : `Metric · ${m.weight}% · target ${m.targetValue}${m.unit}`}
-                    </p>
-                  </div>
-                  <div className="pd-goal-todo__control">
-                    {m.kind === 'metric' ? (
-                      <Input
-                        aria-label={`Current value for ${m.title || 'metric'}`}
-                        type="number"
-                        value={m.currentValue}
-                        disabled={readOnly && !progressMode}
-                        onChange={(e) =>
-                          patchMeasurement(m.id, {
-                            ...m,
-                            currentValue: Number(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    ) : !locked && !progressMode ? (
-                      <Input
-                        aria-label="Measurement weight"
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={m.weight}
-                        onChange={(e) =>
-                          patchMeasurement(m.id, {
-                            ...m,
-                            weight: Number(e.target.value) || 0,
-                          })
-                        }
-                      />
-                    ) : null}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!locked ? (
-            <div className="pd-goal-todos__add">
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                onClick={() =>
-                  onChange({
-                    ...goal,
-                    measurements: [...goal.measurements, blankMilestone()],
-                  })
-                }
-              >
-                <Plus size={16} strokeWidth={1.75} aria-hidden />
-                Add to-do
-              </button>
-            </div>
-          ) : null}
-        </section>
-      </div>
-
-      <aside className="pd-goal-detail__aside" aria-label="Goal details">
-        <div className={`pd-goal-aside-card pd-goal-aside-card--status${statusTone}`}>
-          <p className="pd-goal-aside-card__label">Approval</p>
-          <p className="pd-goal-aside-card__value">{statusLabel(status)}</p>
-          <p className="pd-goal-aside-card__sub">
-            {status === 'approved'
-              ? 'Approved for this cycle'
-              : status === 'submitted'
-                ? 'Waiting on manager'
-                : 'Not submitted yet'}
-          </p>
-        </div>
-
-        <div className="pd-goal-aside-card">
-          <div className="pd-goal-aside-rows">
-            <div>
-              <p className="pd-goal-aside-row__label">Owner</p>
-              <div className="pd-goal-aside-owner">
-                <Avatar name={ownerName} size="sm" />
-                <p className="pd-goal-aside-row__value">{ownerName}</p>
-              </div>
-            </div>
-
-            {goal.linkedGoalLabel ? (
-              <div>
-                <p className="pd-goal-aside-row__label">Linked goal</p>
-                <p className="pd-goal-aside-row__value">{goal.linkedGoalLabel}</p>
-              </div>
-            ) : null}
-
-            {locked ? (
-              <>
-                <div>
-                  <p className="pd-goal-aside-row__label">Type</p>
-                  <p className="pd-goal-aside-row__value">
-                    {goal.goalType} · {goal.processType}
-                  </p>
-                </div>
-                <div>
-                  <p className="pd-goal-aside-row__label">Priority</p>
-                  <p className="pd-goal-aside-row__value">{goal.priority}</p>
-                </div>
-                <div>
-                  <p className="pd-goal-aside-row__label">Weight</p>
-                  <p className="pd-goal-aside-row__value">{goal.weight}%</p>
-                </div>
-              </>
-            ) : (
-              <div className="pd-goal-aside-fields">
-                <Select
-                  label="Type"
-                  value={goal.goalType}
-                  options={[
-                    { value: 'Outcome', label: 'Outcome' },
-                    { value: 'Output', label: 'Output' },
-                  ]}
-                  onChange={(e) =>
-                    patch({ goalType: e.target.value as Goal['goalType'] })
-                  }
-                />
-                <Select
-                  label="Process"
-                  value={goal.processType}
-                  options={[
-                    { value: 'OKR', label: 'OKR' },
-                    { value: 'BAU', label: 'BAU' },
-                    { value: 'PI', label: 'PI' },
-                  ]}
-                  onChange={(e) =>
-                    patch({ processType: e.target.value as Goal['processType'] })
-                  }
-                />
-                <Select
-                  label="Priority"
-                  value={goal.priority}
-                  options={[
-                    { value: 'High', label: 'High' },
-                    { value: 'Medium', label: 'Medium' },
-                    { value: 'Low', label: 'Low' },
-                  ]}
-                  onChange={(e) =>
-                    patch({ priority: e.target.value as Goal['priority'] })
-                  }
-                />
-                <Input
-                  label="Weight %"
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={goal.weight}
-                  onChange={(e) =>
-                    patch({ weight: Number(e.target.value) || 0 })
-                  }
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
-      </div>
     </div>
   )
 }

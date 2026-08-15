@@ -179,19 +179,31 @@ export default function OrganisationPage() {
   const q = query.trim().toLowerCase()
 
   const filteredDepartments = useMemo(() => {
-    return snapshot.departments.filter((department) => {
-      if (mineOnly && !isMyDepartment(department, user, employees)) {
-        return false
-      }
-      return departmentMatchesQuery(department, q)
-    })
+    return snapshot.departments
+      .filter((department) => {
+        if (mineOnly && !isMyDepartment(department, user, employees)) {
+          return false
+        }
+        return departmentMatchesQuery(department, q)
+      })
+      .sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
+      )
   }, [employees, mineOnly, q, snapshot.departments, user])
 
   const filteredTeams = useMemo(() => {
-    return snapshot.teams.filter((team) => {
-      if (mineOnly && !isMyTeam(team, user, employees)) return false
-      return teamMatchesQuery(team, q)
-    })
+    return snapshot.teams
+      .filter((team) => {
+        if (mineOnly && !isMyTeam(team, user, employees)) return false
+        return teamMatchesQuery(team, q)
+      })
+      .sort((a, b) => {
+        const byDept = a.departmentName.localeCompare(b.departmentName, undefined, {
+          sensitivity: 'base',
+        })
+        if (byDept !== 0) return byDept
+        return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+      })
   }, [employees, mineOnly, q, snapshot.teams, user])
 
   function toggleExpanded(departmentId: string) {
@@ -206,7 +218,7 @@ export default function OrganisationPage() {
   const hasPeople = employees.some((e) => e.isActive)
   const hasStructure = hasPeople || snapshot.departments.length > 0
   const mineLabel =
-    structureView === 'departments' ? 'My departments' : 'My teams'
+    structureView === 'departments' ? 'My Departments' : 'My Teams'
 
   return (
     <div className="pd-page pd-people pd-org" aria-label="Organisation">
@@ -299,11 +311,11 @@ export default function OrganisationPage() {
             className="pd-people__create-btn"
           >
             <Plus size={18} strokeWidth={2} aria-hidden />
-            Add department
+            Add Department
           </Link>
           <Link to="/organisation/chart" className="pd-people__ghost-btn">
             <Network size={16} strokeWidth={1.75} aria-hidden />
-            View org chart
+            View Org Chart
           </Link>
         </div>
       </div>
@@ -338,7 +350,7 @@ export default function OrganisationPage() {
               className="pd-people__create-btn pd-people__create-btn--secondary"
             >
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Add department
+              Add Department
             </Link>
           </div>
         ) : structureView === 'departments' ? (

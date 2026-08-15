@@ -9,7 +9,6 @@ import { ProfileDropdown } from './ProfileDropdown'
 interface TopBarProps {
   breadcrumbs: BreadcrumbItem[]
   titleIcon?: LucideIcon
-  titleAccessory?: ReactNode
   /** Section links (e.g. Reviews subpages) — centered on desktop, own row on mobile. */
   centerSlot?: ReactNode
   onSignOut?: () => void
@@ -20,7 +19,6 @@ interface TopBarProps {
 export function TopBar({
   breadcrumbs,
   titleIcon: TitleIcon,
-  titleAccessory,
   centerSlot,
   onSignOut,
   onMobileMenuOpen,
@@ -50,7 +48,6 @@ export function TopBar({
           className="pd-topbar__breadcrumbs"
         />
       </div>
-      {titleAccessory}
     </div>
   )
 

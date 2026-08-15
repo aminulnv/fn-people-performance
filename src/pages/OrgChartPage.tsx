@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronsDown,
+  ChevronsUp,
   ChevronUp,
   Maximize2,
   Minus,
@@ -12,12 +13,13 @@ import {
   ScanFace,
   Users,
 } from 'lucide-react'
-import { Avatar, ListboxSelect } from '@/components/ui'
+import { Avatar, SearchField } from '@/components/ui'
 import { layoutConfig } from '@/config/layout'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { scrollElementToCenter } from '@/lib/dom/scrollElementToCenter'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -149,23 +151,6 @@ function defaultExpanded(
   if (showCompanyRoot) ids.add(COMPANY_ROOT_ID)
   for (const node of nodes) {
     if (node.reports.length > 0) ids.add(empKey(node.employee.employeeId))
-  }
-  return ids
-}
-
-function subtreeIds(
-  rootId: number,
-  childrenByManager: Map<number, number[]>,
-): Set<number> {
-  const ids = new Set<number>([rootId])
-  const queue = [rootId]
-  while (queue.length > 0) {
-    const current = queue.shift()!
-    for (const childId of childrenByManager.get(current) ?? []) {
-      if (ids.has(childId)) continue
-      ids.add(childId)
-      queue.push(childId)
-    }
   }
   return ids
 }
@@ -398,6 +383,7 @@ function OrgChartControls({
   canFindMe,
   onFit,
   onExpandAll,
+  onCollapseAll,
   isFullscreen,
   onToggleFullscreen,
 }: {
@@ -409,11 +395,16 @@ function OrgChartControls({
   canFindMe: boolean
   onFit: () => void
   onExpandAll: () => void
+  onCollapseAll: () => void
   isFullscreen: boolean
   onToggleFullscreen: () => void
 }) {
   return (
-    <div className="pd-org-controls" role="toolbar" aria-label="Org chart controls">
+    <div
+      className="pd-org-panel pd-org-controls"
+      role="toolbar"
+      aria-label="Org chart controls"
+    >
       <button
         type="button"
         className="pd-org-ctrl-btn"
@@ -473,6 +464,15 @@ function OrgChartControls({
       >
         <ChevronsDown size={17} strokeWidth={1.9} aria-hidden />
       </button>
+      <button
+        type="button"
+        className="pd-org-ctrl-btn"
+        onClick={onCollapseAll}
+        title="Collapse all cards"
+        aria-label="Collapse all cards"
+      >
+        <ChevronsUp size={17} strokeWidth={1.9} aria-hidden />
+      </button>
 
       <span className="pd-org-ctrl-divider" aria-hidden />
 
@@ -492,9 +492,7 @@ function OrgChartControls({
 export default function OrgChartPage() {
   const { user } = useAuth()
   const { employees, loadState, loadError, reload } = useEmployees()
-  const [departmentFilter, setDepartmentFilter] = useState('')
-  const [focusId, setFocusId] = useState('')
-  const [includeInactive, setIncludeInactive] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [zoom, setZoom] = useState(1)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -509,28 +507,6 @@ export default function OrgChartPage() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoomInnerRef = useRef<HTMLDivElement>(null)
 
-  const departments = useMemo(
-    () =>
-      [
-        ...new Set(
-          employees.map((e) => e.department.trim()).filter(Boolean),
-        ),
-      ].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' })),
-    [employees],
-  )
-
-  const peopleOptions = useMemo(
-    () =>
-      employees
-        .slice()
-        .sort((a, b) =>
-          a.fullName.localeCompare(b.fullName, undefined, {
-            sensitivity: 'base',
-          }),
-        ),
-    [employees],
-  )
-
   const myEmployeeId = useMemo(() => {
     const email = user?.email?.toLowerCase()
     if (!email) return null
@@ -540,41 +516,23 @@ export default function OrgChartPage() {
   }, [user?.email, employees])
 
   const visibleEmployees = useMemo(() => {
-    let pool = includeInactive
-      ? employees
-      : employees.filter((e) => e.isActive)
+    const activeEmployees = employees.filter((employee) => employee.isActive)
+    const normalizedQuery = searchQuery.trim().toLocaleLowerCase()
+    if (!normalizedQuery) return activeEmployees
 
-    if (focusId) {
-      const focusNum = Number(focusId)
-      const byId = new Map(pool.map((e) => [e.employeeId, e]))
-      const byName = new Map<string, PlatformEmployee>()
-      for (const employee of pool) {
-        const key = employee.fullName.trim().toLowerCase()
-        if (key && !byName.has(key)) byName.set(key, employee)
-      }
-      const childrenByManager = new Map<number, number[]>()
-      for (const employee of pool) {
-        const managerId = resolveManagerId(employee, byId, byName)
-        if (managerId == null) continue
-        const siblings = childrenByManager.get(managerId) ?? []
-        siblings.push(employee.employeeId)
-        childrenByManager.set(managerId, siblings)
-      }
-      const ids = subtreeIds(focusNum, childrenByManager)
-      pool = pool.filter((employee) => ids.has(employee.employeeId))
-    } else if (departmentFilter) {
-      pool = pool.filter((employee) => employee.department === departmentFilter)
-    }
-
-    return pool
-  }, [employees, includeInactive, focusId, departmentFilter])
+    return activeEmployees.filter(
+      (employee) =>
+        employee.fullName.toLocaleLowerCase().includes(normalizedQuery) ||
+        employee.department.toLocaleLowerCase().includes(normalizedQuery),
+    )
+  }, [employees, searchQuery])
 
   const { roots } = useMemo(
     () => buildForest(visibleEmployees),
     [visibleEmployees],
   )
 
-  const showCompanyRoot = !focusId && !departmentFilter
+  const showCompanyRoot = searchQuery.trim().length === 0
 
   const companyRoots = useMemo(
     () =>
@@ -592,7 +550,7 @@ export default function OrgChartPage() {
 
   useEffect(() => {
     setExpanded(defaultExpanded(companyRoots, showCompanyRoot))
-  }, [companyRoots, showCompanyRoot, focusId, departmentFilter])
+  }, [companyRoots, showCompanyRoot, searchQuery])
 
   useEffect(() => {
     const el = zoomInnerRef.current
@@ -632,15 +590,12 @@ export default function OrgChartPage() {
     let raf2 = 0
     const raf1 = requestAnimationFrame(() => {
       raf2 = requestAnimationFrame(() => {
-        const el = scrollRef.current?.querySelector<HTMLElement>(
+        const scroll = scrollRef.current
+        const target = scroll?.querySelector<HTMLElement>(
           `[data-employee-id="${escapeAttr(empKey(targetId))}"]`,
         )
-        if (el) {
-          el.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center',
-            inline: 'center',
-          })
+        if (scroll && target) {
+          scrollElementToCenter(scroll, target)
           setHighlightId(empKey(targetId))
         }
       })
@@ -764,8 +719,15 @@ export default function OrgChartPage() {
   const fitToScreen = useCallback(() => {
     const scroll = scrollRef.current
     if (!scroll || content.width === 0 || content.height === 0) return
-    const availableWidth = scroll.clientWidth - 48
-    const availableHeight = scroll.clientHeight - 48
+    const padding = getComputedStyle(scroll)
+    const availableWidth =
+      scroll.clientWidth -
+      parseFloat(padding.paddingLeft) -
+      parseFloat(padding.paddingRight)
+    const availableHeight =
+      scroll.clientHeight -
+      parseFloat(padding.paddingTop) -
+      parseFloat(padding.paddingBottom)
     if (availableWidth <= 0 || availableHeight <= 0) return
     setZoom(
       clampZoom(
@@ -779,8 +741,7 @@ export default function OrgChartPage() {
 
   const findMe = useCallback(() => {
     if (myEmployeeId == null) return
-    setFocusId('')
-    setDepartmentFilter('')
+    setSearchQuery('')
     setLocateRequest({ id: myEmployeeId, key: Date.now() })
   }, [myEmployeeId])
 
@@ -801,171 +762,110 @@ export default function OrgChartPage() {
 
   const dataPending = loadState === 'loading' && employees.length === 0
 
+  const statusMessage = dataPending
+    ? 'Loading people…'
+    : loadError && employees.length === 0
+      ? loadError
+      : employees.length === 0
+        ? 'No employees in the directory yet.'
+        : null
+
   return (
-    <div className="pd-page pd-org" aria-label="Org chart">
-      <header className="pd-people__header pd-people__header--row">
-        <div>
-          <h1 className="pd-org-chart-title">Org Chart</h1>
-          <p className="pd-people__stat">
-            {dataPending
-              ? 'Building reporting hierarchy…'
-              : `${visiblePeopleCount} of ${employees.length} people · ${companyRoots.length} top-level`}
-          </p>
-        </div>
-        <div className="pd-people__toolbar">
-          <Link to="/organisation" className="pd-people__ghost-btn">
-            Departments & teams
-          </Link>
-          <button
-            type="button"
-            className="pd-people__ghost-btn"
-            onClick={() => void reload().catch(() => {})}
-          >
-            Refresh
-          </button>
-        </div>
-      </header>
-
-      {loadError && employees.length === 0 ? (
-        <p className="pd-people__empty">{loadError}</p>
-      ) : null}
-
-      {dataPending ? (
-        <p className="pd-people__empty">Loading people…</p>
-      ) : employees.length === 0 ? (
-        <p className="pd-people__empty">No employees in the directory yet.</p>
-      ) : (
-        <>
-          <div className="pd-org-filter-bar">
-            <label className="pd-org-filter">
-              <span className="pd-org-filter-label">Focus on person</span>
-              <ListboxSelect
-                aria-label="Focus on person"
-                value={focusId}
-                onValueChange={(next) => {
-                  setFocusId(next)
-                  if (next) setDepartmentFilter('')
-                }}
-                placeholder="Entire organization"
-                emptyLabel="Entire organization"
-                options={peopleOptions.map((employee) => ({
-                  value: empKey(employee.employeeId),
-                  label: employee.fullName,
-                }))}
-              />
-            </label>
-            <label className="pd-org-filter">
-              <span className="pd-org-filter-label">Department</span>
-              <ListboxSelect
-                aria-label="Department"
-                value={departmentFilter}
-                onValueChange={setDepartmentFilter}
-                placeholder="All departments"
-                emptyLabel="All departments"
-                disabled={Boolean(focusId)}
-                options={departments.map((name) => ({
-                  value: name,
-                  label: name,
-                }))}
-              />
-            </label>
-            <label className="pd-org-switch">
-              <input
-                type="checkbox"
-                checked={includeInactive}
-                onChange={(e) => setIncludeInactive(e.target.checked)}
-              />
-              <span>Include inactive</span>
-            </label>
-            <div className="pd-org-filter-actions">
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                onClick={expandAll}
-              >
-                Expand all
-              </button>
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                onClick={collapseAll}
-              >
-                Collapse all
-              </button>
-            </div>
-          </div>
-
-          <div className="pd-org-stage" ref={stageRef}>
+    <div className="pd-page pd-org pd-org--canvas" aria-label="Org chart">
+      <div className="pd-org-stage" ref={stageRef}>
+        {statusMessage ? (
+          <p className="pd-people__empty pd-org-status">{statusMessage}</p>
+        ) : (
+          <>
             {companyRoots.length === 0 ? (
-              <div className="pd-org-scroll">
-                <p className="pd-people__empty">
-                  No people match the current filters.
-                </p>
-              </div>
+              <p className="pd-people__empty pd-org-status">
+                No people match the current filters.
+              </p>
             ) : (
-              <>
-                <div className="pd-org-scroll" ref={scrollRef}>
-                  <div className="pd-org-zoom-outer" style={zoomLayerStyle}>
-                    <div
-                      className="pd-org-zoom-inner"
-                      ref={zoomInnerRef}
-                      style={{
-                        transform: `scale(${zoom})`,
-                        transformOrigin: 'top left',
-                      }}
-                    >
-                      <div className="pd-org-tree-wrap">
-                        <ul className="pd-org-tree">
-                          {showCompanyRoot ? (
-                            <CompanyRoot
-                              roots={companyRoots}
-                              employeeCount={visiblePeopleCount}
-                              expanded={expanded}
-                              highlightId={highlightId}
-                              onToggle={toggle}
-                              logoUrl={layoutConfig.brand.logoUrl}
-                            />
-                          ) : focusId && companyRoots.length === 1 ? (
+              <div className="pd-org-scroll" ref={scrollRef}>
+                <div className="pd-org-zoom-outer" style={zoomLayerStyle}>
+                  <div
+                    className="pd-org-zoom-inner"
+                    ref={zoomInnerRef}
+                    style={{
+                      transform: `scale(${zoom})`,
+                      transformOrigin: 'top left',
+                    }}
+                  >
+                    <div className="pd-org-tree-wrap">
+                      <ul className="pd-org-tree">
+                        {showCompanyRoot ? (
+                          <CompanyRoot
+                            roots={companyRoots}
+                            employeeCount={visiblePeopleCount}
+                            expanded={expanded}
+                            highlightId={highlightId}
+                            onToggle={toggle}
+                            logoUrl={layoutConfig.brand.logoUrl}
+                          />
+                        ) : (
+                          companyRoots.map((node) => (
                             <OrgChartNode
-                              node={companyRoots[0]!}
+                              key={node.employee.employeeId}
+                              node={node}
                               expanded={expanded}
                               highlightId={highlightId}
                               onToggle={toggle}
                             />
-                          ) : (
-                            companyRoots.map((node) => (
-                              <OrgChartNode
-                                key={node.employee.employeeId}
-                                node={node}
-                                expanded={expanded}
-                                highlightId={highlightId}
-                                onToggle={toggle}
-                              />
-                            ))
-                          )}
-                        </ul>
-                      </div>
+                          ))
+                        )}
+                      </ul>
                     </div>
                   </div>
                 </div>
-
-                <OrgChartControls
-                  zoom={zoom}
-                  onZoomIn={zoomIn}
-                  onZoomOut={zoomOut}
-                  onResetZoom={resetZoom}
-                  onFindMe={findMe}
-                  canFindMe={myEmployeeId != null}
-                  onFit={fitToScreen}
-                  onExpandAll={expandAll}
-                  isFullscreen={isFullscreen}
-                  onToggleFullscreen={toggleFullscreen}
-                />
-              </>
+              </div>
             )}
-          </div>
-        </>
-      )}
+
+            <div className="pd-org-overlay">
+              <SearchField
+                className="pd-org-search"
+                label="Search people and departments"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onClear={() => setSearchQuery('')}
+                placeholder="Search people or departments…"
+                autoComplete="off"
+              />
+
+              <OrgChartControls
+                zoom={zoom}
+                onZoomIn={zoomIn}
+                onZoomOut={zoomOut}
+                onResetZoom={resetZoom}
+                onFindMe={findMe}
+                canFindMe={myEmployeeId != null}
+                onFit={fitToScreen}
+                onExpandAll={expandAll}
+                onCollapseAll={collapseAll}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={toggleFullscreen}
+              />
+            </div>
+
+            <div className="pd-org-panel pd-org-footnote">
+              <span className="pd-org-footnote-text">
+                {visiblePeopleCount} of {employees.length} people ·{' '}
+                {companyRoots.length} top-level
+              </span>
+              <Link to="/organisation" className="pd-org-footnote-link">
+                Departments & Teams
+              </Link>
+              <button
+                type="button"
+                className="pd-org-footnote-link"
+                onClick={() => void reload().catch(() => {})}
+              >
+                Refresh
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

@@ -30,7 +30,7 @@ import {
   type Density,
 } from './prefs'
 
-const DEFAULT_SORT: Sort = { key: 'name', direction: 'asc' }
+const DEFAULT_SORT: Sort = { key: 'department', direction: 'asc' }
 
 /** Who the directory is scoped to before facets narrow it further. */
 export type Scope = 'all' | 'reports' | 'department'

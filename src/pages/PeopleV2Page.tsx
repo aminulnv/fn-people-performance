@@ -91,8 +91,8 @@ function Stat({ value, label, hint, isActive, onClick }: StatProps) {
 
 const SCOPES: { id: Scope; label: string }[] = [
   { id: 'all', label: 'Everyone' },
-  { id: 'reports', label: 'My reports' },
-  { id: 'department', label: 'My department' },
+  { id: 'reports', label: 'My Reports' },
+  { id: 'department', label: 'My Department' },
 ]
 
 export default function PeopleV2Page() {
@@ -268,7 +268,7 @@ export default function PeopleV2Page() {
                 ? `of ${stats.total.toLocaleString()}`
                 : undefined
             }
-            label={view.hasFilters ? 'In view' : 'People'}
+            label={view.hasFilters ? 'In View' : 'People'}
           />
           <Stat
             value={stats.active.toLocaleString()}
@@ -284,13 +284,13 @@ export default function PeopleV2Page() {
           />
           <Stat
             value={stats.joinedLast90Days.toLocaleString()}
-            label="Joined in 90 days"
+            label="Joined in 90 Days"
             isActive={view.selections.tenure.includes('lt3m')}
             onClick={() => view.toggleFacet('tenure', 'lt3m')}
           />
           <Stat
             value={stats.withGaps.toLocaleString()}
-            label="Incomplete records"
+            label="Incomplete Records"
             isActive={view.selections.gap.length > 0}
             onClick={() =>
               view.setFacet(
@@ -334,7 +334,7 @@ export default function PeopleV2Page() {
           </button>
           <Link to="/people/new" className="pd-pv2-btn pd-pv2-btn--primary">
             <Plus size={15} strokeWidth={2.25} aria-hidden />
-            Add employee
+            Add Employee
           </Link>
         </div>
       </header>
@@ -389,7 +389,7 @@ export default function PeopleV2Page() {
                 onClick={() => void reload()}
               >
                 <RotateCw size={14} strokeWidth={2} aria-hidden />
-                Try again
+                Try Again
               </button>
             </div>
           ) : isEmptyDirectory ? (
@@ -404,7 +404,7 @@ export default function PeopleV2Page() {
               </p>
               <Link to="/people/new" className="pd-pv2-btn pd-pv2-btn--primary">
                 <UserPlus size={14} strokeWidth={2} aria-hidden />
-                Add employee
+                Add Employee
               </Link>
             </div>
           ) : sorted.length === 0 ? (
@@ -431,7 +431,7 @@ export default function PeopleV2Page() {
                 onClick={view.clearFilters}
               >
                 <X size={14} strokeWidth={2} aria-hidden />
-                Clear filters
+                Clear Filters
               </button>
             </div>
           ) : (
@@ -528,7 +528,7 @@ export default function PeopleV2Page() {
             ) : (
               <Copy size={14} strokeWidth={2} aria-hidden />
             )}
-            {copiedEmails ? 'Copied' : 'Copy emails'}
+            {copiedEmails ? 'Copied' : 'Copy Emails'}
           </button>
           <button
             type="button"

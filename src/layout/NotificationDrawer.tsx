@@ -96,7 +96,7 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
                 className="pd-topbar__notif-mark-all"
                 onClick={markAllRead}
               >
-                Mark all read
+                Mark All Read
               </button>
             )}
           </div>

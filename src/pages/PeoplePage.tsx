@@ -19,8 +19,8 @@ type StatusFilter = 'all' | 'active' | 'inactive'
 
 const SCOPES: { id: DirectoryScope; label: string }[] = [
   { id: 'all', label: 'Everyone' },
-  { id: 'reports', label: 'My reports' },
-  { id: 'department', label: 'My department' },
+  { id: 'reports', label: 'My Reports' },
+  { id: 'department', label: 'My Department' },
 ]
 
 function uniqueNonEmpty(values: string[]): number {
@@ -133,7 +133,20 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           .toLowerCase()
         return haystack.includes(q)
       })
-      .sort((a, b) => a.employeeId - b.employeeId)
+      .sort((a, b) => {
+        const aDept = a.department.trim()
+        const bDept = b.department.trim()
+        const aBlank = aDept === ''
+        const bBlank = bDept === ''
+        if (aBlank !== bBlank) return aBlank ? 1 : -1
+        const byDept = aDept.localeCompare(bDept, undefined, {
+          sensitivity: 'base',
+        })
+        if (byDept !== 0) return byDept
+        return a.fullName.localeCompare(b.fullName, undefined, {
+          sensitivity: 'base',
+        })
+      })
   }, [employees, me, query, scope, statusFilter])
 
   return (
@@ -234,7 +247,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           >
             <Link to="/organisation/chart" className="pd-people__ghost-btn">
               <Network size={16} strokeWidth={1.75} aria-hidden />
-              Org chart
+              Org Chart
             </Link>
             <button
               type="button"
@@ -246,7 +259,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             </button>
             <Link to="/people/new" className="pd-people__create-btn">
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Add employee
+              Add Employee
             </Link>
           </div>
         </div>
@@ -276,7 +289,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
               className="pd-people__create-btn pd-people__create-btn--secondary"
             >
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Add employee
+              Add Employee
             </Link>
           </div>
         ) : filtered.length === 0 ? (
@@ -299,7 +312,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
                   setStatusFilter('all')
                 }}
               >
-                Clear filters
+                Clear Filters
               </button>
             }
           />

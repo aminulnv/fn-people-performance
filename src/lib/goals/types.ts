@@ -5,11 +5,32 @@ export type GoalRole =
   | 'ptr'
   | 'hrbp'
 
-export type GoalType = 'Outcome' | 'Output'
-export type ProcessType = 'OKR' | 'BAU' | 'PI'
-export type GoalPriority = 'High' | 'Medium' | 'Low'
-export type MetricUnit = '%' | 'number' | 'days' | 'currency'
-export type MetricDirection = 'greater_than' | 'less_than' | 'within_range'
+export type MetricUnit =
+  | '%'
+  | 'number'
+  | 'seconds'
+  | 'minutes'
+  | 'hours'
+  | 'days'
+  | 'currency'
+
+/**
+ * Revolut-style strategies for numeric metrics.
+ * Legacy aliases (`greater_than`, `less_than`, `within_range`) remain valid for
+ * stored / demo data and normalize to the matching modern strategy.
+ */
+export type MetricStrategy =
+  | 'increase'
+  | 'decrease'
+  | 'between'
+  | 'keep_above'
+  | 'keep_below'
+
+export type MetricDirection =
+  | MetricStrategy
+  | 'greater_than'
+  | 'less_than'
+  | 'within_range'
 
 export type SubmissionStatus =
   | 'not_eligible'
@@ -38,9 +59,10 @@ export type Metric = {
   weight: number
   unit: MetricUnit
   direction: MetricDirection
-  startValue: number
-  targetValue: number
-  currentValue: number
+  /** Unset while drafting a new metric in the create/edit form. */
+  startValue?: number
+  targetValue?: number
+  currentValue?: number
   rangeMin?: number
   rangeMax?: number
   proofUrl?: string
@@ -49,15 +71,37 @@ export type Metric = {
 
 export type Measurement = Milestone | Metric
 
+export type GoalProgressStatus =
+  | 'on_track'
+  | 'at_risk'
+  | 'off_track'
+  | 'on_hold'
+  | 'complete'
+
+export type GoalComment = {
+  id: string
+  /** Authenticated actor who wrote the comment. */
+  authorId?: string
+  /** Display snapshot of the author name at write time. */
+  authorName: string
+  text: string
+  createdAt: string
+}
+
 export type Goal = {
   id: string
   description: string
-  goalType: GoalType
-  processType: ProcessType
-  priority: GoalPriority
   weight: number
+  /** Person who owns this goal; defaults to the page person when unset. */
+  ownerId?: string
+  /** Longer free-text description (goal name lives in `description`). */
+  details?: string
   linkedGoalLabel?: string
   measurements: Measurement[]
+  /** Optional override for the computed on-track / off-track label. */
+  progressStatus?: GoalProgressStatus
+  comments?: GoalComment[]
+  updatedAt?: string
 }
 
 export type QuarterRating = {
@@ -94,14 +138,30 @@ export type DemoPerson = {
 export type GoalsCycle = {
   id: string
   label: string
-  /** YYYY-MM-DD */
+  /** YYYY-MM-DD — eligibility Day 1 (review cycle start) */
   day1: string
   phase: DemoPhase
 }
 
+/** Review-cycle status badge on the Goals cycle picker. */
+export type GoalsCycleStatus =
+  | 'future'
+  | 'current'
+  | 'previous'
+  | 'manual'
+
+export type GoalsCycleOption = GoalsCycle & {
+  status: GoalsCycleStatus
+}
+
 export type GoalsSnapshot = {
+  /** Active review/goal cycle (shared identity with Reviews). */
   cycle: GoalsCycle
+  cycleStatus: GoalsCycleStatus
+  /** All review cycles available for goal setting. */
+  availableCycles: GoalsCycleOption[]
   activePersonId: string
   people: DemoPerson[]
+  /** Goals for the active cycle only. */
   byPerson: Record<string, PersonGoals>
 }

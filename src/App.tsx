@@ -7,6 +7,8 @@ const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
+/** Unified view/edit redesign — lives beside `goals` until one direction wins. */
+const GoalsV2Page = lazy(() => import('@/pages/GoalsV2Page'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
 const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
@@ -88,6 +90,15 @@ function App() {
               element={<TeamDetailPage />}
             />
             <Route path="goals" element={<GoalsPage />} />
+            <Route
+              path="goals/:cycleId/:personId/:goalId?"
+              element={<GoalsPage />}
+            />
+            <Route path="goals-v2" element={<GoalsV2Page />} />
+            <Route
+              path="goals-v2/:cycleId/:personId/:goalId?"
+              element={<GoalsV2Page />}
+            />
             <Route
               path="reviews"
               element={<Navigate to="/reviews/scorecards" replace />}

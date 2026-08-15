@@ -376,7 +376,7 @@ export function DirectoryTable({
       {hasMore ? (
         <div className="pd-pv2-more" ref={sentinelRef}>
           <button type="button" className="pd-pv2-more__btn" onClick={onRenderMore}>
-            Show more
+            Show More
           </button>
           <span className="pd-pv2-more__hint">
             {renderLimit.toLocaleString()} of {totalRows.toLocaleString()} shown

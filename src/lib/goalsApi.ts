@@ -12,9 +12,9 @@ import {
   submitPersonGoals,
   submitQuarterRating,
   subscribeGoalsStore,
-  updateApprovedProgress,
+  updateGoalProgress,
+  type GoalMutationContext,
 } from './goals/store'
-import { DEMO_CYCLES } from './goals/demoData'
 import type {
   DemoPhase,
   Goal,
@@ -26,11 +26,15 @@ export type {
   DemoPerson,
   DemoPhase,
   Goal,
+  GoalsCycleOption,
+  GoalsCycleStatus,
   GoalsSnapshot,
   Measurement,
   PersonGoals,
   SubmissionStatus,
 } from './goals/types'
+
+export type { GoalMutationContext }
 
 export { isEligibleForCycle }
 export {
@@ -66,12 +70,23 @@ export async function changeDemoPhase(phase: DemoPhase): Promise<GoalsSnapshot> 
   return delay(setDemoPhase(phase))
 }
 
-export function listDemoCycles() {
-  return DEMO_CYCLES.map((c) => ({ ...c }))
+/** Review cycles available for goal setting (same identity as Reviews). */
+export function listGoalCycles() {
+  return getGoalsSnapshot().availableCycles
 }
 
-export async function selectDemoCycle(cycleId: string): Promise<GoalsSnapshot> {
+export async function selectGoalCycle(cycleId: string): Promise<GoalsSnapshot> {
   return delay(setActiveCycle(cycleId))
+}
+
+/** @deprecated Prefer listGoalCycles / selectGoalCycle */
+export function listDemoCycles() {
+  return listGoalCycles()
+}
+
+/** @deprecated Prefer selectGoalCycle */
+export async function selectDemoCycle(cycleId: string): Promise<GoalsSnapshot> {
+  return selectGoalCycle(cycleId)
 }
 
 export async function resetDemo(): Promise<GoalsSnapshot> {
@@ -79,40 +94,42 @@ export async function resetDemo(): Promise<GoalsSnapshot> {
 }
 
 export async function saveGoals(
-  personId: string,
+  context: GoalMutationContext,
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(savePersonGoals(personId, goals))
+  return delay(savePersonGoals(context, goals))
 }
 
-export async function submitGoals(personId: string): Promise<GoalsSnapshot> {
-  return delay(submitPersonGoals(personId))
+export async function submitGoals(
+  context: GoalMutationContext,
+): Promise<GoalsSnapshot> {
+  return delay(submitPersonGoals(context))
 }
 
 export async function sendBackGoals(
-  personId: string,
+  context: GoalMutationContext,
   reason: string,
 ): Promise<GoalsSnapshot> {
-  return delay(sendBackSubmission(personId, reason))
+  return delay(sendBackSubmission(context, reason))
 }
 
 export async function approveGoals(
-  personId: string,
+  context: GoalMutationContext,
   goals?: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(approveSubmission(personId, goals))
+  return delay(approveSubmission(context, goals))
 }
 
 export async function saveProgress(
-  personId: string,
+  context: GoalMutationContext,
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(updateApprovedProgress(personId, goals))
+  return delay(updateGoalProgress(context, goals))
 }
 
 export async function ratePerson(
-  personId: string,
+  context: GoalMutationContext,
   rating: Omit<QuarterRating, 'submittedAt'>,
 ): Promise<GoalsSnapshot> {
-  return delay(submitQuarterRating(personId, rating))
+  return delay(submitQuarterRating(context, rating))
 }

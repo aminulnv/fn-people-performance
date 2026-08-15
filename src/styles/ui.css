@@ -918,6 +918,7 @@ a.pd-btn--secondary:visited {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.4rem;
   margin: 0;
   padding: 0 0.85rem;
   border: 0;
@@ -944,6 +945,22 @@ a.pd-btn--secondary:visited {
 .pd-segmented__btn.is-active {
   color: var(--color-on-cta);
   background: transparent;
+}
+
+.pd-segmented__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--color-danger, #d92d20);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .pd-segmented__btn:focus-visible {
@@ -1395,8 +1412,15 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-listbox__value {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
   flex: 1;
+}
+
+.pd-listbox__value-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1425,6 +1449,36 @@ a.pd-btn--secondary:visited {
   border: 1px solid var(--color-border);
   background: var(--color-surface-raised, var(--color-surface));
   box-shadow: var(--shadow-deep, 0 12px 32px color-mix(in srgb, var(--color-text) 14%, transparent));
+}
+
+.pd-listbox__search {
+  position: sticky;
+  top: -0.28rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: -0.28rem -0.28rem 0.28rem;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface-raised, var(--color-surface));
+  color: var(--color-text-secondary);
+}
+
+.pd-listbox__search input {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.pd-listbox__search input::placeholder {
+  color: var(--color-text-secondary);
 }
 
 .pd-listbox__option {
@@ -1465,10 +1519,43 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-listbox__option-label {
+  display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pd-listbox__option-content {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pd-listbox__option-text {
+  display: block;
+  min-width: 0;
+}
+
+.pd-listbox__option-description {
+  display: block;
+  margin-top: 0.08rem;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-listbox__empty {
+  margin: 0;
+  padding: 0.75rem 0.6rem;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  text-align: center;
 }
 
 /* ── Pagination ───────────────────────────────────────────────────── */

@@ -103,6 +103,27 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
+  it('uses goals-v2 as the Goals root on redesign routes', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/goals-v2/q2-2026/42',
+        navItems,
+        employeeName: 'Aminul Islam Borhan',
+        goalsCycleLabel: 'Q2 2026',
+      }),
+    ).toEqual([
+      { label: 'Goals', href: '/goals-v2' },
+      { label: 'Q2 2026', href: '/goals-v2' },
+      { label: 'Aminul Islam Borhan' },
+    ])
+  })
+
+  it('returns a single crumb for the goals-v2 overview', () => {
+    expect(buildBreadcrumbs({ pathname: '/goals-v2', navItems })).toEqual([
+      { label: 'Goals' },
+    ])
+  })
+
   it('builds Reviews > cycle for cycle detail routes', () => {
     expect(
       buildBreadcrumbs({
@@ -137,10 +158,54 @@ describe('buildBreadcrumbs', () => {
       { label: 'Aminul Islam Borhan' },
     ])
   })
+
+  it('builds Goals > cycle > full name for a person goals page', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/goals/q2-2026/42',
+        navItems,
+        employeeName: 'Aminul Islam Borhan',
+        goalsCycleLabel: 'Q2 2026',
+      }),
+    ).toEqual([
+      { label: 'Goals', href: '/goals' },
+      { label: 'Q2 2026', href: '/goals' },
+      { label: 'Aminul Islam Borhan' },
+    ])
+  })
+
+  it('keeps Goals > cycle > person when a saved goal is open', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/goals/q2-2026/42/goal-1',
+        navItems,
+        employeeName: 'Aminul Islam Borhan',
+        goalsCycleLabel: 'Q2 2026',
+      }),
+    ).toEqual([
+      { label: 'Goals', href: '/goals' },
+      { label: 'Q2 2026', href: '/goals' },
+      { label: 'Aminul Islam Borhan' },
+    ])
+  })
+
+  it('falls back to the cycle id when the goals cycle label is unknown', () => {
+    expect(
+      buildBreadcrumbs({ pathname: '/goals/q2-2026/42', navItems }),
+    ).toEqual([
+      { label: 'Goals', href: '/goals' },
+      { label: 'q2-2026', href: '/goals' },
+      { label: 'Goals' },
+    ])
+  })
 })
 
 describe('resolveTopBarIcon', () => {
   it('resolves the People icon for people-v2 routes', () => {
     expect(resolveTopBarIcon('/people-v2/1', navItems)).toBe(Users)
+  })
+
+  it('resolves the Goals icon for goals-v2 routes', () => {
+    expect(resolveTopBarIcon('/goals-v2/q2-2026/42', navItems)).toBe(Home)
   })
 })

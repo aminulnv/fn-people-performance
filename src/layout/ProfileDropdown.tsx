@@ -134,7 +134,7 @@ export function ProfileDropdown({
             ) : (
               <Moon size={14} strokeWidth={2} aria-hidden />
             )}
-            {isDark ? 'Light mode' : 'Dark mode'}
+            {isDark ? 'Light Mode' : 'Dark Mode'}
           </button>
           <button
             type="button"
@@ -146,7 +146,7 @@ export function ProfileDropdown({
             role="menuitem"
           >
             <LogOut size={14} strokeWidth={2} />
-            Sign out
+            Sign Out
           </button>
         </div>
       )}
@@ -156,7 +156,7 @@ export function ProfileDropdown({
         onConfirm={handleConfirmSignOut}
         title="Sign out?"
         description="Are you sure you want to sign out?"
-        confirmLabel="Sign out"
+        confirmLabel="Sign Out"
         confirmVariant="danger"
       />
     </div>

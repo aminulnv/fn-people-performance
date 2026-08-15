@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   Hourglass,
   Lock,
   MoreHorizontal,
   Plus,
+  Target,
   Trash2,
 } from 'lucide-react'
 import {
@@ -12,6 +13,7 @@ import {
   DropdownMenu,
   EmptyState,
 } from '@/components/ui'
+import { setActiveCycle } from '@/lib/goals/store'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath, reviewsTabPath } from '@/lib/reviews/paths'
 import {
@@ -30,14 +32,9 @@ import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
 const SECTION_EMPTY: Record<
-  Exclude<CycleSectionId, 'settings'>,
+  Exclude<CycleSectionId, 'settings' | 'goals'>,
   { title: string; description: string }
 > = {
-  goals: {
-    title: 'Goals for this cycle',
-    description:
-      'Department and team goal windows for this cycle will appear here.',
-  },
   performance: {
     title: 'Performance review',
     description:
@@ -141,7 +138,7 @@ export default function CycleDetailPage() {
               items={[
                 {
                   id: 'delete',
-                  label: 'Delete cycle',
+                  label: 'Delete Cycle',
                   danger: true,
                   icon: <Trash2 size={16} strokeWidth={1.75} />,
                   onSelect: () => setDeleteOpen(true),
@@ -154,7 +151,7 @@ export default function CycleDetailPage() {
               onClick={handleCreateTest}
             >
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Create test cycle
+              Create Test Cycle
             </button>
           </div>
         </header>
@@ -172,6 +169,25 @@ export default function CycleDetailPage() {
           cycle={cycle}
           onEditingChange={setSettingsEditing}
         />
+      ) : section === 'goals' ? (
+        <div className="pd-reviews__body">
+          <EmptyState
+            className="pd-empty--inline"
+            icon={Target}
+            title={`Goals · ${cycle.name}`}
+            description="Goals for this review cycle are managed on the Goals page. Open Goals to select this cycle and add or review goals."
+            action={
+              <Link
+                to="/goals"
+                className="pd-people__create-btn"
+                onClick={() => setActiveCycle(cycle.id)}
+              >
+                <Target size={18} strokeWidth={2} aria-hidden />
+                Open goals for {cycle.name}
+              </Link>
+            }
+          />
+        </div>
       ) : (
         <div className="pd-reviews__body">
           <EmptyState
@@ -189,7 +205,7 @@ export default function CycleDetailPage() {
         onConfirm={handleDelete}
         title="Delete cycle?"
         description={`Delete “${cycle.name}”? This removes the cycle and its settings from this workspace.`}
-        confirmLabel="Delete cycle"
+        confirmLabel="Delete Cycle"
         cancelLabel="Cancel"
         confirmVariant="danger"
       />

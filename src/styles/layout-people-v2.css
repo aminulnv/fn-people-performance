@@ -27,8 +27,8 @@
   --pv2-positive: var(--color-status-completed);
   --pv2-radius: 0.5rem;
   --pv2-radius-sm: 0.375rem;
-  /* Sticky chrome starts below the app top bar. */
-  --pv2-top: 3.5rem;
+  /* Sticky chrome pins to the top of the app scroll region (`.pd-app-scroll`),
+     which already starts below the top bar — hence no offset of its own. */
   /*
    * Control bar height is fixed by design (its row never wraps) so the column
    * header can stick underneath it without measuring anything at runtime.
@@ -299,9 +299,9 @@
 .pd-pv2-rail {
   align-self: start;
   position: sticky;
-  top: var(--pv2-top);
+  top: 0;
   z-index: 4;
-  max-height: calc(100dvh - var(--pv2-top) - 2rem);
+  max-height: calc(100dvh - var(--pd-topbar-h, 3.5rem) - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 1.25rem 2rem 0;
@@ -597,7 +597,7 @@
 
 .pd-pv2-sticky {
   position: sticky;
-  top: var(--pv2-top);
+  top: 0;
   z-index: 6;
   min-height: var(--pv2-controls-h);
   background: var(--pv2-surface);
@@ -934,7 +934,7 @@
 
 .pd-pv2-head {
   position: sticky;
-  top: calc(var(--pv2-top) + var(--pv2-controls-h));
+  top: var(--pv2-controls-h);
   z-index: 5;
   display: grid;
   grid-template-columns: var(--pv2-template);
@@ -1358,9 +1358,9 @@
 .pd-pv2-panel {
   align-self: start;
   position: sticky;
-  top: var(--pv2-top);
+  top: 0;
   z-index: 8;
-  max-height: calc(100dvh - var(--pv2-top) - 2rem);
+  max-height: calc(100dvh - var(--pd-topbar-h, 3.5rem) - 2rem);
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1837,11 +1837,6 @@
 }
 
 @media (max-width: 767px) {
-
-  .pd-page.pd-pv2,
-  .pd-pv2 {
-    --pv2-top: 3.25rem;
-  }
 
   .pd-pv2-header {
     gap: 0.875rem;

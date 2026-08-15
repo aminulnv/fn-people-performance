@@ -1,4 +1,7 @@
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { getGoalsSnapshotForCycle } from '@/lib/goals/store'
+import type { Goal } from '@/lib/goals/types'
+import { goalCompletion } from '@/lib/goals/weightage'
 import type { GradeBandId } from './types'
 import { GRADE_BAND_META, GRADE_BAND_ORDER } from './labels'
 
@@ -121,41 +124,53 @@ export function cycleLabelFromKey(cycleKey: string): string {
   return `Q${match[1]} ${match[2]}`
 }
 
-function buildGoals(
+function suggestedGrade(progress: number): GradeBandId {
+  if (progress >= 120) return 'exceptional'
+  if (progress > 100) return 'exceeding'
+  if (progress >= 80) return 'performing'
+  if (progress >= 60) return 'developing'
+  return 'unsatisfactory'
+}
+
+function scorecardMetricLabel(goal: Goal): string {
+  if (goal.measurements.length === 0) return 'No metric'
+  if (goal.measurements.length === 1) return goal.measurements[0].title
+  return `${goal.measurements.length} metrics`
+}
+
+function toScorecardGoal(
+  goal: Goal,
+  ownerName: string,
+): ScorecardGoalRow {
+  const progressPercent = Math.round(goalCompletion(goal) * 10) / 10
+  return {
+    id: goal.id,
+    description: goal.description,
+    weight: goal.weight,
+    ownerName,
+    progressPercent,
+    metricLabel: scorecardMetricLabel(goal),
+    suggestedGrade: suggestedGrade(progressPercent),
+  }
+}
+
+function buildPerformanceGoals(
+  cycleKey: string,
+  employeeId: number,
+  ownerName: string,
+): ScorecardGoalRow[] {
+  const snapshot = getGoalsSnapshotForCycle(cycleKey)
+  const personGoals = snapshot.byPerson[String(employeeId)]
+  return (personGoals?.goals ?? []).map((goal) =>
+    toScorecardGoal(goal, ownerName),
+  )
+}
+
+function buildOrganisationalGoals(
   seed: number,
   ownerName: string,
-): { performance: ScorecardGoalRow[]; organisational: ScorecardGoalRow[] } {
-  const performance: ScorecardGoalRow[] = [
-    {
-      id: `g-${seed}-1`,
-      description: 'Improve delivery quality and close critical defects faster',
-      weight: 40,
-      ownerName,
-      progressPercent: 112.5,
-      metricLabel: 'Defects closed',
-      suggestedGrade: 'exceeding',
-    },
-    {
-      id: `g-${seed}-2`,
-      description: 'Ship roadmap commitments for the quarter on schedule',
-      weight: 35,
-      ownerName,
-      progressPercent: 100,
-      metricLabel: 'Milestones',
-      suggestedGrade: 'performing',
-    },
-    {
-      id: `g-${seed}-3`,
-      description: 'Strengthen cross-team collaboration and stakeholder updates',
-      weight: 25,
-      ownerName,
-      progressPercent: 130,
-      metricLabel: 'NPS / feedback',
-      suggestedGrade: 'exceeding',
-    },
-  ]
-
-  const organisational: ScorecardGoalRow[] = [
+): ScorecardGoalRow[] {
+  return [
     {
       id: `g-${seed}-o1`,
       description: 'Contribute to company-wide process improvements',
@@ -175,8 +190,6 @@ function buildGoals(
       suggestedGrade: 'exceeding',
     },
   ]
-
-  return { performance, organisational }
 }
 
 export function buildScorecardsForCycle(
@@ -250,17 +263,35 @@ export function buildScorecardDetail(
   const row = rows.find((item) => item.employeeId === employeeId)
   if (!row) return null
 
-  const goals = buildGoals(employeeId, row.employeeName)
+  const performanceGoals = buildPerformanceGoals(
+    cycleKey,
+    employeeId,
+    row.employeeName,
+  )
+  const organisationalGoals = buildOrganisationalGoals(
+    employeeId,
+    row.employeeName,
+  )
+  const goalsOverallPercent =
+    performanceGoals.length === 0
+      ? 0
+      : Math.round(
+          performanceGoals.reduce(
+            (total, goal) =>
+              total + (goal.progressPercent * goal.weight) / 100,
+            0,
+          ),
+        )
   const overall = row.grade ?? 'exceeding'
   const reviewerFirst = row.reviewerName.split(' ')[0] ?? row.reviewerName
 
   return {
     ...row,
     gradeHidden: false,
-    goalsOverallPercent: 116,
-    goalsOverallBand: 'exceeding',
-    performanceGoals: goals.performance,
-    organisationalGoals: goals.organisational,
+    goalsOverallPercent,
+    goalsOverallBand: suggestedGrade(goalsOverallPercent),
+    performanceGoals,
+    organisationalGoals,
     contributionGrade: overall,
     overallGrade: overall,
     feedback: {

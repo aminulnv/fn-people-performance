@@ -193,7 +193,7 @@ export function DirectoryControls({
           }
           ariaLabel="Sort people"
           width="14rem"
-          active={sort.key !== 'name' || sort.direction !== 'asc'}
+          active={sort.key !== 'department' || sort.direction !== 'asc'}
         >
           {(close) => (
             <div className="pd-pv2-menu">
@@ -255,7 +255,7 @@ export function DirectoryControls({
                 className="pd-pv2-menu__footer"
                 onClick={onResetColumns}
               >
-                Reset to default
+                Reset to Default
               </button>
             </div>
           )}
@@ -317,7 +317,7 @@ export function DirectoryControls({
             className="pd-pv2-chips__clear"
             onClick={onClearFilters}
           >
-            Clear all
+            Clear All
           </button>
         </div>
       ) : null}

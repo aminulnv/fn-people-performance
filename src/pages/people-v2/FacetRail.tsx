@@ -141,7 +141,7 @@ function FacetSection({
               className="pd-pv2-facet__more"
               onClick={() => setShowAll(false)}
             >
-              Show less
+              Show Less
             </button>
           ) : null}
         </div>

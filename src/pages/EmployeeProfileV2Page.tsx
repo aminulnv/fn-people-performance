@@ -175,7 +175,7 @@ function EmployeeProfileV2View({
                 to={`/people/${employee.employeeId}/edit`}
                 className="pd-profile-v2__btn pd-profile-v2__btn--primary"
               >
-                Edit profile
+                Edit Profile
               </Link>
             </div>
           </div>
@@ -318,7 +318,7 @@ function EmployeeProfileV2View({
 
             <nav className="pd-profile-v2__ql" aria-label="Directory links">
               <Link to="/organisation" className="pd-profile-v2__ql-item">
-                Org structures
+                Org Structures
                 <span className="pd-profile-v2__ql-count">{directoryCount}</span>
                 <span className="pd-profile-v2__ql-arr" aria-hidden>
                   ›
@@ -328,7 +328,7 @@ function EmployeeProfileV2View({
                 to={isSelf ? '/organisation/chart' : '/people-v2'}
                 className="pd-profile-v2__ql-item"
               >
-                {isSelf ? 'View org chart' : 'Back to people'}
+                {isSelf ? 'View Org Chart' : 'Back to People'}
                 <span className="pd-profile-v2__ql-arr" aria-hidden>
                   ›
                 </span>
@@ -504,7 +504,7 @@ export default function EmployeeProfileV2Page() {
       >
         <p className="pd-people__empty">Employee not found.</p>
         <Link to="/people-v2" className="pd-people__back">
-          Back to people
+          Back to People
         </Link>
       </div>
     )

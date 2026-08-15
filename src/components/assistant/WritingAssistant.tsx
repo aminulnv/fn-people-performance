@@ -294,7 +294,7 @@ export function WritingAssistant() {
                 className="pd-assistant__btn pd-assistant__btn--quiet"
                 onClick={() => close(true)}
               >
-                Hide for now
+                Hide for Now
               </button>
             </div>
           </motion.div>

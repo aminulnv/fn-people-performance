@@ -1,3 +1,4 @@
+import { normalizeMetricStrategy } from './measurements'
 import type { Goal, Measurement } from './types'
 
 export function sumGoalWeights(goals: Goal[]): number {
@@ -27,7 +28,9 @@ export function canSubmitGoals(goals: Goal[]): {
       break
     }
     if (sumMeasurementWeights(goal.measurements) !== 100) {
-      reasons.push(`“${goal.description.slice(0, 32) || 'A goal'}…” measurements must total 100%.`)
+      reasons.push(
+        `“${goal.description.slice(0, 32) || 'A goal'}…” measurements must total 100%.`,
+      )
       break
     }
   }
@@ -36,25 +39,47 @@ export function canSubmitGoals(goals: Goal[]): {
 
 export function measurementProgress(m: Measurement): number {
   if (m.kind === 'milestone') return m.complete ? 100 : 0
-  if (m.direction === 'less_than') {
-    if (m.startValue === m.targetValue) return m.currentValue <= m.targetValue ? 100 : 0
-    const span = m.startValue - m.targetValue
+
+  const strategy = normalizeMetricStrategy(m.direction)
+
+  const startValue = m.startValue ?? 0
+  const targetValue = m.targetValue ?? 0
+  const currentValue = m.currentValue ?? 0
+
+  if (strategy === 'decrease') {
+    if (startValue === targetValue) {
+      return currentValue <= targetValue ? 100 : 0
+    }
+    const span = startValue - targetValue
     if (span <= 0) return 0
     return Math.max(
       0,
-      Math.min(100, ((m.startValue - m.currentValue) / span) * 100),
+      Math.min(100, ((startValue - currentValue) / span) * 100),
     )
   }
-  if (m.direction === 'within_range') {
-    const min = m.rangeMin ?? m.targetValue
-    const max = m.rangeMax ?? m.targetValue
-    return m.currentValue >= min && m.currentValue <= max ? 100 : 0
+
+  if (strategy === 'between') {
+    const min = m.rangeMin ?? Math.min(startValue, targetValue)
+    const max = m.rangeMax ?? Math.max(startValue, targetValue)
+    return currentValue >= min && currentValue <= max ? 100 : 0
   }
-  const span = m.targetValue - m.startValue
-  if (span <= 0) return m.currentValue >= m.targetValue ? 100 : 0
+
+  if (strategy === 'keep_above') {
+    const threshold = m.rangeMin ?? targetValue
+    return currentValue >= threshold ? 100 : 0
+  }
+
+  if (strategy === 'keep_below') {
+    const threshold = m.rangeMax ?? targetValue
+    return currentValue <= threshold ? 100 : 0
+  }
+
+  // increase (and legacy greater_than)
+  const span = targetValue - startValue
+  if (span <= 0) return currentValue >= targetValue ? 100 : 0
   return Math.max(
     0,
-    Math.min(100, ((m.currentValue - m.startValue) / span) * 100),
+    Math.min(100, ((currentValue - startValue) / span) * 100),
   )
 }
 
@@ -69,7 +94,10 @@ export function goalCompletion(goal: Goal): number {
 export function overallCompletion(goals: Goal[]): number {
   if (goals.length === 0) return 0
   const total = sumGoalWeights(goals) || 100
-  return goals.reduce((sum, g) => sum + (goalCompletion(g) * g.weight) / total, 0)
+  return goals.reduce(
+    (sum, g) => sum + (goalCompletion(g) * g.weight) / total,
+    0,
+  )
 }
 
 export function newId(prefix: string): string {

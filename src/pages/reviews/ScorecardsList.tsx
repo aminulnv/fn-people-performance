@@ -89,14 +89,14 @@ export function ScorecardsList() {
       }))
     return fromStore.length > 0
       ? fromStore
-      : [{ key: 'q2-2026', label: 'Q2 2026' }]
+      : [{ key: 'q3-2026', label: 'Q3 2026' }]
   }, [cycles])
 
-  const [cycleKey, setCycleKey] = useState('q2-2026')
+  const [cycleKey, setCycleKey] = useState('q3-2026')
 
   useEffect(() => {
     if (cycleOptions.some((option) => option.key === cycleKey)) return
-    setCycleKey(cycleOptions[0]?.key ?? 'q2-2026')
+    setCycleKey(cycleOptions[0]?.key ?? 'q3-2026')
   }, [cycleKey, cycleOptions])
 
   useEffect(() => {
@@ -244,7 +244,7 @@ export function ScorecardsList() {
           onClick={() => setStatusFilter('in_progress')}
         >
           <span className="pd-people__summary-value">{stats.inProgress}</span>
-          <span className="pd-people__summary-label">In progress</span>
+          <span className="pd-people__summary-label">In Progress</span>
         </button>
         <button
           type="button"
@@ -258,7 +258,7 @@ export function ScorecardsList() {
           onClick={() => setStatusFilter('not_started')}
         >
           <span className="pd-people__summary-value">{stats.notStarted}</span>
-          <span className="pd-people__summary-label">Not started</span>
+          <span className="pd-people__summary-label">Not Started</span>
         </button>
         <button
           type="button"
@@ -342,7 +342,7 @@ export function ScorecardsList() {
             aria-pressed={mineOnly}
             onClick={() => setMineOnly((value) => !value)}
           >
-            My reviews
+            My Reviews
           </button>
         </div>
 
@@ -358,14 +358,14 @@ export function ScorecardsList() {
           <button
             type="button"
             className="pd-people__ghost-btn"
-            title="Column settings"
+            title="Column Settings"
           >
             <Columns3 size={16} strokeWidth={1.75} aria-hidden />
-            Column settings
+            Column Settings
           </button>
           <button type="button" className="pd-people__create-btn">
             <Settings2 size={16} strokeWidth={1.75} aria-hidden />
-            Manage scorecard
+            Manage Scorecard
           </button>
         </div>
       </div>
@@ -394,7 +394,7 @@ export function ScorecardsList() {
                 rows.length === 0
                   ? 'Add people in the directory to generate review scorecards for this cycle.'
                   : mineOnly && hasMine
-                    ? 'No reviews assigned to you in this cycle. Turn off My reviews to see everyone.'
+                    ? 'No reviews assigned to you in this cycle. Turn off My Reviews to see everyone.'
                     : statusFilter !== 'all'
                       ? 'No scorecards match this status. Try another filter or clear it.'
                       : 'Try a different search or cycle.'

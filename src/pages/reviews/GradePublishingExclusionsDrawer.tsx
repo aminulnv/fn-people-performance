@@ -181,7 +181,7 @@ export function GradePublishingExclusionsDrawer({
               className="pd-reviews-edit-link"
               onClick={() => onChange([])}
             >
-              Clear all
+              Clear All
             </button>
           </footer>
         ) : null}

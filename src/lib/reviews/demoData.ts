@@ -176,34 +176,9 @@ function regularCycle(
 
 export function createInitialReviewsSnapshot(): ReviewsSnapshot {
   const createdAt = '2026-01-15T10:00:00.000Z'
-  const q1_2027 = buildPeriod(2027, 1)
-  const q4_2026 = buildPeriod(2026, 4)
   const q3_2026 = buildPeriod(2026, 3)
-  const q2_2026 = buildPeriod(2026, 2)
-  const q1_2026 = buildPeriod(2026, 1)
-  const q4_2025 = buildPeriod(2025, 4)
-
-  const adHoc: ReviewCycle = {
-    id: 'adhoc-sri-lanka-2025',
-    name: 'Sri Lankan Cycle (2025)',
-    type: 'ad-hoc',
-    startDate: '2025-06-01',
-    endDate: '2025-08-31',
-    stagesConfig: buildDefaultStagesConfig('2025-06-01', '2025-08-31'),
-    settings: cloneSettings(),
-    calibration: cloneCalibration(),
-    createdAt: '2025-05-20T10:00:00.000Z',
-  }
 
   return {
-    cycles: [
-      regularCycle(q1_2027, createdAt),
-      regularCycle(q4_2026, createdAt),
-      adHoc,
-      regularCycle(q3_2026, createdAt),
-      regularCycle(q2_2026, createdAt),
-      regularCycle(q1_2026, createdAt),
-      regularCycle(q4_2025, createdAt),
-    ],
+    cycles: [regularCycle(q3_2026, createdAt)],
   }
 }

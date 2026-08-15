@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   Award,
@@ -15,13 +15,15 @@ import {
   MapPin,
   Network,
   Save,
-  Star,
-  Target,
   UserRound,
   Users,
-  type LucideIcon,
 } from 'lucide-react'
-import { Avatar, ListboxSelect } from '@/components/ui'
+import { Avatar, ListboxSelect, SegmentedControl } from '@/components/ui'
+import {
+  DetailRow,
+  PROFILE_TAB_OPTIONS,
+  type ProfileTabId,
+} from '@/pages/EmployeeProfilePage'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   buildCatalogOptions,
@@ -66,17 +68,6 @@ const EMPTY_FORM: FormState = {
   isActive: true,
 }
 
-const PROFILE_TABS: {
-  id: 'profile' | 'performance' | 'goals' | 'team'
-  label: string
-  icon: LucideIcon
-}[] = [
-  { id: 'profile', label: 'Profile', icon: UserRound },
-  { id: 'performance', label: 'Performance', icon: Star },
-  { id: 'goals', label: 'Goals', icon: Target },
-  { id: 'team', label: 'Team', icon: Users },
-]
-
 function toUpdateInput(form: FormState): UpdateEmployeeInput {
   return {
     employeeId: Number(form.employeeId),
@@ -95,31 +86,6 @@ function toUpdateInput(form: FormState): UpdateEmployeeInput {
     managerEmail: form.managerEmail,
     isActive: form.isActive,
   }
-}
-
-function DetailRow({
-  label,
-  icon: Icon,
-  children,
-}: {
-  label: string
-  icon: LucideIcon
-  children: ReactNode
-}) {
-  return (
-    <div className="pd-profile__detail-row">
-      <dt className="pd-profile__detail-label">
-        <Icon
-          className="pd-profile__detail-icon"
-          size={14}
-          strokeWidth={1.75}
-          aria-hidden
-        />
-        <span className="pd-profile__detail-label-text">{label}</span>
-      </dt>
-      <dd className="pd-profile__detail-value">{children}</dd>
-    </div>
-  )
 }
 
 function InlineInput({
@@ -171,7 +137,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [hydrated, setHydrated] = useState(mode === 'create')
-  const [tab, setTab] = useState<(typeof PROFILE_TABS)[number]['id']>('profile')
+  const [tab, setTab] = useState<ProfileTabId>('profile')
 
   const existing = useMemo(() => {
     if (mode !== 'edit') return null
@@ -225,7 +191,22 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       .sort((a, b) => a.fullName.localeCompare(b.fullName))
       .map((person) => ({
         value: String(person.employeeId),
-        label: `${person.fullName} (${person.email})`,
+        label: person.fullName,
+        description: [person.jobTitle, person.email].filter(Boolean).join(' · '),
+        searchText: [
+          person.email,
+          person.jobTitle,
+          person.department,
+          person.team,
+        ].join(' '),
+        leading: (
+          <Avatar
+            name={person.fullName}
+            src={person.avatarUrl || undefined}
+            size="sm"
+            style={avatarStyle(person.fullName)}
+          />
+        ),
       }))
   }, [employees, mode, employeeId])
 
@@ -408,6 +389,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
         <div className="pd-profile__hero-main">
           <Avatar
             name={previewName}
+            src={existing?.avatarUrl || undefined}
             size="lg"
             className="pd-profile__hero-avatar"
             style={avatarStyle(previewName)}
@@ -447,31 +429,19 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
             disabled={busy}
           >
             <Save size={15} strokeWidth={1.75} aria-hidden />
-            {mode === 'edit' ? 'Save changes' : 'Add employee'}
+            {mode === 'edit' ? 'Save Changes' : 'Add Employee'}
           </button>
         </div>
       </section>
 
-      <div className="pd-profile__tabs" role="tablist" aria-label="Employee sections">
-        {PROFILE_TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === item.id}
-            className={[
-              'pd-profile__tab',
-              tab === item.id ? 'is-active' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => setTab(item.id)}
-          >
-            <item.icon size={15} strokeWidth={1.75} aria-hidden />
-            {item.label}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl
+        className="pd-profile__tabs"
+        buttonClassName="pd-profile__tab"
+        options={PROFILE_TAB_OPTIONS}
+        value={tab}
+        onChange={setTab}
+        aria-label="Employee sections"
+      />
 
       {tab !== 'profile' ? (
         <div className="pd-profile__placeholder">
@@ -592,6 +562,9 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     onValueChange={onReportsToChange}
                     placeholder="Select manager"
                     options={personOptions}
+                    searchable
+                    searchPlaceholder="Search people"
+                    noResultsText="No people found"
                   />
                 </DetailRow>
                 <DetailRow label="Department Head" icon={Network}>
@@ -602,6 +575,9 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     onValueChange={onDepartmentHeadChange}
                     placeholder="Select department head"
                     options={personOptions}
+                    searchable
+                    searchPlaceholder="Search people"
+                    noResultsText="No people found"
                   />
                 </DetailRow>
                 <DetailRow label="HRBP" icon={HeartHandshake}>
@@ -696,7 +672,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
               <Link to="/people" className="pd-profile__nav-card">
                 <GitBranch size={18} strokeWidth={1.75} aria-hidden />
                 <span>
-                  <span className="pd-profile__nav-title">Back to people</span>
+                  <span className="pd-profile__nav-title">Back to People</span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
               </Link>

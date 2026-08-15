@@ -49,7 +49,7 @@ export default function MyProfilePage() {
           Your account is not linked to a directory profile yet.
         </p>
         <Link to="/people" className="pd-people__back">
-          Browse people
+          Browse People
         </Link>
       </div>
     )

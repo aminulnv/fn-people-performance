@@ -1,43 +1,47 @@
 import type { DemoPerson, GoalsCycle, GoalsSnapshot } from './types'
+import {
+  listGoalCycleOptions,
+  pickDefaultCycleId,
+} from './cyclesFromReviews'
 
-/** Quarters available in the cycle picker. */
-export const DEMO_CYCLES: GoalsCycle[] = [
-  {
-    id: 'q1-2026',
-    label: 'Q1 2026',
-    day1: '2026-01-01',
-    phase: 'window_open',
-  },
-  {
-    id: 'q2-2026',
-    label: 'Q2 2026',
-    day1: '2026-04-01',
-    phase: 'window_open',
-  },
-  {
-    id: 'q3-2026',
-    label: 'Q3 2026',
-    day1: '2026-07-01',
-    phase: 'window_open',
-  },
-  {
-    id: 'q4-2026',
-    label: 'Q4 2026',
-    day1: '2026-10-01',
-    phase: 'window_open',
-  },
-]
+/**
+ * Fallback when Reviews has no cycles yet — Goals still needs a shape.
+ * Prefer real review cycles via cyclesFromReviews.
+ */
+export const FALLBACK_CYCLE: GoalsCycle = {
+  id: 'q3-2026',
+  label: 'Q3 2026',
+  day1: '2026-07-01',
+  phase: 'window_open',
+}
 
-/** Active demo quarter (Q2). */
-export const DEMO_CYCLE: GoalsCycle =
-  DEMO_CYCLES.find((c) => c.id === 'q2-2026') ?? DEMO_CYCLES[1]
+/** @deprecated Use review cycles — kept for migration of old session data. */
+export const DEMO_CYCLES: GoalsCycle[] = [FALLBACK_CYCLE]
 
-export const CURRENT_CYCLE_ID = DEMO_CYCLE.id
+export const DEMO_CYCLE: GoalsCycle = FALLBACK_CYCLE
+
+/** Active calendar “current” quarter id when Reviews is empty. */
+export const CURRENT_CYCLE_ID = FALLBACK_CYCLE.id
 
 /** Goals people come from the People directory (Create employee), not a demo roster. */
 export function createInitialSnapshot(): GoalsSnapshot {
+  const options = listGoalCycleOptions({})
+  const activeId = pickDefaultCycleId(options)
+  const selected =
+    options.find((c) => c.id === activeId) ??
+    (options[0]
+      ? options[0]
+      : { ...FALLBACK_CYCLE, status: 'previous' as const })
+
   return {
-    cycle: { ...DEMO_CYCLE },
+    cycle: {
+      id: selected.id,
+      label: selected.label,
+      day1: selected.day1,
+      phase: selected.phase,
+    },
+    cycleStatus: selected.status,
+    availableCycles: options.length > 0 ? options : [selected],
     activePersonId: '',
     people: [],
     byPerson: {},

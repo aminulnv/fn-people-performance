@@ -13,11 +13,12 @@ import {
   signOut as apiSignOut,
 } from '@/lib/authApi'
 import { loadEmployees } from '@/lib/employees/store'
-import { setActivePerson } from '@/lib/goals/store'
+import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
 
 function syncGoalsPersona(personId: string | undefined) {
   if (!personId || personId === 'local') return
+  setSignedInPerson(personId)
   setActivePerson(personId)
 }
 

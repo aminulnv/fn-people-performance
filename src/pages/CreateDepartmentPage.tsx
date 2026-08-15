@@ -61,7 +61,7 @@ export default function CreateDepartmentPage() {
   return (
     <div
       className="pd-page pd-people pd-people--form pd-org"
-      aria-label="Add department"
+      aria-label="Add Department"
     >
       <form className="pd-people__form-layout" onSubmit={onSubmit} noValidate>
         <div className="pd-people__form-toolbar">
@@ -90,7 +90,7 @@ export default function CreateDepartmentPage() {
               disabled={busy}
             >
               <Save size={16} strokeWidth={1.85} aria-hidden />
-              Add department
+              Add Department
             </button>
           </div>
         </div>

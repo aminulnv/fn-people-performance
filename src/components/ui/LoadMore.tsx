@@ -12,7 +12,7 @@ export type LoadMoreProps = Omit<ButtonProps, 'children' | 'loading'> & {
 export function LoadMore({
   loading = false,
   hasMore = true,
-  label = 'Load more',
+  label = 'Load More',
   loadingLabel = 'Loading…',
   endLabel = 'You’re all caught up',
   className,

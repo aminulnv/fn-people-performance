@@ -60,6 +60,13 @@
   --color-red: #dc2626;
   --color-red-light: color-mix(in srgb, var(--color-red) 12%, white);
 
+  /*
+   * Solid affirmative fills (Approve). Brighter than --color-status-completed,
+   * which has to stay dark enough to read as chip text.
+   */
+  --color-success: #27ae60;
+  --color-on-success: oklch(from var(--color-success) round(1.21 - l) 0 0);
+
   --color-status-completed: #2f7a5d;
   --color-status-completed-surface: color-mix(in srgb,
       var(--color-status-completed) 12%,

@@ -2,10 +2,10 @@ import type { CycleSectionId } from './types'
 
 export const CYCLE_SECTIONS = [
   { id: 'goals', label: 'Goals' },
-  { id: 'performance', label: 'Performance review' },
+  { id: 'performance', label: 'Performance Review' },
   { id: 'calibration', label: 'Calibration' },
   { id: 'results', label: 'Results' },
-  { id: 'settings', label: 'Cycle settings' },
+  { id: 'settings', label: 'Cycle Settings' },
 ] as const satisfies ReadonlyArray<{ id: CycleSectionId; label: string }>
 
 export function isCycleSection(

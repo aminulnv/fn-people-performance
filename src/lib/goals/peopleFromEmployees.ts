@@ -1,6 +1,7 @@
 import { avatarHue } from '@/lib/employees/avatar'
 import { listEmployees } from '@/lib/employees/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { buildDemoPersonGoals, demoSeedStatus } from './demoGoals'
 import type { DemoPerson, GoalRole, PersonGoals } from './types'
 
 function inferGoalRole(
@@ -56,7 +57,20 @@ export function employeeToDemoPerson(
 
 export function peopleFromEmployees(): DemoPerson[] {
   const directory = listEmployees().filter((e) => e.isActive)
-  return directory.map((employee) => employeeToDemoPerson(employee, directory))
+  return directory
+    .map((employee) => employeeToDemoPerson(employee, directory))
+    .sort((a, b) => {
+      const aDept = a.department.trim()
+      const bDept = b.department.trim()
+      const aBlank = aDept === ''
+      const bBlank = bDept === ''
+      if (aBlank !== bBlank) return aBlank ? 1 : -1
+      const byDept = aDept.localeCompare(bDept, undefined, {
+        sensitivity: 'base',
+      })
+      if (byDept !== 0) return byDept
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+    })
 }
 
 export function emptyPersonGoals(personId: string): PersonGoals {
@@ -69,8 +83,11 @@ export function emptyPersonGoals(personId: string): PersonGoals {
 
 /** Merge directory people into goals state; keep existing goal rows when ids match. */
 export function mergePeopleIntoGoalsState(input: {
+  cycleId: string
   byPerson: Record<string, PersonGoals>
   activePersonId: string
+  /** Seeded in draft so goal setting stays demoable; others vary pending/approved. */
+  signedInPersonId?: string
 }): {
   people: DemoPerson[]
   byPerson: Record<string, PersonGoals>
@@ -80,7 +97,13 @@ export function mergePeopleIntoGoalsState(input: {
   const byPerson: Record<string, PersonGoals> = {}
 
   for (const person of people) {
-    byPerson[person.id] = input.byPerson[person.id] ?? emptyPersonGoals(person.id)
+    byPerson[person.id] =
+      input.byPerson[person.id] ??
+      buildDemoPersonGoals(
+        input.cycleId,
+        person.id,
+        demoSeedStatus(person.id, input.signedInPersonId, person.managerId),
+      )
   }
 
   const activeStillPresent = people.some((p) => p.id === input.activePersonId)

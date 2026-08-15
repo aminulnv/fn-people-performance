@@ -63,7 +63,8 @@ describe('formatDateRange', () => {
 describe('reviews store', () => {
   it('seeds demo cycles and creates a regular cycle', () => {
     const seeded = createInitialReviewsSnapshot()
-    expect(seeded.cycles.length).toBeGreaterThan(3)
+    expect(seeded.cycles).toHaveLength(1)
+    expect(seeded.cycles[0]?.id).toBe('q3-2026')
 
     const period = buildPeriod(2028, 2)
     // Use unique period unlikely in seed

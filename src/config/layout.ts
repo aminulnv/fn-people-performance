@@ -14,7 +14,7 @@ import { publicUrl } from '@/lib/publicUrl'
 
 export const profileNavItem: NavItem = {
   path: '/profile',
-  label: 'My profile',
+  label: 'My Profile',
   icon: IdCard,
 }
 

@@ -200,7 +200,7 @@ export default function LoginPage() {
               disabled={busy}
               aria-busy={busy || undefined}
             >
-              Sign in with email
+              Sign In with Email
             </button>
           </form>
 

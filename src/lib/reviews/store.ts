@@ -14,8 +14,8 @@ import type {
   ReviewsSnapshot,
 } from './types'
 
-/** Bumped when grade publishing exclusions became employee IDs. */
-const STORAGE_KEY = 'pd-reviews-cycles-v3'
+/** Bumped when seed was reduced to Q3 2026 only. */
+const STORAGE_KEY = 'pd-reviews-cycles-v4'
 
 let memory: ReviewsSnapshot | null = null
 const listeners = new Set<() => void>()

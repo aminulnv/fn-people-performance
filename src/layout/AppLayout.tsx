@@ -14,7 +14,6 @@ import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
 import { TopBarCycleNav } from './TopBarCycleNav'
-import { TopBarCycleSelect } from './TopBarCycleSelect'
 import { TopBarReviewsNav } from './TopBarReviewsNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
@@ -71,11 +70,31 @@ export function AppLayout({
     { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
     pathname,
   )
+  const goalItemMatch =
+    matchPath(
+      { path: '/goals-v2/:cycleId/:personId/:goalId', end: true },
+      pathname,
+    ) ??
+    matchPath(
+      { path: '/goals/:cycleId/:personId/:goalId', end: true },
+      pathname,
+    )
+  const goalsDetailMatch =
+    matchPath(
+      { path: '/goals-v2/:cycleId/:personId', end: true },
+      pathname,
+    ) ??
+    matchPath(
+      { path: '/goals/:cycleId/:personId', end: true },
+      pathname,
+    ) ??
+    goalItemMatch
   const profileEmployeeId = Number(
     employeeEditMatch?.params.employeeId ??
     employeeProfileMatch?.params.employeeId ??
     employeeProfileV2Match?.params.employeeId ??
-    scorecardDetailMatch?.params.employeeId,
+    scorecardDetailMatch?.params.employeeId ??
+    goalsDetailMatch?.params.personId,
   )
   const profileEmployee =
     Number.isInteger(profileEmployeeId) && profileEmployeeId > 0
@@ -119,6 +138,12 @@ export function AppLayout({
   const scorecardCycleLabel = scorecardCycleKey
     ? cycleLabelFromKey(scorecardCycleKey)
     : undefined
+  const goalsCycleId = goalsDetailMatch?.params.cycleId
+    ? decodeURIComponent(goalsDetailMatch.params.cycleId)
+    : undefined
+  const goalsCycleLabel = goalsCycleId
+    ? (getReviewCycle(goalsCycleId)?.name ?? cycleLabelFromKey(goalsCycleId))
+    : undefined
 
   const breadcrumbs = useMemo(
     () =>
@@ -138,10 +163,12 @@ export function AppLayout({
           : undefined,
         cycleName,
         scorecardCycleLabel,
+        goalsCycleLabel,
       }),
     [
       cycleName,
       departmentIdParam,
+      goalsCycleLabel,
       navItems,
       orgSnapshot,
       pathname,
@@ -176,11 +203,6 @@ export function AppLayout({
             <TopBar
               breadcrumbs={breadcrumbs}
               titleIcon={titleIcon}
-              titleAccessory={
-                pathname === '/goals' || pathname.startsWith('/goals/') ? (
-                  <TopBarCycleSelect isMobile={isMobile} />
-                ) : null
-              }
               centerSlot={
                 isCycleDetail ? (
                   <TopBarCycleNav />
@@ -193,15 +215,22 @@ export function AppLayout({
               onMobileMenuOpen={() => setIsMobileOpen(true)}
               isMobile={isMobile}
             />
-            <main className="pd-app-main">
-              <Outlet />
-            </main>
-            <footer
-              className="pd-app-footer"
-              title={`App version ${APP_VERSION_LABEL}`}
-            >
-              <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
-            </footer>
+            {/*
+             * The only scroll container for page content. It sits below the top
+             * bar, so page-level `position: sticky` chrome pins to this box and
+             * can never paint over the top bar, whatever z-index a page uses.
+             */}
+            <div className="pd-app-scroll">
+              <main className="pd-app-main">
+                <Outlet />
+              </main>
+              <footer
+                className="pd-app-footer"
+                title={`App version ${APP_VERSION_LABEL}`}
+              >
+                <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
+              </footer>
+            </div>
           </div>
         </div>
       </div>

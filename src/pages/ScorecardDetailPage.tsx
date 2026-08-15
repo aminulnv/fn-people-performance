@@ -22,8 +22,8 @@ type GoalsTab = 'performance' | 'organisational'
 type ScopeFilter = 'all' | 'lm'
 
 const GOALS_TABS: { id: GoalsTab; label: string }[] = [
-  { id: 'performance', label: 'Performance goals' },
-  { id: 'organisational', label: 'Organisational goals' },
+  { id: 'performance', label: 'Performance Goals' },
+  { id: 'organisational', label: 'Organisational Goals' },
 ]
 
 const SCOPE_OPTIONS: { id: ScopeFilter; label: string }[] = [
@@ -327,7 +327,7 @@ export default function ScorecardDetailPage() {
           </div>
         </div>
         <p className="pd-reviews-scorecard__back">
-          <Link to={reviewsTabPath('scorecards')}>Back to scorecards</Link>
+          <Link to={reviewsTabPath('scorecards')}>Back to Scorecards</Link>
         </p>
       </section>
     </div>

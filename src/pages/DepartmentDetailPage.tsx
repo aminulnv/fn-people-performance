@@ -72,7 +72,7 @@ export default function DepartmentDetailPage() {
       >
         <p className="pd-people__empty">Department not found.</p>
         <Link to="/organisation" className="pd-people__back">
-          Back to organisation
+          Back to Organisation
         </Link>
       </div>
     )
@@ -109,7 +109,7 @@ export default function DepartmentDetailPage() {
         <div className="pd-org-detail__hero-actions">
           <Link to="/organisation/chart" className="pd-people__ghost-btn">
             <Network size={16} strokeWidth={1.75} aria-hidden />
-            Org chart
+            Org Chart
           </Link>
         </div>
       </section>

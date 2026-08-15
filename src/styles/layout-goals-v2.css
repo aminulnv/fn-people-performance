@@ -1,0 +1,1445 @@
+/* Goals V2 — unified view/edit detail. Loaded only with GoalsV2Page. */
+
+.pd-goal-v2 {
+  --goal-v2-radius: 0.875rem;
+  --goal-v2-border: var(--color-divider);
+  --goal-v2-surface: var(--color-surface);
+  --goal-v2-menu-shadow: 0 12px 28px color-mix(in srgb, #000 14%, transparent);
+  --goal-v2-inset: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+
+  display: flex;
+  flex-direction: column;
+  gap: 1.15rem;
+  color: var(--color-text);
+}
+
+.dark .pd-goal-v2 {
+  --goal-v2-menu-shadow: 0 12px 28px color-mix(in srgb, #000 28%, transparent);
+  --goal-v2-inset: color-mix(in srgb, var(--color-white) 4%, var(--color-surface));
+}
+
+/* ---------------------------------------------------------------- header */
+
+.pd-goal-v2__header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.pd-goal-v2__crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.pd-goal-v2__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0.2rem 0.4rem 0.2rem 0.15rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pd-goal-v2__back:hover {
+  color: var(--color-text);
+  background: var(--color-neutral-hover);
+}
+
+.pd-goal-v2__back:focus-visible,
+.pd-goal-v2__quiet-btn:focus-visible,
+.pd-goal-v2__add-btn:focus-visible,
+.pd-goal-v2__icon-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: 2px;
+}
+
+.pd-goal-v2__pager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__title {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__title-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  width: 100%;
+}
+
+.pd-goal-v2__title-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Borderless so the title keeps its place on the page between modes. */
+.pd-goal-v2__title-input {
+  width: 100%;
+  margin: 0;
+  padding: 0.1rem 0.4rem 0.25rem;
+  border: 0;
+  border-bottom: 2px solid var(--goal-v2-border);
+  border-radius: 0.2rem 0.2rem 0 0;
+  background: transparent;
+  font: inherit;
+  font-family: var(--font-heading);
+  font-size: clamp(1.35rem, 2.2vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  color: var(--color-text);
+  resize: none;
+  field-sizing: content;
+}
+
+.pd-goal-v2__title-input:focus {
+  outline: none;
+  border-bottom-color: var(--color-theme);
+  background: color-mix(in srgb, var(--color-theme) 5%, transparent);
+}
+
+.pd-goal-v2__title-input[aria-invalid='true'] {
+  border-bottom-color: var(--color-red);
+}
+
+.pd-goal-v2__title-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+
+/* ------------------------------------------------------------ action bar */
+
+.pd-goal-v2__actionbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  padding: 0.45rem 0;
+  background: color-mix(
+    in srgb,
+    var(--color-bg, var(--color-surface)) 92%,
+    transparent
+  );
+  backdrop-filter: blur(8px);
+}
+
+.pd-goal-v2.is-editing .pd-goal-v2__actionbar {
+  border-bottom: 1px solid var(--goal-v2-border);
+}
+
+.pd-goal-v2__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__title-row .pd-goal-v2__actions {
+  padding-bottom: 0.2rem;
+}
+
+.pd-goal-v2__editing-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex-shrink: 0;
+  margin-right: 0.15rem;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+}
+
+.pd-goal-v2__dot.is-dirty {
+  background: var(--color-amber);
+}
+
+.pd-goal-v2__summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.pd-goal-v2__summary .pd-people__summary-card {
+  min-width: 0;
+  width: 100%;
+}
+
+.pd-goal-v2__summary .pd-people__summary-label {
+  margin-top: 0;
+  margin-bottom: 0.1rem;
+}
+
+.pd-goal-v2__cycle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Weight stays in its summary card while editing, so the strip never shifts. */
+.pd-goal-v2__summary-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.pd-goal-v2__summary-edit input {
+  width: 3.5rem;
+  margin: 0;
+  padding: 0 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  appearance: textfield;
+}
+
+.pd-goal-v2__summary-edit input::-webkit-outer-spin-button,
+.pd-goal-v2__summary-edit input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.pd-goal-v2__summary-edit input:focus {
+  outline: none;
+  border-color: var(--color-theme);
+}
+
+.pd-goal-v2__status {
+  position: relative;
+}
+
+.pd-goal-v2__status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.pd-goal-v2__status-btn.is-static {
+  cursor: default;
+}
+
+.pd-goal-v2__status-btn.is-locked {
+  gap: 0.35rem;
+  cursor: not-allowed;
+}
+
+.pd-goal-v2__status-lock {
+  opacity: 0;
+  color: var(--color-text-muted);
+  transition: opacity 0.12s ease;
+}
+
+.pd-goal-v2__status-btn.is-locked:hover .pd-goal-v2__status-lock,
+.pd-goal-v2__status-btn.is-locked:focus-visible .pd-goal-v2__status-lock {
+  opacity: 1;
+}
+
+.pd-goal-v2__status-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 8;
+  min-width: 9.5rem;
+  padding: 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--goal-v2-surface);
+  box-shadow: var(--goal-v2-menu-shadow);
+}
+
+.pd-goal-v2__status-option {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 0;
+  border-radius: 0.45rem;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-goal-v2__status-option:hover {
+  background: var(--color-neutral-hover);
+}
+
+/* ------------------------------------------------------------------ body */
+
+.pd-goal-v2__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(15rem, 19rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.pd-goal-v2__main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pd-goal-v2__aside {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: sticky;
+  top: 3.75rem;
+}
+
+/* --------------------------------------------------------- edit sections */
+
+.pd-goal-v2__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pd-goal-v2__section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  flex-wrap: wrap;
+}
+
+.pd-goal-v2__section-head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__section-sub {
+  margin: 0.15rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__alloc {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__alloc-value {
+  font-size: 0.8125rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+.pd-goal-v2__alloc-value span {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.pd-goal-v2__alloc-value--ok {
+  color: var(--color-status-completed);
+}
+
+.pd-goal-v2__alloc-value--under {
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__alloc-value--over {
+  color: var(--color-red);
+}
+
+.pd-goal-v2__alloc-bar {
+  display: block;
+  width: 4.5rem;
+  height: 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  overflow: hidden;
+}
+
+.pd-goal-v2__alloc-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-text-muted);
+  transition: width 140ms ease-out;
+}
+
+.pd-goal-v2__alloc-bar--ok > span {
+  background: var(--color-status-completed);
+}
+
+.pd-goal-v2__alloc-bar--over > span {
+  background: var(--color-red);
+}
+
+/* ----------------------------------------------------------- measure card */
+
+.pd-goal-v2__measures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* Same chrome as the read-only cards, so switching modes doesn't reskin the page. */
+.pd-goal-v2__measure {
+  border: 1px solid var(--goal-v2-border);
+  border-radius: var(--goal-v2-radius);
+  background: var(--goal-v2-surface);
+  overflow: visible;
+}
+
+.pd-goal-v2__measure-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.65rem 0.6rem 1rem;
+}
+
+.pd-goal-v2__measure-name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pd-goal-v2__measure-name::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 600;
+}
+
+.pd-goal-v2__measure-name:hover:not(.is-static) {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.pd-goal-v2__measure-name:focus {
+  outline: none;
+  border-color: var(--color-theme);
+  background: var(--color-surface);
+}
+
+.pd-goal-v2__measure-name.is-static {
+  cursor: default;
+}
+
+.pd-goal-v2__weight {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.15rem 0.45rem 0.15rem 0.15rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: var(--goal-v2-inset);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.pd-goal-v2__weight:hover {
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.pd-goal-v2__weight:focus-within {
+  border-color: var(--color-theme);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.pd-goal-v2__weight input {
+  width: 2.6rem;
+  margin: 0;
+  padding: 0.2rem 0.15rem 0.2rem 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-weight: 700;
+  text-align: right;
+  outline: none;
+  appearance: textfield;
+}
+
+.pd-goal-v2__weight input::-webkit-outer-spin-button,
+.pd-goal-v2__weight input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+.pd-goal-v2__weight.is-static {
+  padding: 0.25rem 0.5rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.pd-goal-v2__weight.is-block {
+  width: 100%;
+  justify-content: flex-end;
+  min-height: 2.55rem;
+  padding-right: 0.7rem;
+}
+
+.pd-goal-v2__weight.is-block input {
+  flex: 1;
+  width: auto;
+}
+
+.pd-goal-v2__measure-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  border-top: 1px solid var(--goal-v2-border);
+}
+
+/* To-do bodies are a row list, so they own their own dividers and padding. */
+.pd-goal-v2__measure-body--rows {
+  gap: 0;
+  padding: 0;
+  border-top: 0;
+}
+
+/* --------------------------------------------------------------- targets */
+
+.pd-goal-v2__target {
+  display: grid;
+  grid-template-columns:
+    minmax(4.5rem, 0.8fr) minmax(7rem, 1.1fr)
+    minmax(4.5rem, 0.8fr) minmax(6rem, 0.9fr);
+  gap: 0.5rem;
+  align-items: end;
+}
+
+.pd-goal-v2__target-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.pd-goal-v2__target-cell > span {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-goal-v2__target-cell input,
+.pd-goal-v2__strategy-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 2.4rem;
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pd-goal-v2__target-cell input:focus {
+  outline: none;
+  border-color: var(--color-theme);
+}
+
+.pd-goal-v2__target-cell--unit .pd-listbox__trigger {
+  min-height: 2.4rem;
+  border-radius: 0.6rem;
+}
+
+.pd-goal-v2__strategy {
+  position: relative;
+  width: 100%;
+}
+
+.pd-goal-v2__strategy-trigger {
+  cursor: pointer;
+}
+
+.pd-goal-v2__strategy-trigger > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-goal-v2__strategy-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  min-width: 10.5rem;
+  padding: 0.25rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.6rem;
+  background: var(--goal-v2-surface);
+  box-shadow: var(--goal-v2-menu-shadow);
+}
+
+.pd-goal-v2__strategy-option {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-goal-v2__strategy-option:hover,
+.pd-goal-v2__strategy-option.is-selected {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+/* ------------------------------------------------------------ to-do rows */
+
+.pd-goal-v2__todo-rows {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+}
+
+.pd-goal-v2__todo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0.65rem 0.5rem 1rem;
+  border-top: 1px solid var(--goal-v2-border);
+}
+
+.pd-goal-v2__todo-input {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid transparent;
+  border-radius: 0.45rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.pd-goal-v2__todo-input:hover {
+  border-color: var(--color-border);
+}
+
+.pd-goal-v2__todo-input:focus {
+  outline: none;
+  border-color: var(--color-theme);
+}
+
+.pd-goal-v2__todo-check {
+  appearance: none;
+  position: relative;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 35%, transparent);
+  border-radius: 0.3rem;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__todo-check:checked {
+  border-color: var(--color-theme);
+  background: var(--color-theme);
+}
+
+.pd-goal-v2__todo-check:checked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 0.3rem;
+  height: 0.55rem;
+  border: solid var(--color-white);
+  border-width: 0 2px 2px 0;
+  transform: translateY(-1px) rotate(45deg);
+}
+
+.pd-goal-v2__todo-check:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.pd-goal-v2__todo-spacer {
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+}
+
+/* --------------------------------------------------------------- buttons */
+
+.pd-goal-v2__quiet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.25rem 0.45rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.pd-goal-v2__quiet-btn:hover {
+  background: var(--color-neutral-hover);
+  color: var(--color-text);
+}
+
+.pd-goal-v2__addrow {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Reads as the last row of the card it belongs to. */
+.pd-goal-v2__row-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-top: 1px solid var(--goal-v2-border);
+  border-radius: 0 0 calc(var(--goal-v2-radius) - 1px)
+    calc(var(--goal-v2-radius) - 1px);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-goal-v2__row-btn:hover {
+  background: var(--color-neutral-hover);
+  color: var(--color-text);
+}
+
+.pd-goal-v2__icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.pd-goal-v2__icon-btn:hover {
+  background: var(--color-neutral-hover);
+  color: var(--color-text);
+}
+
+.pd-goal-v2__icon-btn--danger:hover {
+  background: color-mix(in srgb, var(--color-red) 12%, transparent);
+  color: var(--color-red);
+}
+
+.pd-goal-v2__menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__menu-panel {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 12;
+  min-width: 12rem;
+  padding: 0.3rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.7rem;
+  background: var(--goal-v2-surface);
+  box-shadow: var(--goal-v2-menu-shadow);
+}
+
+.pd-goal-v2__menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pd-goal-v2__menu-item:hover {
+  background: var(--color-neutral-hover);
+}
+
+.pd-goal-v2__menu-item--danger {
+  color: var(--color-red);
+}
+
+.pd-goal-v2__error {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-red);
+}
+
+/* ----------------------------------------------------------- aside fields */
+
+.pd-goal-v2__fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--goal-v2-border);
+  border-radius: var(--goal-v2-radius);
+  background: var(--goal-v2-surface);
+}
+
+.pd-goal-v2__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.pd-goal-v2__field-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-goal-v2__linked-input,
+.pd-goal-v2__description-input {
+  width: 100%;
+  min-height: 2.55rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.pd-goal-v2__linked-input:focus,
+.pd-goal-v2__description-input:focus {
+  outline: none;
+  border-color: var(--color-theme);
+}
+
+.pd-goal-v2__description-input {
+  resize: vertical;
+  min-height: 5.5rem;
+}
+
+/* ------------------------------------------------------------- view mode */
+
+.pd-goal-v2__card,
+.pd-goal-v2__facts,
+.pd-goal-v2__approval {
+  border: 1px solid var(--goal-v2-border);
+  border-radius: var(--goal-v2-radius);
+  background: var(--goal-v2-surface);
+}
+
+.pd-goal-v2__card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+}
+
+.pd-goal-v2__card-head h2,
+.pd-goal-v2__comments h2 {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__card-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pd-goal-v2__card-current {
+  font-size: 0.9375rem;
+  font-weight: 750;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__card-meta {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.pd-goal-v2__card-weight {
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: var(--goal-v2-inset);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__empty {
+  margin: 0;
+  padding: 0 1rem 1.1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+}
+
+.pd-goal-v2__todos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pd-goal-v2__todo {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.7rem 1rem;
+  border-top: 1px solid var(--goal-v2-border);
+}
+
+.pd-goal-v2__todo-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__todo-title.is-done {
+  color: var(--color-text-secondary);
+  text-decoration: line-through;
+}
+
+.pd-goal-v2__todo-weight {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.pd-goal-v2__metric-field {
+  display: inline-flex;
+  margin: 0;
+}
+
+.pd-goal-v2__metric-field input {
+  width: 4.5rem;
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.pd-goal-v2__metric-field input:focus {
+  outline: none;
+  border-color: var(--color-theme);
+}
+
+/* -------------------------------------------------------------- comments */
+
+.pd-goal-v2__comments {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding-top: 0.4rem;
+}
+
+.pd-goal-v2__comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.pd-goal-v2__comment {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+}
+
+.pd-goal-v2__comment-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin: 0 0 0.15rem;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.pd-goal-v2__comment-meta strong {
+  font-size: 0.8125rem;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__comment-text {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__composer {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.45rem 0.35rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.8rem;
+  background: var(--color-surface);
+}
+
+.pd-goal-v2__composer input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.pd-goal-v2__composer input:focus {
+  outline: none;
+}
+
+.pd-goal-v2__send {
+  display: inline-grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.pd-goal-v2__send:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-neutral-hover);
+}
+
+.pd-goal-v2__send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------- aside view mode */
+
+.pd-goal-v2__approval {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+}
+
+.pd-goal-v2__approval--ok {
+  background: color-mix(
+    in srgb,
+    var(--color-status-completed) 16%,
+    var(--color-surface)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--color-status-completed) 38%,
+    var(--color-divider)
+  );
+}
+
+.pd-goal-v2__approval--pending {
+  background: color-mix(in srgb, var(--color-amber) 12%, var(--color-surface));
+  border-color: color-mix(in srgb, var(--color-amber) 35%, var(--color-divider));
+}
+
+.pd-goal-v2__approval--draft {
+  background: var(--color-muted-bg);
+}
+
+.pd-goal-v2__approval-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--color-status-completed);
+  color: var(--color-white);
+}
+
+.pd-goal-v2__approval--pending .pd-goal-v2__approval-icon,
+.pd-goal-v2__approval--draft .pd-goal-v2__approval-icon {
+  background: var(--color-text-muted);
+}
+
+.pd-goal-v2__approval-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.pd-goal-v2__approval--ok .pd-goal-v2__approval-title {
+  color: var(--color-status-completed);
+}
+
+.pd-goal-v2__approval--pending .pd-goal-v2__approval-title {
+  color: var(--color-amber);
+}
+
+.pd-goal-v2__approval-sub {
+  margin: 0.1rem 0 0;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+  padding: 0.95rem 1rem;
+}
+
+.pd-goal-v2__fact-label {
+  margin: 0 0 0.3rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-goal-v2__owner-static,
+.pd-goal-v2__fact-value {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pd-goal-v2__owner-static p {
+  margin: 0;
+}
+
+.pd-goal-v2__description {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+/* --------------------------------------------------------- owner select */
+
+.pd-goal-v2__owner {
+  position: relative;
+}
+
+.pd-goal-v2__owner-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.55rem;
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-goal-v2__owner-trigger-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pd-goal-v2__owner-placeholder {
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.pd-goal-v2__owner-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.9rem;
+  background: var(--goal-v2-surface);
+  box-shadow: var(--goal-v2-menu-shadow);
+}
+
+.pd-goal-v2__owner-search {
+  display: block;
+  padding: 0.65rem 0.75rem 0.45rem;
+  border-bottom: 1px solid var(--goal-v2-border);
+}
+
+.pd-goal-v2__owner-search input {
+  width: 100%;
+  margin: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.pd-goal-v2__owner-list {
+  overflow: auto;
+  padding: 0.35rem;
+}
+
+.pd-goal-v2__owner-empty {
+  margin: 0;
+  padding: 0.85rem 0.7rem;
+  color: var(--color-text-muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.pd-goal-v2__owner-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-goal-v2__owner-option:hover,
+.pd-goal-v2__owner-option.is-selected {
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+}
+
+.pd-goal-v2__owner-option-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.pd-goal-v2__owner-option-copy > span:first-child {
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.pd-goal-v2__owner-option-copy > span:last-child:not(:first-child) {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+/* ------------------------------------------------------------ responsive */
+
+@media (max-width: 1080px) {
+  .pd-goal-v2__target {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 960px) {
+  .pd-goal-v2__body {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .pd-goal-v2__aside {
+    position: static;
+  }
+
+  .pd-goal-v2__summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .pd-goal-v2__title-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .pd-goal-v2__target {
+    grid-template-columns: 1fr;
+  }
+
+  .pd-goal-v2__measure-head {
+    flex-wrap: wrap;
+  }
+
+  .pd-goal-v2__measure-name {
+    order: 3;
+    flex-basis: 100%;
+  }
+}

@@ -11,6 +11,7 @@ export type BreadcrumbContext = {
   teamName?: string | null
   cycleName?: string | null
   scorecardCycleLabel?: string | null
+  goalsCycleLabel?: string | null
 }
 
 function matchNavItem(
@@ -32,6 +33,13 @@ function peopleRoot(pathname: string): BreadcrumbItem {
   return { label: 'People', href: '/people' }
 }
 
+function goalsRoot(pathname: string): BreadcrumbItem {
+  if (pathname === '/goals-v2' || pathname.startsWith('/goals-v2/')) {
+    return { label: 'Goals', href: '/goals-v2' }
+  }
+  return { label: 'Goals', href: '/goals' }
+}
+
 /**
  * Builds the top-bar breadcrumb trail for the current route.
  * Top-level pages return a single current crumb; nested routes include parents.
@@ -44,9 +52,14 @@ export function buildBreadcrumbs({
   teamName,
   cycleName,
   scorecardCycleLabel,
+  goalsCycleLabel,
 }: BreadcrumbContext): BreadcrumbItem[] {
   if (pathname === '/people-v2') {
     return [{ label: 'People' }]
+  }
+
+  if (pathname === '/goals-v2') {
+    return [{ label: 'Goals' }]
   }
 
   const peopleV2Profile = matchPath(
@@ -171,6 +184,35 @@ export function buildBreadcrumbs({
     ]
   }
 
+  const goalsDetail =
+    matchPath(
+      { path: '/goals-v2/:cycleId/:personId/:goalId', end: true },
+      pathname,
+    ) ??
+    matchPath(
+      { path: '/goals-v2/:cycleId/:personId', end: true },
+      pathname,
+    ) ??
+    matchPath(
+      { path: '/goals/:cycleId/:personId/:goalId', end: true },
+      pathname,
+    ) ??
+    matchPath(
+      { path: '/goals/:cycleId/:personId', end: true },
+      pathname,
+    )
+  if (goalsDetail?.params.personId) {
+    const cycleId = goalsDetail.params.cycleId
+      ? decodeURIComponent(goalsDetail.params.cycleId)
+      : ''
+    const root = goalsRoot(pathname)
+    return [
+      root,
+      { label: goalsCycleLabel?.trim() || cycleId || 'Cycle', href: root.href },
+      { label: employeeName?.trim() || 'Goals' },
+    ]
+  }
+
   if (
     pathname === profileNavItem.path ||
     pathname.startsWith(`${profileNavItem.path}/`)
@@ -200,6 +242,9 @@ export function resolveTopBarIcon(
 ): NavItem['icon'] | undefined {
   if (pathname === '/people-v2' || pathname.startsWith('/people-v2/')) {
     return navItems.find((item) => item.path === '/people')?.icon
+  }
+  if (pathname === '/goals-v2' || pathname.startsWith('/goals-v2/')) {
+    return navItems.find((item) => item.path === '/goals')?.icon
   }
   if (
     pathname === profileNavItem.path ||
