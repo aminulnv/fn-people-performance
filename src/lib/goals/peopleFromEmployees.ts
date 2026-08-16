@@ -97,12 +97,27 @@ export function mergePeopleIntoGoalsState(input: {
   const byPerson: Record<string, PersonGoals> = {}
 
   for (const person of people) {
+    const status = demoSeedStatus(
+      person.id,
+      input.signedInPersonId,
+      person.managerId,
+    )
+    const manager = person.managerId
+      ? people.find((other) => other.id === person.managerId)
+      : undefined
     byPerson[person.id] =
       input.byPerson[person.id] ??
       buildDemoPersonGoals(
         input.cycleId,
         person.id,
-        demoSeedStatus(person.id, input.signedInPersonId, person.managerId),
+        status,
+        manager
+          ? {
+              id: manager.id,
+              name: manager.name,
+              avatarUrl: manager.avatarUrl,
+            }
+          : undefined,
       )
   }
 

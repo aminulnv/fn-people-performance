@@ -437,6 +437,7 @@ export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
     ...current,
     status: 'submitted',
     sendBackReason: undefined,
+    sendBackBy: undefined,
   }))
 }
 
@@ -444,7 +445,7 @@ export function sendBackSubmission(
   context: GoalMutationContext,
   reason: string,
 ): GoalsSnapshot {
-  const { capabilities } = capabilitiesFor(context)
+  const { actor, capabilities } = capabilitiesFor(context)
   if (!capabilities.canSendBack) {
     throw new Error('You do not have permission to send these goals back.')
   }
@@ -456,6 +457,11 @@ export function sendBackSubmission(
       ...current,
       status: 'sent_back',
       sendBackReason: reason.trim() || 'Please revise and resubmit.',
+      sendBackBy: {
+        id: actor.id,
+        name: actor.name,
+        ...(actor.avatarUrl ? { avatarUrl: actor.avatarUrl } : {}),
+      },
       managerNote: undefined,
       rating: undefined,
     }
@@ -477,6 +483,7 @@ export function approveSubmission(
       status: 'approved',
       goals: clone(goals ?? current.goals),
       sendBackReason: undefined,
+      sendBackBy: undefined,
       managerNote: 'Approved',
     }
   })

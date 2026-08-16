@@ -101,6 +101,7 @@ type GoalUnifiedDetailProps = {
   isCurrentCycle?: boolean
   status: PersonGoals['status']
   commentAuthorName: string
+  commentAuthorId?: string
   canEdit?: boolean
   canUpdateProgress?: boolean
   canRemove?: boolean
@@ -815,6 +816,7 @@ export function GoalUnifiedDetail({
   isCurrentCycle = false,
   status,
   commentAuthorName,
+  commentAuthorId,
   canEdit = false,
   canUpdateProgress = false,
   canRemove = false,
@@ -966,6 +968,7 @@ export function GoalUnifiedDetail({
           ...comments,
           {
             id: newId('comment'),
+            authorId: commentAuthorId,
             authorName: commentAuthorName,
             text,
             createdAt: new Date().toISOString(),
@@ -1483,7 +1486,18 @@ export function GoalUnifiedDetail({
                       <li key={item.id} className="pd-goal-v2__comment">
                         <Avatar
                           name={item.authorName}
+                          src={
+                            (
+                              ownerOptions.find(
+                                (person) => person.id === item.authorId,
+                              ) ??
+                              ownerOptions.find(
+                                (person) => person.name === item.authorName,
+                              )
+                            )?.avatarUrl
+                          }
                           size="sm"
+                          className="pd-people__avatar"
                           style={avatarStyle(item.authorName)}
                         />
                         <div>

@@ -7,6 +7,7 @@ import {
   savePersonGoals,
   sendBackSubmission,
   setSignedInPerson,
+  submitPersonGoals,
   updateGoalProgress,
   type GoalMutationContext,
 } from './store'
@@ -128,6 +129,21 @@ describe('goal approval mutations', () => {
 
     expect(snapshot.byPerson['1'].status).toBe('sent_back')
     expect(snapshot.byPerson['1'].sendBackReason).toBe('Revise the target.')
+    expect(snapshot.byPerson['1'].sendBackBy).toEqual({
+      id: '2',
+      name: 'Line Manager',
+    })
+  })
+
+  it('lets the owner resubmit after a send-back', () => {
+    approveSubmission(ctx('1', '2'))
+    sendBackSubmission(ctx('1', '2'), 'Revise the target.')
+
+    const snapshot = submitPersonGoals(ctx('1', '1'))
+
+    expect(snapshot.byPerson['1'].status).toBe('submitted')
+    expect(snapshot.byPerson['1'].sendBackReason).toBeUndefined()
+    expect(snapshot.byPerson['1'].sendBackBy).toBeUndefined()
   })
 
   it('keeps pending goals pending when progress changes', () => {

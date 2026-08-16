@@ -73,6 +73,18 @@ describe('deriveGoalCapabilities', () => {
     expect(caps.canApprove).toBe(false)
   })
 
+  it('lets the owner resubmit sent-back goals', () => {
+    const caps = deriveGoalCapabilities({
+      actor: subject,
+      subject,
+      row: row('e1', 'sent_back'),
+      cycle,
+      cycleStatus: 'current',
+    })
+    expect(caps.canSubmit).toBe(true)
+    expect(caps.canEditStructure).toBe(true)
+  })
+
   it('lets a manager approve submitted goals', () => {
     const caps = deriveGoalCapabilities({
       actor,

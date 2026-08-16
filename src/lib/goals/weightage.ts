@@ -9,32 +9,71 @@ export function sumMeasurementWeights(measurements: Measurement[]): number {
   return measurements.reduce((sum, m) => sum + (Number(m.weight) || 0), 0)
 }
 
+export type SubmitGoalBlocker = {
+  reason: string
+  goalId?: string
+  goalTitle?: string
+  suffix?: string
+}
+
+function goalName(goal: Goal, index: number): string {
+  return goal.description.trim() || `Untitled goal ${index + 1}`
+}
+
+function goalBlocker(
+  goal: Goal,
+  index: number,
+  suffix: string,
+): SubmitGoalBlocker {
+  const goalTitle = goalName(goal, index)
+  return {
+    reason: `${goalTitle}${suffix}`,
+    goalId: goal.id,
+    goalTitle,
+    suffix,
+  }
+}
+
 export function canSubmitGoals(goals: Goal[]): {
   ok: boolean
   reasons: string[]
+  blockers: SubmitGoalBlocker[]
 } {
-  const reasons: string[] = []
-  if (goals.length < 2) reasons.push('Add at least 2 goals.')
+  const blockers: SubmitGoalBlocker[] = []
+  if (goals.length < 2) blockers.push({ reason: 'Add at least two goals.' })
   if (sumGoalWeights(goals) !== 100) {
-    reasons.push('Goal weights must add up to 100%.')
+    blockers.push({ reason: 'Weights need to add up to 100%.' })
   }
-  for (const goal of goals) {
+  goals.some((goal, index) => {
     if (!goal.description.trim()) {
-      reasons.push('Every goal needs a description.')
-      break
+      blockers.push(goalBlocker(goal, index, ' needs a title.'))
+      return true
     }
     if (goal.measurements.length < 1) {
-      reasons.push('Every goal needs at least 1 measurement.')
-      break
+      blockers.push(
+        goalBlocker(
+          goal,
+          index,
+          goal.cascadedFromGoalId
+            ? ' still needs a measure — or remove it.'
+            : ' still needs a measure.',
+        ),
+      )
+      return true
     }
     if (sumMeasurementWeights(goal.measurements) !== 100) {
-      reasons.push(
-        `“${goal.description.slice(0, 32) || 'A goal'}…” measurements must total 100%.`,
+      blockers.push(
+        goalBlocker(goal, index, ' measures need to add up to 100%.'),
       )
-      break
+      return true
     }
+    return false
+  })
+  return {
+    ok: blockers.length === 0,
+    reasons: blockers.map((blocker) => blocker.reason),
+    blockers,
   }
-  return { ok: reasons.length === 0, reasons }
 }
 
 export function measurementProgress(m: Measurement): number {

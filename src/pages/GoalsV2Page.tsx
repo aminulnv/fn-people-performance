@@ -55,6 +55,9 @@ import {
   goalsV2OverviewPath,
 } from './goals-v2/paths'
 import { ReportGoalsCard } from './goals/ReportGoalsCard'
+import { GoalSendBackNotice } from './goals/GoalSendBackNotice'
+import { GoalSubmitBlockNotice } from './goals/GoalSubmitBlockNotice'
+import { GoalSubmitAllButton } from './goals/GoalSubmitAllButton'
 import { GoalsCycleSelect } from './goals/GoalsCycleSelect'
 import {
   useGoalsController,
@@ -69,6 +72,7 @@ import {
   trackLabel,
   type GoalsDirectoryScope,
 } from './goals/goalHelpers'
+import { GoalApprovalStatus } from './goals/GoalApprovalStatus'
 import { statusLabel, statusVariant } from './goals/statusLabels'
 import { reviewsTabPath } from '@/lib/reviews/paths'
 import '@/styles/layout-people.css'
@@ -553,18 +557,7 @@ function GoalsOverview() {
                         </span>
                       </td>
                       <td>
-                        {row.status === 'approved' ? (
-                          <span
-                            className="pd-goals-overview__check"
-                            aria-label="Approved"
-                          >
-                            <Check size={14} strokeWidth={2.5} aria-hidden />
-                          </span>
-                        ) : row.status === 'submitted' ? (
-                          <Badge variant="pending">Pending</Badge>
-                        ) : (
-                          <span className="pd-goals-overview__muted">—</span>
-                        )}
+                        <GoalApprovalStatus status={row.status} />
                       </td>
                     </tr>
                   )
@@ -794,6 +787,7 @@ function GoalsPersonDetail({
       busy={busy}
       openGoalId={goalId}
       commentAuthorName={actor?.name ?? active.name}
+      commentAuthorId={actor?.id ?? active.id}
       toolbarStart={
         detailOpen ? undefined : (
           <div className="pd-goals-toolbar__start">
@@ -907,6 +901,7 @@ function GoalsPersonDetail({
           cascadeFromFor={cascadeFromFor}
           cascadeRecipientsFor={cascadeRecipientsFor}
           commentAuthorName={actor?.name ?? ''}
+          commentAuthorId={actor?.id}
           capabilitiesFor={capabilitiesFor}
           resolveOwner={resolveOwner}
           sendBackReason={sendBackReason}
@@ -988,6 +983,7 @@ function ManagerPanel({
   cascadeFromFor,
   cascadeRecipientsFor,
   commentAuthorName,
+  commentAuthorId,
   capabilitiesFor,
   resolveOwner,
   sendBackReason,
@@ -1012,6 +1008,7 @@ function ManagerPanel({
   cascadeFromFor: (subjectId: string) => LineManagerCascade
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[]
   commentAuthorName: string
+  commentAuthorId?: string
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null
   resolveOwner: (
     goal: Goal,
@@ -1132,6 +1129,7 @@ function ManagerPanel({
               isCurrentCycle={snapshot.cycleStatus === 'current'}
               status={active.row.status}
               commentAuthorName={commentAuthorName}
+              commentAuthorId={commentAuthorId}
               canEdit={Boolean(caps?.canEditStructure)}
               canUpdateProgress={Boolean(caps?.canUpdateProgress)}
               canRemove={Boolean(caps?.canEditStructure)}
@@ -1291,6 +1289,7 @@ function EmployeePanel({
   busy,
   openGoalId,
   commentAuthorName,
+  commentAuthorId,
   toolbarStart,
   toolbarOnly = false,
   ownerOptions,
@@ -1328,6 +1327,7 @@ function EmployeePanel({
   busy: boolean
   openGoalId?: string
   commentAuthorName: string
+  commentAuthorId?: string
   toolbarStart?: ReactNode
   /**
    * Renders the toolbar row without the goals below it. The panel stays mounted
@@ -1463,6 +1463,7 @@ function EmployeePanel({
           isCurrentCycle={isCurrentCycle}
           status={row.status}
           commentAuthorName={commentAuthorName}
+          commentAuthorId={commentAuthorId}
           canEdit={canEditDraft}
           canUpdateProgress={canUpdateProgress}
           canRemove={canEditDraft}
@@ -1528,27 +1529,6 @@ function EmployeePanel({
       }
       aria-label={showsGoals ? 'My goals' : undefined}
     >
-      {showsGoals ? (
-        <>
-          {row.status === 'sent_back' && row.sendBackReason ? (
-            <Notice tone="warn">Sent back: {row.sendBackReason}</Notice>
-          ) : null}
-          {row.status === 'approved' && canEditDraft ? (
-            <Notice tone="warn">
-              Editing goal details will require approval again. Progress updates
-              do not affect approval.
-            </Notice>
-          ) : null}
-
-          {showOwnScore && row.rating ? (
-            <Notice tone="ok">
-              Your quarter score: {row.rating.tier}/5
-              {row.rating.comment ? ` — ${row.rating.comment}` : ''}
-            </Notice>
-          ) : null}
-        </>
-      ) : null}
-
       {toolbarStart || (showsGoals && canEditDraft && goals.length > 0) ? (
         <div className="pd-goals-toolbar">
           {toolbarStart}
@@ -1570,17 +1550,12 @@ function EmployeePanel({
               </button>
               {canSubmit &&
                 (row.status === 'draft' || row.status === 'sent_back') ? (
-                <button
-                  type="button"
-                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-                  disabled={busy || !submitCheck.ok}
-                  onClick={() => {
-                    onSubmit(goals)
-                  }}
-                >
-                  <Send size={16} strokeWidth={1.75} aria-hidden />
-                  Submit All
-                </button>
+                <GoalSubmitAllButton
+                  status={row.status}
+                  busy={busy}
+                  reasons={submitCheck.reasons}
+                  onSubmit={() => onSubmit(goals)}
+                />
               ) : null}
               <button
                 type="button"
@@ -1594,6 +1569,47 @@ function EmployeePanel({
             </div>
           ) : null}
         </div>
+      ) : null}
+
+      {showsGoals ? (
+        <>
+          {row.status === 'sent_back' && row.sendBackReason ? (
+            <GoalSendBackNotice
+              reason={row.sendBackReason}
+              author={
+                row.sendBackBy ??
+                (cascadeFrom.managerId && cascadeFrom.managerName
+                  ? {
+                      id: cascadeFrom.managerId,
+                      name: cascadeFrom.managerName,
+                      avatarUrl: cascadeFrom.managerAvatarUrl,
+                    }
+                  : undefined)
+              }
+            />
+          ) : null}
+          {canSubmit &&
+          (row.status === 'draft' || row.status === 'sent_back') &&
+          !submitCheck.ok ? (
+            <GoalSubmitBlockNotice
+              blockers={submitCheck.blockers}
+              onOpenGoal={onOpenGoal}
+            />
+          ) : null}
+          {row.status === 'approved' && canEditDraft ? (
+            <Notice tone="warn">
+              Editing goal details will require approval again. Progress updates
+              do not affect approval.
+            </Notice>
+          ) : null}
+
+          {showOwnScore && row.rating ? (
+            <Notice tone="ok">
+              Your quarter score: {row.rating.tier}/5
+              {row.rating.comment ? ` — ${row.rating.comment}` : ''}
+            </Notice>
+          ) : null}
+        </>
       ) : null}
 
       {!showsGoals ? null : nestedReview ? (
@@ -1709,15 +1725,10 @@ function GoalsTable({
               {track.label}
             </div>
             <div className="pd-goals-table__approval" role="cell">
-              {status === 'approved' ? (
-                <span className="pd-goals-table__check" aria-label="Approved">
-                  ✓
-                </span>
-              ) : status === 'submitted' ? (
-                <Badge variant="pending">Pending</Badge>
-              ) : (
-                <span className="pd-goals-table__dash">—</span>
-              )}
+              <GoalApprovalStatus
+                status={status}
+                checkClassName="pd-goals-table__check"
+              />
             </div>
           </button>
         )

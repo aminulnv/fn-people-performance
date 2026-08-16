@@ -20,7 +20,7 @@ export type CascadeGoalHref = (
 export function CascadeLabel({
   children,
   as: Tag = 'span',
-  className = 'pd-goal-cascade__label',
+  className = 'pd-goal-view__description-label',
 }: {
   children: ReactNode
   as?: 'span' | 'p'
@@ -149,7 +149,7 @@ export function GoalCascadedTo({
   if (recipients.length === 0) return null
   return (
     <div className="pd-goal-cascade">
-      <CascadeLabel>Cascaded to</CascadeLabel>
+      <CascadeLabel as="p">Cascaded to</CascadeLabel>
       <ul className="pd-goal-cascade__people">
         {recipients.map((item) => (
           <li key={item.goalId}>
@@ -196,7 +196,7 @@ export function GoalCascadeField({
   if (cascadeFrom.options.length === 0 && !selected) {
     return (
       <div className="pd-goal-cascade">
-        <CascadeLabel>Cascading from</CascadeLabel>
+        <CascadeLabel as="p">Cascading from</CascadeLabel>
         <p className="pd-goal-cascade__empty">
           {cascadeFrom.managerName
             ? `${cascadeFrom.managerName} has no goals in this cycle.`
@@ -208,7 +208,7 @@ export function GoalCascadeField({
 
   return (
     <div className="pd-goal-cascade">
-      <CascadeLabel>Cascading from</CascadeLabel>
+      <CascadeLabel as="p">Cascading from</CascadeLabel>
       <ListboxSelect
         value={value}
         allowEmpty

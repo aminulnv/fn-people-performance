@@ -45,6 +45,7 @@ export {
   sumMeasurementWeights,
   newId,
 } from './goals/weightage'
+export type { SubmitGoalBlocker } from './goals/weightage'
 
 function delay<T>(value: T, ms = 120): Promise<T> {
   return new Promise((resolve) => {

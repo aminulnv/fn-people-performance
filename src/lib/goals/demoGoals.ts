@@ -1,5 +1,5 @@
 import { rebalanceMeasurementWeights } from './measurements'
-import type { Goal, PersonGoals, SubmissionStatus } from './types'
+import type { Goal, PersonGoals, SendBackAuthor, SubmissionStatus } from './types'
 
 function seedId(cycleId: string, personId: string, suffix: string): string {
   return `demo-${cycleId}-${personId}-${suffix}`
@@ -126,6 +126,7 @@ export function buildDemoPersonGoals(
   cycleId: string,
   personId: string,
   status: SubmissionStatus,
+  sendBackBy?: SendBackAuthor,
 ): PersonGoals {
   return {
     personId,
@@ -137,5 +138,6 @@ export function buildDemoPersonGoals(
       status === 'sent_back'
         ? 'Please tighten measurement targets and rebalance weightage to 100%.'
         : undefined,
+    sendBackBy: status === 'sent_back' ? sendBackBy : undefined,
   }
 }

@@ -113,11 +113,19 @@ export type QuarterRating = {
   submittedAt: string
 }
 
+export type SendBackAuthor = {
+  id: string
+  name: string
+  avatarUrl?: string
+}
+
 export type PersonGoals = {
   personId: string
   status: SubmissionStatus
   goals: Goal[]
   sendBackReason?: string
+  /** Snapshot of who wrote the send-back note. */
+  sendBackBy?: SendBackAuthor
   managerNote?: string
   rating?: QuarterRating
 }
