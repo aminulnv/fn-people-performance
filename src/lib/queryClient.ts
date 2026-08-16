@@ -11,6 +11,7 @@ export const queryClient = new QueryClient({
 })
 
 export const queryKeys = {
-  notifications: ['notifications'] as const,
+  notifications: (recipientId: string) =>
+    ['notifications', recipientId] as const,
   goals: ['goals'] as const,
 }

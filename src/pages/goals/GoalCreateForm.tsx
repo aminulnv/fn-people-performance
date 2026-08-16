@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -7,121 +7,128 @@ import {
   GitFork,
   Save,
   Trash2,
-} from 'lucide-react'
-import { Avatar, Textarea } from '@/components/ui'
-import { avatarStyle } from '@/lib/employees/avatar'
-import type { Goal, PersonGoals } from '@/lib/goals/types'
-import { validateGoalDraft } from '@/lib/goals/draft'
+} from "lucide-react";
+import { Avatar, Textarea } from "@/components/ui";
+import { avatarStyle } from "@/lib/employees/avatar";
+import type { Goal, PersonGoals } from "@/lib/goals/types";
+import { validateGoalDraft } from "@/lib/goals/draft";
 import type {
   CascadeRecipient,
   LineManagerCascade,
-} from '@/lib/goals/operations'
-import { GoalClassificationFields } from './GoalClassificationFields'
+} from "@/lib/goals/operations";
+import { GoalClassificationFields } from "./GoalClassificationFields";
 import {
   EMPTY_LINE_MANAGER_CASCADE,
   GoalCascadeField,
   GoalCascadedTo,
   type CascadeGoalHref,
-} from './GoalCascadeField'
-import { GoalProgressEditor } from './GoalProgressEditor'
-import { GoalSummaryCards } from './GoalSummaryCards'
+} from "./GoalCascadeField";
+import { GoalProgressEditor } from "./GoalProgressEditor";
+import { GoalSummaryCards } from "./GoalSummaryCards";
+import { GoalAutosaveStatus } from "./GoalAutosaveStatus";
+import type { GoalDraftSaveState } from "./useGoalDraftAutosave";
+import { formatRefreshAge } from "./goalHelpers";
 
 export type GoalOwnerOption = {
-  id: string
-  name: string
-  title?: string
-  avatarUrl?: string
-}
+  id: string;
+  name: string;
+  title?: string;
+  avatarUrl?: string;
+};
 
 type GoalCreateFormProps = {
-  goal: Goal
-  index: number
-  total: number
-  isNew?: boolean
+  goal: Goal;
+  index: number;
+  total: number;
+  isNew?: boolean;
   /** Fallback owner when the goal has no ownerId yet (page person). */
-  defaultOwnerId: string
-  ownerOptions: GoalOwnerOption[]
-  cascadeFrom?: LineManagerCascade
-  cascadedTo?: CascadeRecipient[]
-  cascadeHref?: CascadeGoalHref
-  cycleLabel: string
-  isCurrentCycle?: boolean
-  status?: PersonGoals['status']
-  onChange: (goal: Goal) => void
-  onBack: () => void
-  onSave: () => void
-  onRemove?: () => void
-  onSelectIndex: (index: number) => void
-}
+  defaultOwnerId: string;
+  ownerOptions: GoalOwnerOption[];
+  cascadeFrom?: LineManagerCascade;
+  cascadedTo?: CascadeRecipient[];
+  cascadeHref?: CascadeGoalHref;
+  cycleLabel: string;
+  isCurrentCycle?: boolean;
+  status?: PersonGoals["status"];
+  /** Autosave state of the owning draft, surfaced next to the header actions. */
+  saveState?: GoalDraftSaveState;
+  onChange: (goal: Goal) => void;
+  onBack: () => void;
+  onSave: () => void;
+  onRemove?: () => void;
+  onSelectIndex: (index: number) => void;
+};
 
 function OwnerSelect({
   ownerId,
   options,
   onChange,
 }: {
-  ownerId: string
-  options: GoalOwnerOption[]
-  onChange: (ownerId: string) => void
+  ownerId: string;
+  options: GoalOwnerOption[];
+  onChange: (ownerId: string) => void;
 }) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const listId = useId()
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
 
   const selected =
-    options.find((person) => person.id === ownerId) ?? options[0] ?? null
+    options.find((person) => person.id === ownerId) ?? options[0] ?? null;
 
   const filtered = (() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return options
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
     return options.filter((person) => {
-      const haystack = [person.name, person.title ?? ''].join(' ').toLowerCase()
-      return haystack.includes(needle)
-    })
-  })()
+      const haystack = [person.name, person.title ?? ""]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(needle);
+    });
+  })();
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
-      setQuery('')
-      return
+      setQuery("");
+      return;
     }
     const frame = window.requestAnimationFrame(() => {
-      searchRef.current?.focus()
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [open])
+      searchRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   return (
     <div
       ref={containerRef}
-      className={`pd-goal-create__byline-owner${open ? ' is-open' : ''}`}
+      className={`pd-goal-create__byline-owner${open ? " is-open" : ""}`}
     >
       <button
         type="button"
         className="pd-goal-create__byline-owner-trigger"
-        aria-label={selected ? `Owner ${selected.name}` : 'Select owner'}
+        aria-label={selected ? `Owner ${selected.name}` : "Select owner"}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
@@ -170,7 +177,7 @@ function OwnerSelect({
               <p className="pd-goal-create__owner-empty">No people found</p>
             ) : (
               filtered.map((person) => {
-                const isSelected = person.id === selected?.id
+                const isSelected = person.id === selected?.id;
                 return (
                   <button
                     key={person.id}
@@ -178,11 +185,11 @@ function OwnerSelect({
                     role="option"
                     aria-selected={isSelected}
                     className={`pd-goal-create__owner-option${
-                      isSelected ? ' is-selected' : ''
+                      isSelected ? " is-selected" : ""
                     }`}
                     onClick={() => {
-                      onChange(person.id)
-                      setOpen(false)
+                      onChange(person.id);
+                      setOpen(false);
                     }}
                   >
                     <Avatar
@@ -205,14 +212,14 @@ function OwnerSelect({
                       <Check size={14} strokeWidth={2.5} aria-hidden />
                     ) : null}
                   </button>
-                )
+                );
               })
             )}
           </div>
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 export function GoalCreateForm({
@@ -227,7 +234,8 @@ export function GoalCreateForm({
   cascadeHref,
   cycleLabel,
   isCurrentCycle = false,
-  status = 'draft',
+  status = "draft",
+  saveState,
   onChange,
   onBack,
   onSave,
@@ -236,16 +244,19 @@ export function GoalCreateForm({
 }: GoalCreateFormProps) {
   const [showCascadeField, setShowCascadeField] = useState(
     Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
-  )
-  const titleFieldId = useId()
-  const draftValidation = validateGoalDraft(goal)
-  const nameError = Boolean(draftValidation.nameError)
-  const ownerId = goal.ownerId ?? defaultOwnerId
+  );
+  const titleFieldId = useId();
+  const draftValidation = validateGoalDraft(goal);
+  const nameError = Boolean(draftValidation.nameError);
+  const ownerId = goal.ownerId ?? defaultOwnerId;
 
-  const patch = (partial: Partial<Goal>) => onChange({ ...goal, ...partial })
+  const patch = (partial: Partial<Goal>) => onChange({ ...goal, ...partial });
 
   return (
-    <div className="pd-goal-create" aria-label={isNew ? 'Add goal' : 'Edit goal'}>
+    <div
+      className="pd-goal-create"
+      aria-label={isNew ? "Add goal" : "Edit goal"}
+    >
       <header className="pd-goal-create__header">
         <div className="pd-goal-create__title-row">
           <div className="pd-goal-create__title-edit">
@@ -257,7 +268,7 @@ export function GoalCreateForm({
               className="pd-goal-create__title-input"
               value={goal.description}
               rows={1}
-              placeholder={isNew ? 'Name this goal' : 'Goal name'}
+              placeholder={isNew ? "Name this goal" : "Goal name"}
               aria-invalid={nameError}
               onChange={(event) => patch({ description: event.target.value })}
             />
@@ -317,7 +328,7 @@ export function GoalCreateForm({
               onClick={onSave}
             >
               <Save size={15} strokeWidth={1.75} aria-hidden />
-              {isNew ? 'Add Goal' : 'Save Changes'}
+              {isNew ? "Add Goal" : "Save Changes"}
             </button>
           </div>
         </div>
@@ -328,6 +339,16 @@ export function GoalCreateForm({
             options={ownerOptions}
             onChange={(nextOwnerId) => patch({ ownerId: nextOwnerId })}
           />
+          {saveState ? (
+            <div className="pd-goal-create__meta">
+              <GoalAutosaveStatus state={saveState} />
+              <p>
+                {goal.updatedAt
+                  ? `Updated ${formatRefreshAge(goal.updatedAt)}`
+                  : "No updates yet"}
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <GoalClassificationFields
@@ -342,7 +363,7 @@ export function GoalCreateForm({
 
         <Textarea
           label="Description"
-          value={goal.details ?? ''}
+          value={goal.details ?? ""}
           placeholder="Add a description (optional)"
           rows={3}
           onChange={(event) =>
@@ -395,5 +416,5 @@ export function GoalCreateForm({
         <GoalProgressEditor goal={goal} onChange={onChange} />
       </div>
     </div>
-  )
+  );
 }

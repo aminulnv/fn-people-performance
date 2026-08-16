@@ -58,10 +58,7 @@ export const REVIEW_TYPE_ORDER: ReviewTypeId[] = [
   'functional_manager',
 ]
 
-export const GRADE_BAND_META: Record<
-  GradeBandId,
-  { label: string }
-> = {
+export const GRADE_BAND_META: Record<GradeBandId, { label: string }> = {
   exceptional: { label: 'Exceptional' },
   exceeding: { label: 'Exceeding' },
   performing: { label: 'Performing' },
@@ -112,7 +109,8 @@ export const GRADE_RECOMMENDATION_META: Record<
   },
   weighted: {
     label: 'Weighted scorecards',
-    description: 'Pre-fill from weighted scorecard results across review types.',
+    description:
+      'Pre-fill from weighted scorecard results across review types.',
   },
 }
 
@@ -207,10 +205,4 @@ export function distributionTotal(
   distribution: CalibrationLogic['gradeDistribution'],
 ): number {
   return GRADE_BAND_ORDER.reduce((sum, id) => sum + distribution[id], 0)
-}
-
-export function formatDistribution(
-  distribution: CalibrationLogic['gradeDistribution'],
-): string {
-  return GRADE_BAND_ORDER.map((id) => `${distribution[id]}%`).join(' · ')
 }

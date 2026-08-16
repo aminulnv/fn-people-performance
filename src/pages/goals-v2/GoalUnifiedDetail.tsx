@@ -1,4 +1,11 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import {
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   ArrowDown,
   ArrowDownRight,
@@ -18,10 +25,10 @@ import {
   Plus,
   Send,
   Trash2,
-} from 'lucide-react'
-import { Avatar, Badge, ConfirmDialog, ListboxSelect } from '@/components/ui'
-import { avatarStyle } from '@/lib/employees/avatar'
-import { goalCompletion, newId } from '@/lib/goalsApi'
+} from "lucide-react";
+import { Avatar, Badge, ListboxSelect } from "@/components/ui";
+import { avatarStyle } from "@/lib/employees/avatar";
+import { goalCompletion, newId } from "@/lib/goalsApi";
 import {
   applyMetricStrategy,
   blankMetric,
@@ -35,7 +42,7 @@ import {
   measurementPanels,
   rebalanceMeasurementWeights,
   strategyLabel,
-} from '@/lib/goals/measurements'
+} from "@/lib/goals/measurements";
 import type {
   Goal,
   GoalProgressStatus,
@@ -46,8 +53,8 @@ import type {
   Milestone,
   PersonGoals,
   SendBackAuthor,
-} from '@/lib/goals/types'
-import { sumMeasurementWeights } from '@/lib/goals/weightage'
+} from "@/lib/goals/types";
+import { sumMeasurementWeights } from "@/lib/goals/weightage";
 import {
   formatRefreshAge,
   goalTitle,
@@ -55,20 +62,29 @@ import {
   progressStatusClass,
   trackLabel,
   trackToneClass,
-} from '@/pages/goals/goalHelpers'
-import { statusLabel } from '@/pages/goals/statusLabels'
-import { isGoalDraftDirty, validateGoalDraft } from './draftHelpers'
-import { GoalClassificationFields } from '@/pages/goals/GoalClassificationFields'
+} from "@/pages/goals/goalHelpers";
+import {
+  approvalCopy,
+  resolveApprovalPerson,
+} from "@/pages/goals/approvalDisplay";
+import { GoalAutosaveStatus } from "@/pages/goals/GoalAutosaveStatus";
+import type { GoalDraftSaveState } from "@/pages/goals/useGoalDraftAutosave";
+import type { RequestGoalEdit } from "@/pages/goals/useGoalEditGuard";
+import type { OkrReferenceScope } from "@/lib/okr/reference";
+import { isGoalDraftDirty, validateGoalDraft } from "./draftHelpers";
+import { GoalClassificationFields } from "@/pages/goals/GoalClassificationFields";
+import { GoalOkrReferencePanel } from "@/pages/goals/GoalOkrReferencePanel";
 import {
   GoalMetricReadout,
   GoalWeightReadout,
-} from '@/pages/goals/GoalMeasurementReadout'
-import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
-import { MetricProgressUpdate } from '@/pages/goals/MetricProgressUpdate'
+} from "@/pages/goals/GoalMeasurementReadout";
+import { GoalProgressLog } from "@/pages/goals/GoalProgressLog";
+import { MetricProgressUpdate } from "@/pages/goals/MetricProgressUpdate";
 import {
   recordMetricProgress,
   recordMilestoneProgress,
-} from '@/lib/goals/progressLog'
+  latestProgressAt,
+} from "@/lib/goals/progressLog";
 import {
   EMPTY_LINE_MANAGER_CASCADE,
   CascadeLabel,
@@ -76,162 +92,131 @@ import {
   GoalCascadeFromReadout,
   GoalCascadedTo,
   type CascadeGoalHref,
-} from '@/pages/goals/GoalCascadeField'
+} from "@/pages/goals/GoalCascadeField";
 import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
-} from '@/pages/goals/GoalCascadeTargetDialog'
+} from "@/pages/goals/GoalCascadeTargetDialog";
 import type {
   CascadeRecipient,
   LineManagerCascade,
-} from '@/lib/goals/operations'
+} from "@/lib/goals/operations";
 
 export type GoalOwnerOption = {
-  id: string
-  name: string
-  title?: string
-  avatarUrl?: string
-}
+  id: string;
+  name: string;
+  title?: string;
+  avatarUrl?: string;
+};
 
 export type GoalUnifiedOwner = {
-  name: string
-  avatarUrl?: string
-}
+  name: string;
+  avatarUrl?: string;
+};
 
 type GoalUnifiedDetailProps = {
-  goal: Goal
-  index: number
-  total: number
+  goal: Goal;
+  index: number;
+  total: number;
   /** True when this goal was just created and should open in edit mode. */
-  isNew?: boolean
-  owner: GoalUnifiedOwner
-  defaultOwnerId: string
-  ownerOptions: GoalOwnerOption[]
-  cascadeFrom?: LineManagerCascade
-  cascadedTo?: CascadeRecipient[]
-  cascadeHref?: CascadeGoalHref
-  cycleLabel: string
-  isCurrentCycle?: boolean
-  status: PersonGoals['status']
-  sendBackReason?: string
-  sendBackBy?: SendBackAuthor
-  commentAuthorName: string
-  commentAuthorId?: string
-  canEdit?: boolean
-  canUpdateProgress?: boolean
-  canRemove?: boolean
-  canCascade?: boolean
-  cascadeTargets?: CascadeTarget[]
+  isNew?: boolean;
+  owner: GoalUnifiedOwner;
+  defaultOwnerId: string;
+  ownerOptions: GoalOwnerOption[];
+  cascadeFrom?: LineManagerCascade;
+  cascadedTo?: CascadeRecipient[];
+  cascadeHref?: CascadeGoalHref;
+  cycleLabel: string;
+  isCurrentCycle?: boolean;
+  status: PersonGoals["status"];
+  postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"];
+  sendBackReason?: string;
+  sendBackBy?: SendBackAuthor;
+  commentAuthorName: string;
+  commentAuthorId?: string;
+  canEdit?: boolean;
+  canUpdateProgress?: boolean;
+  canRemove?: boolean;
+  canCascade?: boolean;
+  cascadeTargets?: CascadeTarget[];
+  okrScope?: OkrReferenceScope;
+  onRequestEdit?: RequestGoalEdit;
   /** Persist structural edits (save from edit mode). */
-  onSave: (goal: Goal) => void
+  onSave: (goal: Goal) => void;
+  /** Keep an editable draft synchronized without leaving edit mode. */
+  onDraftChange?: (goal: Goal) => void;
+  /** Autosave state of the owning draft, shown in place of manual save hints. */
+  saveState?: GoalDraftSaveState;
   /** Persist lightweight progress mutations while viewing. */
-  onProgressChange: (goal: Goal) => void
-  onDuplicate?: () => void
-  onCascade?: (reportIds: string[]) => void
-  onRemove?: () => void
-  onSelectIndex: (index: number) => void
-  onBack: () => void
+  onProgressChange: (goal: Goal) => void;
+  onDuplicate?: () => void;
+  onCascade?: (reportIds: string[]) => void;
+  onRemove?: () => void;
+  onSelectIndex: (index: number) => void;
+  onBack: () => void;
   /** Discard an unsaved new goal and leave. */
-  onDiscardNew?: () => void
-}
-
-function approvalCopy(status: PersonGoals['status']): {
-  title: string
-  sub: string
-  personPrefix: string
-  tone: 'ok' | 'pending' | 'draft'
-} {
-  if (status === 'approved') {
-    return {
-      title: 'Approved',
-      sub: 'Locked for this cycle',
-      personPrefix: 'by',
-      tone: 'ok',
-    }
-  }
-  if (status === 'submitted') {
-    return {
-      title: 'Pending approval',
-      sub: 'Waiting on manager',
-      personPrefix: 'by',
-      tone: 'pending',
-    }
-  }
-  if (status === 'sent_back') {
-    return {
-      title: 'Sent back',
-      sub: 'Needs changes',
-      personPrefix: 'by',
-      tone: 'pending',
-    }
-  }
-  return {
-    title: statusLabel(status),
-    sub: 'Not submitted yet',
-    personPrefix: 'by',
-    tone: 'draft',
-  }
-}
+  onDiscardNew?: () => void;
+};
 
 function touch(goal: Goal, partial: Partial<Goal>): Goal {
-  return { ...goal, ...partial, updatedAt: new Date().toISOString() }
+  return { ...goal, ...partial, updatedAt: new Date().toISOString() };
 }
 
 function StrategyIcon({
   strategy,
   size = 13,
 }: {
-  strategy: MetricStrategy
-  size?: number
+  strategy: MetricStrategy;
+  size?: number;
 }) {
-  const props = { size, strokeWidth: 2.25, 'aria-hidden': true as const }
+  const props = { size, strokeWidth: 2.25, "aria-hidden": true as const };
   switch (strategy) {
-    case 'increase':
-      return <ArrowUp {...props} />
-    case 'decrease':
-      return <ArrowDown {...props} />
-    case 'between':
-      return <ArrowLeftRight {...props} />
-    case 'keep_above':
-      return <ArrowUpRight {...props} />
-    case 'keep_below':
-      return <ArrowDownRight {...props} />
+    case "increase":
+      return <ArrowUp {...props} />;
+    case "decrease":
+      return <ArrowDown {...props} />;
+    case "between":
+      return <ArrowLeftRight {...props} />;
+    case "keep_above":
+      return <ArrowUpRight {...props} />;
+    case "keep_below":
+      return <ArrowDownRight {...props} />;
   }
 }
 
 type MenuItem = {
-  id: string
-  label: string
-  icon?: ReactNode
-  danger?: boolean
-  onSelect: () => void
-}
+  id: string;
+  label: string;
+  icon?: ReactNode;
+  danger?: boolean;
+  onSelect: () => void;
+};
 
 /** Compact overflow menu — keeps per-card actions out of the reading path. */
 function CardMenu({ label, items }: { label: string; items: MenuItem[] }) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   return (
     <div ref={containerRef} className="pd-goal-v2__menu">
@@ -253,11 +238,11 @@ function CardMenu({ label, items }: { label: string; items: MenuItem[] }) {
               type="button"
               role="menuitem"
               className={`pd-goal-v2__menu-item${
-                item.danger ? ' pd-goal-v2__menu-item--danger' : ''
+                item.danger ? " pd-goal-v2__menu-item--danger" : ""
               }`}
               onClick={() => {
-                setOpen(false)
-                item.onSelect()
+                setOpen(false);
+                item.onSelect();
               }}
             >
               {item.icon}
@@ -267,7 +252,7 @@ function CardMenu({ label, items }: { label: string; items: MenuItem[] }) {
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function WeightInput({
@@ -275,9 +260,9 @@ function WeightInput({
   label,
   onChange,
 }: {
-  value: number
-  label: string
-  onChange: (next: number) => void
+  value: number;
+  label: string;
+  onChange: (next: number) => void;
 }) {
   return (
     <label className="pd-goal-v2__weight">
@@ -292,7 +277,7 @@ function WeightInput({
       />
       <span aria-hidden>%</span>
     </label>
-  )
+  );
 }
 
 function OwnerSelect({
@@ -300,64 +285,66 @@ function OwnerSelect({
   options,
   onChange,
 }: {
-  ownerId: string
-  options: GoalOwnerOption[]
-  onChange: (ownerId: string) => void
+  ownerId: string;
+  options: GoalOwnerOption[];
+  onChange: (ownerId: string) => void;
 }) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-  const listId = useId()
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const listId = useId();
 
   const selected =
-    options.find((person) => person.id === ownerId) ?? options[0] ?? null
+    options.find((person) => person.id === ownerId) ?? options[0] ?? null;
 
   const filtered = (() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return options
+    const needle = query.trim().toLowerCase();
+    if (!needle) return options;
     return options.filter((person) => {
-      const haystack = [person.name, person.title ?? ''].join(' ').toLowerCase()
-      return haystack.includes(needle)
-    })
-  })()
+      const haystack = [person.name, person.title ?? ""]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(needle);
+    });
+  })();
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
-      setQuery('')
-      return
+      setQuery("");
+      return;
     }
     const frame = window.requestAnimationFrame(() => {
-      searchRef.current?.focus()
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [open])
+      searchRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [open]);
 
   return (
     <div
       ref={containerRef}
-      className={`pd-goal-v2__owner${open ? ' is-open' : ''}`}
+      className={`pd-goal-v2__owner${open ? " is-open" : ""}`}
     >
       <button
         type="button"
@@ -407,7 +394,7 @@ function OwnerSelect({
               <p className="pd-goal-v2__owner-empty">No people found</p>
             ) : (
               filtered.map((person) => {
-                const isSelected = person.id === selected?.id
+                const isSelected = person.id === selected?.id;
                 return (
                   <button
                     key={person.id}
@@ -415,11 +402,11 @@ function OwnerSelect({
                     role="option"
                     aria-selected={isSelected}
                     className={`pd-goal-v2__owner-option${
-                      isSelected ? ' is-selected' : ''
+                      isSelected ? " is-selected" : ""
                     }`}
                     onClick={() => {
-                      onChange(person.id)
-                      setOpen(false)
+                      onChange(person.id);
+                      setOpen(false);
                     }}
                   >
                     <Avatar
@@ -436,52 +423,52 @@ function OwnerSelect({
                       <Check size={14} strokeWidth={2.5} aria-hidden />
                     ) : null}
                   </button>
-                )
+                );
               })
             )}
           </div>
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 function StrategySelect({
   value,
   onChange,
 }: {
-  value: MetricStrategy
-  onChange: (next: MetricStrategy) => void
+  value: MetricStrategy;
+  onChange: (next: MetricStrategy) => void;
 }) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const listId = useId()
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const listId = useId();
 
   useEffect(() => {
-    if (!open) return
+    if (!open) return;
     const onPointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
-        setOpen(false)
+        setOpen(false);
       }
-    }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   return (
     <div
       ref={containerRef}
-      className={`pd-goal-v2__strategy${open ? ' is-open' : ''}`}
+      className={`pd-goal-v2__strategy${open ? " is-open" : ""}`}
     >
       <button
         type="button"
@@ -506,7 +493,7 @@ function StrategySelect({
           aria-label="Strategy"
         >
           {METRIC_STRATEGIES.map((option) => {
-            const selected = option.id === value
+            const selected = option.id === value;
             return (
               <button
                 key={option.id}
@@ -514,11 +501,11 @@ function StrategySelect({
                 role="option"
                 aria-selected={selected}
                 className={`pd-goal-v2__strategy-option${
-                  selected ? ' is-selected' : ''
+                  selected ? " is-selected" : ""
                 }`}
                 onClick={() => {
-                  onChange(option.id)
-                  setOpen(false)
+                  onChange(option.id);
+                  setOpen(false);
                 }}
               >
                 <StrategyIcon strategy={option.id} />
@@ -527,12 +514,12 @@ function StrategySelect({
                   <Check size={14} strokeWidth={2.5} aria-hidden />
                 ) : null}
               </button>
-            )
+            );
           })}
         </div>
       ) : null}
     </div>
-  )
+  );
 }
 
 /**
@@ -547,47 +534,51 @@ function MetricCard({
   onRemove,
   onConvertToTodo,
 }: {
-  metric: Metric
-  canRemove: boolean
-  onChange: (next: Metric) => void
-  onRemove: () => void
-  onConvertToTodo: () => void
+  metric: Metric;
+  canRemove: boolean;
+  onChange: (next: Metric) => void;
+  onRemove: () => void;
+  onConvertToTodo: () => void;
 }) {
-  const strategy = normalizeMetricStrategy(metric.direction)
-  const name = metric.title.trim() || 'this metric'
+  const strategy = normalizeMetricStrategy(metric.direction);
+  const name = metric.title.trim() || "this metric";
   const parseOptional = (raw: string): number | undefined => {
-    if (raw.trim() === '') return undefined
-    const next = Number(raw)
-    return Number.isFinite(next) ? next : undefined
-  }
+    if (raw.trim() === "") return undefined;
+    const next = Number(raw);
+    return Number.isFinite(next) ? next : undefined;
+  };
 
-  const isRange = metricUsesRange(strategy)
-  const lowerValue = isRange ? (metric.rangeMin ?? '') : (metric.startValue ?? '')
-  const upperValue = isRange ? (metric.rangeMax ?? '') : (metric.targetValue ?? '')
-  const lowerLabel = metricLowerLabel(strategy)
-  const upperLabel = metricUpperLabel(strategy)
+  const isRange = metricUsesRange(strategy);
+  const lowerValue = isRange
+    ? (metric.rangeMin ?? "")
+    : (metric.startValue ?? "");
+  const upperValue = isRange
+    ? (metric.rangeMax ?? "")
+    : (metric.targetValue ?? "");
+  const lowerLabel = metricLowerLabel(strategy);
+  const upperLabel = metricUpperLabel(strategy);
   const rangeInvalid =
-    strategy === 'between' &&
+    strategy === "between" &&
     metric.rangeMin != null &&
     metric.rangeMax != null &&
-    metric.rangeMin > metric.rangeMax
+    metric.rangeMin > metric.rangeMax;
 
   const menuItems: MenuItem[] = [
     {
-      id: 'to-todo',
-      label: 'Change to a To-Do List',
+      id: "to-todo",
+      label: "Change to a To-Do List",
       icon: <ListTodo size={15} strokeWidth={1.75} aria-hidden />,
       onSelect: onConvertToTodo,
     },
-  ]
+  ];
   if (canRemove) {
     menuItems.push({
-      id: 'remove',
-      label: 'Remove Measure',
+      id: "remove",
+      label: "Remove Measure",
       icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
       danger: true,
       onSelect: onRemove,
-    })
+    });
   }
 
   return (
@@ -599,7 +590,9 @@ function MetricCard({
           value={metric.title}
           placeholder="Name this metric"
           aria-label="Metric name"
-          onChange={(event) => onChange({ ...metric, title: event.target.value })}
+          onChange={(event) =>
+            onChange({ ...metric, title: event.target.value })
+          }
         />
         <WeightInput
           value={metric.weight}
@@ -617,16 +610,16 @@ function MetricCard({
               type="number"
               value={lowerValue}
               onChange={(event) => {
-                const next = parseOptional(event.target.value)
+                const next = parseOptional(event.target.value);
                 if (!isRange) {
-                  onChange({ ...metric, startValue: next, currentValue: next })
-                  return
+                  onChange({ ...metric, startValue: next, currentValue: next });
+                  return;
                 }
-                if (strategy === 'keep_above') {
-                  onChange({ ...metric, rangeMin: next, targetValue: next })
-                  return
+                if (strategy === "keep_above") {
+                  onChange({ ...metric, rangeMin: next, targetValue: next });
+                  return;
                 }
-                onChange({ ...metric, rangeMin: next })
+                onChange({ ...metric, rangeMin: next });
               }}
             />
           </label>
@@ -647,16 +640,16 @@ function MetricCard({
               type="number"
               value={upperValue}
               onChange={(event) => {
-                const next = parseOptional(event.target.value)
+                const next = parseOptional(event.target.value);
                 if (!isRange) {
-                  onChange({ ...metric, targetValue: next })
-                  return
+                  onChange({ ...metric, targetValue: next });
+                  return;
                 }
-                if (strategy === 'keep_below') {
-                  onChange({ ...metric, rangeMax: next, targetValue: next })
-                  return
+                if (strategy === "keep_below") {
+                  onChange({ ...metric, rangeMax: next, targetValue: next });
+                  return;
                 }
-                onChange({ ...metric, rangeMax: next })
+                onChange({ ...metric, rangeMax: next });
               }}
             />
           </label>
@@ -685,7 +678,7 @@ function MetricCard({
         ) : null}
       </div>
     </section>
-  )
+  );
 }
 
 /** Spread a checklist total across its tasks, keeping relative shares when possible. */
@@ -693,31 +686,31 @@ function redistributeTodoWeights(
   todos: Milestone[],
   nextTotal: number,
 ): Milestone[] {
-  const clamped = Math.max(0, Math.min(100, Math.round(nextTotal)))
-  if (todos.length === 0) return todos
+  const clamped = Math.max(0, Math.min(100, Math.round(nextTotal)));
+  if (todos.length === 0) return todos;
   if (todos.length === 1) {
-    return [{ ...todos[0], weight: clamped }]
+    return [{ ...todos[0], weight: clamped }];
   }
 
-  const currentTotal = todos.reduce((sum, todo) => sum + todo.weight, 0)
+  const currentTotal = todos.reduce((sum, todo) => sum + todo.weight, 0);
   if (currentTotal <= 0) {
-    const each = Math.floor(clamped / todos.length)
-    const remainder = clamped - each * todos.length
+    const each = Math.floor(clamped / todos.length);
+    const remainder = clamped - each * todos.length;
     return todos.map((todo, index) => ({
       ...todo,
       weight: each + (index === todos.length - 1 ? remainder : 0),
-    }))
+    }));
   }
 
-  let assigned = 0
+  let assigned = 0;
   return todos.map((todo, index) => {
     if (index === todos.length - 1) {
-      return { ...todo, weight: Math.max(0, clamped - assigned) }
+      return { ...todo, weight: Math.max(0, clamped - assigned) };
     }
-    const share = Math.round((todo.weight / currentTotal) * clamped)
-    assigned += share
-    return { ...todo, weight: share }
-  })
+    const share = Math.round((todo.weight / currentTotal) * clamped);
+    assigned += share;
+    return { ...todo, weight: share };
+  });
 }
 
 /** Every milestone lives in one card, so to-dos read as a single checklist. */
@@ -731,32 +724,32 @@ function TodoCard({
   onRemoveAll,
   onConvertToMetric,
 }: {
-  todos: Milestone[]
-  canRemove: boolean
-  onChangeTodo: (next: Milestone) => void
-  onChangeTodos: (next: Milestone[]) => void
-  onAddTodo: () => void
-  onRemoveTodo: (id: string) => void
-  onRemoveAll: () => void
-  onConvertToMetric: () => void
+  todos: Milestone[];
+  canRemove: boolean;
+  onChangeTodo: (next: Milestone) => void;
+  onChangeTodos: (next: Milestone[]) => void;
+  onAddTodo: () => void;
+  onRemoveTodo: (id: string) => void;
+  onRemoveAll: () => void;
+  onConvertToMetric: () => void;
 }) {
-  const total = todos.reduce((sum, todo) => sum + todo.weight, 0)
+  const total = todos.reduce((sum, todo) => sum + todo.weight, 0);
   const menuItems: MenuItem[] = [
     {
-      id: 'to-metric',
-      label: 'Change to a Number Metric',
+      id: "to-metric",
+      label: "Change to a Number Metric",
       icon: <Hash size={15} strokeWidth={1.75} aria-hidden />,
       onSelect: onConvertToMetric,
     },
-  ]
+  ];
   if (canRemove) {
     menuItems.push({
-      id: 'remove-all',
-      label: 'Remove All To-Dos',
+      id: "remove-all",
+      label: "Remove All To-Dos",
       icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
       danger: true,
       onSelect: onRemoveAll,
-    })
+    });
   }
 
   return (
@@ -781,7 +774,7 @@ function TodoCard({
                 type="checkbox"
                 className="pd-goal-v2__todo-check"
                 checked={todo.complete}
-                aria-label={`Mark ${todo.title.trim() || 'to-do'} complete`}
+                aria-label={`Mark ${todo.title.trim() || "to-do"} complete`}
                 onChange={(event) =>
                   onChangeTodo({ ...todo, complete: event.target.checked })
                 }
@@ -798,14 +791,14 @@ function TodoCard({
               />
               <WeightInput
                 value={todo.weight}
-                label={`Weight for ${todo.title.trim() || 'to-do'}`}
+                label={`Weight for ${todo.title.trim() || "to-do"}`}
                 onChange={(weight) => onChangeTodo({ ...todo, weight })}
               />
               {todos.length > 1 ? (
                 <button
                   type="button"
                   className="pd-goal-v2__icon-btn pd-goal-v2__icon-btn--danger"
-                  aria-label={`Remove task${todo.title ? ` ${todo.title}` : ''}`}
+                  aria-label={`Remove task${todo.title ? ` ${todo.title}` : ""}`}
                   onClick={() => onRemoveTodo(todo.id)}
                 >
                   <Trash2 size={15} strokeWidth={1.75} aria-hidden />
@@ -826,7 +819,7 @@ function TodoCard({
         </button>
       </div>
     </section>
-  )
+  );
 }
 
 export function GoalUnifiedDetail({
@@ -843,6 +836,7 @@ export function GoalUnifiedDetail({
   cycleLabel,
   isCurrentCycle = false,
   status,
+  postWindowApprovalStage,
   sendBackReason,
   sendBackBy,
   commentAuthorName,
@@ -852,7 +846,11 @@ export function GoalUnifiedDetail({
   canRemove = false,
   canCascade = false,
   cascadeTargets = [],
+  okrScope,
+  onRequestEdit = (startEditing) => startEditing(),
   onSave,
+  onDraftChange,
+  saveState,
   onProgressChange,
   onDuplicate,
   onCascade,
@@ -861,122 +859,129 @@ export function GoalUnifiedDetail({
   onBack,
   onDiscardNew,
 }: GoalUnifiedDetailProps) {
-  const [mode, setMode] = useState<'view' | 'edit'>(isNew ? 'edit' : 'view')
-  const [draft, setDraft] = useState(goal)
-  const [baseline, setBaseline] = useState(goal)
-  const [comment, setComment] = useState('')
-  const [statusOpen, setStatusOpen] = useState(false)
-  const [discardOpen, setDiscardOpen] = useState(false)
-  const [cascadeOpen, setCascadeOpen] = useState(false)
-  const [pendingNav, setPendingNav] = useState<null | (() => void)>(null)
+  const [mode, setMode] = useState<"view" | "edit">(isNew ? "edit" : "view");
+  const [draft, setDraft] = useState(goal);
+  const [baseline, setBaseline] = useState(goal);
+  const [comment, setComment] = useState("");
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [cascadeOpen, setCascadeOpen] = useState(false);
   const [showCascadeField, setShowCascadeField] = useState(
     Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
-  )
-  const [editingCascadeFrom, setEditingCascadeFrom] = useState(false)
-  const statusRef = useRef<HTMLDivElement>(null)
-  const editingRef = useRef(false)
-  const commentFieldId = useId()
-  const titleFieldId = useId()
+  );
+  const [editingCascadeFrom, setEditingCascadeFrom] = useState(false);
+  const statusRef = useRef<HTMLDivElement>(null);
+  const editingRef = useRef(false);
+  const onDraftChangeRef = useRef(onDraftChange);
+  const commentFieldId = useId();
+  const titleFieldId = useId();
 
-  editingRef.current = mode === 'edit'
+  editingRef.current = mode === "edit";
+  onDraftChangeRef.current = onDraftChange;
 
-  const goalId = goal.id
+  const goalId = goal.id;
   useEffect(() => {
-    setDraft(goal)
-    setBaseline(goal)
-    setShowCascadeField(Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId))
-    setEditingCascadeFrom(false)
-    setMode(isNew ? 'edit' : 'view')
+    setDraft(goal);
+    setBaseline(goal);
+    setShowCascadeField(
+      Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
+    );
+    setEditingCascadeFrom(false);
+    setMode(isNew ? "edit" : "view");
     // Reset only when the opened goal identity changes; content sync while
     // viewing is handled by the effect below so in-progress edits are kept.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- goalId/isNew gate
-  }, [goalId, isNew])
+  }, [goalId, isNew]);
 
   useEffect(() => {
-    if (editingRef.current) return
-    setDraft(goal)
-    setBaseline(goal)
-    setShowCascadeField(Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId))
-  }, [goal])
+    if (editingRef.current) return;
+    setDraft(goal);
+    setBaseline(goal);
+    setShowCascadeField(
+      Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
+    );
+  }, [goal]);
 
   useEffect(() => {
-    if (!statusOpen) return
+    if (!statusOpen) return;
     const onPointerDown = (event: MouseEvent) => {
       if (
         statusRef.current &&
         !statusRef.current.contains(event.target as Node)
       ) {
-        setStatusOpen(false)
+        setStatusOpen(false);
       }
-    }
+    };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setStatusOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
+      if (event.key === "Escape") setStatusOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
     return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [statusOpen])
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [statusOpen]);
 
-  const isEditing = mode === 'edit'
-  const activeGoal = isEditing ? draft : baseline
-  const completion = Math.round(goalCompletion(activeGoal))
-  const track = trackLabel(status, completion, activeGoal.progressStatus)
-  const approval = approvalCopy(status)
-  const approver =
-    sendBackBy ??
-    (approval.tone !== 'draft' && cascadeFrom.managerName
-      ? {
-          name: cascadeFrom.managerName,
-          avatarUrl: cascadeFrom.managerAvatarUrl,
-        }
-      : null)
-  const title = goalTitle(activeGoal, index)
+  const isEditing = mode === "edit";
+  const activeGoal = isEditing ? draft : baseline;
+  const completion = Math.round(goalCompletion(activeGoal));
+  const track = trackLabel(status, completion, activeGoal.progressStatus);
+  const approval = approvalCopy(status, postWindowApprovalStage);
+  const approver = resolveApprovalPerson({
+    status,
+    postWindowApprovalStage,
+    sendBackBy,
+    cascadeFrom,
+  });
+  const title = goalTitle(activeGoal, index);
   const todos = activeGoal.measurements.filter(
-    (item): item is Milestone => item.kind === 'milestone',
-  )
+    (item): item is Milestone => item.kind === "milestone",
+  );
   const metrics = activeGoal.measurements.filter(
-    (item): item is Metric => item.kind === 'metric',
-  )
-  const panels = measurementPanels(activeGoal.measurements)
-  const comments = activeGoal.comments ?? []
-  const canMutateProgress = canEdit || canUpdateProgress
+    (item): item is Metric => item.kind === "metric",
+  );
+  const panels = measurementPanels(activeGoal.measurements);
+  const comments = activeGoal.comments ?? [];
+  const canMutateProgress = canEdit || canUpdateProgress;
   const progressAuthor = {
     id: commentAuthorId,
     name: commentAuthorName,
-  }
-  const dirty = isEditing && isGoalDraftDirty(baseline, draft)
-  const validation = useMemo(() => validateGoalDraft(draft), [draft])
-  const measureWeight = sumMeasurementWeights(draft.measurements)
-  const ownerId = draft.ownerId ?? defaultOwnerId
+  };
+  const lastProgressAt = latestProgressAt(activeGoal);
+  const dirty = isEditing && isGoalDraftDirty(baseline, draft);
+  const validation = useMemo(() => validateGoalDraft(draft), [draft]);
+  const measureWeight = sumMeasurementWeights(draft.measurements);
+  const ownerId = draft.ownerId ?? defaultOwnerId;
+
+  useEffect(() => {
+    if (dirty) onDraftChangeRef.current?.(draft);
+  }, [dirty, draft]);
   const cascadeFromSelected = Boolean(
     activeGoal.cascadedFromGoalId || activeGoal.linkedGoalLabel,
-  )
+  );
 
   const requestNav = (action: () => void) => {
     if (isEditing && (dirty || isNew)) {
-      setPendingNav(() => action)
-      setDiscardOpen(true)
-      return
+      onSave(draft);
+      setBaseline(draft);
+      setMode("view");
     }
-    action()
-  }
+    action();
+  };
 
   const cancelEdit = () => {
-    setDraft(baseline)
+    setDraft(baseline);
     if (isNew) {
-      onDiscardNew?.()
-      onBack()
-      return
+      onDiscardNew?.();
+      onBack();
+      return;
     }
-    setMode('view')
-  }
+    setMode("view");
+  };
 
   const patchDraft = (partial: Partial<Goal>) => {
-    setDraft((prev) => touch(prev, partial))
-  }
+    setDraft((prev) => touch(prev, partial));
+  };
 
   const patchMeasurement = (id: string, next: Measurement) => {
     const apply = (source: Goal) =>
@@ -984,35 +989,35 @@ export function GoalUnifiedDetail({
         measurements: source.measurements.map((item) =>
           item.id === id ? next : item,
         ),
-      })
+      });
     if (isEditing) {
-      setDraft((prev) => apply(prev))
-      return
+      setDraft((prev) => apply(prev));
+      return;
     }
-    onProgressChange(apply(goal))
-  }
+    onProgressChange(apply(goal));
+  };
 
   const setMeasurements = (next: Measurement[]) => {
     patchDraft({
       measurements: next.length === 0 ? [] : rebalanceMeasurementWeights(next),
-    })
-  }
+    });
+  };
 
   const setProgressStatus = (next: GoalProgressStatus) => {
-    if (isEditing) patchDraft({ progressStatus: next })
-    else onProgressChange(touch(goal, { progressStatus: next }))
-    setStatusOpen(false)
-  }
+    if (isEditing) patchDraft({ progressStatus: next });
+    else onProgressChange(touch(goal, { progressStatus: next }));
+    setStatusOpen(false);
+  };
 
   const submitComment = () => {
-    const text = comment.trim()
-    if (!text) return
+    const text = comment.trim();
+    if (!text) return;
     onProgressChange(
       touch(goal, {
         comments: [
           ...comments,
           {
-            id: newId('comment'),
+            id: newId("comment"),
             authorId: commentAuthorId,
             authorName: commentAuthorName,
             text,
@@ -1020,23 +1025,23 @@ export function GoalUnifiedDetail({
           },
         ],
       }),
-    )
-    setComment('')
-  }
+    );
+    setComment("");
+  };
 
   const handleSave = () => {
-    if (!validation.ok) return
-    onSave(draft)
-    setBaseline(draft)
-    setMode('view')
-  }
+    if (!validation.ok) return;
+    onSave(draft);
+    setBaseline(draft);
+    setMode("view");
+  };
 
   const allocationTone =
-    measureWeight === 100 ? 'ok' : measureWeight > 100 ? 'over' : 'under'
+    measureWeight === 100 ? "ok" : measureWeight > 100 ? "over" : "under";
 
   return (
     <div
-      className={`pd-goal-v2${isEditing ? ' is-editing' : ''}`}
+      className={`pd-goal-v2${isEditing ? " is-editing" : ""}`}
       aria-label={title}
       data-mode={mode}
     >
@@ -1080,10 +1085,7 @@ export function GoalUnifiedDetail({
         {isEditing ? (
           <div className="pd-goal-v2__title-row">
             <div className="pd-goal-v2__title-edit">
-              <label
-                className="pd-goal-v2__field-label"
-                htmlFor={titleFieldId}
-              >
+              <label className="pd-goal-v2__field-label" htmlFor={titleFieldId}>
                 Goal title
               </label>
               <textarea
@@ -1104,38 +1106,42 @@ export function GoalUnifiedDetail({
               ) : null}
             </div>
             <div className="pd-goal-v2__actions">
-              <span
-                className={`pd-goal-v2__dot${dirty ? ' is-dirty' : ''}`}
-                title={dirty ? 'Unsaved changes' : 'Editing'}
-                aria-hidden
-              />
+              {saveState ? null : (
+                <span
+                  className={`pd-goal-v2__dot${dirty ? " is-dirty" : ""}`}
+                  title={dirty ? "Unsaved changes" : "Editing"}
+                  aria-hidden
+                />
+              )}
               <button
                 type="button"
                 className="pd-people__ghost-btn"
-                onClick={() => {
-                  if (dirty || isNew) {
-                    setPendingNav(() => cancelEdit)
-                    setDiscardOpen(true)
-                    return
-                  }
-                  cancelEdit()
-                }}
+                onClick={cancelEdit}
               >
                 Cancel
               </button>
               <button
                 type="button"
                 className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-                disabled={!validation.ok}
+                disabled={!validation.ok || (!isNew && !dirty)}
                 onClick={handleSave}
               >
-                {isNew ? 'Add Goal' : 'Save Changes'}
+                {isNew ? "Add Goal" : "Save Changes"}
               </button>
             </div>
           </div>
         ) : (
           <h1 className="pd-goal-v2__title">{title}</h1>
         )}
+
+        <div className="pd-goal-v2__meta">
+          {saveState ? <GoalAutosaveStatus state={saveState} /> : null}
+          <p>
+            {lastProgressAt
+              ? `Updated ${formatRefreshAge(lastProgressAt)}`
+              : "No progress updates yet"}
+          </p>
+        </div>
       </header>
 
       {isEditing ? null : (
@@ -1146,8 +1152,10 @@ export function GoalUnifiedDetail({
                 type="button"
                 className="pd-people__ghost-btn"
                 onClick={() => {
-                  setDraft(baseline)
-                  setMode('edit')
+                  onRequestEdit(() => {
+                    setDraft(baseline);
+                    setMode("edit");
+                  });
                 }}
               >
                 <Pencil size={15} strokeWidth={1.75} aria-hidden />
@@ -1171,8 +1179,8 @@ export function GoalUnifiedDetail({
                 disabled={!canCascade}
                 title={
                   canCascade
-                    ? 'Create a child goal for selected reports'
-                    : 'No direct reports to cascade to'
+                    ? "Create a child goal for selected reports"
+                    : "No direct reports to cascade to"
                 }
                 onClick={() => setCascadeOpen(true)}
               >
@@ -1185,8 +1193,8 @@ export function GoalUnifiedDetail({
                 label="More actions"
                 items={[
                   {
-                    id: 'remove',
-                    label: 'Remove Goal',
+                    id: "remove",
+                    label: "Remove Goal",
                     icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
                     danger: true,
                     onSelect: onRemove,
@@ -1299,14 +1307,15 @@ export function GoalUnifiedDetail({
                   <span
                     className={`pd-goal-v2__alloc-value pd-goal-v2__alloc-value--${allocationTone}`}
                   >
-                    {measureWeight}%
-                    <span aria-hidden> / 100%</span>
+                    {measureWeight}%<span aria-hidden> / 100%</span>
                   </span>
                   <span
                     className={`pd-goal-v2__alloc-bar pd-goal-v2__alloc-bar--${allocationTone}`}
                     aria-hidden
                   >
-                    <span style={{ width: `${Math.min(measureWeight, 100)}%` }} />
+                    <span
+                      style={{ width: `${Math.min(measureWeight, 100)}%` }}
+                    />
                   </span>
                   {draft.measurements.length > 1 ? (
                     <button
@@ -1359,14 +1368,14 @@ export function GoalUnifiedDetail({
                     onChangeTodos={(nextTodos) => {
                       const byId = new Map(
                         nextTodos.map((todo) => [todo.id, todo]),
-                      )
+                      );
                       patchDraft({
                         measurements: draft.measurements.map((item) =>
-                          item.kind === 'milestone'
+                          item.kind === "milestone"
                             ? (byId.get(item.id) ?? item)
                             : item,
                         ),
-                      })
+                      });
                     }}
                     onAddTodo={() =>
                       setMeasurements([...draft.measurements, blankMilestone()])
@@ -1379,16 +1388,16 @@ export function GoalUnifiedDetail({
                     onRemoveAll={() =>
                       setMeasurements(
                         draft.measurements.filter(
-                          (item) => item.kind === 'metric',
+                          (item) => item.kind === "metric",
                         ),
                       )
                     }
                     onConvertToMetric={() =>
                       setMeasurements([
                         ...draft.measurements.filter(
-                          (item) => item.kind === 'metric',
+                          (item) => item.kind === "metric",
                         ),
-                        blankMetric('increase'),
+                        blankMetric("increase"),
                       ])
                     }
                   />
@@ -1402,7 +1411,7 @@ export function GoalUnifiedDetail({
                   onClick={() =>
                     setMeasurements([
                       ...draft.measurements,
-                      blankMetric('increase'),
+                      blankMetric("increase"),
                     ])
                   }
                 >
@@ -1445,7 +1454,7 @@ export function GoalUnifiedDetail({
                 </section>
               ) : (
                 panels.map((panel) =>
-                  panel.kind === 'todos' ? (
+                  panel.kind === "todos" ? (
                     <section
                       key={panel.key}
                       className="pd-goal-v2__card"
@@ -1466,7 +1475,7 @@ export function GoalUnifiedDetail({
                               checked={todo.complete}
                               disabled={!canMutateProgress}
                               aria-label={`Mark ${
-                                todo.title.trim() || 'to-do'
+                                todo.title.trim() || "to-do"
                               } complete`}
                               onChange={(event) =>
                                 patchMeasurement(
@@ -1481,10 +1490,10 @@ export function GoalUnifiedDetail({
                             />
                             <p
                               className={`pd-goal-v2__todo-title${
-                                todo.complete ? ' is-done' : ''
+                                todo.complete ? " is-done" : ""
                               }`}
                             >
-                              {todo.title || 'Untitled to-do'}
+                              {todo.title || "Untitled to-do"}
                             </p>
                             <span
                               className="pd-goal-v2__todo-weight"
@@ -1505,10 +1514,10 @@ export function GoalUnifiedDetail({
                     <section
                       key={panel.key}
                       className="pd-goal-v2__card"
-                      aria-label={panel.metric.title || 'Metric'}
+                      aria-label={panel.metric.title || "Metric"}
                     >
                       <div className="pd-goal-v2__card-head">
-                        <h2>{panel.metric.title.trim() || 'Metric'}</h2>
+                        <h2>{panel.metric.title.trim() || "Metric"}</h2>
                         <GoalMetricReadout
                           metric={panel.metric}
                           track={track}
@@ -1570,13 +1579,18 @@ export function GoalUnifiedDetail({
                             <strong>{item.authorName}</strong>
                             <span>{formatRefreshAge(item.createdAt)}</span>
                           </p>
-                          <p className="pd-goal-v2__comment-text">{item.text}</p>
+                          <p className="pd-goal-v2__comment-text">
+                            {item.text}
+                          </p>
                         </div>
                       </li>
                     ))}
                   </ul>
                 ) : null}
-                <label className="pd-goal-v2__composer" htmlFor={commentFieldId}>
+                <label
+                  className="pd-goal-v2__composer"
+                  htmlFor={commentFieldId}
+                >
                   <span className="pd-sr-only">Add comment</span>
                   <input
                     id={commentFieldId}
@@ -1586,9 +1600,9 @@ export function GoalUnifiedDetail({
                     disabled={!canMutateProgress}
                     onChange={(event) => setComment(event.target.value)}
                     onKeyDown={(event) => {
-                      if (event.key === 'Enter') {
-                        event.preventDefault()
-                        submitComment()
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        submitComment();
                       }
                     }}
                   />
@@ -1643,7 +1657,7 @@ export function GoalUnifiedDetail({
                   <span className="pd-goal-v2__field-label">Description</span>
                   <textarea
                     className="pd-goal-v2__description-input"
-                    value={draft.details ?? ''}
+                    value={draft.details ?? ""}
                     rows={4}
                     placeholder="Why this matters and what success looks like"
                     onChange={(event) =>
@@ -1712,14 +1726,18 @@ export function GoalUnifiedDetail({
                         alt={`Approver ${approver.name}`}
                         style={avatarStyle(approver.name)}
                       />
-                      <p className="pd-goal-v2__approval-sub">{approver.name}</p>
+                      <p className="pd-goal-v2__approval-sub">
+                        {approver.name}
+                      </p>
                     </div>
                   ) : (
                     <p className="pd-goal-v2__approval-sub">{approval.sub}</p>
                   )}
                 </div>
-                {status === 'sent_back' && sendBackReason ? (
-                  <p className="pd-goal-v2__approval-reason">{sendBackReason}</p>
+                {status === "sent_back" && sendBackReason ? (
+                  <p className="pd-goal-v2__approval-reason">
+                    {sendBackReason}
+                  </p>
                 ) : null}
               </div>
 
@@ -1728,6 +1746,7 @@ export function GoalUnifiedDetail({
                   goal={activeGoal}
                   disabled
                   canEdit={canEdit}
+                  onRequestEdit={onRequestEdit}
                   onChange={(next) => onSave(touch(goal, next))}
                 />
 
@@ -1748,11 +1767,13 @@ export function GoalUnifiedDetail({
                       goal={activeGoal}
                       cascadeFrom={cascadeFrom}
                       onChange={(next) => {
-                        onSave(touch(goal, next))
+                        onSave(touch(goal, next));
                         setShowCascadeField(
-                          Boolean(next.cascadedFromGoalId || next.linkedGoalLabel),
-                        )
-                        setEditingCascadeFrom(false)
+                          Boolean(
+                            next.cascadedFromGoalId || next.linkedGoalLabel,
+                          ),
+                        );
+                        setEditingCascadeFrom(false);
                       }}
                     />
                   </div>
@@ -1767,7 +1788,9 @@ export function GoalUnifiedDetail({
                           type="button"
                           className="pd-goal-view__section-edit"
                           aria-label="Edit cascading from"
-                          onClick={() => setEditingCascadeFrom(true)}
+                          onClick={() =>
+                            onRequestEdit(() => setEditingCascadeFrom(true))
+                          }
                         >
                           <Pencil size={14} strokeWidth={1.75} aria-hidden />
                         </button>
@@ -1783,7 +1806,9 @@ export function GoalUnifiedDetail({
                   <button
                     type="button"
                     className="pd-goal-v2__quiet-btn"
-                    onClick={() => setShowCascadeField(true)}
+                    onClick={() =>
+                      onRequestEdit(() => setShowCascadeField(true))
+                    }
                   >
                     <GitFork size={15} strokeWidth={2} aria-hidden />
                     Add cascading from
@@ -1801,30 +1826,12 @@ export function GoalUnifiedDetail({
               </div>
             </>
           )}
+          {isEditing && okrScope ? (
+            <GoalOkrReferencePanel scope={okrScope} />
+          ) : null}
         </aside>
       </div>
 
-      <ConfirmDialog
-        open={discardOpen}
-        onClose={() => {
-          setDiscardOpen(false)
-          setPendingNav(null)
-        }}
-        onConfirm={() => {
-          const action = pendingNav
-          setDiscardOpen(false)
-          setPendingNav(null)
-          setDraft(baseline)
-          setMode(isNew ? 'edit' : 'view')
-          if (isNew) onDiscardNew?.()
-          action?.()
-        }}
-        title="Discard changes?"
-        description="You have unsaved edits on this goal. Discard them and leave edit mode?"
-        confirmLabel="Discard"
-        cancelLabel="Keep Editing"
-        confirmVariant="danger"
-      />
       {onCascade ? (
         <GoalCascadeTargetDialog
           open={cascadeOpen}
@@ -1834,5 +1841,5 @@ export function GoalUnifiedDetail({
         />
       ) : null}
     </div>
-  )
+  );
 }

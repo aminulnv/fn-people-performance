@@ -3,6 +3,7 @@ import {
   buildOwnerOptions,
   cascadeGoal,
   cascadeRecipients,
+  copyGoalToNewCycle,
   duplicateGoal,
   lineManagerCascade,
   removeGoal,
@@ -144,6 +145,29 @@ describe('resetGoalProgress', () => {
   })
 })
 
+describe('copyGoalToNewCycle', () => {
+  it('creates an independent draft without old progress or cascade links', () => {
+    const copy = copyGoalToNewCycle(
+      {
+        ...source,
+        cascadedFromGoalId: 'old-parent',
+        linkedGoalLabel: 'Old manager goal',
+      },
+      'p2',
+    )
+
+    expect(copy.description).toBe(source.description)
+    expect(copy.ownerId).toBe('p2')
+    expect(copy.comments).toEqual([])
+    expect(copy.cascadedFromGoalId).toBeUndefined()
+    expect(copy.linkedGoalLabel).toBeUndefined()
+    expect(copy.measurements[0]).toMatchObject({
+      currentValue: 0,
+      progressLog: [],
+    })
+  })
+})
+
 describe('duplicateGoal / cascadeGoal', () => {
   it('duplicates with a copy label and reset progress', () => {
     const copy = duplicateGoal(source, {
@@ -190,6 +214,7 @@ describe('lineManagerCascade', () => {
     const result = lineManagerCascade(people[0], snapshot)
     expect(result.managerName).toBe('Ben')
     expect(result.managerId).toBe('p2')
+    expect(result.skipLevelManagerName).toBeNull()
     expect(result.options).toEqual([
       {
         id: 'g1',
@@ -199,6 +224,33 @@ describe('lineManagerCascade', () => {
         managerAvatarUrl: undefined,
       },
     ])
+  })
+
+  it('resolves the skip-level manager when the line manager has one', () => {
+    const withSkipLevel = {
+      people: [
+        people[0],
+        {
+          ...people[1],
+          managerId: 'p0',
+        },
+        {
+          id: 'p0',
+          name: 'Senior',
+          email: 'senior@example.com',
+          title: 'Director',
+          department: 'Product',
+          joinDate: '2020-01-01',
+          reportIds: ['p2'],
+          avatarHue: 0,
+          blurb: '',
+        },
+      ],
+      byPerson: snapshot.byPerson,
+    }
+    const result = lineManagerCascade(people[0], withSkipLevel)
+    expect(result.skipLevelManagerId).toBe('p0')
+    expect(result.skipLevelManagerName).toBe('Senior')
   })
 
   it('is empty at the top of the tree', () => {

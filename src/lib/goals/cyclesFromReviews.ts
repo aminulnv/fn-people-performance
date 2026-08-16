@@ -1,27 +1,54 @@
+import { normalizeCycleSettings } from "@/lib/reviews/demoData";
 import {
-  getReviewCycle,
-  listReviewCycles,
-} from '@/lib/reviews/store'
-import {
-  cycleStatusLabel,
-  resolveCycleStatus,
-} from '@/lib/reviews/status'
-import type { ReviewCycle, ReviewCycleStatus } from '@/lib/reviews/types'
-import type { DemoPhase, GoalsCycle, GoalsCycleOption } from './types'
+  dayValue as toDay,
+  todayDayValue as todayValue,
+} from "@/lib/reviews/periods";
+import { getReviewCycle, listReviewCycles } from "@/lib/reviews/store";
+import { cycleStatusLabel } from "@/lib/reviews/status";
+import type { ReviewCycle, ReviewCycleStatus } from "@/lib/reviews/types";
+import type { DemoPhase, GoalsCycle, GoalsCycleOption } from "./types";
 
-export { cycleStatusLabel }
+export { cycleStatusLabel };
+
+function scheduledGoalPhase(cycle: ReviewCycle, today: Date): DemoPhase {
+  const now = todayValue(today);
+  const goalWindow = cycle.stagesConfig.goals.employee;
+  const checkInStart = cycle.stagesConfig.performance.employeeStart.date;
+  const checkInEnd = cycle.stagesConfig.performance.managerEnd.date;
+
+  if (now < toDay(goalWindow.startDate)) return "not_open";
+  if (now <= toDay(goalWindow.endDate)) return "window_open";
+  if (now < toDay(checkInStart)) return "hard_lock";
+  if (now <= toDay(checkInEnd)) return "check_in";
+  return "closed";
+}
+
+export function resolveGoalPhase(
+  cycle: ReviewCycle,
+  manualPhase: DemoPhase = "window_open",
+  today = new Date(),
+): DemoPhase {
+  return cycle.stagesConfig.processMode === "manual"
+    ? manualPhase
+    : scheduledGoalPhase(cycle, today);
+}
 
 /** Map a review cycle into the Goals cycle shape (same identity). */
 export function reviewCycleToGoalsCycle(
   cycle: ReviewCycle,
-  phase: DemoPhase = 'window_open',
+  manualPhase: DemoPhase = "window_open",
+  today = new Date(),
 ): GoalsCycle {
+  const settings = normalizeCycleSettings(cycle.settings);
   return {
     id: cycle.id,
     label: cycle.name,
     day1: cycle.startDate,
-    phase,
-  }
+    phase: resolveGoalPhase(cycle, manualPhase, today),
+    goalCountPolicy: settings.goalCountPolicy,
+    postWindowGoalPolicy: settings.postWindowGoalPolicy,
+    goalWindow: { ...cycle.stagesConfig.goals.employee },
+  };
 }
 
 export function listGoalCycleOptions(
@@ -31,48 +58,65 @@ export function listGoalCycleOptions(
   return listReviewCycles().map((cycle) => ({
     ...reviewCycleToGoalsCycle(
       cycle,
-      phaseByCycle[cycle.id] ?? 'window_open',
+      phaseByCycle[cycle.id] ?? "window_open",
+      today,
     ),
-    status: resolveCycleStatus(cycle, today),
-  }))
+    status: goalCycleStatus(cycle, today),
+  }));
 }
 
 /** Prefer current → most recent previous → first available. */
-export function pickDefaultCycleId(
-  options: GoalsCycleOption[],
-): string | null {
-  const current = options.find((c) => c.status === 'current')
-  if (current) return current.id
+export function pickDefaultCycleId(options: GoalsCycleOption[]): string | null {
+  const current = options.find((c) => c.status === "current");
+  if (current) return current.id;
 
   const previous = [...options]
-    .filter((c) => c.status === 'previous')
-    .sort((a, b) => b.day1.localeCompare(a.day1))[0]
-  if (previous) return previous.id
+    .filter((c) => c.status === "previous")
+    .sort((a, b) => b.day1.localeCompare(a.day1))[0];
+  if (previous) return previous.id;
 
-  return options[0]?.id ?? null
+  return options[0]?.id ?? null;
 }
 
 export function resolveGoalsCycle(
   cycleId: string,
-  phase: DemoPhase,
+  manualPhase: DemoPhase,
+  today = new Date(),
 ): GoalsCycle | null {
-  const review = getReviewCycle(cycleId)
-  if (!review) return null
-  return reviewCycleToGoalsCycle(review, phase)
+  const review = getReviewCycle(cycleId);
+  if (!review) return null;
+  return reviewCycleToGoalsCycle(review, manualPhase, today);
 }
 
 export function resolveGoalsCycleStatus(
   cycleId: string,
   today = new Date(),
 ): ReviewCycleStatus | null {
-  const review = getReviewCycle(cycleId)
-  if (!review) return null
-  return resolveCycleStatus(review, today)
+  const review = getReviewCycle(cycleId);
+  if (!review) return null;
+  return goalCycleStatus(review, today);
+}
+
+export function goalCycleStatus(
+  review: ReviewCycle,
+  today = new Date(),
+): ReviewCycleStatus {
+  if (review.stagesConfig.processMode === "manual") return "manual";
+  const now = todayValue(today);
+  const start = toDay(review.stagesConfig.goals.employee.startDate);
+  const end = Math.max(
+    toDay(review.endDate),
+    toDay(review.stagesConfig.performance.employeeEnd.date),
+    toDay(review.stagesConfig.performance.managerEnd.date),
+  );
+  if (now < start) return "future";
+  if (now > end) return "previous";
+  return "current";
 }
 
 export function getCurrentReviewCycleId(today = new Date()): string | null {
   const current = listReviewCycles().find(
-    (cycle) => resolveCycleStatus(cycle, today) === 'current',
-  )
-  return current?.id ?? null
+    (cycle) => resolveGoalsCycleStatus(cycle.id, today) === "current",
+  );
+  return current?.id ?? null;
 }

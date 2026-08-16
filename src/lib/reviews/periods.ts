@@ -54,6 +54,16 @@ export function findPeriod(key: string): CyclePeriodOption | undefined {
   return buildPeriod(year, quarter)
 }
 
+/** Calendar-day key for date-only values, so timezones cannot shift a stage. */
+export function dayValue(iso: string): number {
+  const [year, month, day] = iso.split('-').map(Number)
+  return Date.UTC(year, (month ?? 1) - 1, day ?? 1)
+}
+
+export function todayDayValue(today: Date): number {
+  return Date.UTC(today.getFullYear(), today.getMonth(), today.getDate())
+}
+
 export function formatDateRange(startDate: string, endDate?: string): string {
   const start = formatShortDate(startDate)
   if (!endDate || endDate === startDate) return start
@@ -66,7 +76,7 @@ export function formatDateRange(startDate: string, endDate?: string): string {
   return `${start} - ${end}`
 }
 
-function formatShortDate(
+export function formatShortDate(
   iso: string,
   opts?: { omitYear?: boolean },
 ): string {

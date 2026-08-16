@@ -13,6 +13,7 @@ import {
   type AccessProfileKey,
 } from '@/lib/accessControl/types'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import { notifyAccessChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
 
 function errorMessage(error: unknown): string {
@@ -96,6 +97,9 @@ export function AccessControlPanel() {
     setSavingEmployeeId(targetEmployeeId)
     setError(null)
     try {
+      const previousProfileKey = snapshot?.assignments.find(
+        (item) => item.employeeId === targetEmployeeId,
+      )?.profileKey
       const assignment = await assignEmployeeAccess(
         targetEmployeeId,
         nextProfileKey,
@@ -109,6 +113,18 @@ export function AccessControlPanel() {
           ...current,
           assignments: assignment ? [...remaining, assignment] : remaining,
         }
+      })
+      const profiles = snapshot?.profiles ?? ACCESS_PROFILES
+      const changedProfileKey = nextProfileKey ?? previousProfileKey
+      const changedProfile = profiles.find(
+        (profile) => profile.key === changedProfileKey,
+      )
+      notifyAccessChanged({
+        actorId: user?.personId,
+        actorName: user?.name ?? 'An administrator',
+        employeeId: String(targetEmployeeId),
+        accessProfile: changedProfile?.label ?? 'administrative',
+        isGranted: Boolean(nextProfileKey),
       })
       setEmployeeId('')
     } catch (nextError) {

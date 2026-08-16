@@ -1,6 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Target } from 'lucide-react'
 import { GoalCreateDrawer } from './GoalCreateDrawer'
+
+const okrSideSheet = {
+  tabLabel: 'View OKRs',
+  tabIcon: Target,
+  label: 'Department and wing OKRs',
+  content: <p>Improve customer outcomes</p>,
+}
 
 afterEach(() => {
   cleanup()
@@ -76,5 +84,45 @@ describe('GoalCreateDrawer', () => {
     )
 
     expect(dialog).toHaveStyle({ width: '768px' })
+  })
+
+  it('keeps the side sheet closed until its tab is pulled', () => {
+    render(
+      <GoalCreateDrawer sideSheet={okrSideSheet} onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+    expect(screen.queryByText('Improve customer outcomes')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
+
+    expect(
+      screen.getByRole('region', { name: 'Department and wing OKRs' }),
+    ).toHaveTextContent('Improve customer outcomes')
+  })
+
+  it('closes the side sheet before the drawer when Escape is pressed', () => {
+    const onClose = vi.fn()
+    render(
+      <GoalCreateDrawer sideSheet={okrSideSheet} onClose={onClose}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'View OKRs' })).toBeInTheDocument()
+  })
+
+  it('omits the tab when no side sheet is provided', () => {
+    render(
+      <GoalCreateDrawer onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'View OKRs' })).toBeNull()
   })
 })

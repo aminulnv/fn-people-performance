@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import type { ComponentProps, ReactNode } from 'react'
 import { GoalUnifiedDetail } from './GoalUnifiedDetail'
 import type { Goal } from '@/lib/goals/types'
@@ -142,7 +142,7 @@ describe('GoalUnifiedDetail', () => {
     expect(screen.getByLabelText('Goal title')).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Save Changes' }),
-    ).toBeInTheDocument()
+    ).toBeDisabled()
     expect(
       screen.queryByRole('heading', { name: 'Edit Employee goal' }),
     ).toBeNull()
@@ -165,16 +165,13 @@ describe('GoalUnifiedDetail', () => {
   })
 
   it('restores the baseline when canceling dirty edits', () => {
-    renderDetail()
+    const { onSave } = renderDetail()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.change(screen.getByLabelText('Goal title'), {
       target: { value: 'Temporary title' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-
-    const dialog = screen.getByRole('dialog', { name: 'Discard changes?' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
 
     expect(
       screen.getByRole('heading', { name: 'Ship reviews' }),
@@ -183,10 +180,30 @@ describe('GoalUnifiedDetail', () => {
       'data-mode',
       'view',
     )
+    expect(onSave).not.toHaveBeenCalled()
   })
 
-  it('asks before navigating away with dirty edits', () => {
-    const { onBack } = renderDetail()
+  it('requests confirmation before entering structural edit mode', () => {
+    const onRequestEdit = vi.fn()
+    renderDetail({ onRequestEdit })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+
+    expect(onRequestEdit).toHaveBeenCalledTimes(1)
+    expect(screen.getByLabelText('Ship reviews')).toHaveAttribute(
+      'data-mode',
+      'view',
+    )
+
+    act(() => onRequestEdit.mock.calls[0][0]())
+    expect(screen.getByLabelText('Ship reviews')).toHaveAttribute(
+      'data-mode',
+      'edit',
+    )
+  })
+
+  it('saves a draft before navigating away', () => {
+    const { onBack, onSave } = renderDetail()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
     fireEvent.change(screen.getByLabelText('Goal title'), {
@@ -194,10 +211,10 @@ describe('GoalUnifiedDetail', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
 
-    expect(onBack).not.toHaveBeenCalled()
-    const dialog = screen.getByRole('dialog', { name: 'Discard changes?' })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Discard' }))
     expect(onBack).toHaveBeenCalledTimes(1)
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'Ship reviews more' }),
+    )
   })
 
   it('lets the owner add cascading from in view mode', () => {
@@ -361,6 +378,24 @@ describe('GoalUnifiedDetail', () => {
     )
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Send Back' })).toBeNull()
+  })
+
+  it('names the skip-level manager when final late approval is pending', () => {
+    renderDetail({
+      status: 'submitted',
+      postWindowApprovalStage: 'manager_manager',
+      cascadeFrom: {
+        managerName: 'Grace Hopper',
+        managerAvatarUrl: 'https://cdn.example.com/grace.png',
+        skipLevelManagerName: 'Skip Level',
+        skipLevelManagerAvatarUrl: 'https://cdn.example.com/skip.png',
+        options: [],
+      },
+    })
+
+    expect(screen.getByRole('img', { name: 'Approver Skip Level' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Approver Grace Hopper' })).toBeNull()
+    expect(screen.getByText('Pending final approval')).toBeInTheDocument()
   })
 
   it('shows the send-back note on the sent-back approval card', () => {

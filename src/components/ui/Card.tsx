@@ -1,8 +1,8 @@
 import type { HTMLAttributes, ReactNode } from 'react'
 import { cx } from '@/lib/cx'
 
-export type CardProps = HTMLAttributes<HTMLDivElement> & {
-  title?: string
+export type CardProps = Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
+  title?: ReactNode
   description?: string
   actions?: ReactNode
   children?: ReactNode

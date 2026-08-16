@@ -38,14 +38,16 @@ export function statusVariant(status: SubmissionStatus): BadgeVariant {
 
 export function phaseLabel(phase: DemoPhase): string {
   switch (phase) {
+    case 'not_open':
+      return 'Not open'
     case 'window_open':
       return 'Window open'
     case 'hard_lock':
       return 'Hard lock'
     case 'check_in':
       return 'Check-in'
-    default:
-      return phase
+    case 'closed':
+      return 'Closed'
   }
 }
 

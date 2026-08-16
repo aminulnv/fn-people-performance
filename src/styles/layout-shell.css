@@ -1359,6 +1359,10 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   background: color-mix(in srgb, var(--color-theme) 12%, var(--color-bg));
 }
 
+.pd-topbar__notif-item--completed {
+  opacity: 0.62;
+}
+
 .pd-topbar__notif-icon {
   width: 1.75rem;
   height: 1.75rem;
@@ -1399,6 +1403,19 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   font-size: 0.6875rem;
   color: var(--color-text-muted);
   flex-shrink: 0;
+}
+
+.pd-topbar__notif-kind {
+  align-self: flex-start;
+  padding: 0.08rem 0.35rem;
+  border-radius: 999px;
+  background: var(--color-neutral-hover);
+  color: var(--color-text-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
 }
 
 .pd-topbar__notif-copy {

@@ -12,6 +12,7 @@ import type {
   GoalType,
   ProcessType,
 } from '@/lib/goals/types'
+import type { RequestGoalEdit } from './useGoalEditGuard'
 
 export type GoalClassificationPatch = Partial<
   Pick<Goal, 'goalType' | 'processType' | 'priority'>
@@ -23,6 +24,7 @@ type GoalClassificationFieldsProps = {
   goal: Goal
   disabled?: boolean
   canEdit?: boolean
+  onRequestEdit?: RequestGoalEdit
   onChange?: (next: GoalClassificationPatch) => void
 }
 
@@ -30,6 +32,7 @@ export function GoalClassificationFields({
   goal,
   disabled = false,
   canEdit = false,
+  onRequestEdit = (startEditing) => startEditing(),
   onChange,
 }: GoalClassificationFieldsProps) {
   const rootRef = useRef<HTMLDivElement>(null)
@@ -90,7 +93,9 @@ export function GoalClassificationFields({
               type="button"
               className="pd-goal-class__edit"
               aria-label="Edit goal type"
-              onClick={() => setUnlocked('goalType')}
+              onClick={() =>
+                onRequestEdit(() => setUnlocked('goalType'))
+              }
             >
               <Pencil size={14} strokeWidth={1.75} aria-hidden />
             </button>
@@ -115,7 +120,9 @@ export function GoalClassificationFields({
               type="button"
               className="pd-goal-class__edit"
               aria-label="Edit process type"
-              onClick={() => setUnlocked('processType')}
+              onClick={() =>
+                onRequestEdit(() => setUnlocked('processType'))
+              }
             >
               <Pencil size={14} strokeWidth={1.75} aria-hidden />
             </button>
@@ -140,7 +147,9 @@ export function GoalClassificationFields({
               type="button"
               className="pd-goal-class__edit"
               aria-label="Edit priority"
-              onClick={() => setUnlocked('priority')}
+              onClick={() =>
+                onRequestEdit(() => setUnlocked('priority'))
+              }
             >
               <Pencil size={14} strokeWidth={1.75} aria-hidden />
             </button>

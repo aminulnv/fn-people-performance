@@ -1,12 +1,17 @@
 import type { ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import { Check, Undo2 } from 'lucide-react'
 import { Avatar, Badge, Textarea } from '@/components/ui'
+import { avatarStyle } from '@/lib/employees/avatar'
 import type { PersonGoals } from '@/lib/goals/types'
 import { statusLabel, statusVariant } from './statusLabels'
 
 type ReportGoalsCardProps = {
   person: { name: string; avatarUrl?: string }
   status: PersonGoals['status']
+  postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
+  /** Named when a late submission still needs skip-level sign-off after this manager. */
+  skipLevelManager?: { id: string; name: string; avatarUrl?: string } | null
   goalCount: number
   canApprove: boolean
   canSendBack: boolean
@@ -27,6 +32,8 @@ type ReportGoalsCardProps = {
 export function ReportGoalsCard({
   person,
   status,
+  postWindowApprovalStage,
+  skipLevelManager,
   goalCount,
   canApprove,
   canSendBack,
@@ -41,6 +48,10 @@ export function ReportGoalsCard({
 }: ReportGoalsCardProps) {
   const countLabel = `${goalCount} goal${goalCount === 1 ? '' : 's'}`
   const awaitsApproval = status === 'submitted'
+  const showFirstStageLate =
+    status === 'submitted' && postWindowApprovalStage === 'manager'
+  const showFinalStageLate =
+    status === 'submitted' && postWindowApprovalStage === 'manager_manager'
 
   return (
     <section className="pd-goals-approval" aria-label={`${person.name} goals`}>
@@ -56,8 +67,73 @@ export function ReportGoalsCard({
             <span className="pd-goals-approval__sub">
               {awaitsApproval && canApprove
                 ? `${countLabel} awaiting your approval`
-                : `${countLabel} · ${statusLabel(status)}`}
+                : awaitsApproval &&
+                    postWindowApprovalStage === 'manager_manager'
+                  ? `${countLabel} · Pending final approval`
+                  : `${countLabel} · ${statusLabel(status)}`}
             </span>
+            {showFirstStageLate ? (
+              <span className="pd-goals-approval__late">
+                Late submission
+                {skipLevelManager ? (
+                  <>
+                    {' · '}
+                    <Link
+                      to={`/people/${skipLevelManager.id}`}
+                      className="pd-goals-approval__late-person"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Avatar
+                        name={skipLevelManager.name}
+                        src={skipLevelManager.avatarUrl}
+                        size="sm"
+                        className="pd-goals-approval__late-avatar"
+                        alt=""
+                        style={avatarStyle(skipLevelManager.name)}
+                      />
+                      <span className="pd-goals-approval__late-name">
+                        {skipLevelManager.name}
+                      </span>
+                    </Link>
+                    {' will approve after you'}
+                  </>
+                ) : (
+                  ' · skip-level manager will approve after you'
+                )}
+              </span>
+            ) : null}
+            {showFinalStageLate ? (
+              <span className="pd-goals-approval__late">
+                Late submission
+                {canApprove ? (
+                  ' · your approval is final'
+                ) : skipLevelManager ? (
+                  <>
+                    {' · awaiting '}
+                    <Link
+                      to={`/people/${skipLevelManager.id}`}
+                      className="pd-goals-approval__late-person"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Avatar
+                        name={skipLevelManager.name}
+                        src={skipLevelManager.avatarUrl}
+                        size="sm"
+                        className="pd-goals-approval__late-avatar"
+                        alt=""
+                        style={avatarStyle(skipLevelManager.name)}
+                      />
+                      <span className="pd-goals-approval__late-name">
+                        {skipLevelManager.name}
+                      </span>
+                    </Link>
+                    {"'s final approval"}
+                  </>
+                ) : (
+                  ' · awaiting skip-level final approval'
+                )}
+              </span>
+            ) : null}
           </div>
         </div>
         {canApprove || canSendBack ? (

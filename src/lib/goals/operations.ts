@@ -39,6 +39,10 @@ export type LineManagerCascade = {
   managerId?: string | null
   managerName: string | null
   managerAvatarUrl?: string
+  /** Manager's manager — used when a late submission needs skip-level approval. */
+  skipLevelManagerId?: string | null
+  skipLevelManagerName?: string | null
+  skipLevelManagerAvatarUrl?: string
   options: CascadeGoalOption[]
 }
 
@@ -56,11 +60,17 @@ export function lineManagerCascade(
   if (!subject?.managerId || !snapshot) return EMPTY_CASCADE
   const manager = snapshot.people.find((person) => person.id === subject.managerId)
   if (!manager) return EMPTY_CASCADE
+  const skipLevel = manager.managerId
+    ? snapshot.people.find((person) => person.id === manager.managerId)
+    : null
   const goals = snapshot.byPerson[manager.id]?.goals ?? []
   return {
     managerId: manager.id,
     managerName: manager.name,
     managerAvatarUrl: manager.avatarUrl,
+    skipLevelManagerId: skipLevel?.id ?? null,
+    skipLevelManagerName: skipLevel?.name ?? null,
+    skipLevelManagerAvatarUrl: skipLevel?.avatarUrl,
     options: goals.map((goal, index) => ({
       id: goal.id,
       title: cascadeGoalTitle(goal, index),
@@ -198,6 +208,19 @@ export function resetGoalProgress(goal: Goal): Goal {
     comments: [],
     measurements: goal.measurements.map(resetMeasurement),
     updatedAt: new Date().toISOString(),
+  }
+}
+
+/** Carry a previous-cycle goal forward as a clean, independent draft. */
+export function copyGoalToNewCycle(goal: Goal, ownerId: string): Goal {
+  const {
+    cascadedFromGoalId: _cascadedFromGoalId,
+    linkedGoalLabel: _linkedGoalLabel,
+    ...copy
+  } = resetGoalProgress(goal)
+  return {
+    ...copy,
+    ownerId,
   }
 }
 

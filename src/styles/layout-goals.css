@@ -92,11 +92,88 @@
   color: var(--color-amber);
 }
 
-.pd-goals-sendback__note {
-  margin: 0.65rem 0 0;
-  padding: 0.65rem 0.75rem;
-  border-radius: 0.5rem;
+.pd-goals-late {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 35%, var(--color-divider));
+  border-radius: 0.875rem;
+  background: color-mix(in srgb, var(--color-amber) 12%, var(--color-surface));
+}
+
+.pd-goals-late__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: 0.05rem;
+  border-radius: 999px;
+  background: var(--color-amber);
+  color: var(--color-white);
+}
+
+.pd-goals-late__copy {
+  min-width: 0;
+}
+
+.pd-goals-late__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: var(--color-amber);
+}
+
+.pd-goals-late__body {
+  margin: 0.2rem 0 0;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.pd-goals-late__person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  vertical-align: middle;
+  color: var(--color-text);
+  font-weight: 650;
+  text-decoration: none;
+}
+
+a.pd-goals-late__person:hover .pd-goals-late__person-name {
+  text-decoration: underline;
+}
+
+.pd-goals-late__avatar.pd-avatar {
+  width: 1.15rem;
+  height: 1.15rem;
+  font-size: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pd-goals-lock {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 32%, var(--color-divider));
+  border-radius: 0.625rem;
   background: color-mix(in srgb, var(--color-amber) 10%, var(--color-surface));
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.pd-goals-lock svg {
+  flex: none;
+  color: var(--color-amber);
 }
 
 .pd-goals-sendback__author {
@@ -153,6 +230,19 @@
 
 .pd-goals-sendback--danger .pd-goals-sendback__title {
   color: var(--color-red);
+}
+
+.pd-goals-sendback--info {
+  border-color: color-mix(in srgb, var(--color-blue) 30%, var(--color-divider));
+  background: color-mix(in srgb, var(--color-blue) 8%, var(--color-surface));
+}
+
+.pd-goals-sendback--info .pd-goals-sendback__icon {
+  background: var(--color-blue);
+}
+
+.pd-goals-sendback--info .pd-goals-sendback__title {
+  color: var(--color-blue);
 }
 
 .pd-goals-detail-header {
@@ -504,11 +594,68 @@
   margin-left: auto;
 }
 
+.pd-goals-autosave {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pd-goals-autosave svg {
+  color: var(--color-text-muted);
+}
+
+.pd-goals-autosave--saved svg {
+  color: var(--color-success);
+  animation: pd-goals-autosave-pop 260ms ease-out;
+}
+
+.pd-goals-autosave__spinner {
+  animation: pd-goals-autosave-spin 900ms linear infinite;
+}
+
+@keyframes pd-goals-autosave-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pd-goals-autosave-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-goals-autosave__spinner,
+  .pd-goals-autosave--saved svg {
+    animation: none;
+  }
+}
+
 .pd-goals__empty {
   flex: 1;
   justify-content: center;
   padding-block: 3.5rem;
   max-width: 28rem;
+}
+
+.pd-goals__empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.625rem;
 }
 
 /*
@@ -522,11 +669,12 @@
   overflow: visible;
 }
 
+/* Approval holds status pills such as "Final pending", so it needs real room. */
 .pd-goals-table__head,
 .pd-goals-table__row {
   display: grid;
   grid-template-columns:
-    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 5.5rem;
+    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 8rem;
   gap: 0.75rem;
   align-items: center;
   padding: 0.75rem 1rem;
@@ -535,31 +683,19 @@
 .pd-goals-table--with-owner .pd-goals-table__head,
 .pd-goals-table--with-owner .pd-goals-table__row {
   grid-template-columns:
-    minmax(9rem, 1.1fr) minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 5.5rem;
-}
-
-.pd-goals-table--no-approval .pd-goals-table__head,
-.pd-goals-table--no-approval .pd-goals-table__row {
-  grid-template-columns:
-    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem;
+    minmax(9rem, 1.1fr) minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 8rem;
 }
 
 .pd-goals-table--with-actions .pd-goals-table__head,
 .pd-goals-table--with-actions .pd-goals-table__row {
   grid-template-columns:
-    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 5.5rem 2.25rem;
+    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 8rem 2.25rem;
 }
 
 .pd-goals-table--with-owner.pd-goals-table--with-actions .pd-goals-table__head,
 .pd-goals-table--with-owner.pd-goals-table--with-actions .pd-goals-table__row {
   grid-template-columns:
-    minmax(9rem, 1.1fr) minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 5.5rem 2.25rem;
-}
-
-.pd-goals-table--no-approval.pd-goals-table--with-actions .pd-goals-table__head,
-.pd-goals-table--no-approval.pd-goals-table--with-actions .pd-goals-table__row {
-  grid-template-columns:
-    minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 2.25rem;
+    minmax(9rem, 1.1fr) minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 9rem 9.5rem 8rem 2.25rem;
 }
 
 .pd-goals-table__owner {
@@ -1416,6 +1552,42 @@
   color: var(--color-text-secondary);
 }
 
+.pd-goals-approval__late {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-status-pending);
+}
+
+.pd-goals-approval__late-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.pd-goals-approval__late-person:hover .pd-goals-approval__late-name {
+  text-decoration: underline;
+}
+
+.pd-goals-approval__late-avatar.pd-avatar {
+  width: 1.15rem;
+  height: 1.15rem;
+  font-size: 0.5rem;
+  flex-shrink: 0;
+}
+
+.pd-goals-approval__late-name {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
 .pd-goals-approval__reason {
   display: flex;
   flex-direction: column;
@@ -1650,32 +1822,22 @@
 
   .pd-goals-table__head,
   .pd-goals-table__row {
-    min-width: 44rem;
+    min-width: 46rem;
   }
 
   .pd-goals-table--with-owner .pd-goals-table__head,
   .pd-goals-table--with-owner .pd-goals-table__row {
-    min-width: 54rem;
-  }
-
-  .pd-goals-table--no-approval .pd-goals-table__head,
-  .pd-goals-table--no-approval .pd-goals-table__row {
-    min-width: 39rem;
+    min-width: 56rem;
   }
 
   .pd-goals-table--with-actions .pd-goals-table__head,
   .pd-goals-table--with-actions .pd-goals-table__row {
-    min-width: 47rem;
+    min-width: 49rem;
   }
 
   .pd-goals-table--with-owner.pd-goals-table--with-actions .pd-goals-table__head,
   .pd-goals-table--with-owner.pd-goals-table--with-actions .pd-goals-table__row {
-    min-width: 57rem;
-  }
-
-  .pd-goals-table--no-approval.pd-goals-table--with-actions .pd-goals-table__head,
-  .pd-goals-table--no-approval.pd-goals-table--with-actions .pd-goals-table__row {
-    min-width: 42rem;
+    min-width: 59rem;
   }
 }
 
@@ -1799,7 +1961,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.1rem;
+  gap: 0.15rem;
   flex-shrink: 0;
   margin: 0;
   text-align: right;
@@ -2916,6 +3078,7 @@
 .pd-goals-drawer__scrim {
   appearance: none;
   position: absolute;
+  z-index: 0;
   inset: 0;
   margin: 0;
   padding: 0;
@@ -2924,9 +3087,208 @@
   cursor: pointer;
 }
 
+/*
+ * Bookmark rail: sits between the scrim and the goal panel and ends exactly at
+ * the panel's left edge, so the sheet reads as sliding out from behind it.
+ * Only its children take pointer events — the rest stays a scrim click.
+ */
+.pd-goals-drawer__rail {
+  position: absolute;
+  z-index: 1;
+  inset: 0 var(--pd-goal-drawer-width, 0px) 0 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  pointer-events: none;
+  /* Rides in on the panel's left edge, so the tab never lands ahead of it. */
+  animation: pd-goals-drawer-rail-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes pd-goals-drawer-rail-in {
+  from {
+    transform: translateX(var(--pd-goal-drawer-width, 0px));
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.pd-goals-drawer__tab {
+  appearance: none;
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 9rem;
+  margin: 0;
+  padding: 0.85rem 0.7rem;
+  border: 0;
+  /* Flat against the goal panel; round the outer (left) edge only. */
+  border-radius: 0.85rem 0 0 0.85rem;
+  background: var(--color-cta);
+  box-shadow: -10px 0 24px -14px color-mix(in srgb, black 70%, transparent);
+  color: var(--color-on-cta);
+  cursor: pointer;
+  font-family: var(--font-heading);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.015em;
+  line-height: 1.15;
+  pointer-events: auto;
+  transition:
+    padding 140ms ease,
+    filter 140ms ease;
+}
+
+/*
+ * Rotate the label alone so "View OKRs" reads bottom-to-top. Rotating the whole
+ * button used to flip the border-radius and put the icon on the wrong end.
+ */
+.pd-goals-drawer__tab-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/*
+ * The rail is end-aligned, so extra width pushes the outer edge out. Padding is
+ * added on the hidden inner side only: that keeps the label the same distance
+ * from the outer edge, so text and chip travel together.
+ */
+.pd-goals-drawer__tab:hover {
+  padding-right: 1.15rem;
+  filter: brightness(1.08);
+}
+
+.pd-goals-drawer__tab:focus-visible {
+  outline: 2px solid var(--color-surface);
+  outline-offset: -4px;
+}
+
+.pd-goals-drawer__sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(23rem, 100%);
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1rem 0 0 1rem;
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--shadow-deep);
+  color: var(--color-text);
+  pointer-events: auto;
+  animation: pd-goals-drawer-sheet-in 220ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.pd-goals-drawer__sheet-close {
+  appearance: none;
+  position: absolute;
+  z-index: 1;
+  top: 0.85rem;
+  right: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    color 140ms ease,
+    border-color 140ms ease;
+}
+
+.pd-goals-drawer__sheet-close:hover {
+  border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
+  color: var(--color-text);
+}
+
+@keyframes pd-goals-drawer-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateX(2.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Sheet framing for the reference content the rail carries. */
+.pd-okr-sheet {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pd-okr-sheet__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1.15rem 3.25rem 1rem 1.15rem;
+  border-bottom: 1px solid var(--color-divider);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-theme) 9%, var(--color-surface)),
+    var(--color-surface) 78%
+  );
+}
+
+.pd-okr-sheet__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pd-okr-sheet__head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pd-okr-sheet__head h2 svg {
+  flex: 0 0 auto;
+  color: var(--color-theme);
+}
+
+.pd-okr-sheet__head p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.pd-okr-sheet .pd-okr-ref__content {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  padding: 1rem 1.15rem 1.5rem;
+}
+
 .pd-goals-drawer__panel {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: min(46rem, calc(100vw - 2rem));
   height: 100%;
   margin: 0;
@@ -3026,10 +3388,62 @@
   .pd-goals-drawer__body {
     padding: 1rem 1rem 1.5rem;
   }
+
+  /*
+   * A full-width panel leaves nothing behind it, so the rail floats on top and
+   * moves to the opposite edge to stay clear of the panel's own actions.
+   */
+  .pd-goals-drawer__rail {
+    inset: 0;
+    z-index: 3;
+    justify-content: flex-start;
+    /* Opposite edge from the incoming panel, so it waits instead of riding in. */
+    animation: pd-goals-drawer-rail-fade-in 140ms ease 150ms both;
+  }
+
+  @keyframes pd-goals-drawer-rail-fade-in {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  .pd-goals-drawer__tab {
+    min-height: 7.5rem;
+    border-radius: 0 0.85rem 0.85rem 0;
+    box-shadow: 10px 0 24px -14px color-mix(in srgb, black 70%, transparent);
+  }
+
+  .pd-goals-drawer__tab:hover {
+    padding-left: 1.15rem;
+    padding-right: 0.7rem;
+  }
+
+  .pd-goals-drawer__sheet {
+    border-radius: 0 1rem 1rem 0;
+    animation-name: pd-goals-drawer-sheet-in-inline-start;
+  }
+}
+
+@keyframes pd-goals-drawer-sheet-in-inline-start {
+  from {
+    opacity: 0;
+    transform: translateX(-2.5rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pd-goals-drawer__panel {
+  .pd-goals-drawer__panel,
+  .pd-goals-drawer__rail,
+  .pd-goals-drawer__sheet {
     animation: none;
   }
 }
@@ -3178,6 +3592,271 @@
   gap: 0.75rem;
 }
 
+/* Read-only context from the separate OKR platform. */
+.pd-okr-ref {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 0.8rem;
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--color-theme) 5%, var(--color-surface)),
+      var(--color-surface) 42%
+    );
+}
+
+.pd-okr-ref__header {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.9rem 1rem 0.8rem;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.pd-okr-ref__header:not(:disabled) {
+  cursor: pointer;
+}
+
+.pd-okr-ref__header:disabled {
+  opacity: 1;
+}
+
+.pd-okr-ref__header:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: -3px;
+}
+
+.pd-okr-ref__header[aria-expanded="false"] {
+  border-bottom-color: transparent;
+}
+
+.pd-okr-ref__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pd-okr-ref__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.pd-okr-ref__title-row strong {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.pd-okr-ref__scope {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-okr-ref__panel-chevron,
+.pd-okr-ref__item-chevron {
+  flex: 0 0 auto;
+  transition: transform 0.16s ease;
+}
+
+.pd-okr-ref__header[aria-expanded="true"] .pd-okr-ref__panel-chevron,
+.pd-okr-ref__item[open] .pd-okr-ref__item-chevron {
+  transform: rotate(180deg);
+}
+
+.pd-okr-ref__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-height: min(34rem, calc(100vh - 9rem));
+  padding: 0.85rem;
+  overflow: auto;
+}
+
+.pd-okr-ref__search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.15rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+}
+
+.pd-okr-ref__search:focus-within {
+  border-color: color-mix(in srgb, var(--color-theme) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-theme) 25%, transparent);
+}
+
+.pd-okr-ref__search input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.78rem;
+}
+
+.pd-okr-ref__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pd-okr-ref__group-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-okr-ref__group-head h3 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-okr-ref__group-head > span {
+  min-width: 1.15rem;
+  padding: 0.1rem 0.3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  color: var(--color-text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.pd-okr-ref__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.pd-okr-ref__item {
+  border: 1px solid var(--color-divider);
+  border-radius: 0.58rem;
+  background: var(--color-surface);
+}
+
+.pd-okr-ref__item[open] {
+  border-color: color-mix(in srgb, var(--color-theme) 30%, var(--color-border));
+}
+
+.pd-okr-ref__item summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding: 0.65rem 0.7rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.pd-okr-ref__item summary::-webkit-details-marker {
+  display: none;
+}
+
+.pd-okr-ref__item summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: -2px;
+  border-radius: inherit;
+}
+
+.pd-okr-ref__item-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-okr-ref__item-copy strong {
+  font-size: 0.78rem;
+  font-weight: 680;
+  line-height: 1.35;
+}
+
+.pd-okr-ref__item-copy small {
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  line-height: 1.25;
+}
+
+.pd-okr-ref__item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0 0.7rem 0.75rem;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.pd-okr-ref__item-body p,
+.pd-okr-ref__item-body ul {
+  margin: 0;
+}
+
+.pd-okr-ref__kr-label {
+  color: var(--color-text);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.pd-okr-ref__item-body ul {
+  display: grid;
+  gap: 0.3rem;
+  padding-left: 1rem;
+}
+
+.pd-okr-ref__empty {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  color: var(--color-text-muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .pd-okr-ref__content {
+    max-height: 26rem;
+  }
+}
+
 .pd-goal-create__goal-row {
   display: grid;
   grid-template-columns: 8rem;
@@ -3317,8 +3996,28 @@
 .pd-goal-create__byline {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
   width: 100%;
   min-width: 0;
+}
+
+.pd-goal-create__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  margin: 0;
+  text-align: right;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.35;
+}
+
+.pd-goal-create__meta p {
+  margin: 0;
 }
 
 .pd-goal-create__byline-owner {

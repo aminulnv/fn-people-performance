@@ -1,52 +1,91 @@
-import { useCallback, useId } from 'react'
+import { useEffect, useId } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, ClipboardCheck, Target, Users, type LucideIcon } from 'lucide-react'
+import {
+  Bell,
+  ClipboardCheck,
+  Clock,
+  ShieldCheck,
+  Target,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { VirtualList } from '@/components/VirtualList'
 import {
   fetchNotifications,
+  readAllNotifications,
+  readNotification,
   type NotificationIconName,
-  type NotificationItem,
+  watchNotifications,
 } from '@/lib/notificationsApi'
 import { queryKeys } from '@/lib/queryClient'
+import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { useHoverMenu } from './useHoverMenu'
 
 const NOTIFICATION_ICONS: Record<NotificationIconName, LucideIcon> = {
   target: Target,
   'clipboard-check': ClipboardCheck,
   users: Users,
+  clock: Clock,
+  shield: ShieldCheck,
+}
+
+function relativeTime(value: string): string {
+  const elapsed = Date.now() - new Date(value).getTime()
+  if (elapsed < 60_000) return 'Now'
+  const minutes = Math.floor(elapsed / 60_000)
+  if (minutes < 60) return `${minutes}m`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d`
+  return new Intl.DateTimeFormat('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  }).format(new Date(value))
 }
 
 export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const recipient = useCurrentPerson()
   const panelId = useId()
   const { open, containerRef, hoverHandlers, toggle } = useHoverMenu({
     isMobile,
     closeOnEscape: true,
   })
-  const { data: items = [], isPending, isError, refetch } = useQuery({
-    queryKey: queryKeys.notifications,
-    queryFn: fetchNotifications,
+  const recipientId = recipient?.id ?? ''
+  const {
+    data: feed = { items: [], unreadCount: 0, openActionCount: 0 },
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: queryKeys.notifications(recipientId),
+    queryFn: () => fetchNotifications(recipient!),
+    enabled: Boolean(recipient),
   })
-  const unreadCount = items.filter((item) => item.unread).length
+  const { items, unreadCount, openActionCount } = feed
 
-  const setItems = useCallback(
-    (updater: (prev: NotificationItem[]) => NotificationItem[]) => {
-      queryClient.setQueryData<NotificationItem[]>(
-        queryKeys.notifications,
-        (prev) => updater(prev ?? []),
-      )
-    },
-    [queryClient],
+  useEffect(
+    () =>
+      watchNotifications(() => {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.notifications(recipientId),
+        })
+      }),
+    [queryClient, recipientId],
   )
 
-  const markAllRead = () => {
-    setItems((prev) => prev.map((item) => ({ ...item, unread: false })))
+  const markAllRead = async () => {
+    if (!recipientId) return
+    await readAllNotifications(recipientId)
   }
 
-  const markRead = (id: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, unread: false } : item)),
-    )
+  const openNotification = async (id: string, destination?: string) => {
+    if (!recipientId) return
+    await readNotification(recipientId, id)
+    if (destination) navigate(destination)
   }
 
   return (
@@ -84,11 +123,15 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
           <div className="pd-topbar__notif-header">
             <div className="pd-topbar__notif-header-text">
               <span className="pd-topbar__dropdown-title">Notifications</span>
-              {unreadCount > 0 && (
+              {unreadCount > 0 ? (
                 <span className="pd-topbar__notif-unread-count">
                   {unreadCount} unread
                 </span>
-              )}
+              ) : openActionCount > 0 ? (
+                <span className="pd-topbar__notif-unread-count">
+                  {openActionCount} to do
+                </span>
+              ) : null}
             </div>
             {unreadCount > 0 && (
               <button
@@ -122,7 +165,7 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
           ) : (
             <VirtualList
               items={items}
-              estimateSize={72}
+              estimateSize={84}
               threshold={24}
               className="pd-topbar__notif-list"
               getKey={(item) => item.id}
@@ -132,11 +175,15 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
                   <button
                     type="button"
                     className={
-                      item.unread
+                      item.state === 'unread'
                         ? 'pd-topbar__notif-item pd-topbar__notif-item--unread'
-                        : 'pd-topbar__notif-item'
+                        : item.state === 'completed'
+                          ? 'pd-topbar__notif-item pd-topbar__notif-item--completed'
+                          : 'pd-topbar__notif-item'
                     }
-                    onClick={() => markRead(item.id)}
+                    onClick={() => {
+                      void openNotification(item.id, item.destination)
+                    }}
                   >
                     <span className="pd-topbar__notif-icon" aria-hidden>
                       <Icon size={14} strokeWidth={2} />
@@ -147,17 +194,23 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
                           {item.title}
                         </span>
                         <span className="pd-topbar__notif-time">
-                          {item.time}
+                          {relativeTime(item.updatedAt)}
                         </span>
                       </span>
+                      {item.kind === 'action' &&
+                      item.state !== 'completed' ? (
+                        <span className="pd-topbar__notif-kind">To do</span>
+                      ) : item.kind === 'reminder' ? (
+                        <span className="pd-topbar__notif-kind">Reminder</span>
+                      ) : null}
                       <span className="pd-topbar__notif-copy">{item.body}</span>
                     </span>
-                    {item.unread && (
+                    {item.state === 'unread' ? (
                       <span
                         className="pd-topbar__notif-dot"
                         aria-label="Unread"
                       />
-                    )}
+                    ) : null}
                   </button>
                 )
               }}

@@ -1,4 +1,5 @@
 import { normalizeMetricStrategy } from './measurements'
+import type { GoalCountPolicy } from '@/lib/reviews/types'
 import type { Goal, Measurement } from './types'
 
 export function sumGoalWeights(goals: Goal[]): number {
@@ -14,6 +15,19 @@ export type SubmitGoalBlocker = {
   goalId?: string
   goalTitle?: string
   suffix?: string
+}
+
+export function goalCountWarning(
+  goalCount: number,
+  policy: GoalCountPolicy,
+): string | null {
+  if (goalCount < policy.recommendedMinimum) {
+    return `You have ${goalCount} goals. This cycle recommends ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals for a balanced cycle.`
+  }
+  if (goalCount > policy.recommendedMaximum) {
+    return `You have ${goalCount} goals. This cycle recommends keeping the focus on ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals.`
+  }
+  return null
 }
 
 function goalName(goal: Goal, index: number): string {
@@ -34,13 +48,26 @@ function goalBlocker(
   }
 }
 
-export function canSubmitGoals(goals: Goal[]): {
+export function canSubmitGoals(
+  goals: Goal[],
+  policy: GoalCountPolicy,
+): {
   ok: boolean
   reasons: string[]
   blockers: SubmitGoalBlocker[]
+  warning: string | null
 } {
   const blockers: SubmitGoalBlocker[] = []
-  if (goals.length < 2) blockers.push({ reason: 'Add at least two goals.' })
+  if (goals.length < policy.minimumRequired) {
+    blockers.push({
+      reason: `Add at least ${policy.minimumRequired} ${policy.minimumRequired === 1 ? 'goal' : 'goals'}.`,
+    })
+  }
+  if (policy.maximumAllowed !== null && goals.length > policy.maximumAllowed) {
+    blockers.push({
+      reason: `This cycle allows no more than ${policy.maximumAllowed} goals.`,
+    })
+  }
   if (sumGoalWeights(goals) !== 100) {
     blockers.push({ reason: 'Weights need to add up to 100%.' })
   }
@@ -79,6 +106,7 @@ export function canSubmitGoals(goals: Goal[]): {
     ok: blockers.length === 0,
     reasons: blockers.map((blocker) => blocker.reason),
     blockers,
+    warning: goalCountWarning(goals.length, policy),
   }
 }
 
@@ -122,10 +150,7 @@ export function measurementProgress(m: Measurement): number {
   // increase (and legacy greater_than)
   const span = targetValue - startValue
   if (span <= 0) return currentValue >= targetValue ? 100 : 0
-  return Math.max(
-    0,
-    Math.min(100, ((currentValue - startValue) / span) * 100),
-  )
+  return Math.max(0, Math.min(100, ((currentValue - startValue) / span) * 100))
 }
 
 export function goalCompletion(goal: Goal): number {

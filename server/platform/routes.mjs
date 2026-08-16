@@ -9,6 +9,11 @@ import {
   requirePlatformPermission,
 } from './auth.mjs'
 import {
+  listPlatformNotifications,
+  markAllPlatformNotificationsRead,
+  markPlatformNotificationRead,
+} from './notifications.mjs'
+import {
   createPlatformDepartment,
   getPlatformEmployee,
   listPlatformDepartments,
@@ -45,6 +50,48 @@ export function registerPlatformRoutes(app) {
         auth: 'platform',
         googleOAuthConfigured: googleConfigured,
       })
+    }),
+  )
+
+  app.get(
+    '/api/platform/notifications',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.platformUser.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        res.json({ items: [], unreadCount: 0, openActionCount: 0 })
+        return
+      }
+      res.json(await listPlatformNotifications(employeeId))
+    }),
+  )
+
+  app.post(
+    '/api/platform/notifications/:notificationId/read',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.platformUser.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Signed-in employee is required')
+      }
+      await markPlatformNotificationRead(
+        employeeId,
+        String(req.params.notificationId),
+      )
+      res.json({ ok: true })
+    }),
+  )
+
+  app.post(
+    '/api/platform/notifications/read-all',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.platformUser.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Signed-in employee is required')
+      }
+      await markAllPlatformNotificationsRead(employeeId)
+      res.json({ ok: true })
     }),
   )
 

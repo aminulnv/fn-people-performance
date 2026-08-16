@@ -1,4 +1,4 @@
-import { buildPeriod } from './periods'
+import { buildPeriod } from "./periods";
 import type {
   CalibrationLogic,
   CycleSettings,
@@ -6,12 +6,12 @@ import type {
   DateTimeValue,
   ReviewCycle,
   ReviewsSnapshot,
-} from './types'
+} from "./types";
 
-const DEFAULT_TIME = '14:00'
+const DEFAULT_TIME = "14:00";
 
 function at(date: string, time = DEFAULT_TIME): DateTimeValue {
-  return { date, time }
+  return { date, time };
 }
 
 export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
@@ -22,13 +22,39 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
     peer: false,
     functional_manager: false,
   },
+  goalCountPolicy: {
+    minimumRequired: 2,
+    recommendedMinimum: 3,
+    recommendedMaximum: 5,
+    maximumAllowed: null,
+  },
+  postWindowGoalPolicy: "two_tier_approval",
   excludedEmployeeIds: [],
   autoScorecardGeneration: false,
+};
+
+export function normalizeCycleSettings(
+  settings?: Partial<CycleSettings>,
+): CycleSettings {
+  return {
+    ...DEFAULT_CYCLE_SETTINGS,
+    ...settings,
+    reviewTypes: {
+      ...DEFAULT_CYCLE_SETTINGS.reviewTypes,
+      ...settings?.reviewTypes,
+      line_manager: true,
+    },
+    goalCountPolicy: {
+      ...DEFAULT_CYCLE_SETTINGS.goalCountPolicy,
+      ...settings?.goalCountPolicy,
+    },
+    excludedEmployeeIds: [...(settings?.excludedEmployeeIds ?? [])],
+  };
 }
 
 export const DEFAULT_CALIBRATION: CalibrationLogic = {
-  calibrationMode: 'manual',
-  gradeRecommendation: 'none',
+  calibrationMode: "manual",
+  gradeRecommendation: "none",
   gradeDistribution: {
     exceptional: 2,
     exceeding: 25,
@@ -36,18 +62,18 @@ export const DEFAULT_CALIBRATION: CalibrationLogic = {
     developing: 28,
     unsatisfactory: 5,
   },
-}
+};
 
 /** Default stage windows relative to a quarter timeframe. */
 export function buildDefaultStagesConfig(
   startDate: string,
   endDate: string,
 ): CycleStagesConfig {
-  const start = parseIso(startDate)
-  const end = parseIso(endDate)
+  const start = parseIso(startDate);
+  const end = parseIso(endDate);
   if (!start || !end) {
     return {
-      processMode: 'schedule',
+      processMode: "schedule",
       goals: {
         department: { startDate, endDate },
         team: { startDate, endDate },
@@ -69,21 +95,21 @@ export function buildDefaultStagesConfig(
         toManager: at(endDate),
         toAll: at(endDate),
       },
-    }
+    };
   }
 
-  const goalsStart = addDays(start, -25)
-  const goalsEnd = addDays(start, 9)
-  const employeeGoalsEnd = addDays(start, 0)
-  const reviewStart = addDays(end, -9)
-  const reviewEnd = addDays(end, 8)
-  const calStart = reviewEnd
-  const calEnd = addDays(calStart, 7)
-  const publishManagers = addDays(calEnd, 3)
-  const publishEmployees = addDays(publishManagers, 7)
+  const goalsStart = addDays(start, -25);
+  const goalsEnd = addDays(start, 9);
+  const employeeGoalsEnd = addDays(start, 0);
+  const reviewStart = addDays(end, -9);
+  const reviewEnd = addDays(end, 8);
+  const calStart = reviewEnd;
+  const calEnd = addDays(calStart, 7);
+  const publishManagers = addDays(calEnd, 3);
+  const publishEmployees = addDays(publishManagers, 7);
 
   return {
-    processMode: 'schedule',
+    processMode: "schedule",
     goals: {
       department: {
         startDate: toIso(goalsStart),
@@ -114,46 +140,42 @@ export function buildDefaultStagesConfig(
       toManager: at(toIso(publishManagers)),
       toAll: at(toIso(publishEmployees)),
     },
-  }
+  };
 }
 
 /** @deprecated Prefer buildDefaultStagesConfig — kept name for call-site clarity. */
 export function buildDefaultStages(startDate: string, endDate: string) {
-  return buildDefaultStagesConfig(startDate, endDate)
+  return buildDefaultStagesConfig(startDate, endDate);
 }
 
 function parseIso(iso: string): Date | null {
-  const [y, m, d] = iso.split('-').map(Number)
-  if (!y || !m || !d) return null
-  return new Date(Date.UTC(y, m - 1, d))
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(Date.UTC(y, m - 1, d));
 }
 
 function addDays(date: Date, days: number): Date {
-  const next = new Date(date)
-  next.setUTCDate(next.getUTCDate() + days)
-  return next
+  const next = new Date(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next;
 }
 
 function toIso(date: Date): string {
-  const y = date.getUTCFullYear()
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
-  const d = String(date.getUTCDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 function cloneSettings(): CycleSettings {
-  return {
-    ...DEFAULT_CYCLE_SETTINGS,
-    reviewTypes: { ...DEFAULT_CYCLE_SETTINGS.reviewTypes },
-    excludedEmployeeIds: [...DEFAULT_CYCLE_SETTINGS.excludedEmployeeIds],
-  }
+  return normalizeCycleSettings();
 }
 
 function cloneCalibration(): CalibrationLogic {
   return {
     ...DEFAULT_CALIBRATION,
     gradeDistribution: { ...DEFAULT_CALIBRATION.gradeDistribution },
-  }
+  };
 }
 
 function regularCycle(
@@ -163,7 +185,7 @@ function regularCycle(
   return {
     id: period.key,
     name: period.label,
-    type: 'regular',
+    type: "regular",
     startDate: period.startDate,
     endDate: period.endDate,
     periodKey: period.key,
@@ -171,14 +193,14 @@ function regularCycle(
     settings: cloneSettings(),
     calibration: cloneCalibration(),
     createdAt,
-  }
+  };
 }
 
 export function createInitialReviewsSnapshot(): ReviewsSnapshot {
-  const createdAt = '2026-01-15T10:00:00.000Z'
-  const q3_2026 = buildPeriod(2026, 3)
+  const createdAt = "2026-01-15T10:00:00.000Z";
+  const q3_2026 = buildPeriod(2026, 3);
 
   return {
     cycles: [regularCycle(q3_2026, createdAt)],
-  }
+  };
 }

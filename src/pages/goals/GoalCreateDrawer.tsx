@@ -2,11 +2,13 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { X, type LucideIcon } from 'lucide-react'
 
 const DEFAULT_DRAWER_WIDTH = 736
 const MIN_DRAWER_WIDTH = 400
@@ -23,10 +25,22 @@ function drawerWidthWithinViewport(width: number): number {
   return Math.min(Math.max(width, MIN_DRAWER_WIDTH), maximumWidth)
 }
 
+/**
+ * Reference content reachable from a bookmark tab on the drawer's left edge, so
+ * it can be pulled out from behind the goal panel instead of competing with it.
+ */
+type GoalDrawerSideSheet = {
+  tabLabel: string
+  tabIcon: LucideIcon
+  label: string
+  content: ReactNode
+}
+
 type GoalCreateDrawerProps = {
   children: ReactNode
   label?: string
   closeLabel?: string
+  sideSheet?: GoalDrawerSideSheet
   onClose: () => void
 }
 
@@ -34,15 +48,22 @@ export function GoalCreateDrawer({
   children,
   label = 'Add goal',
   closeLabel = 'Cancel adding goal',
+  sideSheet,
   onClose,
 }: GoalCreateDrawerProps) {
   const panelRef = useRef<HTMLElement>(null)
+  const tabRef = useRef<HTMLButtonElement>(null)
+  const sheetCloseRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
   const resizeStartRef = useRef<{ pointerX: number; width: number } | null>(null)
   const [drawerWidth, setDrawerWidth] = useState(() =>
     drawerWidthWithinViewport(DEFAULT_DRAWER_WIDTH),
   )
+  const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
+  const isSideSheetOpenRef = useRef(isSideSheetOpen)
+  const hasToggledSideSheetRef = useRef(false)
   onCloseRef.current = onClose
+  isSideSheetOpenRef.current = isSideSheetOpen
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -50,7 +71,12 @@ export function GoalCreateDrawer({
     panelRef.current?.focus()
 
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onCloseRef.current()
+      if (event.key !== 'Escape') return
+      if (isSideSheetOpenRef.current) {
+        setIsSideSheetOpen(false)
+        return
+      }
+      onCloseRef.current()
     }
     document.addEventListener('keydown', closeOnEscape)
     const fitDrawerToViewport = () => {
@@ -64,6 +90,18 @@ export function GoalCreateDrawer({
       window.removeEventListener('resize', fitDrawerToViewport)
     }
   }, [])
+
+  // The tab and the sheet replace each other, so focus has to follow the swap.
+  useEffect(() => {
+    if (!hasToggledSideSheetRef.current) return
+    if (isSideSheetOpen) sheetCloseRef.current?.focus()
+    else tabRef.current?.focus()
+  }, [isSideSheetOpen])
+
+  const toggleSideSheet = () => {
+    hasToggledSideSheetRef.current = true
+    setIsSideSheetOpen((open) => !open)
+  }
 
   const resizeFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const resizeStart = resizeStartRef.current
@@ -84,14 +122,55 @@ export function GoalCreateDrawer({
     )
   }
 
+  const TabIcon = sideSheet?.tabIcon
+
   return createPortal(
-    <div className="pd-goals-drawer">
+    <div
+      className="pd-goals-drawer"
+      style={
+        { '--pd-goal-drawer-width': `${drawerWidth}px` } as CSSProperties
+      }
+    >
       <button
         type="button"
         className="pd-goals-drawer__scrim"
         aria-label={closeLabel}
         onClick={onClose}
       />
+      {sideSheet && TabIcon ? (
+        <div className="pd-goals-drawer__rail">
+          {isSideSheetOpen ? (
+            <section
+              className="pd-goals-drawer__sheet"
+              aria-label={sideSheet.label}
+            >
+              <button
+                ref={sheetCloseRef}
+                type="button"
+                className="pd-goals-drawer__sheet-close"
+                aria-label={`Close ${sideSheet.label}`}
+                onClick={toggleSideSheet}
+              >
+                <X size={15} strokeWidth={2.25} aria-hidden />
+              </button>
+              {sideSheet.content}
+            </section>
+          ) : (
+            <button
+              ref={tabRef}
+              type="button"
+              className="pd-goals-drawer__tab"
+              aria-expanded={false}
+              onClick={toggleSideSheet}
+            >
+              <TabIcon size={16} strokeWidth={2.25} aria-hidden />
+              <span className="pd-goals-drawer__tab-label">
+                {sideSheet.tabLabel}
+              </span>
+            </button>
+          )}
+        </div>
+      ) : null}
       <aside
         ref={panelRef}
         className="pd-goals-drawer__panel"

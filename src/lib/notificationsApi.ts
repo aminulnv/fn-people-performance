@@ -1,42 +1,54 @@
-export type NotificationIconName = 'target' | 'clipboard-check' | 'users'
+import type { DemoPerson } from '@/lib/goals/types'
+import { evaluateNotificationReminders } from './notifications/reminders'
+import { evaluateReviewNotifications } from './notifications/reviewReminders'
+import {
+  getNotificationFeed,
+  markAllNotificationsRead,
+  markNotificationRead,
+  subscribeNotifications,
+} from './notifications/store'
+import type {
+  NotificationFeed,
+  NotificationIconName,
+  NotificationRecord,
+} from './notifications/types'
 
-export type NotificationItem = {
-  id: string
-  title: string
-  body: string
-  time: string
-  unread: boolean
-  /** Icon key resolved in the UI — safe for JSON APIs. */
-  icon: NotificationIconName
+export type {
+  NotificationFeed,
+  NotificationIconName,
+  NotificationRecord,
+} from './notifications/types'
+
+/**
+ * Frontend adapter for the current local workflow stores. The catalogue and
+ * feed contract stay unchanged when persistence moves to `/api/platform`.
+ */
+export async function fetchNotifications(
+  recipient: DemoPerson,
+): Promise<NotificationFeed> {
+  evaluateNotificationReminders(recipient.id)
+  evaluateReviewNotifications(recipient)
+  return getNotificationFeed(recipient.id)
 }
 
-/** Demo feed — replace with `apiFetch('/notifications')` when the API exists. */
-export async function fetchNotifications(): Promise<NotificationItem[]> {
-  await Promise.resolve()
-  return [
-    {
-      id: '1',
-      title: 'Goal check-in due',
-      body: 'Q3 check-ins for your team close Friday.',
-      time: '2h ago',
-      unread: true,
-      icon: 'target',
-    },
-    {
-      id: '2',
-      title: 'Review ready to grade',
-      body: '3 employees are waiting on performance ratings.',
-      time: 'Yesterday',
-      unread: true,
-      icon: 'clipboard-check',
-    },
-    {
-      id: '3',
-      title: 'Team update',
-      body: 'Two new hires were added to Product Design.',
-      time: 'Mon',
-      unread: false,
-      icon: 'users',
-    },
-  ]
+export async function readNotification(
+  recipientId: string,
+  notificationId: string,
+): Promise<void> {
+  markNotificationRead(recipientId, notificationId)
 }
+
+export async function readAllNotifications(
+  recipientId: string,
+): Promise<void> {
+  markAllNotificationsRead(recipientId)
+}
+
+export function watchNotifications(onChange: () => void): () => void {
+  return subscribeNotifications(onChange)
+}
+
+/** Compatibility aliases for callers that render a single feed item. */
+export type NotificationItem = NotificationRecord
+export type NotificationItems = NotificationFeed['items']
+export type NotificationItemIcon = NotificationIconName

@@ -1,323 +1,388 @@
-import { subscribeEmployeesStore } from '@/lib/employees/store'
+import { subscribeEmployeesStore } from "@/lib/employees/store";
 import {
-  subscribeReviewsStore,
-} from '@/lib/reviews/store'
+  notifyGoalApproved,
+  notifyGoalCascaded,
+  notifyGoalChangesRequireApproval,
+  notifyGoalCheckInCompleted,
+  notifyGoalHardLock,
+  notifyGoalProgressAdjusted,
+  notifyGoalSentBack,
+  notifyGoalsEditedByManager,
+  notifyGoalSubmitted,
+  withdrawGoalApprovalRequests,
+} from "@/lib/notifications/goalEvents";
+import { subscribeReviewsStore } from "@/lib/reviews/store";
 import {
   listGoalCycleOptions,
   pickDefaultCycleId,
   resolveGoalsCycle,
   resolveGoalsCycleStatus,
-} from './cyclesFromReviews'
+} from "./cyclesFromReviews";
 import {
   createInitialSnapshot,
   FALLBACK_CYCLE,
   isEligibleForCycle,
-} from './demoData'
-import { hasStructuralGoalChanges } from './goalChanges'
-import { emptyPersonGoals, mergePeopleIntoGoalsState } from './peopleFromEmployees'
+} from "./demoData";
+import { hasStructuralGoalChanges } from "./goalChanges";
 import {
-  deriveGoalCapabilities,
-  isDirectManager,
-} from './permissions'
+  emptyPersonGoals,
+  mergePeopleIntoGoalsState,
+} from "./peopleFromEmployees";
+import { copyGoalToNewCycle } from "./operations";
+import { deriveGoalCapabilities, isDirectManager } from "./permissions";
 import type {
+  DemoPerson,
   DemoPhase,
   Goal,
   GoalsCycleOption,
   GoalsSnapshot,
   PersonGoals,
   QuarterRating,
-} from './types'
-import { canSubmitGoals } from './weightage'
+} from "./types";
+import { canSubmitGoals } from "./weightage";
 
 /** Explicit cycle + actor so UI shells cannot mutate the wrong person or cycle. */
 export type GoalMutationContext = {
-  cycleId: string
-  actorId: string
-  subjectId: string
-}
+  cycleId: string;
+  actorId: string;
+  subjectId: string;
+};
 
 /** v13: mixed seed measurements share 100% instead of parking it on the metric. */
-const STORAGE_KEY = 'pd-goals-demo-v13'
+const STORAGE_KEY = "pd-goals-demo-v13";
 /** Skip v9 so uniform “all approved” demo rows are not carried over. */
-const LEGACY_STORAGE_KEY = 'pd-goals-demo-v8'
-const OLDER_STORAGE_KEY = 'pd-goals-demo-v7'
+const LEGACY_STORAGE_KEY = "pd-goals-demo-v8";
+const OLDER_STORAGE_KEY = "pd-goals-demo-v7";
 
 type GoalsPersisted = {
-  activeCycleId: string
-  activePersonId: string
-  phaseByCycle: Record<string, DemoPhase>
-  byCycle: Record<string, Record<string, PersonGoals>>
-}
+  activeCycleId: string;
+  activePersonId: string;
+  phaseByCycle: Record<string, DemoPhase>;
+  byCycle: Record<string, Record<string, PersonGoals>>;
+};
 
-let memory: GoalsPersisted | null = null
-const listeners = new Set<() => void>()
-let bridgesReady = false
+let memory: GoalsPersisted | null = null;
+const listeners = new Set<() => void>();
+let bridgesReady = false;
 /** Pushed in by the auth layer — goals must not depend on auth. */
-let signedInPersonId = ''
+let signedInPersonId = "";
 /** Reused until persist/directory/reviews change. Do not mutate. */
-let snapshotCache: GoalsSnapshot | null = null
+let snapshotCache: GoalsSnapshot | null = null;
+let snapshotCacheDay = "";
+let dateRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
 function clone<T>(value: T): T {
-  return structuredClone(value)
+  return structuredClone(value);
 }
 
 function readRaw(key: string): unknown | null {
   try {
-    const raw = sessionStorage.getItem(key)
-    if (!raw) return null
-    return JSON.parse(raw) as unknown
+    const raw = localStorage.getItem(key) ?? sessionStorage.getItem(key);
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
   } catch {
-    return null
+    return null;
   }
 }
 
 function writeStorage(state: GoalsPersisted): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
     /* ignore quota */
   }
 }
 
 function isPersisted(value: unknown): value is GoalsPersisted {
-  if (!value || typeof value !== 'object') return false
-  const v = value as Record<string, unknown>
+  if (!value || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
   return (
-    typeof v.activeCycleId === 'string' &&
-    typeof v.activePersonId === 'string' &&
-    typeof v.phaseByCycle === 'object' &&
+    typeof v.activeCycleId === "string" &&
+    typeof v.activePersonId === "string" &&
+    typeof v.phaseByCycle === "object" &&
     v.phaseByCycle != null &&
-    typeof v.byCycle === 'object' &&
+    typeof v.byCycle === "object" &&
     v.byCycle != null
-  )
+  );
 }
 
 /** Migrate v7 flat snapshot → per-cycle persistence. */
 function migrateLegacy(value: unknown): GoalsPersisted | null {
-  if (!value || typeof value !== 'object') return null
-  const v = value as Record<string, unknown>
-  const cycle = v.cycle as { id?: string; phase?: DemoPhase } | undefined
-  const byPerson = v.byPerson as Record<string, PersonGoals> | undefined
-  if (!cycle?.id || !byPerson) return null
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const cycle = v.cycle as { id?: string; phase?: DemoPhase } | undefined;
+  const byPerson = v.byPerson as Record<string, PersonGoals> | undefined;
+  if (!cycle?.id || !byPerson) return null;
   return {
     activeCycleId: cycle.id,
     activePersonId:
-      typeof v.activePersonId === 'string' ? v.activePersonId : '',
-    phaseByCycle: { [cycle.id]: cycle.phase ?? 'window_open' },
+      typeof v.activePersonId === "string" ? v.activePersonId : "",
+    phaseByCycle: { [cycle.id]: cycle.phase ?? "window_open" },
     byCycle: { [cycle.id]: byPerson },
-  }
+  };
 }
 
 function withoutEmptyDemoRows(state: GoalsPersisted): GoalsPersisted {
-  const byCycle: GoalsPersisted['byCycle'] = {}
+  const byCycle: GoalsPersisted["byCycle"] = {};
   for (const [cycleId, rows] of Object.entries(state.byCycle)) {
     byCycle[cycleId] = Object.fromEntries(
       Object.entries(rows).filter(([, row]) => {
-        return row.goals.length > 0 || row.status !== 'draft'
+        return row.goals.length > 0 || row.status !== "draft";
       }),
-    )
+    );
   }
-  return { ...state, byCycle }
+  return { ...state, byCycle };
 }
 
 function createInitialPersisted(): GoalsPersisted {
-  const options = listGoalCycleOptions({})
-  const activeCycleId =
-    pickDefaultCycleId(options) ?? FALLBACK_CYCLE.id
+  const options = listGoalCycleOptions({});
+  const activeCycleId = pickDefaultCycleId(options) ?? FALLBACK_CYCLE.id;
   return {
     activeCycleId,
-    activePersonId: '',
-    phaseByCycle: { [activeCycleId]: 'window_open' },
+    activePersonId: "",
+    phaseByCycle: { [activeCycleId]: "window_open" },
     byCycle: {},
-  }
+  };
 }
 
 function ensureBridges() {
-  if (bridgesReady) return
-  bridgesReady = true
+  if (bridgesReady) return;
+  bridgesReady = true;
+  scheduleDateRefresh();
   subscribeEmployeesStore(() => {
-    notify()
-  })
+    notify();
+  });
   subscribeReviewsStore(() => {
-    if (!memory) return
-    const options = listGoalCycleOptions(memory.phaseByCycle)
+    if (!memory) return;
+    const options = listGoalCycleOptions(memory.phaseByCycle);
     if (options.length === 0) {
-      notify()
-      return
+      notify();
+      return;
     }
     if (!options.some((c) => c.id === memory!.activeCycleId)) {
-      const nextId = pickDefaultCycleId(options)
+      const nextId = pickDefaultCycleId(options);
       if (nextId) {
-        memory = { ...memory, activeCycleId: nextId }
-        writeStorage(memory)
+        memory = { ...memory, activeCycleId: nextId };
+        writeStorage(memory);
       }
     }
-    notify()
-  })
+    notify();
+  });
 }
 
 function getPersisted(): GoalsPersisted {
-  ensureBridges()
+  ensureBridges();
   if (!memory) {
-    const fresh = readRaw(STORAGE_KEY)
+    const fresh = readRaw(STORAGE_KEY);
     if (isPersisted(fresh)) {
-      memory = fresh
+      memory = fresh;
     } else {
-      const v8 = readRaw(LEGACY_STORAGE_KEY)
+      const v8 = readRaw(LEGACY_STORAGE_KEY);
       const legacy = isPersisted(v8)
         ? withoutEmptyDemoRows(v8)
-        : migrateLegacy(readRaw(OLDER_STORAGE_KEY))
-      memory = legacy ?? createInitialPersisted()
-      writeStorage(memory)
+        : migrateLegacy(readRaw(OLDER_STORAGE_KEY));
+      memory = legacy ?? createInitialPersisted();
+      writeStorage(memory);
     }
   }
-  return memory
+  return memory;
 }
 
 function emit(): void {
-  listeners.forEach((l) => l())
+  listeners.forEach((l) => l());
 }
 
 function notify(): void {
-  snapshotCache = null
-  emit()
+  snapshotCache = null;
+  snapshotCacheDay = "";
+  emit();
 }
 
 function commit(next: GoalsPersisted): GoalsSnapshot {
-  memory = next
-  writeStorage(next)
-  snapshotCache = projectSnapshot(next)
-  emit()
-  return snapshotCache
+  memory = next;
+  writeStorage(next);
+  snapshotCache = projectSnapshot(next);
+  snapshotCacheDay = localDateKey();
+  emit();
+  return snapshotCache;
+}
+
+function localDateKey(now = new Date()): string {
+  return [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function scheduleDateRefresh(): void {
+  if (typeof window === "undefined" || dateRefreshTimer) return;
+  const now = new Date();
+  const nextDay = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  dateRefreshTimer = setTimeout(
+    () => {
+      dateRefreshTimer = null;
+      notify();
+      scheduleDateRefresh();
+    },
+    nextDay.getTime() - now.getTime() + 100,
+  );
 }
 
 function phaseFor(state: GoalsPersisted, cycleId: string): DemoPhase {
-  return state.phaseByCycle[cycleId] ?? 'window_open'
+  return state.phaseByCycle[cycleId] ?? "window_open";
 }
 
 function ensureCycleBucket(
   state: GoalsPersisted,
   cycleId: string,
 ): Record<string, PersonGoals> {
-  return state.byCycle[cycleId] ?? {}
+  return state.byCycle[cycleId] ?? {};
 }
 
 function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
-  const options = listGoalCycleOptions(state.phaseByCycle)
-  let activeCycleId = state.activeCycleId
+  const options = listGoalCycleOptions(state.phaseByCycle);
+  let activeCycleId = state.activeCycleId;
 
   if (options.length > 0 && !options.some((c) => c.id === activeCycleId)) {
-    activeCycleId = pickDefaultCycleId(options) ?? options[0].id
+    activeCycleId = pickDefaultCycleId(options) ?? options[0].id;
   }
 
-  const phase = phaseFor(state, activeCycleId)
-  const fromReviews = resolveGoalsCycle(activeCycleId, phase)
-  const option = options.find((c) => c.id === activeCycleId)
+  const phase = phaseFor(state, activeCycleId);
+  const fromReviews = resolveGoalsCycle(activeCycleId, phase);
+  const option = options.find((c) => c.id === activeCycleId);
 
   const cycle = fromReviews ??
     option ?? {
       ...FALLBACK_CYCLE,
       phase,
-    }
+    };
 
   const cycleStatus =
-    resolveGoalsCycleStatus(cycle.id) ??
-    option?.status ??
-    'previous'
+    resolveGoalsCycleStatus(cycle.id) ?? option?.status ?? "previous";
 
   const availableCycles: GoalsCycleOption[] =
-    options.length > 0
-      ? options
-      : [{ ...cycle, status: cycleStatus }]
+    options.length > 0 ? options : [{ ...cycle, status: cycleStatus }];
 
-  const bucket = ensureCycleBucket(state, cycle.id)
+  const bucket = ensureCycleBucket(state, cycle.id);
   const merged = mergePeopleIntoGoalsState({
     cycleId: cycle.id,
     byPerson: bucket,
     activePersonId: state.activePersonId,
     signedInPersonId,
-  })
+  });
+  const isPastGoalWindow =
+    cycle.postWindowGoalPolicy === "hard_stop" &&
+    (cycle.phase === "hard_lock" ||
+      cycle.phase === "check_in" ||
+      cycle.phase === "closed");
+  const byPerson: Record<string, PersonGoals> = isPastGoalWindow
+    ? Object.fromEntries(
+        Object.entries(merged.byPerson).map(([personId, row]) => {
+          const person = merged.people.find(
+            (candidate) => candidate.id === personId,
+          );
+          const isIncomplete =
+            person &&
+            isEligibleForCycle(person, cycle) &&
+            (row.status === "draft" || row.status === "sent_back");
+          return [
+            personId,
+            isIncomplete ? { ...row, status: "incomplete" as const } : row,
+          ];
+        }),
+      )
+    : merged.byPerson;
 
   return {
     cycle: {
       id: cycle.id,
       label: cycle.label,
       day1: cycle.day1,
-      phase,
+      phase: cycle.phase,
+      goalCountPolicy: cycle.goalCountPolicy,
+      postWindowGoalPolicy: cycle.postWindowGoalPolicy,
+      goalWindow: cycle.goalWindow,
     },
     cycleStatus,
     availableCycles,
     activePersonId: merged.activePersonId,
     people: merged.people,
-    byPerson: merged.byPerson,
-  }
+    byPerson,
+  };
 }
 
 export function subscribeGoalsStore(listener: () => void): () => void {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 function cachedSnapshot(state: GoalsPersisted = getPersisted()): GoalsSnapshot {
-  if (snapshotCache) return snapshotCache
-  snapshotCache = projectSnapshot(state)
-  return snapshotCache
+  const today = localDateKey();
+  if (snapshotCache && snapshotCacheDay === today) return snapshotCache;
+  snapshotCache = projectSnapshot(state);
+  snapshotCacheDay = today;
+  return snapshotCache;
 }
 
 export function getGoalsSnapshot(): GoalsSnapshot {
-  return cachedSnapshot()
+  return cachedSnapshot();
 }
 
 export function getGoalsSnapshotForCycle(cycleId: string): GoalsSnapshot {
-  const state = getPersisted()
-  const options = listGoalCycleOptions(state.phaseByCycle)
+  const state = getPersisted();
+  const options = listGoalCycleOptions(state.phaseByCycle);
   if (!options.some((cycle) => cycle.id === cycleId)) {
-    return cachedSnapshot(state)
+    return cachedSnapshot(state);
   }
-  if (state.activeCycleId === cycleId) return cachedSnapshot(state)
-  return projectSnapshot({ ...state, activeCycleId: cycleId })
+  if (state.activeCycleId === cycleId) return cachedSnapshot(state);
+  return projectSnapshot({ ...state, activeCycleId: cycleId });
 }
 
 export function resetGoalsDemo(): GoalsSnapshot {
-  return commit(createInitialPersisted())
+  return commit(createInitialPersisted());
 }
 
 /** The signed-in person seeds in draft so goal setting stays reachable in demo data. */
 export function setSignedInPerson(personId: string): void {
-  if (signedInPersonId === personId) return
-  signedInPersonId = personId
-  notify()
+  if (signedInPersonId === personId) return;
+  signedInPersonId = personId;
+  notify();
 }
 
 export function setActivePerson(personId: string): GoalsSnapshot {
-  const state = getPersisted()
-  if (!personId) return cachedSnapshot(state)
-  if (state.activePersonId === personId) return cachedSnapshot(state)
-  const snap = cachedSnapshot(state)
+  const state = getPersisted();
+  if (!personId) return cachedSnapshot(state);
+  if (state.activePersonId === personId) return cachedSnapshot(state);
+  const snap = cachedSnapshot(state);
   if (!snap.people.some((p) => p.id === personId)) {
-    return snap
+    return snap;
   }
-  return commit({ ...state, activePersonId: personId })
+  return commit({ ...state, activePersonId: personId });
 }
 
 export function setDemoPhase(phase: DemoPhase): GoalsSnapshot {
-  const state = getPersisted()
+  const state = getPersisted();
   return commit({
     ...state,
     phaseByCycle: {
       ...state.phaseByCycle,
       [state.activeCycleId]: phase,
     },
-  })
+  });
 }
 
 /** Switch the active review/goal cycle; goals are scoped per cycle. */
 export function setActiveCycle(cycleId: string): GoalsSnapshot {
-  const state = getPersisted()
-  const options = listGoalCycleOptions(state.phaseByCycle)
-  const next = options.find((c) => c.id === cycleId)
+  const state = getPersisted();
+  const options = listGoalCycleOptions(state.phaseByCycle);
+  const next = options.find((c) => c.id === cycleId);
   if (!next || next.id === state.activeCycleId) {
-    return cachedSnapshot(state)
+    return cachedSnapshot(state);
   }
   return commit({
     ...state,
@@ -326,7 +391,7 @@ export function setActiveCycle(cycleId: string): GoalsSnapshot {
       ...state.phaseByCycle,
       [next.id]: state.phaseByCycle[next.id] ?? next.phase,
     },
-  })
+  });
 }
 
 function updatePersonGoals(
@@ -334,51 +399,52 @@ function updatePersonGoals(
   personId: string,
   updater: (current: PersonGoals) => PersonGoals | null,
 ): GoalsSnapshot {
-  const state = getPersisted()
-  const snap = projectSnapshot({ ...state, activeCycleId: cycleId })
+  const state = getPersisted();
+  const snap = projectSnapshot({ ...state, activeCycleId: cycleId });
   if (snap.cycle.id !== cycleId) {
-    throw new Error('Unknown goal cycle.')
+    throw new Error("Unknown goal cycle.");
   }
-  const bucket = { ...ensureCycleBucket(state, cycleId) }
+  const bucket = { ...ensureCycleBucket(state, cycleId) };
   for (const person of snap.people) {
     if (!bucket[person.id]) {
-      bucket[person.id] = snap.byPerson[person.id] ?? emptyPersonGoals(person.id)
+      bucket[person.id] =
+        snap.byPerson[person.id] ?? emptyPersonGoals(person.id);
     }
   }
-  const current = bucket[personId]
-  if (!current) return clone(snap)
-  const updated = updater(current)
-  if (!updated) return clone(snap)
-  bucket[personId] = updated
+  const current = bucket[personId];
+  if (!current) return clone(snap);
+  const updated = updater(current);
+  if (!updated) return clone(snap);
+  bucket[personId] = updated;
   return commit({
     ...state,
     activeCycleId: cycleId,
     activePersonId: state.activePersonId,
     byCycle: { ...state.byCycle, [cycleId]: bucket },
-  })
+  });
 }
 
 function requireMutationActors(context: GoalMutationContext): {
-  snap: GoalsSnapshot
-  actor: NonNullable<GoalsSnapshot['people'][number]>
-  subject: NonNullable<GoalsSnapshot['people'][number]>
-  row: PersonGoals
+  snap: GoalsSnapshot;
+  actor: NonNullable<GoalsSnapshot["people"][number]>;
+  subject: NonNullable<GoalsSnapshot["people"][number]>;
+  row: PersonGoals;
 } {
-  const snap = getGoalsSnapshotForCycle(context.cycleId)
+  const snap = getGoalsSnapshotForCycle(context.cycleId);
   if (snap.cycle.id !== context.cycleId) {
-    throw new Error('Unknown goal cycle.')
+    throw new Error("Unknown goal cycle.");
   }
-  const actor = snap.people.find((person) => person.id === context.actorId)
-  const subject = snap.people.find((person) => person.id === context.subjectId)
-  const row = snap.byPerson[context.subjectId]
+  const actor = snap.people.find((person) => person.id === context.actorId);
+  const subject = snap.people.find((person) => person.id === context.subjectId);
+  const row = snap.byPerson[context.subjectId];
   if (!actor || !subject || !row) {
-    throw new Error('Unknown actor or subject for this goal action.')
+    throw new Error("Unknown actor or subject for this goal action.");
   }
-  return { snap, actor, subject, row }
+  return { snap, actor, subject, row };
 }
 
 function capabilitiesFor(context: GoalMutationContext) {
-  const { snap, actor, subject, row } = requireMutationActors(context)
+  const { snap, actor, subject, row } = requireMutationActors(context);
   return {
     snap,
     actor,
@@ -391,88 +457,199 @@ function capabilitiesFor(context: GoalMutationContext) {
       cycle: snap.cycle,
       cycleStatus: snap.cycleStatus,
     }),
-  }
+  };
 }
 
 export function savePersonGoals(
   context: GoalMutationContext,
   goals: Goal[],
 ): GoalsSnapshot {
-  const { capabilities } = capabilitiesFor(context)
+  const { snap, actor, subject, row, capabilities } = capabilitiesFor(context);
   if (!capabilities.canEditStructure) {
-    throw new Error('You do not have permission to edit these goals.')
+    throw new Error("You do not have permission to edit these goals.");
   }
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => {
+  const hasStructuralChanges = hasStructuralGoalChanges(row.goals, goals);
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
     if (
-      current.status !== 'draft' &&
-      current.status !== 'sent_back' &&
-      current.status !== 'submitted' &&
-      current.status !== 'approved'
+      current.status !== "draft" &&
+      current.status !== "sent_back" &&
+      current.status !== "submitted" &&
+      current.status !== "approved"
     ) {
-      return null
+      return null;
+    }
+    const ownerStartedRevision =
+      actor.id === subject.id &&
+      hasStructuralChanges &&
+      (current.status === "submitted" || current.status === "approved");
+    if (ownerStartedRevision) {
+      return {
+        ...current,
+        status: "draft",
+        postWindowApprovalStage: undefined,
+        goals: clone(goals),
+        managerNote: undefined,
+        sendBackReason: undefined,
+        sendBackBy: undefined,
+        rating: undefined,
+      };
     }
     if (
-      current.status === 'approved' &&
-      hasStructuralGoalChanges(current.goals, goals)
+      current.status === "approved" &&
+      hasStructuralChanges
     ) {
       return {
         ...current,
-        status: 'submitted',
+        status: "submitted",
+        postWindowApprovalStage:
+          snap.cycle.phase === "hard_lock" &&
+          snap.cycle.postWindowGoalPolicy === "two_tier_approval"
+            ? "manager"
+            : undefined,
         goals: clone(goals),
         managerNote: undefined,
         rating: undefined,
-      }
+      };
     }
-    return { ...current, goals: clone(goals) }
-  })
+    return { ...current, goals: clone(goals) };
+  });
+  if (
+    hasStructuralChanges &&
+    actor.id === subject.id &&
+    (row.status === "submitted" || row.status === "approved")
+  ) {
+    withdrawGoalApprovalRequests({ snapshot: next, subject });
+  }
+  if (
+    hasStructuralChanges &&
+    row.status === "approved" &&
+    actor.id !== subject.id
+  ) {
+    notifyGoalChangesRequireApproval({
+      snapshot: next,
+      actor,
+      subject,
+      row: next.byPerson[subject.id],
+    });
+  } else if (hasStructuralChanges && actor.id !== subject.id) {
+    const previousIds = new Set(row.goals.map((goal) => goal.id));
+    const cascadedGoal = goals.find(
+      (goal) => !previousIds.has(goal.id) && Boolean(goal.cascadedFromGoalId),
+    );
+    if (cascadedGoal) {
+      notifyGoalCascaded({
+        snapshot: next,
+        actor,
+        subject,
+        goal: cascadedGoal,
+      });
+    } else {
+      notifyGoalsEditedByManager({ snapshot: next, actor, subject });
+    }
+  }
+  return next;
+}
+
+/** Populate an empty current-cycle draft from the nearest earlier cycle. */
+export function copyPreviousCycleGoals(
+  context: GoalMutationContext,
+): GoalsSnapshot {
+  const { snap, row, capabilities } = capabilitiesFor(context);
+  if (!capabilities.canEditStructure) {
+    throw new Error(
+      "You do not have permission to copy goals into this cycle.",
+    );
+  }
+  if (row.status !== "draft" || row.goals.length > 0) {
+    throw new Error("Previous goals can only be copied into an empty draft.");
+  }
+
+  const previousCycle = [...snap.availableCycles]
+    .filter((cycle) => cycle.day1 < snap.cycle.day1)
+    .sort((left, right) => right.day1.localeCompare(left.day1))[0];
+  if (!previousCycle) {
+    throw new Error("No previous cycle is available.");
+  }
+
+  const previousGoals =
+    getGoalsSnapshotForCycle(previousCycle.id).byPerson[context.subjectId]
+      ?.goals ?? [];
+  if (previousGoals.length === 0) {
+    throw new Error("No goals were found in the previous cycle.");
+  }
+
+  const copiedGoals = previousGoals.map((goal) =>
+    copyGoalToNewCycle(goal, context.subjectId),
+  );
+  return updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
+    ...current,
+    status: "draft",
+    goals: copiedGoals,
+    sendBackReason: undefined,
+    sendBackBy: undefined,
+    managerNote: undefined,
+    rating: undefined,
+  }));
 }
 
 export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
-  const { snap, subject, row, capabilities } = capabilitiesFor(context)
+  const { snap, actor, subject, row, capabilities } = capabilitiesFor(context);
   if (!capabilities.canSubmit) {
-    throw new Error('You do not have permission to submit these goals.')
+    throw new Error("You do not have permission to submit these goals.");
   }
 
   if (!isEligibleForCycle(subject, snap.cycle)) {
     return updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
       ...current,
-      status: 'not_eligible',
+      status: "not_eligible",
       goals: [],
-    }))
+    }));
   }
-  if (snap.cycle.phase === 'hard_lock' || snap.cycle.phase === 'check_in') {
-    throw new Error('Goal window is locked. New submits are not allowed.')
+  if (row.status !== "draft" && row.status !== "sent_back") {
+    throw new Error("Goals are not in a submittable state.");
   }
-  if (row.status !== 'draft' && row.status !== 'sent_back') {
-    throw new Error('Goals are not in a submittable state.')
-  }
-  const check = canSubmitGoals(row.goals)
-  if (!check.ok) throw new Error(check.reasons[0] ?? 'Cannot submit.')
+  const check = canSubmitGoals(row.goals, snap.cycle.goalCountPolicy);
+  if (!check.ok) throw new Error(check.reasons[0] ?? "Cannot submit.");
 
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
     ...current,
-    status: 'submitted',
+    status: "submitted",
+    postWindowApprovalStage:
+      snap.cycle.phase === "hard_lock" &&
+      snap.cycle.postWindowGoalPolicy === "two_tier_approval"
+        ? "manager"
+        : undefined,
     sendBackReason: undefined,
     sendBackBy: undefined,
-  }))
+  }));
+  notifyGoalSubmitted({
+    snapshot: next,
+    actor,
+    subject,
+    previousStatus: row.status,
+    row: next.byPerson[subject.id],
+  });
+  return next;
 }
 
 export function sendBackSubmission(
   context: GoalMutationContext,
   reason: string,
 ): GoalsSnapshot {
-  const { actor, capabilities } = capabilitiesFor(context)
+  const { actor, subject, row, capabilities } = capabilitiesFor(context);
   if (!capabilities.canSendBack) {
-    throw new Error('You do not have permission to send these goals back.')
+    throw new Error("You do not have permission to send these goals back.");
   }
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (current.status !== 'submitted' && current.status !== 'approved') {
-      return null
+  const normalizedReason = reason.trim() || "Please revise and resubmit.";
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
+    if (current.status !== "submitted" && current.status !== "approved") {
+      return null;
     }
     return {
       ...current,
-      status: 'sent_back',
-      sendBackReason: reason.trim() || 'Please revise and resubmit.',
+      status: "sent_back",
+      postWindowApprovalStage: undefined,
+      sendBackReason: normalizedReason,
       sendBackBy: {
         id: actor.id,
         name: actor.name,
@@ -480,69 +657,110 @@ export function sendBackSubmission(
       },
       managerNote: undefined,
       rating: undefined,
-    }
-  })
+    };
+  });
+  notifyGoalSentBack({
+    snapshot: next,
+    actor,
+    subject,
+    previousRow: row,
+    reason: normalizedReason,
+  });
+  return next;
 }
 
 export function approveSubmission(
   context: GoalMutationContext,
   goals?: Goal[],
 ): GoalsSnapshot {
-  const { capabilities } = capabilitiesFor(context)
+  const { actor, subject, row, capabilities } = capabilitiesFor(context);
   if (!capabilities.canApprove) {
-    throw new Error('You do not have permission to approve these goals.')
+    throw new Error("You do not have permission to approve these goals.");
   }
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (current.status !== 'submitted') return null
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
+    if (current.status !== "submitted") return null;
+    if (current.postWindowApprovalStage === "manager") {
+      return {
+        ...current,
+        postWindowApprovalStage: "manager_manager",
+        goals: clone(goals ?? current.goals),
+        sendBackReason: undefined,
+        sendBackBy: undefined,
+        managerNote: "Direct manager approved · awaiting skip-level manager",
+      };
+    }
     return {
       ...current,
-      status: 'approved',
+      status: "approved",
+      postWindowApprovalStage: undefined,
       goals: clone(goals ?? current.goals),
       sendBackReason: undefined,
       sendBackBy: undefined,
-      managerNote: 'Approved',
-    }
-  })
+      managerNote: "Approved",
+    };
+  });
+  if (row.status === "submitted") {
+    notifyGoalApproved({
+      snapshot: next,
+      actor,
+      subject,
+      previousRow: row,
+    });
+  }
+  return next;
 }
 
 export function updateGoalProgress(
   context: GoalMutationContext,
   goals: Goal[],
 ): GoalsSnapshot {
-  const { capabilities } = capabilitiesFor(context)
+  const { actor, subject, row, capabilities } = capabilitiesFor(context);
   if (!capabilities.canUpdateProgress) {
-    throw new Error('You do not have permission to update progress.')
+    throw new Error("You do not have permission to update progress.");
   }
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => {
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
     if (
-      current.status !== 'draft' &&
-      current.status !== 'sent_back' &&
-      current.status !== 'submitted' &&
-      current.status !== 'approved'
+      current.status !== "draft" &&
+      current.status !== "sent_back" &&
+      current.status !== "submitted" &&
+      current.status !== "approved"
     ) {
-      throw new Error('Progress cannot be updated for these goals.')
+      throw new Error("Progress cannot be updated for these goals.");
     }
     if (hasStructuralGoalChanges(current.goals, goals)) {
-      throw new Error('Structural goal changes must use the goal editor.')
+      throw new Error("Structural goal changes must use the goal editor.");
     }
-    return { ...current, goals: clone(goals) }
-  })
+    return { ...current, goals: clone(goals) };
+  });
+  const previousById = new Map(row.goals.map((goal) => [goal.id, goal]));
+  const changedGoalCount = goals.filter((goal) => {
+    const previous = previousById.get(goal.id);
+    if (!previous) return false;
+    return JSON.stringify(previous.measurements) !== JSON.stringify(goal.measurements);
+  }).length;
+  notifyGoalProgressAdjusted({
+    snapshot: next,
+    actor,
+    subject,
+    changedGoalCount,
+  });
+  return next;
 }
 
 export function submitQuarterRating(
   context: GoalMutationContext,
-  rating: Omit<QuarterRating, 'submittedAt'>,
+  rating: Omit<QuarterRating, "submittedAt">,
 ): GoalsSnapshot {
-  const { snap, capabilities } = capabilitiesFor(context)
+  const { snap, actor, subject, capabilities } = capabilitiesFor(context);
   if (!capabilities.canRate) {
-    throw new Error('You do not have permission to rate these goals.')
+    throw new Error("You do not have permission to rate these goals.");
   }
-  if (snap.cycle.phase !== 'check_in') {
-    throw new Error('Check-in is not open yet. Switch demo phase to Check-in.')
+  if (snap.cycle.phase !== "check_in") {
+    throw new Error("Check-in is not open for this cycle.");
   }
-  return updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (current.status !== 'approved') {
-      throw new Error('Only approved goals can be rated.')
+  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
+    if (current.status !== "approved") {
+      throw new Error("Only approved goals can be rated.");
     }
     return {
       ...current,
@@ -550,48 +768,56 @@ export function submitQuarterRating(
         ...rating,
         submittedAt: new Date().toISOString(),
       },
-    }
-  })
+    };
+  });
+  notifyGoalCheckInCompleted({ snapshot: next, actor, subject });
+  return next;
 }
 
 /** Mark incomplete when hard lock hits and still draft (demo helper). */
 export function applyHardLockIncompletes(): GoalsSnapshot {
-  const state = getPersisted()
-  const snap = projectSnapshot(state)
-  const cycleId = snap.cycle.id
-  const bucket = { ...ensureCycleBucket(state, cycleId) }
+  const state = getPersisted();
+  const snap = projectSnapshot(state);
+  const cycleId = snap.cycle.id;
+  const bucket = { ...ensureCycleBucket(state, cycleId) };
+  const newlyIncomplete: DemoPerson[] = [];
 
-  for (const person of snap.people) {
-    const row = snap.byPerson[person.id] ?? emptyPersonGoals(person.id)
-    bucket[person.id] = row
-    if (row.status === 'draft' || row.status === 'sent_back') {
-      if (isEligibleForCycle(person, snap.cycle)) {
-        bucket[person.id] = { ...row, status: 'incomplete' }
+  if (snap.cycle.postWindowGoalPolicy === "hard_stop") {
+    for (const person of snap.people) {
+      const row = snap.byPerson[person.id] ?? emptyPersonGoals(person.id);
+      bucket[person.id] = row;
+      if (row.status === "draft" || row.status === "sent_back") {
+        if (isEligibleForCycle(person, snap.cycle)) {
+          bucket[person.id] = { ...row, status: "incomplete" };
+          newlyIncomplete.push(person);
+        }
       }
     }
   }
 
-  return commit({
+  const next = commit({
     ...state,
     activeCycleId: cycleId,
     phaseByCycle: {
       ...state.phaseByCycle,
-      [cycleId]: 'hard_lock',
+      [cycleId]: "hard_lock",
     },
     byCycle: { ...state.byCycle, [cycleId]: bucket },
-  })
+  });
+  for (const person of newlyIncomplete) notifyGoalHardLock(next, person);
+  return next;
 }
 
 export function assertIsDirectManager(
   actorId: string,
   subjectId: string,
 ): boolean {
-  const snap = getGoalsSnapshot()
-  const actor = snap.people.find((person) => person.id === actorId)
-  const subject = snap.people.find((person) => person.id === subjectId)
-  if (!actor || !subject) return false
-  return isDirectManager(actor, subject)
+  const snap = getGoalsSnapshot();
+  const actor = snap.people.find((person) => person.id === actorId);
+  const subject = snap.people.find((person) => person.id === subjectId);
+  if (!actor || !subject) return false;
+  return isDirectManager(actor, subject);
 }
 
 /** Re-export for callers that still build an empty shell. */
-export { createInitialSnapshot }
+export { createInitialSnapshot };

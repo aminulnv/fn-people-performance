@@ -42,6 +42,8 @@ import {
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { CreateEmployeeInput, UpdateEmployeeInput } from '@/lib/employees/types'
+import { notifyManagerChanged } from '@/lib/notifications/adminEvents'
+import { useAuth } from '@/lib/useAuth'
 import '@/styles/layout-people.css'
 
 type FormMode = 'create' | 'edit'
@@ -130,6 +132,7 @@ function InlineInput({
 
 export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
   const { employees } = useEmployees()
@@ -365,6 +368,18 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
         setError(result.error)
         setBusy(false)
         return
+      }
+      const managerChanged =
+        existing?.managerEmail.trim().toLowerCase() !==
+        result.employee.managerEmail.trim().toLowerCase()
+      if (managerChanged && manager) {
+        notifyManagerChanged({
+          actorId: user?.personId,
+          employeeId: String(result.employee.employeeId),
+          employeeName: result.employee.fullName,
+          managerId: String(manager.employeeId),
+          managerName: manager.fullName,
+        })
       }
       navigate(`/people/${result.employee.employeeId}`, { replace: true })
     })()

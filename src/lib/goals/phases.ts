@@ -2,9 +2,14 @@ import type { DemoPhase } from './types'
 
 export const DEMO_PHASES: { id: DemoPhase; label: string; hint: string }[] = [
   {
+    id: 'not_open',
+    label: 'Not open',
+    hint: 'Goal setting has not started',
+  },
+  {
     id: 'window_open',
     label: 'Window open',
-    hint: 'Day 1–30 · draft and submit',
+    hint: 'Create, edit, and submit goals',
   },
   {
     id: 'hard_lock',
@@ -15,5 +20,10 @@ export const DEMO_PHASES: { id: DemoPhase; label: string; hint: string }[] = [
     id: 'check_in',
     label: 'Check-in',
     hint: 'Manager rates · person sees score',
+  },
+  {
+    id: 'closed',
+    label: 'Closed',
+    hint: 'The cycle is complete',
   },
 ]

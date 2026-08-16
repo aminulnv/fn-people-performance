@@ -1,11 +1,17 @@
 import { useState } from 'react'
 import {
   BarChart3,
+  Building2,
+  Check,
+  Hand,
+  Landmark,
   Minus,
-  Pencil,
   Plus,
+  Scale,
   Shuffle,
   Slash,
+  UserCheck,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   CALIBRATION_MODE_META,
@@ -36,6 +42,18 @@ const RECOMMENDATION_ORDER: GradeRecommendationId[] = [
   'weighted',
 ]
 
+const MODE_ICONS: Record<CalibrationModeId, LucideIcon> = {
+  manual: Hand,
+  department: Building2,
+  central: Landmark,
+}
+
+const RECOMMENDATION_ICONS: Record<GradeRecommendationId, LucideIcon> = {
+  none: Slash,
+  manager_average: UserCheck,
+  weighted: Scale,
+}
+
 export function CalibrationEditPage({
   cycle,
   onClose,
@@ -43,15 +61,16 @@ export function CalibrationEditPage({
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
     structuredClone(cycle.calibration),
   )
-  const [pickingMode, setPickingMode] = useState(false)
-  const [pickingRecommendation, setPickingRecommendation] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const total = distributionTotal(draft.gradeDistribution)
 
   const adjustBand = (id: GradeBandId, delta: number) => {
     setDraft((prev) => {
-      const nextValue = Math.max(0, Math.min(100, prev.gradeDistribution[id] + delta))
+      const nextValue = Math.max(
+        0,
+        Math.min(100, prev.gradeDistribution[id] + delta),
+      )
       return {
         ...prev,
         gradeDistribution: {
@@ -77,143 +96,140 @@ export function CalibrationEditPage({
     }
   }
 
-  const modeMeta = CALIBRATION_MODE_META[draft.calibrationMode]
-  const recommendationMeta =
-    GRADE_RECOMMENDATION_META[draft.gradeRecommendation]
-
   return (
     <EditPageShell
-      title="Calculation & Calibration logic"
+      title="Calculation & calibration"
+      description="Choose how grades are recommended, reviewed, and distributed."
       onBack={onClose}
       onSave={save}
       error={error}
     >
-      <section className="pd-reviews-edit-section">
-        <h3 className="pd-reviews-edit-section__title">
-          Who should calibrate grades?
-        </h3>
-        <div className="pd-reviews-choice-card">
-          <div className="pd-reviews-choice-card__icon" aria-hidden>
-            <Shuffle size={18} strokeWidth={1.75} />
-          </div>
-          <div className="pd-reviews-choice-card__text">
-            <span className="pd-reviews-choice-card__label">{modeMeta.label}</span>
-            <span className="pd-reviews-choice-card__desc">
-              {modeMeta.description}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="pd-reviews-icon-edit"
-            aria-label="Edit calibration mode"
-            aria-expanded={pickingMode}
-            onClick={() => {
-              setPickingMode((v) => !v)
-              setPickingRecommendation(false)
-            }}
+      <div className="pd-reviews-calibration-edit__choices">
+        <section className="pd-reviews-edit-section">
+          <header className="pd-reviews-edit-card__head">
+            <Shuffle size={16} strokeWidth={1.75} aria-hidden />
+            <h3 className="pd-reviews-edit-section__title">
+              Who calibrates grades?
+            </h3>
+          </header>
+          <p className="pd-reviews-edit-section__lede">
+            Select who can make final grade adjustments.
+          </p>
+          <div
+            className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
+            role="listbox"
+            aria-label="Calibration mode"
           >
-            <Pencil size={16} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
-        {pickingMode ? (
-          <div className="pd-reviews-choice-picker" role="listbox">
-            {MODE_ORDER.map((id) => (
-              <button
-                key={id}
-                type="button"
-                role="option"
-                aria-selected={draft.calibrationMode === id}
-                className={[
-                  'pd-reviews-choice-picker__option',
-                  draft.calibrationMode === id ? 'is-selected' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => {
-                  setDraft((prev) => ({ ...prev, calibrationMode: id }))
-                  setPickingMode(false)
-                }}
-              >
-                <strong>{CALIBRATION_MODE_META[id].label}</strong>
-                <span>{CALIBRATION_MODE_META[id].description}</span>
-              </button>
-            ))}
+            {MODE_ORDER.map((id) => {
+              const ModeIcon = MODE_ICONS[id]
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="option"
+                  aria-selected={draft.calibrationMode === id}
+                  className={[
+                    'pd-reviews-choice-picker__option',
+                    draft.calibrationMode === id ? 'is-selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() =>
+                    setDraft((prev) => ({ ...prev, calibrationMode: id }))
+                  }
+                >
+                  <span className="pd-reviews-choice-picker__title">
+                    <span className="pd-reviews-choice-picker__label">
+                      <ModeIcon size={15} strokeWidth={1.9} aria-hidden />
+                      <strong>{CALIBRATION_MODE_META[id].label}</strong>
+                    </span>
+                    {draft.calibrationMode === id ? (
+                      <Check size={15} strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </span>
+                  <span>{CALIBRATION_MODE_META[id].description}</span>
+                </button>
+              )
+            })}
           </div>
-        ) : null}
-      </section>
+        </section>
 
-      <section className="pd-reviews-edit-section">
-        <h3 className="pd-reviews-edit-section__title">
-          Grade recommendation logic
-        </h3>
-        <p className="pd-reviews-edit-section__lede">
-          This is the default grade calculation logic that will be used to
-          define employees final grade if no calibration input is provided
-        </p>
-        <div className="pd-reviews-choice-card">
-          <div className="pd-reviews-choice-card__icon" aria-hidden>
+        <section className="pd-reviews-edit-section">
+          <header className="pd-reviews-edit-card__head">
             <Slash size={18} strokeWidth={1.75} />
-          </div>
-          <div className="pd-reviews-choice-card__text">
-            <span className="pd-reviews-choice-card__label">
-              {recommendationMeta.label}
-            </span>
-            <span className="pd-reviews-choice-card__desc">
-              {recommendationMeta.description}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="pd-reviews-icon-edit"
-            aria-label="Edit grade recommendation"
-            aria-expanded={pickingRecommendation}
-            onClick={() => {
-              setPickingRecommendation((v) => !v)
-              setPickingMode(false)
-            }}
+            <h3 className="pd-reviews-edit-section__title">
+              Grade recommendation
+            </h3>
+          </header>
+          <p className="pd-reviews-edit-section__lede">
+            Set the suggested grade when no calibration input exists.
+          </p>
+          <div
+            className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
+            role="listbox"
+            aria-label="Grade recommendation logic"
           >
-            <Pencil size={16} strokeWidth={2} aria-hidden />
-          </button>
-        </div>
-        {pickingRecommendation ? (
-          <div className="pd-reviews-choice-picker" role="listbox">
-            {RECOMMENDATION_ORDER.map((id) => (
-              <button
-                key={id}
-                type="button"
-                role="option"
-                aria-selected={draft.gradeRecommendation === id}
-                className={[
-                  'pd-reviews-choice-picker__option',
-                  draft.gradeRecommendation === id ? 'is-selected' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => {
-                  setDraft((prev) => ({ ...prev, gradeRecommendation: id }))
-                  setPickingRecommendation(false)
-                }}
-              >
-                <strong>{GRADE_RECOMMENDATION_META[id].label}</strong>
-                <span>{GRADE_RECOMMENDATION_META[id].description}</span>
-              </button>
-            ))}
+            {RECOMMENDATION_ORDER.map((id) => {
+              const RecommendationIcon = RECOMMENDATION_ICONS[id]
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="option"
+                  aria-selected={draft.gradeRecommendation === id}
+                  className={[
+                    'pd-reviews-choice-picker__option',
+                    draft.gradeRecommendation === id ? 'is-selected' : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() =>
+                    setDraft((prev) => ({ ...prev, gradeRecommendation: id }))
+                  }
+                >
+                  <span className="pd-reviews-choice-picker__title">
+                    <span className="pd-reviews-choice-picker__label">
+                      <RecommendationIcon
+                        size={15}
+                        strokeWidth={1.9}
+                        aria-hidden
+                      />
+                      <strong>{GRADE_RECOMMENDATION_META[id].label}</strong>
+                    </span>
+                    {draft.gradeRecommendation === id ? (
+                      <Check size={15} strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </span>
+                  <span>{GRADE_RECOMMENDATION_META[id].description}</span>
+                </button>
+              )
+            })}
           </div>
-        ) : null}
-      </section>
+        </section>
+      </div>
 
       <section className="pd-reviews-edit-section">
-        <header className="pd-reviews-edit-card__head">
-          <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
-          <h3 className="pd-reviews-edit-section__title">
-            Calibration grade distribution
-          </h3>
+        <header className="pd-reviews-distribution__header">
+          <div>
+            <div className="pd-reviews-edit-card__head">
+              <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
+              <h3 className="pd-reviews-edit-section__title">
+                Expected grade distribution
+              </h3>
+            </div>
+            <p className="pd-reviews-edit-section__lede">
+              Set the benchmark percentage expected in each grade band.
+            </p>
+          </div>
+          <span
+            className={[
+              'pd-reviews-distribution__total',
+              total === 100 ? 'is-ok' : 'is-warn',
+            ].join(' ')}
+          >
+            {total}% total
+          </span>
         </header>
-        <p className="pd-reviews-edit-section__lede">
-          The calibration logic sets a benchmark for expected results by
-          defining the percentage of employees you expect to achieve each
-          performance grade.
-        </p>
         <ul className="pd-reviews-distribution">
           {GRADE_BAND_ORDER.map((id) => (
             <li key={id} className="pd-reviews-distribution__row">
@@ -249,14 +265,6 @@ export function CalibrationEditPage({
             </li>
           ))}
         </ul>
-        <p
-          className={[
-            'pd-reviews-distribution__total',
-            total === 100 ? 'is-ok' : 'is-warn',
-          ].join(' ')}
-        >
-          Total: {total}%
-        </p>
       </section>
     </EditPageShell>
   )

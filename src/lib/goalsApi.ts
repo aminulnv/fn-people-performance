@@ -2,6 +2,7 @@ import { isEligibleForCycle } from './goals/demoData'
 import {
   approveSubmission,
   applyHardLockIncompletes,
+  copyPreviousCycleGoals,
   getGoalsSnapshot,
   resetGoalsDemo,
   savePersonGoals,
@@ -99,6 +100,12 @@ export async function saveGoals(
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
   return delay(savePersonGoals(context, goals))
+}
+
+export async function copyPreviousGoals(
+  context: GoalMutationContext,
+): Promise<GoalsSnapshot> {
+  return delay(copyPreviousCycleGoals(context))
 }
 
 export async function submitGoals(

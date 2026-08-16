@@ -111,6 +111,34 @@ describe('GoalDetailView', () => {
     )
   })
 
+  it('shows the skip-level manager while final late approval is pending', () => {
+    render(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        total={1}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cascadeFrom={{
+          managerName: 'Line Manager',
+          managerAvatarUrl: 'https://cdn.example.com/manager.png',
+          skipLevelManagerName: 'Skip Level',
+          skipLevelManagerAvatarUrl: 'https://cdn.example.com/skip.png',
+          options: [],
+        }}
+        cycleLabel="Q3 2026"
+        status="submitted"
+        postWindowApprovalStage="manager_manager"
+        commentAuthorName="Manager"
+        onChange={vi.fn()}
+        onSelectIndex={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('img', { name: 'Approver Skip Level' })).toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Approver Line Manager' })).toBeNull()
+    expect(screen.getByText('Pending final approval')).toBeInTheDocument()
+  })
+
   it('shows the send-back note on the sent-back approval card', () => {
     render(
       <GoalDetailView
