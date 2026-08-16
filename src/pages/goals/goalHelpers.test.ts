@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canViewPersonGoals,
   formatRefreshAge,
   goalSectionLabels,
   goalTitle,
@@ -192,6 +193,54 @@ describe('personMatchesScope', () => {
     expect(
       personMatchesScope(peer, 'department', { id: 'mgr', department: '  ' }),
     ).toBe(false)
+  })
+})
+
+describe('canViewPersonGoals', () => {
+  const manager = {
+    id: 'mgr',
+    department: 'Engineering',
+    reportIds: ['lead'],
+  }
+  const people = [
+    manager,
+    { id: 'lead', managerId: 'mgr' },
+    { id: 'skip', managerId: 'lead' },
+    { id: 'peer', managerId: 'other' },
+  ]
+
+  it('allows direct and skip-level viewing without skip-level editing powers', () => {
+    expect(
+      canViewPersonGoals(
+        { id: 'lead', department: 'Engineering', managerId: 'mgr' },
+        manager,
+        people,
+      ),
+    ).toBe(true)
+    expect(
+      canViewPersonGoals(
+        { id: 'skip', department: 'Engineering', managerId: 'lead' },
+        manager,
+        people,
+      ),
+    ).toBe(true)
+    expect(
+      canViewPersonGoals(
+        { id: 'peer', department: 'Engineering', managerId: 'other' },
+        manager,
+        people,
+      ),
+    ).toBe(false)
+  })
+
+  it('allows an all-read admin to view everyone', () => {
+    expect(
+      canViewPersonGoals(
+        { id: 'peer', department: 'Sales', managerId: 'other' },
+        { ...manager, permissions: ['platform.read_all'] },
+        people,
+      ),
+    ).toBe(true)
   })
 })
 

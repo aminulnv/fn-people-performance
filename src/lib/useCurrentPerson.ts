@@ -31,13 +31,16 @@ export function useCurrentPerson(): DemoPerson | null {
       : null) ?? findEmployeeByEmail(user.email)
 
   if (fromDirectory) {
-    return employeeToDemoPerson(fromDirectory, employees)
+    return {
+      ...employeeToDemoPerson(fromDirectory, employees),
+      permissions: user.permissions,
+    }
   }
 
   const fromGoals = getGoalsSnapshot().people.find(
     (p) => p.id === user.personId || p.email === user.email,
   )
-  if (fromGoals) return fromGoals
+  if (fromGoals) return { ...fromGoals, permissions: user.permissions }
 
   return {
     id: user.personId,
@@ -45,7 +48,7 @@ export function useCurrentPerson(): DemoPerson | null {
     email: user.email,
     title: user.title,
     department: '',
-    role: user.role,
+    permissions: user.permissions,
     joinDate: '2020-01-01',
     reportIds: [],
     avatarHue: avatarHue(user.email || user.personId),

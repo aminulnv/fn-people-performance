@@ -72,7 +72,7 @@ describe('authApi session', () => {
     const session = await signInWithGoogle()
     expect(session.user.email).toBe('test.person@nextventures.io')
     expect(session.user.personId).toBe('101')
-    expect(session.user.role).toBe('manager')
+    expect(session.user).not.toHaveProperty('role')
   })
 
   it('clears session on sign out', async () => {

@@ -1,14 +1,17 @@
 import { ApiError, apiFetch } from '@/lib/apiClient'
 import { listEmployees } from '@/lib/employees/store'
 import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
-import type { GoalRole } from '@/lib/goals/types'
+import {
+  permissionsForEmail,
+  type SystemPermission,
+} from '@/lib/accessControl/types'
 
 export type AuthUser = {
   id: string
   email: string
   name: string
   personId: string
-  role: GoalRole
+  permissions: SystemPermission[]
   title: string
 }
 
@@ -21,7 +24,11 @@ export const LOCAL_USER: AuthUser = {
   email: 'local@nextventures.io',
   name: 'Local User',
   personId: 'local',
-  role: 'employee',
+  permissions: [
+    'platform.read_all',
+    'platform.write_all',
+    'access.manage',
+  ],
   title: '',
 }
 
@@ -45,7 +52,7 @@ type PlatformAuthUser = {
   name: string
   employeeId?: number | null
   title?: string
-  role?: string
+  permissions?: SystemPermission[]
 }
 
 type PlatformAuthMeResponse = {
@@ -66,21 +73,6 @@ function useSessionStorageAuth(): boolean {
   return import.meta.env.VITE_AUTH_MODE === 'local'
 }
 
-function mapRole(role: string | undefined): GoalRole {
-  const normalized = (role ?? '').trim().toLowerCase()
-  if (normalized === 'manager') return 'manager'
-  if (
-    normalized === 'seniormanager' ||
-    normalized === 'senior_manager' ||
-    normalized === 'senior-manager'
-  ) {
-    return 'seniormanager'
-  }
-  if (normalized === 'hrbp') return 'hrbp'
-  if (normalized === 'ptr') return 'ptr'
-  return 'employee'
-}
-
 function authUserFromPlatform(user: PlatformAuthUser): AuthUser {
   const employeeId =
     typeof user.employeeId === 'number' ? user.employeeId : null
@@ -89,7 +81,7 @@ function authUserFromPlatform(user: PlatformAuthUser): AuthUser {
     email: user.email,
     name: user.name,
     personId: employeeId != null ? String(employeeId) : user.id,
-    role: mapRole(user.role),
+    permissions: permissionsForEmail(user.email, user.permissions),
     title: user.title ?? '',
   }
 }
@@ -128,7 +120,7 @@ function resolveLocalSignInUser(): AuthUser {
     email: person.email,
     name: person.name,
     personId: person.id,
-    role: person.role,
+    permissions: LOCAL_USER.permissions,
     title: person.title,
   }
 }
@@ -155,7 +147,7 @@ function isValidSession(value: unknown): value is AuthSession {
     typeof user.email === 'string' &&
     typeof user.name === 'string' &&
     typeof user.personId === 'string' &&
-    typeof user.role === 'string' &&
+    (user.permissions === undefined || Array.isArray(user.permissions)) &&
     typeof user.title === 'string' &&
     typeof parsed.signedInAt === 'string' &&
     (parsed.accessToken === undefined || typeof parsed.accessToken === 'string')
@@ -167,7 +159,18 @@ export function readSession(): AuthSession | null {
   if (!raw) return migrateLegacySession()
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (isValidSession(parsed)) return parsed
+    if (isValidSession(parsed)) {
+      return {
+        ...parsed,
+        user: {
+          ...parsed.user,
+          permissions: permissionsForEmail(
+            parsed.user.email,
+            parsed.user.permissions,
+          ),
+        },
+      }
+    }
   } catch {
     /* migrate legacy flag stored under the new key */
   }

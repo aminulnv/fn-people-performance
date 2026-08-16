@@ -1,4 +1,5 @@
 import { isEligibleForCycle } from './demoData'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import type {
   DemoPerson,
   GoalsCycle,
@@ -66,15 +67,23 @@ export function deriveGoalCapabilities(
   const selfOrManager = isSelfOrManager(actor, subject)
   const isSelf = actor.id === subject.id
   const manager = isDirectManager(actor, subject)
+  const canReadAll = hasSystemPermission(
+    actor.permissions,
+    'platform.read_all',
+  )
+  const canWriteAll = hasSystemPermission(
+    actor.permissions,
+    'platform.write_all',
+  )
   const canStructure =
     eligible &&
     mutable &&
     currentCycle &&
     windowOpen &&
-    selfOrManager
+    (selfOrManager || canWriteAll)
 
   const canProgress =
-    eligible && mutable && currentCycle && selfOrManager
+    eligible && mutable && currentCycle && (selfOrManager || canWriteAll)
 
   return {
     canEditStructure: canStructure,
@@ -82,22 +91,26 @@ export function deriveGoalCapabilities(
     canCreate: canStructure,
     canRemove: canStructure,
     canDuplicate: canStructure,
-    canCascade: canStructure && isSelf && actor.reportIds.length > 0,
+    canCascade:
+      canStructure &&
+      ((isSelf && actor.reportIds.length > 0) ||
+        (canWriteAll && subject.reportIds.length > 0)),
     canSubmit:
-      isSelf &&
+      (isSelf || canWriteAll) &&
       eligible &&
       windowOpen &&
       (row.status === 'draft' || row.status === 'sent_back'),
-    canApprove: manager && row.status === 'submitted',
+    canApprove: (manager || canWriteAll) && row.status === 'submitted',
     canSendBack:
-      manager && (row.status === 'submitted' || row.status === 'approved'),
+      (manager || canWriteAll) &&
+      (row.status === 'submitted' || row.status === 'approved'),
     canRate:
-      manager &&
+      (manager || canWriteAll) &&
       currentCycle &&
       cycle.phase === 'check_in' &&
       row.status === 'approved' &&
       !row.rating,
-    canViewAsManager: manager || actor.role === 'ptr' || actor.role === 'hrbp',
+    canViewAsManager: manager || canReadAll || canWriteAll,
   }
 }
 

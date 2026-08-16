@@ -25,7 +25,6 @@ function person(
     email: `${partial.id}@example.com`,
     title: 'Engineer',
     department: 'Product',
-    role: 'employee',
     joinDate: '2025-01-01',
     reportIds: [],
     avatarHue: 1,
@@ -55,7 +54,6 @@ describe('deriveGoalCapabilities', () => {
   const actor = person({
     id: 'm1',
     name: 'Manager',
-    role: 'manager',
     reportIds: ['e1'],
   })
   const subject = person({ id: 'e1', name: 'Report', managerId: 'm1' })
@@ -110,7 +108,7 @@ describe('deriveGoalCapabilities', () => {
   })
 
   it('does not grant peer edit rights from a forged subject role', () => {
-    const peer = person({ id: 'e2', name: 'Peer', role: 'manager' })
+    const peer = person({ id: 'e2', name: 'Peer' })
     const caps = deriveGoalCapabilities({
       actor: peer,
       subject,
@@ -139,6 +137,63 @@ describe('deriveGoalCapabilities', () => {
     })
     expect(capsSelf.canCascade).toBe(true)
     expect(capsReport.canCascade).toBe(false)
+  })
+
+  it('gives a read-only admin visibility without mutation rights', () => {
+    const admin = person({
+      id: 'a1',
+      name: 'Read admin',
+      permissions: ['platform.read_all'],
+    })
+    const caps = deriveGoalCapabilities({
+      actor: admin,
+      subject,
+      row: row('e1', 'submitted'),
+      cycle,
+      cycleStatus: 'current',
+    })
+    expect(caps.canViewAsManager).toBe(true)
+    expect(caps.canEditStructure).toBe(false)
+    expect(caps.canApprove).toBe(false)
+  })
+
+  it('gives a read + write admin full goal mutation rights', () => {
+    const admin = person({
+      id: 'a1',
+      name: 'Write admin',
+      permissions: [
+        'platform.read_all',
+        'platform.write_all',
+        'access.manage',
+      ],
+    })
+    const caps = deriveGoalCapabilities({
+      actor: admin,
+      subject,
+      row: row('e1', 'submitted'),
+      cycle,
+      cycleStatus: 'current',
+    })
+    expect(caps.canViewAsManager).toBe(true)
+    expect(caps.canEditStructure).toBe(true)
+    expect(caps.canApprove).toBe(true)
+    expect(caps.canSendBack).toBe(true)
+  })
+
+  it('does not grant review access from an HR job title alone', () => {
+    const hrbp = person({
+      id: 'h1',
+      name: 'HR Business Partner',
+      title: 'HR Business Partner',
+    })
+    const caps = deriveGoalCapabilities({
+      actor: hrbp,
+      subject,
+      row: row('e1', 'submitted'),
+      cycle,
+      cycleStatus: 'current',
+    })
+    expect(caps.canViewAsManager).toBe(false)
   })
 })
 

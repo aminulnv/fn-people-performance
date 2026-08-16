@@ -4,7 +4,6 @@ import { LogOut, Moon, Settings, Sun, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { applyAppearance } from '@/lib/brand'
-import { formatGoalRole } from '@/lib/goals/roles'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { nameInitials } from './utils'
 import { useHoverMenu } from './useHoverMenu'
@@ -31,7 +30,6 @@ export function ProfileDropdown({
 
   const name = person?.name ?? 'Signed in'
   const title = person?.title ?? ''
-  const roleLabel = person ? formatGoalRole(person.role) : ''
   const initials = nameInitials(name)
   const avatarHue = person?.avatarHue ?? 220
   const avatarUrl = person?.avatarUrl?.trim() || ''
@@ -99,7 +97,7 @@ export function ProfileDropdown({
             <div className="pd-topbar__dropdown-header-text">
               <div className="pd-topbar__dropdown-title">{name}</div>
               <div className="pd-topbar__dropdown-subtitle">
-                {[title, roleLabel].filter(Boolean).join(' · ')}
+                {title}
               </div>
             </div>
           </div>

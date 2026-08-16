@@ -554,3 +554,136 @@ export async function listPlatformTeams(departmentId) {
     headcount: row.headcount,
   }))
 }
+
+export async function getEmployeeAccess(employeeId) {
+  if (!employeeId) return { profileKey: null, permissions: [] }
+  try {
+    const { rows } = await getPool().query(
+      `SELECT
+         eap.profile_key,
+         COALESCE(
+           array_agg(app.permission_key)
+             FILTER (WHERE app.permission_key IS NOT NULL),
+           ARRAY[]::text[]
+         ) AS permissions
+       FROM platform.employee_access_profiles eap
+       LEFT JOIN platform.access_profile_permissions app
+         ON app.profile_key = eap.profile_key
+       WHERE eap.employee_id = $1
+       GROUP BY eap.profile_key`,
+      [employeeId],
+    )
+    return rows[0]
+      ? {
+          profileKey: rows[0].profile_key,
+          permissions: rows[0].permissions,
+        }
+      : { profileKey: null, permissions: [] }
+  } catch (error) {
+    // Keep sign-in working while the additive access-control migration is pending.
+    if (error?.code === '42P01') {
+      return { profileKey: null, permissions: [] }
+    }
+    throw error
+  }
+}
+
+export async function listAccessControl() {
+  const [profilesResult, permissionsResult, assignmentsResult] =
+    await Promise.all([
+      getPool().query(
+        `SELECT profile_key, role_name, label, description
+         FROM platform.access_profiles
+         ORDER BY profile_key ASC`,
+      ),
+      getPool().query(
+        `SELECT profile_key, permission_key
+         FROM platform.access_profile_permissions
+         ORDER BY profile_key, permission_key`,
+      ),
+      getPool().query(
+        `SELECT employee_id, profile_key, assigned_by_employee_id, assigned_at
+         FROM platform.employee_access_profiles
+         ORDER BY employee_id ASC`,
+      ),
+    ])
+
+  const permissionsByProfile = new Map()
+  for (const row of permissionsResult.rows) {
+    const permissions = permissionsByProfile.get(row.profile_key) ?? []
+    permissions.push(row.permission_key)
+    permissionsByProfile.set(row.profile_key, permissions)
+  }
+
+  return {
+    profiles: profilesResult.rows.map((row) => ({
+      key: row.profile_key,
+      roleName: row.role_name,
+      label: row.label,
+      description: row.description,
+      permissions: permissionsByProfile.get(row.profile_key) ?? [],
+    })),
+    assignments: assignmentsResult.rows.map((row) => ({
+      employeeId: row.employee_id,
+      profileKey: row.profile_key,
+      assignedByEmployeeId: row.assigned_by_employee_id ?? undefined,
+      assignedAt: isoTimestamp(row.assigned_at),
+    })),
+  }
+}
+
+export async function setEmployeeAccess(
+  employeeId,
+  profileKey,
+  assignedByEmployeeId,
+) {
+  if (profileKey !== 'admin_write') {
+    const { rows } = await getPool().query(
+      `SELECT
+         eap.profile_key,
+         (SELECT count(*)::int
+          FROM platform.employee_access_profiles
+          WHERE profile_key = 'admin_write') AS write_admin_count
+       FROM platform.employee_access_profiles eap
+       WHERE eap.employee_id = $1`,
+      [employeeId],
+    )
+    if (
+      rows[0]?.profile_key === 'admin_write' &&
+      rows[0].write_admin_count <= 1
+    ) {
+      const error = new Error('At least one read + write admin is required.')
+      error.statusCode = 409
+      throw error
+    }
+  }
+
+  if (profileKey == null) {
+    await getPool().query(
+      `DELETE FROM platform.employee_access_profiles WHERE employee_id = $1`,
+      [employeeId],
+    )
+    return null
+  }
+
+  const { rows } = await getPool().query(
+    `INSERT INTO platform.employee_access_profiles (
+       employee_id,
+       profile_key,
+       assigned_by_employee_id
+     ) VALUES ($1, $2, $3)
+     ON CONFLICT (employee_id) DO UPDATE SET
+       profile_key = EXCLUDED.profile_key,
+       assigned_by_employee_id = EXCLUDED.assigned_by_employee_id,
+       assigned_at = now()
+     RETURNING employee_id, profile_key, assigned_by_employee_id, assigned_at`,
+    [employeeId, profileKey, assignedByEmployeeId ?? null],
+  )
+  const row = rows[0]
+  return {
+    employeeId: row.employee_id,
+    profileKey: row.profile_key,
+    assignedByEmployeeId: row.assigned_by_employee_id ?? undefined,
+    assignedAt: isoTimestamp(row.assigned_at),
+  }
+}

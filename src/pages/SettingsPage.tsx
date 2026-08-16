@@ -7,6 +7,7 @@ import {
   MousePointerClick,
   Palette,
   PanelLeftOpen,
+  ShieldCheck,
   Sun,
   type LucideIcon,
 } from 'lucide-react'
@@ -30,8 +31,16 @@ import {
 import { Switch } from '@/components/ui'
 import { useAssistantPrefs } from '@/layout/useAssistantPrefs'
 import { useSidebarPrefs } from '@/layout/useSidebarPrefs'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/useAuth'
+import { AccessControlPanel } from './settings/AccessControlPanel'
 
-type SettingsSectionId = 'appearance' | 'sidebar' | 'assistant' | 'about'
+type SettingsSectionId =
+  | 'appearance'
+  | 'sidebar'
+  | 'assistant'
+  | 'access'
+  | 'about'
 
 const SETTINGS_SECTIONS: {
   id: SettingsSectionId
@@ -41,6 +50,7 @@ const SETTINGS_SECTIONS: {
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'sidebar', label: 'Sidebar', icon: PanelLeftOpen },
   { id: 'assistant', label: 'Assistant', icon: Compass },
+  { id: 'access', label: 'Admin access', icon: ShieldCheck },
   { id: 'about', label: 'About', icon: Info },
 ]
 
@@ -303,20 +313,30 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
       return <SidebarPanel />
     case 'assistant':
       return <AssistantPanel />
+    case 'access':
+      return <AccessControlPanel />
     case 'about':
       return <AboutPanel />
   }
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth()
   const [activeSection, setActiveSection] =
     useState<SettingsSectionId>('appearance')
+  const canReadAccess = hasSystemPermission(
+    user?.permissions,
+    'platform.read_all',
+  )
+  const sections = canReadAccess
+    ? SETTINGS_SECTIONS
+    : SETTINGS_SECTIONS.filter((section) => section.id !== 'access')
 
   return (
     <div className="pd-page pd-settings" aria-label="Settings">
       <div className="pd-settings__layout">
         <nav className="pd-settings-nav" aria-label="Settings sections">
-          {SETTINGS_SECTIONS.map((section) => {
+          {sections.map((section) => {
             const Icon = section.icon
             const selected = activeSection === section.id
             return (

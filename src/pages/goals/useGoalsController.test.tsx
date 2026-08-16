@@ -65,7 +65,6 @@ function signInManager() {
       email: 'manager@example.com',
       name: 'Line Manager',
       personId: MANAGER_ID,
-      role: 'manager',
       title: 'Manager',
     },
     signedInAt: '2026-01-01T00:00:00.000Z',

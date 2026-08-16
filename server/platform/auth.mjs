@@ -19,6 +19,7 @@ import { getAppUrl } from '../auth.mjs'
 import { getPool } from '../db.mjs'
 import { asyncHandler, HttpError } from '../errors.mjs'
 import { authRateLimit } from '../rateLimit.mjs'
+import { getEmployeeAccess } from './store.mjs'
 
 const COOKIE_NAME = 'pd_platform_sid'
 const OAUTH_STATE_COOKIE = 'pd_platform_oauth'
@@ -246,14 +247,40 @@ async function requireActiveEmployee(email) {
   return employee
 }
 
-function toPublicUser(payload, employee) {
+function bootstrapAdminEmails() {
+  const configured = String(process.env.PLATFORM_BOOTSTRAP_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean)
+  // First read+write admin until a persistent assignment exists.
+  if (configured.length === 0) {
+    configured.push('aminul.islam@nextventures.io')
+  }
+  return new Set(configured)
+}
+
+export async function permissionsForPlatformUser(user) {
+  const email = String(user?.email ?? '').trim().toLowerCase()
+  if (email && bootstrapAdminEmails().has(email)) {
+    return ['platform.read_all', 'platform.write_all', 'access.manage']
+  }
+  const access = await getEmployeeAccess(user?.employeeId ?? null)
+  return access.permissions
+}
+
+async function toPublicUser(payload, employee) {
+  const employeeId = employee?.employee_id ?? payload.employeeId ?? null
+  const permissions = await permissionsForPlatformUser({
+    email: payload.email,
+    employeeId,
+  })
   return {
     id: payload.sub || payload.email,
     email: payload.email,
     name: employee?.name || payload.name || payload.email,
-    employeeId: employee?.employee_id ?? payload.employeeId ?? null,
+    employeeId,
     title: employee?.job_title || '',
-    role: 'employee',
+    permissions,
   }
 }
 
@@ -284,6 +311,21 @@ export function requirePlatformAuth(req, res, next) {
     employeeId: payload.employeeId ?? null,
   }
   next()
+}
+
+export function requirePlatformPermission(permission) {
+  return async function platformPermissionMiddleware(req, res, next) {
+    try {
+      const permissions = await permissionsForPlatformUser(req.platformUser)
+      if (!permissions.includes(permission)) {
+        return res.status(403).json({ error: 'Insufficient access' })
+      }
+      req.platformUser.permissions = permissions
+      next()
+    } catch (error) {
+      next(error)
+    }
+  }
 }
 
 export function registerPlatformAuthRoutes(app) {
@@ -403,7 +445,7 @@ export function registerPlatformAuthRoutes(app) {
       const employee = await findEmployeeByEmail(payload.email)
       res.json({
         authenticated: true,
-        user: toPublicUser(payload, employee),
+        user: await toPublicUser(payload, employee),
       })
     }),
   )

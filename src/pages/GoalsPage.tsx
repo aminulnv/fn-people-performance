@@ -12,8 +12,6 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
-  Badge,
-  Card,
   EmptyState,
   PageHeader,
   Progress,
@@ -26,7 +24,6 @@ import {
   canSubmitGoals,
   fetchGoalsSnapshot,
   goalCompletion,
-  isEligibleForCycle,
   overallCompletion,
   sumGoalWeights,
   watchGoalsSnapshot,
@@ -74,6 +71,7 @@ import {
   metricCountLabel,
   metricSummary,
   metricTipDetails,
+  canViewPersonGoals,
   personMatchesScope,
   progressStatusClass,
   trackLabel,
@@ -81,7 +79,7 @@ import {
   type GoalsDirectoryScope,
 } from './goals/goalHelpers'
 import { GoalApprovalStatus } from './goals/GoalApprovalStatus'
-import { statusLabel, statusVariant } from './goals/statusLabels'
+import { statusLabel } from './goals/statusLabels'
 import { reviewsTabPath } from '@/lib/reviews/paths'
 import '@/styles/layout-people.css'
 import '@/styles/layout-goals.css'
@@ -225,9 +223,25 @@ function GoalsOverview() {
     )
   }, [snapshot, user?.email, user?.personId])
 
+  const viewer = useMemo(
+    () => (me ? { ...me, permissions: user?.permissions } : null),
+    [me, user?.permissions],
+  )
+  const visibleRows = useMemo(
+    () =>
+      snapshot
+        ? rows.filter((row) =>
+            canViewPersonGoals(row.person, viewer, snapshot.people),
+          )
+        : [],
+    [rows, snapshot, viewer],
+  )
   const scopedRows = useMemo(
-    () => rows.filter((row) => personMatchesScope(row.person, scope, me)),
-    [me, rows, scope],
+    () =>
+      visibleRows.filter((row) =>
+        personMatchesScope(row.person, scope, viewer),
+      ),
+    [scope, viewer, visibleRows],
   )
 
   const counts = useMemo(() => {
@@ -604,7 +618,6 @@ export function GoalsPersonDetail({
 
   /** The Reports section belongs to the profile owner, so it follows them. */
   const hasReports = Boolean(active && active.reportIds.length > 0)
-  const isPeopleOps = actor?.role === 'ptr' || actor?.role === 'hrbp'
 
   if (!snapshot) {
     return <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
@@ -663,6 +676,18 @@ export function GoalsPersonDetail({
               Add Employee
             </Link>
           }
+        />
+      </div>
+    )
+  }
+
+  if (!canViewPersonGoals(active, actor, snapshot.people)) {
+    return (
+      <div className="pd-page pd-goals" aria-label="Goals">
+        <EmptyState
+          icon={Target}
+          title="Goals not available"
+          description="You do not have access to this person's goals."
         />
       </div>
     )
@@ -875,8 +900,6 @@ export function GoalsPersonDetail({
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
 
-      {isPeopleOps ? <PtrOverview snapshot={snapshot} /> : null}
-
       {myGoalsPanel}
 
       {showsReports || showsSubjectReview ? (
@@ -919,44 +942,6 @@ export function GoalsPersonDetail({
         />
       ) : null}
     </div>
-  )
-}
-
-function PtrOverview({ snapshot }: { snapshot: GoalsSnapshot }) {
-  return (
-    <Card
-      title="People in this cycle"
-      description="Eligibility and submission status across the org."
-    >
-      <div className="pd-goals-people-table">
-        {snapshot.people
-          .filter(
-            (p) =>
-              p.role === 'employee' ||
-              p.role === 'manager' ||
-              p.role === 'seniormanager',
-          )
-          .map((person) => {
-            const row = snapshot.byPerson[person.id]
-            const eligible = isEligibleForCycle(person, snapshot.cycle)
-            return (
-              <div key={person.id} className="pd-goals-people-table__row">
-                <div>
-                  <div className="pd-goals-people-table__name">{person.name}</div>
-                  <div className="pd-goals-people-table__meta">{person.title}</div>
-                </div>
-                <div className="pd-goals-people-table__meta">
-                  Joined {person.joinDate}
-                  {eligible ? '' : ' · after Day 1'}
-                </div>
-                <Badge variant={statusVariant(row?.status ?? 'draft')}>
-                  {statusLabel(row?.status ?? 'draft')}
-                </Badge>
-              </div>
-            )
-          })}
-      </div>
-    </Card>
   )
 }
 

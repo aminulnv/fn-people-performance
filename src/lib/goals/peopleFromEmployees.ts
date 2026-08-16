@@ -3,32 +3,7 @@ import { listEmployees } from '@/lib/employees/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { normalizePersonGoals } from './classification'
 import { buildDemoPersonGoals, demoSeedStatus } from './demoGoals'
-import type { DemoPerson, GoalRole, PersonGoals } from './types'
-
-function inferGoalRole(
-  employee: PlatformEmployee,
-  reportCount: number,
-): GoalRole {
-  const title = employee.jobTitle.trim().toLowerCase()
-  if (title.includes('hr business partner') || title === 'hrbp') {
-    return 'hrbp'
-  }
-  if (/\bptr\b/.test(title) || title.includes('people technology')) {
-    return 'ptr'
-  }
-  if (title.includes('senior manager') || title.includes('head of')) {
-    return 'seniormanager'
-  }
-  if (
-    reportCount > 0 ||
-    title.includes('manager') ||
-    title.includes('director') ||
-    title.includes('team lead')
-  ) {
-    return title.includes('senior') ? 'seniormanager' : 'manager'
-  }
-  return 'employee'
-}
+import type { DemoPerson, PersonGoals } from './types'
 
 function reportIdsFor(
   employee: PlatformEmployee,
@@ -52,7 +27,6 @@ export function employeeToDemoPerson(
     email: employee.email,
     title: employee.jobTitle,
     department: employee.department,
-    role: inferGoalRole(employee, reportIds.length),
     joinDate: employee.startDate,
     managerId:
       employee.reportsToId != null ? String(employee.reportsToId) : undefined,

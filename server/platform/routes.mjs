@@ -6,6 +6,7 @@ import { asyncHandler, HttpError } from '../errors.mjs'
 import {
   registerPlatformAuthRoutes,
   requirePlatformAuth,
+  requirePlatformPermission,
 } from './auth.mjs'
 import {
   createPlatformDepartment,
@@ -14,6 +15,8 @@ import {
   listPlatformDivisions,
   listPlatformEmployees,
   listPlatformTeams,
+  listAccessControl,
+  setEmployeeAccess,
   upsertPlatformEmployee,
 } from './store.mjs'
 
@@ -42,6 +45,46 @@ export function registerPlatformRoutes(app) {
         auth: 'platform',
         googleOAuthConfigured: googleConfigured,
       })
+    }),
+  )
+
+  app.get(
+    '/api/platform/access-control',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.read_all'),
+    asyncHandler(async (_req, res) => {
+      res.json(await listAccessControl())
+    }),
+  )
+
+  app.put(
+    '/api/platform/access-control/employees/:employeeId',
+    requirePlatformAuth,
+    requirePlatformPermission('access.manage'),
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.params.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Invalid employee id')
+      }
+      const employee = await getPlatformEmployee(employeeId)
+      if (!employee) throw new HttpError(404, 'Employee not found')
+
+      const profileKey =
+        req.body?.profileKey == null ? null : String(req.body.profileKey)
+      const access = await listAccessControl()
+      if (
+        profileKey &&
+        !access.profiles.some((profile) => profile.key === profileKey)
+      ) {
+        throw new HttpError(400, 'Unknown access profile')
+      }
+
+      const assignment = await setEmployeeAccess(
+        employeeId,
+        profileKey,
+        req.platformUser.employeeId,
+      )
+      res.json({ assignment })
     }),
   )
 

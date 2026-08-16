@@ -1,9 +1,4 @@
-export type GoalRole =
-  | 'employee'
-  | 'manager'
-  | 'seniormanager'
-  | 'ptr'
-  | 'hrbp'
+import type { SystemPermission } from '@/lib/accessControl/types'
 
 export type MetricUnit =
   | '%'
@@ -161,7 +156,8 @@ export type DemoPerson = {
   email: string
   title: string
   department: string
-  role: GoalRole
+  /** Explicit platform-wide access. Org relationships remain separate. */
+  permissions?: SystemPermission[]
   /** ISO date — eligible if on/before quarter Day 1 */
   joinDate: string
   managerId?: string

@@ -1,9 +1,11 @@
 import type {
+  DemoPerson,
   Goal,
   GoalProgressStatus,
   Metric,
   PersonGoals,
 } from '@/lib/goals/types'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { METRIC_UNITS, strategyLabel } from '@/lib/goals/measurements'
 
 export function goalsDetailPath(cycleId: string, personId: string): string {
@@ -169,6 +171,36 @@ export function personMatchesScope(
   const department = viewer.department.trim()
   if (!department) return false
   return person.department.trim() === department
+}
+
+export function canViewPersonGoals(
+  person: { id: string; department: string; managerId?: string },
+  viewer: {
+    id: string
+    department: string
+    reportIds: string[]
+    permissions?: DemoPerson['permissions']
+  } | null,
+  people: Array<{ id: string; managerId?: string }>,
+): boolean {
+  if (!viewer) return false
+  if (person.id === viewer.id) return true
+  if (
+    hasSystemPermission(viewer.permissions, 'platform.read_all') ||
+    hasSystemPermission(viewer.permissions, 'platform.write_all')
+  ) {
+    return true
+  }
+  if (person.managerId === viewer.id) return true
+
+  const directManagerIds = new Set(
+    people
+      .filter((candidate) => candidate.managerId === viewer.id)
+      .map((candidate) => candidate.id),
+  )
+  if (person.managerId && directManagerIds.has(person.managerId)) return true
+
+  return false
 }
 
 export function formatRefreshAge(iso?: string, now = Date.now()): string {
