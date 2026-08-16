@@ -1128,6 +1128,8 @@ function ManagerPanel({
               cycleLabel={snapshot.cycle.label}
               isCurrentCycle={snapshot.cycleStatus === 'current'}
               status={active.row.status}
+              sendBackReason={active.row.sendBackReason}
+              sendBackBy={active.row.sendBackBy}
               commentAuthorName={commentAuthorName}
               commentAuthorId={commentAuthorId}
               canEdit={Boolean(caps?.canEditStructure)}
@@ -1462,6 +1464,8 @@ function EmployeePanel({
           cycleLabel={cycleLabel}
           isCurrentCycle={isCurrentCycle}
           status={row.status}
+          sendBackReason={row.sendBackReason}
+          sendBackBy={row.sendBackBy}
           commentAuthorName={commentAuthorName}
           commentAuthorId={commentAuthorId}
           canEdit={canEditDraft}

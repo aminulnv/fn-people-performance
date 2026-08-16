@@ -18,6 +18,8 @@ export type TooltipProps = {
   className?: string
   /** Hover/focus show delay in ms. Default 120; use 0 for instant. */
   delayMs?: number
+  /** Render in a portal. Defaults to true for left/right so overflow does not clip. */
+  portal?: boolean
 }
 
 const PORTAL_SIDES: TooltipSide[] = ['left', 'right']
@@ -69,13 +71,14 @@ export function Tooltip({
   side = 'top',
   className,
   delayMs = 120,
+  portal,
 }: TooltipProps) {
   const tipId = useId()
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<CSSProperties>()
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerRef = useRef<HTMLSpanElement>(null)
-  const usesPortal = PORTAL_SIDES.includes(side)
+  const usesPortal = portal ?? PORTAL_SIDES.includes(side)
 
   const clearShowTimer = () => {
     if (showTimer.current) {
@@ -123,7 +126,11 @@ export function Tooltip({
     <span
       id={tipId}
       role="tooltip"
-      className={cx('pd-tooltip__content', `pd-tooltip__content--${side}`)}
+      className={cx(
+        'pd-tooltip__content',
+        `pd-tooltip__content--${side}`,
+        usesPortal && 'pd-tooltip__content--portal',
+      )}
       style={usesPortal ? coords : undefined}
     >
       {content}
@@ -146,7 +153,7 @@ export function Tooltip({
         {children}
       </span>
       {usesPortal
-        ? tip && typeof document !== 'undefined'
+        ? tip && coords && typeof document !== 'undefined'
           ? createPortal(tip, document.body)
           : null
         : tip}

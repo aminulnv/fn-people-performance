@@ -6,6 +6,7 @@ import {
   resetGoalsDemo,
   savePersonGoals,
   sendBackSubmission,
+  setActivePerson,
   setSignedInPerson,
   submitPersonGoals,
   updateGoalProgress,
@@ -82,6 +83,28 @@ function ctx(subjectId: string, actorId = subjectId): GoalMutationContext {
     subjectId,
   }
 }
+
+describe('goal snapshot reads', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    clearEmployees()
+    await seedDirectory()
+    setSignedInPerson('2')
+    resetGoalsDemo()
+  })
+
+  afterEach(() => {
+    clearEmployees()
+  })
+
+  it('does not rewrite storage when the active person is already selected', () => {
+    const first = setActivePerson('1')
+    const second = setActivePerson('1')
+    expect(second.activePersonId).toBe('1')
+    expect(second).toBe(first)
+    expect(getGoalsSnapshot()).toBe(second)
+  })
+})
 
 describe('goal approval mutations', () => {
   beforeEach(async () => {

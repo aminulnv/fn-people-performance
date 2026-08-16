@@ -4,26 +4,37 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  GitFork,
   Pencil,
   Send,
 } from 'lucide-react'
 import { Avatar, Checkbox, Textarea } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { newId } from '@/lib/goalsApi'
+import { goalCompletion, newId } from '@/lib/goalsApi'
+import { measurementPanels } from '@/lib/goals/measurements'
 import type {
   Goal,
   Measurement,
   PersonGoals,
+  SendBackAuthor,
 } from '@/lib/goals/types'
 import {
   formatRefreshAge,
   goalTitle,
+  trackLabel,
 } from './goalHelpers'
+import {
+  latestProgressAt,
+  recordMetricProgress,
+  recordMilestoneProgress,
+} from '@/lib/goals/progressLog'
+import { GoalClassificationFields } from './GoalClassificationFields'
 import { GoalSummaryCards } from './GoalSummaryCards'
 import { statusLabel } from './statusLabels'
 import {
   EMPTY_LINE_MANAGER_CASCADE,
   CascadeLabel,
+  GoalCascadeField,
   GoalCascadeFromReadout,
   GoalCascadedTo,
   type CascadeGoalHref,
@@ -31,6 +42,12 @@ import {
 import { GoalActionsMenu, hasGoalActions } from './GoalActionsMenu'
 import type { CascadeTarget } from './GoalCascadeTargetDialog'
 import { GoalProgressEditor } from './GoalProgressEditor'
+import {
+  GoalMetricReadout,
+  GoalWeightReadout,
+} from './GoalMeasurementReadout'
+import { GoalProgressLog } from './GoalProgressLog'
+import { MetricProgressUpdate } from './MetricProgressUpdate'
 import type {
   CascadeRecipient,
   LineManagerCascade,
@@ -69,6 +86,8 @@ type GoalDetailViewProps = {
   cycleLabel: string
   isCurrentCycle?: boolean
   status: PersonGoals['status']
+  sendBackReason?: string
+  sendBackBy?: SendBackAuthor
   commentAuthorName: string
   commentAuthorId?: string
   commentAuthors?: CommentAuthor[]
@@ -89,18 +108,39 @@ type GoalDetailViewProps = {
 function approvalCopy(status: PersonGoals['status']): {
   title: string
   sub: string
+  personPrefix: string
   tone: 'ok' | 'pending' | 'draft'
 } {
   if (status === 'approved') {
-    return { title: 'Approved', sub: 'Manager signed off', tone: 'ok' }
+    return {
+      title: 'Approved',
+      sub: 'Manager signed off',
+      personPrefix: 'by',
+      tone: 'ok',
+    }
   }
   if (status === 'submitted') {
-    return { title: 'Pending approval', sub: 'Waiting on manager', tone: 'pending' }
+    return {
+      title: 'Pending approval',
+      sub: 'Waiting on manager',
+      personPrefix: 'by',
+      tone: 'pending',
+    }
   }
   if (status === 'sent_back') {
-    return { title: 'Sent back', sub: 'Needs changes', tone: 'pending' }
+    return {
+      title: 'Sent back',
+      sub: 'Needs changes',
+      personPrefix: 'by',
+      tone: 'pending',
+    }
   }
-  return { title: statusLabel(status), sub: 'Not submitted yet', tone: 'draft' }
+  return {
+    title: statusLabel(status),
+    sub: 'Not submitted yet',
+    personPrefix: 'by',
+    tone: 'draft',
+  }
 }
 
 function touch(goal: Goal, partial: Partial<Goal>): Goal {
@@ -139,6 +179,8 @@ export function GoalDetailView({
   cycleLabel,
   isCurrentCycle = false,
   status,
+  sendBackReason,
+  sendBackBy,
   commentAuthorName,
   commentAuthorId,
   commentAuthors = [],
@@ -158,12 +200,14 @@ export function GoalDetailView({
   const [editingSection, setEditingSection] = useState<EditableSection | null>(
     null,
   )
+  const [cascadeFromOpen, setCascadeFromOpen] = useState(false)
   const titleRef = useRef<HTMLTextAreaElement>(null)
   const commentFieldId = useId()
   const titleFieldId = useId()
 
   useEffect(() => {
     setEditingSection(null)
+    setCascadeFromOpen(false)
   }, [goal.id])
 
   useEffect(() => {
@@ -171,11 +215,28 @@ export function GoalDetailView({
   }, [editingSection])
 
   const approval = approvalCopy(status)
+  const approver =
+    sendBackBy ??
+    (approval.tone !== 'draft' && cascadeFrom.managerName
+      ? {
+          name: cascadeFrom.managerName,
+          avatarUrl: cascadeFrom.managerAvatarUrl,
+        }
+      : null)
   const title = goalTitle(goal, index)
-  const todos = goal.measurements.filter((item) => item.kind === 'milestone')
-  const metrics = goal.measurements.filter((item) => item.kind === 'metric')
+  const track = trackLabel(
+    status,
+    Math.round(goalCompletion(goal)),
+    goal.progressStatus,
+  )
+  const panels = measurementPanels(goal.measurements)
   const comments = goal.comments ?? []
   const canMutate = canEdit || canUpdateProgress
+  const progressAuthor = {
+    id: commentAuthorId,
+    name: commentAuthorName,
+  }
+  const lastProgressAt = latestProgressAt(goal)
   const cascadeFromSelected = Boolean(
     goal.cascadedFromGoalId || goal.linkedGoalLabel,
   )
@@ -338,9 +399,49 @@ export function GoalDetailView({
             </div>
           )}
           <div className="pd-goal-view__meta">
-            <p>Late update 15 days</p>
+            <p>
+              {lastProgressAt
+                ? `Updated ${formatRefreshAge(lastProgressAt)}`
+                : 'No progress updates yet'}
+            </p>
           </div>
         </div>
+
+        <div className={`pd-goal-view__approval pd-goal-view__approval--${approval.tone}`}>
+          <span className="pd-goal-view__approval-icon" aria-hidden>
+            <Check size={16} strokeWidth={2.5} />
+          </span>
+          <div className="pd-goal-view__approval-copy">
+            <p className="pd-goal-view__approval-title">{approval.title}</p>
+            {approver ? (
+              <div className="pd-goal-view__approval-person">
+                <span className="pd-goal-view__approval-prefix">
+                  {approval.personPrefix}
+                </span>
+                <Avatar
+                  name={approver.name}
+                  src={approver.avatarUrl}
+                  size="sm"
+                  alt={`Approver ${approver.name}`}
+                  style={avatarStyle(approver.name)}
+                />
+                <p className="pd-goal-view__approval-sub">{approver.name}</p>
+              </div>
+            ) : (
+              <p className="pd-goal-view__approval-sub">{approval.sub}</p>
+            )}
+          </div>
+          {status === 'sent_back' && sendBackReason ? (
+            <p className="pd-goal-view__approval-reason">{sendBackReason}</p>
+          ) : null}
+        </div>
+
+        <GoalClassificationFields
+          goal={goal}
+          disabled
+          canEdit={canEdit}
+          onChange={(next) => patchStructure(next)}
+        />
 
         {goal.details?.trim() || canEdit ? (
           <section
@@ -381,20 +482,51 @@ export function GoalDetailView({
           </section>
         ) : null}
 
-        {cascadeFromSelected ? (
+        {canEdit && cascadeFromOpen ? (
           <section
             className="pd-goal-view__description-card"
             aria-label="Cascading from"
           >
-            <CascadeLabel as="p" className="pd-goal-view__description-label">
-              Cascading from
-            </CascadeLabel>
+            <GoalCascadeField
+              goal={goal}
+              cascadeFrom={cascadeFrom}
+              onChange={(next) => {
+                patchStructure(next)
+                setCascadeFromOpen(false)
+              }}
+            />
+          </section>
+        ) : cascadeFromSelected ? (
+          <section
+            className="pd-goal-view__description-card"
+            aria-label="Cascading from"
+          >
+            <div className="pd-goal-view__section-head">
+              <CascadeLabel as="p" className="pd-goal-view__description-label">
+                Cascading from
+              </CascadeLabel>
+              {canEdit ? (
+                <SectionEditButton
+                  label="Edit cascading from"
+                  onClick={() => setCascadeFromOpen(true)}
+                />
+              ) : null}
+            </div>
             <GoalCascadeFromReadout
               goal={goal}
               cascadeFrom={cascadeFrom}
               hrefFor={cascadeHref}
             />
           </section>
+        ) : canEdit && cascadeFrom.managerName ? (
+          <button
+            type="button"
+            className="pd-people__ghost-btn pd-goal-create__add-field"
+            onClick={() => setCascadeFromOpen(true)}
+          >
+            <GitFork size={16} strokeWidth={2} aria-hidden />
+            Add cascading from
+          </button>
         ) : null}
 
         {cascadedTo.length > 0 ? (
@@ -406,16 +538,6 @@ export function GoalDetailView({
           </section>
         ) : null}
       </header>
-
-      <div className={`pd-goal-view__approval pd-goal-view__approval--${approval.tone}`}>
-        <span className="pd-goal-view__approval-icon" aria-hidden>
-          <Check size={16} strokeWidth={2.5} />
-        </span>
-        <div className="pd-goal-view__approval-copy">
-          <p className="pd-goal-view__approval-title">{approval.title}</p>
-          <p className="pd-goal-view__approval-sub">{approval.sub}</p>
-        </div>
-      </div>
 
       <GoalSummaryCards
         goal={goal}
@@ -441,98 +563,126 @@ export function GoalDetailView({
       ) : (
       <div className="pd-goal-view__body">
         <div className="pd-goal-view__main">
-              {todos.length > 0 || metrics.length === 0 ? (
+              <div className="pd-goal-view__section-head">
+                <h2>Metrics</h2>
+                {canEdit ? (
+                  <SectionEditButton
+                    label="Edit how to measure progress"
+                    onClick={() => setEditingSection('progress')}
+                  />
+                ) : null}
+              </div>
+              {panels.length === 0 ? (
                 <section className="pd-goal-view__card" aria-label="To dos">
                   <div className="pd-goal-view__card-head">
-                    <h2>To Do&apos;s</h2>
-                    {canEdit ? (
-                      <SectionEditButton
-                        label="Edit how to measure progress"
-                        onClick={() => setEditingSection('progress')}
-                      />
-                    ) : null}
-                  </div>
-                  {todos.length === 0 ? (
-                    <p className="pd-goal-view__empty">
-                      No to-dos on this goal yet.
-                    </p>
-                  ) : (
-                    <ul className="pd-goal-view__todos">
-                      {todos.map((todo) => (
-                        <li key={todo.id} className="pd-goal-view__todo">
-                          <Checkbox
-                            className="pd-goal-todo__check"
-                            label={todo.title || 'Mark done'}
-                            checked={todo.complete}
-                            disabled={!canMutate}
-                            onChange={(event) =>
-                              patchMeasurement(todo.id, {
-                                ...todo,
-                                complete: event.target.checked,
-                              })
-                            }
-                          />
-                          <p
-                            className={`pd-goal-view__todo-title${
-                              todo.complete ? ' is-done' : ''
-                            }`}
-                          >
-                            {todo.title || 'Untitled to-do'}
-                          </p>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ) : null}
-
-              {metrics.map((metric) => (
-                <section
-                  key={metric.id}
-                  className="pd-goal-view__card"
-                  aria-label={metric.title || 'Metric'}
-                >
-                  <div className="pd-goal-view__card-head">
-                    <h2>{metric.title.trim() || 'Metric'}</h2>
-                    <div className="pd-goal-view__card-value">
-                      {canUpdateProgress ? (
-                        <label className="pd-goal-view__metric-field">
-                          <span className="pd-sr-only">Current value</span>
-                          <input
-                            type="number"
-                            value={metric.currentValue ?? ''}
-                            aria-label={`Current value for ${metric.title.trim() || 'metric'}`}
-                            onChange={(event) =>
-                              patchMeasurement(metric.id, {
-                                ...metric,
-                                currentValue:
-                                  event.target.value.trim() === ''
-                                    ? undefined
-                                    : Number(event.target.value) || 0,
-                              })
-                            }
-                          />
-                        </label>
-                      ) : (
-                        <span className="pd-goal-view__card-current">
-                          {metric.currentValue ?? '—'}
-                          {metric.unit === '%' ? '%' : ''}
-                        </span>
-                      )}
-                      <span className="pd-goal-view__card-meta">
-                        → {metric.targetValue ?? '—'}
-                        {metric.unit === '%' ? '%' : ''}
-                      </span>
-                      {canEdit ? (
-                        <SectionEditButton
-                          label="Edit how to measure progress"
-                          onClick={() => setEditingSection('progress')}
-                        />
-                      ) : null}
+                    <div className="pd-goal-view__card-title">
+                      <h2>To Do&apos;s</h2>
                     </div>
                   </div>
+                  <p className="pd-goal-view__empty">
+                    No to-dos on this goal yet.
+                  </p>
                 </section>
-              ))}
+              ) : (
+                panels.map((panel) =>
+                  panel.kind === 'todos' ? (
+                    <section
+                      key={panel.key}
+                      className="pd-goal-view__card"
+                      aria-label="To dos"
+                    >
+                      <div className="pd-goal-view__card-head">
+                        <div className="pd-goal-view__card-title">
+                          <h2>To Do&apos;s</h2>
+                        </div>
+                        <span className="pd-goal-readout__col-label">
+                          Weight
+                        </span>
+                      </div>
+                      <ul className="pd-goal-view__todos">
+                        {panel.todos.map((todo) => (
+                          <li key={todo.id} className="pd-goal-view__todo">
+                            <Checkbox
+                              className="pd-goal-todo__check"
+                              label={todo.title || 'Mark done'}
+                              checked={todo.complete}
+                              disabled={!canMutate}
+                              onChange={(event) =>
+                                patchMeasurement(
+                                  todo.id,
+                                  recordMilestoneProgress(
+                                    todo,
+                                    event.target.checked,
+                                    progressAuthor,
+                                  ),
+                                )
+                              }
+                            />
+                            <p
+                              className={`pd-goal-view__todo-title${
+                                todo.complete ? ' is-done' : ''
+                              }`}
+                            >
+                              {todo.title || 'Untitled to-do'}
+                            </p>
+                            <span
+                              className="pd-goal-view__todo-weight"
+                              aria-label={`Weight ${todo.weight}%`}
+                            >
+                              {todo.weight}%
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <GoalProgressLog
+                        entries={panel.todos.flatMap(
+                          (todo) => todo.progressLog ?? [],
+                        )}
+                      />
+                    </section>
+                  ) : (
+                    <section
+                      key={panel.key}
+                      className="pd-goal-view__card"
+                      aria-label={panel.metric.title || 'Metric'}
+                    >
+                      <div className="pd-goal-view__card-head">
+                        <div className="pd-goal-view__card-title">
+                          <h2>{panel.metric.title.trim() || 'Metric'}</h2>
+                        </div>
+                        <GoalMetricReadout
+                          metric={panel.metric}
+                          track={track}
+                          showWeight={false}
+                        />
+                        <div className="pd-goal-view__card-metrics">
+                          {canUpdateProgress ? (
+                            <MetricProgressUpdate
+                              metric={panel.metric}
+                              goalTitle={goalTitle(goal, index)}
+                              cycleLabel={cycleLabel}
+                              onCommit={(nextValue) =>
+                                patchMeasurement(
+                                  panel.metric.id,
+                                  recordMetricProgress(
+                                    panel.metric,
+                                    nextValue,
+                                    progressAuthor,
+                                  ),
+                                )
+                              }
+                            />
+                          ) : null}
+                          <GoalWeightReadout weight={panel.metric.weight} />
+                        </div>
+                      </div>
+                      <GoalProgressLog
+                        entries={panel.metric.progressLog ?? []}
+                      />
+                    </section>
+                  ),
+                )
+              )}
         </div>
       </div>
       )}

@@ -32,6 +32,7 @@ import {
   metricUpperLabel,
   metricUsesRange,
   normalizeMetricStrategy,
+  measurementPanels,
   rebalanceMeasurementWeights,
   strategyLabel,
 } from '@/lib/goals/measurements'
@@ -44,6 +45,7 @@ import type {
   MetricUnit,
   Milestone,
   PersonGoals,
+  SendBackAuthor,
 } from '@/lib/goals/types'
 import { sumMeasurementWeights } from '@/lib/goals/weightage'
 import {
@@ -56,6 +58,17 @@ import {
 } from '@/pages/goals/goalHelpers'
 import { statusLabel } from '@/pages/goals/statusLabels'
 import { isGoalDraftDirty, validateGoalDraft } from './draftHelpers'
+import { GoalClassificationFields } from '@/pages/goals/GoalClassificationFields'
+import {
+  GoalMetricReadout,
+  GoalWeightReadout,
+} from '@/pages/goals/GoalMeasurementReadout'
+import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
+import { MetricProgressUpdate } from '@/pages/goals/MetricProgressUpdate'
+import {
+  recordMetricProgress,
+  recordMilestoneProgress,
+} from '@/lib/goals/progressLog'
 import {
   EMPTY_LINE_MANAGER_CASCADE,
   CascadeLabel,
@@ -100,6 +113,8 @@ type GoalUnifiedDetailProps = {
   cycleLabel: string
   isCurrentCycle?: boolean
   status: PersonGoals['status']
+  sendBackReason?: string
+  sendBackBy?: SendBackAuthor
   commentAuthorName: string
   commentAuthorId?: string
   canEdit?: boolean
@@ -123,30 +138,43 @@ type GoalUnifiedDetailProps = {
 function approvalCopy(status: PersonGoals['status']): {
   title: string
   sub: string
+  personPrefix: string
   tone: 'ok' | 'pending' | 'draft'
 } {
   if (status === 'approved') {
-    return { title: 'Approved', sub: 'Locked for this cycle', tone: 'ok' }
+    return {
+      title: 'Approved',
+      sub: 'Locked for this cycle',
+      personPrefix: 'by',
+      tone: 'ok',
+    }
   }
   if (status === 'submitted') {
     return {
       title: 'Pending approval',
       sub: 'Waiting on manager',
+      personPrefix: 'by',
       tone: 'pending',
     }
   }
   if (status === 'sent_back') {
-    return { title: 'Sent back', sub: 'Needs changes', tone: 'pending' }
+    return {
+      title: 'Sent back',
+      sub: 'Needs changes',
+      personPrefix: 'by',
+      tone: 'pending',
+    }
   }
-  return { title: statusLabel(status), sub: 'Not submitted yet', tone: 'draft' }
+  return {
+    title: statusLabel(status),
+    sub: 'Not submitted yet',
+    personPrefix: 'by',
+    tone: 'draft',
+  }
 }
 
 function touch(goal: Goal, partial: Partial<Goal>): Goal {
   return { ...goal, ...partial, updatedAt: new Date().toISOString() }
-}
-
-function unitSuffix(unit: MetricUnit): string {
-  return unit === '%' ? '%' : ''
 }
 
 function StrategyIcon({
@@ -815,6 +843,8 @@ export function GoalUnifiedDetail({
   cycleLabel,
   isCurrentCycle = false,
   status,
+  sendBackReason,
+  sendBackBy,
   commentAuthorName,
   commentAuthorId,
   canEdit = false,
@@ -842,6 +872,7 @@ export function GoalUnifiedDetail({
   const [showCascadeField, setShowCascadeField] = useState(
     Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
   )
+  const [editingCascadeFrom, setEditingCascadeFrom] = useState(false)
   const statusRef = useRef<HTMLDivElement>(null)
   const editingRef = useRef(false)
   const commentFieldId = useId()
@@ -854,6 +885,7 @@ export function GoalUnifiedDetail({
     setDraft(goal)
     setBaseline(goal)
     setShowCascadeField(Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId))
+    setEditingCascadeFrom(false)
     setMode(isNew ? 'edit' : 'view')
     // Reset only when the opened goal identity changes; content sync while
     // viewing is handled by the effect below so in-progress edits are kept.
@@ -893,6 +925,14 @@ export function GoalUnifiedDetail({
   const completion = Math.round(goalCompletion(activeGoal))
   const track = trackLabel(status, completion, activeGoal.progressStatus)
   const approval = approvalCopy(status)
+  const approver =
+    sendBackBy ??
+    (approval.tone !== 'draft' && cascadeFrom.managerName
+      ? {
+          name: cascadeFrom.managerName,
+          avatarUrl: cascadeFrom.managerAvatarUrl,
+        }
+      : null)
   const title = goalTitle(activeGoal, index)
   const todos = activeGoal.measurements.filter(
     (item): item is Milestone => item.kind === 'milestone',
@@ -900,8 +940,13 @@ export function GoalUnifiedDetail({
   const metrics = activeGoal.measurements.filter(
     (item): item is Metric => item.kind === 'metric',
   )
+  const panels = measurementPanels(activeGoal.measurements)
   const comments = activeGoal.comments ?? []
   const canMutateProgress = canEdit || canUpdateProgress
+  const progressAuthor = {
+    id: commentAuthorId,
+    name: commentAuthorName,
+  }
   const dirty = isEditing && isGoalDraftDirty(baseline, draft)
   const validation = useMemo(() => validateGoalDraft(draft), [draft])
   const measureWeight = sumMeasurementWeights(draft.measurements)
@@ -1386,97 +1431,117 @@ export function GoalUnifiedDetail({
             </section>
           ) : (
             <>
-              {todos.length > 0 || metrics.length === 0 ? (
+              <div className="pd-goal-view__section-head">
+                <h2>Metrics</h2>
+              </div>
+              {panels.length === 0 ? (
                 <section className="pd-goal-v2__card" aria-label="To dos">
                   <div className="pd-goal-v2__card-head">
                     <h2>To Do&apos;s</h2>
                   </div>
-                  {todos.length === 0 ? (
-                    <p className="pd-goal-v2__empty">
-                      No to-dos on this goal yet.
-                    </p>
-                  ) : (
-                    <ul className="pd-goal-v2__todos">
-                      {todos.map((todo) => (
-                        <li key={todo.id} className="pd-goal-v2__todo">
-                          <input
-                            type="checkbox"
-                            className="pd-goal-v2__todo-check"
-                            checked={todo.complete}
-                            disabled={!canMutateProgress}
-                            aria-label={`Mark ${
-                              todo.title.trim() || 'to-do'
-                            } complete`}
-                            onChange={(event) =>
-                              patchMeasurement(todo.id, {
-                                ...todo,
-                                complete: event.target.checked,
-                              })
-                            }
-                          />
-                          <p
-                            className={`pd-goal-v2__todo-title${
-                              todo.complete ? ' is-done' : ''
-                            }`}
-                          >
-                            {todo.title || 'Untitled to-do'}
-                          </p>
-                          <span className="pd-goal-v2__todo-weight">
-                            {todo.weight}%
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <p className="pd-goal-v2__empty">
+                    No to-dos on this goal yet.
+                  </p>
                 </section>
-              ) : null}
-
-              {metrics.map((metric) => (
-                <section
-                  key={metric.id}
-                  className="pd-goal-v2__card"
-                  aria-label={metric.title || 'Metric'}
-                >
-                  <div className="pd-goal-v2__card-head">
-                    <h2>{metric.title.trim() || 'Metric'}</h2>
-                    <div className="pd-goal-v2__card-value">
-                      {canUpdateProgress ? (
-                        <label className="pd-goal-v2__metric-field">
-                          <span className="pd-sr-only">Current value</span>
-                          <input
-                            type="number"
-                            value={metric.currentValue ?? ''}
-                            aria-label={`Current value for ${
-                              metric.title.trim() || 'metric'
-                            }`}
-                            onChange={(event) =>
-                              patchMeasurement(metric.id, {
-                                ...metric,
-                                currentValue:
-                                  event.target.value.trim() === ''
-                                    ? undefined
-                                    : Number(event.target.value) || 0,
-                              })
-                            }
-                          />
-                        </label>
-                      ) : (
-                        <span className="pd-goal-v2__card-current">
-                          {metric.currentValue ?? '—'}
-                          {unitSuffix(metric.unit)}
+              ) : (
+                panels.map((panel) =>
+                  panel.kind === 'todos' ? (
+                    <section
+                      key={panel.key}
+                      className="pd-goal-v2__card"
+                      aria-label="To dos"
+                    >
+                      <div className="pd-goal-v2__card-head">
+                        <h2>To Do&apos;s</h2>
+                        <span className="pd-goal-readout__col-label">
+                          Weight
                         </span>
-                      )}
-                      <span className="pd-goal-v2__card-meta">
-                        → {metric.targetValue ?? '—'}
-                        {unitSuffix(metric.unit)}
-                      </span>
-                      <span className="pd-goal-v2__card-weight">
-                        {metric.weight}%
-                      </span>
-                    </div>
-                  </div>
-                </section>
-              ))}
+                      </div>
+                      <ul className="pd-goal-v2__todos">
+                        {panel.todos.map((todo) => (
+                          <li key={todo.id} className="pd-goal-v2__todo">
+                            <input
+                              type="checkbox"
+                              className="pd-goal-v2__todo-check"
+                              checked={todo.complete}
+                              disabled={!canMutateProgress}
+                              aria-label={`Mark ${
+                                todo.title.trim() || 'to-do'
+                              } complete`}
+                              onChange={(event) =>
+                                patchMeasurement(
+                                  todo.id,
+                                  recordMilestoneProgress(
+                                    todo,
+                                    event.target.checked,
+                                    progressAuthor,
+                                  ),
+                                )
+                              }
+                            />
+                            <p
+                              className={`pd-goal-v2__todo-title${
+                                todo.complete ? ' is-done' : ''
+                              }`}
+                            >
+                              {todo.title || 'Untitled to-do'}
+                            </p>
+                            <span
+                              className="pd-goal-v2__todo-weight"
+                              aria-label={`Weight ${todo.weight}%`}
+                            >
+                              {todo.weight}%
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                      <GoalProgressLog
+                        entries={panel.todos.flatMap(
+                          (todo) => todo.progressLog ?? [],
+                        )}
+                      />
+                    </section>
+                  ) : (
+                    <section
+                      key={panel.key}
+                      className="pd-goal-v2__card"
+                      aria-label={panel.metric.title || 'Metric'}
+                    >
+                      <div className="pd-goal-v2__card-head">
+                        <h2>{panel.metric.title.trim() || 'Metric'}</h2>
+                        <GoalMetricReadout
+                          metric={panel.metric}
+                          track={track}
+                          showWeight={false}
+                        />
+                        <div className="pd-goal-view__card-metrics">
+                          {canUpdateProgress ? (
+                            <MetricProgressUpdate
+                              metric={panel.metric}
+                              goalTitle={title}
+                              cycleLabel={cycleLabel}
+                              onCommit={(nextValue) =>
+                                patchMeasurement(
+                                  panel.metric.id,
+                                  recordMetricProgress(
+                                    panel.metric,
+                                    nextValue,
+                                    progressAuthor,
+                                  ),
+                                )
+                              }
+                            />
+                          ) : null}
+                          <GoalWeightReadout weight={panel.metric.weight} />
+                        </div>
+                      </div>
+                      <GoalProgressLog
+                        entries={panel.metric.progressLog ?? []}
+                      />
+                    </section>
+                  ),
+                )
+              )}
 
               <section className="pd-goal-v2__comments" aria-label="Comments">
                 <h2>Comments</h2>
@@ -1564,6 +1629,16 @@ export function GoalUnifiedDetail({
                   />
                 </div>
 
+                <GoalClassificationFields
+                  goal={draft}
+                  onChange={(next) => patchDraft(next)}
+                />
+                {validation.classificationError ? (
+                  <p className="pd-goal-v2__error" role="alert">
+                    {validation.classificationError}
+                  </p>
+                ) : null}
+
                 <label className="pd-goal-v2__field">
                   <span className="pd-goal-v2__field-label">Description</span>
                   <textarea
@@ -1602,18 +1677,6 @@ export function GoalUnifiedDetail({
             </section>
           ) : (
             <>
-              <div
-                className={`pd-goal-v2__approval pd-goal-v2__approval--${approval.tone}`}
-              >
-                <span className="pd-goal-v2__approval-icon" aria-hidden>
-                  <Check size={16} strokeWidth={2.5} />
-                </span>
-                <div>
-                  <p className="pd-goal-v2__approval-title">{approval.title}</p>
-                  <p className="pd-goal-v2__approval-sub">{approval.sub}</p>
-                </div>
-              </div>
-
               <div className="pd-goal-v2__facts">
                 <div className="pd-goal-v2__fact">
                   <p className="pd-goal-v2__fact-label">Owner</p>
@@ -1627,6 +1690,46 @@ export function GoalUnifiedDetail({
                     <p>{owner.name}</p>
                   </div>
                 </div>
+              </div>
+
+              <div
+                className={`pd-goal-v2__approval pd-goal-v2__approval--${approval.tone}`}
+              >
+                <span className="pd-goal-v2__approval-icon" aria-hidden>
+                  <Check size={16} strokeWidth={2.5} />
+                </span>
+                <div>
+                  <p className="pd-goal-v2__approval-title">{approval.title}</p>
+                  {approver ? (
+                    <div className="pd-goal-v2__approval-person">
+                      <span className="pd-goal-v2__approval-prefix">
+                        {approval.personPrefix}
+                      </span>
+                      <Avatar
+                        name={approver.name}
+                        src={approver.avatarUrl}
+                        size="sm"
+                        alt={`Approver ${approver.name}`}
+                        style={avatarStyle(approver.name)}
+                      />
+                      <p className="pd-goal-v2__approval-sub">{approver.name}</p>
+                    </div>
+                  ) : (
+                    <p className="pd-goal-v2__approval-sub">{approval.sub}</p>
+                  )}
+                </div>
+                {status === 'sent_back' && sendBackReason ? (
+                  <p className="pd-goal-v2__approval-reason">{sendBackReason}</p>
+                ) : null}
+              </div>
+
+              <div className="pd-goal-v2__facts">
+                <GoalClassificationFields
+                  goal={activeGoal}
+                  disabled
+                  canEdit={canEdit}
+                  onChange={(next) => onSave(touch(goal, next))}
+                />
 
                 {activeGoal.details?.trim() ? (
                   <div className="pd-goal-v2__fact">
@@ -1637,17 +1740,54 @@ export function GoalUnifiedDetail({
                   </div>
                 ) : null}
 
-                {cascadeFromSelected ? (
+                {canEdit &&
+                (editingCascadeFrom ||
+                  (showCascadeField && !cascadeFromSelected)) ? (
+                  <div className="pd-goal-v2__field">
+                    <GoalCascadeField
+                      goal={activeGoal}
+                      cascadeFrom={cascadeFrom}
+                      onChange={(next) => {
+                        onSave(touch(goal, next))
+                        setShowCascadeField(
+                          Boolean(next.cascadedFromGoalId || next.linkedGoalLabel),
+                        )
+                        setEditingCascadeFrom(false)
+                      }}
+                    />
+                  </div>
+                ) : cascadeFromSelected ? (
                   <div className="pd-goal-v2__fact">
-                    <CascadeLabel as="p" className="pd-goal-v2__fact-label">
-                      Cascading from
-                    </CascadeLabel>
+                    <div className="pd-goal-view__section-head">
+                      <CascadeLabel as="p" className="pd-goal-v2__fact-label">
+                        Cascading from
+                      </CascadeLabel>
+                      {canEdit ? (
+                        <button
+                          type="button"
+                          className="pd-goal-view__section-edit"
+                          aria-label="Edit cascading from"
+                          onClick={() => setEditingCascadeFrom(true)}
+                        >
+                          <Pencil size={14} strokeWidth={1.75} aria-hidden />
+                        </button>
+                      ) : null}
+                    </div>
                     <GoalCascadeFromReadout
                       goal={activeGoal}
                       cascadeFrom={cascadeFrom}
                       hrefFor={cascadeHref}
                     />
                   </div>
+                ) : canEdit && cascadeFrom.managerName ? (
+                  <button
+                    type="button"
+                    className="pd-goal-v2__quiet-btn"
+                    onClick={() => setShowCascadeField(true)}
+                  >
+                    <GitFork size={15} strokeWidth={2} aria-hidden />
+                    Add cascading from
+                  </button>
                 ) : null}
 
                 {cascadedTo.length > 0 ? (

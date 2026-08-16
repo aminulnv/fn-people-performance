@@ -58,10 +58,7 @@ export type MetricTipDetails = {
   unit: string
 }
 
-/** Tooltip model for a single-metric goal; null when the cell is a milestone summary. */
-export function metricTipDetails(goal: Goal): MetricTipDetails | null {
-  const metric = primaryMetric(goal)
-  if (!metric) return null
+export function metricTipFromMetric(metric: Metric): MetricTipDetails {
   const unit =
     METRIC_UNITS.find((item) => item.value === metric.unit)?.label ?? metric.unit
   return {
@@ -71,6 +68,13 @@ export function metricTipDetails(goal: Goal): MetricTipDetails | null {
     target: formatMetricNumber(metric.targetValue),
     unit,
   }
+}
+
+/** Tooltip model for a single-metric goal; null when the cell is a milestone summary. */
+export function metricTipDetails(goal: Goal): MetricTipDetails | null {
+  const metric = primaryMetric(goal)
+  if (!metric) return null
+  return metricTipFromMetric(metric)
 }
 
 export function metricCountLabel(goal: Goal): string {

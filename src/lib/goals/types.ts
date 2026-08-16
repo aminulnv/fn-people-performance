@@ -42,6 +42,18 @@ export type SubmissionStatus =
 
 export type DemoPhase = 'window_open' | 'hard_lock' | 'check_in'
 
+/** One committed progress change on a measurement. */
+export type ProgressLogEntry = {
+  id: string
+  recordedAt: string
+  authorId?: string
+  authorName: string
+  from?: number
+  to: number
+  /** Milestone title at write time, so the log still reads after a rename. */
+  label?: string
+}
+
 export type Milestone = {
   id: string
   kind: 'milestone'
@@ -50,6 +62,7 @@ export type Milestone = {
   complete: boolean
   proofUrl?: string
   comment?: string
+  progressLog?: ProgressLogEntry[]
 }
 
 export type Metric = {
@@ -67,9 +80,16 @@ export type Metric = {
   rangeMax?: number
   proofUrl?: string
   comment?: string
+  progressLog?: ProgressLogEntry[]
 }
 
 export type Measurement = Milestone | Metric
+
+export type GoalType = 'outcome' | 'output'
+
+export type ProcessType = 'okr' | 'bau' | 'pi'
+
+export type GoalPriority = 'high' | 'medium' | 'low'
 
 export type GoalProgressStatus =
   | 'on_track'
@@ -92,6 +112,11 @@ export type Goal = {
   id: string
   description: string
   weight: number
+  /** Outcome vs output — required at save and submit. */
+  goalType: GoalType
+  /** OKR, BAU, or performance improvement. */
+  processType: ProcessType
+  priority: GoalPriority
   /** Person who owns this goal; defaults to the page person when unset. */
   ownerId?: string
   /** Longer free-text description (goal name lives in `description`). */

@@ -59,7 +59,7 @@ export function watchGoalsSnapshot(onChange: () => void): () => void {
 }
 
 export async function fetchGoalsSnapshot(): Promise<GoalsSnapshot> {
-  return delay(getGoalsSnapshot())
+  return getGoalsSnapshot()
 }
 
 export async function selectDemoPerson(personId: string): Promise<GoalsSnapshot> {

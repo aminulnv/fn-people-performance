@@ -54,6 +54,8 @@ const listeners = new Set<() => void>()
 let bridgesReady = false
 /** Pushed in by the auth layer — goals must not depend on auth. */
 let signedInPersonId = ''
+/** Reused until persist/directory/reviews change. Do not mutate. */
+let snapshotCache: GoalsSnapshot | null = null
 
 function clone<T>(value: T): T {
   return structuredClone(value)
@@ -172,15 +174,21 @@ function getPersisted(): GoalsPersisted {
   return memory
 }
 
-function notify(): void {
+function emit(): void {
   listeners.forEach((l) => l())
+}
+
+function notify(): void {
+  snapshotCache = null
+  emit()
 }
 
 function commit(next: GoalsPersisted): GoalsSnapshot {
   memory = next
   writeStorage(next)
-  notify()
-  return projectSnapshot(next)
+  snapshotCache = projectSnapshot(next)
+  emit()
+  return snapshotCache
 }
 
 function phaseFor(state: GoalsPersisted, cycleId: string): DemoPhase {
@@ -250,17 +258,24 @@ export function subscribeGoalsStore(listener: () => void): () => void {
   return () => listeners.delete(listener)
 }
 
+function cachedSnapshot(state: GoalsPersisted = getPersisted()): GoalsSnapshot {
+  if (snapshotCache) return snapshotCache
+  snapshotCache = projectSnapshot(state)
+  return snapshotCache
+}
+
 export function getGoalsSnapshot(): GoalsSnapshot {
-  return clone(projectSnapshot(getPersisted()))
+  return cachedSnapshot()
 }
 
 export function getGoalsSnapshotForCycle(cycleId: string): GoalsSnapshot {
   const state = getPersisted()
   const options = listGoalCycleOptions(state.phaseByCycle)
   if (!options.some((cycle) => cycle.id === cycleId)) {
-    return clone(projectSnapshot(state))
+    return cachedSnapshot(state)
   }
-  return clone(projectSnapshot({ ...state, activeCycleId: cycleId }))
+  if (state.activeCycleId === cycleId) return cachedSnapshot(state)
+  return projectSnapshot({ ...state, activeCycleId: cycleId })
 }
 
 export function resetGoalsDemo(): GoalsSnapshot {
@@ -276,10 +291,11 @@ export function setSignedInPerson(personId: string): void {
 
 export function setActivePerson(personId: string): GoalsSnapshot {
   const state = getPersisted()
-  if (!personId) return projectSnapshot(state)
-  const snap = projectSnapshot(state)
+  if (!personId) return cachedSnapshot(state)
+  if (state.activePersonId === personId) return cachedSnapshot(state)
+  const snap = cachedSnapshot(state)
   if (!snap.people.some((p) => p.id === personId)) {
-    return clone(snap)
+    return snap
   }
   return commit({ ...state, activePersonId: personId })
 }
@@ -301,7 +317,7 @@ export function setActiveCycle(cycleId: string): GoalsSnapshot {
   const options = listGoalCycleOptions(state.phaseByCycle)
   const next = options.find((c) => c.id === cycleId)
   if (!next || next.id === state.activeCycleId) {
-    return clone(projectSnapshot(state))
+    return cachedSnapshot(state)
   }
   return commit({
     ...state,

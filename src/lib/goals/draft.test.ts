@@ -6,6 +6,9 @@ const goal: Goal = {
   id: 'g1',
   description: 'Ship reviews',
   weight: 50,
+  goalType: 'outcome',
+  processType: 'bau',
+  priority: 'medium',
   measurements: [
     {
       id: 'm1',
@@ -31,6 +34,12 @@ describe('shared draft helpers (V1/V2 contract)', () => {
       }).ok,
     ).toBe(false)
     expect(validateGoalDraft(goal).ok).toBe(true)
+  })
+
+  it('treats classification edits as dirty', () => {
+    expect(isGoalDraftDirty(goal, { ...goal, goalType: 'output' })).toBe(true)
+    expect(isGoalDraftDirty(goal, { ...goal, processType: 'okr' })).toBe(true)
+    expect(isGoalDraftDirty(goal, { ...goal, priority: 'high' })).toBe(true)
   })
 
   it('ignores comment-only dirty state', () => {

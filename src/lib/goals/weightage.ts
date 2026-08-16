@@ -49,6 +49,12 @@ export function canSubmitGoals(goals: Goal[]): {
       blockers.push(goalBlocker(goal, index, ' needs a title.'))
       return true
     }
+    if (!goal.goalType || !goal.processType || !goal.priority) {
+      blockers.push(
+        goalBlocker(goal, index, ' needs a type, process type, and priority.'),
+      )
+      return true
+    }
     if (goal.measurements.length < 1) {
       blockers.push(
         goalBlocker(

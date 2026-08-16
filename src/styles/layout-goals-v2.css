@@ -925,6 +925,11 @@
   color: var(--color-text-muted);
 }
 
+.pd-goal-v2__field .pd-listbox,
+.pd-goal-v2__field .pd-listbox__trigger {
+  width: 100%;
+}
+
 .pd-goal-v2__linked-input,
 .pd-goal-v2__description-input {
   width: 100%;
@@ -966,6 +971,11 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.85rem 1rem;
+}
+
+.pd-goal-v2__card-head:has(> .pd-goal-readout) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 }
 
 .pd-goal-v2__card-head h2,
@@ -1049,30 +1059,6 @@
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--color-text-muted);
-}
-
-.pd-goal-v2__metric-field {
-  display: inline-flex;
-  margin: 0;
-}
-
-.pd-goal-v2__metric-field input {
-  width: 4.5rem;
-  min-height: 2rem;
-  padding: 0.25rem 0.5rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.875rem;
-  font-weight: 700;
-  text-align: right;
-}
-
-.pd-goal-v2__metric-field input:focus {
-  outline: none;
-  border-color: var(--color-theme);
 }
 
 /* -------------------------------------------------------------- comments */
@@ -1179,6 +1165,28 @@
   padding: 0.9rem 1rem;
 }
 
+.pd-goal-v2__approval-person {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.15rem;
+}
+
+.pd-goal-v2__approval-prefix {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-goal-v2__approval-person .pd-avatar {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.55rem;
+}
+
+.pd-goal-v2__approval-person .pd-goal-v2__approval-sub {
+  margin: 0;
+}
+
 .pd-goal-v2__approval-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1195,8 +1203,13 @@
   flex-direction: column;
   gap: 0.6rem;
   width: 100%;
+  margin: 0;
   padding-top: 0.85rem;
   border-top: 1px solid var(--color-divider);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-text);
 }
 
 .pd-goal-v2__approval--ok {

@@ -57,6 +57,7 @@ import { GoalSubmitAllButton } from './goals/GoalSubmitAllButton'
 import { GoalCreateDrawer } from './goals/GoalCreateDrawer'
 import { GoalCreateForm } from './goals/GoalCreateForm'
 import { GoalDetailView } from './goals/GoalDetailView'
+import { GoalMetricTip } from './goals/GoalMeasurementReadout'
 import type { CascadeTarget } from './goals/GoalCascadeTargetDialog'
 import { ReportGoalsCard } from './goals/ReportGoalsCard'
 import { GoalsCycleSelect } from './goals/GoalsCycleSelect'
@@ -1159,6 +1160,8 @@ function ManagerPanel({
             cycleLabel={snapshot.cycle.label}
             isCurrentCycle={snapshot.cycleStatus === 'current'}
             status={active.row.status}
+            sendBackReason={active.row.sendBackReason}
+            sendBackBy={active.row.sendBackBy}
             commentAuthorName={commentAuthorName}
             commentAuthorId={commentAuthorId}
             commentAuthors={snapshot.people}
@@ -1462,6 +1465,8 @@ function EmployeePanel({
             cycleLabel={cycleLabel}
             isCurrentCycle={isCurrentCycle}
             status={row.status}
+            sendBackReason={row.sendBackReason}
+            sendBackBy={row.sendBackBy}
             commentAuthorName={commentAuthorName}
             commentAuthorId={commentAuthorId}
             commentAuthors={ownerOptions}
@@ -1840,37 +1845,7 @@ function GoalsTable({
                   side="left"
                   delayMs={80}
                   content={
-                    <div className="pd-goals-table__metric-tip">
-                      <div className="pd-goals-table__metric-tip-title">
-                        {metricTip.title}
-                      </div>
-                      <div className="pd-goals-table__metric-tip-rows">
-                        <div className="pd-goals-table__metric-tip-row">
-                          <span>Initial value</span>
-                          <span>{metricTip.initial}</span>
-                        </div>
-                        <div className="pd-goals-table__metric-tip-row">
-                          <span>
-                            Current value (
-                            <span
-                              className={`pd-goals-table__metric-tip-status pd-goals-table__metric-tip-status--${track.tone}`}
-                            >
-                              {track.label}
-                            </span>
-                            )
-                          </span>
-                          <span>{metricTip.current}</span>
-                        </div>
-                        <div className="pd-goals-table__metric-tip-row">
-                          <span>Target value</span>
-                          <span>{metricTip.target}</span>
-                        </div>
-                        <div className="pd-goals-table__metric-tip-row">
-                          <span>Unit</span>
-                          <span>{metricTip.unit}</span>
-                        </div>
-                      </div>
-                    </div>
+                    <GoalMetricTip tip={metricTip} track={track} />
                   }
                 >
                   <span className="pd-goals-table__metric-value">{metricLabel}</span>

@@ -16,6 +16,9 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
       description: 'Improve delivery quality and close critical defects faster',
       details:
         'Close critical defects faster than last quarter and keep reopen rate down. Success: 80 defects closed with quality held.',
+      goalType: 'outcome',
+      processType: 'bau',
+      priority: 'high',
       weight: 40,
       progressStatus: 'on_track',
       measurements: rebalanceMeasurementWeights([
@@ -29,6 +32,22 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
           startValue: 0,
           targetValue: 80,
           currentValue: 90,
+          progressLog: [
+            {
+              id: seedId(cycleId, personId, 'defects-log-1'),
+              recordedAt: '2026-08-01T09:00:00.000Z',
+              authorName: 'Owner',
+              from: 0,
+              to: 40,
+            },
+            {
+              id: seedId(cycleId, personId, 'defects-log-2'),
+              recordedAt: '2026-08-10T14:30:00.000Z',
+              authorName: 'Owner',
+              from: 40,
+              to: 90,
+            },
+          ],
         },
         {
           id: seedId(cycleId, personId, 'todo-triage'),
@@ -51,6 +70,9 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
       description: 'Ship roadmap commitments for the quarter on schedule',
       details:
         'Deliver the committed quarter roadmap. Success: 10 milestones shipped on the agreed dates.',
+      goalType: 'output',
+      processType: 'okr',
+      priority: 'high',
       weight: 35,
       progressStatus: 'on_track',
       measurements: [
@@ -73,6 +95,9 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
         'Strengthen cross-team collaboration and stakeholder updates',
       details:
         'Keep stakeholders current and raise the quality of cross-team feedback. Success: feedback score at or above 10.',
+      goalType: 'outcome',
+      processType: 'bau',
+      priority: 'medium',
       weight: 25,
       progressStatus: 'on_track',
       measurements: [
@@ -86,6 +111,22 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
           startValue: 0,
           targetValue: 10,
           currentValue: 13,
+          progressLog: [
+            {
+              id: seedId(cycleId, personId, 'feedback-log-1'),
+              recordedAt: '2026-08-05T11:15:00.000Z',
+              authorName: 'Owner',
+              from: 0,
+              to: 10,
+            },
+            {
+              id: seedId(cycleId, personId, 'feedback-log-2'),
+              recordedAt: '2026-08-14T08:40:00.000Z',
+              authorName: 'Owner',
+              from: 10,
+              to: 13,
+            },
+          ],
         },
       ],
     },

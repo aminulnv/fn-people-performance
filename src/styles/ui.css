@@ -1071,6 +1071,20 @@ a.pd-btn--secondary:visited {
   transform: none;
 }
 
+/*
+ * Portaled tips must drop the in-flow top/bottom anchors. Otherwise
+ * `bottom: 100%` on --top stretches a fixed box against the viewport
+ * and the drawer paints over it.
+ */
+.pd-tooltip__content--portal {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  left: auto;
+  z-index: 200;
+}
+
 /* ── Skeleton ─────────────────────────────────────────────────────── */
 
 .pd-skeleton {

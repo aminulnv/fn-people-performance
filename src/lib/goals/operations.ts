@@ -178,12 +178,14 @@ function resetMeasurement(measurement: Measurement): Measurement {
       ...measurement,
       id: newId('m'),
       complete: false,
+      progressLog: [],
     }
   }
   return {
     ...measurement,
     id: newId('m'),
     currentValue: measurement.startValue,
+    progressLog: [],
   }
 }
 
@@ -228,6 +230,9 @@ export function cascadeGoal(
   return {
     ...blankGoal({ withDefaultMetric: false, ownerId: targetPersonId }),
     description: `Untitled Cascading Goal from ${options.sourcePersonName}`,
+    goalType: source.goalType,
+    processType: source.processType,
+    priority: source.priority,
     cascadedFromGoalId: source.id,
     linkedGoalLabel: options.sourceTitle,
     comments: [],

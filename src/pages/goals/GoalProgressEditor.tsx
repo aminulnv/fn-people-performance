@@ -19,6 +19,7 @@ import {
   blankMilestone,
   METRIC_STRATEGIES,
   METRIC_UNITS,
+  measurementPanels,
   metricUsesRange,
   normalizeMetricStrategy,
   rebalanceMeasurementWeights,
@@ -35,42 +36,6 @@ import type {
 import { sumMeasurementWeights } from '@/lib/goals/weightage'
 
 type MeasureMethod = 'number' | 'todo'
-
-/**
- * Metrics each get their own block; every milestone belongs to one shared
- * "To Do's" block, mirroring Revolut's grouped task list.
- */
-type MeasurePanel =
-  | { key: string; kind: 'metric'; metric: Metric; title: string }
-  | { key: string; kind: 'todos'; todos: Milestone[] }
-
-function buildPanels(measurements: Measurement[]): MeasurePanel[] {
-  const todos = measurements.filter(
-    (item): item is Milestone => item.kind === 'milestone',
-  )
-  const panels: MeasurePanel[] = []
-  let todosPlaced = false
-  let metricCount = 0
-
-  for (const measurement of measurements) {
-    if (measurement.kind === 'metric') {
-      metricCount += 1
-      panels.push({
-        key: measurement.id,
-        kind: 'metric',
-        metric: measurement,
-        title: `Metric ${metricCount}`,
-      })
-      continue
-    }
-    if (!todosPlaced) {
-      panels.push({ key: 'todos', kind: 'todos', todos })
-      todosPlaced = true
-    }
-  }
-
-  return panels
-}
 
 function StrategyIcon({
   strategy,
@@ -374,8 +339,8 @@ const MEASURE_METHODS: {
   hint: string
   icon: typeof Hash
 }[] = [
-  { id: 'number', label: 'Number', hint: 'Track a value', icon: Hash },
   { id: 'todo', label: 'To Do', hint: 'Checklist tasks', icon: ListTodo },
+  { id: 'number', label: 'Number', hint: 'Track a value', icon: Hash },
 ]
 
 function MethodSwitch({
@@ -402,14 +367,19 @@ function MethodSwitch({
             className={`pd-goal-create__method${isActive ? ' is-active' : ''}`}
             onClick={() => onMethodChange(id)}
           >
-            <Icon
-              className="pd-goal-create__method-icon"
-              size={22}
-              strokeWidth={2.25}
+            <span className="pd-goal-create__method-icon" aria-hidden>
+              <Icon size={18} strokeWidth={2.25} />
+            </span>
+            <span className="pd-goal-create__method-copy">
+              <span className="pd-goal-create__method-title">{label}</span>
+              <span className="pd-goal-create__method-sub">{hint}</span>
+            </span>
+            <span
+              className={`pd-goal-create__method-mark${isActive ? ' is-on' : ''}`}
               aria-hidden
-            />
-            <span className="pd-goal-create__method-title">{label}</span>
-            <span className="pd-goal-create__method-sub">{hint}</span>
+            >
+              {isActive ? <Check size={11} strokeWidth={2.75} /> : null}
+            </span>
           </button>
         )
       })}
@@ -617,10 +587,10 @@ function TodosPanel({
 
         <button
           type="button"
-          className="pd-people__create-btn"
+          className="pd-goal-create__add-todo"
           onClick={onAddTodo}
         >
-          <Plus size={16} strokeWidth={2} aria-hidden />
+          <Plus size={14} strokeWidth={2.25} aria-hidden />
           Add To Do
         </button>
       </div>
@@ -639,7 +609,7 @@ export function GoalProgressEditor({
 }) {
   const measureWeight = sumMeasurementWeights(goal.measurements)
   const measurements = goal.measurements
-  const panels = buildPanels(measurements)
+  const panels = measurementPanels(measurements)
 
   const patch = (partial: Partial<Goal>) => onChange({ ...goal, ...partial })
 
@@ -725,12 +695,15 @@ export function GoalProgressEditor({
         </div>
       </div>
 
-      {panels.map((panel) =>
+      {panels.map((panel, index) =>
         panel.kind === 'metric' ? (
           <MetricPanel
             key={panel.key}
             metric={panel.metric}
-            title={panel.title}
+            title={`Metric ${
+              panels.slice(0, index + 1).filter((item) => item.kind === 'metric')
+                .length
+            }`}
             canRemove={measurements.length > 1}
             onChange={updateMeasurement}
             onRemove={() => removeMeasurement(panel.metric.id)}

@@ -4,6 +4,7 @@ import { sumMeasurementWeights } from './weightage'
 export type GoalDraftValidation = {
   ok: boolean
   nameError?: string
+  classificationError?: string
   measurementWeightError?: string
 }
 
@@ -11,6 +12,10 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
   const nameError = goal.description.trim()
     ? undefined
     : 'Goal name is required'
+  const classificationError =
+    goal.goalType && goal.processType && goal.priority
+      ? undefined
+      : 'Goal type, process type, and priority are required'
   const measureWeight = sumMeasurementWeights(goal.measurements)
   const measurementWeightError =
     goal.measurements.length === 0
@@ -20,8 +25,9 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
         : 'Measurement weights must total 100%'
 
   return {
-    ok: !nameError && !measurementWeightError,
+    ok: !nameError && !classificationError && !measurementWeightError,
     nameError,
+    classificationError,
     measurementWeightError,
   }
 }
@@ -31,6 +37,9 @@ export function isGoalDraftDirty(baseline: Goal, draft: Goal): boolean {
   const strip = (goal: Goal) => ({
     description: goal.description,
     weight: goal.weight,
+    goalType: goal.goalType,
+    processType: goal.processType,
+    priority: goal.priority,
     ownerId: goal.ownerId,
     details: goal.details ?? '',
     cascadedFromGoalId: goal.cascadedFromGoalId ?? '',

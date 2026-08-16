@@ -3,6 +3,7 @@ import {
   applyMetricStrategy,
   blankMetric,
   blankMilestone,
+  measurementPanels,
   normalizeMetricStrategy,
   rebalanceMeasurementWeights,
 } from './measurements'
@@ -226,5 +227,23 @@ describe('measurement factories', () => {
     const keepBelow = applyMetricStrategy(base, 'keep_below')
     expect(keepBelow.rangeMax).toBe(15)
     expect(keepBelow.targetValue).toBe(15)
+  })
+})
+
+describe('measurementPanels', () => {
+  it('places the to-do block where the first milestone sits', () => {
+    const first = blankMetric('increase')
+    const todo = blankMilestone()
+    const second = blankMetric('decrease')
+    const panels = measurementPanels([first, todo, second])
+
+    expect(panels.map((panel) => panel.kind)).toEqual([
+      'metric',
+      'todos',
+      'metric',
+    ])
+    expect(panels[0]).toMatchObject({ kind: 'metric', metric: first })
+    expect(panels[1]).toMatchObject({ kind: 'todos', todos: [todo] })
+    expect(panels[2]).toMatchObject({ kind: 'metric', metric: second })
   })
 })

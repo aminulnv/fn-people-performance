@@ -1,6 +1,7 @@
 import { avatarHue } from '@/lib/employees/avatar'
 import { listEmployees } from '@/lib/employees/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { normalizePersonGoals } from './classification'
 import { buildDemoPersonGoals, demoSeedStatus } from './demoGoals'
 import type { DemoPerson, GoalRole, PersonGoals } from './types'
 
@@ -29,14 +30,21 @@ function inferGoalRole(
   return 'employee'
 }
 
+function reportIdsFor(
+  employee: PlatformEmployee,
+  directory: PlatformEmployee[],
+): string[] {
+  return directory
+    .filter((other) => other.reportsToId === employee.employeeId)
+    .map((other) => String(other.employeeId))
+}
+
 export function employeeToDemoPerson(
   employee: PlatformEmployee,
   directory: PlatformEmployee[],
+  reportIds = reportIdsFor(employee, directory),
 ): DemoPerson {
   const id = String(employee.employeeId)
-  const reportIds = directory
-    .filter((other) => other.reportsToId === employee.employeeId)
-    .map((other) => String(other.employeeId))
 
   return {
     id,
@@ -57,8 +65,23 @@ export function employeeToDemoPerson(
 
 export function peopleFromEmployees(): DemoPerson[] {
   const directory = listEmployees().filter((e) => e.isActive)
+  const reportsByManagerId = new Map<number, string[]>()
+  for (const employee of directory) {
+    const managerId = employee.reportsToId
+    if (managerId == null) continue
+    const reportId = String(employee.employeeId)
+    const reports = reportsByManagerId.get(managerId)
+    if (reports) reports.push(reportId)
+    else reportsByManagerId.set(managerId, [reportId])
+  }
   return directory
-    .map((employee) => employeeToDemoPerson(employee, directory))
+    .map((employee) =>
+      employeeToDemoPerson(
+        employee,
+        directory,
+        reportsByManagerId.get(employee.employeeId) ?? [],
+      ),
+    )
     .sort((a, b) => {
       const aDept = a.department.trim()
       const bDept = b.department.trim()
@@ -94,6 +117,7 @@ export function mergePeopleIntoGoalsState(input: {
   activePersonId: string
 } {
   const people = peopleFromEmployees()
+  const peopleById = new Map(people.map((person) => [person.id, person]))
   const byPerson: Record<string, PersonGoals> = {}
 
   for (const person of people) {
@@ -103,22 +127,23 @@ export function mergePeopleIntoGoalsState(input: {
       person.managerId,
     )
     const manager = person.managerId
-      ? people.find((other) => other.id === person.managerId)
+      ? peopleById.get(person.managerId)
       : undefined
-    byPerson[person.id] =
+    byPerson[person.id] = normalizePersonGoals(
       input.byPerson[person.id] ??
-      buildDemoPersonGoals(
-        input.cycleId,
-        person.id,
-        status,
-        manager
-          ? {
-              id: manager.id,
-              name: manager.name,
-              avatarUrl: manager.avatarUrl,
-            }
-          : undefined,
-      )
+        buildDemoPersonGoals(
+          input.cycleId,
+          person.id,
+          status,
+          manager
+            ? {
+                id: manager.id,
+                name: manager.name,
+                avatarUrl: manager.avatarUrl,
+              }
+            : undefined,
+        ),
+    )
   }
 
   const activeStillPresent = people.some((p) => p.id === input.activePersonId)

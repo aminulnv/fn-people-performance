@@ -14,6 +14,9 @@ const untitled: Goal = {
   id: 'g1',
   description: '  ',
   weight: 50,
+  goalType: 'outcome',
+  processType: 'bau',
+  priority: 'medium',
   measurements: [],
 }
 

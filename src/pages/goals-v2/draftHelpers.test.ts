@@ -6,6 +6,9 @@ const baseGoal: Goal = {
   id: 'g1',
   description: 'Ship reviews',
   weight: 50,
+  goalType: 'outcome',
+  processType: 'bau',
+  priority: 'medium',
   measurements: [
     {
       id: 'm1',
@@ -26,6 +29,7 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft({ ...baseGoal, description: '  ' })).toEqual({
       ok: false,
       nameError: 'Goal name is required',
+      classificationError: undefined,
       measurementWeightError: undefined,
     })
   })
@@ -40,6 +44,7 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft(goal)).toEqual({
       ok: false,
       nameError: undefined,
+      classificationError: undefined,
       measurementWeightError: 'Measurement weights must total 100%',
     })
   })
@@ -48,6 +53,7 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft(baseGoal)).toEqual({
       ok: true,
       nameError: undefined,
+      classificationError: undefined,
       measurementWeightError: undefined,
     })
   })

@@ -1,3 +1,8 @@
+import {
+  DEFAULT_GOAL_PRIORITY,
+  DEFAULT_GOAL_TYPE,
+  DEFAULT_PROCESS_TYPE,
+} from './classification'
 import type {
   Goal,
   Measurement,
@@ -99,6 +104,9 @@ export function blankGoal(options?: {
     id: createId('goal'),
     description: '',
     weight: 0,
+    goalType: DEFAULT_GOAL_TYPE,
+    processType: DEFAULT_PROCESS_TYPE,
+    priority: DEFAULT_GOAL_PRIORITY,
     ownerId: options?.ownerId,
     progressStatus: 'on_track',
     measurements: withDefaultMetric
@@ -182,4 +190,39 @@ export function metricUpperLabel(strategy: MetricStrategy): string {
   if (strategy === 'increase' || strategy === 'decrease') return 'Target value'
   if (strategy === 'keep_above') return 'Upper limit'
   return 'Upper limit'
+}
+
+/**
+ * Metrics stay in list order. All to-dos share one block, placed at the first
+ * milestone so edit and read views sort the same way.
+ */
+export type MeasurementPanel =
+  | { key: string; kind: 'metric'; metric: Metric }
+  | { key: string; kind: 'todos'; todos: Milestone[] }
+
+export function measurementPanels(
+  measurements: Measurement[],
+): MeasurementPanel[] {
+  const todos = measurements.filter(
+    (item): item is Milestone => item.kind === 'milestone',
+  )
+  const panels: MeasurementPanel[] = []
+  let todosPlaced = false
+
+  for (const measurement of measurements) {
+    if (measurement.kind === 'metric') {
+      panels.push({
+        key: measurement.id,
+        kind: 'metric',
+        metric: measurement,
+      })
+      continue
+    }
+    if (!todosPlaced) {
+      panels.push({ key: 'todos', kind: 'todos', todos })
+      todosPlaced = true
+    }
+  }
+
+  return panels
 }

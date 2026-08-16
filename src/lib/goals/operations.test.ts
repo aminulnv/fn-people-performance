@@ -45,6 +45,9 @@ const source: Goal = {
   id: 'g1',
   description: 'Ship quality',
   weight: 40,
+  goalType: 'outcome',
+  processType: 'pi',
+  priority: 'high',
   ownerId: 'p1',
   progressStatus: 'at_risk',
   comments: [
@@ -66,6 +69,15 @@ const source: Goal = {
       startValue: 0,
       targetValue: 80,
       currentValue: 50,
+      progressLog: [
+        {
+          id: 'log-1',
+          recordedAt: '2026-08-01T00:00:00.000Z',
+          authorName: 'Ada',
+          from: 0,
+          to: 50,
+        },
+      ],
     },
     {
       id: 'm2',
@@ -125,9 +137,11 @@ describe('resetGoalProgress', () => {
     expect(reset.measurements[0].id).not.toBe('m1')
     if (reset.measurements[0].kind === 'metric') {
       expect(reset.measurements[0].currentValue).toBe(0)
+      expect(reset.measurements[0].progressLog).toEqual([])
     }
     if (reset.measurements[1].kind === 'milestone') {
       expect(reset.measurements[1].complete).toBe(false)
+      expect(reset.measurements[1].progressLog).toEqual([])
     }
   })
 })
@@ -156,6 +170,9 @@ describe('duplicateGoal / cascadeGoal', () => {
     expect(child.comments).toEqual([])
     expect(child.measurements).toEqual([])
     expect(child.weight).toBe(0)
+    expect(child.goalType).toBe('outcome')
+    expect(child.processType).toBe('pi')
+    expect(child.priority).toBe('high')
   })
 })
 
