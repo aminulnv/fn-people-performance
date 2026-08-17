@@ -14,12 +14,24 @@ import {
 } from '@/lib/authApi'
 import { loadEmployees } from '@/lib/employees/store'
 import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
+import { ensureReviewCyclesLoaded } from '@/lib/reviews/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
 
 function syncGoalsPersona(personId: string | undefined) {
   if (!personId || personId === 'local') return
   setSignedInPerson(personId)
   setActivePerson(personId)
+}
+
+async function hydratePlatformCaches() {
+  await Promise.all([
+    loadEmployees().catch(() => {
+      /* load error surfaced via store subscribers */
+    }),
+    ensureReviewCyclesLoaded().catch(() => {
+      /* reviews stay empty until retry; Goals falls back gracefully */
+    }),
+  ])
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -35,9 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(next)
         if (next) {
           syncGoalsPersona(next.user.personId)
-          void loadEmployees().catch(() => {
-            /* load error surfaced via store subscribers */
-          })
+          void hydratePlatformCaches()
         }
       } catch {
         if (!cancelled) setSession(null)
@@ -58,7 +68,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const next = await apiSignInWithGoogle()
     syncGoalsPersona(next.user.personId)
     setSession(next)
-    void loadEmployees().catch(() => {})
+    void hydratePlatformCaches()
   }, [])
 
   const signInWithEmailPassword = useCallback(
@@ -66,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const next = await apiSignInWithEmailPassword(email, password)
       syncGoalsPersona(next.user.personId)
       setSession(next)
-      void loadEmployees().catch(() => {})
+      void hydratePlatformCaches()
     },
     [],
   )

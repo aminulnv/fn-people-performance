@@ -1,9 +1,13 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, Undo2 } from 'lucide-react'
+import { Check, MoreHorizontal, Undo2 } from 'lucide-react'
+import {
+  ActivityLogDrawer,
+} from '@/components/activity/ActivityLogDrawer'
 import { Avatar, Badge, Textarea } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PersonGoals } from '@/lib/goals/types'
+import '@/styles/layout-activity.css'
 import { statusLabel, statusVariant } from './statusLabels'
 
 type ReportGoalsCardProps = {
@@ -22,6 +26,12 @@ type ReportGoalsCardProps = {
   onSendBackReason: (value: string) => void
   onApprove: () => void
   onSendBack: () => void
+  /** Quiet overflow destination — never beside Approve / Send Back. */
+  activityFilters?: {
+    cycleId?: string
+    subjectEmployeeId?: number
+    entityType?: string
+  }
   children: ReactNode
 }
 
@@ -44,14 +54,18 @@ export function ReportGoalsCard({
   onSendBackReason,
   onApprove,
   onSendBack,
+  activityFilters,
   children,
 }: ReportGoalsCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
   const countLabel = `${goalCount} goal${goalCount === 1 ? '' : 's'}`
   const awaitsApproval = status === 'submitted'
   const showFirstStageLate =
     status === 'submitted' && postWindowApprovalStage === 'manager'
   const showFinalStageLate =
     status === 'submitted' && postWindowApprovalStage === 'manager_manager'
+  const canViewActivity = Boolean(activityFilters)
 
   return (
     <section className="pd-goals-approval" aria-label={`${person.name} goals`}>
@@ -136,36 +150,74 @@ export function ReportGoalsCard({
             ) : null}
           </div>
         </div>
-        {canApprove || canSendBack ? (
-          <div className="pd-goals__footer-actions">
-            {canApprove ? (
+        <div className="pd-goals__footer-actions">
+          {canApprove ? (
+            <button
+              type="button"
+              className="pd-people__ghost-btn pd-people__ghost-btn--success"
+              disabled={busy}
+              onClick={onApprove}
+            >
+              <Check size={16} strokeWidth={1.75} aria-hidden />
+              Approve
+            </button>
+          ) : null}
+          {canSendBack ? (
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              disabled={busy}
+              aria-expanded={sendBackOpen}
+              onClick={onToggleSendBack}
+            >
+              <Undo2 size={16} strokeWidth={1.75} aria-hidden />
+              Send Back
+            </button>
+          ) : null}
+          {!canApprove && !canSendBack ? (
+            <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
+          ) : null}
+          {canViewActivity ? (
+            <div className="pd-goal-view__menu">
               <button
                 type="button"
-                className="pd-people__ghost-btn pd-people__ghost-btn--success"
-                disabled={busy}
-                onClick={onApprove}
+                className="pd-people__icon-btn"
+                aria-label={`More actions for ${person.name}`}
+                aria-expanded={menuOpen}
+                onClick={() => setMenuOpen((open) => !open)}
               >
-                <Check size={16} strokeWidth={1.75} aria-hidden />
-                Approve
+                <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
               </button>
-            ) : null}
-            {canSendBack ? (
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                disabled={busy}
-                aria-expanded={sendBackOpen}
-                onClick={onToggleSendBack}
-              >
-                <Undo2 size={16} strokeWidth={1.75} aria-hidden />
-                Send Back
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
-        )}
+              {menuOpen ? (
+                <div className="pd-goal-view__menu-panel" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pd-goal-view__menu-item"
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setActivityOpen(true)
+                    }}
+                  >
+                    View submission activity
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
+      {canViewActivity && activityFilters ? (
+        <ActivityLogDrawer
+          open={activityOpen}
+          onClose={() => setActivityOpen(false)}
+          title="Submission activity"
+          filters={{
+            entityType: 'goal_submission',
+            ...activityFilters,
+          }}
+        />
+      ) : null}
       {sendBackOpen ? (
         <div className="pd-goals-approval__reason">
           <Textarea

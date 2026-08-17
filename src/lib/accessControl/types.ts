@@ -2,6 +2,8 @@ export type BuiltInSystemPermission =
   | 'platform.read_all'
   | 'platform.write_all'
   | 'access.manage'
+  | 'activity.read_all'
+  | 'activity.export'
 
 /** Permission keys are data-driven; built-ins stay documented and autocomplete. */
 export type SystemPermission =
@@ -37,7 +39,7 @@ export const ACCESS_PROFILES: AccessProfile[] = [
     roleName: 'admin',
     label: 'All read access',
     description: 'Can view all people, goals, reviews, and access assignments.',
-    permissions: ['platform.read_all'],
+    permissions: ['platform.read_all', 'activity.read_all'],
   },
   {
     key: 'admin_write',
@@ -49,6 +51,8 @@ export const ACCESS_PROFILES: AccessProfile[] = [
       'platform.read_all',
       'platform.write_all',
       'access.manage',
+      'activity.read_all',
+      'activity.export',
     ],
   },
 ]
@@ -62,6 +66,8 @@ export const BOOTSTRAP_ADMIN_PERMISSIONS: SystemPermission[] = [
   'platform.read_all',
   'platform.write_all',
   'access.manage',
+  'activity.read_all',
+  'activity.export',
 ]
 
 export function permissionsForEmail(

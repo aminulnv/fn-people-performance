@@ -175,10 +175,13 @@
   align-items: stretch;
   width: 100%;
   min-width: 0;
-  border-radius: 0.75rem;
+  border-radius: 999px;
   border: 1px solid color-mix(in srgb, white 35%, transparent);
   background: color-mix(in srgb, black 28%, transparent);
   overflow: hidden;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .pd-login__input {
@@ -186,13 +189,16 @@
   height: 3rem;
   margin: 0;
   padding: 0 1rem;
-  border-radius: 0.75rem;
+  border-radius: 999px;
   border: 1px solid color-mix(in srgb, white 35%, transparent);
   background: color-mix(in srgb, black 28%, transparent);
   color: var(--login-ink);
   font: inherit;
   font-size: 0.95rem;
   box-sizing: border-box;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .pd-login__input--username {
@@ -215,12 +221,8 @@
 }
 
 .pd-login__username:focus-within {
-  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
-  outline-offset: 2px;
-}
-
-.pd-login__input--username:focus {
-  outline: none;
+  border-color: color-mix(in srgb, white 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, white 10%, transparent);
 }
 
 .pd-login__input::placeholder {
@@ -228,8 +230,14 @@
 }
 
 .pd-login__input:focus {
-  outline: 2px solid color-mix(in srgb, var(--color-theme) 70%, white);
-  outline-offset: 2px;
+  outline: none;
+  border-color: color-mix(in srgb, white 60%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, white 10%, transparent);
+}
+
+/* The wrapper draws the focus ring for the split username field. */
+.pd-login__input--username:focus {
+  box-shadow: none;
 }
 
 .pd-login__input:disabled {

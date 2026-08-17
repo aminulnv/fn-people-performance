@@ -63,14 +63,14 @@ describe("formatDateRange", () => {
 });
 
 describe("reviews store", () => {
-  it("seeds demo cycles and creates a regular cycle", () => {
+  it("seeds demo cycles and creates a regular cycle", async () => {
     const seeded = createInitialReviewsSnapshot();
     expect(seeded.cycles).toHaveLength(1);
     expect(seeded.cycles[0]?.id).toBe("q3-2026");
 
     const period = buildPeriod(2028, 2);
     // Use unique period unlikely in seed
-    const created = createReviewCycle({
+    const created = await createReviewCycle({
       type: "regular",
       periodKey: period.key,
     });
@@ -78,27 +78,27 @@ describe("reviews store", () => {
     expect(getReviewCycle(created.id)?.id).toBe(created.id);
   });
 
-  it("creates a test cycle from an existing one", () => {
-    const source = createReviewCycle({
+  it("creates a test cycle from an existing one", async () => {
+    const source = await createReviewCycle({
       type: "ad-hoc",
       name: "Source",
       startDate: "2026-01-01",
       endDate: "2026-02-01",
     });
-    const test = createTestCycle(source.id);
+    const test = await createTestCycle(source.id);
     expect(test.isTest).toBe(true);
     expect(test.name).toContain("(Test)");
     expect(test.type).toBe("ad-hoc");
   });
 
-  it("deletes a cycle", () => {
-    const created = createReviewCycle({
+  it("deletes a cycle", async () => {
+    const created = await createReviewCycle({
       type: "ad-hoc",
       name: "To delete",
       startDate: "2026-01-01",
       endDate: "2026-02-01",
     });
-    deleteReviewCycle(created.id);
+    await deleteReviewCycle(created.id);
     expect(getReviewCycle(created.id)).toBeNull();
   });
 
@@ -126,7 +126,7 @@ describe("reviews store", () => {
     expect(sorted[1].id).toBe("a");
   });
 
-  it("rejects invalid goal windows before saving cycle stages", () => {
+  it("rejects invalid goal windows before saving cycle stages", async () => {
     const cycle = createInitialReviewsSnapshot().cycles[0];
     if (!cycle) throw new Error("Expected seeded cycle");
     const invalid = structuredClone(cycle.stagesConfig);
@@ -135,16 +135,16 @@ describe("reviews store", () => {
       endDate: "2026-07-01",
     };
 
-    expect(() => updateCycleStagesConfig(cycle.id, invalid)).toThrow(
+    await expect(updateCycleStagesConfig(cycle.id, invalid)).rejects.toThrow(
       "Employee goals must end on or after its start date.",
     );
   });
 
-  it("saves and validates a cycle-specific goal-count policy", () => {
+  it("saves and validates a cycle-specific goal-count policy", async () => {
     const cycle = createInitialReviewsSnapshot().cycles[0];
     if (!cycle) throw new Error("Expected seeded cycle");
 
-    const updated = updateCycleSettings(cycle.id, {
+    const updated = await updateCycleSettings(cycle.id, {
       goalCountPolicy: {
         minimumRequired: 1,
         recommendedMinimum: 2,
@@ -159,7 +159,7 @@ describe("reviews store", () => {
       maximumAllowed: 8,
     });
 
-    expect(() =>
+    await expect(
       updateCycleSettings(cycle.id, {
         goalCountPolicy: {
           minimumRequired: 3,
@@ -168,14 +168,14 @@ describe("reviews store", () => {
           maximumAllowed: null,
         },
       }),
-    ).toThrow("Recommended minimum cannot be lower");
+    ).rejects.toThrow("Recommended minimum cannot be lower");
   });
 
-  it("saves the post-window goal policy per cycle", () => {
+  it("saves the post-window goal policy per cycle", async () => {
     const cycle = createInitialReviewsSnapshot().cycles[0];
     if (!cycle) throw new Error("Expected seeded cycle");
 
-    const updated = updateCycleSettings(cycle.id, {
+    const updated = await updateCycleSettings(cycle.id, {
       postWindowGoalPolicy: "hard_stop",
     });
 

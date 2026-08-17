@@ -24,6 +24,9 @@ import {
   setEmployeeAccess,
   upsertPlatformEmployee,
 } from './store.mjs'
+import { listActivityEvents } from './activity.mjs'
+import { registerReviewCycleRoutes } from './reviewCycles/routes.mjs'
+import { registerGoalRoutes } from './goals/routes.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -130,6 +133,7 @@ export function registerPlatformRoutes(app) {
         employeeId,
         profileKey,
         req.platformUser.employeeId,
+        req.platformUser,
       )
       res.json({ assignment })
     }),
@@ -161,9 +165,12 @@ export function registerPlatformRoutes(app) {
   app.post(
     '/api/platform/employees',
     requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       try {
-        const employee = await upsertPlatformEmployee(req.body ?? {})
+        const employee = await upsertPlatformEmployee(req.body ?? {}, {
+          actor: req.platformUser,
+        })
         res.status(201).json({ employee })
       } catch (err) {
         throw toHttp(err)
@@ -174,6 +181,7 @@ export function registerPlatformRoutes(app) {
   app.patch(
     '/api/platform/employees/:employeeId',
     requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       const employeeId = Number(req.params.employeeId)
       if (!Number.isInteger(employeeId)) {
@@ -184,6 +192,7 @@ export function registerPlatformRoutes(app) {
       try {
         const employee = await upsertPlatformEmployee(req.body ?? {}, {
           replaceEmployeeId: employeeId,
+          actor: req.platformUser,
         })
         res.json({ employee })
       } catch (err) {
@@ -204,9 +213,13 @@ export function registerPlatformRoutes(app) {
   app.post(
     '/api/platform/departments',
     requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       try {
-        const department = await createPlatformDepartment(req.body ?? {})
+        const department = await createPlatformDepartment(
+          req.body ?? {},
+          req.platformUser,
+        )
         res.status(201).json({ department })
       } catch (err) {
         throw toHttp(err)
@@ -231,4 +244,41 @@ export function registerPlatformRoutes(app) {
       res.json({ divisions })
     }),
   )
+
+  app.get(
+    '/api/platform/activity',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const filters = {
+        limit: req.query.limit,
+        cursor: typeof req.query.cursor === 'string' ? req.query.cursor : undefined,
+        eventKey:
+          typeof req.query.eventKey === 'string' ? req.query.eventKey : undefined,
+        entityType:
+          typeof req.query.entityType === 'string'
+            ? req.query.entityType
+            : undefined,
+        entityId:
+          typeof req.query.entityId === 'string' ? req.query.entityId : undefined,
+        actorEmployeeId:
+          req.query.actorEmployeeId != null
+            ? Number(req.query.actorEmployeeId)
+            : undefined,
+        subjectEmployeeId:
+          req.query.subjectEmployeeId != null
+            ? Number(req.query.subjectEmployeeId)
+            : undefined,
+        cycleId:
+          typeof req.query.cycleId === 'string' ? req.query.cycleId : undefined,
+        goalId:
+          typeof req.query.goalId === 'string' ? req.query.goalId : undefined,
+        from: typeof req.query.from === 'string' ? req.query.from : undefined,
+        to: typeof req.query.to === 'string' ? req.query.to : undefined,
+      }
+      res.json(await listActivityEvents(req.platformUser, filters))
+    }),
+  )
+
+  registerReviewCycleRoutes(app)
+  registerGoalRoutes(app)
 }

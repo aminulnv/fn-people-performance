@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { Avatar, Button, ListboxSelect } from '@/components/ui'
+import {
+  ActivityLogDrawer,
+  ActivityLogTrigger,
+} from '@/components/activity/ActivityLogDrawer'
 import { ApiError } from '@/lib/apiClient'
 import {
   assignEmployeeAccess,
@@ -15,6 +19,7 @@ import {
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { notifyAccessChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
+import '@/styles/layout-activity.css'
 
 function errorMessage(error: unknown): string {
   if (error instanceof ApiError && error.body && typeof error.body === 'object') {
@@ -33,7 +38,12 @@ export function AccessControlPanel() {
     useState<AccessProfileKey>('admin_read')
   const [savingEmployeeId, setSavingEmployeeId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [activityOpen, setActivityOpen] = useState(false)
   const canManage = hasSystemPermission(user?.permissions, 'access.manage')
+  const canReadActivity =
+    canManage ||
+    hasSystemPermission(user?.permissions, 'activity.read_all') ||
+    hasSystemPermission(user?.permissions, 'platform.read_all')
 
   useEffect(() => {
     let isMounted = true
@@ -152,6 +162,14 @@ export function AccessControlPanel() {
               Assign platform-wide read or read + write access. Reporting-line
               permissions remain separate.
             </p>
+            {canReadActivity ? (
+              <div style={{ marginTop: '0.55rem' }}>
+                <ActivityLogTrigger
+                  label="View access activity"
+                  onClick={() => setActivityOpen(true)}
+                />
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
@@ -258,6 +276,13 @@ export function AccessControlPanel() {
           </div>
         ))}
       </div>
+      <ActivityLogDrawer
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title="Access activity"
+        description="Assignments and removals of platform admin profiles."
+        filters={{ entityType: 'access' }}
+      />
     </section>
   )
 }

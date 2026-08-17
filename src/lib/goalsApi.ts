@@ -1,9 +1,18 @@
 import { isEligibleForCycle } from './goals/demoData'
 import {
+  approvePersonGoalsRemote,
+  fetchCycleGoalSubmissionsRemote,
+  savePersonGoalsDraftRemote,
+  sendBackPersonGoalsRemote,
+  submitPersonGoalsRemote,
+} from './goals/remoteApi'
+import {
   approveSubmission,
   applyHardLockIncompletes,
   copyPreviousCycleGoals,
   getGoalsSnapshot,
+  mergeRemotePersonGoals,
+  replaceCycleGoalsFromRemote,
   resetGoalsDemo,
   savePersonGoals,
   sendBackSubmission,
@@ -16,6 +25,7 @@ import {
   updateGoalProgress,
   type GoalMutationContext,
 } from './goals/store'
+import { ensureReviewCyclesLoaded } from './reviews/store'
 import type {
   DemoPhase,
   Goal,
@@ -48,6 +58,14 @@ export {
 } from './goals/weightage'
 export type { SubmitGoalBlocker } from './goals/weightage'
 
+function useLocalGoals(): boolean {
+  return (
+    import.meta.env.MODE === 'test' ||
+    import.meta.env.VITE_GOALS_BACKEND === 'local' ||
+    import.meta.env.VITE_EMPLOYEES_BACKEND === 'local'
+  )
+}
+
 function delay<T>(value: T, ms = 120): Promise<T> {
   return new Promise((resolve) => {
     window.setTimeout(() => resolve(value), ms)
@@ -59,8 +77,30 @@ export function watchGoalsSnapshot(onChange: () => void): () => void {
   return subscribeGoalsStore(onChange)
 }
 
+/** Every mounted goals view refreshes on the same store change — share one request. */
+const hydrationInFlight = new Map<string, Promise<GoalsSnapshot>>()
+
+async function hydrateGoalsFromApi(cycleId?: string): Promise<GoalsSnapshot> {
+  await ensureReviewCyclesLoaded()
+  const snapshot = getGoalsSnapshot()
+  const activeCycleId = cycleId ?? snapshot.cycle.id
+  if (!activeCycleId) return snapshot
+  const pending = hydrationInFlight.get(activeCycleId)
+  if (pending) return pending
+  const request = fetchCycleGoalSubmissionsRemote(activeCycleId)
+    .then((submissions) =>
+      replaceCycleGoalsFromRemote(activeCycleId, submissions),
+    )
+    .finally(() => {
+      hydrationInFlight.delete(activeCycleId)
+    })
+  hydrationInFlight.set(activeCycleId, request)
+  return request
+}
+
 export async function fetchGoalsSnapshot(): Promise<GoalsSnapshot> {
-  return getGoalsSnapshot()
+  if (useLocalGoals()) return getGoalsSnapshot()
+  return hydrateGoalsFromApi()
 }
 
 export async function selectDemoPerson(personId: string): Promise<GoalsSnapshot> {
@@ -78,7 +118,9 @@ export function listGoalCycles() {
 }
 
 export async function selectGoalCycle(cycleId: string): Promise<GoalsSnapshot> {
-  return delay(setActiveCycle(cycleId))
+  if (useLocalGoals()) return delay(setActiveCycle(cycleId))
+  setActiveCycle(cycleId)
+  return hydrateGoalsFromApi(cycleId)
 }
 
 /** @deprecated Prefer listGoalCycles / selectGoalCycle */
@@ -99,7 +141,13 @@ export async function saveGoals(
   context: GoalMutationContext,
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(savePersonGoals(context, goals))
+  if (useLocalGoals()) return delay(savePersonGoals(context, goals))
+  const remote = await savePersonGoalsDraftRemote(
+    context.cycleId,
+    context.subjectId,
+    goals,
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
 export async function copyPreviousGoals(
@@ -111,28 +159,57 @@ export async function copyPreviousGoals(
 export async function submitGoals(
   context: GoalMutationContext,
 ): Promise<GoalsSnapshot> {
-  return delay(submitPersonGoals(context))
+  if (useLocalGoals()) return delay(submitPersonGoals(context))
+  const remote = await submitPersonGoalsRemote(
+    context.cycleId,
+    context.subjectId,
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
 export async function sendBackGoals(
   context: GoalMutationContext,
   reason: string,
 ): Promise<GoalsSnapshot> {
-  return delay(sendBackSubmission(context, reason))
+  if (useLocalGoals()) return delay(sendBackSubmission(context, reason))
+  const remote = await sendBackPersonGoalsRemote(
+    context.cycleId,
+    context.subjectId,
+    reason,
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
 export async function approveGoals(
   context: GoalMutationContext,
   goals?: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(approveSubmission(context, goals))
+  if (useLocalGoals()) return delay(approveSubmission(context, goals))
+  if (goals) {
+    await savePersonGoalsDraftRemote(
+      context.cycleId,
+      context.subjectId,
+      goals,
+    )
+  }
+  const remote = await approvePersonGoalsRemote(
+    context.cycleId,
+    context.subjectId,
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
 export async function saveProgress(
   context: GoalMutationContext,
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
-  return delay(updateGoalProgress(context, goals))
+  if (useLocalGoals()) return delay(updateGoalProgress(context, goals))
+  const remote = await savePersonGoalsDraftRemote(
+    context.cycleId,
+    context.subjectId,
+    goals,
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
 export async function ratePerson(

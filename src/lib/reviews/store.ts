@@ -13,12 +13,30 @@ import type {
   ReviewCycleType,
   ReviewsSnapshot,
 } from "./types";
+import {
+  createReviewCycleRemote,
+  createTestCycleRemote,
+  deleteReviewCycleRemote,
+  fetchReviewCyclesRemote,
+  updateCalibrationRemote,
+  updateCycleSettingsRemote,
+  updateCycleStagesRemote,
+} from "./remoteApi";
 
 /** Bumped when seed was reduced to Q3 2026 only. */
 const STORAGE_KEY = "pd-reviews-cycles-v4";
 
 let memory: ReviewsSnapshot | null = null;
+let remoteHydrated = false;
 const listeners = new Set<() => void>();
+
+function useLocalReviews(): boolean {
+  return (
+    import.meta.env.MODE === "test" ||
+    import.meta.env.VITE_REVIEWS_BACKEND === "local" ||
+    import.meta.env.VITE_EMPLOYEES_BACKEND === "local"
+  );
+}
 
 function clone<T>(value: T): T {
   return structuredClone(value);
@@ -35,6 +53,7 @@ function readStorage(): ReviewsSnapshot | null {
 }
 
 function writeStorage(snapshot: ReviewsSnapshot): void {
+  if (!useLocalReviews()) return;
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch {
@@ -44,6 +63,10 @@ function writeStorage(snapshot: ReviewsSnapshot): void {
 
 function getState(): ReviewsSnapshot {
   if (!memory) {
+    if (!useLocalReviews()) {
+      memory = { cycles: [] };
+      return memory;
+    }
     const stored = readStorage() ?? createInitialReviewsSnapshot();
     memory = {
       ...stored,
@@ -118,6 +141,7 @@ export function subscribeReviewsStore(listener: () => void): () => void {
 /** Test helper — clears in-memory + session state. */
 export function resetReviewsStoreForTests(): void {
   memory = null;
+  remoteHydrated = false;
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -150,6 +174,26 @@ export function newCycleId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}`;
 }
 
+function replaceCycleInMemory(cycle: ReviewCycle): ReviewCycle {
+  const state = getState();
+  const index = state.cycles.findIndex((item) => item.id === cycle.id);
+  const cycles =
+    index >= 0
+      ? state.cycles.map((item, i) => (i === index ? cycle : item))
+      : [cycle, ...state.cycles];
+  commit({ cycles });
+  return clone(cycle);
+}
+
+/** Hydrate the in-memory cache from the platform API when not in local mode. */
+export async function ensureReviewCyclesLoaded(): Promise<void> {
+  if (useLocalReviews() || remoteHydrated) return;
+  const cycles = await fetchReviewCyclesRemote();
+  memory = { cycles };
+  remoteHydrated = true;
+  listeners.forEach((listener) => listener());
+}
+
 export type CreateReviewCycleInput = {
   type: ReviewCycleType;
   periodKey?: string;
@@ -158,7 +202,9 @@ export type CreateReviewCycleInput = {
   endDate?: string;
 };
 
-export function createReviewCycle(input: CreateReviewCycleInput): ReviewCycle {
+export async function createReviewCycle(
+  input: CreateReviewCycleInput,
+): Promise<ReviewCycle> {
   const createdAt = new Date().toISOString();
 
   let cycle: ReviewCycle;
@@ -170,7 +216,7 @@ export function createReviewCycle(input: CreateReviewCycleInput): ReviewCycle {
     const existing = getState().cycles.some(
       (item) => item.periodKey === period.key && item.type === "regular",
     );
-    if (existing) {
+    if (existing && useLocalReviews()) {
       throw new Error(`${period.label} already exists.`);
     }
     cycle = {
@@ -184,6 +230,7 @@ export function createReviewCycle(input: CreateReviewCycleInput): ReviewCycle {
       settings: cloneSettings(),
       calibration: cloneCalibration(),
       createdAt,
+      version: 1,
     };
   } else {
     const name = input.name?.trim() || "Ad-hoc cycle";
@@ -199,7 +246,13 @@ export function createReviewCycle(input: CreateReviewCycleInput): ReviewCycle {
       settings: cloneSettings(),
       calibration: cloneCalibration(),
       createdAt,
+      version: 1,
     };
+  }
+
+  if (!useLocalReviews()) {
+    const remote = await createReviewCycleRemote(cycle);
+    return replaceCycleInMemory(remote);
   }
 
   const state = getState();
@@ -207,7 +260,12 @@ export function createReviewCycle(input: CreateReviewCycleInput): ReviewCycle {
   return clone(cycle);
 }
 
-export function createTestCycle(sourceId: string): ReviewCycle {
+export async function createTestCycle(sourceId: string): Promise<ReviewCycle> {
+  if (!useLocalReviews()) {
+    const remote = await createTestCycleRemote(sourceId);
+    return replaceCycleInMemory(remote);
+  }
+
   const source = getReviewCycle(sourceId);
   if (!source) throw new Error("Cycle not found.");
 
@@ -219,6 +277,7 @@ export function createTestCycle(sourceId: string): ReviewCycle {
     periodKey: undefined,
     isTest: true,
     createdAt: new Date().toISOString(),
+    version: 1,
   };
 
   const state = getState();
@@ -226,19 +285,27 @@ export function createTestCycle(sourceId: string): ReviewCycle {
   return test;
 }
 
-export function updateCycleSettings(
+export async function updateCycleSettings(
   cycleId: string,
   patch: Partial<CycleSettings> & {
     name?: string;
     startDate?: string;
     endDate?: string;
   },
-): ReviewCycle {
+): Promise<ReviewCycle> {
   const state = getState();
   const index = state.cycles.findIndex((c) => c.id === cycleId);
   if (index < 0) throw new Error("Cycle not found.");
 
   const current = state.cycles[index];
+  if (!useLocalReviews()) {
+    const remote = await updateCycleSettingsRemote(cycleId, {
+      ...patch,
+      expectedVersion: current.version,
+    });
+    return replaceCycleInMemory(remote);
+  }
+
   const goalCountPolicy = {
     ...current.settings.goalCountPolicy,
     ...patch.goalCountPolicy,
@@ -263,6 +330,8 @@ export function updateCycleSettings(
         patch.autoScorecardGeneration ??
         current.settings.autoScorecardGeneration,
     },
+    version: (current.version ?? 1) + 1,
+    updatedAt: new Date().toISOString(),
   };
 
   const cycles = [...state.cycles];
@@ -271,15 +340,23 @@ export function updateCycleSettings(
   return clone(next);
 }
 
-export function updateCalibrationLogic(
+export async function updateCalibrationLogic(
   cycleId: string,
   patch: Partial<CalibrationLogic>,
-): ReviewCycle {
+): Promise<ReviewCycle> {
   const state = getState();
   const index = state.cycles.findIndex((c) => c.id === cycleId);
   if (index < 0) throw new Error("Cycle not found.");
-
   const current = state.cycles[index];
+
+  if (!useLocalReviews()) {
+    const remote = await updateCalibrationRemote(cycleId, {
+      ...patch,
+      expectedVersion: current.version,
+    });
+    return replaceCycleInMemory(remote);
+  }
+
   const next: ReviewCycle = {
     ...current,
     calibration: {
@@ -289,6 +366,8 @@ export function updateCalibrationLogic(
         ? { ...patch.gradeDistribution }
         : current.calibration.gradeDistribution,
     },
+    version: (current.version ?? 1) + 1,
+    updatedAt: new Date().toISOString(),
   };
 
   const cycles = [...state.cycles];
@@ -297,18 +376,36 @@ export function updateCalibrationLogic(
   return clone(next);
 }
 
-export function updateCycleStagesConfig(
+export async function updateCycleStagesConfig(
   cycleId: string,
   stagesConfig: CycleStagesConfig,
-): ReviewCycle {
+  options?: { postWindowGoalPolicy?: CycleSettings["postWindowGoalPolicy"] },
+): Promise<ReviewCycle> {
   const state = getState();
   const index = state.cycles.findIndex((c) => c.id === cycleId);
   if (index < 0) throw new Error("Cycle not found.");
   validateCycleStagesConfig(stagesConfig);
+  const current = state.cycles[index];
+
+  if (!useLocalReviews()) {
+    const remote = await updateCycleStagesRemote(cycleId, {
+      stagesConfig,
+      postWindowGoalPolicy: options?.postWindowGoalPolicy,
+      expectedVersion: current.version,
+    });
+    return replaceCycleInMemory(remote);
+  }
 
   const next: ReviewCycle = {
-    ...state.cycles[index],
+    ...current,
     stagesConfig: clone(stagesConfig),
+    settings: {
+      ...current.settings,
+      postWindowGoalPolicy:
+        options?.postWindowGoalPolicy ?? current.settings.postWindowGoalPolicy,
+    },
+    version: (current.version ?? 1) + 1,
+    updatedAt: new Date().toISOString(),
   };
   const cycles = [...state.cycles];
   cycles[index] = next;
@@ -357,15 +454,21 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
   }
 }
 
-export function deleteReviewCycle(cycleId: string): void {
+export async function deleteReviewCycle(cycleId: string): Promise<void> {
   const state = getState();
   const decoded = decodeURIComponent(cycleId);
+  const current = state.cycles.find(
+    (cycle) => cycle.id === cycleId || cycle.id === decoded,
+  );
+  if (!current) throw new Error("Cycle not found.");
+
+  if (!useLocalReviews()) {
+    await deleteReviewCycleRemote(current.id, current.version);
+  }
+
   const nextCycles = state.cycles.filter(
     (cycle) => cycle.id !== cycleId && cycle.id !== decoded,
   );
-  if (nextCycles.length === state.cycles.length) {
-    throw new Error("Cycle not found.");
-  }
   commit({ cycles: nextCycles });
 }
 

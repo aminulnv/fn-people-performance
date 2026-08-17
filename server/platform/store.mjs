@@ -3,6 +3,15 @@
  * Used by the standalone platform API (shared RDS, platform schema only).
  */
 import { getPool } from '../db.mjs'
+import { appendActivityEvent } from './activity.mjs'
+
+function activityActor(actor = {}) {
+  return {
+    actorEmployeeId: actor.employeeId ?? actor.actorEmployeeId ?? null,
+    actorEmail: actor.email ?? actor.actorEmail ?? '',
+    actorName: actor.name ?? actor.actorName ?? '',
+  }
+}
 
 const EMPLOYEE_SELECT = `
   SELECT
@@ -166,7 +175,7 @@ async function resolveEmployeeIdByName(client, name, exceptId) {
 
 /**
  * @param {object} input SPA CreateEmployeeInput / UpdateEmployeeInput shape
- * @param {{ replaceEmployeeId?: number }} [options]
+ * @param {{ replaceEmployeeId?: number, actor?: object }} [options]
  */
 export async function upsertPlatformEmployee(input, options = {}) {
   const employeeId = Number(input.employeeId)
@@ -195,10 +204,29 @@ export async function upsertPlatformEmployee(input, options = {}) {
 
   const status = input.isActive === false ? 'inactive' : 'active'
   const replaceId = options.replaceEmployeeId ?? null
+  const actor = activityActor(options.actor)
   const client = await getPool().connect()
 
   try {
     await client.query('BEGIN')
+
+    const previous =
+      replaceId != null
+        ? (
+            await client.query(
+              `SELECT e.*, d.name AS department_name, t.name AS team_name,
+                      div.name AS division_name,
+                      mgr.employee_id AS manager_id
+               FROM platform.employees e
+               LEFT JOIN platform.departments d ON d.id = e.department_id
+               LEFT JOIN platform.teams t ON t.id = e.team_id
+               LEFT JOIN platform.divisions div ON div.id = e.division_id
+               LEFT JOIN platform.employees mgr ON mgr.employee_id = e.reports_to_employee_id
+               WHERE e.employee_id = $1`,
+              [replaceId],
+            )
+          ).rows[0]
+        : null
 
     if (replaceId != null && replaceId !== employeeId) {
       const taken = await client.query(
@@ -283,10 +311,10 @@ export async function upsertPlatformEmployee(input, options = {}) {
           fullName,
           startDate,
           status,
-          String(input.jobTitle ?? '').trim(),
-          String(input.jobGrade ?? '').trim(),
-          String(input.site ?? '').trim(),
-          avatarUrl ?? '',
+          String(input.jobTitle ?? '').trim() || null,
+          String(input.jobGrade ?? '').trim() || null,
+          String(input.site ?? '').trim() || null,
+          avatarUrl || null,
           departmentId,
           teamId,
           divisionId,
@@ -294,6 +322,15 @@ export async function upsertPlatformEmployee(input, options = {}) {
           departmentHeadId,
         ],
       )
+      await appendActivityEvent(client, {
+        eventKey: 'employee.created',
+        entityType: 'employee',
+        entityId: String(employeeId),
+        ...actor,
+        subjectEmployeeId: employeeId,
+        summary: `Created employee ${fullName}`,
+        source: 'api',
+      })
     } else {
       await client.query(
         `UPDATE platform.employees SET
@@ -363,6 +400,143 @@ export async function upsertPlatformEmployee(input, options = {}) {
            WHERE owner_employee_id = $1`,
           [replaceId, employeeId],
         )
+        await appendActivityEvent(client, {
+          eventKey: 'employee.identifier_changed',
+          entityType: 'employee',
+          entityId: String(employeeId),
+          ...actor,
+          subjectEmployeeId: employeeId,
+          summary: `Changed employee ID from ${replaceId} to ${employeeId}`,
+          changes: [
+            { field: 'employeeId', from: replaceId, to: employeeId },
+          ],
+          source: 'api',
+        })
+      }
+
+      const changes = []
+      if (previous) {
+        if (previous.status !== status) {
+          changes.push({ field: 'status', from: previous.status, to: status })
+          await appendActivityEvent(client, {
+            eventKey:
+              status === 'active'
+                ? 'employee.activated'
+                : 'employee.deactivated',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary:
+              status === 'active'
+                ? `Activated employee ${fullName}`
+                : `Deactivated employee ${fullName}`,
+            changes: [{ field: 'status', from: previous.status, to: status }],
+            source: 'api',
+          })
+        }
+        if (Number(previous.manager_id ?? 0) !== Number(reportsToId ?? 0)) {
+          await appendActivityEvent(client, {
+            eventKey: 'employee.manager_changed',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary: `Changed manager for ${fullName}`,
+            changes: [
+              {
+                field: 'managerId',
+                from: previous.manager_id ?? null,
+                to: reportsToId,
+              },
+            ],
+            source: 'api',
+          })
+        }
+        if (
+          String(previous.department_name ?? '') !==
+          String(input.department ?? '').trim()
+        ) {
+          await appendActivityEvent(client, {
+            eventKey: 'employee.department_changed',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary: `Changed department for ${fullName}`,
+            changes: [
+              {
+                field: 'department',
+                from: previous.department_name ?? null,
+                to: String(input.department ?? '').trim() || null,
+              },
+            ],
+            source: 'api',
+          })
+        }
+        if (
+          String(previous.team_name ?? '') !== String(input.team ?? '').trim()
+        ) {
+          await appendActivityEvent(client, {
+            eventKey: 'employee.team_changed',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary: `Changed team for ${fullName}`,
+            changes: [
+              {
+                field: 'team',
+                from: previous.team_name ?? null,
+                to: String(input.team ?? '').trim() || null,
+              },
+            ],
+            source: 'api',
+          })
+        }
+        if (
+          String(previous.division_name ?? '') !==
+          String(input.division ?? '').trim()
+        ) {
+          await appendActivityEvent(client, {
+            eventKey: 'employee.division_changed',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary: `Changed division for ${fullName}`,
+            changes: [
+              {
+                field: 'division',
+                from: previous.division_name ?? null,
+                to: String(input.division ?? '').trim() || null,
+              },
+            ],
+            source: 'api',
+          })
+        }
+        if (previous.name !== fullName || previous.email !== email) {
+          changes.push(
+            ...(previous.name !== fullName
+              ? [{ field: 'name', from: previous.name, to: fullName }]
+              : []),
+            ...(previous.email !== email
+              ? [{ field: 'email', from: previous.email, to: email }]
+              : []),
+          )
+        }
+      }
+      if (changes.length > 0) {
+        await appendActivityEvent(client, {
+          eventKey: 'employee.profile_updated',
+          entityType: 'employee',
+          entityId: String(employeeId),
+          ...actor,
+          subjectEmployeeId: employeeId,
+          summary: `Updated profile for ${fullName}`,
+          changes,
+          source: 'api',
+        })
       }
     }
 
@@ -428,7 +602,7 @@ export async function getPlatformDepartment(departmentId) {
   return rows[0] ? mapDepartmentRow(rows[0]) : null
 }
 
-export async function createPlatformDepartment(input = {}) {
+export async function createPlatformDepartment(input = {}, actorInput = {}) {
   const name = String(input.name ?? '').trim()
   if (!name) {
     const err = new Error('Department name is required')
@@ -444,6 +618,7 @@ export async function createPlatformDepartment(input = {}) {
     input.hrbpEmployeeId != null && input.hrbpEmployeeId !== ''
       ? Number(input.hrbpEmployeeId)
       : null
+  const actor = activityActor(actorInput)
 
   const pool = getPool()
   const client = await pool.connect()
@@ -487,8 +662,40 @@ export async function createPlatformDepartment(input = {}) {
        RETURNING id`,
       [name, headEmployeeId, hrbpEmployeeId],
     )
+    const departmentId = inserted.rows[0].id
+    await appendActivityEvent(client, {
+      eventKey: 'department.created',
+      entityType: 'department',
+      entityId: String(departmentId),
+      ...actor,
+      summary: `Created department ${name}`,
+      metadata: { headEmployeeId, hrbpEmployeeId },
+      source: 'api',
+    })
+    if (headEmployeeId != null) {
+      await appendActivityEvent(client, {
+        eventKey: 'department.owner_assigned',
+        entityType: 'department',
+        entityId: String(departmentId),
+        ...actor,
+        subjectEmployeeId: headEmployeeId,
+        summary: `Assigned department owner for ${name}`,
+        source: 'api',
+      })
+    }
+    if (hrbpEmployeeId != null) {
+      await appendActivityEvent(client, {
+        eventKey: 'department.hrbp_assigned',
+        entityType: 'department',
+        entityId: String(departmentId),
+        ...actor,
+        subjectEmployeeId: hrbpEmployeeId,
+        summary: `Assigned HRBP for ${name}`,
+        source: 'api',
+      })
+    }
     await client.query('COMMIT')
-    return getPlatformDepartment(inserted.rows[0].id)
+    return getPlatformDepartment(departmentId)
   } catch (err) {
     try {
       await client.query('ROLLBACK')
@@ -636,54 +843,114 @@ export async function setEmployeeAccess(
   employeeId,
   profileKey,
   assignedByEmployeeId,
+  actorInput = {},
 ) {
-  if (profileKey !== 'admin_write') {
-    const { rows } = await getPool().query(
-      `SELECT
-         eap.profile_key,
-         (SELECT count(*)::int
-          FROM platform.employee_access_profiles
-          WHERE profile_key = 'admin_write') AS write_admin_count
-       FROM platform.employee_access_profiles eap
-       WHERE eap.employee_id = $1`,
-      [employeeId],
-    )
-    if (
-      rows[0]?.profile_key === 'admin_write' &&
-      rows[0].write_admin_count <= 1
-    ) {
-      const error = new Error('At least one read + write admin is required.')
-      error.statusCode = 409
-      throw error
+  const actor = activityActor({
+    employeeId: assignedByEmployeeId,
+    ...actorInput,
+  })
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const previous = (
+      await client.query(
+        `SELECT profile_key FROM platform.employee_access_profiles
+         WHERE employee_id = $1`,
+        [employeeId],
+      )
+    ).rows[0]
+
+    if (profileKey !== 'admin_write') {
+      const { rows } = await client.query(
+        `SELECT
+           eap.profile_key,
+           (SELECT count(*)::int
+            FROM platform.employee_access_profiles
+            WHERE profile_key = 'admin_write') AS write_admin_count
+         FROM platform.employee_access_profiles eap
+         WHERE eap.employee_id = $1`,
+        [employeeId],
+      )
+      if (
+        rows[0]?.profile_key === 'admin_write' &&
+        rows[0].write_admin_count <= 1
+      ) {
+        const error = new Error('At least one read + write admin is required.')
+        error.statusCode = 409
+        throw error
+      }
     }
-  }
 
-  if (profileKey == null) {
-    await getPool().query(
-      `DELETE FROM platform.employee_access_profiles WHERE employee_id = $1`,
-      [employeeId],
-    )
-    return null
-  }
-
-  const { rows } = await getPool().query(
-    `INSERT INTO platform.employee_access_profiles (
-       employee_id,
-       profile_key,
-       assigned_by_employee_id
-     ) VALUES ($1, $2, $3)
-     ON CONFLICT (employee_id) DO UPDATE SET
-       profile_key = EXCLUDED.profile_key,
-       assigned_by_employee_id = EXCLUDED.assigned_by_employee_id,
-       assigned_at = now()
-     RETURNING employee_id, profile_key, assigned_by_employee_id, assigned_at`,
-    [employeeId, profileKey, assignedByEmployeeId ?? null],
-  )
-  const row = rows[0]
-  return {
-    employeeId: row.employee_id,
-    profileKey: row.profile_key,
-    assignedByEmployeeId: row.assigned_by_employee_id ?? undefined,
-    assignedAt: isoTimestamp(row.assigned_at),
+    let assignment = null
+    if (profileKey == null) {
+      await client.query(
+        `DELETE FROM platform.employee_access_profiles WHERE employee_id = $1`,
+        [employeeId],
+      )
+      await appendActivityEvent(client, {
+        eventKey: 'access.profile_removed',
+        entityType: 'access',
+        entityId: String(employeeId),
+        ...actor,
+        subjectEmployeeId: employeeId,
+        summary: 'Removed access profile',
+        changes: [
+          {
+            field: 'profileKey',
+            from: previous?.profile_key ?? null,
+            to: null,
+          },
+        ],
+        source: 'api',
+      })
+    } else {
+      const { rows } = await client.query(
+        `INSERT INTO platform.employee_access_profiles (
+           employee_id,
+           profile_key,
+           assigned_by_employee_id
+         ) VALUES ($1, $2, $3)
+         ON CONFLICT (employee_id) DO UPDATE SET
+           profile_key = EXCLUDED.profile_key,
+           assigned_by_employee_id = EXCLUDED.assigned_by_employee_id,
+           assigned_at = now()
+         RETURNING employee_id, profile_key, assigned_by_employee_id, assigned_at`,
+        [employeeId, profileKey, assignedByEmployeeId ?? null],
+      )
+      const row = rows[0]
+      assignment = {
+        employeeId: row.employee_id,
+        profileKey: row.profile_key,
+        assignedByEmployeeId: row.assigned_by_employee_id ?? undefined,
+        assignedAt: isoTimestamp(row.assigned_at),
+      }
+      await appendActivityEvent(client, {
+        eventKey: previous
+          ? 'access.profile_changed'
+          : 'access.profile_assigned',
+        entityType: 'access',
+        entityId: String(employeeId),
+        ...actor,
+        subjectEmployeeId: employeeId,
+        summary: previous
+          ? `Changed access profile to ${profileKey}`
+          : `Assigned access profile ${profileKey}`,
+        changes: [
+          {
+            field: 'profileKey',
+            from: previous?.profile_key ?? null,
+            to: profileKey,
+          },
+        ],
+        source: 'api',
+      })
+    }
+    await client.query('COMMIT')
+    return assignment
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
   }
 }

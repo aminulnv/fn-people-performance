@@ -63,9 +63,9 @@ export function SettingsEditPage({ cycle, onClose }: SettingsEditPageProps) {
     );
   };
 
-  const save = () => {
+  const save = async () => {
     try {
-      updateCycleSettings(cycle.id, {
+      await updateCycleSettings(cycle.id, {
         name,
         startDate,
         endDate,

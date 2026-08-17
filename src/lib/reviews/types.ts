@@ -111,6 +111,9 @@ export type ReviewCycle = {
   calibration: CalibrationLogic;
   isTest?: boolean;
   createdAt: string;
+  updatedAt?: string;
+  /** Optimistic concurrency token from the server. */
+  version?: number;
 };
 
 export type ReviewsSnapshot = {

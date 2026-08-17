@@ -3,7 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Check,
+  CircleAlert,
+  CircleCheck,
+  Clock3,
   Columns3,
+  FilePenLine,
   MoreHorizontal,
   Plus,
   Search,
@@ -61,6 +65,7 @@ import { GoalLateApprovalNotice } from "./goals/GoalLateApprovalNotice";
 import { GoalSubmitAllButton } from "./goals/GoalSubmitAllButton";
 import { GoalEmptyActions } from "./goals/GoalEmptyActions";
 import { useGoalDraftAutosave } from "./goals/useGoalDraftAutosave";
+import { useGoalDraftState } from "./goals/useGoalDraftState";
 import { useGoalEditGuard } from "./goals/useGoalEditGuard";
 import { GoalsCycleSelect } from "./goals/GoalsCycleSelect";
 import {
@@ -168,7 +173,11 @@ function GoalsOverview() {
   const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(null);
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<GoalsDirectoryScope>("mine");
-  const [statusFilter, setStatusFilter] = useState<GoalsListFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<GoalsListFilter | null>(null);
+
+  function toggleStatusFilter(next: GoalsListFilter) {
+    setStatusFilter((current) => (current === next ? null : next));
+  }
 
   useEffect(() => {
     let isMounted = true;
@@ -285,7 +294,7 @@ function GoalsOverview() {
     const normalizedQuery = query.trim().toLowerCase();
     return scopedRows
       .filter((row) => {
-        if (statusFilter !== "all") {
+        if (statusFilter && statusFilter !== "all") {
           const isDraftGroup =
             statusFilter === "draft" &&
             (row.status === "draft" || row.status === "sent_back");
@@ -343,38 +352,63 @@ function GoalsOverview() {
     id: GoalsListFilter;
     label: string;
     value: number;
+    icon: typeof Target;
   }[] = [
-    { id: "all", label: "Goals", value: counts.all },
-    { id: "draft", label: "Draft", value: counts.draft },
-    { id: "submitted", label: "Pending Approval", value: counts.submitted },
-    { id: "approved", label: "Approved", value: counts.approved },
-    { id: "incomplete", label: "Incomplete", value: counts.incomplete },
+    { id: "all", label: "Goals", value: counts.all, icon: Target },
+    { id: "draft", label: "Draft", value: counts.draft, icon: FilePenLine },
+    {
+      id: "submitted",
+      label: "Pending Approval",
+      value: counts.submitted,
+      icon: Clock3,
+    },
+    {
+      id: "approved",
+      label: "Approved",
+      value: counts.approved,
+      icon: CircleCheck,
+    },
+    {
+      id: "incomplete",
+      label: "Incomplete",
+      value: counts.incomplete,
+      icon: CircleAlert,
+    },
   ];
+
+  // On My Goals, Employee repeats the viewer — keep Department and Owner visible.
+  const showEmployeeColumn = scope !== "mine";
 
   return (
     <div className="pd-page pd-goals pd-goals-overview" aria-label="Goals">
       <div
-        className="pd-people__summary"
+        className="pd-people__summary pd-people__summary--stretch"
         role="group"
         aria-label="Goal submission totals"
       >
-        {summaryItems.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={[
-              "pd-people__summary-btn",
-              statusFilter === item.id ? "is-active" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            aria-pressed={statusFilter === item.id}
-            onClick={() => setStatusFilter(item.id)}
-          >
-            <span className="pd-people__summary-value">{item.value}</span>
-            <span className="pd-people__summary-label">{item.label}</span>
-          </button>
-        ))}
+        {summaryItems.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={[
+                "pd-people__summary-btn",
+                statusFilter === item.id ? "is-active" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              aria-pressed={statusFilter === item.id}
+              onClick={() => toggleStatusFilter(item.id)}
+            >
+              <span className="pd-people__summary-label">
+                <Icon size={14} strokeWidth={1.75} aria-hidden />
+                {item.label}
+              </span>
+              <span className="pd-people__summary-value">{item.value}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="pd-people__header pd-people__header--bar">
@@ -478,7 +512,7 @@ function GoalsOverview() {
                       · {filtered.length}
                     </span>
                   </th>
-                  <th>Employee</th>
+                  {showEmployeeColumn ? <th>Employee</th> : null}
                   <th>Department</th>
                   <th>Weight</th>
                   <th>Progress</th>
@@ -537,27 +571,31 @@ function GoalsOverview() {
                             className="pd-goals-overview__goal-dot"
                             aria-hidden
                           />
-                          {row.title}
-                        </Link>
-                      </td>
-                      <td>
-                        <Link
-                          to={personTo}
-                          className="pd-people__person pd-people__person-link"
-                          title={`Open ${row.person.name}'s goals`}
-                        >
-                          <Avatar
-                            name={row.person.name}
-                            src={row.person.avatarUrl}
-                            size="sm"
-                            className="pd-people__avatar"
-                            style={avatarStyle(row.person.name)}
-                          />
-                          <span className="pd-people__person-name">
-                            {row.person.name}
+                          <span className="pd-goals-overview__goal-text">
+                            {row.title}
                           </span>
                         </Link>
                       </td>
+                      {showEmployeeColumn ? (
+                        <td>
+                          <Link
+                            to={personTo}
+                            className="pd-people__person pd-people__person-link"
+                            title={`Open ${row.person.name}'s goals`}
+                          >
+                            <Avatar
+                              name={row.person.name}
+                              src={row.person.avatarUrl}
+                              size="sm"
+                              className="pd-people__avatar"
+                              style={avatarStyle(row.person.name)}
+                            />
+                            <span className="pd-people__person-name">
+                              {row.person.name}
+                            </span>
+                          </Link>
+                        </td>
+                      ) : null}
                       <td>{row.person.department.trim() || "—"}</td>
                       <td>
                         <span className="pd-goals-overview__weight">
@@ -820,6 +858,7 @@ function GoalsPersonDetail({
     <EmployeePanel
       personName={active.name}
       personId={active.id}
+      cycleId={snapshot.cycle.id}
       cycleLabel={snapshot.cycle.label}
       goalCountPolicy={snapshot.cycle.goalCountPolicy}
       allowLateSubmissions={
@@ -1320,6 +1359,7 @@ function ManagerPanel({
 function EmployeePanel({
   personName,
   personId,
+  cycleId,
   cycleLabel,
   goalCountPolicy,
   allowLateSubmissions,
@@ -1364,6 +1404,7 @@ function EmployeePanel({
 }: {
   personName: string;
   personId: string;
+  cycleId: string;
   cycleLabel: string;
   goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
   allowLateSubmissions: boolean;
@@ -1422,8 +1463,12 @@ function EmployeePanel({
   onCascadeGoal: (goalId: string, reportIds: string[]) => Promise<void>;
   onSubmit: (goals: Goal[]) => void;
 }) {
-  const [goals, setGoals] = useState(row.goals);
-  const [creatingIds, setCreatingIds] = useState<Set<string>>(() => new Set());
+  const { goals, setGoals, creatingIds, startCreating, stopCreating } =
+    useGoalDraftState({
+      personId,
+      status: row.status,
+      persistedGoals: row.goals,
+    });
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
     personId,
     actorId: commentAuthorId,
@@ -1431,16 +1476,6 @@ function EmployeePanel({
     deadlinePassed: allowLateSubmissions,
   });
   const [sendBackOpen, setSendBackOpen] = useState(false);
-
-  useEffect(() => {
-    setGoals(row.goals);
-    setCreatingIds((prev) => {
-      const next = new Set(
-        [...prev].filter((id) => row.goals.some((goal) => goal.id === id)),
-      );
-      return next.size === prev.size ? prev : next;
-    });
-  }, [personId, row.status, row.goals]);
 
   const autosaveEnabled =
     canEditDraft && (row.status === "draft" || row.status === "sent_back");
@@ -1465,7 +1500,7 @@ function EmployeePanel({
 
   const addGoal = () => {
     const next = blankGoal({ ownerId: personId, withDefaultMetric: false });
-    setCreatingIds((prev) => new Set(prev).add(next.id));
+    startCreating(next.id);
     setLocal([...goals, next]);
     onOpenGoal(next.id);
   };
@@ -1511,12 +1546,7 @@ function EmployeePanel({
     const isNew = creatingIds.has(selectedGoal.id);
 
     const closeGoal = () => {
-      setCreatingIds((prev) => {
-        if (!prev.has(selectedGoal.id)) return prev;
-        const next = new Set(prev);
-        next.delete(selectedGoal.id);
-        return next;
-      });
+      stopCreating(selectedGoal.id);
       onOpenGoal(null);
     };
 
@@ -1527,12 +1557,7 @@ function EmployeePanel({
     };
 
     const clearCreating = () => {
-      setCreatingIds((prev) => {
-        if (!prev.has(selectedGoal.id)) return prev;
-        const next = new Set(prev);
-        next.delete(selectedGoal.id);
-        return next;
-      });
+      stopCreating(selectedGoal.id);
     };
 
     return (
@@ -1553,7 +1578,9 @@ function EmployeePanel({
           cascadeFrom={cascadeFrom}
           cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
           cascadeHref={cascadeHref}
+          cycleId={cycleId}
           cycleLabel={cycleLabel}
+          subjectId={personId}
           isCurrentCycle={isCurrentCycle}
           status={row.status}
           postWindowApprovalStage={row.postWindowApprovalStage}
@@ -1769,6 +1796,10 @@ function EmployeePanel({
           onSendBack={() => {
             onSendBack?.();
             setSendBackOpen(false);
+          }}
+          activityFilters={{
+            cycleId,
+            subjectEmployeeId: Number(personId),
           }}
         >
           {goals.length > 0 ? (

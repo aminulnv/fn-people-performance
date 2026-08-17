@@ -44,13 +44,13 @@ export function AddReviewCycleModal({
     onClose()
   }
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     try {
       setError(null)
       const cycle =
         type === 'regular'
-          ? createReviewCycle({ type: 'regular', periodKey })
-          : createReviewCycle({
+          ? await createReviewCycle({ type: 'regular', periodKey })
+          : await createReviewCycle({
               type: 'ad-hoc',
               name: adhocName || 'Ad-hoc cycle',
               startDate: startDate || undefined,

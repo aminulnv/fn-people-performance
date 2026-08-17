@@ -2,11 +2,15 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
+  Building2,
   Network,
   Plus,
   Search,
   Settings,
+  UserCheck,
+  UserX,
   Users,
+  UsersRound,
 } from 'lucide-react'
 import { Avatar, EmptyState, SegmentedControl } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
@@ -70,9 +74,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<DirectoryScope>('all')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
 
   const isV3 = variant === 'v3'
+
+  function toggleStatusFilter(next: StatusFilter) {
+    setStatusFilter((current) => (current === next ? null : next))
+  }
 
   const stats = useMemo(() => {
     const active = employees.filter((e) => e.isActive).length
@@ -156,7 +164,11 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         .join(' ')}
       aria-label="People"
     >
-      <div className="pd-people__summary" role="group" aria-label="Directory totals">
+      <div
+        className="pd-people__summary pd-people__summary--stretch"
+        role="group"
+        aria-label="Directory totals"
+      >
         <button
           type="button"
           className={[
@@ -166,10 +178,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             .filter(Boolean)
             .join(' ')}
           aria-pressed={statusFilter === 'all'}
-          onClick={() => setStatusFilter('all')}
+          onClick={() => toggleStatusFilter('all')}
         >
+          <span className="pd-people__summary-label">
+            <Users size={14} strokeWidth={1.75} aria-hidden />
+            People
+          </span>
           <span className="pd-people__summary-value">{stats.total}</span>
-          <span className="pd-people__summary-label">People</span>
         </button>
         <button
           type="button"
@@ -180,10 +195,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             .filter(Boolean)
             .join(' ')}
           aria-pressed={statusFilter === 'active'}
-          onClick={() => setStatusFilter('active')}
+          onClick={() => toggleStatusFilter('active')}
         >
+          <span className="pd-people__summary-label">
+            <UserCheck size={14} strokeWidth={1.75} aria-hidden />
+            Active
+          </span>
           <span className="pd-people__summary-value">{stats.active}</span>
-          <span className="pd-people__summary-label">Active</span>
         </button>
         <button
           type="button"
@@ -194,18 +212,27 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             .filter(Boolean)
             .join(' ')}
           aria-pressed={statusFilter === 'inactive'}
-          onClick={() => setStatusFilter('inactive')}
+          onClick={() => toggleStatusFilter('inactive')}
         >
+          <span className="pd-people__summary-label">
+            <UserX size={14} strokeWidth={1.75} aria-hidden />
+            Inactive
+          </span>
           <span className="pd-people__summary-value">{stats.inactive}</span>
-          <span className="pd-people__summary-label">Inactive</span>
         </button>
         <div className="pd-people__summary-card">
+          <span className="pd-people__summary-label">
+            <Building2 size={14} strokeWidth={1.75} aria-hidden />
+            Departments
+          </span>
           <span className="pd-people__summary-value">{stats.departments}</span>
-          <span className="pd-people__summary-label">Departments</span>
         </div>
         <div className="pd-people__summary-card">
+          <span className="pd-people__summary-label">
+            <UsersRound size={14} strokeWidth={1.75} aria-hidden />
+            Teams
+          </span>
           <span className="pd-people__summary-value">{stats.teams}</span>
-          <span className="pd-people__summary-label">Teams</span>
         </div>
       </div>
 
@@ -236,7 +263,9 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         </div>
 
         <div className="pd-people__bar-end">
-          {filtered.length !== employees.length || statusFilter !== 'all' ? (
+          {filtered.length !== employees.length ||
+          statusFilter === 'active' ||
+          statusFilter === 'inactive' ? (
             <p className="pd-people__stat">{filtered.length} shown</p>
           ) : null}
 
@@ -309,7 +338,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
                 onClick={() => {
                   setQuery('')
                   setScope('all')
-                  setStatusFilter('all')
+                  setStatusFilter(null)
                 }}
               >
                 Clear Filters

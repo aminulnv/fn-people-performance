@@ -7,6 +7,9 @@ interface ImportMetaEnv {
   /** `local` = sessionStorage auth only (no Google / no live cookie). */
   readonly VITE_AUTH_MODE?: 'local' | 'remote'
   readonly VITE_EMPLOYEES_BACKEND?: 'local' | 'api'
+  readonly VITE_ACTIVITY_BACKEND?: 'local' | 'api'
+  readonly VITE_REVIEWS_BACKEND?: 'local' | 'api'
+  readonly VITE_GOALS_BACKEND?: 'local' | 'api'
 }
 
 interface ImportMeta {

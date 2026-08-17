@@ -1,0 +1,311 @@
+/* Quiet Activity Log surfaces — secondary history, never primary CTAs. */
+
+.pd-activity-link {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.15em;
+  transition:
+    color 120ms ease,
+    text-decoration-color 120ms ease;
+}
+
+.pd-activity-link:hover,
+.pd-activity-link:focus-visible {
+  color: var(--color-text-secondary);
+  text-decoration-color: currentColor;
+}
+
+.pd-activity-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 45%, transparent);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+.pd-activity-drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.pd-activity-drawer__scrim {
+  appearance: none;
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: color-mix(in srgb, black 36%, transparent);
+  cursor: pointer;
+}
+
+.pd-activity-drawer__panel {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(26rem, 100vw);
+  height: 100%;
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--shadow-deep);
+  color: var(--color-text);
+  outline: none;
+  animation: pd-activity-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.pd-activity-drawer__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 1.15rem 1rem;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.pd-activity-drawer__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 750;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.pd-activity-drawer__head h2 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.pd-activity-drawer__head p:last-child {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.pd-activity-drawer__close {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.pd-activity-drawer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.15rem 1.5rem;
+}
+
+.pd-activity-log {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.pd-activity-log__empty {
+  margin: 2rem 0;
+  color: var(--color-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.pd-activity-log__group h3 {
+  margin: 0 0 0.55rem;
+  color: var(--color-text-muted);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pd-activity-log__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.pd-activity-entry {
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--color-divider);
+  border-radius: 0.65rem;
+  background: var(--color-surface);
+}
+
+.pd-activity-entry__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.pd-activity-entry__who {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-activity-entry__who strong {
+  font-size: 0.82rem;
+  font-weight: 680;
+}
+
+.pd-activity-entry__who span {
+  color: var(--color-text-secondary);
+  font-size: 0.74rem;
+}
+
+.pd-activity-entry__head time {
+  flex: 0 0 auto;
+  color: var(--color-text-muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.pd-activity-entry__summary {
+  margin: 0.45rem 0 0;
+  color: var(--color-text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.pd-activity-entry__changes {
+  margin-top: 0.55rem;
+}
+
+.pd-activity-entry__changes summary {
+  color: var(--color-text-muted);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 650;
+  list-style: none;
+}
+
+.pd-activity-entry__changes summary::-webkit-details-marker {
+  display: none;
+}
+
+.pd-activity-entry__changes ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd-activity-entry__changes li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto minmax(0, 1.2fr);
+  gap: 0.35rem;
+  align-items: center;
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+}
+
+.pd-activity-entry__changes code {
+  overflow: hidden;
+  padding: 0.15rem 0.3rem;
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--color-text) 5%, transparent);
+  font-size: 0.65rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-activity-filters {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pd-activity-filters__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.pd-activity-filters__grid label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 650;
+}
+
+.pd-activity-filters__grid select,
+.pd-activity-filters__grid input {
+  min-height: 2.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.55rem;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  padding: 0 0.65rem;
+}
+
+.pd-activity-import {
+  display: grid;
+  gap: 0.55rem;
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 0.75rem;
+  background: color-mix(in srgb, var(--color-text) 2.5%, transparent);
+}
+
+.pd-activity-import p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+@keyframes pd-activity-drawer-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media (max-width: 720px) {
+  .pd-activity-drawer__panel {
+    width: 100vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-activity-drawer__panel {
+    animation: none;
+  }
+}

@@ -9,7 +9,6 @@ import { Input, SegmentedControl, Switch } from "@/components/ui";
 import { listEmployees } from "@/lib/employees/store";
 import { notifyReviewDeadlineChanged } from "@/lib/notifications/reviewEvents";
 import {
-  updateCycleSettings,
   updateCycleStagesConfig,
 } from "@/lib/reviews/store";
 import type {
@@ -104,10 +103,9 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
     }));
   };
 
-  const save = () => {
+  const save = async () => {
     try {
-      updateCycleStagesConfig(cycle.id, draft);
-      updateCycleSettings(cycle.id, { postWindowGoalPolicy });
+      await updateCycleStagesConfig(cycle.id, draft, { postWindowGoalPolicy });
       const recipients = listEmployees()
         .filter((employee) => employee.isActive)
         .map((employee) => ({

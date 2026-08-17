@@ -85,7 +85,16 @@ function readRaw(key: string): unknown | null {
   }
 }
 
+function useLocalGoalsPersistence(): boolean {
+  return (
+    import.meta.env.MODE === "test" ||
+    import.meta.env.VITE_GOALS_BACKEND === "local" ||
+    import.meta.env.VITE_EMPLOYEES_BACKEND === "local"
+  );
+}
+
 function writeStorage(state: GoalsPersisted): void {
+  if (!useLocalGoalsPersistence()) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
@@ -173,6 +182,10 @@ function ensureBridges() {
 function getPersisted(): GoalsPersisted {
   ensureBridges();
   if (!memory) {
+    if (!useLocalGoalsPersistence()) {
+      memory = createInitialPersisted();
+      return memory;
+    }
     const fresh = readRaw(STORAGE_KEY);
     if (isPersisted(fresh)) {
       memory = fresh;
@@ -331,6 +344,71 @@ function cachedSnapshot(state: GoalsPersisted = getPersisted()): GoalsSnapshot {
 
 export function getGoalsSnapshot(): GoalsSnapshot {
   return cachedSnapshot();
+}
+
+/**
+ * Apply an authoritative remote submission into the local projection cache.
+ * Used when `VITE_GOALS_BACKEND=api` so UI stays consistent after HTTP commands.
+ */
+export function mergeRemotePersonGoals(
+  cycleId: string,
+  personId: string,
+  row: PersonGoals,
+): GoalsSnapshot {
+  return updatePersonGoals(cycleId, personId, () => ({
+    ...row,
+    personId,
+  }));
+}
+
+function sameCycleRows(
+  left: Record<string, PersonGoals> | undefined,
+  right: Record<string, PersonGoals>,
+): boolean {
+  if (!left) return false;
+  const leftIds = Object.keys(left);
+  const rightIds = Object.keys(right);
+  if (leftIds.length !== rightIds.length) return false;
+  return leftIds.every(
+    (personId) =>
+      personId in right &&
+      JSON.stringify(left[personId]) === JSON.stringify(right[personId]),
+  );
+}
+
+/**
+ * Replace one cycle's goal rows from the authoritative API response.
+ * Production path: memory cache only — never writes browser storage.
+ *
+ * Listeners refetch when the store changes, so an unchanged response must not
+ * notify — otherwise fetch and notify feed each other in an endless loop.
+ */
+export function replaceCycleGoalsFromRemote(
+  cycleId: string,
+  submissions: PersonGoals[],
+): GoalsSnapshot {
+  const state = getPersisted();
+  const byPerson: Record<string, PersonGoals> = {};
+  for (const submission of submissions) {
+    byPerson[submission.personId] = {
+      ...submission,
+      personId: submission.personId,
+    };
+  }
+  if (
+    state.activeCycleId === cycleId &&
+    sameCycleRows(state.byCycle[cycleId], byPerson)
+  ) {
+    return cachedSnapshot(state);
+  }
+  return commit({
+    ...state,
+    activeCycleId: cycleId,
+    byCycle: {
+      ...state.byCycle,
+      [cycleId]: byPerson,
+    },
+  });
 }
 
 export function getGoalsSnapshotForCycle(cycleId: string): GoalsSnapshot {

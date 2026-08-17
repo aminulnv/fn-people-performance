@@ -93,6 +93,9 @@ type GoalDetailViewProps = {
   canRemove?: boolean;
   canCascade?: boolean;
   cascadeTargets?: CascadeTarget[];
+  /** Used for the quiet Activity log entry in the overflow menu. */
+  cycleId?: string;
+  subjectId?: string;
   onRequestEdit?: RequestGoalEdit;
   /** Autosave state of the owning draft, surfaced next to the goal title. */
   saveState?: GoalDraftSaveState;
@@ -152,6 +155,8 @@ export function GoalDetailView({
   canRemove = false,
   canCascade = false,
   cascadeTargets = [],
+  cycleId,
+  subjectId,
   onRequestEdit = (startEditing) => startEditing(),
   saveState,
   onChange,
@@ -248,6 +253,7 @@ export function GoalDetailView({
     onCascade,
     onRemove,
     canRemove,
+    onViewActivity: Boolean(cycleId),
   });
 
   return (
@@ -326,6 +332,19 @@ export function GoalDetailView({
                   canCascade={canCascade}
                   canRemove={canRemove}
                   cascadeTargets={cascadeTargets}
+                  activityFilters={
+                    cycleId
+                      ? {
+                          goalId: goal.id,
+                          cycleId,
+                          subjectEmployeeId: subjectId
+                            ? Number(subjectId)
+                            : owner.id
+                              ? Number(owner.id)
+                              : undefined,
+                        }
+                      : undefined
+                  }
                   onDuplicate={onDuplicate}
                   onCascade={onCascade}
                   onRemove={onRemove}

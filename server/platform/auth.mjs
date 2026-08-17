@@ -262,7 +262,13 @@ function bootstrapAdminEmails() {
 export async function permissionsForPlatformUser(user) {
   const email = String(user?.email ?? '').trim().toLowerCase()
   if (email && bootstrapAdminEmails().has(email)) {
-    return ['platform.read_all', 'platform.write_all', 'access.manage']
+    return [
+      'platform.read_all',
+      'platform.write_all',
+      'access.manage',
+      'activity.read_all',
+      'activity.export',
+    ]
   }
   const access = await getEmployeeAccess(user?.employeeId ?? null)
   return access.permissions

@@ -35,7 +35,11 @@ import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { profileTabComingSoon } from '@/pages/ComingSoonPage'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
+import {
+  ActivityLogDrawer,
+} from '@/components/activity/ActivityLogDrawer'
 import '@/styles/layout-people.css'
+import '@/styles/layout-activity.css'
 
 export type ProfileTabId = 'profile' | 'performance' | 'goals' | 'team'
 
@@ -151,6 +155,7 @@ export function EmployeeProfileView({
   isSelf?: boolean
 }) {
   const [tab, setTab] = useState<(typeof PROFILE_TABS)[number]['id']>('profile')
+  const [activityOpen, setActivityOpen] = useState(false)
   const managerName = manager?.fullName || employee.reportsToName
   const directoryCount = listEmployees().length
 
@@ -350,7 +355,11 @@ export function EmployeeProfileView({
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
               </button>
-              <button type="button" className="pd-profile__nav-card" disabled>
+              <button
+                type="button"
+                className="pd-profile__nav-card"
+                onClick={() => setActivityOpen(true)}
+              >
                 <History size={18} strokeWidth={1.75} aria-hidden />
                 <span>
                   <span className="pd-profile__nav-title">Timeline</span>
@@ -386,6 +395,13 @@ export function EmployeeProfileView({
           </aside>
         </div>
       )}
+      <ActivityLogDrawer
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title={`${employee.fullName} timeline`}
+        description="Main changes and events for this person."
+        filters={{ subjectEmployeeId: employee.employeeId }}
+      />
     </div>
   )
 }

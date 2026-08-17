@@ -14,4 +14,6 @@ export const queryKeys = {
   notifications: (recipientId: string) =>
     ['notifications', recipientId] as const,
   goals: ['goals'] as const,
+  activity: (filters: Record<string, unknown>) =>
+    ['activity', filters] as const,
 }

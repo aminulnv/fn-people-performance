@@ -15,10 +15,12 @@ import {
   approveSubmission,
   copyPreviousCycleGoals,
   getGoalsSnapshot,
+  replaceCycleGoalsFromRemote,
   resetGoalsDemo,
   savePersonGoals,
   sendBackSubmission,
   setActiveCycle,
+  subscribeGoalsStore,
   setActivePerson,
   setSignedInPerson,
   submitPersonGoals,
@@ -159,7 +161,7 @@ describe("goal snapshot reads", () => {
     expect(stored).toContain("Draft retained for next session");
   });
 
-  it("updates goal access immediately when cycle stage dates change", () => {
+  it("updates goal access immediately when cycle stage dates change", async () => {
     const before = getGoalsSnapshot();
     expect(before.cycle.phase).toBe("window_open");
     const reviewCycle = getReviewCycle(before.cycle.id);
@@ -167,15 +169,31 @@ describe("goal snapshot reads", () => {
     const stages = structuredClone(reviewCycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
 
-    updateCycleStagesConfig(reviewCycle.id, stages);
+    await updateCycleStagesConfig(reviewCycle.id, stages);
 
     expect(getGoalsSnapshot().cycle.phase).toBe("hard_lock");
   });
 
-  it("copies the nearest previous cycle into an empty draft", () => {
+  it("notifies once when the API returns the goals it already holds", () => {
+    const cycleId = getGoalsSnapshot().cycle.id;
+    const submissions = [
+      { personId: "1", status: "draft" as const, goals: [] },
+      { personId: "2", status: "draft" as const, goals: [] },
+    ];
+    const onChange = vi.fn();
+    const unsubscribe = subscribeGoalsStore(onChange);
+
+    replaceCycleGoalsFromRemote(cycleId, submissions);
+    replaceCycleGoalsFromRemote(cycleId, submissions);
+    unsubscribe();
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("copies the nearest previous cycle into an empty draft", async () => {
     vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
-    createReviewCycle({ type: "regular", periodKey: "q1-2026" });
-    createReviewCycle({ type: "regular", periodKey: "q2-2026" });
+    await createReviewCycle({ type: "regular", periodKey: "q1-2026" });
+    await createReviewCycle({ type: "regular", periodKey: "q2-2026" });
     setSignedInPerson("1");
     resetGoalsDemo();
 
@@ -277,14 +295,14 @@ describe("goal approval mutations", () => {
     });
   });
 
-  it("routes post-window submissions through manager and manager’s manager", () => {
+  it("routes post-window submissions through manager and manager’s manager", async () => {
     sendBackSubmission(ctx("1", "2"), "Submit this as an exception.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
     if (!cycle) throw new Error("Expected the active review cycle");
     const stages = structuredClone(cycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
-    updateCycleStagesConfig(cycle.id, stages);
-    updateCycleSettings(cycle.id, {
+    await updateCycleStagesConfig(cycle.id, stages);
+    await updateCycleSettings(cycle.id, {
       postWindowGoalPolicy: "two_tier_approval",
     });
 
@@ -309,14 +327,14 @@ describe("goal approval mutations", () => {
     );
   });
 
-  it("blocks post-window input when the cycle uses a hard stop", () => {
+  it("blocks post-window input when the cycle uses a hard stop", async () => {
     sendBackSubmission(ctx("1", "2"), "Revise after the deadline.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
     if (!cycle) throw new Error("Expected the active review cycle");
     const stages = structuredClone(cycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
-    updateCycleStagesConfig(cycle.id, stages);
-    updateCycleSettings(cycle.id, { postWindowGoalPolicy: "hard_stop" });
+    await updateCycleStagesConfig(cycle.id, stages);
+    await updateCycleSettings(cycle.id, { postWindowGoalPolicy: "hard_stop" });
 
     expect(() => submitPersonGoals(ctx("1", "1"))).toThrow(
       "permission to submit",

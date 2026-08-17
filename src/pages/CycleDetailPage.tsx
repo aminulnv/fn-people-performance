@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
+  History,
   Hourglass,
   Lock,
   MoreHorizontal,
@@ -13,6 +14,7 @@ import {
   DropdownMenu,
   EmptyState,
 } from '@/components/ui'
+import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
 import { setActiveCycle } from '@/lib/goals/store'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath, reviewsTabPath } from '@/lib/reviews/paths'
@@ -30,6 +32,7 @@ import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { CycleSettingsView } from './reviews/CycleSettingsView'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
+import '@/styles/layout-activity.css'
 
 const SECTION_EMPTY: Record<
   Exclude<CycleSectionId, 'settings' | 'goals'>,
@@ -68,11 +71,13 @@ export default function CycleDetailPage() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [settingsEditing, setSettingsEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
 
   useEffect(() => {
     setSettingsEditing(false)
     setMenuError(null)
     setDeleteOpen(false)
+    setActivityOpen(false)
   }, [cycleId])
 
   if (!cycle) {
@@ -86,10 +91,10 @@ export default function CycleDetailPage() {
   const status = resolveCycleStatus(cycle)
   const showCycleChrome = section !== 'settings' || !settingsEditing
 
-  const handleCreateTest = () => {
+  const handleCreateTest = async () => {
     try {
       setMenuError(null)
-      const test = createTestCycle(cycle.id)
+      const test = await createTestCycle(cycle.id)
       navigate(cycleDetailPath(test.id, 'settings'))
     } catch (err) {
       setMenuError(
@@ -98,10 +103,10 @@ export default function CycleDetailPage() {
     }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     try {
       setMenuError(null)
-      deleteReviewCycle(cycle.id)
+      await deleteReviewCycle(cycle.id)
       setDeleteOpen(false)
       navigate(reviewsTabPath('cycles'), { replace: true })
     } catch (err) {
@@ -136,6 +141,12 @@ export default function CycleDetailPage() {
                 title: 'More actions',
               }}
               items={[
+                {
+                  id: 'activity',
+                  label: 'View activity',
+                  icon: <History size={16} strokeWidth={1.75} />,
+                  onSelect: () => setActivityOpen(true),
+                },
                 {
                   id: 'delete',
                   label: 'Delete Cycle',
@@ -208,6 +219,16 @@ export default function CycleDetailPage() {
         confirmLabel="Delete Cycle"
         cancelLabel="Cancel"
         confirmVariant="danger"
+      />
+      <ActivityLogDrawer
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title={`${cycle.name} activity`}
+        filters={{
+          entityType: 'review_cycle',
+          entityId: cycle.id,
+          cycleId: cycle.id,
+        }}
       />
     </div>
   )

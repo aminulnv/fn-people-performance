@@ -222,11 +222,15 @@ export default function OrganisationPage() {
 
   return (
     <div className="pd-page pd-people pd-org" aria-label="Organisation">
-      <div className="pd-org__summary" role="group" aria-label="Structure totals">
+      <div
+        className="pd-people__summary pd-people__summary--stretch"
+        role="group"
+        aria-label="Structure totals"
+      >
         <button
           type="button"
           className={[
-            'pd-org__summary-btn',
+            'pd-people__summary-btn',
             structureView === 'departments' ? 'is-active' : '',
           ]
             .filter(Boolean)
@@ -234,15 +238,18 @@ export default function OrganisationPage() {
           aria-pressed={structureView === 'departments'}
           onClick={() => setStructureView('departments')}
         >
-          <span className="pd-org__summary-value">
+          <span className="pd-people__summary-label">
+            <Building2 size={14} strokeWidth={1.75} aria-hidden />
+            Departments
+          </span>
+          <span className="pd-people__summary-value">
             {snapshot.departments.length}
           </span>
-          <span className="pd-org__summary-label">Departments</span>
         </button>
         <button
           type="button"
           className={[
-            'pd-org__summary-btn',
+            'pd-people__summary-btn',
             structureView === 'teams' ? 'is-active' : '',
           ]
             .filter(Boolean)
@@ -250,10 +257,13 @@ export default function OrganisationPage() {
           aria-pressed={structureView === 'teams'}
           onClick={() => setStructureView('teams')}
         >
-          <span className="pd-org__summary-value">
+          <span className="pd-people__summary-label">
+            <UsersRound size={14} strokeWidth={1.75} aria-hidden />
+            Teams
+          </span>
+          <span className="pd-people__summary-value">
             {snapshot.teams.length}
           </span>
-          <span className="pd-org__summary-label">Teams</span>
         </button>
       </div>
 

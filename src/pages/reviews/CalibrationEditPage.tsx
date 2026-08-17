@@ -81,13 +81,13 @@ export function CalibrationEditPage({
     })
   }
 
-  const save = () => {
+  const save = async () => {
     if (total !== 100) {
       setError(`Grade distribution must total 100% (currently ${total}%).`)
       return
     }
     try {
-      updateCalibrationLogic(cycle.id, draft)
+      await updateCalibrationLogic(cycle.id, draft)
       onClose()
     } catch (err) {
       setError(

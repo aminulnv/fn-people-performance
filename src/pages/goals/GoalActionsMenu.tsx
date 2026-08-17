@@ -1,22 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
-import { Copy, GitFork, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Copy, GitFork, History, MoreHorizontal, Trash2 } from 'lucide-react'
 import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
 } from './GoalCascadeTargetDialog'
+import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
+import '@/styles/layout-activity.css'
 
 export function hasGoalActions({
   onDuplicate,
   onCascade,
   onRemove,
   canRemove = false,
+  onViewActivity,
 }: {
   onDuplicate?: unknown
   onCascade?: unknown
   onRemove?: unknown
   canRemove?: boolean
+  onViewActivity?: unknown
 }) {
-  return Boolean(onDuplicate || onCascade || (canRemove && onRemove))
+  return Boolean(
+    onDuplicate || onCascade || (canRemove && onRemove) || onViewActivity,
+  )
 }
 
 export function GoalActionsMenu({
@@ -24,6 +30,7 @@ export function GoalActionsMenu({
   canCascade = false,
   canRemove = false,
   cascadeTargets = [],
+  activityFilters,
   onDuplicate,
   onCascade,
   onRemove,
@@ -32,13 +39,20 @@ export function GoalActionsMenu({
   canCascade?: boolean
   canRemove?: boolean
   cascadeTargets?: CascadeTarget[]
+  activityFilters?: {
+    goalId?: string
+    cycleId?: string
+    subjectEmployeeId?: number
+  }
   onDuplicate?: () => void
   onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [cascadeOpen, setCascadeOpen] = useState(false)
+  const [activityOpen, setActivityOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+  const canViewActivity = Boolean(activityFilters)
 
   useEffect(() => {
     if (!menuOpen) return
@@ -59,7 +73,15 @@ export function GoalActionsMenu({
     }
   }, [menuOpen])
 
-  if (!hasGoalActions({ onDuplicate, onCascade, onRemove, canRemove })) {
+  if (
+    !hasGoalActions({
+      onDuplicate,
+      onCascade,
+      onRemove,
+      canRemove,
+      onViewActivity: canViewActivity,
+    })
+  ) {
     return null
   }
 
@@ -112,6 +134,20 @@ export function GoalActionsMenu({
                 Cascade This Goal
               </button>
             ) : null}
+            {canViewActivity ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="pd-goal-view__menu-item"
+                onClick={() => {
+                  setMenuOpen(false)
+                  setActivityOpen(true)
+                }}
+              >
+                <History size={15} strokeWidth={1.75} aria-hidden />
+                View activity
+              </button>
+            ) : null}
             {canRemove && onRemove ? (
               <button
                 type="button"
@@ -135,6 +171,14 @@ export function GoalActionsMenu({
           targets={cascadeTargets}
           onClose={() => setCascadeOpen(false)}
           onConfirm={onCascade}
+        />
+      ) : null}
+      {canViewActivity && activityFilters ? (
+        <ActivityLogDrawer
+          open={activityOpen}
+          onClose={() => setActivityOpen(false)}
+          title="Goal activity"
+          filters={activityFilters}
         />
       ) : null}
     </>

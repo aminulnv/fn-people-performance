@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   Compass,
+  History,
   Info,
   Monitor,
   Moon,
@@ -34,12 +35,14 @@ import { useSidebarPrefs } from '@/layout/useSidebarPrefs'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
 import { AccessControlPanel } from './settings/AccessControlPanel'
+import { ActivitySettingsPanel } from './settings/ActivitySettingsPanel'
 
 type SettingsSectionId =
   | 'appearance'
   | 'sidebar'
   | 'assistant'
   | 'access'
+  | 'activity'
   | 'about'
 
 const SETTINGS_SECTIONS: {
@@ -51,6 +54,7 @@ const SETTINGS_SECTIONS: {
   { id: 'sidebar', label: 'Sidebar', icon: PanelLeftOpen },
   { id: 'assistant', label: 'Assistant', icon: Compass },
   { id: 'access', label: 'Admin access', icon: ShieldCheck },
+  { id: 'activity', label: 'Activity log', icon: History },
   { id: 'about', label: 'About', icon: Info },
 ]
 
@@ -315,6 +319,8 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
       return <AssistantPanel />
     case 'access':
       return <AccessControlPanel />
+    case 'activity':
+      return <ActivitySettingsPanel />
     case 'about':
       return <AboutPanel />
   }
@@ -328,9 +334,14 @@ export default function SettingsPage() {
     user?.permissions,
     'platform.read_all',
   )
-  const sections = canReadAccess
-    ? SETTINGS_SECTIONS
-    : SETTINGS_SECTIONS.filter((section) => section.id !== 'access')
+  const canReadActivity =
+    hasSystemPermission(user?.permissions, 'activity.read_all') ||
+    canReadAccess
+  const sections = SETTINGS_SECTIONS.filter((section) => {
+    if (section.id === 'access') return canReadAccess
+    if (section.id === 'activity') return canReadActivity
+    return true
+  })
 
   return (
     <div className="pd-page pd-settings" aria-label="Settings">

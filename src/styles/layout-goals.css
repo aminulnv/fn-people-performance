@@ -480,6 +480,14 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   font-weight: 500;
 }
 
+/*
+ * Nine columns of goal data outgrow the 80rem reading column used elsewhere, so
+ * this page gets a wider rail. Cards, toolbar and table share it to stay aligned.
+ */
+.pd-page.pd-goals-overview {
+  max-width: min(100%, 100rem);
+}
+
 .pd-goals-overview__search {
   max-width: 23rem !important;
 }
@@ -489,11 +497,17 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   align-items: center;
   gap: 0.55rem;
   max-width: 24rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
   font-weight: 600;
   color: var(--color-text);
   text-decoration: none;
+}
+
+/* Ellipsis needs a block-level box; the link itself is a flex container. */
+.pd-goals-overview__goal-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pd-goals-overview__goal-dot {
@@ -571,6 +585,26 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
 
 .pd-goals-overview__progress .pd-progress__fill {
   background: #1ac097;
+}
+
+/* Wide scopes can still overflow, so the goal title stays put while the rest scrolls. */
+.pd-goals-overview__table th:first-child,
+.pd-goals-overview__table td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface-raised, var(--color-surface));
+}
+
+.pd-goals-overview__table th:first-child {
+  z-index: 2;
+  background: color-mix(in srgb,
+      var(--color-text) 5.5%,
+      var(--color-surface-raised, var(--color-surface)));
+}
+
+.pd-goals-overview__row:hover td:first-child {
+  background: var(--color-neutral-hover, var(--color-muted-bg));
 }
 
 .pd-goals-toolbar {

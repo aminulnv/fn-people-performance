@@ -19,6 +19,7 @@ import {
   Copy,
   GitFork,
   Hash,
+  History,
   ListTodo,
   MoreHorizontal,
   Pencil,
@@ -27,8 +28,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { Avatar, Badge, ListboxSelect } from "@/components/ui";
+import { ActivityLogDrawer } from "@/components/activity/ActivityLogDrawer";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { goalCompletion, newId } from "@/lib/goalsApi";
+import "@/styles/layout-activity.css";
 import {
   applyMetricStrategy,
   blankMetric,
@@ -126,6 +129,8 @@ type GoalUnifiedDetailProps = {
   cascadeFrom?: LineManagerCascade;
   cascadedTo?: CascadeRecipient[];
   cascadeHref?: CascadeGoalHref;
+  cycleId?: string;
+  subjectId?: string;
   cycleLabel: string;
   isCurrentCycle?: boolean;
   status: PersonGoals["status"];
@@ -833,6 +838,8 @@ export function GoalUnifiedDetail({
   cascadeFrom = EMPTY_LINE_MANAGER_CASCADE,
   cascadedTo = [],
   cascadeHref,
+  cycleId,
+  subjectId,
   cycleLabel,
   isCurrentCycle = false,
   status,
@@ -865,6 +872,7 @@ export function GoalUnifiedDetail({
   const [comment, setComment] = useState("");
   const [statusOpen, setStatusOpen] = useState(false);
   const [cascadeOpen, setCascadeOpen] = useState(false);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [showCascadeField, setShowCascadeField] = useState(
     Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
   );
@@ -1188,17 +1196,35 @@ export function GoalUnifiedDetail({
                 Cascade This Goal
               </button>
             ) : null}
-            {canRemove && onRemove ? (
+            {(canRemove && onRemove) || cycleId ? (
               <CardMenu
                 label="More actions"
                 items={[
-                  {
-                    id: "remove",
-                    label: "Remove Goal",
-                    icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
-                    danger: true,
-                    onSelect: onRemove,
-                  },
+                  ...(cycleId
+                    ? [
+                        {
+                          id: "activity",
+                          label: "View activity",
+                          icon: (
+                            <History size={15} strokeWidth={1.75} aria-hidden />
+                          ),
+                          onSelect: () => setActivityOpen(true),
+                        },
+                      ]
+                    : []),
+                  ...(canRemove && onRemove
+                    ? [
+                        {
+                          id: "remove",
+                          label: "Remove Goal",
+                          icon: (
+                            <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+                          ),
+                          danger: true,
+                          onSelect: onRemove,
+                        },
+                      ]
+                    : []),
                 ]}
               />
             ) : null}
@@ -1838,6 +1864,18 @@ export function GoalUnifiedDetail({
           targets={cascadeTargets}
           onClose={() => setCascadeOpen(false)}
           onConfirm={onCascade}
+        />
+      ) : null}
+      {cycleId ? (
+        <ActivityLogDrawer
+          open={activityOpen}
+          onClose={() => setActivityOpen(false)}
+          title="Goal activity"
+          filters={{
+            goalId: goal.id,
+            cycleId,
+            subjectEmployeeId: subjectId ? Number(subjectId) : undefined,
+          }}
         />
       ) : null}
     </div>
