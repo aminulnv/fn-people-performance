@@ -19,16 +19,10 @@ import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
 type GoalsTab = 'performance' | 'organisational'
-type ScopeFilter = 'all' | 'lm'
 
 const GOALS_TABS: { id: GoalsTab; label: string }[] = [
   { id: 'performance', label: 'Performance Goals' },
   { id: 'organisational', label: 'Organisational Goals' },
-]
-
-const SCOPE_OPTIONS: { id: ScopeFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'lm', label: 'LM' },
 ]
 
 export default function ScorecardDetailPage() {
@@ -42,7 +36,6 @@ export default function ScorecardDetailPage() {
     return buildScorecardDetail(cycleKey, employeeId, employees, user?.email)
   }, [cycleKey, employeeId, employees, user?.email])
 
-  const [scope, setScope] = useState<ScopeFilter>('all')
   const [goalsTab, setGoalsTab] = useState<GoalsTab>('performance')
   const [contributionOverride, setContributionOverride] =
     useState<GradeBandId | null>(null)
@@ -55,7 +48,6 @@ export default function ScorecardDetailPage() {
     setContributionOverride(null)
     setOverallOverride(null)
     setGoalsTab('performance')
-    setScope('all')
   }, [cycleKey, employeeId])
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
@@ -117,7 +109,7 @@ export default function ScorecardDetailPage() {
                 </span>
               </div>
               <p className="pd-reviews-scorecard__meta">
-                {detail.cycleLabel} Performance Review (LM)
+                {detail.cycleLabel} · Line manager check-in
                 <span aria-hidden> | </span>
                 {detail.role}
                 <span aria-hidden> | </span>
@@ -130,15 +122,6 @@ export default function ScorecardDetailPage() {
             Export PDF
           </Button>
         </div>
-
-        <SegmentedControl
-          className="pd-people__scope pd-reviews-scorecard__scope"
-          buttonClassName="pd-people__scope-btn"
-          options={SCOPE_OPTIONS}
-          value={scope}
-          onChange={setScope}
-          aria-label="Review scope"
-        />
       </header>
 
       <section className="pd-reviews-scorecard__card" aria-label="Goals">

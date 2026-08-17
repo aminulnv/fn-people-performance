@@ -177,26 +177,10 @@ export function stagesConfigToTimeline(
       endDate: config.goals.employee.endDate,
     },
     {
-      id: 'performance_review',
-      label: 'Performance review',
-      startDate: config.performance.employeeStart.date,
-      endDate: config.performance.employeeEnd.date,
-    },
-    {
-      id: 'calibration',
-      label: 'Calibration period',
-      startDate: config.calibration.start.date,
-      endDate: config.calibration.end.date,
-    },
-    {
-      id: 'publish_managers',
-      label: 'Publish to managers',
-      startDate: config.publish.toManager.date,
-    },
-    {
-      id: 'publish_employees',
-      label: 'Publish to employees',
-      startDate: config.publish.toAll.date,
+      id: 'quarterly_check_in',
+      label: 'Line manager check-in',
+      startDate: config.performance.managerStart.date,
+      endDate: config.performance.managerEnd.date,
     },
   ]
 }

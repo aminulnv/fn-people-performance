@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   History,
-  Hourglass,
-  Lock,
   MoreHorizontal,
   Plus,
   Target,
@@ -27,33 +25,11 @@ import {
   cycleStatusLabel,
   resolveCycleStatus,
 } from '@/lib/reviews/status'
-import type { CycleSectionId } from '@/lib/reviews/types'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { CycleSettingsView } from './reviews/CycleSettingsView'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 import '@/styles/layout-activity.css'
-
-const SECTION_EMPTY: Record<
-  Exclude<CycleSectionId, 'settings' | 'goals'>,
-  { title: string; description: string }
-> = {
-  performance: {
-    title: 'Performance review',
-    description:
-      'Scorecard progress, submissions, and manager reviews will live here.',
-  },
-  calibration: {
-    title: 'Calibration',
-    description:
-      'Calibration sessions and grade distribution tools will appear here.',
-  },
-  results: {
-    title: 'Results',
-    description:
-      'Published grades and outcomes for this cycle will show here once unlocked.',
-  },
-}
 
 export default function CycleDetailPage() {
   const { cycleId = '', section } = useParams()
@@ -180,7 +156,7 @@ export default function CycleDetailPage() {
           cycle={cycle}
           onEditingChange={setSettingsEditing}
         />
-      ) : section === 'goals' ? (
+      ) : (
         <div className="pd-reviews__body">
           <EmptyState
             className="pd-empty--inline"
@@ -197,15 +173,6 @@ export default function CycleDetailPage() {
                 Open goals for {cycle.name}
               </Link>
             }
-          />
-        </div>
-      ) : (
-        <div className="pd-reviews__body">
-          <EmptyState
-            className="pd-empty--inline"
-            icon={section === 'results' ? Lock : Hourglass}
-            title={SECTION_EMPTY[section].title}
-            description={SECTION_EMPTY[section].description}
           />
         </div>
       )}

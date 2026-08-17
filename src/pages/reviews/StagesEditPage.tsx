@@ -7,9 +7,7 @@ import {
 import { Input, SegmentedControl, Switch } from "@/components/ui";
 import { listEmployees } from "@/lib/employees/store";
 import { notifyReviewDeadlineChanged } from "@/lib/notifications/reviewEvents";
-import {
-  updateCycleStagesConfig,
-} from "@/lib/reviews/store";
+import { updateCycleStagesConfig } from "@/lib/reviews/store";
 import type {
   CycleStagesConfig,
   DateRange,
@@ -26,18 +24,19 @@ type StagesEditPageProps = {
   onClose: () => void;
 };
 
-const PROCESS_MODES: { id: StageProcessMode; label: string; hint: string }[] = [
-  {
-    id: "schedule",
-    label: "Schedule",
-    hint: "Stages open and close automatically on the dates below.",
-  },
-  {
-    id: "manual",
-    label: "Manual",
-    hint: "Dates below stay as guidance — you move the cycle forward yourself.",
-  },
-];
+const PROCESS_MODES: { id: StageProcessMode; label: string; hint: string }[] =
+  [
+    {
+      id: "schedule",
+      label: "Schedule",
+      hint: "Stages open and close automatically on the dates below.",
+    },
+    {
+      id: "manual",
+      label: "Manual",
+      hint: "Dates below stay as guidance — you move the cycle forward yourself.",
+    },
+  ];
 
 export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
   const { user } = useAuth();
@@ -67,8 +66,8 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
     }));
   };
 
-  const setPerformanceDate = (
-    field: keyof CycleStagesConfig["performance"],
+  const setManagerCheckInDate = (
+    field: "managerStart" | "managerEnd",
     date: string,
   ) => {
     setDraft((prev) => ({
@@ -77,29 +76,6 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
         ...prev.performance,
         [field]: { ...prev.performance[field], date },
       },
-    }));
-  };
-
-  const setCalibrationDate = (
-    field: "start" | "end" | "manualStart",
-    date: string,
-  ) => {
-    setDraft((prev) => ({
-      ...prev,
-      calibration: {
-        ...prev.calibration,
-        [field]: { ...prev.calibration[field], date },
-      },
-    }));
-  };
-
-  const setPublishDate = (
-    field: keyof CycleStagesConfig["publish"],
-    date: string,
-  ) => {
-    setDraft((prev) => ({
-      ...prev,
-      publish: { ...prev.publish, [field]: { ...prev.publish[field], date } },
     }));
   };
 
@@ -119,24 +95,9 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
           newDate: draft.goals.employee.endDate,
         },
         {
-          stage: "self-review",
-          oldDate: cycle.stagesConfig.performance.employeeEnd.date,
-          newDate: draft.performance.employeeEnd.date,
-        },
-        {
-          stage: "manager review",
+          stage: "line manager check-in",
           oldDate: cycle.stagesConfig.performance.managerEnd.date,
           newDate: draft.performance.managerEnd.date,
-        },
-        {
-          stage: "calibration",
-          oldDate: cycle.stagesConfig.calibration.end.date,
-          newDate: draft.calibration.end.date,
-        },
-        {
-          stage: "results publication",
-          oldDate: cycle.stagesConfig.publish.toAll.date,
-          newDate: draft.publish.toAll.date,
         },
       ];
       for (const change of changedDeadlines) {
@@ -157,7 +118,7 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
   return (
     <EditPageShell
       title="Cycle stages"
-      description={`These dates control goal access and review stages for ${cycle.name}.`}
+      description={`Goal windows and line manager check-in dates for ${cycle.name}.`}
       onBack={onClose}
       onSave={save}
       error={error}
@@ -176,20 +137,6 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
           value={processMode.id}
           onChange={setProcessMode}
         />
-        {processMode.id === "manual" ? (
-          <StageTable columns={["Stage", "Date"]}>
-            <StageRow
-              label="Calibration manual start"
-              hint="Shown on the timeline while you run stages manually."
-            >
-              <DateCell
-                label="Calibration manual start date"
-                value={draft.calibration.manualStart.date}
-                onChange={(date) => setCalibrationDate("manualStart", date)}
-              />
-            </StageRow>
-          </StageTable>
-        ) : null}
       </section>
 
       <div className="pd-reviews-edit__columns">
@@ -271,7 +218,7 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
           <GoalCycleExtensionsEditor
             extensions={draft.goals.extensions ?? []}
             baseEndDate={draft.goals.employee.endDate}
-            performanceStartDate={draft.performance.employeeStart.date}
+            performanceStartDate={draft.performance.managerStart.date}
             onChange={(extensions) =>
               setDraft((current) => ({
                 ...current,
@@ -284,63 +231,25 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
         <section className="pd-reviews-edit-card">
           <header className="pd-reviews-edit-card__head">
             <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
-            <h3 className="pd-reviews-edit-card__title">Review and results</h3>
+            <h3 className="pd-reviews-edit-card__title">
+              Line manager check-in
+            </h3>
           </header>
+          <p className="pd-reviews-edit-card__lede">
+            After the cycle ends, line managers review goals and complete the
+            check-in form in this window.
+          </p>
           <StageTable columns={["Stage", "Starts", "Ends"]}>
-            <StageRow label="Employee review">
+            <StageRow label="Manager check-in">
               <DateCell
-                label="Employee review starts"
-                value={draft.performance.employeeStart.date}
-                onChange={(date) => setPerformanceDate("employeeStart", date)}
-              />
-              <DateCell
-                label="Employee review ends"
-                value={draft.performance.employeeEnd.date}
-                onChange={(date) => setPerformanceDate("employeeEnd", date)}
-              />
-            </StageRow>
-            <StageRow label="Manager review">
-              <DateCell
-                label="Manager review starts"
+                label="Check-in starts"
                 value={draft.performance.managerStart.date}
-                onChange={(date) => setPerformanceDate("managerStart", date)}
+                onChange={(date) => setManagerCheckInDate("managerStart", date)}
               />
               <DateCell
-                label="Manager review ends"
+                label="Check-in ends"
                 value={draft.performance.managerEnd.date}
-                onChange={(date) => setPerformanceDate("managerEnd", date)}
-              />
-            </StageRow>
-            <StageRow
-              label="Calibration"
-              hint="Department owners calibrate grades in this window."
-            >
-              <DateCell
-                label="Calibration starts"
-                value={draft.calibration.start.date}
-                onChange={(date) => setCalibrationDate("start", date)}
-              />
-              <DateCell
-                label="Calibration ends"
-                value={draft.calibration.end.date}
-                onChange={(date) => setCalibrationDate("end", date)}
-              />
-            </StageRow>
-          </StageTable>
-
-          <StageTable columns={["Results release", "Date"]}>
-            <StageRow label="Publish to managers">
-              <DateCell
-                label="Publish to managers date"
-                value={draft.publish.toManager.date}
-                onChange={(date) => setPublishDate("toManager", date)}
-              />
-            </StageRow>
-            <StageRow label="Publish to employees">
-              <DateCell
-                label="Publish to employees date"
-                value={draft.publish.toAll.date}
-                onChange={(date) => setPublishDate("toAll", date)}
+                onChange={(date) => setManagerCheckInDate("managerEnd", date)}
               />
             </StageRow>
           </StageTable>
@@ -350,10 +259,6 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
   );
 }
 
-/**
- * Aligned stage rows: one label column plus a date column per heading, so the
- * repeated "start date / end date" field labels collapse into column headers.
- */
 function StageTable({
   columns,
   children,

@@ -1,4 +1,3 @@
-import { hasSystemPermission } from '@/lib/accessControl/types'
 import { listEmployees } from '@/lib/employees/store'
 import { buildScorecardsForCycle } from '@/lib/reviews/scorecards'
 import { listReviewCycles } from '@/lib/reviews/store'
@@ -29,6 +28,7 @@ function formatDate(value: string): string {
   }).format(parseDate(value))
 }
 
+/** Prototype reminders for line-manager check-ins only. */
 export function evaluateReviewNotifications(
   recipient: DemoPerson,
   now = new Date(),
@@ -42,11 +42,7 @@ export function evaluateReviewNotifications(
     const managerEnd = cycle.stagesConfig.performance.managerEnd.date
     const rows = buildScorecardsForCycle(cycle.id, employees, recipient.email)
     const managed = rows.filter((row) => row.reviewerId === employeeId)
-    const assigned = managed.filter(
-      (row) =>
-        row.status !== 'completed' &&
-        row.status !== 'calibrating',
-    )
+    const assigned = managed.filter((row) => row.status !== 'completed')
     const managerTaskKey = `review-manager:${cycle.id}:${recipient.id}`
 
     if (
@@ -114,69 +110,6 @@ export function evaluateReviewNotifications(
         },
         { duplicate: 'refresh' },
       )
-    }
-
-    const calibration = cycle.stagesConfig.calibration
-    const calibrationStart =
-      cycle.stagesConfig.processMode === 'manual'
-        ? calibration.manualStart.date
-        : calibration.start.date
-    if (
-      calibration.enabled &&
-      calibrationStart <= today &&
-      today <= calibration.end.date &&
-      hasSystemPermission(recipient.permissions, 'platform.write_all')
-    ) {
-      emitNotification({
-        eventKey: NOTIFICATION_EVENTS.REVIEW_CALIBRATION_OPENED,
-        recipientId: recipient.id,
-        dedupeKey: `review-calibration:${cycle.id}:${recipient.id}`,
-        destination: `/cycles/${encodeURIComponent(cycle.id)}/calibration`,
-        cycleId: cycle.id,
-        dueAt: calibration.end.date,
-        variables: {
-          scope: 'the organization',
-          count: rows.length,
-          deadline: formatDate(calibration.end.date),
-        },
-      })
-    }
-
-    const publishToManagers = cycle.stagesConfig.publish.toManager.date
-    if (
-      managed.length > 0 &&
-      publishToManagers &&
-      today >= publishToManagers
-    ) {
-      emitNotification({
-        eventKey: NOTIFICATION_EVENTS.REVIEW_RESULTS_FOR_MANAGERS,
-        recipientId: recipient.id,
-        dedupeKey: `review-results-manager:${cycle.id}:${recipient.id}`,
-        destination: '/reviews/scorecards',
-        cycleId: cycle.id,
-        variables: {
-          cycle: cycle.name,
-          date: formatDate(cycle.stagesConfig.publish.toAll.date),
-        },
-      })
-    }
-
-    const publishToAll = cycle.stagesConfig.publish.toAll.date
-    if (
-      Number.isInteger(employeeId) &&
-      publishToAll &&
-      today >= publishToAll &&
-      !cycle.settings.excludedEmployeeIds.includes(employeeId)
-    ) {
-      emitNotification({
-        eventKey: NOTIFICATION_EVENTS.REVIEW_RESULTS_PUBLISHED,
-        recipientId: recipient.id,
-        dedupeKey: `review-results-employee:${cycle.id}:${recipient.id}`,
-        destination: `/reviews/scorecards/${encodeURIComponent(cycle.id)}/${employeeId}`,
-        cycleId: cycle.id,
-        personId: recipient.id,
-        variables: { cycle: cycle.name },
-      })
     }
   }
 }

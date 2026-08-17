@@ -2,8 +2,7 @@ export type ReviewCycleType = "regular" | "ad-hoc";
 
 export type ReviewCycleStatus = "future" | "current" | "previous" | "manual";
 
-export type CycleSectionId =
-  "goals" | "performance" | "calibration" | "results" | "settings";
+export type CycleSectionId = "goals" | "settings";
 
 export type StageProcessMode = "schedule" | "manual";
 

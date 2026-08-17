@@ -1,13 +1,12 @@
 import { NavLink, useParams } from 'react-router-dom'
-import { Hourglass, Lock, Settings } from 'lucide-react'
+import { Settings, Target } from 'lucide-react'
 import { CYCLE_SECTIONS } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import type { CycleSectionId } from '@/lib/reviews/types'
 
 function sectionIcon(id: CycleSectionId) {
   if (id === 'settings') return Settings
-  if (id === 'results') return Lock
-  return Hourglass
+  return Target
 }
 
 export function TopBarCycleNav() {

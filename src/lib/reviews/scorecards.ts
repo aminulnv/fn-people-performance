@@ -9,7 +9,6 @@ export type ScorecardStatus =
   | 'not_started'
   | 'in_progress'
   | 'completed'
-  | 'calibrating'
 
 export type ScorecardRow = {
   id: string
@@ -18,7 +17,6 @@ export type ScorecardRow = {
   employeeId: number
   employeeName: string
   employeeAvatarUrl: string
-  reviewType: 'LM review' | 'Self review' | 'Peer review'
   reviewerId: number | null
   reviewerName: string
   reviewerAvatarUrl: string
@@ -64,14 +62,12 @@ export const SCORECARD_STATUS_LABEL: Record<ScorecardStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
   completed: 'Completed review',
-  calibrating: 'Calibrating',
 }
 
 export const SCORECARD_STATUS_LIST_LABEL: Record<ScorecardStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
   completed: 'Completed',
-  calibrating: 'Calibrating',
 }
 
 export const OVERALL_GRADE_CRITERIA: Record<GradeBandId, string[]> = {
@@ -108,7 +104,7 @@ const STATUSES: ScorecardStatus[] = [
   'in_progress',
   'completed',
   'not_started',
-  'calibrating',
+  'in_progress',
   'completed',
 ]
 
@@ -220,7 +216,7 @@ export function buildScorecardsForCycle(
     const reviewer = manager ?? hashPick(employee.employeeId, active)
     const status = hashPick(employee.employeeId + index, STATUSES)
     const grade =
-      status === 'completed' || status === 'calibrating'
+      status === 'completed'
         ? hashPick(employee.employeeId, BANDS)
         : status === 'not_started'
           ? null
@@ -237,7 +233,6 @@ export function buildScorecardsForCycle(
       employeeId: employee.employeeId,
       employeeName: employee.fullName,
       employeeAvatarUrl: employee.avatarUrl,
-      reviewType: 'LM review',
       reviewerId: reviewer.employeeId,
       reviewerName: reviewer.fullName,
       reviewerAvatarUrl: reviewer.avatarUrl,

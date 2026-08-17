@@ -9,7 +9,6 @@ import {
   Eye,
   EyeOff,
   MoreHorizontal,
-  Scale,
   Search,
   Settings2,
 } from 'lucide-react'
@@ -72,8 +71,6 @@ function statusClass(status: ScorecardStatus): string {
       return 'pd-reviews-score-status--completed'
     case 'in_progress':
       return 'pd-reviews-score-status--progress'
-    case 'calibrating':
-      return 'pd-reviews-score-status--calibrating'
     default:
       return 'pd-reviews-score-status--pending'
   }
@@ -124,11 +121,9 @@ export function ScorecardsList() {
     let completed = 0
     let inProgress = 0
     let notStarted = 0
-    let calibrating = 0
     for (const row of rows) {
       if (row.status === 'completed') completed += 1
       else if (row.status === 'in_progress') inProgress += 1
-      else if (row.status === 'calibrating') calibrating += 1
       else notStarted += 1
     }
     return {
@@ -136,7 +131,6 @@ export function ScorecardsList() {
       completed,
       inProgress,
       notStarted,
-      calibrating,
     }
   }, [rows])
 
@@ -153,7 +147,6 @@ export function ScorecardsList() {
         row.seniority,
         row.team,
         row.department,
-        row.reviewType,
         SCORECARD_STATUS_LIST_LABEL[row.status],
       ]
         .join(' ')
@@ -200,7 +193,6 @@ export function ScorecardsList() {
 
   const scorecardColumns: ResizableColumn[] = [
     { id: 'employee', label: 'Employee', minWidth: 150 },
-    { id: 'type', label: 'Type' },
     { id: 'role', label: 'Role' },
     { id: 'seniority', label: 'Seniority' },
     { id: 'team', label: 'Team' },
@@ -240,7 +232,7 @@ export function ScorecardsList() {
     value: number
     icon: typeof Award
   }[] = [
-    { id: 'all', label: 'Scorecards', value: stats.total, icon: Award },
+    { id: 'all', label: 'Check-ins', value: stats.total, icon: Award },
     {
       id: 'completed',
       label: 'Completed',
@@ -259,12 +251,6 @@ export function ScorecardsList() {
       value: stats.notStarted,
       icon: CircleDashed,
     },
-    {
-      id: 'calibrating',
-      label: 'Calibrating',
-      value: stats.calibrating,
-      icon: Scale,
-    },
   ]
 
   return (
@@ -272,7 +258,7 @@ export function ScorecardsList() {
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
-        aria-label="Scorecard totals"
+        aria-label="Check-in totals"
       >
         {summaryItems.map((item) => {
           const Icon = item.icon
@@ -314,7 +300,7 @@ export function ScorecardsList() {
           </label>
 
           <CycleSelect
-            label="Scorecard cycle"
+            label="Cycle"
             options={cycleOptions}
             value={cycleKey}
             onChange={setCycleKey}
@@ -331,7 +317,7 @@ export function ScorecardsList() {
             aria-pressed={mineOnly}
             onClick={() => setMineOnly((value) => !value)}
           >
-            My Reviews
+            My check-ins
           </button>
         </div>
 
@@ -354,7 +340,7 @@ export function ScorecardsList() {
           </button>
           <button type="button" className="pd-people__create-btn">
             <Settings2 size={16} strokeWidth={1.75} aria-hidden />
-            Manage Scorecard
+            Manage check-ins
           </button>
         </div>
       </div>
@@ -364,28 +350,28 @@ export function ScorecardsList() {
         aria-labelledby="scorecards-heading"
       >
         <h2 id="scorecards-heading" className="pd-sr-only">
-          Scorecards
+          Line manager check-ins
         </h2>
 
         {loadState === 'loading' && employees.length === 0 ? (
-          <p className="pd-people__empty">Loading scorecards…</p>
+          <p className="pd-people__empty">Loading check-ins…</p>
         ) : loadState === 'error' && employees.length === 0 ? (
           <p className="pd-people__empty">
-            {loadError ?? 'Failed to load people for scorecards.'}
+            {loadError ?? 'Failed to load people for check-ins.'}
           </p>
         ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
               className="pd-empty--inline"
               icon={Award}
-              title={rows.length === 0 ? 'No scorecards yet' : 'No matches'}
+              title={rows.length === 0 ? 'No check-ins yet' : 'No matches'}
               description={
                 rows.length === 0
-                  ? 'Add people in the directory to generate review scorecards for this cycle.'
+                  ? 'Add people in the directory to show line manager check-ins for this cycle.'
                   : mineOnly && hasMine
-                    ? 'No reviews assigned to you in this cycle. Turn off My Reviews to see everyone.'
+                    ? 'No check-ins assigned to you in this cycle. Turn off My check-ins to see everyone.'
                     : statusFilter !== 'all'
-                      ? 'No scorecards match this status. Try another filter or clear it.'
+                      ? 'No check-ins match this status. Try another filter or clear it.'
                       : 'Try a different search or cycle.'
               }
             />
@@ -451,7 +437,6 @@ function ScorecardTableRow({
           to={to}
         />
       </td>
-      <td className="pd-reviews-scorecards__muted">{row.reviewType}</td>
       <td className="pd-reviews-scorecards__muted">{row.role}</td>
       <td>
         <span className="pd-reviews-seniority">{row.seniority}</span>
