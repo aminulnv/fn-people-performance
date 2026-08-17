@@ -255,7 +255,13 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   align-items: center;
 }
 
-.pd-goals-detail-header__summary {
+/*
+ * Both classes are on the same node. Production loads layout-people.css after
+ * layout-goals.css, so a single-class `display: grid` loses to
+ * `.pd-people__summary { display: flex }` and `width: 100%` cards stack.
+ * Two classes beats that regardless of stylesheet order.
+ */
+.pd-people__summary.pd-goals-detail-header__summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.5rem;
@@ -267,7 +273,7 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
 }
 
 @media (max-width: 40rem) {
-  .pd-goals-detail-header__summary {
+  .pd-people__summary.pd-goals-detail-header__summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
