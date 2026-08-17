@@ -137,6 +137,7 @@ type GoalUnifiedDetailProps = {
   postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"];
   sendBackReason?: string;
   sendBackBy?: SendBackAuthor;
+  approvedBy?: SendBackAuthor;
   commentAuthorName: string;
   commentAuthorId?: string;
   canEdit?: boolean;
@@ -846,6 +847,7 @@ export function GoalUnifiedDetail({
   postWindowApprovalStage,
   sendBackReason,
   sendBackBy,
+  approvedBy,
   commentAuthorName,
   commentAuthorId,
   canEdit = false,
@@ -939,6 +941,7 @@ export function GoalUnifiedDetail({
     status,
     postWindowApprovalStage,
     sendBackBy,
+    approvedBy,
     cascadeFrom,
   });
   const title = goalTitle(activeGoal, index);

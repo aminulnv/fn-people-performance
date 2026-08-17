@@ -27,12 +27,15 @@ export function ProfileDropdown({
   })
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isDark, setIsDark] = useState(readIsDark)
+  const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
 
   const name = person?.name ?? 'Signed in'
   const title = person?.title ?? ''
   const initials = nameInitials(name)
   const avatarHue = person?.avatarHue ?? 220
   const avatarUrl = person?.avatarUrl?.trim() || ''
+  const showAvatarImage =
+    Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl
 
   const handleCloseConfirm = useCallback(() => {
     setShowSignOutConfirm(false)
@@ -53,8 +56,13 @@ export function ProfileDropdown({
     setIsDark(!isDark)
   }, [isDark])
 
-  const avatarFace = avatarUrl ? (
-    <img className="pd-topbar__profile-avatar-image" src={avatarUrl} alt="" />
+  const avatarFace = showAvatarImage ? (
+    <img
+      className="pd-topbar__profile-avatar-image"
+      src={avatarUrl}
+      alt=""
+      onError={() => setFailedAvatarUrl(avatarUrl)}
+    />
   ) : (
     initials
   )
@@ -72,7 +80,9 @@ export function ProfileDropdown({
         aria-label="Profile menu"
         aria-expanded={open}
         style={
-          avatarUrl ? undefined : { background: `hsl(${avatarHue} 55% 42%)` }
+          showAvatarImage
+            ? undefined
+            : { background: `hsl(${avatarHue} 55% 42%)` }
         }
       >
         {avatarFace}
@@ -87,7 +97,7 @@ export function ProfileDropdown({
             <span
               className="pd-topbar__profile-avatar pd-topbar__profile-avatar--menu"
               style={
-                avatarUrl
+                showAvatarImage
                   ? undefined
                   : { background: `hsl(${avatarHue} 55% 42%)` }
               }

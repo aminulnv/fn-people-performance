@@ -152,12 +152,12 @@ export function buildBreadcrumbs({
 
   const cycleDetail =
     matchPath(
-      { path: '/reviews/cycles/:cycleId/:section', end: true },
+      { path: '/cycles/:cycleId/:section', end: true },
       pathname,
-    ) ?? matchPath({ path: '/reviews/cycles/:cycleId', end: true }, pathname)
+    ) ?? matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
   if (cycleDetail?.params.cycleId) {
     return [
-      { label: 'Reviews', href: '/reviews/cycles' },
+      { label: 'Performance Cycles', href: '/cycles' },
       {
         label:
           cycleName?.trim() ||

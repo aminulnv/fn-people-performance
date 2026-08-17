@@ -17,7 +17,7 @@ import {
 import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
 import { setActiveCycle } from '@/lib/goals/store'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
-import { cycleDetailPath, reviewsTabPath } from '@/lib/reviews/paths'
+import { cycleDetailPath, cyclesListPath } from '@/lib/reviews/paths'
 import {
   createTestCycle,
   deleteReviewCycle,
@@ -81,7 +81,7 @@ export default function CycleDetailPage() {
   }, [cycleId])
 
   if (!cycle) {
-    return <Navigate to={reviewsTabPath('cycles')} replace />
+    return <Navigate to={cyclesListPath()} replace />
   }
 
   if (!isCycleSection(section)) {
@@ -108,7 +108,7 @@ export default function CycleDetailPage() {
       setMenuError(null)
       await deleteReviewCycle(cycle.id)
       setDeleteOpen(false)
-      navigate(reviewsTabPath('cycles'), { replace: true })
+      navigate(cyclesListPath(), { replace: true })
     } catch (err) {
       setDeleteOpen(false)
       setMenuError(
@@ -186,7 +186,7 @@ export default function CycleDetailPage() {
             className="pd-empty--inline"
             icon={Target}
             title={`Goals · ${cycle.name}`}
-            description="Goals for this review cycle are managed on the Goals page. Open Goals to select this cycle and add or review goals."
+            description="Goals for this performance cycle are managed on the Goals page. Open Goals to select this cycle and add or review goals."
             action={
               <Link
                 to="/goals"

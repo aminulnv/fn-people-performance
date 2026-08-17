@@ -18,6 +18,30 @@ export type DateTimeValue = {
   time: string;
 };
 
+export type GoalCycleExtensionScope =
+  | {
+      type: "department";
+      departmentId: number;
+      departmentName: string;
+    }
+  | {
+      type: "team";
+      teamId: number;
+      teamName: string;
+      departmentName: string;
+    }
+  | {
+      type: "people";
+      employeeIds: number[];
+    };
+
+export type GoalCycleExtension = {
+  id: string;
+  /** Population-specific employee goal deadline (YYYY-MM-DD). */
+  endDate: string;
+  scope: GoalCycleExtensionScope;
+};
+
 /** Timeline row for the settings overview. */
 export type CycleStageId =
   | "department_goals"
@@ -41,6 +65,8 @@ export type CycleStagesConfig = {
     department: DateRange;
     team: DateRange;
     employee: DateRange;
+    /** Exceptions to the employee goal deadline. Latest matching date wins. */
+    extensions?: GoalCycleExtension[];
   };
   performance: {
     employeeStart: DateTimeValue;

@@ -28,6 +28,7 @@ import {
   type GoalMutationContext,
 } from "./store";
 import type { Goal } from "./types";
+import { mergePeopleIntoGoalsState } from "./peopleFromEmployees";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -165,7 +166,7 @@ describe("goal snapshot reads", () => {
     const before = getGoalsSnapshot();
     expect(before.cycle.phase).toBe("window_open");
     const reviewCycle = getReviewCycle(before.cycle.id);
-    if (!reviewCycle) throw new Error("Expected the active review cycle");
+    if (!reviewCycle) throw new Error("Expected the active performance cycle");
     const stages = structuredClone(reviewCycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
 
@@ -188,6 +189,26 @@ describe("goal snapshot reads", () => {
     unsubscribe();
 
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not invent goals for employees missing from an API response", () => {
+    const projected = mergePeopleIntoGoalsState({
+      cycleId: "q3-2026",
+      byPerson: {},
+      activePersonId: "1",
+      seedMissingPeople: false,
+    });
+
+    expect(projected.byPerson["1"]).toMatchObject({
+      status: "draft",
+      goals: [],
+      version: 0,
+    });
+    expect(projected.byPerson["2"]).toMatchObject({
+      status: "draft",
+      goals: [],
+      version: 0,
+    });
   });
 
   it("copies the nearest previous cycle into an empty draft", async () => {
@@ -298,7 +319,7 @@ describe("goal approval mutations", () => {
   it("routes post-window submissions through manager and manager’s manager", async () => {
     sendBackSubmission(ctx("1", "2"), "Submit this as an exception.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active review cycle");
+    if (!cycle) throw new Error("Expected the active performance cycle");
     const stages = structuredClone(cycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
     await updateCycleStagesConfig(cycle.id, stages);
@@ -330,7 +351,7 @@ describe("goal approval mutations", () => {
   it("blocks post-window input when the cycle uses a hard stop", async () => {
     sendBackSubmission(ctx("1", "2"), "Revise after the deadline.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active review cycle");
+    if (!cycle) throw new Error("Expected the active performance cycle");
     const stages = structuredClone(cycle.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
     await updateCycleStagesConfig(cycle.id, stages);

@@ -1063,6 +1063,20 @@
   font-weight: 650;
 }
 
+.pd-pv2-manager {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pd-pv2-manager > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pd-pv2-person {
   display: grid;
   min-width: 0;

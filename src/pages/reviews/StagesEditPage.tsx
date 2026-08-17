@@ -3,7 +3,6 @@ import {
   BarChart3,
   CalendarClock,
   Flag,
-  GitPullRequestArrow,
 } from "lucide-react";
 import { Input, SegmentedControl, Switch } from "@/components/ui";
 import { listEmployees } from "@/lib/employees/store";
@@ -20,6 +19,7 @@ import type {
 } from "@/lib/reviews/types";
 import { useAuth } from "@/lib/useAuth";
 import { EditPageShell } from "./EditPageShell";
+import { GoalCycleExtensionsEditor } from "./GoalCycleExtensionsEditor";
 
 type StagesEditPageProps = {
   cycle: ReviewCycle;
@@ -246,15 +246,12 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
               />
             </StageRow>
           </StageTable>
-          <div className="pd-reviews-publish-row">
-            <div className="pd-reviews-publish-row__icon" aria-hidden>
-              <GitPullRequestArrow size={16} strokeWidth={1.75} />
-            </div>
+          <div className="pd-reviews-goal-policy">
             <div>
-              <h4 className="pd-reviews-publish-row__title">
+              <h4 className="pd-reviews-goal-policy__title">
                 Allow submissions after deadline
               </h4>
-              <p className="pd-reviews-publish-row__desc">
+              <p className="pd-reviews-goal-policy__desc">
                 {allowLateSubmissions
                   ? "People can still create and submit goals. Those submissions need direct manager and skip-level manager approval."
                   : "Goal creation, editing, and submission stop when the deadline passes."}
@@ -271,6 +268,17 @@ export function StagesEditPage({ cycle, onClose }: StagesEditPageProps) {
               }
             />
           </div>
+          <GoalCycleExtensionsEditor
+            extensions={draft.goals.extensions ?? []}
+            baseEndDate={draft.goals.employee.endDate}
+            performanceStartDate={draft.performance.employeeStart.date}
+            onChange={(extensions) =>
+              setDraft((current) => ({
+                ...current,
+                goals: { ...current.goals, extensions },
+              }))
+            }
+          />
         </section>
 
         <section className="pd-reviews-edit-card">

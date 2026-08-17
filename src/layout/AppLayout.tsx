@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Outlet, useLocation, matchPath } from 'react-router-dom'
+import { Suspense, useState, useEffect, useMemo } from 'react'
+import { useLocation, matchPath } from 'react-router-dom'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
+import { SuspenseRouteContent } from '@/components/ui/NavigationProgress'
 import { getEmployee } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
@@ -14,7 +15,6 @@ import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
 import { TopBarCycleNav } from './TopBarCycleNav'
-import { TopBarReviewsNav } from './TopBarReviewsNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
@@ -122,16 +122,15 @@ export function AppLayout({
 
   const cycleDetailMatch =
     matchPath(
-      { path: '/reviews/cycles/:cycleId/:section', end: true },
+      { path: '/cycles/:cycleId/:section', end: true },
       pathname,
     ) ??
-    matchPath({ path: '/reviews/cycles/:cycleId', end: true }, pathname)
+    matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
   const cycleIdParam = cycleDetailMatch?.params.cycleId
   const cycleName = cycleIdParam
     ? getReviewCycle(cycleIdParam)?.name
     : undefined
   const isCycleDetail = Boolean(cycleIdParam)
-  const isScorecardDetail = Boolean(scorecardDetailMatch?.params.employeeId)
   const scorecardCycleKey = scorecardDetailMatch?.params.cycleKey
     ? decodeURIComponent(scorecardDetailMatch.params.cycleKey)
     : undefined
@@ -203,14 +202,7 @@ export function AppLayout({
             <TopBar
               breadcrumbs={breadcrumbs}
               titleIcon={titleIcon}
-              centerSlot={
-                isCycleDetail ? (
-                  <TopBarCycleNav />
-                ) : pathname === '/reviews' ||
-                  (pathname.startsWith('/reviews/') && !isScorecardDetail) ? (
-                  <TopBarReviewsNav />
-                ) : null
-              }
+              centerSlot={isCycleDetail ? <TopBarCycleNav /> : null}
               onSignOut={onSignOut}
               onMobileMenuOpen={() => setIsMobileOpen(true)}
               isMobile={isMobile}
@@ -222,15 +214,18 @@ export function AppLayout({
              */}
             <div className="pd-app-scroll">
               <main className="pd-app-main">
-                <Outlet />
+                <Suspense fallback={null}>
+                  <SuspenseRouteContent />
+                </Suspense>
               </main>
-              <footer
-                className="pd-app-footer"
-                title={`App version ${APP_VERSION_LABEL}`}
-              >
-                <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
-              </footer>
             </div>
+            {/* Outside the scroller: the version label floats so it costs no page height. */}
+            <footer
+              className="pd-app-footer"
+              title={`App version ${APP_VERSION_LABEL}`}
+            >
+              <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
+            </footer>
           </div>
         </div>
       </div>

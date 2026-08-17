@@ -54,7 +54,7 @@ export function GoalLateApprovalNotice({
   const managerLabel: ReactNode = manager ? (
     <PersonChip person={manager} />
   ) : (
-    'your manager'
+    'the direct manager'
   )
   const skipLevelLabel: ReactNode = skipLevelManager ? (
     <PersonChip person={skipLevelManager} />

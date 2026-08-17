@@ -188,6 +188,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
  * unable to overlap the top bar — sticky content is clipped by its scroller.
  */
 .pd-app-content-card {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow: hidden;
@@ -220,24 +221,42 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   box-sizing: border-box;
   /* Fill the content pane; padding scales with viewport */
   padding: clamp(1rem, 1.8vw, 1.75rem) clamp(1rem, 2.8vw, 2.5rem);
+  /* Keeps page content clear of the floating version label. */
+  padding-bottom: 2.125rem;
 }
 
 .pd-app-shell--mobile .pd-app-main {
   padding: 1rem;
+  padding-bottom: 1.875rem;
 }
 
+/*
+ * Floats in the card's bottom corner instead of sitting in the scroll flow, so
+ * pages keep the full pane height. Clicks fall through to the page underneath;
+ * only the label itself stays selectable for copying the version.
+ */
 .pd-app-footer {
-  flex-shrink: 0;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  z-index: 2;
   display: flex;
   justify-content: flex-start;
-  padding: 0.5rem 1.5rem 1rem;
+  padding: 0.5rem 1.5rem 0.65rem;
+  pointer-events: none;
 }
 
 .pd-app-shell--mobile .pd-app-footer {
-  padding: 0.375rem 1rem 0.875rem;
+  padding: 0.375rem 1rem 0.5rem;
 }
 
 .pd-app-footer__version {
+  pointer-events: auto;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  /* Readable where page content scrolls beneath the label. */
+  background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+  backdrop-filter: blur(2px);
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -1528,6 +1547,23 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 /* Readable / form surfaces — tighter column within the main pane */
 .pd-page--narrow {
   max-width: min(100%, 72rem);
+}
+
+/*
+ * Pages that scroll a region of their own — a table body under a pinned header,
+ * for instance — need a pane-height box to scroll inside, so the pane stops
+ * growing with the page content. Phone widths keep document flow, where a
+ * viewport-height scroll region leaves too little space for the rows.
+ */
+@media (min-width: 700px) {
+  .pd-app-main:has(> .pd-page--pane) {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .pd-page--pane {
+    height: 100%;
+  }
 }
 
 /* Unbuilt modules — centered empty state only (title lives in top bar) */

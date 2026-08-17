@@ -42,6 +42,7 @@ export type DirectoryPerson = {
   team: string
   managerName: string
   managerId?: number
+  managerAvatarUrl: string
   departmentHead: string
   hrbp: string
   startDate: string
@@ -121,6 +122,15 @@ export function buildDirectory(
   now: Date = new Date(),
 ): DirectoryPerson[] {
   const reportCounts = new Map<number, number>()
+  const employeesById = new Map(
+    employees.map((employee) => [employee.employeeId, employee]),
+  )
+  const employeesByName = new Map(
+    employees.map((employee) => [
+      employee.fullName.trim().toLocaleLowerCase(),
+      employee,
+    ]),
+  )
   for (const employee of employees) {
     if (employee.reportsToId == null) continue
     reportCounts.set(
@@ -133,6 +143,11 @@ export function buildDirectory(
     const startedOn = parseIsoDate(employee.startDate)
     const tenureMonths = startedOn ? monthsBetween(startedOn, now) : null
     const gaps = gapsOf(employee)
+    const manager =
+      (employee.reportsToId != null
+        ? employeesById.get(employee.reportsToId)
+        : undefined) ??
+      employeesByName.get(employee.reportsToName.trim().toLocaleLowerCase())
 
     return {
       id: employee.employeeId,
@@ -144,7 +159,8 @@ export function buildDirectory(
       department: employee.department,
       team: employee.team,
       managerName: employee.reportsToName,
-      managerId: employee.reportsToId,
+      managerId: employee.reportsToId ?? manager?.employeeId,
+      managerAvatarUrl: manager?.avatarUrl ?? '',
       departmentHead: employee.departmentHeadName,
       hrbp: employee.hrbpName,
       startDate: employee.startDate,

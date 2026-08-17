@@ -9,9 +9,14 @@ import {
   Plus,
   Search,
   Settings,
+  Users,
   UsersRound,
 } from 'lucide-react'
-import { Avatar } from '@/components/ui'
+import {
+  Avatar,
+  ResizableTable,
+  type ResizableColumn,
+} from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { listDepartments } from '@/lib/employees/store'
@@ -156,11 +161,14 @@ export default function OrganisationPage() {
     loadState,
     loadError,
   } = useOrganisation(catalog)
-  const [structureView, setStructureView] =
-    useState<StructureView>('departments')
+  const [structureView, setStructureView] = useState<StructureView | null>(null)
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
+  function toggleStructureView(next: StructureView) {
+    setStructureView((current) => (current === next ? null : next))
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -217,11 +225,61 @@ export default function OrganisationPage() {
 
   const hasPeople = employees.some((e) => e.isActive)
   const hasStructure = hasPeople || snapshot.departments.length > 0
+  const peopleCount = useMemo(
+    () =>
+      snapshot.departments.reduce(
+        (total, department) => total + department.headcount,
+        0,
+      ),
+    [snapshot.departments],
+  )
+  const activeView = structureView ?? 'departments'
   const mineLabel =
-    structureView === 'departments' ? 'My Departments' : 'My Teams'
+    activeView === 'departments' ? 'My Department' : 'My Teams'
+  const departmentColumns = useMemo<ResizableColumn[]>(
+    () => [
+      {
+        id: 'department',
+        label: (
+          <span className="pd-people__th">
+            Department
+            <span className="pd-people__th-count">
+              {filteredDepartments.length}
+            </span>
+          </span>
+        ),
+        name: 'Department',
+      },
+      { id: 'owner', label: 'Owner' },
+      { id: 'teams', label: 'Teams' },
+      { id: 'headcount', label: 'Headcount' },
+    ],
+    [filteredDepartments.length],
+  )
+  const teamColumns = useMemo<ResizableColumn[]>(
+    () => [
+      {
+        id: 'team',
+        label: (
+          <span className="pd-people__th">
+            Team
+            <span className="pd-people__th-count">{filteredTeams.length}</span>
+          </span>
+        ),
+        name: 'Team',
+      },
+      { id: 'department', label: 'Department' },
+      { id: 'manager', label: 'Manager' },
+      { id: 'headcount', label: 'Headcount' },
+    ],
+    [filteredTeams.length],
+  )
 
   return (
-    <div className="pd-page pd-people pd-org" aria-label="Organisation">
+    <div
+      className="pd-page pd-page--pane pd-people pd-org"
+      aria-label="Organisation"
+    >
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
@@ -236,7 +294,7 @@ export default function OrganisationPage() {
             .filter(Boolean)
             .join(' ')}
           aria-pressed={structureView === 'departments'}
-          onClick={() => setStructureView('departments')}
+          onClick={() => toggleStructureView('departments')}
         >
           <span className="pd-people__summary-label">
             <Building2 size={14} strokeWidth={1.75} aria-hidden />
@@ -255,7 +313,7 @@ export default function OrganisationPage() {
             .filter(Boolean)
             .join(' ')}
           aria-pressed={structureView === 'teams'}
-          onClick={() => setStructureView('teams')}
+          onClick={() => toggleStructureView('teams')}
         >
           <span className="pd-people__summary-label">
             <UsersRound size={14} strokeWidth={1.75} aria-hidden />
@@ -265,6 +323,13 @@ export default function OrganisationPage() {
             {snapshot.teams.length}
           </span>
         </button>
+        <div className="pd-people__summary-card">
+          <span className="pd-people__summary-label">
+            <Users size={14} strokeWidth={1.75} aria-hidden />
+            People
+          </span>
+          <span className="pd-people__summary-value">{peopleCount}</span>
+        </div>
       </div>
 
       <div className="pd-people__header pd-people__header--row">
@@ -277,7 +342,7 @@ export default function OrganisationPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={
-                structureView === 'departments'
+                activeView === 'departments'
                   ? 'Search departments…'
                   : 'Search teams…'
               }
@@ -335,9 +400,7 @@ export default function OrganisationPage() {
         aria-labelledby="org-structure-heading"
       >
         <h2 id="org-structure-heading" className="pd-sr-only">
-          {structureView === 'departments'
-            ? 'Departments'
-            : 'Teams'}
+          {activeView === 'departments' ? 'Departments' : 'Teams'}
         </h2>
 
             {loadState === 'loading' && !hasStructure ? (
@@ -363,29 +426,18 @@ export default function OrganisationPage() {
               Add Department
             </Link>
           </div>
-        ) : structureView === 'departments' ? (
+        ) : activeView === 'departments' ? (
           filteredDepartments.length === 0 ? (
             <p className="pd-people__empty">
               No departments match your filters.
             </p>
           ) : (
             <div className="pd-people__table-wrap">
-              <table className="pd-people__table">
-                <thead>
-                  <tr>
-                    <th>
-                      <span className="pd-people__th">
-                        Department
-                        <span className="pd-people__th-count">
-                          {filteredDepartments.length}
-                        </span>
-                      </span>
-                    </th>
-                    <th>Owner</th>
-                    <th>Teams</th>
-                    <th>Headcount</th>
-                  </tr>
-                </thead>
+              <ResizableTable
+                className="pd-people__table"
+                storageKey="organisation-departments-column-widths"
+                columns={departmentColumns}
+              >
                 <tbody>
                   {filteredDepartments.map((department) => {
                     const isOpen = expanded.has(department.id)
@@ -489,29 +541,18 @@ export default function OrganisationPage() {
                     )
                   })}
                 </tbody>
-              </table>
+              </ResizableTable>
             </div>
           )
         ) : filteredTeams.length === 0 ? (
           <p className="pd-people__empty">No teams match your filters.</p>
         ) : (
           <div className="pd-people__table-wrap">
-            <table className="pd-people__table">
-              <thead>
-                <tr>
-                  <th>
-                    <span className="pd-people__th">
-                      Team
-                      <span className="pd-people__th-count">
-                        {filteredTeams.length}
-                      </span>
-                    </span>
-                  </th>
-                  <th>Department</th>
-                  <th>Manager</th>
-                  <th>Headcount</th>
-                </tr>
-              </thead>
+            <ResizableTable
+              className="pd-people__table"
+              storageKey="organisation-teams-column-widths"
+              columns={teamColumns}
+            >
               <tbody>
                 {filteredTeams.map((team) => (
                   <tr key={team.id}>
@@ -546,7 +587,7 @@ export default function OrganisationPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResizableTable>
           </div>
         )}
       </section>

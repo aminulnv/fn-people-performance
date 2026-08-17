@@ -1,4 +1,4 @@
-/** Shared Review Cycle validation helpers for the platform API. */
+/** Shared Performance Cycle validation helpers for the platform API. */
 
 export function validateGoalCountPolicy(policy) {
   const values = [
@@ -84,6 +84,48 @@ export function validateCycleStagesConfig(config) {
     )
     err.statusCode = 400
     throw err
+  }
+
+  for (const extension of config.goals.extensions ?? []) {
+    if (
+      !extension.endDate ||
+      extension.endDate <= config.goals.employee.endDate
+    ) {
+      const err = new Error(
+        'An extension deadline must be after the standard goal deadline.',
+      )
+      err.statusCode = 400
+      throw err
+    }
+    if (extension.endDate >= config.performance.employeeStart.date) {
+      const err = new Error(
+        'An extension deadline must be before employee performance starts.',
+      )
+      err.statusCode = 400
+      throw err
+    }
+
+    const scope = extension.scope
+    const validDepartment =
+      scope?.type === 'department' &&
+      Number.isInteger(scope.departmentId) &&
+      Boolean(scope.departmentName?.trim())
+    const validTeam =
+      scope?.type === 'team' &&
+      Number.isInteger(scope.teamId) &&
+      Boolean(scope.teamName?.trim())
+    const validPeople =
+      scope?.type === 'people' &&
+      Array.isArray(scope.employeeIds) &&
+      scope.employeeIds.length > 0 &&
+      scope.employeeIds.every(Number.isInteger)
+    if (!validDepartment && !validTeam && !validPeople) {
+      const err = new Error(
+        'Each extension requires a valid team, department, or people selection.',
+      )
+      err.statusCode = 400
+      throw err
+    }
   }
 }
 

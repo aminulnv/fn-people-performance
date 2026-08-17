@@ -60,8 +60,34 @@ describe("describeGoalEditLock", () => {
     });
 
     expect(lock).toContain(
-      "submit goals for direct manager and skip-level manager approval",
+      "Late submissions require direct manager and skip-level manager approval",
     );
+    expect(lock).not.toContain("You");
+  });
+
+  it("describes the subject submission state after the deadline", () => {
+    const lateCycle = {
+      ...cycle("hard_lock"),
+      postWindowGoalPolicy: "two_tier_approval" as const,
+    };
+
+    expect(
+      describeGoalEditLock({
+        cycle: lateCycle,
+        cycleStatus: "current",
+        canUpdateProgress: true,
+        status: "approved",
+      }),
+    ).toContain("Changes to approved goals require renewed");
+    expect(
+      describeGoalEditLock({
+        cycle: lateCycle,
+        cycleStatus: "current",
+        canUpdateProgress: true,
+        status: "submitted",
+        postWindowApprovalStage: "manager_manager",
+      }),
+    ).toContain("awaiting final approval from the skip-level manager");
   });
 
   it("reports no lock while the window is open", () => {

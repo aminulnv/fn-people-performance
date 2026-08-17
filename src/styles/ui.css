@@ -1836,6 +1836,43 @@ a.pd-btn--secondary:visited {
   }
 }
 
+/* ── Navigation progress (top bar) ────────────────────────────────── */
+
+.pd-nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pd-nav-progress.is-active {
+  opacity: 1;
+}
+
+.pd-nav-progress__bar {
+  height: 100%;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: var(--color-cta);
+  box-shadow:
+    0 0 8px color-mix(in srgb, var(--color-cta) 55%, transparent),
+    0 0 2px color-mix(in srgb, var(--color-cta) 80%, transparent);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-nav-progress__bar {
+    transition-duration: 0.05s;
+  }
+}
+
 /* ── Progress ─────────────────────────────────────────────────────── */
 
 .pd-progress {

@@ -1,9 +1,12 @@
 import { isEligibleForCycle } from './goals/demoData'
 import {
   approvePersonGoalsRemote,
+  cascadeGoalRemote,
+  copyPreviousCycleGoalsRemote,
   fetchCycleGoalSubmissionsRemote,
   savePersonGoalsDraftRemote,
   sendBackPersonGoalsRemote,
+  submitPersonGoalRatingRemote,
   submitPersonGoalsRemote,
 } from './goals/remoteApi'
 import {
@@ -26,6 +29,7 @@ import {
   type GoalMutationContext,
 } from './goals/store'
 import { ensureReviewCyclesLoaded } from './reviews/store'
+import { cascadeGoal as buildCascadedGoal } from './goals/operations'
 import type {
   DemoPhase,
   Goal,
@@ -112,7 +116,7 @@ export async function changeDemoPhase(phase: DemoPhase): Promise<GoalsSnapshot> 
   return delay(setDemoPhase(phase))
 }
 
-/** Review cycles available for goal setting (same identity as Reviews). */
+/** Performance cycles available for goal setting and reviews. */
 export function listGoalCycles() {
   return getGoalsSnapshot().availableCycles
 }
@@ -137,6 +141,13 @@ export async function resetDemo(): Promise<GoalsSnapshot> {
   return delay(resetGoalsDemo())
 }
 
+function currentVersion(context: GoalMutationContext): number {
+  return (
+    getGoalsSnapshot().byPerson[context.subjectId]?.version ??
+    0
+  )
+}
+
 export async function saveGoals(
   context: GoalMutationContext,
   goals: Goal[],
@@ -146,6 +157,7 @@ export async function saveGoals(
     context.cycleId,
     context.subjectId,
     goals,
+    currentVersion(context),
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -153,16 +165,79 @@ export async function saveGoals(
 export async function copyPreviousGoals(
   context: GoalMutationContext,
 ): Promise<GoalsSnapshot> {
-  return delay(copyPreviousCycleGoals(context))
+  if (useLocalGoals()) return delay(copyPreviousCycleGoals(context))
+  const remote = await copyPreviousCycleGoalsRemote(
+    context.cycleId,
+    context.subjectId,
+    currentVersion(context),
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
+}
+
+export async function cascadeGoalToReports(
+  context: GoalMutationContext,
+  goalId: string,
+  reportIds: string[],
+): Promise<GoalsSnapshot> {
+  const snapshot = getGoalsSnapshot()
+  if (useLocalGoals()) {
+    const source = snapshot.byPerson[context.subjectId]?.goals.find(
+      (goal) => goal.id === goalId,
+    )
+    const actor = snapshot.people.find((person) => person.id === context.actorId)
+    if (!source || !actor) throw new Error('Goal or actor not found.')
+    let next = snapshot
+    for (const reportId of reportIds) {
+      const row = next.byPerson[reportId]
+      if (!row) continue
+      const child = buildCascadedGoal(source, reportId, {
+        sourceTitle: source.description || 'Untitled goal',
+        sourcePersonName: actor.name,
+      })
+      next = savePersonGoals(
+        { ...context, subjectId: reportId },
+        [...row.goals, child],
+      )
+    }
+    return delay(next)
+  }
+
+  const expectedVersions = Object.fromEntries(
+    reportIds.map((reportId) => [
+      reportId,
+      snapshot.byPerson[reportId]?.version ?? 0,
+    ]),
+  )
+  const submissions = await cascadeGoalRemote(
+    context.cycleId,
+    context.subjectId,
+    goalId,
+    reportIds,
+    expectedVersions,
+  )
+  let next = snapshot
+  for (const submission of submissions) {
+    next = mergeRemotePersonGoals(
+      context.cycleId,
+      submission.personId,
+      submission,
+    )
+  }
+  return next
 }
 
 export async function submitGoals(
   context: GoalMutationContext,
+  goals?: Goal[],
 ): Promise<GoalsSnapshot> {
-  if (useLocalGoals()) return delay(submitPersonGoals(context))
+  if (useLocalGoals()) {
+    if (goals) savePersonGoals(context, goals)
+    return delay(submitPersonGoals(context))
+  }
   const remote = await submitPersonGoalsRemote(
     context.cycleId,
     context.subjectId,
+    { goals, expectedVersion: currentVersion(context) },
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -176,6 +251,7 @@ export async function sendBackGoals(
     context.cycleId,
     context.subjectId,
     reason,
+    currentVersion(context),
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -185,16 +261,11 @@ export async function approveGoals(
   goals?: Goal[],
 ): Promise<GoalsSnapshot> {
   if (useLocalGoals()) return delay(approveSubmission(context, goals))
-  if (goals) {
-    await savePersonGoalsDraftRemote(
-      context.cycleId,
-      context.subjectId,
-      goals,
-    )
-  }
   const remote = await approvePersonGoalsRemote(
     context.cycleId,
     context.subjectId,
+    goals,
+    currentVersion(context),
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -208,6 +279,7 @@ export async function saveProgress(
     context.cycleId,
     context.subjectId,
     goals,
+    currentVersion(context),
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -216,5 +288,12 @@ export async function ratePerson(
   context: GoalMutationContext,
   rating: Omit<QuarterRating, 'submittedAt'>,
 ): Promise<GoalsSnapshot> {
-  return delay(submitQuarterRating(context, rating))
+  if (useLocalGoals()) return delay(submitQuarterRating(context, rating))
+  const remote = await submitPersonGoalRatingRemote(
+    context.cycleId,
+    context.subjectId,
+    rating,
+    currentVersion(context),
+  )
+  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }

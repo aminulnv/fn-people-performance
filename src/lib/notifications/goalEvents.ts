@@ -4,6 +4,7 @@ import type {
   GoalsSnapshot,
   PersonGoals,
 } from '@/lib/goals/types'
+import { resolveGoalDeadline } from '@/lib/goals/goalExtensions'
 import { NOTIFICATION_EVENTS } from './catalogue'
 import {
   completeNotificationAction,
@@ -76,7 +77,7 @@ export function notifyGoalSubmitted({
       destination: goalDestination(snapshot.cycle.id, subject.id),
       cycleId: snapshot.cycle.id,
       personId: subject.id,
-      dueAt: snapshot.cycle.goalWindow?.endDate,
+      dueAt: resolveGoalDeadline(snapshot.cycle, subject),
       variables: {
         employee: subject.name,
         count: row.goals.length,
@@ -106,7 +107,7 @@ export function notifyGoalChangesRequireApproval({
       destination: goalDestination(snapshot.cycle.id, subject.id),
       cycleId: snapshot.cycle.id,
       personId: subject.id,
-      dueAt: snapshot.cycle.goalWindow?.endDate,
+      dueAt: resolveGoalDeadline(snapshot.cycle, subject),
       variables: {
         employee: subject.name,
         cycle: snapshot.cycle.label,
@@ -381,7 +382,7 @@ export function notifyGoalHardLock(
     personId: subject.id,
     variables: {
       cycle: snapshot.cycle.label,
-      deadline: snapshot.cycle.goalWindow?.endDate ?? 'the deadline',
+      deadline: resolveGoalDeadline(snapshot.cycle, subject) ?? 'the deadline',
     },
   })
 }

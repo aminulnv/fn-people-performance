@@ -5,7 +5,7 @@ const ENTITY_OPTIONS = [
   { value: '', label: 'All areas' },
   { value: 'goal', label: 'Goals' },
   { value: 'goal_submission', label: 'Goal submissions' },
-  { value: 'review_cycle', label: 'Review cycles' },
+  { value: 'review_cycle', label: 'Performance Cycles' },
   { value: 'employee', label: 'Employees' },
   { value: 'department', label: 'Departments' },
   { value: 'access', label: 'Access' },

@@ -9,6 +9,7 @@ import type {
   CalibrationLogic,
   CycleSettings,
   CycleStagesConfig,
+  GoalCycleExtension,
   ReviewCycle,
   ReviewCycleType,
   ReviewsSnapshot,
@@ -413,6 +414,36 @@ export async function updateCycleStagesConfig(
   return clone(next);
 }
 
+function validateGoalExtensions(
+  extensions: GoalCycleExtension[],
+  baseEndDate: string,
+  performanceStartDate: string,
+): void {
+  for (const extension of extensions) {
+    if (!extension.endDate || extension.endDate <= baseEndDate) {
+      throw new Error("An extension deadline must be after the standard goal deadline.");
+    }
+    if (extension.endDate >= performanceStartDate) {
+      throw new Error("An extension deadline must be before employee performance starts.");
+    }
+
+    const scope = extension.scope;
+    const hasValidScope =
+      (scope.type === "department" &&
+        Number.isInteger(scope.departmentId) &&
+        Boolean(scope.departmentName.trim())) ||
+      (scope.type === "team" &&
+        Number.isInteger(scope.teamId) &&
+        Boolean(scope.teamName.trim())) ||
+      (scope.type === "people" &&
+        scope.employeeIds.length > 0 &&
+        scope.employeeIds.every(Number.isInteger));
+    if (!hasValidScope) {
+      throw new Error("Each extension requires a valid team, department, or people selection.");
+    }
+  }
+}
+
 function validateCycleStagesConfig(config: CycleStagesConfig): void {
   const ranges = [
     [
@@ -452,6 +483,11 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
       "Employee performance must start after the employee goal lock date.",
     );
   }
+  validateGoalExtensions(
+    config.goals.extensions ?? [],
+    config.goals.employee.endDate,
+    config.performance.employeeStart.date,
+  );
 }
 
 export async function deleteReviewCycle(cycleId: string): Promise<void> {

@@ -5,13 +5,20 @@ import {
 } from '../auth.mjs'
 import {
   approvePersonGoals,
+  cascadeGoalToEmployees,
+  copyPreviousCycleGoals,
   getPersonGoals,
   importGoalsBundle,
   listCycleGoalSubmissions,
   savePersonGoalsDraft,
   sendBackPersonGoals,
+  submitPersonGoalRating,
   submitPersonGoals,
 } from './store.mjs'
+import {
+  assertGoalAccess,
+  listVisibleGoalSubjectIds,
+} from './policy.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -35,7 +42,13 @@ export function registerGoalRoutes(app) {
     '/api/platform/goal-cycles/:cycleId',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
-      const submissions = await listCycleGoalSubmissions(req.params.cycleId)
+      const subjectEmployeeIds = await listVisibleGoalSubjectIds(
+        req.platformUser,
+      )
+      const submissions = await listCycleGoalSubmissions(
+        req.params.cycleId,
+        subjectEmployeeIds,
+      )
       res.json({ cycleId: req.params.cycleId, submissions })
     }),
   )
@@ -45,6 +58,11 @@ export function registerGoalRoutes(app) {
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
       const employeeId = parseEmployeeId(req.params.employeeId)
+      await assertGoalAccess(req.platformUser, {
+        action: 'read',
+        cycleId: req.params.cycleId,
+        subjectEmployeeId: employeeId,
+      })
       const submission = await getPersonGoals(req.params.cycleId, employeeId)
       res.json({ submission })
     }),
@@ -56,6 +74,11 @@ export function registerGoalRoutes(app) {
     asyncHandler(async (req, res) => {
       try {
         const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'edit',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
         const submission = await savePersonGoalsDraft(
           req.params.cycleId,
           employeeId,
@@ -76,16 +99,85 @@ export function registerGoalRoutes(app) {
     asyncHandler(async (req, res) => {
       try {
         const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'submit',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
         const submission = await submitPersonGoals(
           req.params.cycleId,
           employeeId,
           req.platformUser,
           {
-            late: Boolean(req.body?.late),
+            goals: Array.isArray(req.body?.goals)
+              ? req.body.goals
+              : undefined,
             expectedVersion: req.body?.expectedVersion,
           },
         )
         res.json({ submission })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/goal-cycles/:cycleId/people/:employeeId/copy-previous',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'edit',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
+        const submission = await copyPreviousCycleGoals(
+          req.params.cycleId,
+          employeeId,
+          req.platformUser,
+          req.body?.expectedVersion,
+        )
+        res.json({ submission })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/goal-cycles/:cycleId/people/:employeeId/goals/:goalId/cascade',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const sourceEmployeeId = parseEmployeeId(req.params.employeeId)
+        const recipientEmployeeIds = Array.isArray(
+          req.body?.recipientEmployeeIds,
+        )
+          ? req.body.recipientEmployeeIds.map(parseEmployeeId)
+          : []
+        await assertGoalAccess(req.platformUser, {
+          action: 'edit',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: sourceEmployeeId,
+        })
+        for (const recipientEmployeeId of recipientEmployeeIds) {
+          await assertGoalAccess(req.platformUser, {
+            action: 'edit',
+            cycleId: req.params.cycleId,
+            subjectEmployeeId: recipientEmployeeId,
+          })
+        }
+        const submissions = await cascadeGoalToEmployees(
+          req.params.cycleId,
+          sourceEmployeeId,
+          String(req.params.goalId),
+          recipientEmployeeIds,
+          req.body?.expectedVersions ?? {},
+          req.platformUser,
+        )
+        res.json({ submissions })
       } catch (err) {
         throw toHttp(err)
       }
@@ -98,11 +190,21 @@ export function registerGoalRoutes(app) {
     asyncHandler(async (req, res) => {
       try {
         const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'approve',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
         const submission = await approvePersonGoals(
           req.params.cycleId,
           employeeId,
           req.platformUser,
-          req.body?.expectedVersion,
+          {
+            goals: Array.isArray(req.body?.goals)
+              ? req.body.goals
+              : undefined,
+            expectedVersion: req.body?.expectedVersion,
+          },
         )
         res.json({ submission })
       } catch (err) {
@@ -117,10 +219,40 @@ export function registerGoalRoutes(app) {
     asyncHandler(async (req, res) => {
       try {
         const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'send_back',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
         const submission = await sendBackPersonGoals(
           req.params.cycleId,
           employeeId,
           String(req.body?.reason ?? ''),
+          req.platformUser,
+          req.body?.expectedVersion,
+        )
+        res.json({ submission })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/goal-cycles/:cycleId/people/:employeeId/rating',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const employeeId = parseEmployeeId(req.params.employeeId)
+        await assertGoalAccess(req.platformUser, {
+          action: 'rate',
+          cycleId: req.params.cycleId,
+          subjectEmployeeId: employeeId,
+        })
+        const submission = await submitPersonGoalRating(
+          req.params.cycleId,
+          employeeId,
+          req.body?.rating ?? {},
           req.platformUser,
           req.body?.expectedVersion,
         )

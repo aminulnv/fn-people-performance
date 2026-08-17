@@ -1,6 +1,18 @@
 import { Suspense, lazy } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useParams,
+} from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
+import { isCycleSection } from '@/lib/reviews/cycleSections'
+import { cycleDetailPath } from '@/lib/reviews/paths'
+import {
+  GlobalRouteProgressComplete,
+  NavigationProgressProvider,
+} from '@/components/ui/NavigationProgress'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
@@ -10,6 +22,7 @@ const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 /** Unified view/edit redesign — lives beside `goals` until one direction wins. */
 const GoalsV2Page = lazy(() => import('@/pages/GoalsV2Page'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
+const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
 const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
 /** Canonical People directory — same pill controls as Organisation. */
@@ -37,19 +50,28 @@ const CreateDepartmentPage = lazy(
 const TeamDetailPage = lazy(() => import('@/pages/TeamDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 
-function RouteFallback() {
-  return <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
-}
-
 function CatchAllRedirect() {
   const { status } = useAuth()
   if (status === 'loading') {
-    return (
-      <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
-    )
+    return null
   }
   return (
     <Navigate to={status === 'authenticated' ? '/' : '/login'} replace />
+  )
+}
+
+/** Legacy `/reviews/cycles/...` URLs → standalone `/cycles/...`. */
+function LegacyCycleRedirect() {
+  const { cycleId = '', section } = useParams()
+  if (!cycleId) return <Navigate to="/cycles" replace />
+  return (
+    <Navigate
+      to={cycleDetailPath(
+        cycleId,
+        isCycleSection(section) ? section : 'settings',
+      )}
+      replace
+    />
   )
 }
 
@@ -59,8 +81,9 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
 function App() {
   return (
     <BrowserRouter basename={routerBasename}>
-      <Suspense fallback={<RouteFallback />}>
-        <Routes>
+      <NavigationProgressProvider>
+        <Suspense fallback={null}>
+          <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/" element={<AuthenticatedLayout />}>
             <Route index element={<ComingSoonPage page="home" />} />
@@ -107,15 +130,32 @@ function App() {
               path="reviews/scorecards/:cycleKey/:employeeId"
               element={<ScorecardDetailPage />}
             />
+            <Route path="reviews/scorecards" element={<ReviewsPage />} />
             <Route
               path="reviews/cycles/:cycleId/:section"
-              element={<CycleDetailPage />}
+              element={<LegacyCycleRedirect />}
             />
             <Route
               path="reviews/cycles/:cycleId"
+              element={<LegacyCycleRedirect />}
+            />
+            <Route
+              path="reviews/cycles"
+              element={<Navigate to="/cycles" replace />}
+            />
+            <Route
+              path="reviews/:tab"
+              element={<Navigate to="/reviews/scorecards" replace />}
+            />
+            <Route path="cycles" element={<CyclesPage />} />
+            <Route
+              path="cycles/:cycleId/:section"
+              element={<CycleDetailPage />}
+            />
+            <Route
+              path="cycles/:cycleId"
               element={<Navigate to="settings" replace />}
             />
-            <Route path="reviews/:tab" element={<ReviewsPage />} />
             <Route
               path="analytics"
               element={<ComingSoonPage page="analytics" />}
@@ -124,8 +164,10 @@ function App() {
             <Route path="settings" element={<SettingsPage />} />
           </Route>
           <Route path="*" element={<CatchAllRedirect />} />
-        </Routes>
-      </Suspense>
+          </Routes>
+          <GlobalRouteProgressComplete />
+        </Suspense>
+      </NavigationProgressProvider>
     </BrowserRouter>
   )
 }

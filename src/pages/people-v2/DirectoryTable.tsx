@@ -49,7 +49,24 @@ function renderCell(person: DirectoryPerson, id: ColumnId): ReactNode {
     case 'division':
       return person.division || '—'
     case 'manager':
-      return person.managerName || <span className="pd-pv2-gap">Not set</span>
+      return person.managerName ? (
+        <span className="pd-pv2-manager">
+          <Avatar
+            name={person.managerName}
+            src={person.managerAvatarUrl || undefined}
+            size="sm"
+            className="pd-pv2-avatar"
+            style={avatarStyle(
+              person.managerId != null
+                ? String(person.managerId)
+                : person.managerName,
+            )}
+          />
+          <span>{person.managerName}</span>
+        </span>
+      ) : (
+        <span className="pd-pv2-gap">Not set</span>
+      )
     case 'reports':
       return person.directReportCount > 0 ? (
         <span className="pd-pv2-num">{person.directReportCount}</span>

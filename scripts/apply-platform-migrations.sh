@@ -82,20 +82,31 @@ psql_base=(psql -h "$DB_HOST" -p "${DB_PORT:-5432}" -U "$DB_USERNAME" -d "$DB_NA
 
 # Ensure schema + migrations ledger exist before per-file tracking.
 "${psql_base[@]}" -f "$MIG_DIR/00001_platform_schema.sql"
-"${psql_base[@]}" -c "INSERT INTO platform.schema_migrations (id) VALUES ('00001_platform_schema.sql') ON CONFLICT DO NOTHING;"
+"${psql_base[@]}" -c "ALTER TABLE platform.schema_migrations ADD COLUMN IF NOT EXISTS checksum TEXT;"
 
 shopt -s nullglob
 for file in "$MIG_DIR"/*.sql; do
   base="$(basename "$file")"
-  [[ "$base" == "00001_platform_schema.sql" ]] && continue
-  already="$("${psql_base[@]}" -Atc "SELECT 1 FROM platform.schema_migrations WHERE id = '$base' LIMIT 1;")"
-  if [[ "$already" == "1" ]]; then
+  checksum="$(sha256sum "$file" | awk '{print $1}')"
+  recorded_checksum="$("${psql_base[@]}" -Atc "SELECT COALESCE(checksum, '') FROM platform.schema_migrations WHERE id = '$base' LIMIT 1;")"
+  if [[ -n "$recorded_checksum" ]]; then
+    if [[ "$recorded_checksum" != "$checksum" ]]; then
+      echo "Migration checksum mismatch for $base" >&2
+      exit 1
+    fi
     echo "  skip $base (already applied)"
     continue
   fi
+  already="$("${psql_base[@]}" -Atc "SELECT 1 FROM platform.schema_migrations WHERE id = '$base' LIMIT 1;")"
+  if [[ "$already" == "1" ]]; then
+    "${psql_base[@]}" -c "UPDATE platform.schema_migrations SET checksum = '$checksum' WHERE id = '$base' AND checksum IS NULL;"
+    echo "  baseline $base checksum"
+    continue
+  fi
   echo "  apply $base"
-  "${psql_base[@]}" -f "$file"
-  "${psql_base[@]}" -c "INSERT INTO platform.schema_migrations (id) VALUES ('$base');"
+  "${psql_base[@]}" -1 \
+    -f "$file" \
+    -c "INSERT INTO platform.schema_migrations (id, checksum) VALUES ('$base', '$checksum');"
 done
 
 echo "[platform-db] Current platform tables:"

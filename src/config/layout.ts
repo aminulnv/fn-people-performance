@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  CalendarRange,
   Component,
   Home,
   IdCard,
@@ -33,8 +34,9 @@ export const layoutConfig: AppLayoutConfig = {
   navItems: [
     { path: '/', label: 'Home', icon: Home, end: true, comingSoon: true },
     profileNavItem,
-    { path: '/people', label: 'People', icon: Users },
     { path: '/organisation', label: 'Organisation', icon: Landmark },
+    { path: '/people', label: 'People', icon: Users },
+    { path: '/cycles', label: 'Performance Cycles', icon: CalendarRange },
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, comingSoon: true },

@@ -1,5 +1,5 @@
 /**
- * Authoritative Review Cycle persistence with transactional Activity writes.
+ * Authoritative Performance Cycle persistence with transactional Activity writes.
  */
 
 import crypto from 'node:crypto'
@@ -201,7 +201,7 @@ export async function createReviewCycle(input, platformUser) {
       ...actor,
       summary: input.isTest
         ? `Created test cycle ${cycle.name}`
-        : `Created review cycle ${cycle.name}`,
+        : `Created performance cycle ${cycle.name}`,
       metadata: {
         type: cycle.type,
         periodKey: cycle.periodKey,
@@ -459,7 +459,7 @@ export async function deleteReviewCycle(cycleId, platformUser, expectedVersion) 
       entityType: 'review_cycle',
       entityId: cycleId,
       ...actor,
-      summary: `Deleted review cycle ${before.name}`,
+      summary: `Deleted performance cycle ${before.name}`,
       metadata: {
         name: before.name,
         type: before.type,
@@ -533,7 +533,7 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
         entityId: mapped.id,
         ...actor,
         actorType: 'import',
-        summary: `Imported review cycle ${mapped.name}`,
+        summary: `Imported performance cycle ${mapped.name}`,
         metadata: {
           fingerprint,
           sourceCreatedAt: cycle.createdAt,

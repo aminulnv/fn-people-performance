@@ -27,6 +27,9 @@ export function employeeToDemoPerson(
     email: employee.email,
     title: employee.jobTitle,
     department: employee.department,
+    departmentId: employee.departmentId,
+    team: employee.team,
+    teamId: employee.teamId,
     joinDate: employee.startDate,
     managerId:
       employee.reportsToId != null ? String(employee.reportsToId) : undefined,
@@ -75,6 +78,7 @@ export function emptyPersonGoals(personId: string): PersonGoals {
     personId,
     status: 'draft',
     goals: [],
+    version: 0,
   }
 }
 
@@ -85,6 +89,8 @@ export function mergePeopleIntoGoalsState(input: {
   activePersonId: string
   /** Seeded in draft so goal setting stays demoable; others vary pending/approved. */
   signedInPersonId?: string
+  /** Local demos may seed missing rows; API-backed cycles must never invent data. */
+  seedMissingPeople?: boolean
 }): {
   people: DemoPerson[]
   byPerson: Record<string, PersonGoals>
@@ -93,6 +99,7 @@ export function mergePeopleIntoGoalsState(input: {
   const people = peopleFromEmployees()
   const peopleById = new Map(people.map((person) => [person.id, person]))
   const byPerson: Record<string, PersonGoals> = {}
+  const seedMissingPeople = input.seedMissingPeople ?? true
 
   for (const person of people) {
     const status = demoSeedStatus(
@@ -105,18 +112,20 @@ export function mergePeopleIntoGoalsState(input: {
       : undefined
     byPerson[person.id] = normalizePersonGoals(
       input.byPerson[person.id] ??
-        buildDemoPersonGoals(
-          input.cycleId,
-          person.id,
-          status,
-          manager
-            ? {
-                id: manager.id,
-                name: manager.name,
-                avatarUrl: manager.avatarUrl,
-              }
-            : undefined,
-        ),
+        (seedMissingPeople
+          ? buildDemoPersonGoals(
+              input.cycleId,
+              person.id,
+              status,
+              manager
+                ? {
+                    id: manager.id,
+                    name: manager.name,
+                    avatarUrl: manager.avatarUrl,
+                  }
+                : undefined,
+            )
+          : emptyPersonGoals(person.id)),
     )
   }
 

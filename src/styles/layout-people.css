@@ -899,6 +899,124 @@
   font-weight: 500;
 }
 
+.pd-people__table:has(.pd-table-resize__handle) th {
+  position: relative;
+  padding-right: 1.1rem;
+}
+
+/* Only once widths are pinned by hand: fixed layout is what makes a dragged
+   column hold its size, and clipping is what lets it shrink past its content. */
+.pd-people__table.pd-table-resize--sized {
+  table-layout: fixed;
+}
+
+.pd-people__table.pd-table-resize--sized td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pd-table-resize__heading {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pd-table-resize__handle {
+  position: absolute;
+  top: 0;
+  right: -0.3rem;
+  z-index: 2;
+  width: 0.65rem;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+/* Barely there until the pointer reaches the header, so the grid reads as rows
+   of text rather than a ruled table. */
+.pd-table-resize__handle::after {
+  content: '';
+  position: absolute;
+  top: 30%;
+  bottom: 30%;
+  left: calc(50% - 0.5px);
+  width: 1px;
+  background: color-mix(in srgb, var(--color-text) 10%, transparent);
+  transition:
+    top 120ms ease,
+    bottom 120ms ease,
+    width 120ms ease,
+    background 120ms ease;
+}
+
+.pd-people__table thead tr:hover .pd-table-resize__handle::after {
+  background: color-mix(in srgb, var(--color-text) 22%, transparent);
+}
+
+.pd-table-resize__handle:hover::after,
+.pd-table-resize__handle:focus-visible::after {
+  top: 12%;
+  bottom: 12%;
+  width: 2px;
+  background: var(--color-theme);
+}
+
+.pd-table-resize__handle:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-theme));
+  outline-offset: -2px;
+}
+
+/*
+ * On `.pd-page--pane` pages the table owns the vertical scroll, which is what
+ * keeps the header row on screen while the rows move under it. Separate borders
+ * let the sticky header carry its own divider — a collapsed border belongs to
+ * the table and stays behind. Phone widths keep document scrolling, where a
+ * viewport-height table would leave too little room for rows.
+ */
+@media (min-width: 700px) {
+  /*
+   * A column of sections where only the table panel grows. The pane class is
+   * repeated to outbid each page family's own `display: grid` — those live in
+   * per-page stylesheets whose load order varies by route.
+   */
+  .pd-page.pd-page--pane.pd-page--pane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Reviews wraps its sections one level deeper; pass the height through. */
+  .pd-page--pane .pd-reviews-scorecards,
+  .pd-page--pane .pd-reviews-cycles {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .pd-page--pane .pd-people__panel--table {
+    flex: 1;
+    min-height: 14rem;
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .pd-page--pane .pd-people__table-wrap {
+    overflow: auto;
+  }
+
+  .pd-page--pane .pd-people__table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  .pd-page--pane .pd-people__table thead th {
+    position: sticky;
+    top: 0;
+    /* Tables that also freeze a column raise this for their corner cell. */
+    z-index: var(--pd-table-head-z, 3);
+  }
+}
+
 .pd-people__th {
   display: inline-flex;
   align-items: center;
@@ -1002,6 +1120,12 @@
   .pd-people__bar-start>.pd-people__search {
     flex: 1 1 auto;
     max-width: none;
+  }
+
+  .pd-people__toolbar > .pd-people__search {
+    flex: 1 1 auto;
+    max-width: none !important;
+    min-width: 0;
   }
 
   .pd-people__bar-start>.pd-people__scope {

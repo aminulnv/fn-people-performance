@@ -22,10 +22,10 @@ export function goalCountWarning(
   policy: GoalCountPolicy,
 ): string | null {
   if (goalCount < policy.recommendedMinimum) {
-    return `You have ${goalCount} goals. This cycle recommends ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals for a balanced cycle.`
+    return `This goal set has ${goalCount} goals. This cycle recommends ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals for a balanced cycle.`
   }
   if (goalCount > policy.recommendedMaximum) {
-    return `You have ${goalCount} goals. This cycle recommends keeping the focus on ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals.`
+    return `This goal set has ${goalCount} goals. This cycle recommends keeping the focus on ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals.`
   }
   return null
 }

@@ -18,7 +18,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import { EmptyState } from '@/components/ui'
+import { Avatar, EmptyState } from '@/components/ui'
 import {
   findEmployeeByEmail,
   getEmployee,
@@ -26,7 +26,6 @@ import {
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { nameInitials } from '@/layout/utils'
 import { profileTabComingSoon } from '@/pages/ComingSoonPage'
 import '@/styles/layout-people.css'
 import '@/styles/layout-profile-v2.css'
@@ -74,6 +73,17 @@ function displayValue(value: string | null | undefined): string {
   return value?.trim() || ''
 }
 
+function findEmployeeByName(name: string): PlatformEmployee | null {
+  const normalizedName = name.trim().toLocaleLowerCase()
+  if (!normalizedName) return null
+  return (
+    listEmployees().find(
+      (employee) =>
+        employee.fullName.trim().toLocaleLowerCase() === normalizedName,
+    ) ?? null
+  )
+}
+
 function Field({
   label,
   icon: Icon,
@@ -111,19 +121,25 @@ function resolveManager(
 ): PlatformEmployee | null {
   if (!employee) return null
   if (employee.reportsToId != null) {
-    return getEmployee(employee.reportsToId)
+    const match = getEmployee(employee.reportsToId)
+    if (match) return match
   }
   if (employee.managerEmail) {
-    return findEmployeeByEmail(employee.managerEmail)
+    const match = findEmployeeByEmail(employee.managerEmail)
+    if (match) return match
   }
-  return null
+  return findEmployeeByName(employee.reportsToName)
 }
 
 function resolveDepartmentHead(
   employee: PlatformEmployee | null,
 ): PlatformEmployee | null {
-  if (!employee?.departmentHeadId) return null
-  return getEmployee(employee.departmentHeadId)
+  if (!employee) return null
+  if (employee.departmentHeadId) {
+    const match = getEmployee(employee.departmentHeadId)
+    if (match) return match
+  }
+  return findEmployeeByName(employee.departmentHeadName)
 }
 
 function EmployeeProfileV2View({
@@ -141,7 +157,6 @@ function EmployeeProfileV2View({
   const departmentHeadName =
     departmentHead?.fullName || employee.departmentHeadName
   const directoryCount = listEmployees().length
-  const initials = nameInitials(employee.fullName)
   const startDate = formatStartDate(employee.startDate)
   const tenure = formatTenure(employee.startDate)
 
@@ -182,17 +197,12 @@ function EmployeeProfileV2View({
 
           <div className="pd-profile-v2__hero">
             <div className="pd-profile-v2__av-wrap">
-              <div className="pd-profile-v2__av" aria-hidden>
-                {employee.avatarUrl ? (
-                  <img
-                    className="pd-profile-v2__av-image"
-                    src={employee.avatarUrl}
-                    alt=""
-                  />
-                ) : (
-                  initials
-                )}
-              </div>
+              <Avatar
+                name={employee.fullName}
+                src={employee.avatarUrl}
+                size="lg"
+                className="pd-profile-v2__av"
+              />
               <div
                 className={[
                   'pd-profile-v2__av-dot',
@@ -301,9 +311,12 @@ function EmployeeProfileV2View({
               <h2 className="pd-profile-v2__rail-heading">Manager</h2>
               {managerName ? (
                 <div className="pd-profile-v2__person-card">
-                  <div className="pd-profile-v2__person-av">
-                    {nameInitials(managerName)}
-                  </div>
+                  <Avatar
+                    name={managerName}
+                    src={manager?.avatarUrl}
+                    size="md"
+                    className="pd-profile-v2__person-av"
+                  />
                   <div className="pd-profile-v2__person-text">
                     <div className="pd-profile-v2__person-name">{managerName}</div>
                     <div className="pd-profile-v2__person-role">
@@ -395,9 +408,12 @@ function EmployeeProfileV2View({
                 {managerName ? (
                   <>
                     <div className="pd-profile-v2__org-node">
-                      <div className="pd-profile-v2__org-av pd-profile-v2__org-av--mgr">
-                        {nameInitials(managerName)}
-                      </div>
+                      <Avatar
+                        name={managerName}
+                        src={manager?.avatarUrl}
+                        size="md"
+                        className="pd-profile-v2__org-av pd-profile-v2__org-av--mgr"
+                      />
                       <div className="pd-profile-v2__org-text">
                         <div className="pd-profile-v2__org-name">{managerName}</div>
                         <div className="pd-profile-v2__org-role">
@@ -413,17 +429,12 @@ function EmployeeProfileV2View({
                 ) : null}
 
                 <div className="pd-profile-v2__org-node is-you">
-                  <div className="pd-profile-v2__org-av pd-profile-v2__org-av--you">
-                    {employee.avatarUrl ? (
-                      <img
-                        className="pd-profile-v2__av-image"
-                        src={employee.avatarUrl}
-                        alt=""
-                      />
-                    ) : (
-                      initials
-                    )}
-                  </div>
+                  <Avatar
+                    name={employee.fullName}
+                    src={employee.avatarUrl}
+                    size="md"
+                    className="pd-profile-v2__org-av pd-profile-v2__org-av--you"
+                  />
                   <div className="pd-profile-v2__org-text">
                     <div className="pd-profile-v2__org-name">
                       {employee.fullName}
@@ -441,9 +452,12 @@ function EmployeeProfileV2View({
                   <>
                     <div className="pd-profile-v2__connector" aria-hidden />
                     <div className="pd-profile-v2__org-node">
-                      <div className="pd-profile-v2__org-av pd-profile-v2__org-av--head">
-                        {nameInitials(departmentHeadName)}
-                      </div>
+                      <Avatar
+                        name={departmentHeadName}
+                        src={departmentHead?.avatarUrl}
+                        size="md"
+                        className="pd-profile-v2__org-av pd-profile-v2__org-av--head"
+                      />
                       <div className="pd-profile-v2__org-text">
                         <div className="pd-profile-v2__org-name">
                           {departmentHeadName}

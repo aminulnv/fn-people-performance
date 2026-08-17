@@ -1,16 +1,26 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Award,
-  ChevronDown,
+  CircleCheck,
+  CircleDashed,
+  Clock3,
   Columns3,
   Eye,
   EyeOff,
   MoreHorizontal,
+  Scale,
   Search,
   Settings2,
 } from 'lucide-react'
-import { Avatar, EmptyState } from '@/components/ui'
+import {
+  Avatar,
+  CycleSelect,
+  EmptyState,
+  ResizableTable,
+  type CycleSelectOption,
+  type ResizableColumn,
+} from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -22,6 +32,7 @@ import {
   type ScorecardRow,
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
+import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 
 function PersonCell({
@@ -77,44 +88,30 @@ export function ScorecardsList() {
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
-  const [cycleMenuOpen, setCycleMenuOpen] = useState(false)
-  const cycleMenuRef = useRef<HTMLDivElement>(null)
 
-  const cycleOptions = useMemo(() => {
+  const cycleOptions = useMemo<CycleSelectOption[]>(() => {
     const fromStore = cycles
       .filter((cycle) => cycle.type === 'regular')
-      .map((cycle) => ({
-        key: cycle.periodKey ?? cycle.id,
-        label: cycle.name,
-      }))
+      .map((cycle) => {
+        const status = resolveCycleStatus(cycle)
+        return {
+          id: cycle.periodKey ?? cycle.id,
+          label: cycle.name,
+          status,
+          statusLabel: cycleStatusLabel(status),
+        }
+      })
     return fromStore.length > 0
       ? fromStore
-      : [{ key: 'q3-2026', label: 'Q3 2026' }]
+      : [{ id: 'q3-2026', label: 'Q3 2026' }]
   }, [cycles])
 
   const [cycleKey, setCycleKey] = useState('q3-2026')
 
   useEffect(() => {
-    if (cycleOptions.some((option) => option.key === cycleKey)) return
-    setCycleKey(cycleOptions[0]?.key ?? 'q3-2026')
+    if (cycleOptions.some((option) => option.id === cycleKey)) return
+    setCycleKey(cycleOptions[0]?.id ?? 'q3-2026')
   }, [cycleKey, cycleOptions])
-
-  useEffect(() => {
-    if (!cycleMenuOpen) return
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        cycleMenuRef.current &&
-        !cycleMenuRef.current.contains(event.target as Node)
-      ) {
-        setCycleMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    return () => document.removeEventListener('mousedown', onPointerDown)
-  }, [cycleMenuOpen])
-
-  const activeCycleLabel =
-    cycleOptions.find((c) => c.key === cycleKey)?.label ?? cycleKey
 
   const rows = useMemo(
     () => buildScorecardsForCycle(cycleKey, employees, user?.email),
@@ -197,83 +194,109 @@ export function ScorecardsList() {
     }))
   }
 
+  function toggleStatusFilter(next: StatusFilter) {
+    setStatusFilter((current) => (current === next ? 'all' : next))
+  }
+
+  const scorecardColumns: ResizableColumn[] = [
+    { id: 'employee', label: 'Employee', minWidth: 150 },
+    { id: 'type', label: 'Type' },
+    { id: 'role', label: 'Role' },
+    { id: 'seniority', label: 'Seniority' },
+    { id: 'team', label: 'Team' },
+    { id: 'department', label: 'Department' },
+    { id: 'reviewer', label: 'Reviewer' },
+    {
+      id: 'grade',
+      label: (
+        <span className="pd-people__th pd-reviews-scorecards__grade-th">
+          Grade
+          <button
+            type="button"
+            className="pd-reviews-scorecards__grade-toggle"
+            aria-label={
+              allGradesVisible ? 'Hide all grades' : 'Show all grades'
+            }
+            title={allGradesVisible ? 'Hide all grades' : 'Show all grades'}
+            aria-pressed={allGradesVisible}
+            onClick={toggleAllGrades}
+          >
+            {allGradesVisible ? (
+              <Eye size={14} strokeWidth={1.75} aria-hidden />
+            ) : (
+              <EyeOff size={14} strokeWidth={1.75} aria-hidden />
+            )}
+          </button>
+        </span>
+      ),
+      name: 'Grade',
+    },
+    { id: 'status', label: 'Status' },
+  ]
+
+  const summaryItems: {
+    id: StatusFilter
+    label: string
+    value: number
+    icon: typeof Award
+  }[] = [
+    { id: 'all', label: 'Scorecards', value: stats.total, icon: Award },
+    {
+      id: 'completed',
+      label: 'Completed',
+      value: stats.completed,
+      icon: CircleCheck,
+    },
+    {
+      id: 'in_progress',
+      label: 'In Progress',
+      value: stats.inProgress,
+      icon: Clock3,
+    },
+    {
+      id: 'not_started',
+      label: 'Not Started',
+      value: stats.notStarted,
+      icon: CircleDashed,
+    },
+    {
+      id: 'calibrating',
+      label: 'Calibrating',
+      value: stats.calibrating,
+      icon: Scale,
+    },
+  ]
+
   return (
     <div className="pd-reviews-scorecards">
       <div
-        className="pd-people__summary"
+        className="pd-people__summary pd-people__summary--stretch"
         role="group"
         aria-label="Scorecard totals"
       >
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            statusFilter === 'all' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={statusFilter === 'all'}
-          onClick={() => setStatusFilter('all')}
-        >
-          <span className="pd-people__summary-value">{stats.total}</span>
-          <span className="pd-people__summary-label">Scorecards</span>
-        </button>
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            statusFilter === 'completed' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={statusFilter === 'completed'}
-          onClick={() => setStatusFilter('completed')}
-        >
-          <span className="pd-people__summary-value">{stats.completed}</span>
-          <span className="pd-people__summary-label">Completed</span>
-        </button>
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            statusFilter === 'in_progress' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={statusFilter === 'in_progress'}
-          onClick={() => setStatusFilter('in_progress')}
-        >
-          <span className="pd-people__summary-value">{stats.inProgress}</span>
-          <span className="pd-people__summary-label">In Progress</span>
-        </button>
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            statusFilter === 'not_started' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={statusFilter === 'not_started'}
-          onClick={() => setStatusFilter('not_started')}
-        >
-          <span className="pd-people__summary-value">{stats.notStarted}</span>
-          <span className="pd-people__summary-label">Not Started</span>
-        </button>
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            statusFilter === 'calibrating' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={statusFilter === 'calibrating'}
-          onClick={() => setStatusFilter('calibrating')}
-        >
-          <span className="pd-people__summary-value">{stats.calibrating}</span>
-          <span className="pd-people__summary-label">Calibrating</span>
-        </button>
+        {summaryItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={[
+                'pd-people__summary-btn',
+                statusFilter === item.id ? 'is-active' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              aria-pressed={statusFilter === item.id}
+              onClick={() => toggleStatusFilter(item.id)}
+            >
+              <span className="pd-people__summary-label">
+                <Icon size={14} strokeWidth={1.75} aria-hidden />
+                {item.label}
+              </span>
+              <span className="pd-people__summary-value">{item.value}</span>
+            </button>
+          )
+        })}
       </div>
 
       <div className="pd-people__header pd-people__header--bar">
@@ -290,46 +313,12 @@ export function ScorecardsList() {
             />
           </label>
 
-          <div className="pd-reviews-scorecards__cycle" ref={cycleMenuRef}>
-            <button
-              type="button"
-              className="pd-reviews-scorecards__cycle-btn"
-              aria-haspopup="listbox"
-              aria-expanded={cycleMenuOpen}
-              onClick={() => setCycleMenuOpen((open) => !open)}
-            >
-              <span>{activeCycleLabel}</span>
-              <ChevronDown size={14} strokeWidth={2.25} aria-hidden />
-            </button>
-            {cycleMenuOpen ? (
-              <div
-                className="pd-reviews-scorecards__cycle-menu"
-                role="listbox"
-                aria-label="Scorecard cycle"
-              >
-                {cycleOptions.map((option) => (
-                  <button
-                    key={option.key}
-                    type="button"
-                    role="option"
-                    aria-selected={option.key === cycleKey}
-                    className={[
-                      'pd-reviews-scorecards__cycle-option',
-                      option.key === cycleKey ? 'is-active' : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => {
-                      setCycleKey(option.key)
-                      setCycleMenuOpen(false)
-                    }}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <CycleSelect
+            label="Scorecard cycle"
+            options={cycleOptions}
+            value={cycleKey}
+            onChange={setCycleKey}
+          />
 
           <button
             type="button"
@@ -403,42 +392,11 @@ export function ScorecardsList() {
           </div>
         ) : (
           <div className="pd-people__table-wrap">
-            <table className="pd-people__table pd-reviews-scorecards__table">
-              <thead>
-                <tr>
-                  <th>Employee</th>
-                  <th>Type</th>
-                  <th>Role</th>
-                  <th>Seniority</th>
-                  <th>Team</th>
-                  <th>Department</th>
-                  <th>Reviewer</th>
-                  <th>
-                    <span className="pd-people__th pd-reviews-scorecards__grade-th">
-                      Grade
-                      <button
-                        type="button"
-                        className="pd-reviews-scorecards__grade-toggle"
-                        aria-label={
-                          allGradesVisible ? 'Hide all grades' : 'Show all grades'
-                        }
-                        title={
-                          allGradesVisible ? 'Hide all grades' : 'Show all grades'
-                        }
-                        aria-pressed={allGradesVisible}
-                        onClick={toggleAllGrades}
-                      >
-                        {allGradesVisible ? (
-                          <Eye size={14} strokeWidth={1.75} aria-hidden />
-                        ) : (
-                          <EyeOff size={14} strokeWidth={1.75} aria-hidden />
-                        )}
-                      </button>
-                    </span>
-                  </th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+            <ResizableTable
+              className="pd-people__table pd-reviews-scorecards__table"
+              storageKey="reviews-scorecards-column-widths"
+              columns={scorecardColumns}
+            >
               <tbody>
                 {filtered.map((row) => (
                   <ScorecardTableRow
@@ -451,7 +409,7 @@ export function ScorecardsList() {
                   />
                 ))}
               </tbody>
-            </table>
+            </ResizableTable>
           </div>
         )}
       </section>

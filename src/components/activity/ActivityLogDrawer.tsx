@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { History, X } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { fetchActivity } from '@/lib/activity/api'
 import type { ActivityListFilters } from '@/lib/activity/types'
-import { queryKeys } from '@/lib/queryClient'
 import { ActivityLog } from './ActivityLog'
+import { useActivityFeed } from './useActivityFeed'
 
 function ActivityLogDrawerPanel({
   onClose,
@@ -15,15 +13,19 @@ function ActivityLogDrawerPanel({
 }: {
   onClose: () => void
   title: string
-  description: string
+  description?: string
   filters: ActivityListFilters
 }) {
   const panelRef = useRef<HTMLElement>(null)
   const queryFilters = useMemo(() => ({ ...filters, limit: 50 }), [filters])
-  const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.activity(queryFilters),
-    queryFn: () => fetchActivity(queryFilters),
-  })
+  const {
+    events,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useActivityFeed(queryFilters)
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -62,7 +64,7 @@ function ActivityLogDrawerPanel({
               Activity log
             </p>
             <h2>{title}</h2>
-            <p>{description}</p>
+            {description ? <p>{description}</p> : null}
           </div>
           <button
             type="button"
@@ -79,7 +81,19 @@ function ActivityLogDrawerPanel({
             <p className="pd-activity-log__empty">Could not load activity.</p>
           ) : null}
           {!isLoading && !error ? (
-            <ActivityLog events={data?.items ?? []} />
+            <>
+              <ActivityLog events={events} />
+              {hasNextPage ? (
+                <button
+                  type="button"
+                  className="pd-activity-link"
+                  disabled={isFetchingNextPage}
+                  onClick={() => void fetchNextPage()}
+                >
+                  {isFetchingNextPage ? 'Loading…' : 'Load older activity'}
+                </button>
+              ) : null}
+            </>
           ) : null}
         </div>
       </aside>
@@ -92,7 +106,7 @@ export function ActivityLogDrawer({
   open,
   onClose,
   title = 'Activity',
-  description = 'A quiet record of changes for tracing when needed.',
+  description,
   filters,
 }: {
   open: boolean

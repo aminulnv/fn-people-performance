@@ -21,3 +21,163 @@
   width: 2.125rem;
   height: 2.125rem;
 }
+
+/* On-page cycle picker — shared by Goals and Reviews toolbars */
+.pd-cycle-select {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.pd-cycle-select__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 100%;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.85rem 0.35rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface-raised, var(--color-surface));
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.pd-cycle-select__trigger:hover {
+  border-color: color-mix(in srgb, var(--color-text) 22%, var(--color-divider));
+  background: var(--color-neutral-hover, var(--color-muted-bg));
+}
+
+.pd-cycle-select__trigger:focus-visible {
+  outline: 2px solid var(--color-focus-ring, var(--color-theme));
+  outline-offset: 2px;
+}
+
+.pd-cycle-select__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-cycle-select__badge {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+
+.pd-cycle-select__badge--current {
+  color: var(--color-status-completed, #16a34a);
+}
+
+.pd-cycle-select__badge--previous,
+.pd-cycle-select__badge--future,
+.pd-cycle-select__badge--manual {
+  color: var(--color-text-secondary);
+}
+
+.pd-cycle-select__chevron {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  transition: transform 0.15s ease;
+}
+
+.pd-cycle-select__chevron.is-open {
+  transform: rotate(180deg);
+}
+
+.pd-cycle-select__panel {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  width: min(18.5rem, 85vw);
+  max-height: min(20rem, 60vh);
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--shadow-dropdown, 0 12px 28px rgb(0 0 0 / 0.18));
+  overflow: hidden;
+}
+
+.pd-cycle-select__search {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--color-divider);
+  color: var(--color-text-secondary);
+}
+
+.pd-cycle-select__search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.pd-cycle-select__search input::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.pd-cycle-select__list {
+  overflow: auto;
+  padding: 0.35rem;
+}
+
+.pd-cycle-select__empty {
+  margin: 0;
+  padding: 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.pd-cycle-select__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 0.65rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-cycle-select__option:hover,
+.pd-cycle-select__option.is-active {
+  background: var(--color-neutral-hover, var(--color-muted-bg));
+}
+
+.pd-cycle-select__option-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-cycle-select__option-label {
+  font-weight: 600;
+}
+
+.pd-cycle-select__option .pd-cycle-select__badge {
+  font-size: 0.6875rem;
+  font-weight: 500;
+}

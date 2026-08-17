@@ -1,4 +1,5 @@
 import { isEligibleForCycle } from "./demoData";
+import { isGoalWindowOpenForPerson } from "./goalExtensions";
 import { hasSystemPermission } from "@/lib/accessControl/types";
 import type {
   DemoPerson,
@@ -72,7 +73,10 @@ export function deriveGoalCapabilities(
   const eligible = isEligibleForCycle(subject, cycle);
   const mutable = canMutateGoalStatus(row.status);
   const currentCycle = cycleStatus === "current" || cycleStatus === "manual";
-  const windowOpen = cycle.phase === "window_open";
+  const windowOpen =
+    cycle.phase === "window_open" ||
+    (cycle.phase === "hard_lock" &&
+      isGoalWindowOpenForPerson(cycle, subject));
   const postWindowInputOpen =
     cycle.phase === "hard_lock" &&
     cycle.postWindowGoalPolicy === "two_tier_approval";

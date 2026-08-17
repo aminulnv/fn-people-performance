@@ -48,4 +48,18 @@ describe("resolveApprovalPerson", () => {
       avatarUrl: "skip.png",
     });
   });
+
+  it("shows the actual final approver instead of guessing from the org chart", () => {
+    expect(
+      resolveApprovalPerson({
+        status: "approved",
+        approvedBy: { name: "Final Approver", avatarUrl: "final.png" },
+        cascadeFrom,
+      }),
+    ).toEqual({
+      name: "Final Approver",
+      avatarUrl: "final.png",
+    });
+    expect(approvalCopy("approved").sub).toBe("Approval complete");
+  });
 });

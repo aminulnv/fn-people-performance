@@ -4,7 +4,7 @@ import { listGoalCycleOptions, pickDefaultCycleId } from "./cyclesFromReviews";
 
 /**
  * Fallback when Reviews has no cycles yet — Goals still needs a shape.
- * Prefer real review cycles via cyclesFromReviews.
+ * Prefer real performance cycles via cyclesFromReviews.
  */
 export const FALLBACK_CYCLE: GoalsCycle = {
   id: "q3-2026",
@@ -15,7 +15,7 @@ export const FALLBACK_CYCLE: GoalsCycle = {
   postWindowGoalPolicy: DEFAULT_CYCLE_SETTINGS.postWindowGoalPolicy,
 };
 
-/** @deprecated Use review cycles — kept for migration of old session data. */
+/** @deprecated Use performance cycles — kept for migration of old session data. */
 export const DEMO_CYCLES: GoalsCycle[] = [FALLBACK_CYCLE];
 
 export const DEMO_CYCLE: GoalsCycle = FALLBACK_CYCLE;

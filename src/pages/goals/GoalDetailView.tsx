@@ -85,6 +85,7 @@ type GoalDetailViewProps = {
   postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"];
   sendBackReason?: string;
   sendBackBy?: SendBackAuthor;
+  approvedBy?: SendBackAuthor;
   commentAuthorName: string;
   commentAuthorId?: string;
   commentAuthors?: CommentAuthor[];
@@ -147,6 +148,7 @@ export function GoalDetailView({
   postWindowApprovalStage,
   sendBackReason,
   sendBackBy,
+  approvedBy,
   commentAuthorName,
   commentAuthorId,
   commentAuthors = [],
@@ -189,6 +191,7 @@ export function GoalDetailView({
     status,
     postWindowApprovalStage,
     sendBackBy,
+    approvedBy,
     cascadeFrom,
   });
   const title = goalTitle(goal, index);

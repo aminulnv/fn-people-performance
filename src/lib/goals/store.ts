@@ -287,6 +287,7 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
     byPerson: bucket,
     activePersonId: state.activePersonId,
     signedInPersonId,
+    seedMissingPeople: useLocalGoalsPersistence(),
   });
   const isPastGoalWindow =
     cycle.postWindowGoalPolicy === "hard_stop" &&
@@ -569,6 +570,7 @@ export function savePersonGoals(
         managerNote: undefined,
         sendBackReason: undefined,
         sendBackBy: undefined,
+        approvedBy: undefined,
         rating: undefined,
       };
     }
@@ -586,6 +588,7 @@ export function savePersonGoals(
             : undefined,
         goals: clone(goals),
         managerNote: undefined,
+        approvedBy: undefined,
         rating: undefined,
       };
     }
@@ -665,6 +668,7 @@ export function copyPreviousCycleGoals(
     goals: copiedGoals,
     sendBackReason: undefined,
     sendBackBy: undefined,
+    approvedBy: undefined,
     managerNote: undefined,
     rating: undefined,
   }));
@@ -734,6 +738,7 @@ export function sendBackSubmission(
         ...(actor.avatarUrl ? { avatarUrl: actor.avatarUrl } : {}),
       },
       managerNote: undefined,
+      approvedBy: undefined,
       rating: undefined,
     };
   });
@@ -764,6 +769,7 @@ export function approveSubmission(
         goals: clone(goals ?? current.goals),
         sendBackReason: undefined,
         sendBackBy: undefined,
+        approvedBy: undefined,
         managerNote: "Direct manager approved · awaiting skip-level manager",
       };
     }
@@ -774,6 +780,11 @@ export function approveSubmission(
       goals: clone(goals ?? current.goals),
       sendBackReason: undefined,
       sendBackBy: undefined,
+      approvedBy: {
+        id: actor.id,
+        name: actor.name,
+        avatarUrl: actor.avatarUrl,
+      },
       managerNote: "Approved",
     };
   });

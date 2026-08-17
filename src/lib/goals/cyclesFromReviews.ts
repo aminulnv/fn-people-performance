@@ -33,7 +33,7 @@ export function resolveGoalPhase(
     : scheduledGoalPhase(cycle, today);
 }
 
-/** Map a review cycle into the Goals cycle shape (same identity). */
+/** Map a performance cycle into the Goals cycle shape (same identity). */
 export function reviewCycleToGoalsCycle(
   cycle: ReviewCycle,
   manualPhase: DemoPhase = "window_open",
@@ -48,6 +48,7 @@ export function reviewCycleToGoalsCycle(
     goalCountPolicy: settings.goalCountPolicy,
     postWindowGoalPolicy: settings.postWindowGoalPolicy,
     goalWindow: { ...cycle.stagesConfig.goals.employee },
+    goalExtensions: structuredClone(cycle.stagesConfig.goals.extensions ?? []),
   };
 }
 

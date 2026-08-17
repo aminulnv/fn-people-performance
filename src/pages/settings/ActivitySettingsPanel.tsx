@@ -1,21 +1,23 @@
 import { useMemo, useState } from 'react'
 import { History } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
 import { ActivityLog } from '@/components/activity/ActivityLog'
 import { ActivityLogFilters } from '@/components/activity/ActivityLogFilters'
-import { fetchActivity } from '@/lib/activity/api'
+import { useActivityFeed } from '@/components/activity/useActivityFeed'
 import type { ActivityListFilters } from '@/lib/activity/types'
-import { queryKeys } from '@/lib/queryClient'
 import '@/styles/layout-activity.css'
 
 /** Global Activity search for users with activity.read_all / platform.read_all. */
 export function ActivitySettingsPanel() {
   const [filters, setFilters] = useState<ActivityListFilters>({ limit: 50 })
   const queryFilters = useMemo(() => ({ ...filters, limit: 50 }), [filters])
-  const { data, isLoading, error } = useQuery({
-    queryKey: queryKeys.activity(queryFilters),
-    queryFn: () => fetchActivity(queryFilters),
-  })
+  const {
+    events,
+    isLoading,
+    error,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useActivityFeed(queryFilters)
 
   return (
     <section
@@ -47,7 +49,19 @@ export function ActivitySettingsPanel() {
           <p className="pd-activity-log__empty">Could not load activity.</p>
         ) : null}
         {!isLoading && !error ? (
-          <ActivityLog events={data?.items ?? []} />
+          <>
+            <ActivityLog events={events} />
+            {hasNextPage ? (
+              <button
+                type="button"
+                className="pd-activity-link"
+                disabled={isFetchingNextPage}
+                onClick={() => void fetchNextPage()}
+              >
+                {isFetchingNextPage ? 'Loading…' : 'Load older activity'}
+              </button>
+            ) : null}
+          </>
         ) : null}
       </div>
     </section>

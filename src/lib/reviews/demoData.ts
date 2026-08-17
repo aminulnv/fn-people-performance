@@ -78,6 +78,7 @@ export function buildDefaultStagesConfig(
         department: { startDate, endDate },
         team: { startDate, endDate },
         employee: { startDate, endDate },
+        extensions: [],
       },
       performance: {
         employeeStart: at(startDate),
@@ -123,6 +124,7 @@ export function buildDefaultStagesConfig(
         startDate: toIso(goalsStart),
         endDate: toIso(employeeGoalsEnd),
       },
+      extensions: [],
     },
     performance: {
       employeeStart: at(toIso(reviewStart)),

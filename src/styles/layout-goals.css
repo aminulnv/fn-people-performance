@@ -326,166 +326,6 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   gap: 0.5rem;
 }
 
-/* On-page cycle picker — select cycle before goals (shared with Reviews) */
-.pd-goals-cycle-select {
-  position: relative;
-  display: inline-flex;
-  max-width: 100%;
-}
-
-.pd-goals-cycle-select__trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  max-width: 100%;
-  min-height: 2.25rem;
-  padding: 0.35rem 0.85rem 0.35rem 1rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-divider);
-  background: var(--color-surface-raised, var(--color-surface));
-  color: var(--color-text);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.2;
-  cursor: pointer;
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease;
-}
-
-.pd-goals-cycle-select__trigger:hover {
-  border-color: color-mix(in srgb, var(--color-text) 22%, var(--color-divider));
-  background: var(--color-neutral-hover, var(--color-muted-bg));
-}
-
-.pd-goals-cycle-select__trigger:focus-visible {
-  outline: 2px solid var(--color-focus-ring, var(--color-theme));
-  outline-offset: 2px;
-}
-
-.pd-goals-cycle-select__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pd-goals-cycle-select__badge {
-  flex-shrink: 0;
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--color-text-secondary);
-}
-
-.pd-goals-cycle-select__badge--current {
-  color: var(--color-status-completed, #16a34a);
-}
-
-.pd-goals-cycle-select__badge--previous,
-.pd-goals-cycle-select__badge--future,
-.pd-goals-cycle-select__badge--manual {
-  color: var(--color-text-secondary);
-}
-
-.pd-goals-cycle-select__chevron {
-  flex-shrink: 0;
-  color: var(--color-text-secondary);
-  transition: transform 0.15s ease;
-}
-
-.pd-goals-cycle-select__chevron.is-open {
-  transform: rotate(180deg);
-}
-
-.pd-goals-cycle-select__panel {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  left: 0;
-  z-index: 40;
-  display: flex;
-  flex-direction: column;
-  width: min(18.5rem, 85vw);
-  max-height: min(20rem, 60vh);
-  border-radius: 0.75rem;
-  border: 1px solid var(--color-divider);
-  background: var(--color-surface-raised, var(--color-surface));
-  box-shadow: var(--shadow-dropdown, 0 12px 28px rgb(0 0 0 / 0.18));
-  overflow: hidden;
-}
-
-.pd-goals-cycle-select__search {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--color-divider);
-  color: var(--color-text-secondary);
-}
-
-.pd-goals-cycle-select__search input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  outline: none;
-}
-
-.pd-goals-cycle-select__search input::placeholder {
-  color: var(--color-text-secondary);
-}
-
-.pd-goals-cycle-select__list {
-  overflow: auto;
-  padding: 0.35rem;
-}
-
-.pd-goals-cycle-select__empty {
-  margin: 0;
-  padding: 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
-  text-align: center;
-}
-
-.pd-goals-cycle-select__option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.55rem 0.65rem;
-  border: none;
-  border-radius: 0.5rem;
-  background: transparent;
-  color: var(--color-text);
-  font-size: 0.8125rem;
-  text-align: left;
-  cursor: pointer;
-}
-
-.pd-goals-cycle-select__option:hover,
-.pd-goals-cycle-select__option.is-active {
-  background: var(--color-neutral-hover, var(--color-muted-bg));
-}
-
-.pd-goals-cycle-select__option-main {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-  min-width: 0;
-}
-
-.pd-goals-cycle-select__option-label {
-  font-weight: 600;
-}
-
-.pd-goals-cycle-select__option .pd-goals-cycle-select__badge {
-  font-size: 0.6875rem;
-  font-weight: 500;
-}
-
 /*
  * Nine columns of goal data outgrow the 80rem reading column used elsewhere, so
  * this page gets a wider rail. Cards, toolbar and table share it to stay aligned.
@@ -494,15 +334,46 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   max-width: min(100%, 100rem);
 }
 
+/*
+ * The search shares the right cluster with the row actions, so the leftover
+ * width belongs to that cluster and the search absorbs it by shrinking —
+ * otherwise the buttons wrap onto their own line.
+ */
+.pd-goals-overview .pd-people__header--bar>.pd-people__bar-start {
+  flex: 0 1 auto;
+}
+
+.pd-goals-overview .pd-people__header--bar>.pd-people__toolbar {
+  flex: 1 1 20rem;
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
+}
+
+.pd-goals-overview .pd-people__header--bar>.pd-people__toolbar>.pd-people__icon-btn,
+.pd-goals-overview .pd-people__header--bar>.pd-people__toolbar>.pd-people__ghost-btn {
+  flex: 0 0 auto;
+}
+
 .pd-goals-overview__search {
+  flex: 0 1 23rem;
+  min-width: 0;
   max-width: 23rem !important;
 }
 
+@media (max-width: 720px) {
+  .pd-goals-overview .pd-people__header--bar>.pd-people__toolbar {
+    flex-wrap: wrap;
+    margin-inline-start: 0;
+  }
+}
+
 .pd-goals-overview__goal {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.55rem;
-  max-width: 24rem;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   font-weight: 600;
   color: var(--color-text);
   text-decoration: none;
@@ -602,7 +473,9 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   background: var(--color-surface-raised, var(--color-surface));
 }
 
+/* Corner cell: above both the frozen column and the sticky header row. */
 .pd-goals-overview__table th:first-child {
+  --pd-table-head-z: 4;
   z-index: 2;
   background: color-mix(in srgb,
       var(--color-text) 5.5%,
@@ -668,9 +541,11 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
     opacity: 0;
     transform: scale(0.6);
   }
+
   60% {
     transform: scale(1.15);
   }
+
   100% {
     opacity: 1;
     transform: scale(1);
@@ -678,6 +553,7 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pd-goals-autosave__spinner,
   .pd-goals-autosave--saved svg {
     animation: none;
@@ -2371,7 +2247,7 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   padding: 0;
 }
 
-.pd-goal-view__card-head > .pd-goal-readout {
+.pd-goal-view__card-head>.pd-goal-readout {
   justify-self: center;
 }
 
@@ -3277,11 +3153,9 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   gap: 0.4rem;
   padding: 1.15rem 3.25rem 1rem 1.15rem;
   border-bottom: 1px solid var(--color-divider);
-  background: linear-gradient(
-    160deg,
-    color-mix(in srgb, var(--color-theme) 9%, var(--color-surface)),
-    var(--color-surface) 78%
-  );
+  background: linear-gradient(160deg,
+      color-mix(in srgb, var(--color-theme) 9%, var(--color-surface)),
+      var(--color-surface) 78%);
 }
 
 .pd-okr-sheet__eyebrow {
@@ -3481,6 +3355,7 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   .pd-goals-drawer__panel,
   .pd-goals-drawer__rail,
   .pd-goals-drawer__sheet {
@@ -3639,11 +3514,9 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   border: 1px solid var(--color-border);
   border-radius: 0.8rem;
   background:
-    linear-gradient(
-      145deg,
+    linear-gradient(145deg,
       color-mix(in srgb, var(--color-theme) 5%, var(--color-surface)),
-      var(--color-surface) 42%
-    );
+      var(--color-surface) 42%);
 }
 
 .pd-okr-ref__header {
@@ -3788,7 +3661,7 @@ a.pd-goals-late__person:hover .pd-goals-late__person-name {
   white-space: nowrap;
 }
 
-.pd-okr-ref__group-head > span {
+.pd-okr-ref__group-head>span {
   min-width: 1.15rem;
   padding: 0.1rem 0.3rem;
   border-radius: 999px;

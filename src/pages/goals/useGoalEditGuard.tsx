@@ -21,8 +21,8 @@ export function useGoalEditGuard({
   const [isOpen, setIsOpen] = useState(false);
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const pendingEditRef = useRef<(() => void) | null>(null);
+  const isSelf = actorId === personId;
   const needsReapproval =
-    actorId === personId &&
     (status === "submitted" || status === "approved");
 
   useEffect(() => {
@@ -67,8 +67,12 @@ export function useGoalEditGuard({
         }
         description={
           deadlinePassed
-            ? "Your changes will be saved as a draft and will not be sent for approval automatically. When you are ready, submit all goals again for direct manager and skip-level manager approval."
-            : "Your changes will be saved as a draft. When you are ready, submit all goals again for approval."
+            ? isSelf
+              ? "These changes will return the goal set to draft. Submit it again for direct manager and skip-level manager approval when ready."
+              : "Changing this approved or submitted goal set will require direct manager and skip-level manager approval again."
+            : isSelf
+              ? "These changes will return the goal set to draft. Submit it again for approval when ready."
+              : "Changing this approved or submitted goal set will require approval again."
         }
         confirmLabel="Continue editing"
         cancelLabel="Keep current goals"

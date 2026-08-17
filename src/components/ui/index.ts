@@ -55,8 +55,18 @@ export {
   TableCell,
 } from './Table'
 
+export { ResizableTable } from './ResizableTable'
+export type { ResizableColumn } from './ResizableTable'
+
 export { Tabs } from './Tabs'
 export type { TabsProps, TabItem } from './Tabs'
+
+export { CycleSelect } from './CycleSelect'
+export type {
+  CycleSelectProps,
+  CycleSelectOption,
+  CycleSelectStatus,
+} from './CycleSelect'
 
 export { SegmentedControl } from './SegmentedControl'
 export type {
@@ -92,6 +102,14 @@ export type { DividerProps } from './Divider'
 
 export { Spinner } from './Spinner'
 export type { SpinnerProps } from './Spinner'
+
+export {
+  GlobalRouteProgressComplete,
+  NavigationProgressProvider,
+  RouteProgressComplete,
+  SuspenseRouteContent,
+  useNavigationProgress,
+} from './NavigationProgress'
 
 export { Progress } from './Progress'
 export type { ProgressProps } from './Progress'

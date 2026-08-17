@@ -1,5 +1,11 @@
 import { formatShortDate } from "@/lib/reviews/periods";
-import type { GoalsCycle, GoalsCycleStatus } from "./types";
+import { isGoalWindowOpenForPerson, resolveGoalDeadline } from "./goalExtensions";
+import type {
+  DemoPerson,
+  GoalsCycle,
+  GoalsCycleStatus,
+  PersonGoals,
+} from "./types";
 
 /**
  * One-line explanation for a blocked goal edit. Mirrors the window and cycle
@@ -9,16 +15,25 @@ export function describeGoalEditLock({
   cycle,
   cycleStatus,
   canUpdateProgress,
+  status,
+  postWindowApprovalStage,
+  subject,
 }: {
   cycle: GoalsCycle;
   cycleStatus: GoalsCycleStatus;
   canUpdateProgress: boolean;
+  status?: PersonGoals["status"];
+  postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"];
+  subject?: DemoPerson;
 }): string | null {
   const opensOn = cycle.goalWindow
     ? formatShortDate(cycle.goalWindow.startDate)
     : null;
-  const closesOn = cycle.goalWindow
-    ? formatShortDate(cycle.goalWindow.endDate)
+  const effectiveDeadline = subject
+    ? resolveGoalDeadline(cycle, subject)
+    : cycle.goalWindow?.endDate;
+  const closesOn = effectiveDeadline
+    ? formatShortDate(effectiveDeadline)
     : null;
   const progressNote = canUpdateProgress
     ? " Progress updates are still allowed."
@@ -35,10 +50,25 @@ export function describeGoalEditLock({
   }
 
   if (cycle.phase === "hard_lock") {
+    if (subject && isGoalWindowOpenForPerson(cycle, subject)) {
+      return null;
+    }
     if (cycle.postWindowGoalPolicy === "two_tier_approval") {
-      return closesOn
-        ? `The goal deadline passed ${closesOn}. You can still submit goals for direct manager and skip-level manager approval.`
-        : `The goal deadline has passed. You can still submit goals for two-tier approval.`;
+      const deadline = closesOn
+        ? `The goal deadline passed ${closesOn}.`
+        : "The goal deadline has passed.";
+      if (status === "approved") {
+        return `${deadline} Changes to approved goals require renewed direct manager and skip-level manager approval.`;
+      }
+      if (status === "submitted") {
+        return postWindowApprovalStage === "manager_manager"
+          ? `${deadline} This submission is awaiting final approval from the skip-level manager.`
+          : `${deadline} This submission is awaiting direct manager approval.`;
+      }
+      if (status === "sent_back") {
+        return `${deadline} This submission was sent back for changes and can be resubmitted for two-tier approval.`;
+      }
+      return `${deadline} Late submissions require direct manager and skip-level manager approval.`;
     }
     return closesOn
       ? `Goal editing closed ${closesOn}.${progressNote}`

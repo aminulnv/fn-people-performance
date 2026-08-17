@@ -20,6 +20,19 @@ export function statusLabel(status: SubmissionStatus): string {
   }
 }
 
+/**
+ * People with no submission are stored as `draft`, so the raw label claims a
+ * draft exists before anyone has written a goal. Prefer this wherever the goal
+ * count is known.
+ */
+export function submissionStatusLabel(
+  status: SubmissionStatus,
+  goalCount: number,
+): string {
+  if (goalCount === 0 && status === 'draft') return 'Not started'
+  return statusLabel(status)
+}
+
 export function statusVariant(status: SubmissionStatus): BadgeVariant {
   switch (status) {
     case 'approved':

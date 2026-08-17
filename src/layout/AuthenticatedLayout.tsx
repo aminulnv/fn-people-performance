@@ -23,9 +23,7 @@ export default function AuthenticatedLayout() {
   }, [navigate, signOut])
 
   if (status === 'loading') {
-    return (
-      <div className="pd-route-fallback" aria-busy="true" aria-live="polite" />
-    )
+    return null
   }
 
   if (status !== 'authenticated' || !user) {

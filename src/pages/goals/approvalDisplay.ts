@@ -19,7 +19,7 @@ export function approvalCopy(
   if (status === "approved") {
     return {
       title: "Approved",
-      sub: "Manager signed off",
+      sub: "Approval complete",
       personPrefix: "by",
       tone: "ok",
     };
@@ -59,14 +59,17 @@ export function resolveApprovalPerson({
   status,
   postWindowApprovalStage,
   sendBackBy,
+  approvedBy,
   cascadeFrom,
 }: {
   status: SubmissionStatus;
   postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"];
   sendBackBy?: ApprovalPerson | null;
+  approvedBy?: ApprovalPerson | null;
   cascadeFrom: LineManagerCascade;
 }): ApprovalPerson | null {
   if (sendBackBy) return sendBackBy;
+  if (status === "approved" && approvedBy) return approvedBy;
   const approval = approvalCopy(status, postWindowApprovalStage);
   if (approval.tone === "draft") return null;
   if (

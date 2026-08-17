@@ -12,7 +12,13 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import { Avatar, EmptyState, SegmentedControl } from '@/components/ui'
+import {
+  Avatar,
+  EmptyState,
+  ResizableTable,
+  SegmentedControl,
+  type ResizableColumn,
+} from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -25,6 +31,31 @@ const SCOPES: { id: DirectoryScope; label: string }[] = [
   { id: 'all', label: 'Everyone' },
   { id: 'reports', label: 'My Reports' },
   { id: 'department', label: 'My Department' },
+]
+
+const PEOPLE_COLUMNS: ResizableColumn[] = [
+  {
+    id: 'employee-id',
+    label: (
+      <span className="pd-people__th">
+        Employee ID
+        <ArrowUpDown size={13} strokeWidth={1.75} aria-hidden />
+      </span>
+    ),
+    name: 'Employee ID',
+  },
+  { id: 'name', label: 'Name' },
+  { id: 'email', label: 'Email' },
+  { id: 'start-date', label: 'Start date' },
+  { id: 'job-title', label: 'Job title' },
+  { id: 'department', label: 'Department' },
+  { id: 'team', label: 'Team' },
+  { id: 'division', label: 'Division' },
+  { id: 'reports-to', label: 'Reports to' },
+  { id: 'department-head', label: 'Department head' },
+  { id: 'hrbp', label: 'HRBP' },
+  { id: 'job-grade', label: 'Job Grade' },
+  { id: 'status', label: 'Status' },
 ]
 
 function uniqueNonEmpty(values: string[]): number {
@@ -77,6 +108,20 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
 
   const isV3 = variant === 'v3'
+  const employeesById = useMemo(
+    () => new Map(employees.map((employee) => [employee.employeeId, employee])),
+    [employees],
+  )
+  const employeesByName = useMemo(
+    () =>
+      new Map(
+        employees.map((employee) => [
+          employee.fullName.trim().toLocaleLowerCase(),
+          employee,
+        ]),
+      ),
+    [employees],
+  )
 
   function toggleStatusFilter(next: StatusFilter) {
     setStatusFilter((current) => (current === next ? null : next))
@@ -159,7 +204,12 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
 
   return (
     <div
-      className={['pd-page', 'pd-people', isV3 ? 'pd-people--v3' : '']
+      className={[
+        'pd-page',
+        'pd-page--pane',
+        'pd-people',
+        isV3 ? 'pd-people--v3' : '',
+      ]
         .filter(Boolean)
         .join(' ')}
       aria-label="People"
@@ -347,72 +397,73 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           />
         ) : (
           <div className="pd-people__table-wrap">
-            <table className="pd-people__table">
-              <thead>
-                <tr>
-                  <th>
-                    <span className="pd-people__th">
-                      Employee ID
-                      <ArrowUpDown size={13} strokeWidth={1.75} aria-hidden />
-                    </span>
-                  </th>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Start date</th>
-                  <th>Job title</th>
-                  <th>Department</th>
-                  <th>Team</th>
-                  <th>Division</th>
-                  <th>Reports to</th>
-                  <th>Department head</th>
-                  <th>HRBP</th>
-                  <th>Job Grade</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
+            <ResizableTable
+              className="pd-people__table"
+              storageKey="people-directory-column-widths"
+              columns={PEOPLE_COLUMNS}
+            >
               <tbody>
-                {filtered.map((employee) => (
-                  <tr key={employee.employeeId}>
-                    <td className="pd-people__id">{employee.employeeId}</td>
-                    <td>
-                      <PersonCell
-                        name={employee.fullName}
-                        avatarUrl={employee.avatarUrl}
-                        to={`/people/${employee.employeeId}`}
-                      />
-                    </td>
-                    <td>{employee.email || '—'}</td>
-                    <td>{employee.startDate || '—'}</td>
-                    <td>{employee.jobTitle || '—'}</td>
-                    <td>{employee.department || '—'}</td>
-                    <td>{employee.team || '—'}</td>
-                    <td>{employee.division || '—'}</td>
-                    <td>
-                      {employee.reportsToName ? (
-                        <PersonCell name={employee.reportsToName} size="sm" />
-                      ) : (
-                        '—'
-                      )}
-                    </td>
-                    <td>{employee.departmentHeadName || '—'}</td>
-                    <td>{employee.hrbpName || '—'}</td>
-                    <td>{employee.jobGrade || '—'}</td>
-                    <td>
-                      <span
-                        className={[
-                          'pd-people__status',
-                          employee.isActive
-                            ? 'pd-people__status--active'
-                            : 'pd-people__status--inactive',
-                        ].join(' ')}
-                      >
-                        {employee.isActive ? 'Active' : 'Inactive'}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((employee) => {
+                  const manager =
+                    (employee.reportsToId != null
+                      ? employeesById.get(employee.reportsToId)
+                      : undefined) ??
+                    employeesByName.get(
+                      employee.reportsToName.trim().toLocaleLowerCase(),
+                    )
+
+                  return (
+                    <tr key={employee.employeeId}>
+                      <td className="pd-people__id">{employee.employeeId}</td>
+                      <td>
+                        <PersonCell
+                          name={employee.fullName}
+                          avatarUrl={employee.avatarUrl}
+                          to={`/people/${employee.employeeId}`}
+                        />
+                      </td>
+                      <td>{employee.email || '—'}</td>
+                      <td>{employee.startDate || '—'}</td>
+                      <td>{employee.jobTitle || '—'}</td>
+                      <td>{employee.department || '—'}</td>
+                      <td>{employee.team || '—'}</td>
+                      <td>{employee.division || '—'}</td>
+                      <td>
+                        {employee.reportsToName ? (
+                          <PersonCell
+                            name={employee.reportsToName}
+                            size="sm"
+                            avatarUrl={manager?.avatarUrl}
+                            to={
+                              manager
+                                ? `/people/${manager.employeeId}`
+                                : undefined
+                            }
+                          />
+                        ) : (
+                          '—'
+                        )}
+                      </td>
+                      <td>{employee.departmentHeadName || '—'}</td>
+                      <td>{employee.hrbpName || '—'}</td>
+                      <td>{employee.jobGrade || '—'}</td>
+                      <td>
+                        <span
+                          className={[
+                            'pd-people__status',
+                            employee.isActive
+                              ? 'pd-people__status--active'
+                              : 'pd-people__status--inactive',
+                          ].join(' ')}
+                        >
+                          {employee.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
-            </table>
+            </ResizableTable>
           </div>
         )}
       </section>

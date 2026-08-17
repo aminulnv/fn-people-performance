@@ -2,6 +2,7 @@ import {
   getGoalsSnapshot,
   getGoalsSnapshotForCycle,
 } from '@/lib/goals/store'
+import { resolveGoalDeadline } from '@/lib/goals/goalExtensions'
 import type { GoalsCycle, PersonGoals } from '@/lib/goals/types'
 import { listReviewCycles } from '@/lib/reviews/store'
 import { NOTIFICATION_EVENTS } from './catalogue'
@@ -95,8 +96,16 @@ function evaluateEmployeeGoalReminders(
   recipientId: string,
   today: string,
 ): void {
-  const window = cycle.goalWindow
-  if (!window || today < window.startDate) return
+  const snapshot = getGoalsSnapshot()
+  const employee = snapshot.people.find((person) => person.id === recipientId)
+  const baseWindow = cycle.goalWindow
+  if (!baseWindow || today < baseWindow.startDate) return
+  const window = {
+    ...baseWindow,
+    endDate: employee
+      ? (resolveGoalDeadline(cycle, employee) ?? baseWindow.endDate)
+      : baseWindow.endDate,
+  }
   const destination = goalDestination(cycle.id, recipientId)
   const isPending = row.status === 'draft' || row.status === 'sent_back'
 
@@ -148,8 +157,7 @@ function evaluateEmployeeGoalReminders(
   }
 
   if (!isPending && row.status !== 'incomplete') return
-  const people = getGoalsSnapshot().people
-  const employee = people.find((person) => person.id === recipientId)
+  const people = snapshot.people
   const manager = people.find((person) => person.id === employee?.managerId)
   const skipLevelManager = people.find(
     (person) => person.id === manager?.managerId,

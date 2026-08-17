@@ -33,6 +33,30 @@ describe('ReportGoalsCard', () => {
     expect(screen.getByRole('button', { name: 'Send Back' })).toBeInTheDocument()
   })
 
+  it('says Not started rather than Draft when no goals exist', () => {
+    render(
+      <ReportGoalsCard
+        person={{ name: 'Saif Ivna Alam' }}
+        status="draft"
+        goalCount={0}
+        canApprove={false}
+        canSendBack={false}
+        busy={false}
+        sendBackOpen={false}
+        sendBackReason=""
+        onToggleSendBack={vi.fn()}
+        onSendBackReason={vi.fn()}
+        onApprove={vi.fn()}
+        onSendBack={vi.fn()}
+      >
+        <p>No goals added for this cycle yet.</p>
+      </ReportGoalsCard>,
+    )
+
+    expect(screen.getByText('0 goals · Not started')).toBeInTheDocument()
+    expect(screen.queryByText('Draft')).not.toBeInTheDocument()
+  })
+
   it('marks a late submission awaiting final skip-level approval', () => {
     render(
       <ReportGoalsCard

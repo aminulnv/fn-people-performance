@@ -124,18 +124,18 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('builds Reviews > cycle for cycle detail routes', () => {
+  it('builds Performance Cycles > cycle for cycle detail routes', () => {
     expect(
       buildBreadcrumbs({
-        pathname: '/reviews/cycles/q1-2027/settings',
+        pathname: '/cycles/q1-2027/settings',
         navItems: [
           ...navItems,
-          { path: '/reviews', label: 'Reviews', icon: Home },
+          { path: '/cycles', label: 'Performance Cycles', icon: Home },
         ],
         cycleName: 'Q1 2027',
       }),
     ).toEqual([
-      { label: 'Reviews', href: '/reviews/cycles' },
+      { label: 'Performance Cycles', href: '/cycles' },
       { label: 'Q1 2027' },
     ])
   })

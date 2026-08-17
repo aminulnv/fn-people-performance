@@ -66,8 +66,8 @@ export function AddReviewCycleModal({
     <Modal
       open={open}
       onClose={handleClose}
-      title="Add Review Cycle"
-      description="Create a new review cycle to evaluate performance of your employees."
+      title="Add Performance Cycle"
+      description="Create a performance cycle for goals and performance reviews."
       className="pd-reviews-modal"
       actions={
         <>
@@ -101,8 +101,8 @@ export function AddReviewCycleModal({
           <span className="pd-reviews-type-option__text">
             <span className="pd-reviews-type-option__title">Regular cycle</span>
             <span className="pd-reviews-type-option__desc">
-              Create a standard review cycle using fixed dates for future
-              performance reviews.
+              Create a standard performance cycle using fixed dates for goals
+              and performance reviews.
             </span>
           </span>
         </label>
@@ -126,8 +126,8 @@ export function AddReviewCycleModal({
           <span className="pd-reviews-type-option__text">
             <span className="pd-reviews-type-option__title">Ad-hoc cycle</span>
             <span className="pd-reviews-type-option__desc">
-              Set up a custom review cycle with manual dates, ideal for special
-              cases like testing features or unique assessments.
+              Set up a custom performance cycle with manual dates, ideal for
+              special cases like testing features or unique assessments.
             </span>
           </span>
         </label>
@@ -137,7 +137,7 @@ export function AddReviewCycleModal({
         <div className="pd-reviews-modal__field">
           <Select
             label="Select Cycle"
-            hint="Choose the period for this performance review cycle."
+            hint="Choose the period for this performance cycle."
             value={periodKey}
             onChange={(e) => setPeriodKey(e.target.value)}
             options={availablePeriods.map((period) => ({

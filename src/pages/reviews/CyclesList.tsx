@@ -8,7 +8,12 @@ import {
   Search,
   Settings,
 } from 'lucide-react'
-import { EmptyState } from '@/components/ui'
+import {
+  DropdownMenu,
+  EmptyState,
+  ResizableTable,
+  type ResizableColumn,
+} from '@/components/ui'
 import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import { sortCyclesForList } from '@/lib/reviews/store'
@@ -59,6 +64,30 @@ export function CyclesList() {
     })
   }, [query, sorted])
 
+  const cycleColumns = useMemo<ResizableColumn[]>(
+    () => [
+      {
+        id: 'cycle-name',
+        label: (
+          <span className="pd-people__th">
+            Cycle name
+            <span className="pd-people__th-count">{filtered.length}</span>
+          </span>
+        ),
+        name: 'Cycle name',
+        minWidth: 180,
+      },
+      { id: 'cycle-type', label: 'Cycle type' },
+      { id: 'timeframe', label: 'Timeframe' },
+      {
+        id: 'status',
+        label: <span className="pd-sr-only">Status</span>,
+        name: 'Status',
+      },
+    ],
+    [filtered.length],
+  )
+
   return (
     <div className="pd-reviews-cycles">
       <div className="pd-people__header pd-people__header--bar">
@@ -77,29 +106,33 @@ export function CyclesList() {
         </div>
 
         <div className="pd-people__toolbar">
-          <button
-            type="button"
-            className="pd-people__icon-btn"
-            aria-label="More actions"
-            title="More actions"
-          >
-            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pd-people__ghost-btn"
-            title="Cycle list settings"
-          >
-            <Settings size={16} strokeWidth={1.75} aria-hidden />
-            Settings
-          </button>
+          <DropdownMenu
+            label="More actions"
+            align="end"
+            trigger={
+              <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
+            }
+            triggerProps={{
+              className: 'pd-people__icon-btn',
+              'aria-label': 'More actions',
+              title: 'More actions',
+            }}
+            items={[
+              {
+                id: 'settings',
+                label: 'Settings',
+                icon: <Settings size={16} strokeWidth={1.75} />,
+                onSelect: () => {},
+              },
+            ]}
+          />
           <button
             type="button"
             className="pd-people__create-btn"
             onClick={() => setAddOpen(true)}
           >
             <Plus size={18} strokeWidth={2} aria-hidden />
-            Add Review Cycle
+            Add Performance Cycle
           </button>
         </div>
       </div>
@@ -109,7 +142,7 @@ export function CyclesList() {
         aria-labelledby="reviews-cycles-heading"
       >
         <h2 id="reviews-cycles-heading" className="pd-sr-only">
-          Review cycles
+          Performance Cycles
         </h2>
 
         {filtered.length === 0 ? (
@@ -117,7 +150,9 @@ export function CyclesList() {
             <EmptyState
               className="pd-empty--inline"
               icon={CalendarDays}
-              title={cycles.length === 0 ? 'No review cycles yet' : 'No matches'}
+              title={
+                cycles.length === 0 ? 'No performance cycles yet' : 'No matches'
+              }
               description={
                 cycles.length === 0
                   ? 'Create a regular or ad-hoc cycle to start performance reviews.'
@@ -131,7 +166,7 @@ export function CyclesList() {
                     onClick={() => setAddOpen(true)}
                   >
                     <Plus size={18} strokeWidth={2} aria-hidden />
-                    Add Review Cycle
+                    Add Performance Cycle
                   </button>
                 ) : undefined
               }
@@ -139,30 +174,17 @@ export function CyclesList() {
           </div>
         ) : (
           <div className="pd-people__table-wrap">
-            <table className="pd-people__table pd-reviews-cycles__table">
-              <thead>
-                <tr>
-                  <th>
-                    <span className="pd-people__th">
-                      Cycle name
-                      <span className="pd-people__th-count">
-                        {filtered.length}
-                      </span>
-                    </span>
-                  </th>
-                  <th>Cycle type</th>
-                  <th>Timeframe</th>
-                  <th>
-                    <span className="pd-sr-only">Status</span>
-                  </th>
-                </tr>
-              </thead>
+            <ResizableTable
+              className="pd-people__table pd-reviews-cycles__table"
+              storageKey="reviews-cycles-column-widths"
+              columns={cycleColumns}
+            >
               <tbody>
                 {filtered.map((cycle) => (
                   <CycleRow key={cycle.id} cycle={cycle} />
                 ))}
               </tbody>
-            </table>
+            </ResizableTable>
           </div>
         )}
       </section>

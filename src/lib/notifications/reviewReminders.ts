@@ -131,7 +131,7 @@ export function evaluateReviewNotifications(
         eventKey: NOTIFICATION_EVENTS.REVIEW_CALIBRATION_OPENED,
         recipientId: recipient.id,
         dedupeKey: `review-calibration:${cycle.id}:${recipient.id}`,
-        destination: `/reviews/cycles/${encodeURIComponent(cycle.id)}/calibration`,
+        destination: `/cycles/${encodeURIComponent(cycle.id)}/calibration`,
         cycleId: cycle.id,
         dueAt: calibration.end.date,
         variables: {

@@ -1,6 +1,7 @@
 import type { SystemPermission } from "@/lib/accessControl/types";
 import type {
   GoalCountPolicy,
+  GoalCycleExtension,
   PostWindowGoalPolicy,
 } from "@/lib/reviews/types";
 
@@ -131,11 +132,15 @@ export type PersonGoals = {
   personId: string;
   status: SubmissionStatus;
   goals: Goal[];
+  /** Server aggregate version. Zero/undefined means no submission row exists yet. */
+  version?: number;
   /** Present only while a late submission is moving through two-tier approval. */
   postWindowApprovalStage?: "manager" | "manager_manager";
   sendBackReason?: string;
   /** Snapshot of who wrote the send-back note. */
   sendBackBy?: SendBackAuthor;
+  /** Snapshot of who gave the final approval. */
+  approvedBy?: SendBackAuthor;
   managerNote?: string;
   rating?: QuarterRating;
 };
@@ -146,6 +151,9 @@ export type DemoPerson = {
   email: string;
   title: string;
   department: string;
+  departmentId?: number;
+  team?: string;
+  teamId?: number;
   /** Explicit platform-wide access. Org relationships remain separate. */
   permissions?: SystemPermission[];
   /** ISO date — eligible if on/before quarter Day 1 */
@@ -166,16 +174,17 @@ export type GoalWindow = {
 export type GoalsCycle = {
   id: string;
   label: string;
-  /** YYYY-MM-DD — eligibility Day 1 (review cycle start) */
+  /** YYYY-MM-DD — eligibility Day 1 (performance cycle start) */
   day1: string;
   phase: DemoPhase;
   goalCountPolicy: GoalCountPolicy;
   postWindowGoalPolicy: PostWindowGoalPolicy;
   /** Explains to the employee when goal editing opens and closes. */
   goalWindow?: GoalWindow;
+  goalExtensions?: GoalCycleExtension[];
 };
 
-/** Review-cycle status badge on the Goals cycle picker. */
+/** Performance-cycle status badge on the Goals cycle picker. */
 export type GoalsCycleStatus = "future" | "current" | "previous" | "manual";
 
 export type GoalsCycleOption = GoalsCycle & {
@@ -186,7 +195,7 @@ export type GoalsSnapshot = {
   /** Active review/goal cycle (shared identity with Reviews). */
   cycle: GoalsCycle;
   cycleStatus: GoalsCycleStatus;
-  /** All review cycles available for goal setting. */
+  /** All performance cycles available for goal setting. */
   availableCycles: GoalsCycleOption[];
   activePersonId: string;
   people: DemoPerson[];

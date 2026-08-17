@@ -137,12 +137,21 @@ export function resolveManager(
 ): PlatformEmployee | null {
   if (!employee) return null
   if (employee.reportsToId != null) {
-    return getEmployee(employee.reportsToId)
+    const match = getEmployee(employee.reportsToId)
+    if (match) return match
   }
   if (employee.managerEmail) {
-    return findEmployeeByEmail(employee.managerEmail)
+    const match = findEmployeeByEmail(employee.managerEmail)
+    if (match) return match
   }
-  return null
+  const managerName = employee.reportsToName.trim().toLocaleLowerCase()
+  if (!managerName) return null
+  return (
+    listEmployees().find(
+      (candidate) =>
+        candidate.fullName.trim().toLocaleLowerCase() === managerName,
+    ) ?? null
+  )
 }
 
 export function EmployeeProfileView({

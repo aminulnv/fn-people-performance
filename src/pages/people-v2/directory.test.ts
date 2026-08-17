@@ -66,6 +66,30 @@ describe('buildDirectory', () => {
     expect(people.find((p) => p.id === 3)?.directReportCount).toBe(0)
   })
 
+  it('carries the manager photo onto each report row', () => {
+    const people = buildDirectory(
+      [
+        employee({
+          employeeId: 2,
+          fullName: 'Kabir Hasan',
+          avatarUrl: 'https://cdn.example.com/kabir.png',
+          reportsToId: undefined,
+          reportsToName: '',
+        }),
+        employee({
+          employeeId: 3,
+          fullName: 'Amina Rahman',
+          reportsToId: 2,
+          reportsToName: 'Kabir Hasan',
+        }),
+      ],
+      NOW,
+    )
+    expect(people.find((p) => p.id === 3)?.managerAvatarUrl).toBe(
+      'https://cdn.example.com/kabir.png',
+    )
+  })
+
   it('flags missing organisational data', () => {
     const [person] = buildDirectory(
       [employee({ jobGrade: '', reportsToName: '', hrbpName: '' })],

@@ -8,7 +8,7 @@ import { Avatar, Badge, Textarea } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PersonGoals } from '@/lib/goals/types'
 import '@/styles/layout-activity.css'
-import { statusLabel, statusVariant } from './statusLabels'
+import { statusVariant, submissionStatusLabel } from './statusLabels'
 
 type ReportGoalsCardProps = {
   person: { name: string; avatarUrl?: string }
@@ -82,14 +82,14 @@ export function ReportGoalsCard({
               {awaitsApproval && canApprove
                 ? `${countLabel} awaiting your approval`
                 : awaitsApproval &&
-                    postWindowApprovalStage === 'manager_manager'
+                  postWindowApprovalStage === 'manager_manager'
                   ? `${countLabel} · Pending final approval`
-                  : `${countLabel} · ${statusLabel(status)}`}
+                  : `${countLabel} · ${submissionStatusLabel(status, goalCount)}`}
             </span>
             {showFirstStageLate ? (
               <span className="pd-goals-approval__late">
                 Late submission
-                {skipLevelManager ? (
+                {canApprove && skipLevelManager ? (
                   <>
                     {' · '}
                     <Link
@@ -111,8 +111,24 @@ export function ReportGoalsCard({
                     </Link>
                     {' will approve after you'}
                   </>
-                ) : (
+                ) : canApprove ? (
                   ' · skip-level manager will approve after you'
+                ) : skipLevelManager ? (
+                  <>
+                    {' · awaiting direct manager approval, then '}
+                    <Link
+                      to={`/people/${skipLevelManager.id}`}
+                      className="pd-goals-approval__late-person"
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <span className="pd-goals-approval__late-name">
+                        {skipLevelManager.name}
+                      </span>
+                    </Link>
+                    {' gives final approval'}
+                  </>
+                ) : (
+                  ' · awaiting direct manager, then skip-level approval'
                 )}
               </span>
             ) : null}
@@ -175,7 +191,9 @@ export function ReportGoalsCard({
             </button>
           ) : null}
           {!canApprove && !canSendBack ? (
-            <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>
+            <Badge variant={statusVariant(status)}>
+              {submissionStatusLabel(status, goalCount)}
+            </Badge>
           ) : null}
           {canViewActivity ? (
             <div className="pd-goal-view__menu">

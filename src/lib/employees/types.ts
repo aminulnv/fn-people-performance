@@ -8,8 +8,10 @@ export type PlatformEmployee = {
   startDate: string
   jobTitle: string
   department: string
+  departmentId?: number
   /** Team within the department (sheet column formerly called Wing). */
   team: string
+  teamId?: number
   division: string
   reportsToName: string
   departmentHeadName: string

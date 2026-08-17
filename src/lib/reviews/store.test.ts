@@ -181,4 +181,44 @@ describe("reviews store", () => {
 
     expect(updated.settings.postWindowGoalPolicy).toBe("hard_stop");
   });
+
+  it("saves population-specific goal deadline extensions", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    const stages = structuredClone(cycle.stagesConfig);
+    stages.goals.extensions = [
+      {
+        id: "product-extension",
+        endDate: "2026-08-01",
+        scope: {
+          type: "department",
+          departmentId: 4,
+          departmentName: "Product",
+        },
+      },
+    ];
+
+    const updated = await updateCycleStagesConfig(cycle.id, stages);
+
+    expect(updated.stagesConfig.goals.extensions).toEqual(
+      stages.goals.extensions,
+    );
+  });
+
+  it("rejects extensions that reach the performance stage", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    const stages = structuredClone(cycle.stagesConfig);
+    stages.goals.extensions = [
+      {
+        id: "invalid-extension",
+        endDate: stages.performance.employeeStart.date,
+        scope: { type: "people", employeeIds: [101] },
+      },
+    ];
+
+    await expect(
+      updateCycleStagesConfig(cycle.id, stages),
+    ).rejects.toThrow("before employee performance starts");
+  });
 });

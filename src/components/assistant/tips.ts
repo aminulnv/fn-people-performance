@@ -41,6 +41,10 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
     title: 'Keep goals alive',
     body: 'Update goal progress often — small check-ins beat big end-of-cycle surprises.',
   },
+  '/cycles': {
+    title: 'Plan the cycle',
+    body: 'Set windows and stages so goals and reviews run on a clear shared timeline.',
+  },
   '/reviews': {
     title: 'Review with context',
     body: 'Bring recent goals and feedback into reviews so conversations stay concrete.',

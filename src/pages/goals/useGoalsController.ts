@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   approveGoals,
+  cascadeGoalToReports,
   copyPreviousGoals as copyPreviousGoalsFromCycle,
   fetchGoalsSnapshot,
   ratePerson,
@@ -14,7 +15,6 @@ import {
 import { isEligibleForCycle } from "@/lib/goals/demoData";
 import {
   buildOwnerOptions,
-  cascadeGoal,
   duplicateGoal,
   cascadeRecipients,
   lineManagerCascade,
@@ -107,6 +107,8 @@ export function useGoalsController({
   const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const pendingMutationCountRef = useRef(0);
 
   const refresh = useCallback(async () => {
     setSnapshot(await fetchGoalsSnapshot());
@@ -233,17 +235,24 @@ export function useGoalsController({
 
   const run = useCallback(
     async <Result>(fn: () => Promise<Result>): Promise<Result | undefined> => {
+      pendingMutationCountRef.current += 1;
       setBusy(true);
       setError(null);
+      const operation = mutationQueueRef.current.then(fn);
+      mutationQueueRef.current = operation.then(
+        () => undefined,
+        () => undefined,
+      );
       try {
-        const result = await fn();
+        const result = await operation;
         await refresh();
         return result;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
         return undefined;
       } finally {
-        setBusy(false);
+        pendingMutationCountRef.current -= 1;
+        if (pendingMutationCountRef.current === 0) setBusy(false);
       }
     },
     [refresh],
@@ -327,9 +336,6 @@ export function useGoalsController({
       },
       async cascadeGoal(targetSubjectId, goalId, reportIds) {
         if (!actor || !snapshot) throw new Error("Goals are still loading.");
-        const row = snapshot.byPerson[targetSubjectId];
-        const source = row?.goals.find((goal) => goal.id === goalId);
-        if (!source) throw new Error("Goal not found.");
         const chosenIds = [...new Set(reportIds)].filter((reportId) =>
           actor.reportIds.includes(reportId),
         );
@@ -338,42 +344,18 @@ export function useGoalsController({
             "Select at least one report to cascade this goal to.",
           );
         }
-        const sourceTitle = source.description.trim() || "Untitled goal";
-        const sourceOwnerId = source.ownerId ?? targetSubjectId;
-        const sourcePersonName =
-          snapshot.people.find((person) => person.id === sourceOwnerId)?.name ??
-          actor.name;
-        const failures: string[] = [];
-        await run(async () => {
-          for (const reportId of chosenIds) {
-            const reportRow = snapshot.byPerson[reportId];
-            if (!reportRow) continue;
-            const copy = cascadeGoal(source, reportId, {
-              sourceTitle,
-              sourcePersonName,
-            });
-            try {
-              await saveGoals(mutationContext(reportId), [
-                ...reportRow.goals,
-                copy,
-              ]);
-            } catch (err) {
-              failures.push(
-                err instanceof Error ? err.message : `Failed for ${reportId}`,
-              );
-            }
-          }
-          if (failures.length > 0) {
-            throw new Error(failures[0]);
-          }
-        });
+        await run(() =>
+          cascadeGoalToReports(
+            mutationContext(targetSubjectId),
+            goalId,
+            chosenIds,
+          ),
+        );
       },
       async saveAndSubmit(targetSubjectId, goals) {
-        await run(async () => {
-          const context = mutationContext(targetSubjectId);
-          await saveGoals(context, goals);
-          await submitGoals(context);
-        });
+        await run(() =>
+          submitGoals(mutationContext(targetSubjectId), goals),
+        );
       },
       async approve(targetSubjectId, goals) {
         await run(() => approveGoals(mutationContext(targetSubjectId), goals));

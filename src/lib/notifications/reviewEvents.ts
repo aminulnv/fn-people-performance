@@ -30,7 +30,7 @@ export function notifyReviewDeadlineChanged({
       recipientId: recipient.id,
       actorId,
       dedupeKey: `review-deadline:${cycleId}:${stage}:${newDate}:${recipient.id}`,
-      destination: `/reviews/cycles/${encodeURIComponent(cycleId)}/settings`,
+      destination: `/cycles/${encodeURIComponent(cycleId)}/settings`,
       cycleId,
       variables: {
         cycle: cycleName,
