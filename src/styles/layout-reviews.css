@@ -547,7 +547,33 @@
 
 .pd-reviews-cycles {
   display: grid;
-  gap: 1rem;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: min(100%, 80rem);
+  margin-inline: auto;
+  min-height: 0;
+}
+
+.pd-people__table-wrap .pd-reviews-cycle-link {
+  gap: var(--people-table-person-gap);
+  line-height: var(--people-table-person-line);
+}
+
+.pd-people__table-wrap .pd-reviews-cycle-link__icon {
+  width: var(--people-table-avatar-md);
+  height: var(--people-table-avatar-md);
+  border-radius: max(0.35rem, calc(var(--people-table-avatar-md) * 0.36));
+}
+
+.pd-people__table-wrap .pd-reviews-cycle-link__icon svg {
+  width: calc(var(--people-table-avatar-md) * 0.72);
+  height: calc(var(--people-table-avatar-md) * 0.72);
+}
+
+.pd-people__table-wrap .pd-reviews-status {
+  min-height: var(--people-table-status-min-h);
+  padding: var(--people-table-status-pad-y) var(--people-table-status-pad-x);
+  font-size: var(--people-table-status-font);
 }
 
 .pd-reviews-cycles__muted {
@@ -820,11 +846,291 @@
 
 .pd-reviews-settings {
   display: grid;
+  gap: 1.5rem;
+}
+
+.pd-reviews-settings__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
   gap: 1rem;
+}
+
+.pd-reviews-settings__hero-calendar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 0;
+}
+
+.pd-reviews-settings__hero .pd-cycle-calendar--large {
+  width: min(100%, 24rem);
+  max-width: none;
+}
+
+.pd-reviews-settings__process-label {
+  display: block;
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.pd-reviews-settings__process-hint {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.pd-reviews-settings__hero .pd-reviews-kv--compact {
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+}
+
+.pd-reviews-settings__hero .pd-reviews-kv__row {
+  padding: 0.45rem 0;
+}
+
+/* ── Cycle settings calendar ─────────────────────────────────────── */
+
+.pd-cycle-calendar {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 36rem;
+  --cal-day-size: 2.65rem;
+  --cal-day-shade: color-mix(in srgb, var(--color-muted-bg) 82%, var(--color-surface));
+  --cal-day-shade-border: color-mix(in srgb, var(--color-border) 55%, transparent);
+  --cal-fill-goal-setting: #0d9488;
+  --cal-fill-goal-extension: #16a34a;
+  --cal-fill-performance-review: #2563eb;
+  --cal-fill-calibration: #ea580c;
+  --cal-fill-publish-managers: #db2777;
+  --cal-fill-publish-employees: #eab308;
+  --cal-fill-on-dark: #ffffff;
+  --cal-fill-on-gold: #422006;
+}
+
+.pd-cycle-calendar--large {
+  --cal-day-size: 2.25rem;
+  gap: 0.65rem;
+}
+
+.pd-cycle-calendar--large .pd-cycle-calendar__month {
+  padding: 0;
+  gap: 0.45rem;
+  border: 0;
+  background: transparent;
+}
+
+.pd-cycle-calendar--large .pd-cycle-calendar__weekdays,
+.pd-cycle-calendar--large .pd-cycle-calendar__grid {
+  gap: 0.25rem;
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.pd-cycle-calendar--large .pd-cycle-calendar__legend {
+  justify-content: center;
+}
+
+.pd-cycle-calendar--large .pd-cycle-calendar__day-num {
+  font-size: 0.75rem;
+}
+
+.pd-cycle-calendar__nav {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pd-cycle-calendar__nav-label {
+  margin: 0;
+  text-align: center;
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.pd-cycle-calendar__nav-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pd-cycle-calendar__month {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem;
+  border: 1px solid var(--color-divider);
+  border-radius: calc(var(--people-radius-panel, 16px) - 2px);
+  background: color-mix(in srgb, var(--color-surface) 88%, var(--color-muted-bg));
+}
+
+.pd-cycle-calendar__weekdays,
+.pd-cycle-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+  justify-items: center;
+}
+
+.pd-cycle-calendar__weekday {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pd-cycle-calendar__day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: var(--cal-day-size);
+  height: var(--cal-day-size);
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--cal-day-shade-border);
+  background: var(--cal-day-shade);
+}
+
+.pd-cycle-calendar__day.is-empty {
+  width: var(--cal-day-size);
+  height: var(--cal-day-size);
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.pd-cycle-calendar__day.is-today {
+  box-shadow:
+    0 0 0 2px var(--cal-day-shade),
+    0 0 0 4px color-mix(in srgb, var(--color-cta) 65%, transparent);
+}
+
+.pd-cycle-calendar__day.is-today[class*="fill-"] {
+  box-shadow:
+    0 0 0 2px var(--color-surface),
+    0 0 0 4px color-mix(in srgb, var(--color-cta) 65%, transparent);
+}
+
+.pd-cycle-calendar__day.fill-goal-setting {
+  background: var(--cal-fill-goal-setting);
+  border-color: var(--cal-fill-goal-setting);
+}
+
+.pd-cycle-calendar__day.fill-goal-extension {
+  background: var(--cal-fill-goal-extension);
+  border-color: var(--cal-fill-goal-extension);
+}
+
+.pd-cycle-calendar__day.fill-performance-review {
+  background: var(--cal-fill-performance-review);
+  border-color: var(--cal-fill-performance-review);
+}
+
+.pd-cycle-calendar__day.fill-calibration {
+  background: var(--cal-fill-calibration);
+  border-color: var(--cal-fill-calibration);
+}
+
+.pd-cycle-calendar__day.fill-publish-managers {
+  background: var(--cal-fill-publish-managers);
+  border-color: var(--cal-fill-publish-managers);
+}
+
+.pd-cycle-calendar__day.fill-publish-employees {
+  background: var(--cal-fill-publish-employees);
+  border-color: var(--cal-fill-publish-employees);
+}
+
+.pd-cycle-calendar__day.fill-goal-setting .pd-cycle-calendar__day-num,
+.pd-cycle-calendar__day.fill-goal-extension .pd-cycle-calendar__day-num,
+.pd-cycle-calendar__day.fill-performance-review .pd-cycle-calendar__day-num,
+.pd-cycle-calendar__day.fill-calibration .pd-cycle-calendar__day-num,
+.pd-cycle-calendar__day.fill-publish-managers .pd-cycle-calendar__day-num {
+  color: var(--cal-fill-on-dark);
+}
+
+.pd-cycle-calendar__day.fill-publish-employees .pd-cycle-calendar__day-num {
+  color: var(--cal-fill-on-gold);
+}
+
+.pd-cycle-calendar__day-num {
+  font-size: 0.8125rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+  line-height: 1;
+}
+
+.pd-cycle-calendar__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0.65rem 0 0;
+  border-top: 1px solid var(--color-divider);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+}
+
+.pd-cycle-calendar__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 550;
+}
+
+.pd-cycle-calendar__legend-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 75%, transparent);
+}
+
+.pd-cycle-calendar__legend-swatch.is-goal-setting {
+  background: var(--cal-fill-goal-setting);
+}
+
+.pd-cycle-calendar__legend-swatch.is-goal-extension {
+  background: var(--cal-fill-goal-extension);
+}
+
+.pd-cycle-calendar__legend-swatch.is-performance-review {
+  background: var(--cal-fill-performance-review);
+}
+
+.pd-cycle-calendar__legend-swatch.is-calibration {
+  background: var(--cal-fill-calibration);
+}
+
+.pd-cycle-calendar__legend-swatch.is-publish-managers {
+  background: var(--cal-fill-publish-managers);
+}
+
+.pd-cycle-calendar__legend-swatch.is-publish-employees {
+  background: var(--cal-fill-publish-employees);
 }
 
 .pd-reviews-settings__card {
   background: var(--color-surface);
+}
+
+.pd-reviews-kv--inline {
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0 2rem;
+}
+
+.pd-reviews-kv--inline .pd-reviews-kv__row {
+  border-bottom: 0;
+  padding: 0;
 }
 
 .pd-reviews-card-title {
@@ -839,6 +1145,42 @@
   grid-template-columns: repeat(auto-fit, minmax(24rem, 1fr));
   align-items: start;
   gap: 1rem;
+}
+
+.pd-reviews-settings__section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pd-reviews-settings__section--prototype {
+  padding-top: 0;
+}
+
+.pd-reviews-settings__section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem 1rem;
+}
+
+.pd-reviews-settings__section-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.pd-reviews-settings__section-lede {
+  margin: 0.25rem 0 0;
+  max-width: 42rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.pd-reviews-settings__card--prototype {
+  background: color-mix(in srgb, var(--color-surface) 92%, var(--color-muted-bg));
 }
 
 .pd-reviews-settings__edit-actions {
@@ -888,6 +1230,12 @@
   color: var(--color-text);
   font-size: 0.9375rem;
   font-weight: 600;
+}
+
+.pd-reviews-kv--compact {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--color-divider);
 }
 
 .pd-reviews-bands {
@@ -1014,6 +1362,10 @@
   gap: 1rem;
 }
 
+.pd-reviews-edit__body--stacked {
+  max-width: 42rem;
+}
+
 /* Cards pair up once both fit their date columns without squeezing. */
 .pd-reviews-edit__columns {
   display: grid;
@@ -1033,6 +1385,11 @@
 .pd-reviews-settings-edit__column {
   display: grid;
   gap: 1rem;
+  align-content: start;
+}
+
+.pd-reviews-settings-edit--balanced {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .pd-reviews-policy-grid {
@@ -1111,8 +1468,7 @@
 .pd-stage-table__row {
   display: grid;
   grid-template-columns:
-    minmax(8rem, 1fr)
-    repeat(var(--stage-date-columns), minmax(0, 8.5rem));
+    minmax(8rem, 1fr) repeat(var(--stage-date-columns), minmax(0, 8.5rem));
   gap: 0.5rem 0.75rem;
   align-items: center;
 }
@@ -1465,8 +1821,7 @@
   gap: 0.45rem;
 }
 
-.pd-reviews-choice-picker__option:not(.is-selected)
-  .pd-reviews-choice-picker__label {
+.pd-reviews-choice-picker__option:not(.is-selected) .pd-reviews-choice-picker__label {
   color: var(--color-text-secondary);
 }
 
@@ -1587,7 +1942,7 @@
   gap: 0.75rem 1rem;
 }
 
-.pd-reviews-distribution__header > div {
+.pd-reviews-distribution__header>div {
   display: grid;
   gap: 0.35rem;
 }
@@ -2021,24 +2376,6 @@
   font-size: 0.75rem;
 }
 
-.pd-cycle-extensions__add,
-.pd-cycle-extensions__actions button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
-  min-height: 2rem;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text);
-  font: inherit;
-  font-size: 0.75rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
 .pd-cycle-extensions__list {
   display: grid;
   gap: 0.45rem;
@@ -2054,11 +2391,11 @@
   gap: 0.75rem;
   padding: 0.65rem 0.75rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-button);
   background: var(--color-surface-subtle);
 }
 
-.pd-cycle-extensions__list li > span {
+.pd-cycle-extensions__list li>span {
   display: grid;
   gap: 0.15rem;
   min-width: 0;
@@ -2077,8 +2414,8 @@
   font-size: 0.7rem;
 }
 
-.pd-cycle-extensions__list li > button,
-.pd-cycle-extensions__chips button {
+.pd-cycle-extensions__list li>button,
+.pd-cycle-extensions__chip button {
   display: inline-grid;
   flex: 0 0 auto;
   place-items: center;
@@ -2094,58 +2431,199 @@
   gap: 0.75rem;
   padding: 0.85rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card-lg);
   background: var(--color-surface-subtle);
 }
 
-.pd-cycle-extensions__composer .pd-segmented {
-  justify-self: start;
-}
-
-.pd-cycle-extensions__people,
+.pd-cycle-extensions__population,
 .pd-cycle-extensions__date {
   display: grid;
   gap: 0.45rem;
 }
 
-.pd-cycle-extensions__date > span {
+.pd-cycle-extensions__population-label {
   color: var(--color-text-secondary);
   font-size: 0.72rem;
   font-weight: 650;
 }
 
-.pd-cycle-extensions__chips {
+.pd-cycle-extensions__search-wrap {
+  position: relative;
+}
+
+.pd-cycle-extensions__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-sizing: border-box;
+  min-width: 0;
+  width: 100%;
+  min-height: 2.35rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-raised, var(--color-surface));
+  color: var(--color-text-secondary);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.pd-cycle-extensions__search:focus-within {
+  border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-theme) 16%, transparent);
+  color: var(--color-text);
+}
+
+.pd-cycle-extensions__search-icon {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.pd-cycle-extensions__search-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.pd-cycle-extensions__search-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.pd-cycle-extensions__search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pd-cycle-extensions__search-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: min(20rem, calc(100vh - 8rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--color-bg);
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--radius-button);
+  box-shadow: var(--shadow-deep);
+}
+
+.pd-cycle-extensions__search-section+.pd-cycle-extensions__search-section {
+  border-top: 1px solid var(--color-border);
+}
+
+.pd-cycle-extensions__search-section-label {
+  padding: 0.5rem 0.75rem 0.25rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-cycle-extensions__search-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.pd-cycle-extensions__search-result {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: var(--color-text);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: background-color 0.15s ease;
+}
+
+.pd-cycle-extensions__search-result:hover,
+.pd-cycle-extensions__search-result--active {
+  background: var(--color-neutral-hover);
+}
+
+.pd-cycle-extensions__search-result-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--color-neutral-hover);
+  color: var(--color-text-sec);
+}
+
+.pd-cycle-extensions__search-result-text {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.pd-cycle-extensions__search-result-label {
+  overflow: hidden;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-cycle-extensions__search-result-description {
+  overflow: hidden;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-cycle-extensions__search-empty {
+  padding: 0.875rem 0.75rem 1rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
+.pd-cycle-extensions__selection {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
 }
 
-.pd-cycle-extensions__chips > span {
+.pd-cycle-extensions__chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.2rem;
-  padding: 0.2rem 0.25rem 0.2rem 0.5rem;
+  gap: 0.3rem;
+  padding: 0.25rem 0.35rem 0.25rem 0.55rem;
   border-radius: 999px;
   background: var(--color-surface);
   color: var(--color-text);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
+}
+
+.pd-cycle-extensions__date>span {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
 }
 
 .pd-cycle-extensions__actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-}
-
-.pd-cycle-extensions__actions button:last-child {
-  border-color: var(--color-cta);
-  background: var(--color-cta);
-  color: var(--color-on-cta);
-}
-
-.pd-cycle-extensions__actions button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
 }
 
 @media (max-width: 40rem) {
@@ -2158,11 +2636,22 @@
     grid-template-columns: 1fr;
   }
 
+  .pd-cycle-calendar {
+    max-width: none;
+  }
+
+  .pd-reviews-settings__hero,
   .pd-reviews-settings__pair,
   .pd-reviews-edit__columns,
   .pd-reviews-settings-edit,
+  .pd-reviews-settings-edit--balanced,
   .pd-reviews-calibration-edit__choices {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pd-reviews-kv--inline {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 
   .pd-reviews-publish-row__meta {
@@ -2190,7 +2679,7 @@
     flex-direction: column;
   }
 
-  .pd-cycle-extensions__add {
+  .pd-cycle-extensions__heading .pd-btn {
     align-self: flex-start;
   }
 

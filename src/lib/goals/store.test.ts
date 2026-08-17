@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearEmployees, createEmployee } from "@/lib/employees/store";
+import { clearEmployees, createEmployee, getEmployee, updateEmployee } from "@/lib/employees/store";
 import {
   createReviewCycle,
   getReviewCycle,
@@ -189,6 +189,46 @@ describe("goal snapshot reads", () => {
     unsubscribe();
 
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("fills approver avatars from the employee directory when the API omits them", async () => {
+    const manager = getEmployee(2);
+    if (!manager) throw new Error("Expected seeded manager");
+    const updated = await updateEmployee(2, {
+      employeeId: manager.employeeId,
+      fullName: manager.fullName,
+      email: manager.email,
+      startDate: manager.startDate,
+      jobTitle: manager.jobTitle,
+      department: manager.department,
+      team: manager.team,
+      division: manager.division,
+      reportsToName: manager.reportsToName,
+      departmentHeadName: manager.departmentHeadName,
+      hrbpName: manager.hrbpName,
+      jobGrade: manager.jobGrade,
+      site: manager.site,
+      managerEmail: manager.managerEmail,
+      isActive: manager.isActive,
+      avatarUrl: "https://cdn.example.com/manager.png",
+    });
+    expect(updated.ok).toBe(true);
+    const cycleId = getGoalsSnapshot().cycle.id;
+
+    replaceCycleGoalsFromRemote(cycleId, [
+      {
+        personId: "1",
+        status: "approved",
+        goals: [],
+        approvedBy: { id: "2", name: "Line Manager" },
+      },
+    ]);
+
+    expect(getGoalsSnapshot().byPerson["1"].approvedBy).toEqual({
+      id: "2",
+      name: "Line Manager",
+      avatarUrl: "https://cdn.example.com/manager.png",
+    });
   });
 
   it("does not invent goals for employees missing from an API response", () => {

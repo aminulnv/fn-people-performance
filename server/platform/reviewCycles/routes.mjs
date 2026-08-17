@@ -20,7 +20,10 @@ function toHttp(err) {
   if (typeof status === 'number' && status >= 400 && status < 600) {
     return new HttpError(status, err.message || 'Request failed')
   }
-  return err
+  if (err instanceof Error) {
+    return new HttpError(500, err.message || 'An unexpected error occurred')
+  }
+  return new HttpError(500, 'An unexpected error occurred')
 }
 
 export function registerReviewCycleRoutes(app) {

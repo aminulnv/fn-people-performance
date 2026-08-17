@@ -76,7 +76,7 @@ export function describeGoalEditLock({
   }
 
   if (cycle.phase === "check_in") {
-    return `Goal details are locked during the check-in period.${progressNote}`;
+    return `Goal details are locked during the performance review period.${progressNote}`;
   }
 
   return null;

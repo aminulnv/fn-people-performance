@@ -236,8 +236,8 @@ const entries: NotificationCatalogueEntry[] = [
     kind: 'info',
     icon: 'clipboard-check',
     channels: [...inApp],
-    title: 'Your goal check-in is complete',
-    body: '{{manager}} completed your {{cycle}} goal check-in.',
+    title: 'Your performance review is complete',
+    body: '{{manager}} completed your {{cycle}} performance review.',
   }),
   entry(NOTIFICATION_EVENTS.GOAL_CASCADED, {
     kind: 'action',

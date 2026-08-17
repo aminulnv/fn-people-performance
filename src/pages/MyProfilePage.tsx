@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { PageStatus, PageStatusLink, PageStatusRetry } from '@/components/ui'
 import {
   findEmployeeByEmail,
   getEmployee,
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { useAuth } from '@/lib/useAuth'
+import { resolveDepartmentHead } from '@/lib/employees/relationships'
 import {
   EmployeeProfileView,
   resolveManager,
@@ -14,7 +15,7 @@ import '@/styles/layout-people.css'
 
 export default function MyProfilePage() {
   const { user } = useAuth()
-  const { employees, isLoading } = useEmployees()
+  const { employees, isLoading, loadError, reload } = useEmployees()
 
   const employee = useMemo(() => {
     if (!user) return null
@@ -27,35 +28,59 @@ export default function MyProfilePage() {
   }, [user, employees])
 
   const manager = useMemo(() => resolveManager(employee), [employee])
+  const departmentHead = useMemo(
+    () => resolveDepartmentHead(employee),
+    [employee],
+  )
 
   if (!user) {
     return null
   }
 
-  if (isLoading) {
+  if (!employee && isLoading) {
     return (
-      <div
-        className="pd-page pd-people pd-profile"
-        aria-busy="true"
+      <PageStatus
+        variant="loading"
+        pageClassName="pd-people pd-profile"
         aria-label="My profile"
+        description="Loading your profile…"
+      />
+    )
+  }
+
+  if (!employee && loadError) {
+    return (
+      <PageStatus
+        variant="error"
+        pageClassName="pd-people pd-profile"
+        aria-label="My profile load error"
+        description={loadError || 'Failed to load your directory profile.'}
+        action={
+          <PageStatusRetry onClick={() => void reload().catch(() => {})} />
+        }
       />
     )
   }
 
   if (!employee) {
     return (
-      <div className="pd-page pd-people pd-profile" aria-label="My profile">
-        <p className="pd-people__empty">
-          Your account is not linked to a directory profile yet.
-        </p>
-        <Link to="/people" className="pd-people__back">
-          Browse People
-        </Link>
-      </div>
+      <PageStatus
+        variant="info"
+        pageClassName="pd-people pd-profile"
+        aria-label="My profile"
+        title="Profile not linked"
+        description="Your account is not linked to a directory profile yet."
+        action={<PageStatusLink to="/people" label="Browse People" />}
+      />
     )
   }
 
   return (
-    <EmployeeProfileView employee={employee} manager={manager} isSelf />
+    <EmployeeProfileView
+      employee={employee}
+      manager={manager}
+      departmentHead={departmentHead}
+      isSelf
+    />
   )
 }

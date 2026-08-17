@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  Send,
   Target,
   Undo2,
   Users,
@@ -53,6 +52,7 @@ import {
 import { describeGoalEditLock } from "@/lib/goals/editWindow";
 import { isGoalWindowOpenForPerson } from "@/lib/goals/goalExtensions";
 import { useAuth } from "@/lib/auth";
+import { hasSystemPermission } from "@/lib/accessControl/types";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
@@ -632,6 +632,11 @@ function GoalsPersonDetail({
   goalId?: string;
 }) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canManageCycles = hasSystemPermission(
+    user?.permissions,
+    "platform.write_all",
+  );
   const {
     snapshot,
     actor,
@@ -652,8 +657,6 @@ function GoalsPersonDetail({
   } = useGoalsController({ cycleId, subjectId: personId });
   const [reviewId, setReviewId] = useState<string | null>(null);
   const [sendBackReason, setSendBackReason] = useState("");
-  const [ratingTier, setRatingTier] = useState<1 | 2 | 3 | 4 | 5>(3);
-  const [ratingComment, setRatingComment] = useState("");
   const [managerTab, setManagerTab] = useState<ManagerTab>("mine");
   const [teamDetailOpen, setTeamDetailOpen] = useState(false);
 
@@ -707,15 +710,21 @@ function GoalsPersonDetail({
         <EmptyState
           icon={Target}
           title="No goal cycles yet"
-          description="Add a performance cycle, then come back to set goals."
+          description={
+            canManageCycles
+              ? "Add a performance cycle, then come back to set goals."
+              : "Ask an administrator to add a performance cycle before setting goals."
+          }
           action={
-            <Link
-              to={cyclesListPath()}
-              className="pd-people__create-btn"
-            >
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Performance Cycle
-            </Link>
+            canManageCycles ? (
+              <Link
+                to={cyclesListPath()}
+                className="pd-people__create-btn"
+              >
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Performance Cycle
+              </Link>
+            ) : undefined
           }
         />
       </div>
@@ -867,7 +876,6 @@ function GoalsPersonDetail({
       }
       nestedReview={viewingAsManager}
       personAvatar={active.avatarUrl}
-      showOwnScore={Boolean(activeGoals.rating)}
       busy={busy}
       openGoalId={goalId}
       commentAuthorName={actor?.name ?? active.name}
@@ -993,10 +1001,6 @@ function GoalsPersonDetail({
           resolveOwner={resolveOwner}
           sendBackReason={sendBackReason}
           onSendBackReason={setSendBackReason}
-          ratingTier={ratingTier}
-          ratingComment={ratingComment}
-          onRatingTier={setRatingTier}
-          onRatingComment={setRatingComment}
           busy={busy}
           onDetailOpenChange={setTeamDetailOpen}
           onSelect={setReviewId}
@@ -1007,16 +1011,6 @@ function GoalsPersonDetail({
             void actions.sendBack(id, sendBackReason).then(() => {
               setSendBackReason("");
             })
-          }
-          onRate={(id) =>
-            void actions
-              .rate(id, {
-                tier: ratingTier,
-                comment: ratingComment,
-              })
-              .then(() => {
-                setRatingComment("");
-              })
           }
         />
       ) : null}
@@ -1037,15 +1031,10 @@ function ManagerPanel({
   resolveOwner,
   sendBackReason,
   onSendBackReason,
-  ratingTier,
-  ratingComment,
-  onRatingTier,
-  onRatingComment,
   busy,
   onSelect,
   onApprove,
   onSendBack,
-  onRate,
   onSaveGoals,
   onSaveProgress,
   onDetailOpenChange,
@@ -1068,15 +1057,10 @@ function ManagerPanel({
   ) => { id: string; name: string; title?: string; avatarUrl?: string } | null;
   sendBackReason: string;
   onSendBackReason: (v: string) => void;
-  ratingTier: 1 | 2 | 3 | 4 | 5;
-  ratingComment: string;
-  onRatingTier: (v: 1 | 2 | 3 | 4 | 5) => void;
-  onRatingComment: (v: string) => void;
   busy: boolean;
   onSelect: (id: string) => void;
   onApprove: (id: string, goals: Goal[]) => void;
   onSendBack: (id: string) => void;
-  onRate: (id: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   onSaveProgress: (id: string, goals: Goal[]) => void;
   onDetailOpenChange?: (open: boolean) => void;
@@ -1136,9 +1120,7 @@ function ManagerPanel({
               <span className="pd-goals-team__sub">
                 {row.status === "submitted"
                   ? `${row.goals.length} goals · pending`
-                  : row.rating
-                    ? `Rated ${row.rating.tier}/5`
-                    : `${Math.round(overallCompletion(row.goals))}% complete`}
+                  : `${Math.round(overallCompletion(row.goals))}% complete`}
               </span>
             </span>
           </button>
@@ -1275,65 +1257,6 @@ function ManagerPanel({
               </div>
             </div>
           ) : null}
-
-          {!selectedGoal && caps?.canRate ? (
-            <div className="pd-goals-rate">
-              <div>
-                <p className="pd-goal-aside-row__label">Quarter score</p>
-                <p className="pd-goal-aside-row__value">
-                  {Math.round(overallCompletion(active.row.goals))}% complete
-                </p>
-                <div
-                  className="pd-goals-rate__tiers"
-                  role="group"
-                  aria-label="Quarter score"
-                >
-                  {([1, 2, 3, 4, 5] as const).map((tier) => (
-                    <button
-                      key={tier}
-                      type="button"
-                      className={[
-                        "pd-people__chip",
-                        ratingTier === tier ? "is-active" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      aria-pressed={ratingTier === tier}
-                      onClick={() => onRatingTier(tier)}
-                    >
-                      {tier}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <Textarea
-                label="Comment"
-                value={ratingComment}
-                onChange={(e) => onRatingComment(e.target.value)}
-                rows={2}
-              />
-              <Progress value={overallCompletion(active.row.goals)} />
-              <div className="pd-goals__footer-actions">
-                <button
-                  type="button"
-                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-                  disabled={busy}
-                  onClick={() => onRate(active.person.id)}
-                >
-                  <Send size={16} strokeWidth={1.75} aria-hidden />
-                  Submit Score
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {active.row.rating ? (
-            <Notice tone="ok">
-              Score {active.row.rating.tier}/5 is visible to{" "}
-              {active.person.name}.
-              {active.row.rating.comment ? ` ${active.row.rating.comment}` : ""}
-            </Notice>
-          ) : null}
         </div>
       ) : null}
     </div>
@@ -1359,14 +1282,13 @@ function EmployeePanel({
   canSubmit,
   canApprove = false,
   canSendBack = false,
-  isSelf,
+  isSelf: _isSelf,
   sendBackReason = "",
   onSendBackReason,
   onApprove,
   onSendBack,
   nestedReview = false,
   personAvatar,
-  showOwnScore,
   busy,
   openGoalId,
   commentAuthorName,
@@ -1412,7 +1334,6 @@ function EmployeePanel({
   onSendBack?: () => void;
   nestedReview?: boolean;
   personAvatar?: string;
-  showOwnScore: boolean;
   busy: boolean;
   openGoalId?: string;
   commentAuthorName: string;
@@ -1748,13 +1669,6 @@ function EmployeePanel({
             <GoalEditLockNotice message={editLock} />
           ) : null}
 
-          {showOwnScore && row.rating ? (
-            <Notice tone="ok">
-              {isSelf ? "Your" : `${personName}'s`} quarter score:{" "}
-              {row.rating.tier}/5
-              {row.rating.comment ? ` — ${row.rating.comment}` : ""}
-            </Notice>
-          ) : null}
         </>
       ) : null}
 

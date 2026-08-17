@@ -3,13 +3,17 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
   CalendarDays,
-  MoreHorizontal,
+  CircleCheck,
+  Clock3,
+  History,
   Plus,
   Search,
-  Settings,
 } from 'lucide-react'
 import {
-  DropdownMenu,
+  tableDensityWrapClass,
+  TableDensityToggle,
+} from '@/components/TableDensityToggle'
+import {
   EmptyState,
   ResizableTable,
   type ResizableColumn,
@@ -21,15 +25,36 @@ import {
   cycleStatusLabel,
   resolveCycleStatus,
 } from '@/lib/reviews/status'
-import type { ReviewCycle } from '@/lib/reviews/types'
+import type { ReviewCycle, ReviewCycleStatus } from '@/lib/reviews/types'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
+import {
+  readTableDensity,
+  writeTableDensity,
+  type TableDensity,
+} from '@/pages/people/prefs'
 import { AddReviewCycleModal } from './AddReviewCycleModal'
+
+type CycleStatusFilter = 'all' | ReviewCycleStatus
 
 export function CyclesList() {
   const navigate = useNavigate()
   const { cycles } = useReviewsSnapshot()
   const [query, setQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<CycleStatusFilter | null>(
+    null,
+  )
+  const [tableDensity, setTableDensityState] =
+    useState<TableDensity>(readTableDensity)
+
+  function setTableDensity(next: TableDensity) {
+    setTableDensityState(next)
+    writeTableDensity(next)
+  }
+
+  function toggleStatusFilter(next: CycleStatusFilter) {
+    setStatusFilter((current) => (current === next ? null : next))
+  }
 
   const existingPeriodKeys = useMemo(
     () =>
@@ -47,22 +72,37 @@ export function CyclesList() {
     [cycles],
   )
 
+  const stats = useMemo(() => {
+    const statuses = sorted.map((cycle) => resolveCycleStatus(cycle))
+    return {
+      total: sorted.length,
+      current: statuses.filter((status) => status === 'current').length,
+      future: statuses.filter((status) => status === 'future').length,
+      previous: statuses.filter((status) => status === 'previous').length,
+      manual: statuses.filter((status) => status === 'manual').length,
+    }
+  }, [sorted])
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    if (!q) return sorted
     return sorted.filter((cycle) => {
-      const status = cycleStatusLabel(resolveCycleStatus(cycle))
+      const status = resolveCycleStatus(cycle)
+      if (statusFilter && statusFilter !== 'all' && status !== statusFilter) {
+        return false
+      }
+      if (!q) return true
+      const statusLabel = cycleStatusLabel(status)
       const haystack = [
         cycle.name,
         cycle.type,
-        status,
+        statusLabel,
         formatDateRange(cycle.startDate, cycle.endDate),
       ]
         .join(' ')
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [query, sorted])
+  }, [query, sorted, statusFilter])
 
   const cycleColumns = useMemo<ResizableColumn[]>(
     () => [
@@ -75,21 +115,109 @@ export function CyclesList() {
           </span>
         ),
         name: 'Cycle name',
-        minWidth: 180,
+        grow: true,
       },
       { id: 'cycle-type', label: 'Cycle type' },
       { id: 'timeframe', label: 'Timeframe' },
-      {
-        id: 'status',
-        label: <span className="pd-sr-only">Status</span>,
-        name: 'Status',
-      },
+      { id: 'status', label: 'Status' },
     ],
     [filtered.length],
   )
 
   return (
     <div className="pd-reviews-cycles">
+      <div
+        className="pd-people__summary pd-people__summary--stretch"
+        role="group"
+        aria-label="Cycle totals"
+      >
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'all' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'all'}
+          onClick={() => toggleStatusFilter('all')}
+        >
+          <span className="pd-people__summary-label">
+            <CalendarDays size={14} strokeWidth={1.75} aria-hidden />
+            Cycles
+          </span>
+          <span className="pd-people__summary-value">{stats.total}</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'current' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'current'}
+          onClick={() => toggleStatusFilter('current')}
+        >
+          <span className="pd-people__summary-label">
+            <CircleCheck size={14} strokeWidth={1.75} aria-hidden />
+            Current
+          </span>
+          <span className="pd-people__summary-value">{stats.current}</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'future' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'future'}
+          onClick={() => toggleStatusFilter('future')}
+        >
+          <span className="pd-people__summary-label">
+            <Clock3 size={14} strokeWidth={1.75} aria-hidden />
+            Future
+          </span>
+          <span className="pd-people__summary-value">{stats.future}</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'previous' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'previous'}
+          onClick={() => toggleStatusFilter('previous')}
+        >
+          <span className="pd-people__summary-label">
+            <History size={14} strokeWidth={1.75} aria-hidden />
+            Previous
+          </span>
+          <span className="pd-people__summary-value">{stats.previous}</span>
+        </button>
+        <button
+          type="button"
+          className={[
+            'pd-people__summary-btn',
+            statusFilter === 'manual' ? 'is-active' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-pressed={statusFilter === 'manual'}
+          onClick={() => toggleStatusFilter('manual')}
+        >
+          <span className="pd-people__summary-label">
+            <Building2 size={14} strokeWidth={1.75} aria-hidden />
+            Ad-hoc
+          </span>
+          <span className="pd-people__summary-value">{stats.manual}</span>
+        </button>
+      </div>
+
       <div className="pd-people__header pd-people__header--bar">
         <div className="pd-people__bar-start">
           <label className="pd-people__search">
@@ -105,35 +233,27 @@ export function CyclesList() {
           </label>
         </div>
 
-        <div className="pd-people__toolbar">
-          <DropdownMenu
-            label="More actions"
-            align="end"
-            trigger={
-              <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-            }
-            triggerProps={{
-              className: 'pd-people__icon-btn',
-              'aria-label': 'More actions',
-              title: 'More actions',
-            }}
-            items={[
-              {
-                id: 'settings',
-                label: 'Settings',
-                icon: <Settings size={16} strokeWidth={1.75} />,
-                onSelect: () => {},
-              },
-            ]}
-          />
-          <button
-            type="button"
-            className="pd-people__create-btn"
-            onClick={() => setAddOpen(true)}
-          >
-            <Plus size={18} strokeWidth={2} aria-hidden />
-            Add Performance Cycle
-          </button>
+        <div className="pd-people__bar-end">
+          {filtered.length !== sorted.length || statusFilter ? (
+            <p className="pd-people__stat">{filtered.length} shown</p>
+          ) : null}
+
+          <div className="pd-people__toolbar">
+            <TableDensityToggle
+              className="pd-people__density"
+              buttonClassName="pd-people__density-btn"
+              value={tableDensity}
+              onChange={setTableDensity}
+            />
+            <button
+              type="button"
+              className="pd-people__create-btn"
+              onClick={() => setAddOpen(true)}
+            >
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add Performance Cycle
+            </button>
+          </div>
         </div>
       </div>
 
@@ -148,7 +268,7 @@ export function CyclesList() {
         {filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
-              className="pd-empty--inline"
+              className="pd-people__empty-panel"
               icon={CalendarDays}
               title={
                 cycles.length === 0 ? 'No performance cycles yet' : 'No matches'
@@ -156,7 +276,9 @@ export function CyclesList() {
               description={
                 cycles.length === 0
                   ? 'Create a regular or ad-hoc cycle to start performance reviews.'
-                  : 'Try a different search, or clear the filter.'
+                  : query.trim()
+                    ? `No cycles match “${query.trim()}” with the filters you have applied.`
+                    : 'These filters exclude every cycle. Try clearing them to see the full list.'
               }
               action={
                 cycles.length === 0 ? (
@@ -168,12 +290,23 @@ export function CyclesList() {
                     <Plus size={18} strokeWidth={2} aria-hidden />
                     Add Performance Cycle
                   </button>
-                ) : undefined
+                ) : (
+                  <button
+                    type="button"
+                    className="pd-people__create-btn"
+                    onClick={() => {
+                      setQuery('')
+                      setStatusFilter(null)
+                    }}
+                  >
+                    Clear Filters
+                  </button>
+                )
               }
             />
           </div>
         ) : (
-          <div className="pd-people__table-wrap">
+          <div className={tableDensityWrapClass(tableDensity)}>
             <ResizableTable
               className="pd-people__table pd-reviews-cycles__table"
               storageKey="reviews-cycles-column-widths"

@@ -18,6 +18,8 @@ import { TopBarCycleNav } from './TopBarCycleNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
+import { navItemsForPermissions } from '@/config/layout'
+import { useAuth } from '@/lib/useAuth'
 
 interface AppLayoutProps extends AppLayoutConfig {
   onSignOut?: () => void
@@ -29,10 +31,16 @@ export function AppLayout({
   onSignOut,
 }: AppLayoutProps) {
   const { pathname } = useLocation()
+  const { user } = useAuth()
   const { isMobile } = useBreakpoint()
   const { enabled: assistantEnabled } = useAssistantPrefs()
   const { employees } = useEmployees({ load: false })
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+
+  const visibleNavItems = useMemo(
+    () => navItemsForPermissions(navItems, user?.permissions),
+    [navItems, user?.permissions],
+  )
 
   useEffect(() => {
     if (!isMobile) setIsMobileOpen(false)
@@ -177,7 +185,7 @@ export function AppLayout({
     ],
   )
 
-  const titleIcon = resolveTopBarIcon(pathname, navItems)
+  const titleIcon = resolveTopBarIcon(pathname, visibleNavItems)
 
   return (
     <div
@@ -191,7 +199,7 @@ export function AppLayout({
     >
       <div className="pd-app-shell__main">
         <Sidebar
-          navItems={navItems}
+          navItems={visibleNavItems}
           brand={brand}
           isMobile={isMobile}
           isMobileOpen={isMobileOpen}

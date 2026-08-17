@@ -6,7 +6,7 @@ import {
   Network,
   UsersRound,
 } from 'lucide-react'
-import { Avatar } from '@/components/ui'
+import { Avatar, PageStatus, PageStatusLink } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee, listDepartments } from '@/lib/employees/store'
 import type { PlatformDepartment } from '@/lib/employees/types'
@@ -66,15 +66,14 @@ export default function DepartmentDetailPage() {
 
   if (!department) {
     return (
-      <div
-        className="pd-page pd-people pd-org pd-org-detail"
+      <PageStatus
+        variant="not-found"
+        pageClassName="pd-people pd-org pd-org-detail"
         aria-label="Department not found"
-      >
-        <p className="pd-people__empty">Department not found.</p>
-        <Link to="/organisation" className="pd-people__back">
-          Back to Organisation
-        </Link>
-      </div>
+        title="Department not found"
+        description="This department may have been removed or the link is outdated."
+        action={<PageStatusLink to="/organisation" label="Back to Organisation" />}
+      />
     )
   }
 

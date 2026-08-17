@@ -1,5 +1,163 @@
 /** Shared Performance Cycle validation helpers for the platform API. */
 
+function parseIso(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number)
+  if (!y || !m || !d) return null
+  return new Date(Date.UTC(y, m - 1, d))
+}
+
+function toIso(date) {
+  const y = date.getUTCFullYear()
+  const m = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const d = String(date.getUTCDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+function addDays(date, days) {
+  const next = new Date(date)
+  next.setUTCDate(next.getUTCDate() + days)
+  return next
+}
+
+function at(date) {
+  return { date, time: '00:00' }
+}
+
+export function buildDefaultStagesConfig(startDate, endDate) {
+  const start = parseIso(startDate)
+  const end = parseIso(endDate)
+  if (!start || !end) {
+    return {
+      processMode: 'schedule',
+      goals: {
+        employee: { startDate, endDate },
+        extensions: [],
+      },
+      performance: {
+        employeeStart: at(startDate),
+        employeeEnd: at(endDate),
+        managerStart: at(startDate),
+        managerEnd: at(endDate),
+      },
+      calibration: {
+        enabled: true,
+        start: at(endDate),
+        end: at(endDate),
+        manualStart: at(endDate),
+      },
+      publish: {
+        toManager: at(endDate),
+        toAll: at(endDate),
+      },
+    }
+  }
+
+  const goalsStart = addDays(start, -25)
+  const employeeGoalsEnd = addDays(start, 0)
+  const reviewStart = addDays(end, -9)
+  const reviewEnd = addDays(end, 8)
+  const calStart = reviewEnd
+  const calEnd = addDays(calStart, 7)
+  const publishManagers = addDays(calEnd, 3)
+  const publishEmployees = addDays(publishManagers, 7)
+
+  return {
+    processMode: 'schedule',
+    goals: {
+      employee: {
+        startDate: toIso(goalsStart),
+        endDate: toIso(employeeGoalsEnd),
+      },
+      extensions: [],
+    },
+    performance: {
+      employeeStart: at(toIso(reviewStart)),
+      employeeEnd: at(toIso(reviewEnd)),
+      managerStart: at(toIso(reviewStart)),
+      managerEnd: at(toIso(reviewEnd)),
+    },
+    calibration: {
+      enabled: true,
+      start: at(toIso(calStart)),
+      end: at(toIso(calEnd)),
+      manualStart: at(toIso(calStart)),
+    },
+    publish: {
+      toManager: at(toIso(publishManagers)),
+      toAll: at(toIso(publishEmployees)),
+    },
+  }
+}
+
+export function normalizeStagesConfig(config, quarter = {}) {
+  const startDate = quarter.startDate ?? '2026-07-01'
+  const endDate = quarter.endDate ?? '2026-09-30'
+  const defaults = buildDefaultStagesConfig(startDate, endDate)
+  if (!config) return defaults
+
+  return {
+    processMode: config.processMode ?? defaults.processMode,
+    goals: {
+      employee: config.goals?.employee ?? defaults.goals.employee,
+      extensions: config.goals?.extensions ?? [],
+    },
+    performance: {
+      ...defaults.performance,
+      ...config.performance,
+      employeeStart: {
+        ...defaults.performance.employeeStart,
+        ...config.performance?.employeeStart,
+      },
+      employeeEnd: {
+        ...defaults.performance.employeeEnd,
+        ...config.performance?.employeeEnd,
+      },
+      managerStart: {
+        ...defaults.performance.managerStart,
+        ...config.performance?.managerStart,
+      },
+      managerEnd: {
+        ...defaults.performance.managerEnd,
+        ...config.performance?.managerEnd,
+      },
+    },
+    calibration: {
+      ...defaults.calibration,
+      ...config.calibration,
+      start: {
+        ...defaults.calibration.start,
+        ...config.calibration?.start,
+      },
+      end: {
+        ...defaults.calibration.end,
+        ...config.calibration?.end,
+      },
+      manualStart: {
+        ...defaults.calibration.manualStart,
+        ...config.calibration?.manualStart,
+      },
+    },
+    publish: {
+      ...defaults.publish,
+      ...config.publish,
+      toManager: {
+        ...defaults.publish.toManager,
+        ...config.publish?.toManager,
+      },
+      toAll: {
+        ...defaults.publish.toAll,
+        ...config.publish?.toAll,
+      },
+    },
+  }
+}
+
+function validationError(message) {
+  const err = new Error(message)
+  err.statusCode = 400
+  return err
+}
+
 export function validateGoalCountPolicy(policy) {
   const values = [
     policy.minimumRequired,
@@ -7,59 +165,52 @@ export function validateGoalCountPolicy(policy) {
     policy.recommendedMaximum,
   ]
   if (values.some((value) => !Number.isInteger(value) || value < 1)) {
-    const err = new Error(
+    throw validationError(
       'Goal-count values must be whole numbers greater than zero.',
     )
-    err.statusCode = 400
-    throw err
   }
   if (policy.recommendedMinimum < policy.minimumRequired) {
-    const err = new Error(
+    throw validationError(
       'Recommended minimum cannot be lower than the required minimum.',
     )
-    err.statusCode = 400
-    throw err
   }
   if (policy.recommendedMaximum < policy.recommendedMinimum) {
-    const err = new Error(
+    throw validationError(
       'Recommended maximum cannot be lower than the recommended minimum.',
     )
-    err.statusCode = 400
-    throw err
   }
   if (
     policy.maximumAllowed !== null &&
     (!Number.isInteger(policy.maximumAllowed) ||
       policy.maximumAllowed < policy.recommendedMaximum)
   ) {
-    const err = new Error(
+    throw validationError(
       'Maximum allowed must be at least the recommended maximum, or left empty.',
     )
-    err.statusCode = 400
-    throw err
   }
 }
 
 export function validateCycleStagesConfig(config) {
+  if (!config?.goals?.employee) {
+    throw validationError('Goal setting requires a start and end date.')
+  }
+  if (!config?.performance?.employeeStart || !config?.performance?.managerStart) {
+    throw validationError('Cycle stages are incomplete. Reload and try again.')
+  }
+
   const ranges = [
     [
-      'Department goals',
-      config.goals.department.startDate,
-      config.goals.department.endDate,
-    ],
-    ['Team goals', config.goals.team.startDate, config.goals.team.endDate],
-    [
-      'Employee goals',
+      'Goal setting',
       config.goals.employee.startDate,
       config.goals.employee.endDate,
     ],
     [
-      'Employee performance',
+      'Performance review',
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
     ],
     [
-      'Manager performance',
+      'Performance review',
       config.performance.managerStart.date,
       config.performance.managerEnd.date,
     ],
@@ -67,23 +218,17 @@ export function validateCycleStagesConfig(config) {
 
   for (const [label, startDate, endDate] of ranges) {
     if (!startDate || !endDate) {
-      const err = new Error(`${label} requires a start and end date.`)
-      err.statusCode = 400
-      throw err
+      throw validationError(`${label} requires a start and end date.`)
     }
     if (startDate > endDate) {
-      const err = new Error(`${label} must end on or after its start date.`)
-      err.statusCode = 400
-      throw err
+      throw validationError(`${label} must end on or after its start date.`)
     }
   }
 
   if (config.goals.employee.endDate >= config.performance.employeeStart.date) {
-    const err = new Error(
-      'Employee performance must start after the employee goal lock date.',
+    throw validationError(
+      'Performance review must start after the employee goal lock date.',
     )
-    err.statusCode = 400
-    throw err
   }
 
   for (const extension of config.goals.extensions ?? []) {
@@ -91,18 +236,14 @@ export function validateCycleStagesConfig(config) {
       !extension.endDate ||
       extension.endDate <= config.goals.employee.endDate
     ) {
-      const err = new Error(
+      throw validationError(
         'An extension deadline must be after the standard goal deadline.',
       )
-      err.statusCode = 400
-      throw err
     }
     if (extension.endDate >= config.performance.employeeStart.date) {
-      const err = new Error(
-        'An extension deadline must be before employee performance starts.',
+      throw validationError(
+        'An extension deadline must be before performance review starts.',
       )
-      err.statusCode = 400
-      throw err
     }
 
     const scope = extension.scope
@@ -120,11 +261,9 @@ export function validateCycleStagesConfig(config) {
       scope.employeeIds.length > 0 &&
       scope.employeeIds.every(Number.isInteger)
     if (!validDepartment && !validTeam && !validPeople) {
-      const err = new Error(
+      throw validationError(
         'Each extension requires a valid team, department, or people selection.',
       )
-      err.statusCode = 400
-      throw err
     }
   }
 }
@@ -134,16 +273,12 @@ export function validateCalibration(calibration) {
   if (
     bands.some((value) => !Number.isInteger(value) || value < 0 || value > 100)
   ) {
-    const err = new Error(
+    throw validationError(
       'Grade distribution values must be whole percentages from 0 to 100.',
     )
-    err.statusCode = 400
-    throw err
   }
   const total = bands.reduce((sum, value) => sum + value, 0)
   if (total !== 100) {
-    const err = new Error('Grade distribution must total 100%.')
-    err.statusCode = 400
-    throw err
+    throw validationError('Grade distribution must total 100%.')
   }
 }

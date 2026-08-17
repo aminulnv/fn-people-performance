@@ -6,7 +6,7 @@ export default function ReviewsPage() {
   return (
     <div
       className="pd-page pd-page--pane pd-reviews"
-      aria-label="Check-ins"
+      aria-label="Performance reviews"
     >
       <ScorecardsList />
     </div>

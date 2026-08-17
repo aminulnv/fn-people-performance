@@ -18,7 +18,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react'
-import { Avatar, EmptyState } from '@/components/ui'
+import { Avatar, EmptyState, PageStatus, PageStatusLink } from '@/components/ui'
 import {
   findEmployeeByEmail,
   getEmployee,
@@ -512,15 +512,14 @@ export default function EmployeeProfileV2Page() {
 
   if (!employee) {
     return (
-      <div
-        className="pd-page pd-people pd-profile-v2"
+      <PageStatus
+        variant="not-found"
+        pageClassName="pd-people pd-profile-v2"
         aria-label="Employee not found"
-      >
-        <p className="pd-people__empty">Employee not found.</p>
-        <Link to="/people-v2" className="pd-people__back">
-          Back to People
-        </Link>
-      </div>
+        title="Employee not found"
+        description="This person may have been removed or the link is outdated."
+        action={<PageStatusLink to="/people-v2" label="Back to People" />}
+      />
     )
   }
 

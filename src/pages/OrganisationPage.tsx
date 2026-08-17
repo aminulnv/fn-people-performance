@@ -4,14 +4,16 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
-  MoreHorizontal,
-  Network,
   Plus,
   Search,
-  Settings,
   Users,
   UsersRound,
 } from 'lucide-react'
+import { OrgChartLink } from '@/components/OrgChartLink'
+import {
+  tableDensityWrapClass,
+  TableDensityToggle,
+} from '@/components/TableDensityToggle'
 import {
   Avatar,
   ResizableTable,
@@ -30,6 +32,11 @@ import {
   teamDetailPath,
 } from '@/lib/organisation/paths'
 import type { OrgDepartment, OrgPersonRef, OrgTeam } from '@/lib/organisation/types'
+import {
+  readTableDensity,
+  writeTableDensity,
+  type TableDensity,
+} from '@/pages/people/prefs'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -165,6 +172,13 @@ export default function OrganisationPage() {
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  const [tableDensity, setTableDensityState] =
+    useState<TableDensity>(readTableDensity)
+
+  function setTableDensity(next: TableDensity) {
+    setTableDensityState(next)
+    writeTableDensity(next)
+  }
 
   function toggleStructureView(next: StructureView) {
     setStructureView((current) => (current === next ? null : next))
@@ -249,6 +263,7 @@ export default function OrganisationPage() {
           </span>
         ),
         name: 'Department',
+        grow: true,
       },
       { id: 'owner', label: 'Owner' },
       { id: 'teams', label: 'Teams' },
@@ -267,6 +282,7 @@ export default function OrganisationPage() {
           </span>
         ),
         name: 'Team',
+        grow: true,
       },
       { id: 'department', label: 'Department' },
       { id: 'manager', label: 'Manager' },
@@ -365,32 +381,19 @@ export default function OrganisationPage() {
         </div>
 
         <div className="pd-people__toolbar">
-          <button
-            type="button"
-            className="pd-people__icon-btn"
-            aria-label="More actions"
-            title="More actions"
-          >
-            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pd-people__ghost-btn"
-            title="Organisation settings"
-          >
-            <Settings size={16} strokeWidth={1.75} aria-hidden />
-            Settings
-          </button>
+          <TableDensityToggle
+            className="pd-people__density"
+            buttonClassName="pd-people__density-btn"
+            value={tableDensity}
+            onChange={setTableDensity}
+          />
+          <OrgChartLink />
           <Link
             to="/organisation/departments/new"
             className="pd-people__create-btn"
           >
             <Plus size={18} strokeWidth={2} aria-hidden />
             Add Department
-          </Link>
-          <Link to="/organisation/chart" className="pd-people__ghost-btn">
-            <Network size={16} strokeWidth={1.75} aria-hidden />
-            View Org Chart
           </Link>
         </div>
       </div>
@@ -432,7 +435,7 @@ export default function OrganisationPage() {
               No departments match your filters.
             </p>
           ) : (
-            <div className="pd-people__table-wrap">
+            <div className={tableDensityWrapClass(tableDensity)}>
               <ResizableTable
                 className="pd-people__table"
                 storageKey="organisation-departments-column-widths"
@@ -547,7 +550,7 @@ export default function OrganisationPage() {
         ) : filteredTeams.length === 0 ? (
           <p className="pd-people__empty">No teams match your filters.</p>
         ) : (
-          <div className="pd-people__table-wrap">
+          <div className={tableDensityWrapClass(tableDensity)}>
             <ResizableTable
               className="pd-people__table"
               storageKey="organisation-teams-column-widths"

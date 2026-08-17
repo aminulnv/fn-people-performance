@@ -6,7 +6,6 @@ import {
   fetchCycleGoalSubmissionsRemote,
   savePersonGoalsDraftRemote,
   sendBackPersonGoalsRemote,
-  submitPersonGoalRatingRemote,
   submitPersonGoalsRemote,
 } from './goals/remoteApi'
 import {
@@ -23,7 +22,6 @@ import {
   setActivePerson,
   setDemoPhase,
   submitPersonGoals,
-  submitQuarterRating,
   subscribeGoalsStore,
   updateGoalProgress,
   type GoalMutationContext,
@@ -34,7 +32,6 @@ import type {
   DemoPhase,
   Goal,
   GoalsSnapshot,
-  QuarterRating,
 } from './goals/types'
 
 export type {
@@ -279,20 +276,6 @@ export async function saveProgress(
     context.cycleId,
     context.subjectId,
     goals,
-    currentVersion(context),
-  )
-  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
-}
-
-export async function ratePerson(
-  context: GoalMutationContext,
-  rating: Omit<QuarterRating, 'submittedAt'>,
-): Promise<GoalsSnapshot> {
-  if (useLocalGoals()) return delay(submitQuarterRating(context, rating))
-  const remote = await submitPersonGoalRatingRemote(
-    context.cycleId,
-    context.subjectId,
-    rating,
     currentVersion(context),
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)

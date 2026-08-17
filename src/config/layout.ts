@@ -11,6 +11,10 @@ import {
   Users,
 } from 'lucide-react'
 import type { AppLayoutConfig, NavItem } from '@/layout/types'
+import {
+  hasSystemPermission,
+  type SystemPermission,
+} from '@/lib/accessControl/types'
 import { publicUrl } from '@/lib/publicUrl'
 
 export const profileNavItem: NavItem = {
@@ -36,7 +40,12 @@ export const layoutConfig: AppLayoutConfig = {
     profileNavItem,
     { path: '/organisation', label: 'Organisation', icon: Landmark },
     { path: '/people', label: 'People', icon: Users },
-    { path: '/cycles', label: 'Performance Cycles', icon: CalendarRange },
+    {
+      path: '/cycles',
+      label: 'Cycles',
+      icon: CalendarRange,
+      requiredPermission: 'platform.write_all',
+    },
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
     { path: '/analytics', label: 'Analytics', icon: BarChart3, comingSoon: true },
@@ -48,3 +57,14 @@ export const searchablePages: NavItem[] = [
   ...layoutConfig.navItems,
   settingsNavItem,
 ]
+
+export function navItemsForPermissions(
+  items: NavItem[],
+  permissions: readonly SystemPermission[] | undefined,
+): NavItem[] {
+  return items.filter(
+    (item) =>
+      !item.requiredPermission ||
+      hasSystemPermission(permissions, item.requiredPermission),
+  )
+}

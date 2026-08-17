@@ -64,6 +64,74 @@ export const DEFAULT_CALIBRATION: CalibrationLogic = {
   },
 };
 
+/** Strip legacy department/team goal windows and fill any missing fields. */
+export function normalizeStagesConfig(
+  config?: Partial<CycleStagesConfig>,
+  quarter?: { startDate: string; endDate: string },
+): CycleStagesConfig {
+  const defaults = buildDefaultStagesConfig(
+    quarter?.startDate ?? "2026-07-01",
+    quarter?.endDate ?? "2026-09-30",
+  );
+  if (!config) return defaults;
+
+  return {
+    processMode: config.processMode ?? defaults.processMode,
+    goals: {
+      employee: config.goals?.employee ?? defaults.goals.employee,
+      extensions: config.goals?.extensions ?? [],
+    },
+    performance: {
+      ...defaults.performance,
+      ...config.performance,
+      employeeStart: {
+        ...defaults.performance.employeeStart,
+        ...config.performance?.employeeStart,
+      },
+      employeeEnd: {
+        ...defaults.performance.employeeEnd,
+        ...config.performance?.employeeEnd,
+      },
+      managerStart: {
+        ...defaults.performance.managerStart,
+        ...config.performance?.managerStart,
+      },
+      managerEnd: {
+        ...defaults.performance.managerEnd,
+        ...config.performance?.managerEnd,
+      },
+    },
+    calibration: {
+      ...defaults.calibration,
+      ...config.calibration,
+      start: {
+        ...defaults.calibration.start,
+        ...config.calibration?.start,
+      },
+      end: {
+        ...defaults.calibration.end,
+        ...config.calibration?.end,
+      },
+      manualStart: {
+        ...defaults.calibration.manualStart,
+        ...config.calibration?.manualStart,
+      },
+    },
+    publish: {
+      ...defaults.publish,
+      ...config.publish,
+      toManager: {
+        ...defaults.publish.toManager,
+        ...config.publish?.toManager,
+      },
+      toAll: {
+        ...defaults.publish.toAll,
+        ...config.publish?.toAll,
+      },
+    },
+  };
+}
+
 /** Default stage windows relative to a quarter timeframe. */
 export function buildDefaultStagesConfig(
   startDate: string,
@@ -75,8 +143,6 @@ export function buildDefaultStagesConfig(
     return {
       processMode: "schedule",
       goals: {
-        department: { startDate, endDate },
-        team: { startDate, endDate },
         employee: { startDate, endDate },
         extensions: [],
       },
@@ -100,7 +166,6 @@ export function buildDefaultStagesConfig(
   }
 
   const goalsStart = addDays(start, -25);
-  const goalsEnd = addDays(start, 9);
   const employeeGoalsEnd = addDays(start, 0);
   const reviewStart = addDays(end, -9);
   const reviewEnd = addDays(end, 8);
@@ -112,14 +177,6 @@ export function buildDefaultStagesConfig(
   return {
     processMode: "schedule",
     goals: {
-      department: {
-        startDate: toIso(goalsStart),
-        endDate: toIso(goalsEnd),
-      },
-      team: {
-        startDate: toIso(goalsStart),
-        endDate: toIso(goalsEnd),
-      },
       employee: {
         startDate: toIso(goalsStart),
         endDate: toIso(employeeGoalsEnd),

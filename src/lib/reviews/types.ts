@@ -43,8 +43,6 @@ export type GoalCycleExtension = {
 
 /** Timeline row for the settings overview. */
 export type CycleStageId =
-  | "department_goals"
-  | "team_goals"
   | "employee_goals"
   | "performance_review"
   | "calibration"
@@ -61,8 +59,6 @@ export type CycleStage = {
 export type CycleStagesConfig = {
   processMode: StageProcessMode;
   goals: {
-    department: DateRange;
-    team: DateRange;
     employee: DateRange;
     /** Exceptions to the employee goal deadline. Latest matching date wins. */
     extensions?: GoalCycleExtension[];

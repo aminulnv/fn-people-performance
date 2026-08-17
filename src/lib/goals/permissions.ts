@@ -27,7 +27,6 @@ export type GoalCapabilities = {
   canSubmit: boolean;
   canApprove: boolean;
   canSendBack: boolean;
-  canRate: boolean;
   canViewAsManager: boolean;
 };
 
@@ -131,12 +130,6 @@ export function deriveGoalCapabilities(
       (canWriteAll ||
         (isPostWindowManagerManagerApproval ? managerManager : manager)) &&
       (row.status === "submitted" || row.status === "approved"),
-    canRate:
-      (manager || canWriteAll) &&
-      currentCycle &&
-      cycle.phase === "check_in" &&
-      row.status === "approved" &&
-      !row.rating,
     canViewAsManager: manager || canReadAll || canWriteAll,
   };
 }

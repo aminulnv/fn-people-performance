@@ -10,6 +10,7 @@ import {
   validateCalibration,
   validateCycleStagesConfig,
   validateGoalCountPolicy,
+  normalizeStagesConfig,
 } from './validation.mjs'
 
 function isoTimestamp(value) {
@@ -33,14 +34,16 @@ function actorFromUser(platformUser) {
 }
 
 function mapCycle(row, excludedEmployeeIds = []) {
+  const startDate = isoDate(row.start_date)
+  const endDate = isoDate(row.end_date)
   return {
     id: row.id,
     name: row.name,
     type: row.cycle_type,
-    startDate: isoDate(row.start_date),
-    endDate: isoDate(row.end_date),
+    startDate,
+    endDate,
     periodKey: row.period_key ?? undefined,
-    stagesConfig: row.stages_config,
+    stagesConfig: normalizeStagesConfig(row.stages_config, { startDate, endDate }),
     settings: {
       reviewTypes: row.review_types,
       goalCountPolicy: row.goal_count_policy,
@@ -155,8 +158,12 @@ export async function createReviewCycle(input, platformUser) {
   const actor = actorFromUser(platformUser)
   try {
     await client.query('BEGIN')
+    const stagesConfig = normalizeStagesConfig(input.stagesConfig, {
+      startDate: input.startDate,
+      endDate: input.endDate,
+    })
     validateGoalCountPolicy(input.settings.goalCountPolicy)
-    validateCycleStagesConfig(input.stagesConfig)
+    validateCycleStagesConfig(stagesConfig)
     validateCalibration(input.calibration)
 
     const id = input.id || `adhoc-${crypto.randomUUID()}`
@@ -179,7 +186,7 @@ export async function createReviewCycle(input, platformUser) {
         input.endDate,
         Boolean(input.isTest),
         input.sourceCycleId ?? null,
-        JSON.stringify(input.stagesConfig),
+        JSON.stringify(stagesConfig),
         JSON.stringify(input.settings.reviewTypes),
         JSON.stringify(input.settings.goalCountPolicy),
         input.settings.postWindowGoalPolicy,
@@ -322,7 +329,11 @@ export async function updateReviewCycleStages(cycleId, input, platformUser) {
     const row = await getCycleRow(client, cycleId, { forUpdate: true })
     if (!row) throw new HttpError(404, 'Cycle not found.')
     assertExpectedVersion(row, input.expectedVersion)
-    validateCycleStagesConfig(input.stagesConfig)
+    const stagesConfig = normalizeStagesConfig(input.stagesConfig, {
+      startDate: isoDate(row.start_date),
+      endDate: isoDate(row.end_date),
+    })
+    validateCycleStagesConfig(stagesConfig)
     if (input.postWindowGoalPolicy) {
       // validated by DB check; keep early message for clients
       if (
@@ -345,7 +356,7 @@ export async function updateReviewCycleStages(cycleId, input, platformUser) {
        RETURNING *`,
       [
         cycleId,
-        JSON.stringify(input.stagesConfig),
+        JSON.stringify(stagesConfig),
         input.postWindowGoalPolicy ?? null,
         actor.actorEmployeeId,
       ],
@@ -484,8 +495,12 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
   try {
     await client.query('BEGIN')
     for (const cycle of cycles) {
+      const stagesConfig = normalizeStagesConfig(cycle.stagesConfig, {
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+      })
       validateGoalCountPolicy(cycle.settings.goalCountPolicy)
-      validateCycleStagesConfig(cycle.stagesConfig)
+      validateCycleStagesConfig(stagesConfig)
       validateCalibration(cycle.calibration)
       const existing = await getCycleRow(client, cycle.id, { includeDeleted: true })
       if (existing && !existing.deleted_at) continue
@@ -510,7 +525,7 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
           cycle.endDate,
           Boolean(cycle.isTest),
           null,
-          JSON.stringify(cycle.stagesConfig),
+          JSON.stringify(stagesConfig),
           JSON.stringify(cycle.settings.reviewTypes),
           JSON.stringify(cycle.settings.goalCountPolicy),
           cycle.settings.postWindowGoalPolicy,

@@ -7,7 +7,8 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
-import { searchablePages } from '@/config/layout'
+import { searchablePages, navItemsForPermissions } from '@/config/layout'
+import { useAuth } from '@/lib/useAuth'
 import { useOrganisation } from '@/lib/employees/useEmployees'
 import {
   departmentDetailPath,
@@ -43,6 +44,7 @@ function pluralize(count: number, singular: string): string {
 
 export function TopBarSearch() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { employees, organisation } = useOrganisation()
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -54,8 +56,12 @@ export function TopBarSearch() {
 
   const results = useMemo<GlobalSearchResult[]>(() => {
     const normalizedQuery = query.trim().toLowerCase()
+    const visiblePages = navItemsForPermissions(
+      searchablePages,
+      user?.permissions,
+    )
 
-    const pageResults = searchablePages
+    const pageResults = visiblePages
       .filter(
         (page) =>
           !normalizedQuery ||
@@ -155,7 +161,7 @@ export function TopBarSearch() {
       ...departmentResults,
       ...teamResults,
     ]
-  }, [employees, organisation, query])
+  }, [employees, organisation, query, user?.permissions])
 
   const groupedResults = SEARCH_SECTIONS.map((section) => ({
     section,

@@ -3,7 +3,6 @@ import {
   notifyGoalApproved,
   notifyGoalCascaded,
   notifyGoalChangesRequireApproval,
-  notifyGoalCheckInCompleted,
   notifyGoalHardLock,
   notifyGoalProgressAdjusted,
   notifyGoalSentBack,
@@ -37,8 +36,33 @@ import type {
   GoalsCycleOption,
   GoalsSnapshot,
   PersonGoals,
-  QuarterRating,
+  SendBackAuthor,
 } from "./types";
+
+/** API snapshots store approver id/name only — fill photo from the live directory. */
+function enrichApprovalActor(
+  actor: SendBackAuthor | undefined,
+  people: DemoPerson[],
+): SendBackAuthor | undefined {
+  if (!actor?.id || actor.avatarUrl?.trim()) return actor;
+  const avatarUrl = people
+    .find((person) => person.id === actor.id)
+    ?.avatarUrl?.trim();
+  if (!avatarUrl) return actor;
+  return { ...actor, avatarUrl };
+}
+
+function enrichPersonGoalsActors(
+  row: PersonGoals,
+  people: DemoPerson[],
+): PersonGoals {
+  const approvedBy = enrichApprovalActor(row.approvedBy, people);
+  const sendBackBy = enrichApprovalActor(row.sendBackBy, people);
+  if (approvedBy === row.approvedBy && sendBackBy === row.sendBackBy) {
+    return row;
+  }
+  return { ...row, approvedBy, sendBackBy };
+}
 import { canSubmitGoals } from "./weightage";
 
 /** Explicit cycle + actor so UI shells cannot mutate the wrong person or cycle. */
@@ -289,6 +313,12 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
     signedInPersonId,
     seedMissingPeople: useLocalGoalsPersistence(),
   });
+  const enrichedByPerson = Object.fromEntries(
+    Object.entries(merged.byPerson).map(([personId, row]) => [
+      personId,
+      enrichPersonGoalsActors(row, merged.people),
+    ]),
+  );
   const isPastGoalWindow =
     cycle.postWindowGoalPolicy === "hard_stop" &&
     (cycle.phase === "hard_lock" ||
@@ -296,7 +326,7 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
       cycle.phase === "closed");
   const byPerson: Record<string, PersonGoals> = isPastGoalWindow
     ? Object.fromEntries(
-        Object.entries(merged.byPerson).map(([personId, row]) => {
+        Object.entries(enrichedByPerson).map(([personId, row]) => {
           const person = merged.people.find(
             (candidate) => candidate.id === personId,
           );
@@ -310,7 +340,7 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
           ];
         }),
       )
-    : merged.byPerson;
+    : enrichedByPerson;
 
   return {
     cycle: {
@@ -833,33 +863,6 @@ export function updateGoalProgress(
     subject,
     changedGoalCount,
   });
-  return next;
-}
-
-export function submitQuarterRating(
-  context: GoalMutationContext,
-  rating: Omit<QuarterRating, "submittedAt">,
-): GoalsSnapshot {
-  const { snap, actor, subject, capabilities } = capabilitiesFor(context);
-  if (!capabilities.canRate) {
-    throw new Error("You do not have permission to rate these goals.");
-  }
-  if (snap.cycle.phase !== "check_in") {
-    throw new Error("Check-in is not open for this cycle.");
-  }
-  const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (current.status !== "approved") {
-      throw new Error("Only approved goals can be rated.");
-    }
-    return {
-      ...current,
-      rating: {
-        ...rating,
-        submittedAt: new Date().toISOString(),
-      },
-    };
-  });
-  notifyGoalCheckInCompleted({ snapshot: next, actor, subject });
   return next;
 }
 

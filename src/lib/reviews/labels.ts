@@ -5,10 +5,23 @@ import type {
   CycleStagesConfig,
   CycleSettings,
   DateTimeValue,
+  GoalCountPolicy,
   GradeBandId,
   GradeRecommendationId,
+  PostWindowGoalPolicy,
   ReviewTypeId,
+  StageProcessMode,
 } from './types'
+
+export function processModeLabel(mode: StageProcessMode): string {
+  return mode === 'manual' ? 'Manual' : 'Schedule'
+}
+
+export function processModeHint(mode: StageProcessMode): string {
+  return mode === 'manual'
+    ? 'Stages are advanced manually — dates below are guidance.'
+    : 'Stages open and close automatically on configured dates.'
+}
 
 export const REVIEW_TYPE_META: Record<
   ReviewTypeId,
@@ -133,6 +146,19 @@ export function enabledReviewTypeLabels(settings: CycleSettings): string {
   return labels.length > 0 ? labels.join(', ') : 'None'
 }
 
+export function goalCountPolicyLabel(policy: GoalCountPolicy): string {
+  const hardRange = policy.maximumAllowed
+    ? `${policy.minimumRequired}–${policy.maximumAllowed} required`
+    : `${policy.minimumRequired}+ required`
+  return `${hardRange} · ${policy.recommendedMinimum}–${policy.recommendedMaximum} recommended`
+}
+
+export function postWindowGoalPolicyLabel(policy: PostWindowGoalPolicy): string {
+  return policy === 'two_tier_approval'
+    ? 'Allowed · two-tier approval'
+    : 'Not allowed'
+}
+
 export function formatDateTimeValue(value: DateTimeValue): string {
   const [y, m, d] = value.date.split('-').map(Number)
   if (!y || !m || !d) return `${value.date}, ${value.time} UTC`
@@ -159,30 +185,32 @@ export function stagesConfigToTimeline(
 ): CycleStage[] {
   return [
     {
-      id: 'department_goals',
-      label: 'Department Goals setting',
-      startDate: config.goals.department.startDate,
-      endDate: config.goals.department.endDate,
-    },
-    {
-      id: 'team_goals',
-      label: 'Team Goals setting',
-      startDate: config.goals.team.startDate,
-      endDate: config.goals.team.endDate,
-    },
-    {
       id: 'employee_goals',
-      label: 'Employee Goals setting',
+      label: 'Goal setting',
       startDate: config.goals.employee.startDate,
       endDate: config.goals.employee.endDate,
     },
     {
-      id: 'quarterly_check_in',
-      label: 'Line manager check-in',
+      id: 'performance_review',
+      label: 'Performance review',
       startDate: config.performance.managerStart.date,
       endDate: config.performance.managerEnd.date,
     },
   ]
+}
+
+const GOAL_STAGE_IDS = new Set(['employee_goals'])
+
+export function goalStagesTimeline(config: CycleStagesConfig): CycleStage[] {
+  return stagesConfigToTimeline(config).filter((stage) =>
+    GOAL_STAGE_IDS.has(stage.id),
+  )
+}
+
+export function reviewStagesTimeline(config: CycleStagesConfig): CycleStage[] {
+  return stagesConfigToTimeline(config).filter(
+    (stage) => !GOAL_STAGE_IDS.has(stage.id),
+  )
 }
 
 export function distributionTotal(

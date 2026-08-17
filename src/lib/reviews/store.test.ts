@@ -136,7 +136,7 @@ describe("reviews store", () => {
     };
 
     await expect(updateCycleStagesConfig(cycle.id, invalid)).rejects.toThrow(
-      "Employee goals must end on or after its start date.",
+      "Goal setting must end on or after its start date.",
     );
   });
 
@@ -219,6 +219,6 @@ describe("reviews store", () => {
 
     await expect(
       updateCycleStagesConfig(cycle.id, stages),
-    ).rejects.toThrow("before employee performance starts");
+    ).rejects.toThrow("before performance review starts");
   });
 });

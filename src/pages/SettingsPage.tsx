@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Compass,
   History,
@@ -328,6 +329,7 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
 
 export default function SettingsPage() {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [activeSection, setActiveSection] =
     useState<SettingsSectionId>('appearance')
   const canReadAccess = hasSystemPermission(
@@ -343,6 +345,23 @@ export default function SettingsPage() {
     return true
   })
 
+  useEffect(() => {
+    const requested = searchParams.get('section')
+    if (
+      requested !== 'access' &&
+      requested !== 'activity' &&
+      requested !== 'appearance' &&
+      requested !== 'sidebar' &&
+      requested !== 'assistant' &&
+      requested !== 'about'
+    ) {
+      return
+    }
+    if (requested === 'access' && !canReadAccess) return
+    if (requested === 'activity' && !canReadActivity) return
+    setActiveSection(requested)
+  }, [searchParams, canReadAccess, canReadActivity])
+
   return (
     <div className="pd-page pd-settings" aria-label="Settings">
       <div className="pd-settings__layout">
@@ -356,7 +375,15 @@ export default function SettingsPage() {
                 type="button"
                 className={`pd-settings-nav__item${selected ? ' is-selected' : ''}`}
                 aria-current={selected ? 'page' : undefined}
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => {
+                  setActiveSection(section.id)
+                  setSearchParams(
+                    section.id === 'appearance'
+                      ? {}
+                      : { section: section.id },
+                    { replace: true },
+                  )
+                }}
               >
                 <Icon size={16} strokeWidth={2.25} aria-hidden />
                 <span>{section.label}</span>

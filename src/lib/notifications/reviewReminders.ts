@@ -28,7 +28,7 @@ function formatDate(value: string): string {
   }).format(parseDate(value))
 }
 
-/** Prototype reminders for line-manager check-ins only. */
+/** Prototype reminders for performance reviews only. */
 export function evaluateReviewNotifications(
   recipient: DemoPerson,
   now = new Date(),

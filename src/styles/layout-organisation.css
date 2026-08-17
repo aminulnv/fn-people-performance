@@ -49,7 +49,7 @@
 }
 
 .pd-org__unit-name {
-  font-weight: 600;
+  font-weight: 500;
   color: var(--color-text);
   min-width: 0;
 }

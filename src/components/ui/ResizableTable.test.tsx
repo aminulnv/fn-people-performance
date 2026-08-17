@@ -7,7 +7,7 @@ const columns: ResizableColumn[] = [
   { id: 'team', label: 'Team' },
 ]
 
-const STORAGE_KEY = 'resizable-table-test:v2'
+const STORAGE_KEY = 'resizable-table-test:v3'
 
 function renderTable() {
   return render(
@@ -36,13 +36,16 @@ afterEach(() => {
 })
 
 describe('ResizableTable', () => {
-  it('lets the browser size columns until someone resizes one', () => {
+  it('auto-fits columns until someone resizes one', async () => {
     renderTable()
 
-    expect(handleFor('Name')).not.toHaveAttribute('aria-valuenow')
     expect(document.querySelector('table')).not.toHaveClass(
       'pd-table-resize--sized',
     )
+    expect(document.querySelector('table')).toHaveClass(
+      'pd-table-resize--laid-out',
+    )
+    expect(handleFor('Name')).toHaveAttribute('aria-valuenow')
   })
 
   it('changes a column width with the keyboard and persists it', () => {

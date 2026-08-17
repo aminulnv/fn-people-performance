@@ -58,7 +58,7 @@ export function phaseLabel(phase: DemoPhase): string {
     case 'hard_lock':
       return 'Hard lock'
     case 'check_in':
-      return 'Check-in'
+      return 'Performance review'
     case 'closed':
       return 'Closed'
   }

@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Building2, Network, UsersRound } from 'lucide-react'
-import { Avatar } from '@/components/ui'
+import { Avatar, PageStatus, PageStatusLink } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee } from '@/lib/employees/store'
 import { useOrganisation } from '@/lib/employees/useEmployees'
@@ -46,15 +46,14 @@ export default function TeamDetailPage() {
 
   if (!team) {
     return (
-      <div
-        className="pd-page pd-people pd-org pd-org-detail"
+      <PageStatus
+        variant="not-found"
+        pageClassName="pd-people pd-org pd-org-detail"
         aria-label="Team not found"
-      >
-        <p className="pd-people__empty">Team not found.</p>
-        <Link to="/organisation" className="pd-people__back">
-          Back to Organisation
-        </Link>
-      </div>
+        title="Team not found"
+        description="This team may have been removed or the link is outdated."
+        action={<PageStatusLink to="/organisation" label="Back to Organisation" />}
+      />
     )
   }
 

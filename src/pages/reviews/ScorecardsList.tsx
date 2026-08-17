@@ -92,7 +92,7 @@ export function ScorecardsList() {
       .map((cycle) => {
         const status = resolveCycleStatus(cycle)
         return {
-          id: cycle.periodKey ?? cycle.id,
+          id: cycle.id,
           label: cycle.name,
           status,
           statusLabel: cycleStatusLabel(status),
@@ -115,30 +115,39 @@ export function ScorecardsList() {
     [cycleKey, employees, user?.email],
   )
 
-  const hasMine = useMemo(() => rows.some((row) => row.isMine), [rows])
+  const managerRows = useMemo(
+    () => rows.filter((row) => row.isMine),
+    [rows],
+  )
+
+  const hasDirectReports = managerRows.length > 0
+
+  const queueRows = useMemo(
+    () => (mineOnly ? managerRows : rows),
+    [managerRows, mineOnly, rows],
+  )
 
   const stats = useMemo(() => {
     let completed = 0
     let inProgress = 0
     let notStarted = 0
-    for (const row of rows) {
+    for (const row of queueRows) {
       if (row.status === 'completed') completed += 1
       else if (row.status === 'in_progress') inProgress += 1
       else notStarted += 1
     }
     return {
-      total: rows.length,
+      total: queueRows.length,
       completed,
       inProgress,
       notStarted,
     }
-  }, [rows])
+  }, [queueRows])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return rows.filter((row) => {
+    return queueRows.filter((row) => {
       if (statusFilter !== 'all' && row.status !== statusFilter) return false
-      if (mineOnly && hasMine && !row.isMine) return false
       if (!q) return true
       const haystack = [
         row.employeeName,
@@ -153,7 +162,7 @@ export function ScorecardsList() {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [hasMine, mineOnly, query, rows, statusFilter])
+  }, [query, queueRows, statusFilter])
 
   const [gradesRevealed, setGradesRevealed] = useState(false)
   const [gradeOverrides, setGradeOverrides] = useState<
@@ -232,7 +241,7 @@ export function ScorecardsList() {
     value: number
     icon: typeof Award
   }[] = [
-    { id: 'all', label: 'Check-ins', value: stats.total, icon: Award },
+    { id: 'all', label: 'Performance reviews', value: stats.total, icon: Award },
     {
       id: 'completed',
       label: 'Completed',
@@ -258,7 +267,7 @@ export function ScorecardsList() {
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
-        aria-label="Check-in totals"
+        aria-label="Performance review totals"
       >
         {summaryItems.map((item) => {
           const Icon = item.icon
@@ -317,7 +326,7 @@ export function ScorecardsList() {
             aria-pressed={mineOnly}
             onClick={() => setMineOnly((value) => !value)}
           >
-            My check-ins
+            My performance reviews
           </button>
         </div>
 
@@ -340,7 +349,7 @@ export function ScorecardsList() {
           </button>
           <button type="button" className="pd-people__create-btn">
             <Settings2 size={16} strokeWidth={1.75} aria-hidden />
-            Manage check-ins
+            Manage performance reviews
           </button>
         </div>
       </div>
@@ -350,29 +359,31 @@ export function ScorecardsList() {
         aria-labelledby="scorecards-heading"
       >
         <h2 id="scorecards-heading" className="pd-sr-only">
-          Line manager check-ins
+          Performance reviews
         </h2>
 
         {loadState === 'loading' && employees.length === 0 ? (
-          <p className="pd-people__empty">Loading check-ins…</p>
+          <p className="pd-people__empty">Loading performance reviews…</p>
         ) : loadState === 'error' && employees.length === 0 ? (
           <p className="pd-people__empty">
-            {loadError ?? 'Failed to load people for check-ins.'}
+            {loadError ?? 'Failed to load people for performance reviews.'}
           </p>
         ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
               className="pd-empty--inline"
               icon={Award}
-              title={rows.length === 0 ? 'No check-ins yet' : 'No matches'}
+              title={queueRows.length === 0 ? 'No performance reviews yet' : 'No matches'}
               description={
-                rows.length === 0
-                  ? 'Add people in the directory to show line manager check-ins for this cycle.'
-                  : mineOnly && hasMine
-                    ? 'No check-ins assigned to you in this cycle. Turn off My check-ins to see everyone.'
-                    : statusFilter !== 'all'
-                      ? 'No check-ins match this status. Try another filter or clear it.'
-                      : 'Try a different search or cycle.'
+                queueRows.length === 0
+                  ? mineOnly
+                    ? hasDirectReports
+                      ? 'No direct reports match this cycle.'
+                      : 'You have no direct reports to review for this cycle.'
+                    : 'Add people in the directory to show performance reviews for this cycle.'
+                  : statusFilter !== 'all'
+                    ? 'No performance reviews match this status. Try another filter or clear it.'
+                    : 'Try a different search or cycle.'
               }
             />
           </div>

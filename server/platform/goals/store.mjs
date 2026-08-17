@@ -504,25 +504,66 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
   }
 }
 
+function approvalActorFromRow(prefix, row) {
+  const id = row[`${prefix}_employee_id`]
+  if (!id) return undefined
+  const actor = {
+    id: String(id),
+    name: row[`${prefix}_name`] ?? '',
+  }
+  const avatarUrl = String(row[`${prefix}_avatar_url`] ?? '').trim()
+  if (avatarUrl) actor.avatarUrl = avatarUrl
+  return actor
+}
+
+async function enrichSubmissionRow(client, row) {
+  if (!row) return row
+  const ids = [
+    row.approved_by_employee_id,
+    row.send_back_by_employee_id,
+  ].filter(Boolean)
+  if (!ids.length) return row
+  const { rows } = await client.query(
+    `SELECT employee_id, avatar_url
+     FROM platform.employees
+     WHERE employee_id = ANY($1::int[])`,
+    [ids],
+  )
+  const avatars = new Map(
+    rows.map((entry) => [entry.employee_id, entry.avatar_url ?? '']),
+  )
+  return {
+    ...row,
+    approved_by_avatar_url: row.approved_by_employee_id
+      ? avatars.get(row.approved_by_employee_id) ?? null
+      : null,
+    send_back_by_avatar_url: row.send_back_by_employee_id
+      ? avatars.get(row.send_back_by_employee_id) ?? null
+      : null,
+  }
+}
+
+async function mapSubmissionRow(client, row, goals, rating) {
+  return mapSubmission(await enrichSubmissionRow(client, row), goals, rating)
+}
+
+const SUBMISSION_FROM = `
+  FROM platform.goal_submissions gs
+  LEFT JOIN platform.employees approved_by
+    ON approved_by.employee_id = gs.approved_by_employee_id
+  LEFT JOIN platform.employees send_back_by
+    ON send_back_by.employee_id = gs.send_back_by_employee_id
+`
+
 function mapSubmission(row, goals, rating) {
   return {
     personId: String(row.employee_id),
     status: row.status,
     postWindowApprovalStage: row.post_window_approval_stage ?? undefined,
     sendBackReason: row.send_back_reason ?? undefined,
-    sendBackBy: row.send_back_by_employee_id
-      ? {
-          id: String(row.send_back_by_employee_id),
-          name: row.send_back_by_name ?? '',
-        }
-      : undefined,
+    sendBackBy: approvalActorFromRow('send_back_by', row),
     managerNote: row.manager_note ?? undefined,
-    approvedBy: row.approved_by_employee_id
-      ? {
-          id: String(row.approved_by_employee_id),
-          name: row.approved_by_name ?? '',
-        }
-      : undefined,
+    approvedBy: approvalActorFromRow('approved_by', row),
     goals,
     rating: rating
       ? {
@@ -643,8 +684,11 @@ export async function getPersonGoals(cycleId, employeeId) {
   const client = await getPool().connect()
   try {
     const { rows } = await client.query(
-      `SELECT * FROM platform.goal_submissions
-       WHERE cycle_id = $1 AND employee_id = $2`,
+      `SELECT gs.*,
+              approved_by.avatar_url AS approved_by_avatar_url,
+              send_back_by.avatar_url AS send_back_by_avatar_url
+       ${SUBMISSION_FROM}
+       WHERE gs.cycle_id = $1 AND gs.employee_id = $2`,
       [cycleId, employeeId],
     )
     if (!rows[0]) {
@@ -675,11 +719,13 @@ export async function listCycleGoalSubmissions(cycleId, subjectEmployeeIds = nul
       return []
     }
     const { rows } = await client.query(
-      `SELECT *
-       FROM platform.goal_submissions
-       WHERE cycle_id = $1
-         AND ($2::int[] IS NULL OR employee_id = ANY($2::int[]))
-       ORDER BY employee_id`,
+      `SELECT gs.*,
+              approved_by.avatar_url AS approved_by_avatar_url,
+              send_back_by.avatar_url AS send_back_by_avatar_url
+       ${SUBMISSION_FROM}
+       WHERE gs.cycle_id = $1
+         AND ($2::int[] IS NULL OR gs.employee_id = ANY($2::int[]))
+       ORDER BY gs.employee_id`,
       [cycleId, subjectEmployeeIds],
     )
     const submissions = []
@@ -821,7 +867,7 @@ export async function savePersonGoalsDraft(
 
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(rows[0], nextGoals, null)
+    return mapSubmissionRow(client, rows[0], nextGoals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -938,7 +984,7 @@ export async function submitPersonGoals(
     })
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(rows[0], nextGoals, null)
+    return mapSubmissionRow(client, rows[0], nextGoals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -1057,7 +1103,7 @@ export async function copyPreviousCycleGoals(
     }
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(submissionRows[0], goals, null)
+    return mapSubmissionRow(client, submissionRows[0], goals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -1338,7 +1384,7 @@ export async function approvePersonGoals(
     })
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(rows[0], goals, null)
+    return mapSubmissionRow(client, rows[0], goals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -1410,7 +1456,7 @@ export async function sendBackPersonGoals(
     })
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(rows[0], goals, null)
+    return mapSubmissionRow(client, rows[0], goals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
@@ -1455,7 +1501,7 @@ export async function submitPersonGoalRating(
     const checkInEnd = submission.stages_config?.performance?.managerEnd?.date
     const today = new Date().toISOString().slice(0, 10)
     if (!checkInStart || !checkInEnd || today < checkInStart || today > checkInEnd) {
-      throw new HttpError(409, 'Ratings are only available during check-in.')
+      throw new HttpError(409, 'Ratings are only available during performance review.')
     }
 
     const { rows: existingRatings } = await client.query(
@@ -1495,13 +1541,13 @@ export async function submitPersonGoalRating(
       ...actor,
       subjectEmployeeId: employeeId,
       cycleId,
-      summary: 'Submitted a check-in rating',
+      summary: 'Submitted a performance review rating',
       metadata: { tier },
       source: 'api',
     })
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmission(submissionRows[0], goals, ratingRows[0])
+    return mapSubmissionRow(client, submissionRows[0], goals, ratingRows[0])
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

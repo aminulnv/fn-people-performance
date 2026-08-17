@@ -18,7 +18,7 @@ export const DEMO_PHASES: { id: DemoPhase; label: string; hint: string }[] = [
   },
   {
     id: 'check_in',
-    label: 'Check-in',
+    label: 'Performance review',
     hint: 'Manager rates · person sees score',
   },
   {

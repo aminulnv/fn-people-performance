@@ -67,8 +67,16 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
+    const serverMessage =
+      parsed &&
+      typeof parsed === 'object' &&
+      parsed !== null &&
+      'error' in parsed &&
+      typeof (parsed as { error?: unknown }).error === 'string'
+        ? (parsed as { error: string }).error
+        : null
     throw new ApiError(
-      `Request failed (${response.status})`,
+      serverMessage ?? `Request failed (${response.status})`,
       response.status,
       parsed,
     )

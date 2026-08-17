@@ -3,6 +3,7 @@ import {
   createInitialReviewsSnapshot,
   DEFAULT_CALIBRATION,
   normalizeCycleSettings,
+  normalizeStagesConfig,
 } from "./demoData";
 import { findPeriod } from "./periods";
 import type {
@@ -74,6 +75,10 @@ function getState(): ReviewsSnapshot {
       cycles: stored.cycles.map((cycle) => ({
         ...cycle,
         settings: normalizeCycleSettings(cycle.settings),
+        stagesConfig: normalizeStagesConfig(cycle.stagesConfig, {
+          startDate: cycle.startDate,
+          endDate: cycle.endDate,
+        }),
       })),
     };
   }
@@ -85,10 +90,6 @@ function commit(next: ReviewsSnapshot): ReviewsSnapshot {
   writeStorage(next);
   listeners.forEach((listener) => listener());
   return clone(next);
-}
-
-function cloneSettings(): CycleSettings {
-  return normalizeCycleSettings();
 }
 
 function validateGoalCountPolicy(
@@ -123,6 +124,23 @@ function validateGoalCountPolicy(
       "Maximum allowed must be at least the recommended maximum, or left empty.",
     );
   }
+}
+
+function cloneSettings(): CycleSettings {
+  return normalizeCycleSettings();
+}
+
+/** Production API still validates legacy department/team goal windows until redeployed. */
+function compatStagesConfigForRemote(config: CycleStagesConfig) {
+  const employee = config.goals.employee;
+  return {
+    ...config,
+    goals: {
+      ...config.goals,
+      department: employee,
+      team: employee,
+    },
+  };
 }
 
 function cloneCalibration(): CalibrationLogic {
@@ -176,21 +194,37 @@ export function newCycleId(prefix: string): string {
 }
 
 function replaceCycleInMemory(cycle: ReviewCycle): ReviewCycle {
+  const normalizedCycle: ReviewCycle = {
+    ...cycle,
+    settings: normalizeCycleSettings(cycle.settings),
+    stagesConfig: normalizeStagesConfig(cycle.stagesConfig, {
+      startDate: cycle.startDate,
+      endDate: cycle.endDate,
+    }),
+  };
   const state = getState();
   const index = state.cycles.findIndex((item) => item.id === cycle.id);
   const cycles =
     index >= 0
-      ? state.cycles.map((item, i) => (i === index ? cycle : item))
-      : [cycle, ...state.cycles];
+      ? state.cycles.map((item, i) => (i === index ? normalizedCycle : item))
+      : [normalizedCycle, ...state.cycles];
   commit({ cycles });
-  return clone(cycle);
+  return clone(normalizedCycle);
 }
 
 /** Hydrate the in-memory cache from the platform API when not in local mode. */
 export async function ensureReviewCyclesLoaded(): Promise<void> {
   if (useLocalReviews() || remoteHydrated) return;
   const cycles = await fetchReviewCyclesRemote();
-  memory = { cycles };
+  memory = {
+    cycles: cycles.map((cycle) => ({
+      ...cycle,
+      stagesConfig: normalizeStagesConfig(cycle.stagesConfig, {
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+      }),
+    })),
+  };
   remoteHydrated = true;
   listeners.forEach((listener) => listener());
 }
@@ -385,21 +419,31 @@ export async function updateCycleStagesConfig(
   const state = getState();
   const index = state.cycles.findIndex((c) => c.id === cycleId);
   if (index < 0) throw new Error("Cycle not found.");
-  validateCycleStagesConfig(stagesConfig);
   const current = state.cycles[index];
+  const normalized = normalizeStagesConfig(stagesConfig, {
+    startDate: current.startDate,
+    endDate: current.endDate,
+  });
+  validateCycleStagesConfig(normalized);
 
   if (!useLocalReviews()) {
     const remote = await updateCycleStagesRemote(cycleId, {
-      stagesConfig,
+      stagesConfig: compatStagesConfigForRemote(normalized),
       postWindowGoalPolicy: options?.postWindowGoalPolicy,
       expectedVersion: current.version,
     });
-    return replaceCycleInMemory(remote);
+    return replaceCycleInMemory({
+      ...remote,
+      stagesConfig: normalizeStagesConfig(remote.stagesConfig, {
+        startDate: remote.startDate,
+        endDate: remote.endDate,
+      }),
+    });
   }
 
   const next: ReviewCycle = {
     ...current,
-    stagesConfig: clone(stagesConfig),
+    stagesConfig: clone(normalized),
     settings: {
       ...current.settings,
       postWindowGoalPolicy:
@@ -424,7 +468,7 @@ function validateGoalExtensions(
       throw new Error("An extension deadline must be after the standard goal deadline.");
     }
     if (extension.endDate >= performanceStartDate) {
-      throw new Error("An extension deadline must be before employee performance starts.");
+      throw new Error("An extension deadline must be before performance review starts.");
     }
 
     const scope = extension.scope;
@@ -447,23 +491,17 @@ function validateGoalExtensions(
 function validateCycleStagesConfig(config: CycleStagesConfig): void {
   const ranges = [
     [
-      "Department goals",
-      config.goals.department.startDate,
-      config.goals.department.endDate,
-    ],
-    ["Team goals", config.goals.team.startDate, config.goals.team.endDate],
-    [
-      "Employee goals",
+      "Goal setting",
       config.goals.employee.startDate,
       config.goals.employee.endDate,
     ],
     [
-      "Employee performance",
+      "Performance review",
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
     ],
     [
-      "Manager performance",
+      "Performance review",
       config.performance.managerStart.date,
       config.performance.managerEnd.date,
     ],
@@ -480,7 +518,7 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
 
   if (config.goals.employee.endDate >= config.performance.employeeStart.date) {
     throw new Error(
-      "Employee performance must start after the employee goal lock date.",
+      "Performance review must start after the employee goal lock date.",
     );
   }
   validateGoalExtensions(

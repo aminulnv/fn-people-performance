@@ -18,13 +18,24 @@ import {
   UserRound,
   Users,
 } from 'lucide-react'
-import { Avatar, ListboxSelect, SegmentedControl } from '@/components/ui'
+import {
+  Avatar,
+  ListboxSelect,
+  PageStatus,
+  PageStatusLink,
+  PageStatusRetry,
+  SegmentedControl,
+} from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import {
   DetailRow,
   PROFILE_TAB_OPTIONS,
   type ProfileTabId,
 } from '@/pages/EmployeeProfilePage'
+import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { countDirectReports } from '@/lib/employees/relationships'
+import { organisationPathForEmployee } from '@/lib/organisation/paths'
 import {
   buildCatalogOptions,
   DEPARTMENT_OPTIONS,
@@ -135,7 +146,11 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const { user } = useAuth()
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
-  const { employees } = useEmployees()
+  const { employees, isLoading, loadError, reload } = useEmployees()
+  const canWrite = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -255,10 +270,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
 
   useEffect(() => {
     if (mode !== 'edit') return
-    if (!existing) {
-      setHydrated(true)
-      return
-    }
+    if (!existing) return
     setForm({
       employeeId: existing.employeeId,
       fullName: existing.fullName,
@@ -279,11 +291,47 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     setHydrated(true)
   }, [mode, existing])
 
+  if (!canWrite) {
+    const backTo = mode === 'edit' ? `/people/${employeeId}` : '/people'
+    return (
+      <PageStatus
+        variant="forbidden"
+        pageClassName="pd-people pd-profile"
+        aria-label="Access denied"
+        description="You do not have permission to edit employee profiles."
+        action={<PageStatusLink to={backTo} label="Back" />}
+      />
+    )
+  }
+
   if (mode === 'edit') {
     if (!Number.isInteger(employeeId) || employeeId <= 0) {
       return <Navigate to="/people" replace />
     }
-    if (hydrated && !existing) {
+    if (!existing && isLoading) {
+      return (
+        <PageStatus
+          variant="loading"
+          pageClassName="pd-people pd-profile"
+          aria-label="Loading employee"
+          description="Fetching employee details…"
+        />
+      )
+    }
+    if (!existing && loadError) {
+      return (
+        <PageStatus
+          variant="error"
+          pageClassName="pd-people pd-profile"
+          aria-label="Employee load error"
+          description={loadError || 'Failed to load the employee directory.'}
+          action={
+            <PageStatusRetry onClick={() => void reload().catch(() => {})} />
+          }
+        />
+      )
+    }
+    if (!existing) {
       return <Navigate to="/people" replace />
     }
   }
@@ -296,6 +344,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     .join(' · ')
   const directoryCount = listEmployees().length
   const managerName = manager?.fullName || form.reportsToName.trim()
+  const managerReportCount = countDirectReports(manager)
 
   const onFieldChange = (key: FieldKey, value: string) => {
     setForm((prev) => ({
@@ -387,9 +436,12 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
 
   if (mode === 'edit' && !hydrated) {
     return (
-      <div className="pd-page pd-people pd-profile" aria-label="Loading employee">
-        <p className="pd-people__empty">Loading employee…</p>
-      </div>
+      <PageStatus
+        variant="loading"
+        pageClassName="pd-people pd-profile"
+        aria-label="Loading employee"
+        description="Fetching employee details…"
+      />
     )
   }
 
@@ -470,7 +522,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
           <div className="pd-profile__col">
             <section className="pd-profile__card">
               <header className="pd-profile__card-head">
-                <h2 className="pd-profile__card-title">Employee details</h2>
+                <h2 className="pd-profile__card-title">Employee Details</h2>
               </header>
               <dl className="pd-profile__details">
                 <DetailRow label="Email" icon={Mail}>
@@ -613,68 +665,44 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
           </div>
 
           <aside className="pd-profile__col pd-profile__col--side">
-            <section className="pd-profile__card">
-              <header className="pd-profile__card-head">
-                <h2 className="pd-profile__card-title">Org chart</h2>
-              </header>
-              <div className="pd-profile__org">
-                {managerName ? (
-                  <>
-                    <div className="pd-profile__org-node">
-                      <Avatar
-                        name={managerName}
-                        src={manager?.avatarUrl || undefined}
-                        size="md"
-                        style={avatarStyle(managerName)}
-                      />
-                      <div>
-                        <p className="pd-profile__org-name">{managerName}</p>
-                        <p className="pd-profile__org-role">
-                          {manager?.jobTitle || 'Line manager'}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="pd-profile__org-connector" aria-hidden>
-                      <span className="pd-profile__org-count">2</span>
-                    </div>
-                  </>
-                ) : null}
-                <div className="pd-profile__org-node is-current">
-                  <Avatar
-                    name={previewName}
-                    src={existing?.avatarUrl || undefined}
-                    size="md"
-                    style={avatarStyle(previewName)}
-                  />
-                  <div>
-                    <p className="pd-profile__org-name">{previewName}</p>
-                    <p className="pd-profile__org-role">
-                      {form.jobTitle.trim() || 'Employee'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <ProfileOrgChart
+              manager={
+                managerName
+                  ? {
+                      fullName: managerName,
+                      jobTitle: manager?.jobTitle,
+                      avatarUrl: manager?.avatarUrl,
+                      employeeId: manager?.employeeId,
+                    }
+                  : null
+              }
+              person={{
+                fullName: previewName,
+                jobTitle: form.jobTitle.trim(),
+                avatarUrl: existing?.avatarUrl,
+              }}
+              managerReportCount={managerReportCount}
+              chartHref="/organisation/chart"
+            />
 
             <nav className="pd-profile__nav-cards" aria-label="More about this person">
               <button type="button" className="pd-profile__nav-card" disabled>
-                <Building2 size={18} strokeWidth={1.75} aria-hidden />
-                <span>
-                  <span className="pd-profile__nav-title">Ownership</span>
-                </span>
-                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-              </button>
-              <button type="button" className="pd-profile__nav-card" disabled>
                 <History size={18} strokeWidth={1.75} aria-hidden />
                 <span>
-                  <span className="pd-profile__nav-title">Timeline</span>
+                  <span className="pd-profile__nav-title">Activity Log</span>
                   <span className="pd-profile__nav-sub">
-                    Main changes and events
+                    Available after save
                   </span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
               </button>
-              <button type="button" className="pd-profile__nav-card" disabled>
+              <Link
+                to={organisationPathForEmployee({
+                  department: form.department,
+                  team: form.team,
+                })}
+                className="pd-profile__nav-card"
+              >
                 <Network size={18} strokeWidth={1.75} aria-hidden />
                 <span>
                   <span className="pd-profile__nav-title">Org Structures</span>
@@ -683,7 +711,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                   </span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-              </button>
+              </Link>
               <Link to="/people" className="pd-profile__nav-card">
                 <GitBranch size={18} strokeWidth={1.75} aria-hidden />
                 <span>

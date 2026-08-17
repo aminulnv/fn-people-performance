@@ -3,15 +3,18 @@ import { Link } from 'react-router-dom'
 import {
   ArrowUpDown,
   Building2,
-  Network,
   Plus,
   Search,
-  Settings,
   UserCheck,
   UserX,
   Users,
   UsersRound,
 } from 'lucide-react'
+import { OrgChartLink } from '@/components/OrgChartLink'
+import {
+  tableDensityWrapClass,
+  TableDensityToggle,
+} from '@/components/TableDensityToggle'
 import {
   Avatar,
   EmptyState,
@@ -21,7 +24,13 @@ import {
 } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { isDirectReport } from '@/lib/employees/relationships'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import {
+  readTableDensity,
+  writeTableDensity,
+  type TableDensity,
+} from '@/pages/people/prefs'
 import '@/styles/layout-people.css'
 
 type DirectoryScope = 'all' | 'reports' | 'department'
@@ -44,7 +53,7 @@ const PEOPLE_COLUMNS: ResizableColumn[] = [
     ),
     name: 'Employee ID',
   },
-  { id: 'name', label: 'Name' },
+  { id: 'name', label: 'Name', grow: true },
   { id: 'email', label: 'Email' },
   { id: 'start-date', label: 'Start date' },
   { id: 'job-title', label: 'Job title' },
@@ -106,6 +115,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const [query, setQuery] = useState('')
   const [scope, setScope] = useState<DirectoryScope>('all')
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
+  const [tableDensity, setTableDensityState] =
+    useState<TableDensity>(readTableDensity)
+
+  function setTableDensity(next: TableDensity) {
+    setTableDensityState(next)
+    writeTableDensity(next)
+  }
 
   const isV3 = variant === 'v3'
   const employeesById = useMemo(
@@ -150,7 +166,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const myEmail = me?.email.trim().toLowerCase() ?? ''
     const myDepartment = me?.department.trim() ?? ''
 
     return [...employees]
@@ -158,7 +173,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         if (statusFilter === 'active' && !employee.isActive) return false
         if (statusFilter === 'inactive' && employee.isActive) return false
         if (me && scope === 'reports') {
-          if (employee.managerEmail.trim().toLowerCase() !== myEmail) {
+          if (!isDirectReport(employee, me)) {
             return false
           }
         }
@@ -324,18 +339,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             role="toolbar"
             aria-label="People actions"
           >
-            <Link to="/organisation/chart" className="pd-people__ghost-btn">
-              <Network size={16} strokeWidth={1.75} aria-hidden />
-              Org Chart
-            </Link>
-            <button
-              type="button"
-              className="pd-people__ghost-btn"
-              title="People settings"
-            >
-              <Settings size={16} strokeWidth={1.75} aria-hidden />
-              Settings
-            </button>
+            <TableDensityToggle
+              className="pd-people__density"
+              buttonClassName="pd-people__density-btn"
+              value={tableDensity}
+              onChange={setTableDensity}
+            />
+            <OrgChartLink />
             <Link to="/people/new" className="pd-people__create-btn">
               <Plus size={18} strokeWidth={2} aria-hidden />
               Add Employee
@@ -396,7 +406,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             }
           />
         ) : (
-          <div className="pd-people__table-wrap">
+          <div className={tableDensityWrapClass(tableDensity)}>
             <ResizableTable
               className="pd-people__table"
               storageKey="people-directory-column-widths"

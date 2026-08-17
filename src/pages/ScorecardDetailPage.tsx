@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { Download, Star, Target, TrendingUp, Trophy } from 'lucide-react'
-import { Avatar, Button, SegmentedControl } from '@/components/ui'
+import { Avatar, Button, PageStatus } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import { selectGoalCycle } from '@/lib/goalsApi'
+import { subscribeGoalsStore } from '@/lib/goals/store'
 import { GRADE_BAND_ORDER } from '@/lib/reviews/labels'
 import {
   buildScorecardDetail,
   gradeLabel,
   OVERALL_GRADE_CRITERIA,
+  resolveReviewCycleKey,
   SCORECARD_STATUS_LABEL,
   type ScorecardGoalRow,
 } from '@/lib/reviews/scorecards'
@@ -18,36 +21,45 @@ import { useAuth } from '@/lib/auth'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
-type GoalsTab = 'performance' | 'organisational'
-
-const GOALS_TABS: { id: GoalsTab; label: string }[] = [
-  { id: 'performance', label: 'Performance Goals' },
-  { id: 'organisational', label: 'Organisational Goals' },
-]
-
 export default function ScorecardDetailPage() {
   const { cycleKey = '', employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
+  const resolvedCycleId = useMemo(
+    () => resolveReviewCycleKey(cycleKey),
+    [cycleKey],
+  )
+  const [goalsRevision, setGoalsRevision] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    void selectGoalCycle(resolvedCycleId).then(() => {
+      if (!cancelled) setGoalsRevision((value) => value + 1)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [resolvedCycleId])
+
+  useEffect(() => {
+    return subscribeGoalsStore(() => setGoalsRevision((value) => value + 1))
+  }, [])
 
   const detail = useMemo(() => {
     if (!Number.isInteger(employeeId) || employeeId <= 0) return null
     return buildScorecardDetail(cycleKey, employeeId, employees, user?.email)
-  }, [cycleKey, employeeId, employees, user?.email])
+  }, [cycleKey, employeeId, employees, goalsRevision, user?.email])
 
-  const [goalsTab, setGoalsTab] = useState<GoalsTab>('performance')
   const [contributionOverride, setContributionOverride] =
     useState<GradeBandId | null>(null)
   const [overallOverride, setOverallOverride] = useState<GradeBandId | null>(
     null,
   )
 
-  // Remount-safe: clear local edits when opening a different scorecard.
   useEffect(() => {
     setContributionOverride(null)
     setOverallOverride(null)
-    setGoalsTab('performance')
   }, [cycleKey, employeeId])
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
@@ -57,9 +69,12 @@ export default function ScorecardDetailPage() {
   if (!detail) {
     if (isLoading) {
       return (
-        <div className="pd-page pd-reviews" aria-busy="true">
-          <p className="pd-people__empty">Loading scorecard…</p>
-        </div>
+        <PageStatus
+          variant="loading"
+          pageClassName="pd-reviews"
+          aria-label="Loading performance review"
+          description="Loading performance review details…"
+        />
       )
     }
     return <Navigate to={reviewsTabPath('scorecards')} replace />
@@ -68,10 +83,7 @@ export default function ScorecardDetailPage() {
   const contributionGrade =
     contributionOverride ?? detail.contributionGrade
   const overallGrade = overallOverride ?? detail.overallGrade
-  const goals =
-    goalsTab === 'performance'
-      ? detail.performanceGoals
-      : detail.organisationalGoals
+  const goals = detail.performanceGoals
 
   const statusLabel =
     detail.status === 'completed'
@@ -81,7 +93,7 @@ export default function ScorecardDetailPage() {
   return (
     <div
       className="pd-page pd-reviews pd-reviews-scorecard"
-      aria-label={`${detail.employeeName} scorecard`}
+      aria-label={`${detail.employeeName} performance review`}
     >
       <header className="pd-reviews-scorecard__hero">
         <div className="pd-reviews-scorecard__hero-top">
@@ -109,7 +121,7 @@ export default function ScorecardDetailPage() {
                 </span>
               </div>
               <p className="pd-reviews-scorecard__meta">
-                {detail.cycleLabel} · Line manager check-in
+                {detail.cycleLabel} · Performance review
                 <span aria-hidden> | </span>
                 {detail.role}
                 <span aria-hidden> | </span>
@@ -140,53 +152,49 @@ export default function ScorecardDetailPage() {
           </span>
         </header>
 
-        <SegmentedControl
-          className="pd-people__scope pd-reviews-scorecard__tabs"
-          buttonClassName="pd-people__scope-btn"
-          options={GOALS_TABS}
-          value={goalsTab}
-          onChange={setGoalsTab}
-          aria-label="Goal type"
-        />
-
         <div
           className="pd-people__panel pd-people__panel--table pd-reviews-scorecard__goals-table-panel"
           aria-labelledby="scorecard-goals-heading"
         >
           <h3 id="scorecard-goals-heading" className="pd-sr-only">
-            {goalsTab === 'performance'
-              ? 'Performance goals'
-              : 'Organisational goals'}
+            Goals for {detail.cycleLabel}
           </h3>
-          <div className="pd-people__table-wrap">
-            <table className="pd-people__table pd-reviews-scorecard__goals-table">
-              <thead>
-                <tr>
-                  <th>
-                    <span className="pd-people__th">
-                      Goals
-                      <span className="pd-people__th-count">
-                        · {goals.length}
+          {goals.length === 0 ? (
+            <p className="pd-people__empty">
+              No goals for this cycle yet. Add or approve goals on the Goals
+              page first.
+            </p>
+          ) : (
+            <div className="pd-people__table-wrap">
+              <table className="pd-people__table pd-reviews-scorecard__goals-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <span className="pd-people__th">
+                        Goals
+                        <span className="pd-people__th-count">
+                          · {goals.length}
+                        </span>
                       </span>
-                    </span>
-                  </th>
-                  <th>Weight</th>
-                  <th>Owner</th>
-                  <th>Progress</th>
-                  <th>Metric</th>
-                </tr>
-              </thead>
-              <tbody>
-                {goals.map((goal) => (
-                  <GoalRow
-                    key={goal.id}
-                    goal={goal}
-                    avatarUrl={detail.employeeAvatarUrl}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </th>
+                    <th>Weight</th>
+                    <th>Owner</th>
+                    <th>Progress</th>
+                    <th>Metric</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {goals.map((goal) => (
+                    <GoalRow
+                      key={goal.id}
+                      goal={goal}
+                      avatarUrl={detail.employeeAvatarUrl}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </section>
 
@@ -310,7 +318,7 @@ export default function ScorecardDetailPage() {
           </div>
         </div>
         <p className="pd-reviews-scorecard__back">
-          <Link to={reviewsTabPath('scorecards')}>Back to Scorecards</Link>
+          <Link to={reviewsTabPath('scorecards')}>Back to performance reviews</Link>
         </p>
       </section>
     </div>

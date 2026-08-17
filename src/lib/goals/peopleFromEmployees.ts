@@ -40,8 +40,13 @@ export function employeeToDemoPerson(
   }
 }
 
-export function peopleFromEmployees(): DemoPerson[] {
-  const directory = listEmployees().filter((e) => e.isActive)
+export function peopleFromEmployees(
+  includeInactiveIds: ReadonlySet<string> = new Set(),
+): DemoPerson[] {
+  const directory = listEmployees().filter(
+    (employee) =>
+      employee.isActive || includeInactiveIds.has(String(employee.employeeId)),
+  )
   const reportsByManagerId = new Map<number, string[]>()
   for (const employee of directory) {
     const managerId = employee.reportsToId
@@ -96,7 +101,9 @@ export function mergePeopleIntoGoalsState(input: {
   byPerson: Record<string, PersonGoals>
   activePersonId: string
 } {
-  const people = peopleFromEmployees()
+  // Keep inactive employees only when this cycle already has a historical row.
+  // They remain absent from active goal-setting lists when no goal data exists.
+  const people = peopleFromEmployees(new Set(Object.keys(input.byPerson)))
   const peopleById = new Map(people.map((person) => [person.id, person]))
   const byPerson: Record<string, PersonGoals> = {}
   const seedMissingPeople = input.seedMissingPeople ?? true

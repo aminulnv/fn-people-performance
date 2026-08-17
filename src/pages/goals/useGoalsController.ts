@@ -4,7 +4,6 @@ import {
   cascadeGoalToReports,
   copyPreviousGoals as copyPreviousGoalsFromCycle,
   fetchGoalsSnapshot,
-  ratePerson,
   saveGoals,
   saveProgress,
   sendBackGoals,
@@ -43,7 +42,6 @@ import type {
   Goal,
   GoalsSnapshot,
   PersonGoals,
-  QuarterRating,
 } from "@/lib/goals/types";
 import { newId } from "@/lib/goals/weightage";
 import { useCurrentPerson } from "@/lib/useCurrentPerson";
@@ -68,10 +66,6 @@ export type GoalsControllerActions = {
   saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<void>;
   approve: (subjectId: string, goals?: Goal[]) => Promise<void>;
   sendBack: (subjectId: string, reason: string) => Promise<void>;
-  rate: (
-    subjectId: string,
-    rating: Omit<QuarterRating, "submittedAt">,
-  ) => Promise<void>;
 };
 
 export type GoalsController = {
@@ -364,9 +358,6 @@ export function useGoalsController({
         await run(() =>
           sendBackGoals(mutationContext(targetSubjectId), reason),
         );
-      },
-      async rate(targetSubjectId, rating) {
-        await run(() => ratePerson(mutationContext(targetSubjectId), rating));
       },
     };
   }, [actor, mutationContext, run, snapshot]);

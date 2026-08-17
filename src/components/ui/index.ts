@@ -43,6 +43,13 @@ export type { PageHeaderProps } from './PageHeader'
 export { EmptyState } from './EmptyState'
 export type { EmptyStateProps } from './EmptyState'
 
+export {
+  PageStatus,
+  PageStatusLink,
+  PageStatusRetry,
+} from './PageStatus'
+export type { PageStatusProps, PageStatusVariant } from './PageStatus'
+
 export { Card } from './Card'
 export type { CardProps } from './Card'
 

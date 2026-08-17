@@ -1,7 +1,9 @@
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { isDirectReport } from '@/lib/employees/relationships'
 import { getGoalsSnapshotForCycle } from '@/lib/goals/store'
 import type { Goal } from '@/lib/goals/types'
 import { goalCompletion } from '@/lib/goals/weightage'
+import { getReviewCycle, listReviewCycles } from './store'
 import type { GradeBandId } from './types'
 import { GRADE_BAND_META, GRADE_BAND_ORDER } from './labels'
 
@@ -120,6 +122,17 @@ export function cycleLabelFromKey(cycleKey: string): string {
   return `Q${match[1]} ${match[2]}`
 }
 
+/** Map a scorecard URL key (cycle id or period key) to the canonical review cycle id. */
+export function resolveReviewCycleKey(cycleKey: string): string {
+  const decoded = decodeURIComponent(cycleKey)
+  const direct = getReviewCycle(decoded)
+  if (direct) return direct.id
+  const byPeriod = listReviewCycles().find(
+    (cycle) => cycle.periodKey === decoded,
+  )
+  return byPeriod?.id ?? decoded
+}
+
 function suggestedGrade(progress: number): GradeBandId {
   if (progress >= 120) return 'exceptional'
   if (progress > 100) return 'exceeding'
@@ -155,37 +168,41 @@ function buildPerformanceGoals(
   employeeId: number,
   ownerName: string,
 ): ScorecardGoalRow[] {
-  const snapshot = getGoalsSnapshotForCycle(cycleKey)
+  const cycleId = resolveReviewCycleKey(cycleKey)
+  const snapshot = getGoalsSnapshotForCycle(cycleId)
   const personGoals = snapshot.byPerson[String(employeeId)]
   return (personGoals?.goals ?? []).map((goal) =>
     toScorecardGoal(goal, ownerName),
   )
 }
 
-function buildOrganisationalGoals(
-  seed: number,
-  ownerName: string,
-): ScorecardGoalRow[] {
-  return [
-    {
-      id: `g-${seed}-o1`,
-      description: 'Contribute to company-wide process improvements',
-      weight: 50,
-      ownerName,
-      progressPercent: 95,
-      metricLabel: 'Initiatives',
-      suggestedGrade: 'performing',
-    },
-    {
-      id: `g-${seed}-o2`,
-      description: 'Support hiring and onboarding for the team',
-      weight: 50,
-      ownerName,
-      progressPercent: 110,
-      metricLabel: 'Hires supported',
-      suggestedGrade: 'exceeding',
-    },
-  ]
+/** Scorecards for one person across all review cycles (includes inactive subjects). */
+export function buildEmployeeScorecardHistory(
+  employee: PlatformEmployee,
+  employees: PlatformEmployee[],
+  currentUserEmail?: string | null,
+): ScorecardRow[] {
+  const hasActiveSubject = employees.some(
+    (person) => person.employeeId === employee.employeeId && person.isActive,
+  )
+  const directory = hasActiveSubject
+    ? employees
+    : [...employees, { ...employee, isActive: true }]
+
+  return listReviewCycles()
+    .slice()
+    .sort((left, right) =>
+      (right.periodKey ?? '').localeCompare(left.periodKey ?? ''),
+    )
+    .map((cycle) => {
+      const rows = buildScorecardsForCycle(
+        cycle.id,
+        directory,
+        currentUserEmail,
+      )
+      return rows.find((row) => row.employeeId === employee.employeeId) ?? null
+    })
+    .filter((row): row is ScorecardRow => row != null)
 }
 
 export function buildScorecardsForCycle(
@@ -199,6 +216,8 @@ export function buildScorecardsForCycle(
   )
   const meEmail = currentUserEmail?.trim().toLowerCase() ?? ''
   const cycleLabel = cycleLabelFromKey(cycleKey)
+
+  const me = meEmail ? byEmail.get(meEmail) : undefined
 
   return active.map((employee, index) => {
     const manager =
@@ -221,10 +240,7 @@ export function buildScorecardsForCycle(
         : status === 'not_started'
           ? null
           : 'exceeding'
-    const isMine =
-      Boolean(meEmail) &&
-      (employee.email.trim().toLowerCase() === meEmail ||
-        reviewer.email.trim().toLowerCase() === meEmail)
+    const isMine = me ? isDirectReport(employee, me) : false
 
     return {
       id: `${cycleKey}-${employee.employeeId}`,
@@ -263,10 +279,6 @@ export function buildScorecardDetail(
     employeeId,
     row.employeeName,
   )
-  const organisationalGoals = buildOrganisationalGoals(
-    employeeId,
-    row.employeeName,
-  )
   const goalsOverallPercent =
     performanceGoals.length === 0
       ? 0
@@ -286,7 +298,7 @@ export function buildScorecardDetail(
     goalsOverallPercent,
     goalsOverallBand: suggestedGrade(goalsOverallPercent),
     performanceGoals,
-    organisationalGoals,
+    organisationalGoals: [],
     contributionGrade: overall,
     overallGrade: overall,
     feedback: {
