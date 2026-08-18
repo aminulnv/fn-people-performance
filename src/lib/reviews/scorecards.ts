@@ -5,7 +5,7 @@ import type { Goal } from '@/lib/goals/types'
 import { goalCompletion } from '@/lib/goals/weightage'
 import { getReviewCycle, listReviewCycles } from './store'
 import type { GradeBandId } from './types'
-import { GRADE_BAND_META, GRADE_BAND_ORDER } from './labels'
+import { GRADE_BAND_META } from './labels'
 
 export type ScorecardStatus =
   | 'not_started'
@@ -110,8 +110,6 @@ const STATUSES: ScorecardStatus[] = [
   'completed',
 ]
 
-const BANDS: GradeBandId[] = [...GRADE_BAND_ORDER]
-
 function hashPick<T>(seed: number, items: T[]): T {
   return items[Math.abs(seed) % items.length]
 }
@@ -133,12 +131,8 @@ export function resolveReviewCycleKey(cycleKey: string): string {
   return byPeriod?.id ?? decoded
 }
 
-function suggestedGrade(progress: number): GradeBandId {
-  if (progress >= 120) return 'exceptional'
-  if (progress > 100) return 'exceeding'
-  if (progress >= 80) return 'performing'
-  if (progress >= 60) return 'developing'
-  return 'unsatisfactory'
+function suggestedGrade(_progress: number): GradeBandId {
+  return 'performing'
 }
 
 function scorecardMetricLabel(goal: Goal): string {
@@ -234,12 +228,7 @@ export function buildScorecardsForCycle(
 
     const reviewer = manager ?? hashPick(employee.employeeId, active)
     const status = hashPick(employee.employeeId + index, STATUSES)
-    const grade =
-      status === 'completed'
-        ? hashPick(employee.employeeId, BANDS)
-        : status === 'not_started'
-          ? null
-          : 'exceeding'
+    const grade = status === 'not_started' ? null : 'performing'
     const isMine = me ? isDirectReport(employee, me) : false
 
     return {
@@ -289,7 +278,7 @@ export function buildScorecardDetail(
             0,
           ),
         )
-  const overall = row.grade ?? 'exceeding'
+  const overall = row.grade ?? 'performing'
   const reviewerFirst = row.reviewerName.split(' ')[0] ?? row.reviewerName
 
   return {
