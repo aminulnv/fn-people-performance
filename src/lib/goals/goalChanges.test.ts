@@ -6,9 +6,6 @@ const goal: Goal = {
   id: 'goal-1',
   description: 'Improve delivery quality',
   details: 'Close critical defects faster',
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   weight: 100,
   ownerId: 'person-1',
   linkedGoalLabel: 'Company reliability',
@@ -69,9 +66,6 @@ describe('hasStructuralGoalChanges', () => {
     ['title', (draft: Goal) => void (draft.description = 'New title')],
     ['description', (draft: Goal) => void (draft.details = 'New details')],
     ['goal weight', (draft: Goal) => void (draft.weight = 75)],
-    ['goal type', (draft: Goal) => void (draft.goalType = 'output')],
-    ['process type', (draft: Goal) => void (draft.processType = 'okr')],
-    ['priority', (draft: Goal) => void (draft.priority = 'high')],
     ['owner', (draft: Goal) => void (draft.ownerId = 'person-2')],
     ['cascading goal label', (draft: Goal) => void (draft.linkedGoalLabel = 'New link')],
     [
@@ -79,7 +73,7 @@ describe('hasStructuralGoalChanges', () => {
       (draft: Goal) => void (draft.cascadedFromGoalId = 'manager-goal-2'),
     ],
     [
-      'to-do wording',
+      'milestone wording',
       (draft: Goal) => void (draft.measurements[0].title = 'New wording'),
     ],
     [

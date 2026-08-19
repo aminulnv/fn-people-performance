@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { mergePersistedGoals } from "@/lib/goals/draft";
 import type { Goal, SubmissionStatus } from "@/lib/goals/types";
 
 export type GoalDraftState = {
@@ -52,9 +53,10 @@ export function useGoalDraftState({
 
     setGoals((current) => {
       const unsavedGoals = current.filter((goal) => isUnsaved(goal.id));
+      const merged = mergePersistedGoals(current, persistedGoals);
       return unsavedGoals.length === 0
-        ? persistedGoals
-        : [...persistedGoals, ...unsavedGoals];
+        ? merged
+        : [...merged, ...unsavedGoals];
     });
     setCreatingIds((current) => {
       const next = new Set(

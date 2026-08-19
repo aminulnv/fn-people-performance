@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/apiClient'
 import { isEligibleForCycle } from './goals/demoData'
 import {
   approvePersonGoalsRemote,
@@ -32,6 +33,7 @@ import type {
   DemoPhase,
   Goal,
   GoalsSnapshot,
+  PersonGoals,
 } from './goals/types'
 
 export type {
@@ -145,17 +147,43 @@ function currentVersion(context: GoalMutationContext): number {
   )
 }
 
+function isStaleGoalsConflict(error: unknown): boolean {
+  return (
+    error instanceof ApiError &&
+    error.status === 409 &&
+    error.message.includes('updated elsewhere')
+  )
+}
+
+async function saveGoalsDraftWithRetry(
+  context: GoalMutationContext,
+  goals: Goal[],
+): Promise<PersonGoals> {
+  try {
+    return await savePersonGoalsDraftRemote(
+      context.cycleId,
+      context.subjectId,
+      goals,
+      currentVersion(context),
+    )
+  } catch (error) {
+    if (!isStaleGoalsConflict(error)) throw error
+    await hydrateGoalsFromApi(context.cycleId)
+    return savePersonGoalsDraftRemote(
+      context.cycleId,
+      context.subjectId,
+      goals,
+      currentVersion(context),
+    )
+  }
+}
+
 export async function saveGoals(
   context: GoalMutationContext,
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
   if (useLocalGoals()) return delay(savePersonGoals(context, goals))
-  const remote = await savePersonGoalsDraftRemote(
-    context.cycleId,
-    context.subjectId,
-    goals,
-    currentVersion(context),
-  )
+  const remote = await saveGoalsDraftWithRetry(context, goals)
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
 
@@ -272,11 +300,6 @@ export async function saveProgress(
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
   if (useLocalGoals()) return delay(updateGoalProgress(context, goals))
-  const remote = await savePersonGoalsDraftRemote(
-    context.cycleId,
-    context.subjectId,
-    goals,
-    currentVersion(context),
-  )
+  const remote = await saveGoalsDraftWithRetry(context, goals)
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }

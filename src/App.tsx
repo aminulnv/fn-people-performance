@@ -9,6 +9,10 @@ import {
 import { useAuth } from '@/lib/auth'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath } from '@/lib/reviews/paths'
+import {
+  goalsV2DetailPath,
+  goalsV2GoalPath,
+} from '@/pages/goals-v2/paths'
 import { RequirePlatformWrite } from '@/layout/RequirePlatformWrite'
 import {
   GlobalRouteProgressComplete,
@@ -70,6 +74,16 @@ function LegacyCycleRedirect() {
   )
 }
 
+/** Legacy `/goals/:cycleId/...` URLs → unified full-view at `/goals-v2/...`. */
+function LegacyGoalsDetailRedirect() {
+  const { cycleId = '', personId = '', goalId } = useParams()
+  if (!cycleId || !personId) return <Navigate to="/goals" replace />
+  const path = goalId
+    ? goalsV2GoalPath(cycleId, personId, goalId)
+    : goalsV2DetailPath(cycleId, personId)
+  return <Navigate to={path} replace />
+}
+
 /** Matches Vite `base` (`/` locally, `/platform/` in production builds). */
 const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
 
@@ -105,9 +119,9 @@ function App() {
               <Route path="goals" element={<GoalsPage />} />
               <Route
                 path="goals/:cycleId/:personId/:goalId?"
-                element={<GoalsPage />}
+                element={<LegacyGoalsDetailRedirect />}
               />
-              <Route path="goals-v2" element={<GoalsV2Page />} />
+              <Route path="goals-v2" element={<Navigate to="/goals" replace />} />
               <Route
                 path="goals-v2/:cycleId/:personId/:goalId?"
                 element={<GoalsV2Page />}

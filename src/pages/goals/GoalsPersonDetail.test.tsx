@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
@@ -10,6 +10,7 @@ import {
   setSignedInPerson,
 } from '@/lib/goals/store'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
+import GoalsV2Page from '@/pages/GoalsV2Page'
 
 const MANAGER_ID = '2'
 const REPORT_ID = '1'
@@ -107,27 +108,30 @@ describe('GoalsPersonDetail manager review', () => {
     expect(screen.getByRole('button', { name: 'Send Back' })).toBeInTheDocument()
   })
 
-  it('opens the specific goal window from a deep link', async () => {
+  it('opens the specific goal on the full view page from a deep link', async () => {
     const snapshot = getGoalsSnapshot()
     const goal = snapshot.byPerson[REPORT_ID]?.goals[0]
     expect(goal).toBeTruthy()
 
     render(
-      <MemoryRouter>
+      <MemoryRouter
+        initialEntries={[
+          `/goals-v2/${snapshot.cycle.id}/${REPORT_ID}/${goal.id}`,
+        ]}
+      >
         <AuthProvider>
-          <GoalsPersonDetail
-            cycleId={snapshot.cycle.id}
-            personId={REPORT_ID}
-            goalId={goal.id}
-          />
+          <Routes>
+            <Route
+              path="/goals-v2/:cycleId/:personId/:goalId?"
+              element={<GoalsV2Page />}
+            />
+          </Routes>
         </AuthProvider>
       </MemoryRouter>,
     )
 
     await waitFor(() => {
-      expect(
-        screen.getByRole('dialog', { name: new RegExp(goal.description) }),
-      ).toBeInTheDocument()
+      expect(screen.getByText(goal.description)).toBeInTheDocument()
     })
   })
 })

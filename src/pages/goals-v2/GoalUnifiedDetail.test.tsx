@@ -63,9 +63,6 @@ const goal: Goal = {
   id: 'g1',
   description: 'Ship reviews',
   weight: 50,
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   details: 'Close the quarter strong',
   measurements: [
     {
@@ -91,6 +88,7 @@ function renderDetail(
   overrides: Partial<ComponentProps<typeof GoalUnifiedDetail>> = {},
 ) {
   const onSave = vi.fn()
+  const onDraftChange = vi.fn()
   const onProgressChange = vi.fn()
   const onBack = vi.fn()
   const onSelectIndex = vi.fn()
@@ -111,6 +109,7 @@ function renderDetail(
       canUpdateProgress
       canRemove
       onSave={onSave}
+      onDraftChange={onDraftChange}
       onProgressChange={onProgressChange}
       onBack={onBack}
       onSelectIndex={onSelectIndex}
@@ -118,7 +117,15 @@ function renderDetail(
     />,
   )
 
-  return { ...result, onSave, onProgressChange, onBack, onSelectIndex }
+  return { ...result, onSave, onDraftChange, onProgressChange, onBack, onSelectIndex }
+}
+
+function expandMeasurePanel(label: string | RegExp) {
+  fireEvent.click(
+    screen.getByRole('button', {
+      name: typeof label === 'string' ? new RegExp(`\\d+\\. ${label}`) : label,
+    }),
+  )
 }
 
 describe('GoalUnifiedDetail', () => {
@@ -412,17 +419,45 @@ describe('GoalUnifiedDetail', () => {
     expect(card).toHaveTextContent('Please tighten measurement targets.')
   })
 
-  it('changes a metric into a to-do list from the card menu', () => {
+  it('adds another milestone measure from the bottom add buttons', () => {
     renderDetail()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Options for Coverage' }))
-    fireEvent.click(
-      screen.getByRole('menuitem', { name: 'Change to a To-Do List' }),
-    )
+    fireEvent.click(screen.getByRole('button', { name: /Add milestone measure/i }))
 
-    expect(screen.getByRole('region', { name: 'To-do list' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Metric name')).toBeNull()
+    expect(screen.getByRole('button', { name: '2.' })).toBeInTheDocument()
+  })
+
+  it('syncs milestone measure title edits to the draft parent', async () => {
+    const { onDraftChange } = renderDetail({
+      goal: {
+        ...goal,
+        measurements: [
+          {
+            id: 't1',
+            kind: 'milestone',
+            measureGroupId: 'measure-1',
+            title: 'Draft the plan',
+            weight: 100,
+            complete: false,
+          },
+        ],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expandMeasurePanel(/^1\.$/)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit metric name' }))
+    const nameInput = screen.getByLabelText('Metric name')
+    fireEvent.change(nameInput, { target: { value: 'ABCD' } })
+
+    await act(async () => {})
+
+    expect(nameInput).toHaveValue('ABCD')
+    expect(onDraftChange).toHaveBeenCalled()
+    const latestDraft = onDraftChange.mock.calls.at(-1)?.[0]
+    expect(latestDraft?.measurements[0]?.measureTitle).toBe('ABCD')
   })
 
   it('keeps the summary cards visible while editing', () => {
@@ -435,7 +470,7 @@ describe('GoalUnifiedDetail', () => {
     expect(within(summary).getByText('Completion')).toBeInTheDocument()
     expect(
       within(summary).getByLabelText('Goal weight percent'),
-    ).toHaveValue(50)
+    ).toHaveValue('50')
   })
 
   it('starts a new goal with no measures so the user can choose', () => {
@@ -450,12 +485,17 @@ describe('GoalUnifiedDetail', () => {
 
     expect(screen.getByLabelText('Goal title')).toBeInTheDocument()
     expect(screen.queryByLabelText('Metric name')).toBeNull()
-    expect(screen.queryByRole('region', { name: 'To-do list' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Add a Number' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add a To-Do' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Add milestone measure/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Add number measure/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Add metric' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Add milestone' })).toBeNull()
   })
 
-  it('hides Add a To-Do once a checklist exists', () => {
+  it('keeps Add a milestone available for additional checklists', () => {
     renderDetail({
       goal: {
         ...goal,
@@ -473,11 +513,76 @@ describe('GoalUnifiedDetail', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
-    expect(screen.queryByRole('button', { name: 'Add a To-Do' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Add Task' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /Add milestone measure/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add task list' })).toBeInTheDocument()
   })
 
-  it('edits checklist weight and redistributes across tasks', () => {
+  it('shows one progress row per measure even with multiple task lists', () => {
+    renderDetail({
+      goal: {
+        ...goal,
+        measurements: [
+          {
+            id: 'list-a-1',
+            kind: 'milestone',
+            measureGroupId: 'measure-a',
+            measureTitle: 'Metric 1',
+            listId: 'list-a',
+            listTitle: 'Task list 1',
+            title: 'Item one',
+            weight: 25,
+            complete: false,
+          },
+          {
+            id: 'list-a-2',
+            kind: 'milestone',
+            measureGroupId: 'measure-a',
+            measureTitle: 'Metric 1',
+            listId: 'list-a',
+            listTitle: 'Task list 1',
+            title: 'Item two',
+            weight: 25,
+            complete: false,
+          },
+          {
+            id: 'list-a-3',
+            kind: 'milestone',
+            measureGroupId: 'measure-a',
+            measureTitle: 'Metric 1',
+            listId: 'list-b',
+            listTitle: 'Task list 2',
+            title: 'Follow up',
+            weight: 50,
+            complete: false,
+          },
+          {
+            id: 'metric-1',
+            kind: 'metric',
+            title: 'Coverage',
+            weight: 100,
+            unit: '%',
+            direction: 'increase',
+            startValue: 0,
+            targetValue: 100,
+            currentValue: 10,
+          },
+        ],
+      },
+    })
+
+    const table = screen.getByRole('table', { name: 'Metrics · 2' })
+    expect(table).toBeInTheDocument()
+    expect(within(table).getByText('Metric 1')).toBeInTheDocument()
+    expect(within(table).getByText('Coverage')).toBeInTheDocument()
+    expect(screen.getByText('Task list 1')).toBeInTheDocument()
+    expect(screen.getByText('Task list 2')).toBeInTheDocument()
+    expect(screen.getByText('Item one')).toBeInTheDocument()
+    expect(screen.getByText('Follow up')).toBeInTheDocument()
+  })
+
+  it('edits measure weights in edit mode', () => {
     renderDetail({
       goal: {
         ...goal,
@@ -496,6 +601,7 @@ describe('GoalUnifiedDetail', () => {
           {
             id: 't1',
             kind: 'milestone',
+            measureTitle: 'Delivery milestones',
             title: 'Draft the plan',
             weight: 30,
             complete: false,
@@ -503,6 +609,9 @@ describe('GoalUnifiedDetail', () => {
           {
             id: 't2',
             kind: 'milestone',
+            measureGroupId: 't1',
+            measureTitle: 'Delivery milestones',
+            listId: 't1',
             title: 'Ship the plan',
             weight: 20,
             complete: false,
@@ -512,18 +621,46 @@ describe('GoalUnifiedDetail', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    fireEvent.change(screen.getByLabelText('Checklist weight'), {
+    expandMeasurePanel('Delivery milestones')
+    fireEvent.change(screen.getByLabelText('Weight for Delivery milestones'), {
       target: { value: '40' },
     })
 
-    expect(screen.getByLabelText('Weight for Draft the plan')).toHaveValue(24)
-    expect(screen.getByLabelText('Weight for Ship the plan')).toHaveValue(16)
+    expect(screen.getByLabelText('Weight for Delivery milestones')).toHaveValue('40')
+  })
+
+  it('allows spaces while typing a task list name', () => {
+    renderDetail({
+      goal: {
+        ...goal,
+        measurements: [
+          {
+            id: 't1',
+            kind: 'milestone',
+            measureTitle: 'Metric 1',
+            listTitle: 'Task list 1',
+            title: 'Task 1',
+            weight: 100,
+            complete: false,
+          },
+        ],
+      },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expandMeasurePanel('Metric 1')
+    fireEvent.click(screen.getByRole('button', { name: 'Edit task list name' }))
+    const nameInput = screen.getByLabelText('Task list name')
+    fireEvent.change(nameInput, { target: { value: 'Phase 1' } })
+
+    expect(nameInput).toHaveValue('Phase 1')
   })
 
   it('blocks save until measurement weights add up to 100', () => {
     renderDetail()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expandMeasurePanel('Coverage')
     fireEvent.change(screen.getByLabelText('Weight for Coverage'), {
       target: { value: '60' },
     })
@@ -532,30 +669,6 @@ describe('GoalUnifiedDetail', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(
       'Measurement weights must total 100%',
     )
-  })
-
-  it('shows classification above the description and saves edits', () => {
-    const { onSave } = renderDetail()
-
-    expect(screen.getByText('Outcome')).toBeInTheDocument()
-    expect(screen.getByText('BAU')).toBeInTheDocument()
-    expect(screen.getByText('Medium')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Goal type' }))
-    fireEvent.click(screen.getByRole('option', { name: 'Output' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Process type' }))
-    fireEvent.click(screen.getByRole('option', { name: /OKR/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Priority' }))
-    fireEvent.click(screen.getByRole('option', { name: 'High' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
-
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave.mock.calls[0][0]).toMatchObject({
-      goalType: 'output',
-      processType: 'okr',
-      priority: 'high',
-    })
   })
 
   it('blocks save when the goal name is empty', () => {

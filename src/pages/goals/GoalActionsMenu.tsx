@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { Copy, GitFork, History, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import {
+  Copy,
+  GitFork,
+  History,
+  Maximize2,
+  MoreHorizontal,
+  Trash2,
+} from 'lucide-react'
 import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
@@ -13,15 +21,21 @@ export function hasGoalActions({
   onRemove,
   canRemove = false,
   onViewActivity,
+  fullViewHref,
 }: {
   onDuplicate?: unknown
   onCascade?: unknown
   onRemove?: unknown
   canRemove?: boolean
   onViewActivity?: unknown
+  fullViewHref?: string
 }) {
   return Boolean(
-    onDuplicate || onCascade || (canRemove && onRemove) || onViewActivity,
+    fullViewHref ||
+      onDuplicate ||
+      onCascade ||
+      (canRemove && onRemove) ||
+      onViewActivity,
   )
 }
 
@@ -31,6 +45,7 @@ export function GoalActionsMenu({
   canRemove = false,
   cascadeTargets = [],
   activityFilters,
+  fullViewHref,
   onDuplicate,
   onCascade,
   onRemove,
@@ -44,6 +59,8 @@ export function GoalActionsMenu({
     cycleId?: string
     subjectEmployeeId?: number
   }
+  /** Opens the unified goal detail page in the main window. */
+  fullViewHref?: string
   onDuplicate?: () => void
   onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
@@ -80,6 +97,7 @@ export function GoalActionsMenu({
       onRemove,
       canRemove,
       onViewActivity: canViewActivity,
+      fullViewHref,
     })
   ) {
     return null
@@ -99,6 +117,17 @@ export function GoalActionsMenu({
         </button>
         {menuOpen ? (
           <div className="pd-goal-view__menu-panel" role="menu">
+            {fullViewHref ? (
+              <Link
+                role="menuitem"
+                className="pd-goal-view__menu-item"
+                to={fullViewHref}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Maximize2 size={15} strokeWidth={1.75} aria-hidden />
+                Open full view
+              </Link>
+            ) : null}
             {onDuplicate ? (
               <button
                 type="button"

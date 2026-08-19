@@ -6,9 +6,6 @@ const baseGoal: Goal = {
   id: 'g1',
   description: 'Ship reviews',
   weight: 50,
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   measurements: [
     {
       id: 'm1',
@@ -29,7 +26,20 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft({ ...baseGoal, description: '  ' })).toEqual({
       ok: false,
       nameError: 'Goal name is required',
-      classificationError: undefined,
+      measurementNameError: undefined,
+      measurementWeightError: undefined,
+    })
+  })
+
+  it('requires each measure to have a name', () => {
+    const goal: Goal = {
+      ...baseGoal,
+      measurements: [{ ...baseGoal.measurements[0], title: '  ' }],
+    }
+    expect(validateGoalDraft(goal)).toEqual({
+      ok: false,
+      nameError: undefined,
+      measurementNameError: 'Each measure needs a name',
       measurementWeightError: undefined,
     })
   })
@@ -44,7 +54,7 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft(goal)).toEqual({
       ok: false,
       nameError: undefined,
-      classificationError: undefined,
+      measurementNameError: undefined,
       measurementWeightError: 'Measurement weights must total 100%',
     })
   })
@@ -53,7 +63,7 @@ describe('validateGoalDraft', () => {
     expect(validateGoalDraft(baseGoal)).toEqual({
       ok: true,
       nameError: undefined,
-      classificationError: undefined,
+      measurementNameError: undefined,
       measurementWeightError: undefined,
     })
   })
@@ -79,6 +89,28 @@ describe('isGoalDraftDirty', () => {
   it('detects editable field changes', () => {
     expect(
       isGoalDraftDirty(baseGoal, { ...baseGoal, description: 'Ship goals' }),
+    ).toBe(true)
+  })
+
+  it('detects milestone measure title edits', () => {
+    const goal: Goal = {
+      ...baseGoal,
+      measurements: [
+        {
+          id: 't1',
+          kind: 'milestone',
+          measureGroupId: 'measure-1',
+          title: 'Task 1',
+          weight: 100,
+          complete: false,
+        },
+      ],
+    }
+    expect(
+      isGoalDraftDirty(goal, {
+        ...goal,
+        measurements: [{ ...goal.measurements[0], measureTitle: 'ABCD' }],
+      }),
     ).toBe(true)
   })
 })

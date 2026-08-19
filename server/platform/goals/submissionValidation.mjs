@@ -1,11 +1,25 @@
 import { HttpError } from '../../errors.mjs'
 
-const GOAL_TYPES = new Set(['outcome', 'output'])
-const PROCESS_TYPES = new Set(['okr', 'bau', 'pi'])
-const PRIORITIES = new Set(['high', 'medium', 'low'])
-
 function sumWeights(items) {
   return items.reduce((sum, item) => sum + (Number(item?.weight) || 0), 0)
+}
+
+function measureNamesComplete(measurements) {
+  if (!Array.isArray(measurements) || measurements.length === 0) return true
+  const seenGroups = new Set()
+  for (const measurement of measurements) {
+    if (measurement?.kind === 'metric') {
+      if (!String(measurement.title ?? '').trim()) return false
+      continue
+    }
+    if (measurement?.kind === 'milestone') {
+      const groupId = measurement.measureGroupId ?? measurement.id
+      if (seenGroups.has(groupId)) continue
+      seenGroups.add(groupId)
+      if (!String(measurement.measureTitle ?? '').trim()) return false
+    }
+  }
+  return true
 }
 
 function goalName(goal, index) {
@@ -56,19 +70,14 @@ export function validateGoalSubmission(goals, policy) {
     ) {
       errors.push(`${name} needs a title.`)
     }
-    if (
-      !GOAL_TYPES.has(goal?.goalType) ||
-      !PROCESS_TYPES.has(goal?.processType) ||
-      !PRIORITIES.has(goal?.priority)
-    ) {
-      errors.push(`${name} needs a valid type, process type, and priority.`)
-    }
 
     const measurements = Array.isArray(goal?.measurements)
       ? goal.measurements
       : []
     if (measurements.length === 0) {
       errors.push(`${name} still needs a measure.`)
+    } else if (!measureNamesComplete(measurements)) {
+      errors.push(`${name} still needs a name on each measure.`)
     } else if (sumWeights(measurements) !== 100) {
       errors.push(`${name} measures need to add up to 100%.`)
     }

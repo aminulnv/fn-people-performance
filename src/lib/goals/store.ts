@@ -419,12 +419,25 @@ export function replaceCycleGoalsFromRemote(
   submissions: PersonGoals[],
 ): GoalsSnapshot {
   const state = getPersisted();
+  const existingBucket = state.byCycle[cycleId] ?? {};
   const byPerson: Record<string, PersonGoals> = {};
   for (const submission of submissions) {
+    const existing = existingBucket[submission.personId];
+    const incomingVersion = submission.version ?? 0;
+    const existingVersion = existing?.version ?? 0;
+    if (existing && existingVersion > incomingVersion) {
+      byPerson[submission.personId] = existing;
+      continue;
+    }
     byPerson[submission.personId] = {
       ...submission,
       personId: submission.personId,
     };
+  }
+  for (const [personId, row] of Object.entries(existingBucket)) {
+    if (!(personId in byPerson)) {
+      byPerson[personId] = row;
+    }
   }
   if (
     state.activeCycleId === cycleId &&

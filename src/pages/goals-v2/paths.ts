@@ -13,5 +13,5 @@ export function goalsV2GoalPath(
 }
 
 export function goalsV2OverviewPath(): string {
-  return '/goals-v2'
+  return '/goals'
 }

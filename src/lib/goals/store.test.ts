@@ -15,6 +15,7 @@ import {
   approveSubmission,
   copyPreviousCycleGoals,
   getGoalsSnapshot,
+  mergeRemotePersonGoals,
   replaceCycleGoalsFromRemote,
   resetGoalsDemo,
   savePersonGoals,
@@ -189,6 +190,22 @@ describe("goal snapshot reads", () => {
     unsubscribe();
 
     expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a newer local submission when a stale fetch returns an older version", () => {
+    const cycleId = getGoalsSnapshot().cycle.id;
+    mergeRemotePersonGoals(cycleId, "1", {
+      personId: "1",
+      status: "draft",
+      goals: [],
+      version: 6,
+    });
+
+    replaceCycleGoalsFromRemote(cycleId, [
+      { personId: "1", status: "draft", goals: [], version: 5 },
+    ]);
+
+    expect(getGoalsSnapshot().byPerson["1"].version).toBe(6);
   });
 
   it("fills approver avatars from the employee directory when the API omits them", async () => {

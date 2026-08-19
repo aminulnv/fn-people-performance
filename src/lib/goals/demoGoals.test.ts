@@ -11,7 +11,7 @@ describe('buildDemoGoals', () => {
     )
 
     expect(mixed).toBeDefined()
-    expect(mixed!.measurements.map((item) => item.weight)).toEqual([33, 33, 34])
+    expect(mixed!.measurements.map((item) => item.weight)).toEqual([50, 25, 25])
     expect(mixed!.measurements.every((item) => item.weight > 0)).toBe(true)
   })
 

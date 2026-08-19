@@ -30,10 +30,7 @@ function peopleRoot(): BreadcrumbItem {
   return { label: 'People', href: '/people' }
 }
 
-function goalsRoot(pathname: string): BreadcrumbItem {
-  if (pathname === '/goals-v2' || pathname.startsWith('/goals-v2/')) {
-    return { label: 'Goals', href: '/goals-v2' }
-  }
+function goalsRoot(_pathname: string): BreadcrumbItem {
   return { label: 'Goals', href: '/goals' }
 }
 
@@ -51,10 +48,6 @@ export function buildBreadcrumbs({
   scorecardCycleLabel,
   goalsCycleLabel,
 }: BreadcrumbContext): BreadcrumbItem[] {
-  if (pathname === '/goals-v2') {
-    return [{ label: 'Goals' }]
-  }
-
   if (pathname === '/people/new' || pathname.startsWith('/people/new/')) {
     return [peopleRoot(), { label: 'Add employee' }]
   }

@@ -8,6 +8,7 @@ import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { resolveEffectiveGoalDeadline } from './deadline.mjs'
 import { assertGoalSubmission } from './submissionValidation.mjs'
+import { normalizeMilestoneWeightsInGoal } from './measurementWeights.mjs'
 
 function isoTimestamp(value) {
   if (!value) return undefined
@@ -107,11 +108,30 @@ async function postWindowApprovalStage(client, cycleId, employeeId) {
   }
 }
 
+function resolveMeasureGroupId(measurement, goalMeasurements) {
+  if (measurement.kind !== 'milestone') return null
+  if (measurement.measureGroupId) return measurement.measureGroupId
+  const title = measurement.measureTitle?.trim()
+  if (title) {
+    for (const other of goalMeasurements) {
+      if (other.kind !== 'milestone') continue
+      if (other.measureTitle?.trim() === title && other.measureGroupId) {
+        return other.measureGroupId
+      }
+    }
+  }
+  return measurement.listId ?? measurement.id
+}
+
 function mapMeasurement(row) {
   if (row.kind === 'milestone') {
     return {
       id: row.measurement_id,
       kind: 'milestone',
+      measureGroupId: row.measure_group_id ?? undefined,
+      measureTitle: row.measure_title ?? undefined,
+      listId: row.list_id ?? undefined,
+      listTitle: row.list_title ?? undefined,
       title: row.title,
       weight: Number(row.weight),
       complete: Boolean(row.complete),
@@ -216,14 +236,15 @@ async function loadGoalsForSubmission(client, cycleId, employeeId) {
     commentsByGoal.set(comment.goal_id, comments)
   }
 
+  for (const [goalId, measurements] of measurementsByGoal) {
+    measurementsByGoal.set(goalId, normalizeMilestoneWeightsInGoal(measurements))
+  }
+
   return goalRows.map((goal) => ({
       id: goal.goal_id,
       description: goal.description,
       details: goal.details ?? undefined,
       weight: Number(goal.weight),
-      goalType: goal.goal_type,
-      processType: goal.process_type,
-      priority: goal.priority,
       ownerId:
         goal.owner_employee_id == null
           ? undefined
@@ -291,9 +312,6 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
       goal.ownerId ? Number(goal.ownerId) : employeeId,
       goal.description ?? '',
       goal.details ?? null,
-      goal.goalType ?? 'outcome',
-      goal.processType ?? 'bau',
-      goal.priority ?? 'medium',
       goal.weight ?? 0,
       position++,
       goal.progressStatus ?? null,
@@ -306,14 +324,11 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
          SET owner_employee_id = $4,
              description = $5,
              details = $6,
-             goal_type = $7,
-             process_type = $8,
-             priority = $9,
-             weight = $10,
-             position = $11,
-             progress_status = $12,
-             cascaded_from_goal_id = $13,
-             linked_goal_label = $14,
+             weight = $7,
+             position = $8,
+             progress_status = $9,
+             cascaded_from_goal_id = $10,
+             linked_goal_label = $11,
              updated_at = now()
          WHERE goal_id = $1
            AND cycle_id = $2
@@ -324,10 +339,10 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
       await client.query(
         `INSERT INTO platform.goals (
            goal_id, cycle_id, employee_id, owner_employee_id, description, details,
-           goal_type, process_type, priority, weight, position, progress_status,
+           weight, position, progress_status,
            cascaded_from_goal_id, linked_goal_label
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
          )`,
         goalValues,
       )
@@ -344,8 +359,12 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
     )
     const incomingMeasurementIds = new Set()
 
+    const normalizedMeasurements = normalizeMilestoneWeightsInGoal(
+      goal.measurements ?? [],
+    )
+
     let measurementPosition = 0
-    for (const measurement of goal.measurements ?? []) {
+    for (const measurement of normalizedMeasurements) {
       const measurementId = measurement.id || newId('m')
       if (incomingMeasurementIds.has(measurementId)) {
         throw new HttpError(400, `Duplicate measurement id: ${measurementId}`)
@@ -379,6 +398,14 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
         measurement.kind === 'milestone' ? Boolean(measurement.complete) : null,
         measurement.proofUrl ?? null,
         measurement.comment ?? null,
+        measurement.kind === 'milestone' ? measurement.listTitle ?? null : null,
+        measurement.kind === 'milestone'
+          ? measurement.listId ?? measurement.id
+          : null,
+        measurement.kind === 'milestone'
+          ? resolveMeasureGroupId(measurement, normalizedMeasurements)
+          : null,
+        measurement.kind === 'milestone' ? measurement.measureTitle ?? null : null,
       ]
       if (measurementIdentity) {
         await client.query(
@@ -397,6 +424,10 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
                complete = $14,
                proof_url = $15,
                comment = $16,
+               list_title = $17,
+               list_id = $18,
+               measure_group_id = $19,
+               measure_title = $20,
                updated_at = now()
            WHERE measurement_id = $1 AND goal_id = $2`,
           measurementValues,
@@ -406,9 +437,9 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
           `INSERT INTO platform.goal_measurements (
              measurement_id, goal_id, kind, title, weight, position, unit, direction,
              start_value, target_value, current_value, range_min, range_max, complete,
-             proof_url, comment
+             proof_url, comment, list_title, list_id, measure_group_id, measure_title
            ) VALUES (
-             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16
+             $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
            )`,
           measurementValues,
         )
@@ -581,9 +612,6 @@ function activityGoalShape(goal) {
     description: goal.description ?? '',
     details: goal.details ?? null,
     weight: Number(goal.weight ?? 0),
-    goalType: goal.goalType ?? 'outcome',
-    processType: goal.processType ?? 'bau',
-    priority: goal.priority ?? 'medium',
     ownerId: goal.ownerId ?? null,
     progressStatus: goal.progressStatus ?? null,
     cascadedFromGoalId: goal.cascadedFromGoalId ?? null,
@@ -671,8 +699,6 @@ async function appendGoalDiffActivity(
       summary: `Deleted goal “${previous.description || 'Untitled goal'}”`,
       metadata: {
         description: previous.description ?? '',
-        goalType: previous.goalType ?? 'outcome',
-        processType: previous.processType ?? 'bau',
       },
       source: 'api',
     })
@@ -1189,9 +1215,6 @@ export async function cascadeGoalToEmployees(
         description: `Untitled Cascading Goal from ${actor.actorName || 'manager'}`,
         details: undefined,
         weight: 0,
-        goalType: sourceGoal.goalType,
-        processType: sourceGoal.processType,
-        priority: sourceGoal.priority,
         ownerId: String(recipientEmployeeId),
         cascadedFromGoalId: sourceGoalId,
         linkedGoalLabel: sourceGoal.description || 'Untitled goal',

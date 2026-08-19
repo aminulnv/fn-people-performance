@@ -7,52 +7,45 @@ import {
   type ReactNode,
 } from "react";
 import {
-  ArrowDown,
-  ArrowDownRight,
-  ArrowLeftRight,
-  ArrowUp,
-  ArrowUpRight,
   Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Copy,
   GitFork,
-  Hash,
   History,
-  ListTodo,
   MoreHorizontal,
   Pencil,
-  Plus,
   Send,
   Trash2,
 } from "lucide-react";
-import { Avatar, Badge, ListboxSelect } from "@/components/ui";
+import { Avatar, Badge } from "@/components/ui";
 import { ActivityLogDrawer } from "@/components/activity/ActivityLogDrawer";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { goalCompletion, newId } from "@/lib/goalsApi";
 import "@/styles/layout-activity.css";
 import {
-  applyMetricStrategy,
+  appendMilestoneList,
+  appendMilestoneToList,
+  appendTodoListToMeasure,
   blankMetric,
-  blankMilestone,
-  METRIC_STRATEGIES,
-  METRIC_UNITS,
-  metricLowerLabel,
-  metricUpperLabel,
-  metricUsesRange,
-  normalizeMetricStrategy,
   measurementPanels,
+  readMeasureGroupTitle,
   rebalanceMeasurementWeights,
-  strategyLabel,
+  redistributeTodoMeasureWeight,
+  removeMilestoneFromList,
+  removeMilestoneList,
+  removeTodoMeasure,
+  replaceMilestoneList,
+  patchMilestone,
+  withMeasureTitle,
+  withMilestoneListTitle,
+  withMilestoneTitle,
 } from "@/lib/goals/measurements";
 import type {
   Goal,
   GoalProgressStatus,
   Measurement,
-  Metric,
-  MetricStrategy,
-  MetricUnit,
   Milestone,
   PersonGoals,
   SendBackAuthor,
@@ -74,15 +67,24 @@ import { GoalAutosaveStatus } from "@/pages/goals/GoalAutosaveStatus";
 import type { GoalDraftSaveState } from "@/pages/goals/useGoalDraftAutosave";
 import type { RequestGoalEdit } from "@/pages/goals/useGoalEditGuard";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
+import {
+  MeasureEditList,
+  MeasureListTable,
+} from "./MeasurePanelSection";
 import { isGoalDraftDirty, validateGoalDraft } from "./draftHelpers";
-import { GoalClassificationFields } from "@/pages/goals/GoalClassificationFields";
 import { GoalOkrReferencePanel } from "@/pages/goals/GoalOkrReferencePanel";
 import {
   GoalMetricReadout,
   GoalWeightReadout,
+  formatWeightReadout,
+  parseWeightInputValue,
+  weightInputDisplayValue,
 } from "@/pages/goals/GoalMeasurementReadout";
 import { GoalProgressLog } from "@/pages/goals/GoalProgressLog";
 import { MetricProgressUpdate } from "@/pages/goals/MetricProgressUpdate";
+import { TodoMeasureViewCard } from "@/pages/goals/TodoMeasureViewCard";
+import { TodoMeasureEditCard } from "@/pages/goals/TodoMeasureEditCard";
+import { NumberMeasureEditCard } from "@/pages/goals/NumberMeasureEditCard";
 import {
   recordMetricProgress,
   recordMilestoneProgress,
@@ -168,28 +170,6 @@ function touch(goal: Goal, partial: Partial<Goal>): Goal {
   return { ...goal, ...partial, updatedAt: new Date().toISOString() };
 }
 
-function StrategyIcon({
-  strategy,
-  size = 13,
-}: {
-  strategy: MetricStrategy;
-  size?: number;
-}) {
-  const props = { size, strokeWidth: 2.25, "aria-hidden": true as const };
-  switch (strategy) {
-    case "increase":
-      return <ArrowUp {...props} />;
-    case "decrease":
-      return <ArrowDown {...props} />;
-    case "between":
-      return <ArrowLeftRight {...props} />;
-    case "keep_above":
-      return <ArrowUpRight {...props} />;
-    case "keep_below":
-      return <ArrowDownRight {...props} />;
-  }
-}
-
 type MenuItem = {
   id: string;
   label: string;
@@ -258,31 +238,6 @@ function CardMenu({ label, items }: { label: string; items: MenuItem[] }) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function WeightInput({
-  value,
-  label,
-  onChange,
-}: {
-  value: number;
-  label: string;
-  onChange: (next: number) => void;
-}) {
-  return (
-    <label className="pd-goal-v2__weight">
-      <span className="pd-sr-only">{label}</span>
-      <input
-        type="number"
-        min={0}
-        max={100}
-        value={value}
-        aria-label={label}
-        onChange={(event) => onChange(Number(event.target.value) || 0)}
-      />
-      <span aria-hidden>%</span>
-    </label>
   );
 }
 
@@ -439,395 +394,6 @@ function OwnerSelect({
   );
 }
 
-function StrategySelect({
-  value,
-  onChange,
-}: {
-  value: MetricStrategy;
-  onChange: (next: MetricStrategy) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const listId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [open]);
-
-  return (
-    <div
-      ref={containerRef}
-      className={`pd-goal-v2__strategy${open ? " is-open" : ""}`}
-    >
-      <button
-        type="button"
-        className="pd-goal-v2__strategy-trigger"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-label={`Strategy: ${strategyLabel(value)}`}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        <span>
-          <StrategyIcon strategy={value} />
-          {strategyLabel(value)}
-        </span>
-        <ChevronDown size={12} strokeWidth={2.25} aria-hidden />
-      </button>
-      {open ? (
-        <div
-          id={listId}
-          className="pd-goal-v2__strategy-menu"
-          role="listbox"
-          aria-label="Strategy"
-        >
-          {METRIC_STRATEGIES.map((option) => {
-            const selected = option.id === value;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                className={`pd-goal-v2__strategy-option${
-                  selected ? " is-selected" : ""
-                }`}
-                onClick={() => {
-                  onChange(option.id);
-                  setOpen(false);
-                }}
-              >
-                <StrategyIcon strategy={option.id} />
-                <span>{option.label}</span>
-                {selected ? (
-                  <Check size={14} strokeWidth={2.5} aria-hidden />
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/**
- * One metric per card. The card header carries identity (type, name, weight)
- * and the body carries only the target maths, so scanning a long list of
- * measures stays a single vertical read.
- */
-function MetricCard({
-  metric,
-  canRemove,
-  onChange,
-  onRemove,
-  onConvertToTodo,
-}: {
-  metric: Metric;
-  canRemove: boolean;
-  onChange: (next: Metric) => void;
-  onRemove: () => void;
-  onConvertToTodo: () => void;
-}) {
-  const strategy = normalizeMetricStrategy(metric.direction);
-  const name = metric.title.trim() || "this metric";
-  const parseOptional = (raw: string): number | undefined => {
-    if (raw.trim() === "") return undefined;
-    const next = Number(raw);
-    return Number.isFinite(next) ? next : undefined;
-  };
-
-  const isRange = metricUsesRange(strategy);
-  const lowerValue = isRange
-    ? (metric.rangeMin ?? "")
-    : (metric.startValue ?? "");
-  const upperValue = isRange
-    ? (metric.rangeMax ?? "")
-    : (metric.targetValue ?? "");
-  const lowerLabel = metricLowerLabel(strategy);
-  const upperLabel = metricUpperLabel(strategy);
-  const rangeInvalid =
-    strategy === "between" &&
-    metric.rangeMin != null &&
-    metric.rangeMax != null &&
-    metric.rangeMin > metric.rangeMax;
-
-  const menuItems: MenuItem[] = [
-    {
-      id: "to-todo",
-      label: "Change to a To-Do List",
-      icon: <ListTodo size={15} strokeWidth={1.75} aria-hidden />,
-      onSelect: onConvertToTodo,
-    },
-  ];
-  if (canRemove) {
-    menuItems.push({
-      id: "remove",
-      label: "Remove Measure",
-      icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
-      danger: true,
-      onSelect: onRemove,
-    });
-  }
-
-  return (
-    <section className="pd-goal-v2__measure" aria-label={`Metric: ${name}`}>
-      <div className="pd-goal-v2__measure-head">
-        <input
-          type="text"
-          className="pd-goal-v2__measure-name"
-          value={metric.title}
-          placeholder="Name this metric"
-          aria-label="Metric name"
-          onChange={(event) =>
-            onChange({ ...metric, title: event.target.value })
-          }
-        />
-        <WeightInput
-          value={metric.weight}
-          label={`Weight for ${name}`}
-          onChange={(weight) => onChange({ ...metric, weight })}
-        />
-        <CardMenu label={`Options for ${name}`} items={menuItems} />
-      </div>
-
-      <div className="pd-goal-v2__measure-body">
-        <div className="pd-goal-v2__target">
-          <label className="pd-goal-v2__target-cell">
-            <span>{lowerLabel}</span>
-            <input
-              type="number"
-              value={lowerValue}
-              onChange={(event) => {
-                const next = parseOptional(event.target.value);
-                if (!isRange) {
-                  onChange({ ...metric, startValue: next, currentValue: next });
-                  return;
-                }
-                if (strategy === "keep_above") {
-                  onChange({ ...metric, rangeMin: next, targetValue: next });
-                  return;
-                }
-                onChange({ ...metric, rangeMin: next });
-              }}
-            />
-          </label>
-
-          <div className="pd-goal-v2__target-cell pd-goal-v2__target-cell--strategy">
-            <span>Goes</span>
-            <StrategySelect
-              value={strategy}
-              onChange={(nextStrategy) =>
-                onChange(applyMetricStrategy(metric, nextStrategy))
-              }
-            />
-          </div>
-
-          <label className="pd-goal-v2__target-cell">
-            <span>{upperLabel}</span>
-            <input
-              type="number"
-              value={upperValue}
-              onChange={(event) => {
-                const next = parseOptional(event.target.value);
-                if (!isRange) {
-                  onChange({ ...metric, targetValue: next });
-                  return;
-                }
-                if (strategy === "keep_below") {
-                  onChange({ ...metric, rangeMax: next, targetValue: next });
-                  return;
-                }
-                onChange({ ...metric, rangeMax: next });
-              }}
-            />
-          </label>
-
-          <div className="pd-goal-v2__target-cell pd-goal-v2__target-cell--unit">
-            <span>Unit</span>
-            <ListboxSelect
-              value={metric.unit}
-              aria-label="Metric unit"
-              allowEmpty={false}
-              options={METRIC_UNITS.map((unit) => ({
-                value: unit.value,
-                label: unit.label,
-              }))}
-              onValueChange={(next) =>
-                onChange({ ...metric, unit: next as MetricUnit })
-              }
-            />
-          </div>
-        </div>
-
-        {rangeInvalid ? (
-          <p className="pd-goal-v2__error" role="alert">
-            Lower limit must be less than or equal to upper limit.
-          </p>
-        ) : null}
-      </div>
-    </section>
-  );
-}
-
-/** Spread a checklist total across its tasks, keeping relative shares when possible. */
-function redistributeTodoWeights(
-  todos: Milestone[],
-  nextTotal: number,
-): Milestone[] {
-  const clamped = Math.max(0, Math.min(100, Math.round(nextTotal)));
-  if (todos.length === 0) return todos;
-  if (todos.length === 1) {
-    return [{ ...todos[0], weight: clamped }];
-  }
-
-  const currentTotal = todos.reduce((sum, todo) => sum + todo.weight, 0);
-  if (currentTotal <= 0) {
-    const each = Math.floor(clamped / todos.length);
-    const remainder = clamped - each * todos.length;
-    return todos.map((todo, index) => ({
-      ...todo,
-      weight: each + (index === todos.length - 1 ? remainder : 0),
-    }));
-  }
-
-  let assigned = 0;
-  return todos.map((todo, index) => {
-    if (index === todos.length - 1) {
-      return { ...todo, weight: Math.max(0, clamped - assigned) };
-    }
-    const share = Math.round((todo.weight / currentTotal) * clamped);
-    assigned += share;
-    return { ...todo, weight: share };
-  });
-}
-
-/** Every milestone lives in one card, so to-dos read as a single checklist. */
-function TodoCard({
-  todos,
-  canRemove,
-  onChangeTodo,
-  onChangeTodos,
-  onAddTodo,
-  onRemoveTodo,
-  onRemoveAll,
-  onConvertToMetric,
-}: {
-  todos: Milestone[];
-  canRemove: boolean;
-  onChangeTodo: (next: Milestone) => void;
-  onChangeTodos: (next: Milestone[]) => void;
-  onAddTodo: () => void;
-  onRemoveTodo: (id: string) => void;
-  onRemoveAll: () => void;
-  onConvertToMetric: () => void;
-}) {
-  const total = todos.reduce((sum, todo) => sum + todo.weight, 0);
-  const menuItems: MenuItem[] = [
-    {
-      id: "to-metric",
-      label: "Change to a Number Metric",
-      icon: <Hash size={15} strokeWidth={1.75} aria-hidden />,
-      onSelect: onConvertToMetric,
-    },
-  ];
-  if (canRemove) {
-    menuItems.push({
-      id: "remove-all",
-      label: "Remove All To-Dos",
-      icon: <Trash2 size={15} strokeWidth={1.75} aria-hidden />,
-      danger: true,
-      onSelect: onRemoveAll,
-    });
-  }
-
-  return (
-    <section className="pd-goal-v2__measure" aria-label="To-do list">
-      <div className="pd-goal-v2__measure-head">
-        <p className="pd-goal-v2__measure-name is-static">To Do&apos;s</p>
-        <WeightInput
-          value={total}
-          label="Checklist weight"
-          onChange={(weight) =>
-            onChangeTodos(redistributeTodoWeights(todos, weight))
-          }
-        />
-        <CardMenu label="Options for the to-do list" items={menuItems} />
-      </div>
-
-      <div className="pd-goal-v2__measure-body pd-goal-v2__measure-body--rows">
-        <ul className="pd-goal-v2__todo-rows">
-          {todos.map((todo) => (
-            <li key={todo.id} className="pd-goal-v2__todo-row">
-              <input
-                type="checkbox"
-                className="pd-goal-v2__todo-check"
-                checked={todo.complete}
-                aria-label={`Mark ${todo.title.trim() || "to-do"} complete`}
-                onChange={(event) =>
-                  onChangeTodo({ ...todo, complete: event.target.checked })
-                }
-              />
-              <input
-                type="text"
-                className="pd-goal-v2__todo-input"
-                value={todo.title}
-                placeholder="Describe this task"
-                aria-label="Task"
-                onChange={(event) =>
-                  onChangeTodo({ ...todo, title: event.target.value })
-                }
-              />
-              <WeightInput
-                value={todo.weight}
-                label={`Weight for ${todo.title.trim() || "to-do"}`}
-                onChange={(weight) => onChangeTodo({ ...todo, weight })}
-              />
-              {todos.length > 1 ? (
-                <button
-                  type="button"
-                  className="pd-goal-v2__icon-btn pd-goal-v2__icon-btn--danger"
-                  aria-label={`Remove task${todo.title ? ` ${todo.title}` : ""}`}
-                  onClick={() => onRemoveTodo(todo.id)}
-                >
-                  <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-                </button>
-              ) : (
-                <span className="pd-goal-v2__todo-spacer" aria-hidden />
-              )}
-            </li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          className="pd-goal-v2__row-btn"
-          onClick={onAddTodo}
-        >
-          <Plus size={15} strokeWidth={2} aria-hidden />
-          Add Task
-        </button>
-      </div>
-    </section>
-  );
-}
-
 export function GoalUnifiedDetail({
   goal,
   index,
@@ -878,6 +444,12 @@ export function GoalUnifiedDetail({
   const [showCascadeField, setShowCascadeField] = useState(
     Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
   );
+  const [expandedMeasureKey, setExpandedMeasureKey] = useState<string | null>(
+    null,
+  );
+  const [focusMilestoneId, setFocusMilestoneId] = useState<string | null>(
+    null,
+  );
   const [editingCascadeFrom, setEditingCascadeFrom] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef(false);
@@ -896,6 +468,7 @@ export function GoalUnifiedDetail({
       Boolean(goal.linkedGoalLabel || goal.cascadedFromGoalId),
     );
     setEditingCascadeFrom(false);
+    setExpandedMeasureKey(null);
     setMode(isNew ? "edit" : "view");
     // Reset only when the opened goal identity changes; content sync while
     // viewing is handled by the effect below so in-progress edits are kept.
@@ -945,13 +518,8 @@ export function GoalUnifiedDetail({
     cascadeFrom,
   });
   const title = goalTitle(activeGoal, index);
-  const todos = activeGoal.measurements.filter(
-    (item): item is Milestone => item.kind === "milestone",
-  );
-  const metrics = activeGoal.measurements.filter(
-    (item): item is Metric => item.kind === "metric",
-  );
-  const panels = measurementPanels(activeGoal.measurements);
+  const measurePanels = measurementPanels(activeGoal.measurements);
+  const panels = measurePanels;
   const comments = activeGoal.comments ?? [];
   const canMutateProgress = canEdit || canUpdateProgress;
   const progressAuthor = {
@@ -964,9 +532,18 @@ export function GoalUnifiedDetail({
   const measureWeight = sumMeasurementWeights(draft.measurements);
   const ownerId = draft.ownerId ?? defaultOwnerId;
 
-  useEffect(() => {
-    if (dirty) onDraftChangeRef.current?.(draft);
-  }, [dirty, draft]);
+  const commitDraft = (updater: (prev: Goal) => Goal) => {
+    setDraft((prev) => {
+      const next = updater(prev);
+      if (isEditing) onDraftChangeRef.current?.(next);
+      return next;
+    });
+  };
+
+  const patchDraft = (partial: Partial<Goal>) => {
+    commitDraft((prev) => touch(prev, partial));
+  };
+
   const cascadeFromSelected = Boolean(
     activeGoal.cascadedFromGoalId || activeGoal.linkedGoalLabel,
   );
@@ -982,16 +559,13 @@ export function GoalUnifiedDetail({
 
   const cancelEdit = () => {
     setDraft(baseline);
+    setExpandedMeasureKey(null);
     if (isNew) {
       onDiscardNew?.();
       onBack();
       return;
     }
     setMode("view");
-  };
-
-  const patchDraft = (partial: Partial<Goal>) => {
-    setDraft((prev) => touch(prev, partial));
   };
 
   const patchMeasurement = (id: string, next: Measurement) => {
@@ -1002,7 +576,7 @@ export function GoalUnifiedDetail({
         ),
       });
     if (isEditing) {
-      setDraft((prev) => apply(prev));
+      commitDraft(apply);
       return;
     }
     onProgressChange(apply(goal));
@@ -1047,8 +621,167 @@ export function GoalUnifiedDetail({
     setMode("view");
   };
 
-  const allocationTone =
-    measureWeight === 100 ? "ok" : measureWeight > 100 ? "over" : "under";
+  const draftPanels = measurementPanels(draft.measurements);
+
+  const renderMeasurePanelEditor = (
+    panel: ReturnType<typeof measurementPanels>[number],
+  ) => {
+    if (panel.kind === "metric") {
+      return (
+        <NumberMeasureEditCard
+          metric={panel.metric}
+          onChange={(next) => patchMeasurement(panel.metric.id, next)}
+          cardClassName="pd-goal-view__card pd-goal-measure-card pd-goal-measure-card--edit"
+          headClassName="pd-goal-view__card-head"
+          titleClassName="pd-goal-view__card-title"
+          metricsClassName="pd-goal-view__card-metrics"
+          meta={
+            cycleLabel ? (
+              <span className="pd-measure-detail__tag">{cycleLabel}</span>
+            ) : null
+          }
+        />
+      );
+    }
+
+    return (
+      <TodoMeasureEditCard
+          panel={panel}
+          measurements={draft.measurements}
+          measureTitle={readMeasureGroupTitle(
+            draft.measurements,
+            panel.measureGroupId,
+          )}
+          canRemoveList={panel.lists.length > 1 || draftPanels.length > 1}
+          cardClassName="pd-goal-view__card pd-goal-measure-card pd-goal-measure-card--edit"
+          headClassName="pd-goal-view__card-head"
+          todoListClassName="pd-goal-v2__todos"
+          todoItemClassName="pd-goal-v2__todo"
+          todoCheckClassName="pd-goal-v2__todo-check"
+          addTodoClassName="pd-goal-v2__row-btn pd-goal-measure-card__add-todo"
+          meta={
+            cycleLabel ? (
+              <span className="pd-measure-detail__tag">{cycleLabel}</span>
+            ) : null
+          }
+        onChangeMeasureTitle={(measureTitle) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: withMeasureTitle(
+                prev.measurements,
+                panel.measureGroupId,
+                measureTitle,
+              ),
+            }),
+          )
+        }
+        onChangeListTitle={(listKey, listTitle) => {
+          commitDraft((prev) => {
+            const listTodos = prev.measurements.filter(
+              (item): item is Milestone =>
+                item.kind === "milestone" &&
+                (item.listId ?? item.id) === listKey,
+            );
+            if (listTodos.length === 0) return prev;
+            return touch(prev, {
+              measurements: replaceMilestoneList(
+                prev.measurements,
+                listKey,
+                withMilestoneListTitle(listTodos, listTitle),
+              ),
+            });
+          });
+        }}
+        onChangeMilestoneTitle={(milestoneId, title) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: withMilestoneTitle(
+                prev.measurements,
+                milestoneId,
+                title,
+              ),
+            }),
+          )
+        }
+        onChangeMilestone={(milestoneId, patch) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: patchMilestone(prev.measurements, milestoneId, patch),
+            }),
+          )
+        }
+        onAddTodoList={() =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: appendTodoListToMeasure(
+                prev.measurements,
+                panel.measureGroupId,
+              ),
+            }),
+          )
+        }
+        onAddItem={(listKey) =>
+          commitDraft((prev) => {
+            const beforeIds = new Set(prev.measurements.map((item) => item.id));
+            const measurements = appendMilestoneToList(
+              prev.measurements,
+              listKey,
+            );
+            const added = measurements.find((item) => !beforeIds.has(item.id));
+            if (added) setFocusMilestoneId(added.id);
+            return touch(prev, { measurements });
+          })
+        }
+        onRemoveItem={(id) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: removeMilestoneFromList(prev.measurements, id),
+            }),
+          )
+        }
+        onRemoveList={(listKey) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: removeMilestoneList(prev.measurements, listKey),
+            }),
+          )
+        }
+        onChangeWeight={(weight) =>
+          commitDraft((prev) =>
+            touch(prev, {
+              measurements: redistributeTodoMeasureWeight(
+                prev.measurements,
+                panel.measureGroupId,
+                weight,
+              ),
+            }),
+          )
+        }
+        focusMilestoneId={focusMilestoneId}
+        onFocusMilestone={() => setFocusMilestoneId(null)}
+      />
+    );
+  };
+
+  const removeMeasurePanel = (panelKey: string) => {
+    const panel = draftPanels.find((entry) => entry.key === panelKey);
+    if (!panel) return;
+    if (panel.kind === "metric") {
+      setMeasurements(
+        draft.measurements.filter((item) => item.id !== panel.metric.id),
+      );
+    } else {
+      setMeasurements(removeTodoMeasure(draft.measurements, panel.measureGroupId));
+    }
+    if (expandedMeasureKey === panelKey) setExpandedMeasureKey(null);
+  };
+
+  const addMeasure = (next: Measurement[]) => {
+    const balanced = rebalanceMeasurementWeights(next);
+    patchDraft({ measurements: balanced });
+    const nextPanels = measurementPanels(balanced);
+    setExpandedMeasureKey(nextPanels[nextPanels.length - 1]?.key ?? null);
+  };
 
   return (
     <div
@@ -1165,6 +898,7 @@ export function GoalUnifiedDetail({
                 onClick={() => {
                   onRequestEdit(() => {
                     setDraft(baseline);
+                    setExpandedMeasureKey(null);
                     setMode("edit");
                   });
                 }}
@@ -1295,20 +1029,19 @@ export function GoalUnifiedDetail({
           {isEditing ? (
             <span className="pd-people__summary-value pd-goal-v2__summary-edit">
               <input
-                type="number"
-                min={0}
-                max={100}
-                value={draft.weight}
+                type="text"
+                inputMode="numeric"
+                value={weightInputDisplayValue(draft.weight)}
                 aria-label="Goal weight percent"
                 onChange={(event) =>
-                  patchDraft({ weight: Number(event.target.value) || 0 })
+                  patchDraft({ weight: parseWeightInputValue(event.target.value) })
                 }
               />
               <span aria-hidden>%</span>
             </span>
           ) : (
             <span className="pd-people__summary-value">
-              {activeGoal.weight}%
+              {formatWeightReadout(activeGoal.weight)}
             </span>
           )}
         </div>
@@ -1321,190 +1054,79 @@ export function GoalUnifiedDetail({
       <div className="pd-goal-v2__body">
         <div className="pd-goal-v2__main">
           {isEditing ? (
-            <section
-              className="pd-goal-v2__section"
-              aria-labelledby="goal-v2-measures"
-            >
-              <div className="pd-goal-v2__section-head">
-                <div>
-                  <h2 id="goal-v2-measures">How progress is measured</h2>
-                  <p className="pd-goal-v2__section-sub">
-                    Weights split this goal between its measures.
-                  </p>
-                </div>
-                <div className="pd-goal-v2__alloc">
-                  <span
-                    className={`pd-goal-v2__alloc-value pd-goal-v2__alloc-value--${allocationTone}`}
-                  >
-                    {measureWeight}%<span aria-hidden> / 100%</span>
-                  </span>
-                  <span
-                    className={`pd-goal-v2__alloc-bar pd-goal-v2__alloc-bar--${allocationTone}`}
-                    aria-hidden
-                  >
-                    <span
-                      style={{ width: `${Math.min(measureWeight, 100)}%` }}
-                    />
-                  </span>
-                  {draft.measurements.length > 1 ? (
-                    <button
-                      type="button"
-                      className="pd-goal-v2__quiet-btn"
-                      onClick={() =>
-                        patchDraft({
-                          measurements: rebalanceMeasurementWeights(
-                            draft.measurements,
-                          ),
-                        })
-                      }
-                    >
-                      Split Evenly
-                    </button>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="pd-goal-v2__measures">
-                {metrics.map((metric) => (
-                  <MetricCard
-                    key={metric.id}
-                    metric={metric}
-                    canRemove={draft.measurements.length > 1}
-                    onChange={(next) => patchMeasurement(metric.id, next)}
-                    onRemove={() =>
-                      setMeasurements(
-                        draft.measurements.filter(
-                          (item) => item.id !== metric.id,
-                        ),
-                      )
-                    }
-                    onConvertToTodo={() =>
-                      setMeasurements([
-                        ...draft.measurements.filter(
-                          (item) => item.id !== metric.id,
-                        ),
-                        { ...blankMilestone(), title: metric.title },
-                      ])
-                    }
-                  />
-                ))}
-
-                {todos.length > 0 ? (
-                  <TodoCard
-                    todos={todos}
-                    canRemove={todos.length < draft.measurements.length}
-                    onChangeTodo={(next) => patchMeasurement(next.id, next)}
-                    onChangeTodos={(nextTodos) => {
-                      const byId = new Map(
-                        nextTodos.map((todo) => [todo.id, todo]),
-                      );
-                      patchDraft({
-                        measurements: draft.measurements.map((item) =>
-                          item.kind === "milestone"
-                            ? (byId.get(item.id) ?? item)
-                            : item,
-                        ),
-                      });
-                    }}
-                    onAddTodo={() =>
-                      setMeasurements([...draft.measurements, blankMilestone()])
-                    }
-                    onRemoveTodo={(id) =>
-                      setMeasurements(
-                        draft.measurements.filter((item) => item.id !== id),
-                      )
-                    }
-                    onRemoveAll={() =>
-                      setMeasurements(
-                        draft.measurements.filter(
-                          (item) => item.kind === "metric",
-                        ),
-                      )
-                    }
-                    onConvertToMetric={() =>
-                      setMeasurements([
-                        ...draft.measurements.filter(
-                          (item) => item.kind === "metric",
-                        ),
-                        blankMetric("increase"),
-                      ])
-                    }
-                  />
-                ) : null}
-              </div>
-
-              <div className="pd-goal-v2__addrow">
-                <button
-                  type="button"
-                  className="pd-people__ghost-btn"
-                  onClick={() =>
-                    setMeasurements([
-                      ...draft.measurements,
-                      blankMetric("increase"),
-                    ])
-                  }
-                >
-                  <Hash size={15} strokeWidth={1.75} aria-hidden />
-                  Add a Number
-                </button>
-                {todos.length === 0 ? (
-                  <button
-                    type="button"
-                    className="pd-people__ghost-btn"
-                    onClick={() =>
-                      setMeasurements([...draft.measurements, blankMilestone()])
-                    }
-                  >
-                    <ListTodo size={15} strokeWidth={1.75} aria-hidden />
-                    Add a To-Do
-                  </button>
-                ) : null}
-              </div>
-
-              {validation.measurementWeightError ? (
-                <p className="pd-goal-v2__error" role="alert">
-                  {validation.measurementWeightError}
-                </p>
-              ) : null}
-            </section>
+            <MeasureEditList
+              panels={draftPanels}
+              expandedKey={expandedMeasureKey}
+              onExpandedKeyChange={setExpandedMeasureKey}
+              measureWeight={measureWeight}
+              onSplitEvenly={() =>
+                patchDraft({
+                  measurements: rebalanceMeasurementWeights(draft.measurements),
+                })
+              }
+              onAddNumber={() =>
+                addMeasure([...draft.measurements, blankMetric("increase")])
+              }
+              onAddMilestone={() =>
+                addMeasure(appendMilestoneList(draft.measurements))
+              }
+              onRemovePanel={removeMeasurePanel}
+              onAddTodoList={(panelKey) => {
+                const panel = draftPanels.find((entry) => entry.key === panelKey);
+                if (!panel || panel.kind !== "todo_measure") return;
+                patchDraft({
+                  measurements: appendTodoListToMeasure(
+                    draft.measurements,
+                    panel.measureGroupId,
+                  ),
+                });
+                setExpandedMeasureKey(panelKey);
+              }}
+              renderExpandedPanel={renderMeasurePanelEditor}
+              measureNameError={validation.measurementNameError}
+              weightError={validation.measurementWeightError}
+            />
           ) : (
             <>
               <div className="pd-goal-view__section-head">
-                <h2>Metrics</h2>
+                <h2>How to measure progress?</h2>
               </div>
-              {panels.length === 0 ? (
-                <section className="pd-goal-v2__card" aria-label="To dos">
-                  <div className="pd-goal-v2__card-head">
-                    <h2>To Do&apos;s</h2>
-                  </div>
-                  <p className="pd-goal-v2__empty">
-                    No to-dos on this goal yet.
-                  </p>
-                </section>
-              ) : (
-                panels.map((panel) =>
-                  panel.kind === "todos" ? (
-                    <section
-                      key={panel.key}
-                      className="pd-goal-v2__card"
-                      aria-label="To dos"
-                    >
-                      <div className="pd-goal-v2__card-head">
-                        <h2>To Do&apos;s</h2>
-                        <span className="pd-goal-readout__col-label">
-                          Weight
-                        </span>
-                      </div>
-                      <ul className="pd-goal-v2__todos">
-                        {panel.todos.map((todo) => (
-                          <li key={todo.id} className="pd-goal-v2__todo">
+              <MeasureListTable
+                panels={panels}
+                cycleLabel={cycleLabel}
+                onEditPanel={(panelKey) => {
+                  setExpandedMeasureKey(panelKey);
+                  setMode("edit");
+                }}
+              />
+
+              {canMutateProgress && panels.length > 0 ? (
+                <section
+                  className="pd-measure-view-progress"
+                  aria-label="Update progress"
+                >
+                  <h3 className="pd-measure-view-progress__title">
+                    Update progress
+                  </h3>
+                  {panels.map((panel) =>
+                    panel.kind === "todo_measure" ? (
+                      <TodoMeasureViewCard
+                        key={panel.key}
+                        panel={panel}
+                        cardClassName="pd-goal-v2__card pd-goal-measure-card"
+                        headClassName="pd-goal-v2__card-head"
+                        titleClassName="pd-goal-view__card-title"
+                        metricsClassName="pd-goal-view__card-metrics"
+                        todoListClassName="pd-goal-v2__todos"
+                        todoItemClassName="pd-goal-v2__todo"
+                        renderTodoItem={(todo) => (
+                          <>
                             <input
                               type="checkbox"
                               className="pd-goal-v2__todo-check"
                               checked={todo.complete}
-                              disabled={!canMutateProgress}
                               aria-label={`Mark ${
-                                todo.title.trim() || "to-do"
+                                todo.title.trim() || "milestone"
                               } complete`}
                               onChange={(event) =>
                                 patchMeasurement(
@@ -1522,38 +1144,27 @@ export function GoalUnifiedDetail({
                                 todo.complete ? " is-done" : ""
                               }`}
                             >
-                              {todo.title || "Untitled to-do"}
+                              {todo.title || "Untitled milestone"}
                             </p>
-                            <span
-                              className="pd-goal-v2__todo-weight"
-                              aria-label={`Weight ${todo.weight}%`}
-                            >
-                              {todo.weight}%
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      <GoalProgressLog
-                        entries={panel.todos.flatMap(
-                          (todo) => todo.progressLog ?? [],
+                          </>
                         )}
                       />
-                    </section>
-                  ) : (
-                    <section
-                      key={panel.key}
-                      className="pd-goal-v2__card"
-                      aria-label={panel.metric.title || "Metric"}
-                    >
-                      <div className="pd-goal-v2__card-head">
-                        <h2>{panel.metric.title.trim() || "Metric"}</h2>
-                        <GoalMetricReadout
-                          metric={panel.metric}
-                          track={track}
-                          showWeight={false}
-                        />
-                        <div className="pd-goal-view__card-metrics">
-                          {canUpdateProgress ? (
+                    ) : (
+                      <section
+                        key={panel.key}
+                        className="pd-goal-v2__card"
+                        aria-label={panel.metric.title.trim() || "Measure"}
+                      >
+                        <div className="pd-goal-v2__card-head">
+                          {panel.metric.title.trim() ? (
+                            <h2>{panel.metric.title.trim()}</h2>
+                          ) : null}
+                          <GoalMetricReadout
+                            metric={panel.metric}
+                            track={track}
+                            showWeight={false}
+                          />
+                          <div className="pd-goal-view__card-metrics">
                             <MetricProgressUpdate
                               metric={panel.metric}
                               goalTitle={title}
@@ -1569,17 +1180,17 @@ export function GoalUnifiedDetail({
                                 )
                               }
                             />
-                          ) : null}
-                          <GoalWeightReadout weight={panel.metric.weight} />
+                            <GoalWeightReadout weight={panel.metric.weight} />
+                          </div>
                         </div>
-                      </div>
-                      <GoalProgressLog
-                        entries={panel.metric.progressLog ?? []}
-                      />
-                    </section>
-                  ),
-                )
-              )}
+                        <GoalProgressLog
+                          entries={panel.metric.progressLog ?? []}
+                        />
+                      </section>
+                    ),
+                  )}
+                </section>
+              ) : null}
 
               <section className="pd-goal-v2__comments" aria-label="Comments">
                 <h2>Comments</h2>
@@ -1672,16 +1283,6 @@ export function GoalUnifiedDetail({
                   />
                 </div>
 
-                <GoalClassificationFields
-                  goal={draft}
-                  onChange={(next) => patchDraft(next)}
-                />
-                {validation.classificationError ? (
-                  <p className="pd-goal-v2__error" role="alert">
-                    {validation.classificationError}
-                  </p>
-                ) : null}
-
                 <label className="pd-goal-v2__field">
                   <span className="pd-goal-v2__field-label">Description</span>
                   <textarea
@@ -1771,14 +1372,6 @@ export function GoalUnifiedDetail({
               </div>
 
               <div className="pd-goal-v2__facts">
-                <GoalClassificationFields
-                  goal={activeGoal}
-                  disabled
-                  canEdit={canEdit}
-                  onRequestEdit={onRequestEdit}
-                  onChange={(next) => onSave(touch(goal, next))}
-                />
-
                 {activeGoal.details?.trim() ? (
                   <div className="pd-goal-v2__fact">
                     <p className="pd-goal-v2__fact-label">Description</p>

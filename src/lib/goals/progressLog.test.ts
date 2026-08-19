@@ -112,9 +112,6 @@ describe('latestProgressAt', () => {
       id: 'g1',
       description: 'Quality',
       weight: 100,
-      goalType: 'outcome',
-      processType: 'bau',
-      priority: 'medium',
       measurements: [
         {
           ...metric,

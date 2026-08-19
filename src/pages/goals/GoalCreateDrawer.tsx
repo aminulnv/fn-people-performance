@@ -8,11 +8,14 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { X, type LucideIcon } from 'lucide-react'
+import { type LucideIcon } from 'lucide-react'
 
 const DEFAULT_DRAWER_WIDTH = 736
 const MIN_DRAWER_WIDTH = 400
 const DRAWER_VIEWPORT_GUTTER = 32
+const DEFAULT_SHEET_WIDTH = 368
+const MIN_SHEET_WIDTH = 280
+const SHEET_VIEWPORT_GUTTER = 16
 const KEYBOARD_RESIZE_STEP = 32
 
 function drawerWidthWithinViewport(width: number): number {
@@ -23,6 +26,18 @@ function drawerWidthWithinViewport(width: number): number {
     viewportWidth - DRAWER_VIEWPORT_GUTTER,
   )
   return Math.min(Math.max(width, MIN_DRAWER_WIDTH), maximumWidth)
+}
+
+function sheetWidthWithinRail(width: number, drawerWidth: number): number {
+  const viewportWidth =
+    typeof window === 'undefined'
+      ? DEFAULT_SHEET_WIDTH + drawerWidth
+      : window.innerWidth
+  const maximumWidth = Math.max(
+    MIN_SHEET_WIDTH,
+    viewportWidth - drawerWidth - SHEET_VIEWPORT_GUTTER,
+  )
+  return Math.min(Math.max(width, MIN_SHEET_WIDTH), maximumWidth)
 }
 
 /**
@@ -53,11 +68,16 @@ export function GoalCreateDrawer({
 }: GoalCreateDrawerProps) {
   const panelRef = useRef<HTMLElement>(null)
   const tabRef = useRef<HTMLButtonElement>(null)
-  const sheetCloseRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
   const resizeStartRef = useRef<{ pointerX: number; width: number } | null>(null)
+  const sheetResizeStartRef = useRef<{ pointerX: number; width: number } | null>(
+    null,
+  )
   const [drawerWidth, setDrawerWidth] = useState(() =>
     drawerWidthWithinViewport(DEFAULT_DRAWER_WIDTH),
+  )
+  const [sheetWidth, setSheetWidth] = useState(() =>
+    sheetWidthWithinRail(DEFAULT_SHEET_WIDTH, DEFAULT_DRAWER_WIDTH),
   )
   const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
   const isSideSheetOpenRef = useRef(isSideSheetOpen)
@@ -79,23 +99,25 @@ export function GoalCreateDrawer({
       onCloseRef.current()
     }
     document.addEventListener('keydown', closeOnEscape)
-    const fitDrawerToViewport = () => {
-      setDrawerWidth((width) => drawerWidthWithinViewport(width))
+    const fitPanelsToViewport = () => {
+      setDrawerWidth((width) => {
+        const nextDrawerWidth = drawerWidthWithinViewport(width)
+        setSheetWidth((sheet) => sheetWidthWithinRail(sheet, nextDrawerWidth))
+        return nextDrawerWidth
+      })
     }
-    window.addEventListener('resize', fitDrawerToViewport)
+    window.addEventListener('resize', fitPanelsToViewport)
 
     return () => {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', closeOnEscape)
-      window.removeEventListener('resize', fitDrawerToViewport)
+      window.removeEventListener('resize', fitPanelsToViewport)
     }
   }, [])
 
-  // The tab and the sheet replace each other, so focus has to follow the swap.
   useEffect(() => {
     if (!hasToggledSideSheetRef.current) return
-    if (isSideSheetOpen) sheetCloseRef.current?.focus()
-    else tabRef.current?.focus()
+    tabRef.current?.focus()
   }, [isSideSheetOpen])
 
   const toggleSideSheet = () => {
@@ -103,13 +125,17 @@ export function GoalCreateDrawer({
     setIsSideSheetOpen((open) => !open)
   }
 
+  const applyDrawerWidth = (width: number) => {
+    const nextDrawerWidth = drawerWidthWithinViewport(width)
+    setDrawerWidth(nextDrawerWidth)
+    setSheetWidth((sheet) => sheetWidthWithinRail(sheet, nextDrawerWidth))
+  }
+
   const resizeFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
     const resizeStart = resizeStartRef.current
     if (!resizeStart) return
-    setDrawerWidth(
-      drawerWidthWithinViewport(
-        resizeStart.width + resizeStart.pointerX - event.clientX,
-      ),
+    applyDrawerWidth(
+      resizeStart.width + resizeStart.pointerX - event.clientX,
     )
   }
 
@@ -117,8 +143,29 @@ export function GoalCreateDrawer({
     if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
     event.preventDefault()
     const direction = event.key === 'ArrowLeft' ? 1 : -1
-    setDrawerWidth((width) =>
-      drawerWidthWithinViewport(width + direction * KEYBOARD_RESIZE_STEP),
+    applyDrawerWidth(drawerWidth + direction * KEYBOARD_RESIZE_STEP)
+  }
+
+  const resizeSheetFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const resizeStart = sheetResizeStartRef.current
+    if (!resizeStart) return
+    setSheetWidth(
+      sheetWidthWithinRail(
+        resizeStart.width + resizeStart.pointerX - event.clientX,
+        drawerWidth,
+      ),
+    )
+  }
+
+  const resizeSheetFromKeyboard = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+    event.preventDefault()
+    const direction = event.key === 'ArrowLeft' ? 1 : -1
+    setSheetWidth((width) =>
+      sheetWidthWithinRail(
+        width + direction * KEYBOARD_RESIZE_STEP,
+        drawerWidth,
+      ),
     )
   }
 
@@ -139,36 +186,73 @@ export function GoalCreateDrawer({
       />
       {sideSheet && TabIcon ? (
         <div className="pd-goals-drawer__rail">
-          {isSideSheetOpen ? (
-            <section
-              className="pd-goals-drawer__sheet"
-              aria-label={sideSheet.label}
-            >
-              <button
-                ref={sheetCloseRef}
-                type="button"
-                className="pd-goals-drawer__sheet-close"
-                aria-label={`Close ${sideSheet.label}`}
-                onClick={toggleSideSheet}
-              >
-                <X size={15} strokeWidth={2.25} aria-hidden />
-              </button>
-              {sideSheet.content}
-            </section>
-          ) : (
+          <div
+            className={
+              isSideSheetOpen
+                ? 'pd-goals-drawer__sheet-stack pd-goals-drawer__sheet-stack--open'
+                : 'pd-goals-drawer__sheet-stack'
+            }
+          >
             <button
               ref={tabRef}
               type="button"
               className="pd-goals-drawer__tab"
-              aria-expanded={false}
+              aria-expanded={isSideSheetOpen}
+              aria-controls={
+                isSideSheetOpen ? 'pd-goals-drawer-side-sheet' : undefined
+              }
               onClick={toggleSideSheet}
             >
-              <TabIcon size={16} strokeWidth={2.25} aria-hidden />
               <span className="pd-goals-drawer__tab-label">
                 {sideSheet.tabLabel}
               </span>
+              <TabIcon size={16} strokeWidth={2.25} aria-hidden />
             </button>
-          )}
+            {isSideSheetOpen ? (
+              <section
+                id="pd-goals-drawer-side-sheet"
+                className="pd-goals-drawer__sheet"
+                aria-label={sideSheet.label}
+                style={{ width: sheetWidth }}
+              >
+                <div
+                  className="pd-goals-drawer__resize-handle"
+                  role="separator"
+                  aria-label="Resize OKR reference panel"
+                  aria-orientation="vertical"
+                  aria-valuemin={MIN_SHEET_WIDTH}
+                  aria-valuemax={Math.max(
+                    MIN_SHEET_WIDTH,
+                    window.innerWidth - drawerWidth - SHEET_VIEWPORT_GUTTER,
+                  )}
+                  aria-valuenow={Math.round(sheetWidth)}
+                  tabIndex={0}
+                  onDoubleClick={() =>
+                    setSheetWidth(
+                      sheetWidthWithinRail(DEFAULT_SHEET_WIDTH, drawerWidth),
+                    )
+                  }
+                  onKeyDown={resizeSheetFromKeyboard}
+                  onPointerDown={(event) => {
+                    sheetResizeStartRef.current = {
+                      pointerX: event.clientX,
+                      width: sheetWidth,
+                    }
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }}
+                  onPointerMove={resizeSheetFromPointer}
+                  onPointerUp={(event) => {
+                    sheetResizeStartRef.current = null
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }}
+                  onPointerCancel={() => {
+                    sheetResizeStartRef.current = null
+                  }}
+                />
+                {sideSheet.content}
+              </section>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <aside
@@ -192,9 +276,7 @@ export function GoalCreateDrawer({
           )}
           aria-valuenow={Math.round(drawerWidth)}
           tabIndex={0}
-          onDoubleClick={() =>
-            setDrawerWidth(drawerWidthWithinViewport(DEFAULT_DRAWER_WIDTH))
-          }
+          onDoubleClick={() => applyDrawerWidth(DEFAULT_DRAWER_WIDTH)}
           onKeyDown={resizeFromKeyboard}
           onPointerDown={(event) => {
             resizeStartRef.current = {

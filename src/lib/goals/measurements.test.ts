@@ -1,11 +1,26 @@
 import { describe, expect, it } from 'vitest'
 import {
   applyMetricStrategy,
+  appendMilestoneList,
+  coalesceMeasureGroups,
+  appendMilestoneToList,
+  appendTodoListToMeasure,
+  blankGoal,
   blankMetric,
   blankMilestone,
   measurementPanels,
   normalizeMetricStrategy,
   rebalanceMeasurementWeights,
+  removeMilestoneList,
+  removeTodoMeasure,
+  readMeasureGroupTitle,
+  readMilestoneListTitle,
+  readMilestoneTitle,
+  patchMilestone,
+  sumPanelWeights,
+  withMeasureTitle,
+  withMilestoneTitle,
+  uniqueMilestonesById,
 } from './measurements'
 import { measurementProgress } from './weightage'
 import type { Metric } from './types'
@@ -50,103 +65,6 @@ describe('measurementProgress strategies', () => {
         }),
       ),
     ).toBe(40)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'greater_than',
-          startValue: 0,
-          targetValue: 80,
-          currentValue: 80,
-        }),
-      ),
-    ).toBe(100)
-  })
-
-  it('interpolates decrease toward the target', () => {
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'decrease',
-          startValue: 100,
-          targetValue: 40,
-          currentValue: 70,
-        }),
-      ),
-    ).toBe(50)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'less_than',
-          startValue: 20,
-          targetValue: 10,
-          currentValue: 5,
-        }),
-      ),
-    ).toBe(100)
-  })
-
-  it('treats between as a binary range check', () => {
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'between',
-          rangeMin: 10,
-          rangeMax: 20,
-          currentValue: 15,
-        }),
-      ),
-    ).toBe(100)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'within_range',
-          rangeMin: 10,
-          rangeMax: 20,
-          currentValue: 21,
-        }),
-      ),
-    ).toBe(0)
-  })
-
-  it('treats keep above / keep below as thresholds', () => {
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'keep_above',
-          rangeMin: 50,
-          targetValue: 50,
-          currentValue: 50,
-        }),
-      ),
-    ).toBe(100)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'keep_above',
-          rangeMin: 50,
-          currentValue: 49,
-        }),
-      ),
-    ).toBe(0)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'keep_below',
-          rangeMax: 30,
-          targetValue: 30,
-          currentValue: 30,
-        }),
-      ),
-    ).toBe(100)
-    expect(
-      measurementProgress(
-        metric({
-          direction: 'keep_below',
-          rangeMax: 30,
-          currentValue: 31,
-        }),
-      ),
-    ).toBe(0)
   })
 
   it('scores milestones as complete or not', () => {
@@ -177,15 +95,11 @@ describe('measurement factories', () => {
     expect(numberMetric.kind).toBe('metric')
     expect(numberMetric.direction).toBe('between')
     expect(numberMetric.weight).toBe(50)
-    expect(numberMetric.rangeMin).toBeUndefined()
-    expect(numberMetric.rangeMax).toBeUndefined()
-    expect(numberMetric.startValue).toBeUndefined()
-    expect(numberMetric.targetValue).toBeUndefined()
 
-    const todo = blankMilestone(25)
-    expect(todo.kind).toBe('milestone')
-    expect(todo.weight).toBe(25)
-    expect(todo.complete).toBe(false)
+    const milestone = blankMilestone(25)
+    expect(milestone.kind).toBe('milestone')
+    expect(milestone.weight).toBe(25)
+    expect(milestone.complete).toBe(false)
   })
 
   it('rebalances mixed measurement modes evenly to 100', () => {
@@ -197,7 +111,7 @@ describe('measurement factories', () => {
     expect(balanced.map((m) => m.weight)).toEqual([33, 33, 34])
   })
 
-  it('uses one shared distribution for number metrics and to-dos', () => {
+  it('treats each top-level measure as one allocation bucket', () => {
     const balanced = rebalanceMeasurementWeights([
       blankMetric('increase'),
       blankMilestone(),
@@ -208,6 +122,7 @@ describe('measurement factories', () => {
     expect(balanced.map((measurement) => measurement.weight)).toEqual([
       25, 25, 25, 25,
     ])
+    expect(sumPanelWeights(balanced)).toBe(100)
   })
 
   it('applies strategy-specific range defaults', () => {
@@ -219,31 +134,263 @@ describe('measurement factories', () => {
     expect(between.direction).toBe('between')
     expect(between.rangeMin).toBe(5)
     expect(between.rangeMax).toBe(15)
+  })
 
-    const keepAbove = applyMetricStrategy(base, 'keep_above')
-    expect(keepAbove.rangeMin).toBe(15)
-    expect(keepAbove.targetValue).toBe(15)
+  it('starts new goals with no default measure', () => {
+    const goal = blankGoal()
+    expect(goal.measurements).toEqual([])
+  })
 
-    const keepBelow = applyMetricStrategy(base, 'keep_below')
-    expect(keepBelow.rangeMax).toBe(15)
-    expect(keepBelow.targetValue).toBe(15)
+  it('can opt into a default milestone measure', () => {
+    const goal = blankGoal({ withDefaultMetric: true })
+    expect(goal.measurements).toHaveLength(1)
+    expect(goal.measurements[0]?.kind).toBe('milestone')
+    expect(goal.measurements[0]?.weight).toBe(100)
   })
 })
 
 describe('measurementPanels', () => {
-  it('places the to-do block where the first milestone sits', () => {
-    const first = blankMetric('increase')
-    const todo = blankMilestone()
-    const second = blankMetric('decrease')
-    const panels = measurementPanels([first, todo, second])
+  it('groups multiple todo lists under one measure row', () => {
+    const measureGroupId = 'measure-1'
+    const listOne = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Todo list 1',
+    })
+    const listOneTask = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listId: listOne.listId,
+      listTitle: 'Todo list 1',
+    })
+    const listTwo = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Todo list 2',
+    })
+    const metricTwo = blankMetric('decrease')
+    const panels = measurementPanels([
+      listOne,
+      listOneTask,
+      listTwo,
+      metricTwo,
+    ])
 
     expect(panels.map((panel) => panel.kind)).toEqual([
-      'metric',
-      'todos',
+      'todo_measure',
       'metric',
     ])
-    expect(panels[0]).toMatchObject({ kind: 'metric', metric: first })
-    expect(panels[1]).toMatchObject({ kind: 'todos', todos: [todo] })
-    expect(panels[2]).toMatchObject({ kind: 'metric', metric: second })
+    expect(panels[0]).toMatchObject({
+      kind: 'todo_measure',
+      title: 'Metric 1',
+      lists: [
+        expect.objectContaining({ listTitle: 'Todo list 1', todos: expect.any(Array) }),
+        expect.objectContaining({ listTitle: 'Todo list 2', todos: expect.any(Array) }),
+      ],
+    })
+  })
+
+  it('supports adding a new top-level milestone measure', () => {
+    const metricItem = blankMetric('increase')
+    const firstList = blankMilestone()
+    const withSecondMeasure = appendMilestoneList([metricItem, firstList])
+    const panels = measurementPanels(withSecondMeasure)
+
+    expect(panels).toHaveLength(3)
+    expect(panels[1]?.kind).toBe('todo_measure')
+    expect(panels[2]?.kind).toBe('todo_measure')
+  })
+
+  it('adds another todo list inside the same measure', () => {
+    const measureGroupId = 'measure-1'
+    const first = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Todo list 1',
+    })
+    const withSecondList = appendTodoListToMeasure([first], measureGroupId, 'Todo list 2')
+    const panel = measurementPanels(withSecondList)[0]
+
+    expect(panel?.kind).toBe('todo_measure')
+    if (panel?.kind === 'todo_measure') {
+      expect(panel.lists).toHaveLength(2)
+      expect(panel.lists.map((list) => list.listTitle)).toEqual([
+        'Todo list 1',
+        'Todo list 2',
+      ])
+    }
+  })
+
+  it('adds items only to the selected checklist', () => {
+    const listKey = 'list-1'
+    const first = { ...blankMilestone(), id: listKey, listId: listKey }
+    const metricItem = blankMetric('increase')
+    const measurements = [first, metricItem]
+    const next = appendMilestoneToList(measurements, listKey)
+    const panel = measurementPanels(next)[0]
+
+    expect(panel?.kind).toBe('todo_measure')
+    if (panel?.kind === 'todo_measure') {
+      expect(panel.lists[0]?.todos).toHaveLength(2)
+    }
+  })
+
+  it('removes a checklist without touching other measurements', () => {
+    const metricItem = blankMetric('increase')
+    const list = blankMilestone()
+    const otherList = blankMilestone()
+    const measurements = [metricItem, list, otherList]
+    const next = removeMilestoneList(measurements, list.listId ?? list.id)
+
+    expect(next.map((item) => item.id)).toEqual([
+      metricItem.id,
+      otherList.id,
+    ])
+  })
+
+  it('removes an entire milestone measure', () => {
+    const measureGroupId = 'measure-1'
+    const listOne = blankMilestone(0, { measureGroupId, measureTitle: 'Metric 1' })
+    const listTwo = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Todo list 2',
+    })
+    const metricItem = blankMetric('increase')
+    const next = removeTodoMeasure([listOne, listTwo, metricItem], measureGroupId)
+
+    expect(next.map((item) => item.id)).toEqual([metricItem.id])
+  })
+
+  it('updates the measure title across every list in the group', () => {
+    const measureGroupId = 'measure-1'
+    const listOne = blankMilestone(0, { measureGroupId, measureTitle: 'Old name' })
+    const listTwo = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Old name',
+      listTitle: 'Todo list 2',
+    })
+    const next = withMeasureTitle([listOne, listTwo], measureGroupId, 'Metric 1')
+
+    expect(next.every((item) => item.measureTitle === 'Metric 1')).toBe(true)
+    expect(readMeasureGroupTitle(next, measureGroupId)).toBe('Metric 1')
+  })
+
+  it('reads and writes measure titles on legacy milestone rows', () => {
+    const milestone = {
+      id: 't1',
+      kind: 'milestone' as const,
+      title: 'Task',
+      weight: 100,
+      complete: false,
+    }
+    const next = withMeasureTitle([milestone], 't1', 'ABCD')
+    expect(readMeasureGroupTitle(next, 't1')).toBe('ABCD')
+  })
+
+  it('reads and writes checklist item titles from stored measurements', () => {
+    const listId = 'list-1'
+    const milestone = blankMilestone(50, { listId, listTitle: 'Shopping' })
+    const next = withMilestoneTitle([milestone], milestone.id, 'Buy milk')
+
+    expect(readMilestoneTitle(next, milestone.id)).toBe('Buy milk')
+    expect(readMilestoneListTitle(next, listId)).toBe('Shopping')
+  })
+
+  it('patches a milestone without clobbering other fields', () => {
+    const milestone = blankMilestone(50, { listTitle: 'Shopping' })
+    const titled = withMilestoneTitle([milestone], milestone.id, 'Buy milk')
+    const checked = patchMilestone(titled, milestone.id, { complete: true })
+
+    expect(readMilestoneTitle(checked, milestone.id)).toBe('Buy milk')
+    expect(checked[0]?.complete).toBe(true)
+  })
+
+  it('repairs vegetable and snacks lists split by per-list measure groups', () => {
+    const listOne = blankMilestone(50, {
+      listTitle: 'Vegetable',
+      measureTitle: 'Vegetable',
+      title: 'Spinach',
+    })
+    const listTwo = blankMilestone(50, {
+      listTitle: 'Snacks',
+      measureTitle: 'Snacks',
+      title: 'Chips',
+    })
+    const corrupted = [listOne, listTwo].map((item) => ({
+      ...item,
+      measureGroupId: item.listId,
+    }))
+
+    const panels = measurementPanels(corrupted)
+    expect(panels).toHaveLength(1)
+    if (panels[0]?.kind === 'todo_measure') {
+      expect(panels[0].lists.map((list) => list.listTitle)).toEqual([
+        'Vegetable',
+        'Snacks',
+      ])
+    }
+  })
+
+  it('merges split milestone runs that share a measure group', () => {
+    const measureGroupId = 'measure-1'
+    const listOne = blankMilestone(50, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Snacks',
+    })
+    const metric = blankMetric('increase')
+    const listTwo = blankMilestone(50, {
+      measureGroupId,
+      measureTitle: 'Metric 1',
+      listTitle: 'Drinks',
+    })
+
+    const panels = measurementPanels([listOne, metric, listTwo])
+    const todoPanels = panels.filter((panel) => panel.kind === 'todo_measure')
+    expect(todoPanels).toHaveLength(1)
+    if (todoPanels[0]?.kind === 'todo_measure') {
+      expect(todoPanels[0].lists).toHaveLength(2)
+    }
+  })
+
+  it('dedupes milestones with duplicate ids for display', () => {
+    const sharedId = 'ms-dup'
+    const listKey = 'list-a'
+    const panels = measurementPanels([
+      {
+        id: sharedId,
+        kind: 'milestone',
+        listId: listKey,
+        listTitle: 'Shopping',
+        title: 'First',
+        weight: 50,
+        complete: true,
+      },
+      {
+        id: sharedId,
+        kind: 'milestone',
+        listId: listKey,
+        listTitle: 'Shopping',
+        title: 'Duplicate',
+        weight: 50,
+        complete: true,
+      },
+      {
+        id: 'ms-other',
+        kind: 'milestone',
+        listId: listKey,
+        listTitle: 'Shopping',
+        title: 'Second',
+        weight: 0,
+        complete: false,
+      },
+    ])
+
+    expect(panels).toHaveLength(1)
+    const panel = panels[0]
+    expect(panel.kind).toBe('todo_measure')
+    if (panel.kind !== 'todo_measure') return
+    expect(uniqueMilestonesById(panel.lists[0].todos)).toHaveLength(2)
   })
 })

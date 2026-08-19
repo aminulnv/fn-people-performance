@@ -1,7 +1,6 @@
 import { avatarHue } from '@/lib/employees/avatar'
 import { listEmployees } from '@/lib/employees/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { normalizePersonGoals } from './classification'
 import { buildDemoPersonGoals, demoSeedStatus } from './demoGoals'
 import type { DemoPerson, PersonGoals } from './types'
 
@@ -117,23 +116,22 @@ export function mergePeopleIntoGoalsState(input: {
     const manager = person.managerId
       ? peopleById.get(person.managerId)
       : undefined
-    byPerson[person.id] = normalizePersonGoals(
+    byPerson[person.id] =
       input.byPerson[person.id] ??
-        (seedMissingPeople
-          ? buildDemoPersonGoals(
-              input.cycleId,
-              person.id,
-              status,
-              manager
-                ? {
-                    id: manager.id,
-                    name: manager.name,
-                    avatarUrl: manager.avatarUrl,
-                  }
-                : undefined,
-            )
-          : emptyPersonGoals(person.id)),
-    )
+      (seedMissingPeople
+        ? buildDemoPersonGoals(
+            input.cycleId,
+            person.id,
+            status,
+            manager
+              ? {
+                  id: manager.id,
+                  name: manager.name,
+                  avatarUrl: manager.avatarUrl,
+                }
+              : undefined,
+          )
+        : emptyPersonGoals(person.id))
   }
 
   const activeStillPresent = people.some((p) => p.id === input.activePersonId)

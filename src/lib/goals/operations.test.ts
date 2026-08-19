@@ -44,9 +44,6 @@ const source: Goal = {
   id: 'g1',
   description: 'Ship quality',
   weight: 40,
-  goalType: 'outcome',
-  processType: 'pi',
-  priority: 'high',
   ownerId: 'p1',
   progressStatus: 'at_risk',
   comments: [
@@ -192,9 +189,6 @@ describe('duplicateGoal / cascadeGoal', () => {
     expect(child.comments).toEqual([])
     expect(child.measurements).toEqual([])
     expect(child.weight).toBe(0)
-    expect(child.goalType).toBe('outcome')
-    expect(child.processType).toBe('pi')
-    expect(child.priority).toBe('high')
   })
 })
 

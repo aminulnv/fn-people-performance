@@ -16,7 +16,6 @@ import type {
   CascadeRecipient,
   LineManagerCascade,
 } from "@/lib/goals/operations";
-import { GoalClassificationFields } from "./GoalClassificationFields";
 import {
   EMPTY_LINE_MANAGER_CASCADE,
   GoalCascadeField,
@@ -249,8 +248,11 @@ export function GoalCreateForm({
   const draftValidation = validateGoalDraft(goal);
   const nameError = Boolean(draftValidation.nameError);
   const ownerId = goal.ownerId ?? defaultOwnerId;
+  const goalRef = useRef(goal);
+  goalRef.current = goal;
 
-  const patch = (partial: Partial<Goal>) => onChange({ ...goal, ...partial });
+  const patch = (partial: Partial<Goal>) =>
+    onChange({ ...goalRef.current, ...partial });
 
   return (
     <div
@@ -351,16 +353,6 @@ export function GoalCreateForm({
           ) : null}
         </div>
 
-        <GoalClassificationFields
-          goal={goal}
-          onChange={(next) => patch(next)}
-        />
-        {draftValidation.classificationError ? (
-          <p className="pd-goal-create__title-error" role="alert">
-            {draftValidation.classificationError}
-          </p>
-        ) : null}
-
         <Textarea
           label="Description"
           value={goal.details ?? ""}
@@ -413,7 +405,12 @@ export function GoalCreateForm({
       />
 
       <div className="pd-goal-create__stack">
-        <GoalProgressEditor goal={goal} onChange={onChange} />
+        <GoalProgressEditor
+          goal={goal}
+          onChange={onChange}
+          measureNameError={draftValidation.measurementNameError}
+          measurementWeightError={draftValidation.measurementWeightError}
+        />
       </div>
     </div>
   );

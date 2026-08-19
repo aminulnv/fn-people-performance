@@ -90,7 +90,7 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('uses goals-v2 as the Goals root on redesign routes', () => {
+  it('uses /goals as the Goals root on full-view routes', () => {
     expect(
       buildBreadcrumbs({
         pathname: '/goals-v2/q2-2026/42',
@@ -99,15 +99,9 @@ describe('buildBreadcrumbs', () => {
         goalsCycleLabel: 'Q2 2026',
       }),
     ).toEqual([
-      { label: 'Goals', href: '/goals-v2' },
-      { label: 'Q2 2026', href: '/goals-v2' },
+      { label: 'Goals', href: '/goals' },
+      { label: 'Q2 2026', href: '/goals' },
       { label: 'Aminul Islam Borhan' },
-    ])
-  })
-
-  it('returns a single crumb for the goals-v2 overview', () => {
-    expect(buildBreadcrumbs({ pathname: '/goals-v2', navItems })).toEqual([
-      { label: 'Goals' },
     ])
   })
 

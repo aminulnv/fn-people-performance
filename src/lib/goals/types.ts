@@ -45,6 +45,14 @@ export type ProgressLogEntry = {
 export type Milestone = {
   id: string;
   kind: "milestone";
+  /** Groups todo lists under one named measure row. */
+  measureGroupId?: string;
+  /** Top-level measure name shown in the progress table. */
+  measureTitle?: string;
+  /** Groups items into separate checklist cards on the same goal. */
+  listId?: string;
+  /** Named todo list within a measure (not a cycle). */
+  listTitle?: string;
   title: string;
   weight: number;
   complete: boolean;
@@ -73,12 +81,6 @@ export type Metric = {
 
 export type Measurement = Milestone | Metric;
 
-export type GoalType = "outcome" | "output";
-
-export type ProcessType = "okr" | "bau" | "pi";
-
-export type GoalPriority = "high" | "medium" | "low";
-
 export type GoalProgressStatus =
   "on_track" | "at_risk" | "off_track" | "on_hold" | "complete";
 
@@ -96,11 +98,6 @@ export type Goal = {
   id: string;
   description: string;
   weight: number;
-  /** Outcome vs output — required at save and submit. */
-  goalType: GoalType;
-  /** OKR, BAU, or performance improvement. */
-  processType: ProcessType;
-  priority: GoalPriority;
   /** Person who owns this goal; defaults to the page person when unset. */
   ownerId?: string;
   /** Longer free-text description (goal name lives in `description`). */

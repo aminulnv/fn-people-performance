@@ -8,10 +8,12 @@ import {
   Pencil,
   Send,
 } from "lucide-react";
-import { Avatar, Checkbox, Textarea } from "@/components/ui";
+import { Avatar, Textarea } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { goalCompletion, newId } from "@/lib/goalsApi";
-import { measurementPanels } from "@/lib/goals/measurements";
+import {
+  measurementPanels,
+} from "@/lib/goals/measurements";
 import type {
   Goal,
   Measurement,
@@ -24,7 +26,6 @@ import {
   recordMetricProgress,
   recordMilestoneProgress,
 } from "@/lib/goals/progressLog";
-import { GoalClassificationFields } from "./GoalClassificationFields";
 import { GoalSummaryCards } from "./GoalSummaryCards";
 import { approvalCopy, resolveApprovalPerson } from "./approvalDisplay";
 import { GoalAutosaveStatus } from "./GoalAutosaveStatus";
@@ -44,6 +45,7 @@ import { GoalProgressEditor } from "./GoalProgressEditor";
 import { GoalMetricReadout, GoalWeightReadout } from "./GoalMeasurementReadout";
 import { GoalProgressLog } from "./GoalProgressLog";
 import { MetricProgressUpdate } from "./MetricProgressUpdate";
+import { TodoMeasureViewCard } from "./TodoMeasureViewCard";
 import type {
   CascadeRecipient,
   LineManagerCascade,
@@ -97,6 +99,8 @@ type GoalDetailViewProps = {
   /** Used for the quiet Activity log entry in the overflow menu. */
   cycleId?: string;
   subjectId?: string;
+  /** Opens the unified goal detail page from the overflow menu. */
+  fullViewHref?: string;
   onRequestEdit?: RequestGoalEdit;
   /** Autosave state of the owning draft, surfaced next to the goal title. */
   saveState?: GoalDraftSaveState;
@@ -159,6 +163,7 @@ export function GoalDetailView({
   cascadeTargets = [],
   cycleId,
   subjectId,
+  fullViewHref,
   onRequestEdit = (startEditing) => startEditing(),
   saveState,
   onChange,
@@ -257,6 +262,7 @@ export function GoalDetailView({
     onRemove,
     canRemove,
     onViewActivity: Boolean(cycleId),
+    fullViewHref,
   });
 
   return (
@@ -335,6 +341,7 @@ export function GoalDetailView({
                   canCascade={canCascade}
                   canRemove={canRemove}
                   cascadeTargets={cascadeTargets}
+                  fullViewHref={fullViewHref}
                   activityFilters={
                     cycleId
                       ? {
@@ -425,14 +432,6 @@ export function GoalDetailView({
               <p className="pd-goal-view__approval-reason">{sendBackReason}</p>
             ) : null}
           </div>
-
-          <GoalClassificationFields
-            goal={goal}
-            disabled
-            canEdit={canEdit}
-            onRequestEdit={onRequestEdit}
-            onChange={(next) => patchStructure(next)}
-          />
 
           {goal.details?.trim() || canEdit ? (
             <section
@@ -575,82 +574,64 @@ export function GoalDetailView({
                 ) : null}
               </div>
               {panels.length === 0 ? (
-                <section className="pd-goal-view__card" aria-label="To dos">
+                <section className="pd-goal-view__card" aria-label="Milestones">
                   <div className="pd-goal-view__card-head">
                     <div className="pd-goal-view__card-title">
-                      <h2>To Do&apos;s</h2>
+                      <h2>Milestones</h2>
                     </div>
                   </div>
                   <p className="pd-goal-view__empty">
-                    No to-dos on this goal yet.
+                    No milestones on this goal yet.
                   </p>
                 </section>
               ) : (
                 panels.map((panel) =>
-                  panel.kind === "todos" ? (
-                    <section
+                  panel.kind === "todo_measure" ? (
+                    <TodoMeasureViewCard
                       key={panel.key}
-                      className="pd-goal-view__card"
-                      aria-label="To dos"
-                    >
-                      <div className="pd-goal-view__card-head">
-                        <div className="pd-goal-view__card-title">
-                          <h2>To Do&apos;s</h2>
-                        </div>
-                        <span className="pd-goal-readout__col-label">
-                          Weight
-                        </span>
-                      </div>
-                      <ul className="pd-goal-view__todos">
-                        {panel.todos.map((todo) => (
-                          <li key={todo.id} className="pd-goal-view__todo">
-                            <Checkbox
-                              className="pd-goal-todo__check"
-                              label={todo.title || "Mark done"}
-                              checked={todo.complete}
-                              disabled={!canMutate}
-                              onChange={(event) =>
-                                patchMeasurement(
-                                  todo.id,
-                                  recordMilestoneProgress(
-                                    todo,
-                                    event.target.checked,
-                                    progressAuthor,
-                                  ),
-                                )
-                              }
-                            />
-                            <p
-                              className={`pd-goal-view__todo-title${
-                                todo.complete ? " is-done" : ""
-                              }`}
-                            >
-                              {todo.title || "Untitled to-do"}
-                            </p>
-                            <span
-                              className="pd-goal-view__todo-weight"
-                              aria-label={`Weight ${todo.weight}%`}
-                            >
-                              {todo.weight}%
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                      <GoalProgressLog
-                        entries={panel.todos.flatMap(
-                          (todo) => todo.progressLog ?? [],
-                        )}
-                      />
-                    </section>
+                      panel={panel}
+                      renderTodoItem={(todo) => (
+                        <>
+                          <input
+                            type="checkbox"
+                            className="pd-goal-v2__todo-check pd-goal-todo__check"
+                            checked={todo.complete}
+                            disabled={!canMutate}
+                            aria-label={`Mark ${
+                              todo.title.trim() || "milestone"
+                            } complete`}
+                            onChange={(event) =>
+                              patchMeasurement(
+                                todo.id,
+                                recordMilestoneProgress(
+                                  todo,
+                                  event.target.checked,
+                                  progressAuthor,
+                                ),
+                              )
+                            }
+                          />
+                          <p
+                            className={`pd-goal-view__todo-title${
+                              todo.complete ? " is-done" : ""
+                            }`}
+                          >
+                            {todo.title || "Untitled milestone"}
+                          </p>
+                        </>
+                      )}
+                    />
                   ) : (
                     <section
                       key={panel.key}
                       className="pd-goal-view__card"
-                      aria-label={panel.metric.title || "Metric"}
+                      aria-label={panel.metric.title.trim() || "Measure"}
                     >
                       <div className="pd-goal-view__card-head">
                         <div className="pd-goal-view__card-title">
-                          <h2>{panel.metric.title.trim() || "Metric"}</h2>
+                          {panel.metric.title.trim() ? (
+                            <h2>{panel.metric.title.trim()}</h2>
+                          ) : null}
                         </div>
                         <GoalMetricReadout
                           metric={panel.metric}

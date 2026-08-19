@@ -9,9 +9,6 @@ const goal: Goal = {
   id: 'g1',
   description: 'Ship quality',
   weight: 40,
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   progressStatus: 'on_track',
   measurements: [],
 }

@@ -9,6 +9,11 @@ import {
   trackLabel,
   trackToneClass,
 } from './goalHelpers'
+import {
+  formatWeightReadout,
+  parseWeightInputValue,
+  weightInputDisplayValue,
+} from './GoalMeasurementReadout'
 
 type GoalSummaryCardsProps = {
   goal: Goal
@@ -120,16 +125,17 @@ export function GoalSummaryCards({
               type="text"
               inputMode="numeric"
               aria-label="Goal weight"
-              value={goal.weight}
+              value={weightInputDisplayValue(goal.weight)}
               onChange={(event) => {
-                const digits = event.target.value.replace(/\D/g, '')
-                onWeightChange(Math.min(100, Number(digits) || 0))
+                onWeightChange(parseWeightInputValue(event.target.value))
               }}
             />
             <span aria-hidden>%</span>
           </label>
         ) : (
-          <span className="pd-people__summary-value">{goal.weight}%</span>
+          <span className="pd-people__summary-value">
+            {formatWeightReadout(goal.weight)}
+          </span>
         )}
       </div>
       <div className="pd-people__summary-card">

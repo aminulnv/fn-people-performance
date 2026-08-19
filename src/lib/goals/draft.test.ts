@@ -1,14 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isGoalDraftDirty, validateGoalDraft } from '@/lib/goals/draft'
+import { isGoalDraftDirty, mergePersistedGoals, validateGoalDraft } from '@/lib/goals/draft'
 import type { Goal } from '@/lib/goals/types'
 
 const goal: Goal = {
   id: 'g1',
   description: 'Ship reviews',
   weight: 50,
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   measurements: [
     {
       id: 'm1',
@@ -36,10 +33,10 @@ describe('shared draft helpers (V1/V2 contract)', () => {
     expect(validateGoalDraft(goal).ok).toBe(true)
   })
 
-  it('treats classification edits as dirty', () => {
-    expect(isGoalDraftDirty(goal, { ...goal, goalType: 'output' })).toBe(true)
-    expect(isGoalDraftDirty(goal, { ...goal, processType: 'okr' })).toBe(true)
-    expect(isGoalDraftDirty(goal, { ...goal, priority: 'high' })).toBe(true)
+  it('treats description edits as dirty', () => {
+    expect(
+      isGoalDraftDirty(goal, { ...goal, details: 'Updated details' }),
+    ).toBe(true)
   })
 
   it('ignores comment-only dirty state', () => {
@@ -57,5 +54,70 @@ describe('shared draft helpers (V1/V2 contract)', () => {
         ],
       }),
     ).toBe(false)
+  })
+
+  it('detects milestone measure title edits', () => {
+    const base: Goal = {
+      ...goal,
+      measurements: [
+        {
+          id: 't1',
+          kind: 'milestone',
+          measureGroupId: 'measure-1',
+          title: 'Task 1',
+          weight: 100,
+          complete: false,
+        },
+      ],
+    }
+    expect(
+      isGoalDraftDirty(base, {
+        ...base,
+        measurements: [
+          {
+            ...base.measurements[0],
+            measureTitle: 'ABCD',
+          },
+        ],
+      }),
+    ).toBe(true)
+  })
+
+  it('keeps locally added checklist rows when the server snapshot is older', () => {
+    const persisted: Goal = {
+      ...goal,
+      measurements: [
+        {
+          id: 't1',
+          kind: 'milestone',
+          listId: 'list-1',
+          measureGroupId: 'measure-1',
+          listTitle: 'Snacks',
+          title: 'Chips',
+          weight: 100,
+          complete: false,
+        },
+      ],
+    }
+    const local: Goal = {
+      ...persisted,
+      measurements: [
+        ...persisted.measurements,
+        {
+          id: 't2',
+          kind: 'milestone',
+          listId: 'list-1',
+          measureGroupId: 'measure-1',
+          listTitle: 'Snacks',
+          title: '',
+          weight: 0,
+          complete: false,
+        },
+      ],
+    }
+
+    const merged = mergePersistedGoals([local], [persisted])[0]
+    expect(merged?.measurements).toHaveLength(2)
+    expect(merged?.measurements[1]).toMatchObject({ id: 't2', title: '' })
   })
 })

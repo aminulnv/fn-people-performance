@@ -33,6 +33,7 @@ import {
   type GoalCapabilities,
 } from "@/lib/goals/permissions";
 import {
+  getGoalsSnapshot,
   getGoalsSnapshotForCycle,
   setActiveCycle,
   setActivePerson,
@@ -108,6 +109,21 @@ export function useGoalsController({
     setSnapshot(await fetchGoalsSnapshot());
   }, []);
 
+  const syncSnapshot = useCallback(() => {
+    setSnapshot(getGoalsSnapshot());
+  }, []);
+
+  const refreshDebounceRef = useRef<number | null>(null);
+  const scheduleRemoteRefresh = useCallback(() => {
+    if (refreshDebounceRef.current !== null) {
+      window.clearTimeout(refreshDebounceRef.current);
+    }
+    refreshDebounceRef.current = window.setTimeout(() => {
+      refreshDebounceRef.current = null;
+      void refresh();
+    }, 150);
+  }, [refresh]);
+
   useEffect(() => {
     if (cycleId) setActiveCycle(cycleId);
     setActivePerson(subjectId);
@@ -116,9 +132,18 @@ export function useGoalsController({
   useEffect(() => {
     void refresh();
     return watchGoalsSnapshot(() => {
-      void refresh();
+      scheduleRemoteRefresh();
     });
-  }, [refresh]);
+  }, [refresh, scheduleRemoteRefresh]);
+
+  useEffect(
+    () => () => {
+      if (refreshDebounceRef.current !== null) {
+        window.clearTimeout(refreshDebounceRef.current);
+      }
+    },
+    [],
+  );
 
   const subject = useMemo(() => {
     if (!snapshot) return null;
@@ -239,7 +264,7 @@ export function useGoalsController({
       );
       try {
         const result = await operation;
-        await refresh();
+        syncSnapshot();
         return result;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -249,7 +274,7 @@ export function useGoalsController({
         if (pendingMutationCountRef.current === 0) setBusy(false);
       }
     },
-    [refresh],
+    [syncSnapshot],
   );
 
   const actions = useMemo<GoalsControllerActions>(() => {

@@ -18,6 +18,7 @@ load_env() {
   fi
 }
 
+load_env "$ROOT/.cursor/deploy.local.env"
 load_env "$ROOT/.env.deploy"
 
 PEM="${PERF_EC2_PEM:-}"

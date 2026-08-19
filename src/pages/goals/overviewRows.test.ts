@@ -5,6 +5,7 @@ import {
   goalRows,
   peopleWithoutGoals,
   statusCounts,
+  withOwnerRowSpans,
 } from './overviewRows'
 
 function person(id: string, overrides: Partial<DemoPerson> = {}): DemoPerson {
@@ -35,8 +36,6 @@ function submission(
       id: `${personId}-goal-${index}`,
       ownerId: personId,
       description: `Goal ${index}`,
-      goalType: 'outcome',
-      processType: 'bau',
       weight: 50,
       measurements: [],
       comments: [],
@@ -66,6 +65,25 @@ function snapshotOf(people: DemoPerson[], rows: PersonGoals[]): GoalsSnapshot {
     byPerson: Object.fromEntries(rows.map((row) => [row.personId, row])),
   } as GoalsSnapshot
 }
+
+describe('withOwnerRowSpans', () => {
+  it('merges consecutive rows from the same person', () => {
+    const people = [person('1'), person('2')]
+    const snapshot = snapshotOf(people, [
+      submission('1', 'approved', 2),
+      submission('2', 'draft', 1),
+    ])
+    const rows = goalRows(snapshot, people)
+
+    expect(
+      withOwnerRowSpans(rows).map((row) => [row.ownerRowSpan, row.isPersonEnd]),
+    ).toEqual([
+      [2, false],
+      [0, true],
+      [1, true],
+    ])
+  })
+})
 
 describe('goalRows', () => {
   it('omits people who have no goals', () => {

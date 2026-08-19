@@ -1,4 +1,9 @@
-import { normalizeMetricStrategy } from './measurements'
+import {
+  hasMeasurePanelName,
+  measurementPanels,
+  normalizeMetricStrategy,
+  sumPanelWeights,
+} from './measurements'
 import type { GoalCountPolicy } from '@/lib/reviews/types'
 import type { Goal, Measurement } from './types'
 
@@ -7,7 +12,7 @@ export function sumGoalWeights(goals: Goal[]): number {
 }
 
 export function sumMeasurementWeights(measurements: Measurement[]): number {
-  return measurements.reduce((sum, m) => sum + (Number(m.weight) || 0), 0)
+  return sumPanelWeights(measurements)
 }
 
 export type SubmitGoalBlocker = {
@@ -22,7 +27,7 @@ export function goalCountWarning(
   policy: GoalCountPolicy,
 ): string | null {
   if (goalCount < policy.recommendedMinimum) {
-    return `This goal set has ${goalCount} goals. This cycle recommends ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals for a balanced cycle.`
+    return `This goal set has ${goalCount} goals. This cycle recommends ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals.`
   }
   if (goalCount > policy.recommendedMaximum) {
     return `This goal set has ${goalCount} goals. This cycle recommends keeping the focus on ${policy.recommendedMinimum} to ${policy.recommendedMaximum} goals.`
@@ -76,12 +81,6 @@ export function canSubmitGoals(
       blockers.push(goalBlocker(goal, index, ' needs a title.'))
       return true
     }
-    if (!goal.goalType || !goal.processType || !goal.priority) {
-      blockers.push(
-        goalBlocker(goal, index, ' needs a type, process type, and priority.'),
-      )
-      return true
-    }
     if (goal.measurements.length < 1) {
       blockers.push(
         goalBlocker(
@@ -92,6 +91,12 @@ export function canSubmitGoals(
             : ' still needs a measure.',
         ),
       )
+      return true
+    }
+    if (
+      measurementPanels(goal.measurements).some((panel) => !hasMeasurePanelName(panel))
+    ) {
+      blockers.push(goalBlocker(goal, index, ' still needs a name on each measure.'))
       return true
     }
     if (sumMeasurementWeights(goal.measurements) !== 100) {

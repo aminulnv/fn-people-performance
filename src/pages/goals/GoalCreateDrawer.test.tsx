@@ -86,6 +86,28 @@ describe('GoalCreateDrawer', () => {
     expect(dialog).toHaveStyle({ width: '768px' })
   })
 
+  it('widens the OKR side sheet with the keyboard from its resize handle', () => {
+    Object.defineProperty(window, 'innerWidth', {
+      configurable: true,
+      value: 1600,
+    })
+
+    render(
+      <GoalCreateDrawer sideSheet={okrSideSheet} onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
+    const sheet = screen.getByRole('region', { name: 'Department and wing OKRs' })
+
+    fireEvent.keyDown(
+      screen.getByRole('separator', { name: 'Resize OKR reference panel' }),
+      { key: 'ArrowLeft' },
+    )
+
+    expect(sheet).toHaveStyle({ width: '400px' })
+  })
+
   it('keeps the side sheet closed until its tab is pulled', () => {
     render(
       <GoalCreateDrawer sideSheet={okrSideSheet} onClose={() => undefined}>
@@ -99,6 +121,24 @@ describe('GoalCreateDrawer', () => {
     expect(
       screen.getByRole('region', { name: 'Department and wing OKRs' }),
     ).toHaveTextContent('Improve customer outcomes')
+  })
+
+  it('closes the side sheet when its tab is clicked again', () => {
+    render(
+      <GoalCreateDrawer sideSheet={okrSideSheet} onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
+    expect(
+      screen.getByRole('region', { name: 'Department and wing OKRs' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
+
+    expect(
+      screen.queryByRole('region', { name: 'Department and wing OKRs' }),
+    ).toBeNull()
   })
 
   it('closes the side sheet before the drawer when Escape is pressed', () => {

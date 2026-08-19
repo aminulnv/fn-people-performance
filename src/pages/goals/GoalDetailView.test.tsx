@@ -37,9 +37,6 @@ const goal: Goal = {
   id: 'goal-1',
   description: 'Improve delivery quality',
   weight: 100,
-  goalType: 'outcome',
-  processType: 'bau',
-  priority: 'medium',
   measurements: [],
 }
 
@@ -72,13 +69,6 @@ describe('GoalDetailView', () => {
     expect(
       screen.queryByRole('button', { name: 'Send Back' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Goal classification')).toHaveTextContent(
-      'Outcome',
-    )
-    expect(screen.getByLabelText('Goal classification')).toHaveTextContent('BAU')
-    expect(screen.getByLabelText('Goal classification')).toHaveTextContent(
-      'Medium',
-    )
   })
 
   it('shows the manager avatar on the pending approval card', () => {
@@ -161,34 +151,6 @@ describe('GoalDetailView', () => {
 
     const card = screen.getByText('Sent back').closest('.pd-goal-view__approval')
     expect(card).toHaveTextContent('Please tighten measurement targets.')
-  })
-
-  it('keeps classification read-only until the edit icon is clicked', () => {
-    const onSave = vi.fn()
-    render(
-      <GoalDetailView
-        goal={goal}
-        index={0}
-        total={1}
-        owner={{ name: 'Aminul Islam Borhan' }}
-        cycleLabel="Q3 2026"
-        status="draft"
-        commentAuthorName="Aminul"
-        canEdit
-        onChange={vi.fn()}
-        onSave={onSave}
-        onSelectIndex={vi.fn()}
-      />,
-    )
-
-    expect(screen.getByRole('button', { name: 'Goal type' })).toBeDisabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit goal type' }))
-    expect(screen.getByRole('button', { name: 'Goal type' })).toBeEnabled()
-    fireEvent.click(screen.getByRole('button', { name: 'Goal type' }))
-    fireEvent.click(screen.getByRole('option', { name: 'Output' }))
-
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave.mock.calls[0][0]).toMatchObject({ goalType: 'output' })
   })
 
   it('lets the owner add cascading from after the goal is created', () => {
@@ -633,6 +595,7 @@ describe('GoalDetailView', () => {
     )
 
     expect(screen.getByText('How to measure progress?')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit metric name' }))
     expect(screen.getByLabelText('Metric name')).toHaveValue('NPS')
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
     expect(
@@ -658,6 +621,7 @@ describe('GoalDetailView', () => {
             {
               id: 't1',
               kind: 'milestone',
+              measureTitle: 'Milestones',
               title: 'Write the readout',
               weight: 40,
               complete: false,
@@ -676,9 +640,9 @@ describe('GoalDetailView', () => {
     )
 
     const nps = screen.getByLabelText('NPS')
-    const todos = screen.getByLabelText('To dos')
+    const milestones = screen.getByLabelText('Milestones')
     expect(
-      nps.compareDocumentPosition(todos) & Node.DOCUMENT_POSITION_FOLLOWING,
+      nps.compareDocumentPosition(milestones) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
   })
 })

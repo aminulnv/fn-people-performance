@@ -251,11 +251,8 @@ export function cascadeGoal(
   },
 ): Goal {
   return {
-    ...blankGoal({ withDefaultMetric: false, ownerId: targetPersonId }),
+    ...blankGoal({ ownerId: targetPersonId }),
     description: `Untitled Cascading Goal from ${options.sourcePersonName}`,
-    goalType: source.goalType,
-    processType: source.processType,
-    priority: source.priority,
     cascadedFromGoalId: source.id,
     linkedGoalLabel: options.sourceTitle,
     comments: [],

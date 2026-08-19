@@ -15,9 +15,6 @@ const policy = {
 function readyGoal(overrides = {}) {
   return {
     description: 'Deliver the agreed outcome',
-    goalType: 'outcome',
-    processType: 'okr',
-    priority: 'high',
     weight: 50,
     measurements: [
       {
@@ -62,17 +59,13 @@ describe('validateGoalSubmission', () => {
     const errors = validateGoalSubmission(
       [
         readyGoal({ description: '', weight: 50 }),
-        readyGoal({ goalType: undefined, weight: 50 }),
+        readyGoal({ description: '   ', weight: 50 }),
       ],
       policy,
     )
 
     assert.ok(errors.includes('Untitled goal 1 needs a title.'))
-    assert.ok(
-      errors.includes(
-        'Deliver the agreed outcome needs a valid type, process type, and priority.',
-      ),
-    )
+    assert.ok(errors.includes('Untitled goal 2 needs a title.'))
   })
 
   it('rejects missing measurements and invalid measurement totals', () => {

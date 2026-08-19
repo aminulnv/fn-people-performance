@@ -14,9 +14,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
     "Talent Acquisition": [
         {
             "description": "Reduce average time-to-fill for priority roles",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 40,
             "measurements": [
                 {
@@ -32,9 +29,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Improve offer acceptance rate for critical hires",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 35,
             "measurements": [
                 {
@@ -50,9 +44,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Build a qualified pipeline for hard-to-fill roles",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "medium",
             "weight": 25,
             "measurements": [
                 {
@@ -71,9 +62,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
     "People Experience": [
         {
             "description": "Improve employee engagement survey participation and scores",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 40,
             "measurements": [
                 {
@@ -98,9 +86,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Strengthen the new joiner onboarding experience",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "medium",
             "weight": 35,
             "measurements": [
                 {
@@ -121,9 +106,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Reduce HR service ticket resolution time",
-            "goal_type": "outcome",
-            "process_type": "bau",
-            "priority": "medium",
             "weight": 25,
             "measurements": [
                 {
@@ -141,9 +123,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
     "Performance & Total Rewards": [
         {
             "description": "Support Q3 performance review cycle execution",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "high",
             "weight": 40,
             "measurements": [
                 {
@@ -164,9 +143,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Advance compensation benchmarking for key job families",
-            "goal_type": "output",
-            "process_type": "okr",
-            "priority": "medium",
             "weight": 35,
             "measurements": [
                 {
@@ -178,9 +154,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Increase OKR adoption across supported teams",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "medium",
             "weight": 25,
             "measurements": [
                 {
@@ -198,9 +171,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
     "HRBP": [
         {
             "description": "Partner with business units on Q3 workforce planning",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "high",
             "weight": 40,
             "measurements": [
                 {
@@ -212,9 +182,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Reduce regrettable attrition in assigned departments",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 35,
             "measurements": [
                 {
@@ -230,9 +197,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Improve manager capability through targeted enablement",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "medium",
             "weight": 25,
             "measurements": [
                 {
@@ -255,9 +219,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
     "Core": [
         {
             "description": "Define and communicate H2 people strategy priorities",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 40,
             "measurements": [
                 {
@@ -269,9 +230,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Strengthen leadership bench and succession readiness",
-            "goal_type": "outcome",
-            "process_type": "okr",
-            "priority": "high",
             "weight": 35,
             "measurements": [
                 {
@@ -287,9 +245,6 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
         },
         {
             "description": "Drive culture initiatives aligned to company values",
-            "goal_type": "output",
-            "process_type": "bau",
-            "priority": "medium",
             "weight": 25,
             "measurements": [
                 {
@@ -314,7 +269,7 @@ SEND_BACK_REASONS = [
     "Goal descriptions need more specificity — add measurable outcomes.",
     "One goal reads like a task list. Reframe it as a measurable result.",
     "Measurement weights within a goal must total 100%. Please fix before resubmitting.",
-    "The priority mix looks off — adjust to reflect your real focus areas this quarter.",
+    "The goal weight mix looks off — adjust to reflect your real focus areas this quarter.",
     "Add proof links or clearer milestones for the output goals before resubmitting.",
 ]
 
@@ -733,16 +688,13 @@ def render_employee_goals(
                 f"""
                 INSERT INTO platform.goals (
                   goal_id, cycle_id, employee_id, owner_employee_id, description,
-                  goal_type, process_type, priority, weight, position, progress_status
+                  weight, position, progress_status
                 ) VALUES (
                   {sql_str(goal_id)},
                   {sql_str(CYCLE_ID)},
                   {employee_id},
                   {employee_id},
                   {sql_str(goal['description'])},
-                  {sql_str(goal['goal_type'])},
-                  {sql_str(goal['process_type'])},
-                  {sql_str(goal['priority'])},
                   {goal['weight']},
                   {goal_position},
                   {sql_str(progress_status)}

@@ -27,6 +27,12 @@ export type GoalRow = {
   progressStatus?: Goal['progressStatus']
 }
 
+/** First row for a person carries the rowspan; later rows use 0 and skip the owner cell. */
+export type GoalRowWithOwnerSpan = GoalRow & {
+  ownerRowSpan: number
+  isPersonEnd: boolean
+}
+
 export type OverviewViewer = {
   id: string
   department: string
@@ -91,6 +97,34 @@ export function goalRows(
       progressStatus: goal.progressStatus,
     }))
   })
+}
+
+/**
+ * Annotate consecutive rows from the same person so the owner column can merge.
+ * Callers must keep a person's goals adjacent (e.g. sort by department, then name).
+ */
+export function withOwnerRowSpans(rows: GoalRow[]): GoalRowWithOwnerSpan[] {
+  const result: GoalRowWithOwnerSpan[] = []
+  let index = 0
+  while (index < rows.length) {
+    const personId = rows[index].person.id
+    let span = 1
+    while (
+      index + span < rows.length &&
+      rows[index + span].person.id === personId
+    ) {
+      span += 1
+    }
+    for (let offset = 0; offset < span; offset += 1) {
+      result.push({
+        ...rows[index + offset],
+        ownerRowSpan: offset === 0 ? span : 0,
+        isPersonEnd: offset === span - 1,
+      })
+    }
+    index += span
+  }
+  return result
 }
 
 export function matchesStatusFilter(

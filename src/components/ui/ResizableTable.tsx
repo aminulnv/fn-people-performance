@@ -97,10 +97,19 @@ function measureNaturalColumnWidths(
   const rowCount = table.rows.length
   if (rowCount === 0) return widths
 
+  const usesColumnTags = table.querySelector('[data-col]') != null
+
   columns.forEach((column, columnIndex) => {
     let max = minWidthOf(column)
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
-      const cell = table.rows[rowIndex]?.cells[columnIndex]
+      const row = table.rows[rowIndex]
+      if (!row) continue
+
+      const cell = usesColumnTags
+        ? Array.from(row.cells).find(
+            (candidate) => candidate.dataset.col === column.id,
+          )
+        : row.cells[columnIndex]
       if (!cell) continue
       max = Math.max(max, Math.ceil(cell.getBoundingClientRect().width))
     }
@@ -334,7 +343,7 @@ export function ResizableTable({
       <thead>
         <tr ref={headerRowRef}>
           {columns.map((column) => (
-            <th key={column.id}>
+            <th key={column.id} data-col={column.id}>
               <span className="pd-table-resize__heading">{column.label}</span>
               <span
                 className="pd-table-resize__handle"

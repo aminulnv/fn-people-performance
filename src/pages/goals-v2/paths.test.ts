@@ -7,7 +7,7 @@ import {
 
 describe('goals-v2 paths', () => {
   it('builds the overview path', () => {
-    expect(goalsV2OverviewPath()).toBe('/goals-v2')
+    expect(goalsV2OverviewPath()).toBe('/goals')
   })
 
   it('builds person and goal detail paths without falling back to /goals', () => {
