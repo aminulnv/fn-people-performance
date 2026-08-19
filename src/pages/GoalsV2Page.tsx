@@ -868,7 +868,7 @@ function GoalsPersonDetail({
       isSelf={actor?.id === active.id}
       sendBackReason={sendBackReason}
       onSendBackReason={setSendBackReason}
-      onApprove={() => void actions.approve(active.id, activeGoals.goals)}
+      onApprove={() => void actions.approve(active.id)}
       onSendBack={() =>
         void actions.sendBack(active.id, sendBackReason).then(() => {
           setSendBackReason("");
@@ -1006,7 +1006,7 @@ function GoalsPersonDetail({
           onSelect={setReviewId}
           onSaveGoals={(id, goals) => void actions.saveGoals(id, goals)}
           onSaveProgress={(id, goals) => void actions.saveProgress(id, goals)}
-          onApprove={(id, goals) => void actions.approve(id, goals)}
+          onApprove={(id) => void actions.approve(id)}
           onSendBack={(id) =>
             void actions.sendBack(id, sendBackReason).then(() => {
               setSendBackReason("");
@@ -1059,7 +1059,7 @@ function ManagerPanel({
   onSendBackReason: (v: string) => void;
   busy: boolean;
   onSelect: (id: string) => void;
-  onApprove: (id: string, goals: Goal[]) => void;
+  onApprove: (id: string) => void;
   onSendBack: (id: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   onSaveProgress: (id: string, goals: Goal[]) => void;
@@ -1236,9 +1236,7 @@ function ManagerPanel({
                     type="button"
                     className="pd-people__ghost-btn pd-people__ghost-btn--success"
                     disabled={busy}
-                    onClick={() =>
-                      onApprove(active.person.id, active.row.goals)
-                    }
+                    onClick={() => onApprove(active.person.id)}
                   >
                     <Check size={16} strokeWidth={1.75} aria-hidden />
                     Approve

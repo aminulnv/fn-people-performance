@@ -222,6 +222,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
       className={[
         'pd-page',
         'pd-page--pane',
+        'pd-page--wide',
         'pd-people',
         isV3 ? 'pd-people--v3' : '',
       ]

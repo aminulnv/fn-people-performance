@@ -293,7 +293,7 @@ export default function OrganisationPage() {
 
   return (
     <div
-      className="pd-page pd-page--pane pd-people pd-org"
+      className="pd-page pd-page--pane pd-page--wide pd-people pd-org"
       aria-label="Organisation"
     >
       <div

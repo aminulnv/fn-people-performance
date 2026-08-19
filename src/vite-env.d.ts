@@ -10,6 +10,8 @@ interface ImportMetaEnv {
   readonly VITE_ACTIVITY_BACKEND?: 'local' | 'api'
   readonly VITE_REVIEWS_BACKEND?: 'local' | 'api'
   readonly VITE_GOALS_BACKEND?: 'local' | 'api'
+  /** Microsoft Clarity project ID (Settings → Overview in Clarity dashboard). */
+  readonly VITE_CLARITY_PROJECT_ID?: string
 }
 
 interface ImportMeta {

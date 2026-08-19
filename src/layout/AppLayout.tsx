@@ -1,6 +1,7 @@
 import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useLocation, matchPath } from 'react-router-dom'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
+import { installTableScrollbarReveal } from '@/lib/tableScrollbarReveal'
 import { SuspenseRouteContent } from '@/components/ui/NavigationProgress'
 import { getEmployee } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -62,16 +63,14 @@ export function AppLayout({
     }
   }, [])
 
+  useEffect(() => installTableScrollbarReveal(), [])
+
   const employeeEditMatch = matchPath(
     { path: '/people/:employeeId/edit', end: true },
     pathname,
   )
   const employeeProfileMatch = matchPath(
     { path: '/people/:employeeId', end: true },
-    pathname,
-  )
-  const employeeProfileV2Match = matchPath(
-    { path: '/people-v2/:employeeId', end: true },
     pathname,
   )
   const scorecardDetailMatch = matchPath(
@@ -100,7 +99,6 @@ export function AppLayout({
   const profileEmployeeId = Number(
     employeeEditMatch?.params.employeeId ??
     employeeProfileMatch?.params.employeeId ??
-    employeeProfileV2Match?.params.employeeId ??
     scorecardDetailMatch?.params.employeeId ??
     goalsDetailMatch?.params.personId,
   )

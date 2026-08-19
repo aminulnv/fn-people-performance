@@ -26,10 +26,7 @@ function matchNavItem(
   })
 }
 
-function peopleRoot(pathname: string): BreadcrumbItem {
-  if (pathname === '/people-v2' || pathname.startsWith('/people-v2/')) {
-    return { label: 'People', href: '/people-v2' }
-  }
+function peopleRoot(): BreadcrumbItem {
   return { label: 'People', href: '/people' }
 }
 
@@ -54,27 +51,12 @@ export function buildBreadcrumbs({
   scorecardCycleLabel,
   goalsCycleLabel,
 }: BreadcrumbContext): BreadcrumbItem[] {
-  if (pathname === '/people-v2') {
-    return [{ label: 'People' }]
-  }
-
   if (pathname === '/goals-v2') {
     return [{ label: 'Goals' }]
   }
 
-  const peopleV2Profile = matchPath(
-    { path: '/people-v2/:employeeId', end: true },
-    pathname,
-  )
-  if (peopleV2Profile) {
-    return [
-      peopleRoot(pathname),
-      { label: employeeName?.trim() || 'Employee' },
-    ]
-  }
-
   if (pathname === '/people/new' || pathname.startsWith('/people/new/')) {
-    return [peopleRoot(pathname), { label: 'Add employee' }]
+    return [peopleRoot(), { label: 'Add employee' }]
   }
 
   const employeeEdit = matchPath(
@@ -85,7 +67,7 @@ export function buildBreadcrumbs({
     const id = employeeEdit.params.employeeId
     const name = employeeName?.trim() || 'Employee'
     return [
-      peopleRoot(pathname),
+      peopleRoot(),
       { label: name, href: `/people/${id}` },
       { label: 'Edit' },
     ]
@@ -100,7 +82,7 @@ export function buildBreadcrumbs({
     employeeProfile.params.employeeId !== 'new'
   ) {
     return [
-      peopleRoot(pathname),
+      peopleRoot(),
       { label: employeeName?.trim() || 'Employee' },
     ]
   }
@@ -240,9 +222,6 @@ export function resolveTopBarIcon(
   pathname: string,
   navItems: NavItem[],
 ): NavItem['icon'] | undefined {
-  if (pathname === '/people-v2' || pathname.startsWith('/people-v2/')) {
-    return navItems.find((item) => item.path === '/people')?.icon
-  }
   if (pathname === '/goals-v2' || pathname.startsWith('/goals-v2/')) {
     return navItems.find((item) => item.path === '/goals')?.icon
   }

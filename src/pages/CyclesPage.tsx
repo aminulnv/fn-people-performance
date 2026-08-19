@@ -5,7 +5,7 @@ import '@/styles/layout-people.css'
 export default function CyclesPage() {
   return (
     <div
-      className="pd-page pd-page--pane pd-people pd-reviews"
+      className="pd-page pd-page--pane pd-page--wide pd-people pd-reviews"
       aria-label="Performance Cycles"
     >
       <CyclesList />

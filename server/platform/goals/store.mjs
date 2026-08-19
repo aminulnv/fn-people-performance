@@ -1290,24 +1290,6 @@ export async function approvePersonGoals(
         `Cannot approve goals while status is ${locked[0].status}.`,
       )
     }
-    const previousGoals = await loadGoalsForSubmission(
-      client,
-      cycleId,
-      employeeId,
-    )
-    const approvedGoals = Array.isArray(editedGoals)
-      ? editedGoals
-      : previousGoals
-    if (Array.isArray(editedGoals)) {
-      await replaceGoals(
-        client,
-        cycleId,
-        employeeId,
-        approvedGoals,
-        actor,
-      )
-    }
-
     const stage = locked[0].post_window_approval_stage
     let nextStatus = 'approved'
     let nextStage = null
@@ -1323,13 +1305,43 @@ export async function approvePersonGoals(
       summary = 'Gave final approval on goals'
     }
 
+    let correlationId = crypto.randomUUID()
+    if (Array.isArray(editedGoals)) {
+      const previousGoals = await loadGoalsForSubmission(
+        client,
+        cycleId,
+        employeeId,
+      )
+      await replaceGoals(
+        client,
+        cycleId,
+        employeeId,
+        editedGoals,
+        actor,
+      )
+      correlationId = await appendGoalDiffActivity(client, {
+        previousGoals,
+        nextGoals: editedGoals,
+        actor,
+        employeeId,
+        cycleId,
+        correlationId,
+      })
+    }
+
     const { rows } = await client.query(
       `UPDATE platform.goal_submissions
        SET status = $3,
            post_window_approval_stage = $4,
            approved_at = CASE WHEN $3 = 'approved' THEN now() ELSE approved_at END,
-           approved_by_employee_id = CASE WHEN $3 = 'approved' THEN $5 ELSE NULL END,
-           approved_by_name = CASE WHEN $3 = 'approved' THEN $6 ELSE NULL END,
+           approved_by_employee_id = CASE
+             WHEN $3 = 'approved' THEN $5::integer
+             ELSE NULL
+           END,
+           approved_by_name = CASE
+             WHEN $3 = 'approved' THEN $6::text
+             ELSE NULL
+           END,
            version = version + 1,
            updated_at = now()
        WHERE cycle_id = $1 AND employee_id = $2
@@ -1339,17 +1351,10 @@ export async function approvePersonGoals(
         employeeId,
         nextStatus,
         nextStage,
-        actor.actorEmployeeId,
-        actor.actorName,
+        actor.actorEmployeeId == null ? null : Number(actor.actorEmployeeId),
+        actor.actorName ?? '',
       ],
     )
-    const correlationId = await appendGoalDiffActivity(client, {
-      previousGoals,
-      nextGoals: approvedGoals,
-      actor,
-      employeeId,
-      cycleId,
-    })
     if (Array.isArray(editedGoals)) {
       await appendActivityEvent(client, {
         eventKey: 'goal.manager_modified',
@@ -1372,19 +1377,17 @@ export async function approvePersonGoals(
       cycleId,
       correlationId,
       summary,
-      changes: [
-        { field: 'status', from: locked[0].status, to: nextStatus },
-        {
-          field: 'postWindowApprovalStage',
-          from: stage,
-          to: nextStage,
-        },
-      ],
+      metadata: {
+        fromStatus: locked[0].status,
+        toStatus: nextStatus,
+        fromStage: stage ?? null,
+        toStage: nextStage,
+      },
       source: 'api',
     })
-    const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
+    const loadedGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
-    return mapSubmissionRow(client, rows[0], goals, null)
+    return mapSubmissionRow(client, rows[0], loadedGoals, null)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error

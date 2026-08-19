@@ -90,19 +90,6 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('uses people-v2 as the People root on redesign routes', () => {
-    expect(
-      buildBreadcrumbs({
-        pathname: '/people-v2/7',
-        navItems,
-        employeeName: 'Grace Hopper',
-      }),
-    ).toEqual([
-      { label: 'People', href: '/people-v2' },
-      { label: 'Grace Hopper' },
-    ])
-  })
-
   it('uses goals-v2 as the Goals root on redesign routes', () => {
     expect(
       buildBreadcrumbs({
@@ -201,10 +188,6 @@ describe('buildBreadcrumbs', () => {
 })
 
 describe('resolveTopBarIcon', () => {
-  it('resolves the People icon for people-v2 routes', () => {
-    expect(resolveTopBarIcon('/people-v2/1', navItems)).toBe(Users)
-  })
-
   it('resolves the Goals icon for goals-v2 routes', () => {
     expect(resolveTopBarIcon('/goals-v2/q2-2026/42', navItems)).toBe(Home)
   })

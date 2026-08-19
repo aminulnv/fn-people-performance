@@ -4,6 +4,7 @@
   --people-radius: 999px;
   --people-radius-sm: 999px;
   --people-radius-panel: 16px;
+  --people-table-person-gap: 0.55rem;
 
   display: grid;
   align-content: start;
@@ -860,6 +861,8 @@
 
 .pd-people__table-wrap {
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   --people-table-font: 0.875rem;
   --people-table-line: 1.35;
   --people-table-cell-y: 0.65rem;
@@ -876,6 +879,34 @@
   --people-table-status-pad-y: 0.15rem;
   --people-table-status-pad-x: 0.55rem;
   --people-table-status-font: 0.8125rem;
+}
+
+.pd-people__table-wrap::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.pd-people__table-wrap:hover,
+.pd-people__table-wrap:focus-within,
+.pd-people__table-wrap.is-scrolling {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-text) 35%, transparent) transparent;
+}
+
+.pd-people__table-wrap:hover::-webkit-scrollbar,
+.pd-people__table-wrap:focus-within::-webkit-scrollbar,
+.pd-people__table-wrap.is-scrolling::-webkit-scrollbar {
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.pd-people__table-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
+}
+
+.pd-people__table-wrap::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .pd-people__table-wrap--condensed {
@@ -1092,7 +1123,7 @@
 .pd-people__person {
   display: inline-flex;
   align-items: center;
-  gap: var(--people-table-person-gap);
+  gap: var(--people-table-person-gap, var(--avatar-name-gap, 0.5rem));
   min-width: 0;
 }
 

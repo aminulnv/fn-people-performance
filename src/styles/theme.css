@@ -5,6 +5,9 @@
  */
 
 :root {
+  /* Avatar beside a name in inline rows (tables override via --people-table-person-gap) */
+  --avatar-name-gap: 0.5rem;
+
   /* ═══ ONLY brand hex ═══ */
   --color-theme: #635cff;
 

@@ -968,7 +968,7 @@ export function GoalsPersonDetail({
           busy={busy}
           onSaveGoals={(id, goals) => void actions.saveGoals(id, goals)}
           onSaveProgress={(id, goals) => void actions.saveProgress(id, goals)}
-          onApprove={(id, goals) => void actions.approve(id, goals)}
+          onApprove={(id) => void actions.approve(id)}
           onSendBack={(id) =>
             void actions.sendBack(id, sendBackReason).then(() => {
               setSendBackReason("");
@@ -1015,7 +1015,7 @@ function ManagerPanel({
   sendBackReason: string;
   onSendBackReason: (v: string) => void;
   busy: boolean;
-  onApprove: (id: string, goals: Goal[]) => void;
+  onApprove: (id: string) => void;
   onSendBack: (id: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   onSaveProgress: (id: string, goals: Goal[]) => void;
@@ -1080,7 +1080,7 @@ function ManagerPanel({
               setSendBackFor(sendBackFor === person.id ? null : person.id)
             }
             onSendBackReason={onSendBackReason}
-            onApprove={() => onApprove(person.id, row.goals)}
+            onApprove={() => onApprove(person.id)}
             onSendBack={() => {
               onSendBack(person.id);
               setSendBackFor(null);

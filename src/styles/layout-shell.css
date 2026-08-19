@@ -1549,6 +1549,18 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   max-width: min(100%, 72rem);
 }
 
+/* Table-heavy pages — wider column for dense data (matches Goals overview) */
+.pd-page--wide {
+  max-width: min(100%, 100rem);
+}
+
+.pd-page.pd-page--wide.pd-people,
+.pd-page.pd-page--wide.pd-org,
+.pd-page.pd-page--wide.pd-reviews,
+.pd-page--wide .pd-reviews-cycles {
+  max-width: min(100%, 100rem);
+}
+
 /*
  * Pages that scroll a region of their own — a table body under a pinned header,
  * for instance — need a pane-height box to scroll inside, so the pane stops
