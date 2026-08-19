@@ -33,7 +33,6 @@ function copyGoalForNewCycle(goal, ownerEmployeeId) {
     ...goal,
     id: newId('goal'),
     ownerId: String(ownerEmployeeId),
-    progressStatus: 'on_track',
     cascadedFromGoalId: undefined,
     linkedGoalLabel: undefined,
     comments: [],
@@ -251,7 +250,6 @@ async function loadGoalsForSubmission(client, cycleId, employeeId) {
           : String(goal.owner_employee_id),
       cascadedFromGoalId: goal.cascaded_from_goal_id ?? undefined,
       linkedGoalLabel: goal.linked_goal_label ?? undefined,
-      progressStatus: goal.progress_status ?? undefined,
       measurements: measurementsByGoal.get(goal.goal_id) ?? [],
       comments: commentsByGoal.get(goal.goal_id) ?? [],
       updatedAt: isoTimestamp(goal.updated_at),
@@ -314,7 +312,6 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
       goal.details ?? null,
       goal.weight ?? 0,
       position++,
-      goal.progressStatus ?? null,
       goal.cascadedFromGoalId ?? null,
       goal.linkedGoalLabel ?? null,
     ]
@@ -326,9 +323,8 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
              details = $6,
              weight = $7,
              position = $8,
-             progress_status = $9,
-             cascaded_from_goal_id = $10,
-             linked_goal_label = $11,
+             cascaded_from_goal_id = $9,
+             linked_goal_label = $10,
              updated_at = now()
          WHERE goal_id = $1
            AND cycle_id = $2
@@ -339,10 +335,10 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
       await client.query(
         `INSERT INTO platform.goals (
            goal_id, cycle_id, employee_id, owner_employee_id, description, details,
-           weight, position, progress_status,
+           weight, position,
            cascaded_from_goal_id, linked_goal_label
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10
          )`,
         goalValues,
       )
@@ -613,7 +609,6 @@ function activityGoalShape(goal) {
     details: goal.details ?? null,
     weight: Number(goal.weight ?? 0),
     ownerId: goal.ownerId ?? null,
-    progressStatus: goal.progressStatus ?? null,
     cascadedFromGoalId: goal.cascadedFromGoalId ?? null,
     measurements: (goal.measurements ?? []).map((measurement) => ({
       id: measurement.id,
@@ -1218,7 +1213,6 @@ export async function cascadeGoalToEmployees(
         ownerId: String(recipientEmployeeId),
         cascadedFromGoalId: sourceGoalId,
         linkedGoalLabel: sourceGoal.description || 'Untitled goal',
-        progressStatus: 'on_track',
         measurements: [],
         comments: [],
       }

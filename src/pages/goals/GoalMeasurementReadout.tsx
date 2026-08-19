@@ -8,22 +8,10 @@ import { measurePanelName, measurePanelProgress } from '@/pages/goals-v2/measure
 import {
   formatMetricNumber,
   metricTipFromMetric,
-  trackToneClass,
   type MetricTipDetails,
 } from './goalHelpers'
 
-export type GoalMetricTrack = {
-  label: string
-  tone: 'ok' | 'warn' | 'muted' | 'danger' | 'hold' | 'complete'
-}
-
-export function GoalMetricTip({
-  tip,
-  track,
-}: {
-  tip: MetricTipDetails
-  track: GoalMetricTrack
-}) {
+export function GoalMetricTip({ tip }: { tip: MetricTipDetails }) {
   return (
     <div className="pd-goals-table__metric-tip">
       <div className="pd-goals-table__metric-tip-title">{tip.title}</div>
@@ -33,15 +21,7 @@ export function GoalMetricTip({
           <span>{tip.initial}</span>
         </div>
         <div className="pd-goals-table__metric-tip-row">
-          <span>
-            Current value (
-            <span
-              className={`pd-goals-table__metric-tip-status pd-goals-table__metric-tip-status--${track.tone}`}
-            >
-              {track.label}
-            </span>
-            )
-          </span>
+          <span>Current value</span>
           <span>{tip.current}</span>
         </div>
         <div className="pd-goals-table__metric-tip-row">
@@ -242,12 +222,10 @@ export function GoalTodoMeasureReadout({
 
 export function GoalMetricReadout({
   metric,
-  track,
   currentControl,
   showWeight = true,
 }: {
   metric: Metric
-  track: GoalMetricTrack
   currentControl?: ReactNode
   showWeight?: boolean
 }) {
@@ -262,7 +240,7 @@ export function GoalMetricReadout({
       <Tooltip
         side="left"
         delayMs={80}
-        content={<GoalMetricTip tip={tip} track={track} />}
+        content={<GoalMetricTip tip={tip} />}
       >
         <span
           className="pd-goal-readout__progress"
@@ -273,9 +251,7 @@ export function GoalMetricReadout({
             {' → '}
           </span>
           {currentControl ?? (
-            <span
-              className={`pd-goal-readout__value pd-goal-readout__value--current ${trackToneClass(track.tone)}`}
-            >
+            <span className="pd-goal-readout__value pd-goal-readout__value--current">
               {current}
             </span>
           )}

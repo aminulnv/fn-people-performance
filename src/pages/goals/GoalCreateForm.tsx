@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Avatar, Textarea } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
-import type { Goal, PersonGoals } from "@/lib/goals/types";
+import type { Goal } from "@/lib/goals/types";
 import { validateGoalDraft } from "@/lib/goals/draft";
 import type {
   CascadeRecipient,
@@ -48,7 +48,6 @@ type GoalCreateFormProps = {
   cascadeHref?: CascadeGoalHref;
   cycleLabel: string;
   isCurrentCycle?: boolean;
-  status?: PersonGoals["status"];
   /** Autosave state of the owning draft, surfaced next to the header actions. */
   saveState?: GoalDraftSaveState;
   onChange: (goal: Goal) => void;
@@ -233,7 +232,6 @@ export function GoalCreateForm({
   cascadeHref,
   cycleLabel,
   isCurrentCycle = false,
-  status = "draft",
   saveState,
   onChange,
   onBack,
@@ -396,11 +394,8 @@ export function GoalCreateForm({
 
       <GoalSummaryCards
         goal={goal}
-        status={status}
         cycleLabel={cycleLabel}
         isCurrentCycle={isCurrentCycle}
-        canChangeStatus
-        onProgressStatus={(progressStatus) => patch({ progressStatus })}
         onWeightChange={(weight) => patch({ weight })}
       />
 

@@ -311,14 +311,16 @@ describe("goal approval mutations", () => {
     approveSubmission(ctx("1", "2"));
     const row = getGoalsSnapshot().byPerson["1"];
     const next = structuredClone(row.goals);
-    firstGoal(next).progressStatus = "at_risk";
+    const metric = firstGoal(next).measurements[0];
+    if (metric.kind === "metric") metric.currentValue = 60;
 
     const snapshot = updateGoalProgress(ctx("1", "2"), next);
 
     expect(snapshot.byPerson["1"].status).toBe("approved");
-    expect(firstGoal(snapshot.byPerson["1"].goals).progressStatus).toBe(
-      "at_risk",
-    );
+    const updatedMetric = firstGoal(snapshot.byPerson["1"].goals).measurements[0];
+    if (updatedMetric.kind === "metric") {
+      expect(updatedMetric.currentValue).toBe(60);
+    }
   });
 
   it("moves approved goals to pending after a structural edit", () => {
@@ -421,7 +423,8 @@ describe("goal approval mutations", () => {
 
   it("keeps pending goals pending when progress changes", () => {
     const progress = structuredClone(getGoalsSnapshot().byPerson["1"].goals);
-    firstGoal(progress).progressStatus = "on_hold";
+    const metric = firstGoal(progress).measurements[0];
+    if (metric.kind === "metric") metric.currentValue = 55;
 
     const snapshot = updateGoalProgress(ctx("1", "2"), progress);
 

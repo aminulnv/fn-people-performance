@@ -1,10 +1,4 @@
-import type {
-  DemoPerson,
-  Goal,
-  GoalProgressStatus,
-  Metric,
-  PersonGoals,
-} from '@/lib/goals/types'
+import type { DemoPerson, Goal, Metric } from '@/lib/goals/types'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { METRIC_UNITS, strategyLabel } from '@/lib/goals/measurements'
 
@@ -83,63 +77,6 @@ export function metricCountLabel(goal: Goal): string {
   const count = goal.measurements.length
   if (count === 0) return '—'
   return count === 1 ? '1 metric' : `${count} metrics`
-}
-
-export const GOAL_PROGRESS_STATUS_OPTIONS: {
-  id: GoalProgressStatus
-  label: string
-}[] = [
-    { id: 'on_track', label: 'On track' },
-    { id: 'at_risk', label: 'At risk' },
-    { id: 'off_track', label: 'Delayed' },
-    { id: 'on_hold', label: 'On hold' },
-    { id: 'complete', label: 'Complete' },
-  ]
-
-export function progressStatusClass(
-  progressStatus?: GoalProgressStatus | null,
-): string {
-  if (!progressStatus) return 'pd-goals-progress-status--muted'
-  return `pd-goals-progress-status--${progressStatus}`
-}
-
-export function trackToneClass(
-  tone: 'ok' | 'warn' | 'muted' | 'danger' | 'hold' | 'complete',
-): string {
-  switch (tone) {
-    case 'ok':
-      return 'pd-goals-progress-status--on_track'
-    case 'warn':
-      return 'pd-goals-progress-status--at_risk'
-    case 'danger':
-      return 'pd-goals-progress-status--off_track'
-    case 'hold':
-      return 'pd-goals-progress-status--on_hold'
-    case 'complete':
-      return 'pd-goals-progress-status--complete'
-    default:
-      return 'pd-goals-progress-status--muted'
-  }
-}
-
-/**
- * Progress status label for the table / detail summary.
- *
- * Mechanism:
- * 1. Prefer an explicit `goal.progressStatus` set by the owner/manager at any stage.
- * 2. Otherwise default to On track, independently of approval state.
- */
-export function trackLabel(
-  _status: PersonGoals['status'],
-  _completion: number,
-  progressStatus?: GoalProgressStatus,
-): { label: string; tone: 'ok' | 'warn' | 'muted' | 'danger' | 'hold' | 'complete' } {
-  if (progressStatus === 'on_track') return { label: 'On track', tone: 'ok' }
-  if (progressStatus === 'at_risk') return { label: 'At risk', tone: 'warn' }
-  if (progressStatus === 'off_track') return { label: 'Delayed', tone: 'danger' }
-  if (progressStatus === 'on_hold') return { label: 'On hold', tone: 'hold' }
-  if (progressStatus === 'complete') return { label: 'Complete', tone: 'complete' }
-  return { label: 'On track', tone: 'ok' }
 }
 
 export type GoalsDirectoryScope = 'mine' | 'all' | 'reports' | 'department'

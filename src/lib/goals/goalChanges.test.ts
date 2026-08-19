@@ -9,7 +9,6 @@ const goal: Goal = {
   weight: 100,
   ownerId: 'person-1',
   linkedGoalLabel: 'Company reliability',
-  progressStatus: 'on_track',
   comments: [],
   updatedAt: '2026-08-01T00:00:00.000Z',
   measurements: [
@@ -41,13 +40,12 @@ function withGoal(change: (draft: Goal) => void): Goal[] {
 }
 
 describe('hasStructuralGoalChanges', () => {
-  it('allows progress, status, comments, and timestamps without reapproval', () => {
+  it('allows progress, comments, and timestamps without reapproval', () => {
     const next = withGoal((draft) => {
       const todo = draft.measurements[0]
       const metric = draft.measurements[1]
       if (todo.kind === 'milestone') todo.complete = true
       if (metric.kind === 'metric') metric.currentValue = 40
-      draft.progressStatus = 'at_risk'
       draft.comments = [
         {
           id: 'comment-1',

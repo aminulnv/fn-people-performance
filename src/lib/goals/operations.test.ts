@@ -45,7 +45,6 @@ const source: Goal = {
   description: 'Ship quality',
   weight: 40,
   ownerId: 'p1',
-  progressStatus: 'at_risk',
   comments: [
     {
       id: 'c1',
@@ -129,7 +128,6 @@ describe('resetGoalProgress', () => {
     const reset = resetGoalProgress(source)
     expect(reset.id).not.toBe(source.id)
     expect(reset.comments).toEqual([])
-    expect(reset.progressStatus).toBe('on_track')
     expect(reset.measurements[0].id).not.toBe('m1')
     if (reset.measurements[0].kind === 'metric') {
       expect(reset.measurements[0].currentValue).toBe(0)

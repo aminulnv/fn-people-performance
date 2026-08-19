@@ -17,7 +17,6 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
       details:
         'Close critical defects faster than last quarter and keep reopen rate down. Success: 80 defects closed with quality held.',
       weight: 40,
-      progressStatus: 'on_track',
       measurements: rebalanceMeasurementWeights([
         {
           id: seedId(cycleId, personId, 'defects-closed'),
@@ -68,7 +67,6 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
       details:
         'Deliver the committed quarter roadmap. Success: 10 milestones shipped on the agreed dates.',
       weight: 35,
-      progressStatus: 'on_track',
       measurements: [
         {
           id: seedId(cycleId, personId, 'milestones'),
@@ -90,7 +88,6 @@ export function buildDemoGoals(cycleId: string, personId: string): Goal[] {
       details:
         'Keep stakeholders current and raise the quality of cross-team feedback. Success: feedback score at or above 10.',
       weight: 25,
-      progressStatus: 'on_track',
       measurements: [
         {
           id: seedId(cycleId, personId, 'feedback'),

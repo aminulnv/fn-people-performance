@@ -1,6 +1,5 @@
 import type {
   DemoPerson,
-  Goal,
   GoalsSnapshot,
   PersonGoals,
 } from '@/lib/goals/types'
@@ -24,7 +23,6 @@ export type GoalRow = {
   weight: number
   completion: number
   metric: string
-  progressStatus?: Goal['progressStatus']
 }
 
 /** First row for a person carries the rowspan; later rows use 0 and skip the owner cell. */
@@ -94,7 +92,6 @@ export function goalRows(
       weight: goal.weight,
       completion: Math.round(goalCompletion(goal)),
       metric: metricCountLabel(goal),
-      progressStatus: goal.progressStatus,
     }))
   })
 }

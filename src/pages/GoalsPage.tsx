@@ -23,7 +23,6 @@ import {
   ResizableTable,
   SegmentedControl,
   Tooltip,
-  ListboxSelect,
   type ResizableColumn,
 } from "@/components/ui";
 import {
@@ -38,7 +37,6 @@ import {
   type GoalsSnapshot,
   type PersonGoals,
 } from "@/lib/goalsApi";
-import type { GoalProgressStatus } from "@/lib/goals/types";
 import { blankGoal } from "@/lib/goals/measurements";
 import type {
   CascadeRecipient,
@@ -94,13 +92,9 @@ import {
   goalSectionLabels,
   goalsDetailPath,
   goalsGoalPath,
-  GOAL_PROGRESS_STATUS_OPTIONS,
   metricSummary,
   metricTipDetails,
   canViewPersonGoals,
-  progressStatusClass,
-  trackLabel,
-  trackToneClass,
   type GoalsDirectoryScope,
 } from "./goals/goalHelpers";
 import {
@@ -182,7 +176,6 @@ const GOALS_COLUMNS: ResizableColumn[] = [
   { id: "weight", label: "Weight" },
   { id: "progress", label: "Progress" },
   { id: "metric", label: "Metric" },
-  { id: "status", label: "Status" },
   { id: "approval", label: "Approval" },
 ];
 
@@ -642,11 +635,6 @@ function GoalsOverview() {
                     hoveredPersonId === row.person.id ||
                     panelSelection?.personId === row.person.id;
                   const ownerMetaLines = personOwnerMetaParts(row.person);
-                  const track = trackLabel(
-                    row.status,
-                    row.completion,
-                    row.progressStatus,
-                  );
                   return (
                     <tr
                       key={row.key}
@@ -745,13 +733,6 @@ function GoalsOverview() {
                         </div>
                       </td>
                       <td data-col="metric" className="pd-goals-overview__muted">{row.metric}</td>
-                      <td data-col="status">
-                        <span
-                          className={`pd-goals-overview__track ${trackToneClass(track.tone)}`}
-                        >
-                          {track.label}
-                        </span>
-                      </td>
                       <td data-col="approval">
                         <GoalApprovalStatus
                           status={row.status}
@@ -1295,7 +1276,6 @@ function ManagerPanel({
                   title: goalTitle(goal, index),
                 }))}
                 onOpen={setOpenGoalId}
-                canEditStatus={Boolean(reportCaps?.canUpdateProgress)}
                 canRemove={Boolean(reportCaps?.canEditStructure)}
                 onRemove={
                   reportCaps?.canEditStructure
@@ -1305,20 +1285,6 @@ function ManagerPanel({
                         row.goals.filter((goal) => goal.id !== goalId),
                       );
                       if (openGoalId === goalId) setOpenGoalId(null);
-                    }
-                    : undefined
-                }
-                onStatusChange={
-                  reportCaps?.canUpdateProgress
-                    ? (goalId, progressStatus) => {
-                      onSaveProgress(
-                        person.id,
-                        row.goals.map((goal) =>
-                          goal.id === goalId
-                            ? { ...goal, progressStatus }
-                            : goal,
-                        ),
-                      );
                     }
                     : undefined
                 }
@@ -1649,7 +1615,6 @@ function EmployeePanel({
             cascadeHref={cascadeHref}
             cycleLabel={cycleLabel}
             isCurrentCycle={isCurrentCycle}
-            status={row.status}
             saveState={autosaveEnabled ? saveState : undefined}
             onBack={discardNewGoal}
             onSave={() => {
@@ -1896,7 +1861,6 @@ function EmployeePanel({
           subjectId={personId}
           onOpen={(id) => onOpenGoal(id)}
           canEditWeight={canEditDraft}
-          canEditStatus={canUpdateProgress}
           canCascade={canCascade}
           canRemove={canEditDraft}
           cascadeTargets={cascadeTargets}
@@ -1938,25 +1902,12 @@ function EmployeePanel({
               );
             });
           }}
-          onStatusChange={(goalId, progressStatus) => {
-            const updated = goals.map((goal) =>
-              goal.id === goalId ? { ...goal, progressStatus } : goal,
-            );
-            setGoals(updated);
-            onPersistProgress(updated);
-          }}
         />
       )}
       {goalDrawer}
     </div>
   );
 }
-
-const PROGRESS_STATUS_OPTIONS = GOAL_PROGRESS_STATUS_OPTIONS.map((option) => ({
-  value: option.id,
-  label: option.label,
-  className: progressStatusClass(option.id),
-}));
 
 type GoalsTableRow = {
   goal: Goal;
@@ -1974,7 +1925,6 @@ function GoalsTable({
   cycleId,
   subjectId,
   canEditWeight = false,
-  canEditStatus = false,
   canCascade = false,
   canRemove = false,
   cascadeTargets = [],
@@ -1982,7 +1932,6 @@ function GoalsTable({
   onCascade,
   onRemove,
   onWeightChange,
-  onStatusChange,
 }: {
   rows: GoalsTableRow[];
   onOpen: (id: string) => void;
@@ -1990,7 +1939,6 @@ function GoalsTable({
   cycleId?: string;
   subjectId?: string;
   canEditWeight?: boolean;
-  canEditStatus?: boolean;
   canCascade?: boolean;
   canRemove?: boolean;
   cascadeTargets?: CascadeTarget[];
@@ -1998,10 +1946,6 @@ function GoalsTable({
   onCascade?: (goalId: string, reportIds: string[]) => void;
   onRemove?: (goalId: string) => void;
   onWeightChange?: (goalId: string, weight: number) => void;
-  onStatusChange?: (
-    goalId: string,
-    progressStatus: GoalProgressStatus | undefined,
-  ) => void;
 }) {
   const showOwner = rows.some((row) => row.owner);
   const showActions = hasGoalActions({
@@ -2024,7 +1968,6 @@ function GoalsTable({
         <div role="columnheader">Weight</div>
         <div role="columnheader">Progress</div>
         <div role="columnheader">Metric</div>
-        <div role="columnheader">Progress Status</div>
         <div role="columnheader">Approval</div>
         {showActions ? (
           <div role="columnheader">
@@ -2034,7 +1977,6 @@ function GoalsTable({
       </div>
       {rows.map(({ goal, status, postWindowApprovalStage, title, owner }) => {
         const completion = Math.round(goalCompletion(goal));
-        const track = trackLabel(status, completion, goal.progressStatus);
         const metricTip = metricTipDetails(goal);
         const metricLabel = metricSummary(goal);
         const openGoal = () => onOpen(goal.id);
@@ -2103,7 +2045,7 @@ function GoalsTable({
                 <Tooltip
                   side="left"
                   delayMs={80}
-                  content={<GoalMetricTip tip={metricTip} track={track} />}
+                  content={<GoalMetricTip tip={metricTip} />}
                 >
                   <span className="pd-goals-table__metric-value">
                     {metricLabel}
@@ -2111,36 +2053,6 @@ function GoalsTable({
                 </Tooltip>
               ) : (
                 metricLabel
-              )}
-            </div>
-            <div className="pd-goals-table__status" role="cell">
-              {canEditStatus && onStatusChange ? (
-                <div
-                  className={`pd-goals-table__status-edit ${progressStatusClass(
-                    goal.progressStatus ?? "on_track",
-                  )}`}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <ListboxSelect
-                    className="pd-goals-table__status-listbox"
-                    value={goal.progressStatus ?? "on_track"}
-                    aria-label={`Progress status for ${title}`}
-                    allowEmpty={false}
-                    options={PROGRESS_STATUS_OPTIONS}
-                    onValueChange={(next) => {
-                      onStatusChange(goal.id, next as GoalProgressStatus);
-                    }}
-                  />
-                </div>
-              ) : (
-                <span
-                  className={`pd-goals-table__track ${trackToneClass(track.tone)}`}
-                >
-                  <span className="pd-goals-table__track-label">
-                    {track.label}
-                  </span>
-                </span>
               )}
             </div>
             <div className="pd-goals-table__approval" role="cell">

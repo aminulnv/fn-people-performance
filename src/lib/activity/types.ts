@@ -80,7 +80,6 @@ export const ACTIVITY_EVENT_LABELS: Record<string, string> = {
   'goal.metric_progress_updated': 'Updated metric progress',
   'goal.milestone_completed': 'Completed a milestone',
   'goal.milestone_reopened': 'Reopened a milestone',
-  'goal.progress_status_changed': 'Changed goal status',
   'goal.comment_added': 'Added a comment',
   'goal.check_in_rating_submitted': 'Submitted a performance review rating',
   'goal_reminder.sent': 'Sent a goal reminder',

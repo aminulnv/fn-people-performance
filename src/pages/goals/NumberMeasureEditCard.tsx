@@ -2,12 +2,10 @@ import type { ReactNode } from 'react'
 import { ListboxSelect } from '@/components/ui'
 import { METRIC_UNITS } from '@/lib/goals/measurements'
 import type { Metric, MetricUnit } from '@/lib/goals/types'
-import { measurementProgress } from '@/lib/goals/weightage'
 import {
   GoalMetricReadout,
   GoalWeightInput,
 } from '@/pages/goals/GoalMeasurementReadout'
-import { trackLabel } from '@/pages/goals/goalHelpers'
 import { MeasureTitleField } from '@/pages/goals/MeasureTitleField'
 import { NumberTargetEditor } from '@/pages/goals/NumberTargetEditor'
 
@@ -30,7 +28,6 @@ export function NumberMeasureEditCard({
 }) {
   const trimmedTitle = metric.title.trim()
   const weightLabel = trimmedTitle ? `Weight for ${trimmedTitle}` : 'Weight'
-  const track = trackLabel('draft', Math.round(measurementProgress(metric)), 'on_track')
 
   return (
     <section className={cardClassName} aria-label={trimmedTitle || 'Measure'}>
@@ -42,7 +39,7 @@ export function NumberMeasureEditCard({
             onChange={(title) => onChange({ ...metric, title })}
           />
         </div>
-        <GoalMetricReadout metric={metric} track={track} showWeight={false} />
+        <GoalMetricReadout metric={metric} showWeight={false} />
         <div className={metricsClassName}>
           <GoalWeightInput
             weight={metric.weight}

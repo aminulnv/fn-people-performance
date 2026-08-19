@@ -9,16 +9,14 @@ const goal: Goal = {
   id: 'g1',
   description: 'Ship quality',
   weight: 40,
-  progressStatus: 'on_track',
   measurements: [],
 }
 
 describe('GoalSummaryCards', () => {
-  it('shows the same four stats in read and edit', () => {
+  it('shows cycle, weight, and completion in read and edit', () => {
     render(
       <GoalSummaryCards
         goal={goal}
-        status="draft"
         cycleLabel="Q3 2026"
         isCurrentCycle
       />,
@@ -27,7 +25,6 @@ describe('GoalSummaryCards', () => {
     const summary = screen.getByRole('group', { name: 'Goal summary' })
     expect(summary).toHaveTextContent('Q3 2026')
     expect(summary).toHaveTextContent('Current')
-    expect(summary).toHaveTextContent('On track')
     expect(summary).toHaveTextContent('40%')
     expect(summary).toHaveTextContent('Completion')
   })
@@ -37,7 +34,6 @@ describe('GoalSummaryCards', () => {
     render(
       <GoalSummaryCards
         goal={goal}
-        status="draft"
         cycleLabel="Q3 2026"
         onWeightChange={onWeightChange}
       />,

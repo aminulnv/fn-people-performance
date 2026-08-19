@@ -81,9 +81,6 @@ export type Metric = {
 
 export type Measurement = Milestone | Metric;
 
-export type GoalProgressStatus =
-  "on_track" | "at_risk" | "off_track" | "on_hold" | "complete";
-
 export type GoalComment = {
   id: string;
   /** Authenticated actor who wrote the comment. */
@@ -107,8 +104,6 @@ export type Goal = {
   /** Snapshot title of the cascaded manager goal (survives if the source is gone). */
   linkedGoalLabel?: string;
   measurements: Measurement[];
-  /** Optional override for the computed on-track / off-track label. */
-  progressStatus?: GoalProgressStatus;
   comments?: GoalComment[];
   updatedAt?: string;
 };

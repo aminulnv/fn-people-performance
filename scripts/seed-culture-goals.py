@@ -289,26 +289,23 @@ RATING_COMMENTS = [
     "Excellent progress on milestones so far.",
 ]
 
-# Each profile drives submission status, per-goal progress labels, and measurement progress.
+# Each profile drives submission status and measurement progress.
 PROFILES: list[dict] = [
     {
         "label": "draft_fresh",
         "status": "draft",
-        "progress": ["on_track", "on_track", "on_track"],
         "fractions": [0.08, 0.05, 0.0],
         "milestones": [[False, False], [False, False], [False]],
     },
     {
         "label": "draft_in_progress",
         "status": "draft",
-        "progress": ["on_track", "at_risk", "on_track"],
         "fractions": [0.35, 0.25, 0.15],
         "milestones": [[True, False], [False], [False, False]],
     },
     {
         "label": "submitted_early",
         "status": "submitted",
-        "progress": ["on_track", "on_track", "on_track"],
         "fractions": [0.45, 0.4, 0.3],
         "milestones": [[True, False], [True, False], [False]],
         "submitted_days_ago": 4,
@@ -316,7 +313,6 @@ PROFILES: list[dict] = [
     {
         "label": "submitted_mixed",
         "status": "submitted",
-        "progress": ["on_track", "at_risk", "off_track"],
         "fractions": [0.55, 0.2, 0.1],
         "milestones": [[True, True], [False], [False, False]],
         "submitted_days_ago": 2,
@@ -324,7 +320,6 @@ PROFILES: list[dict] = [
     {
         "label": "submitted_on_hold",
         "status": "submitted",
-        "progress": ["on_track", "on_hold", "on_track"],
         "fractions": [0.5, 0.0, 0.35],
         "milestones": [[True, False], [False, False], [True, False]],
         "submitted_days_ago": 6,
@@ -332,7 +327,6 @@ PROFILES: list[dict] = [
     {
         "label": "sent_back_weights",
         "status": "sent_back",
-        "progress": ["on_track", "off_track", "at_risk"],
         "fractions": [0.4, 0.15, 0.25],
         "milestones": [[False, False], [False], [False, False]],
         "submitted_days_ago": 8,
@@ -341,7 +335,6 @@ PROFILES: list[dict] = [
     {
         "label": "sent_back_clarity",
         "status": "sent_back",
-        "progress": ["at_risk", "on_track", "on_track"],
         "fractions": [0.2, 0.3, 0.2],
         "milestones": [[False, False], [True, False], [False]],
         "submitted_days_ago": 5,
@@ -350,7 +343,6 @@ PROFILES: list[dict] = [
     {
         "label": "sent_back_priorities",
         "status": "sent_back",
-        "progress": ["on_track", "on_track", "off_track"],
         "fractions": [0.3, 0.35, 0.05],
         "milestones": [[True, False], [False], [False, False]],
         "submitted_days_ago": 7,
@@ -359,7 +351,6 @@ PROFILES: list[dict] = [
     {
         "label": "approved_strong",
         "status": "approved",
-        "progress": ["on_track", "on_track", "on_track"],
         "fractions": [0.65, 0.6, 0.5],
         "milestones": [[True, True], [True, False], [True, False]],
         "submitted_days_ago": 14,
@@ -371,7 +362,6 @@ PROFILES: list[dict] = [
     {
         "label": "approved_with_complete",
         "status": "approved",
-        "progress": ["complete", "at_risk", "on_track"],
         "fractions": [1.0, 0.35, 0.55],
         "milestones": [[True, True], [True, False], [True, True]],
         "submitted_days_ago": 12,
@@ -383,7 +373,6 @@ PROFILES: list[dict] = [
     {
         "label": "approved_mid_cycle",
         "status": "approved",
-        "progress": ["on_track", "on_track", "at_risk"],
         "fractions": [0.4, 0.45, 0.2],
         "milestones": [[True, False], [False], [False, False]],
         "submitted_days_ago": 11,
@@ -395,7 +384,6 @@ PROFILES: list[dict] = [
     {
         "label": "approved_all_complete",
         "status": "approved",
-        "progress": ["complete", "complete", "complete"],
         "fractions": [1.0, 1.0, 1.0],
         "milestones": [[True, True], [True, True], [True, True]],
         "submitted_days_ago": 20,
@@ -407,7 +395,6 @@ PROFILES: list[dict] = [
     {
         "label": "approved_off_track",
         "status": "approved",
-        "progress": ["off_track", "at_risk", "on_track"],
         "fractions": [0.15, 0.25, 0.7],
         "milestones": [[False, False], [False], [True, True]],
         "submitted_days_ago": 13,
@@ -419,7 +406,6 @@ PROFILES: list[dict] = [
     {
         "label": "incomplete_late",
         "status": "incomplete",
-        "progress": ["off_track", "on_hold", "at_risk"],
         "fractions": [0.05, 0.0, 0.1],
         "milestones": [[False, False], [False, False], [False]],
     },
@@ -681,14 +667,13 @@ def render_employee_goals(
     for goal_position, base_goal in enumerate(goals):
         goal = apply_profile_to_goal(base_goal, profile, goal_position)
         goal_id = f"seed-{employee_id}-g{goal_position + 1}"
-        progress_status = profile["progress"][goal_position]
 
         lines.append(
             dedent(
                 f"""
                 INSERT INTO platform.goals (
                   goal_id, cycle_id, employee_id, owner_employee_id, description,
-                  weight, position, progress_status
+                  weight, position
                 ) VALUES (
                   {sql_str(goal_id)},
                   {sql_str(CYCLE_ID)},
@@ -696,11 +681,9 @@ def render_employee_goals(
                   {employee_id},
                   {sql_str(goal['description'])},
                   {goal['weight']},
-                  {goal_position},
-                  {sql_str(progress_status)}
+                  {goal_position}
                 )
                 ON CONFLICT (goal_id) DO UPDATE SET
-                  progress_status = EXCLUDED.progress_status,
                   updated_at = now();
                 """
             ).strip()

@@ -81,7 +81,6 @@ export function goalDraftSnapshot(goal: Goal) {
     details: goal.details ?? '',
     cascadedFromGoalId: goal.cascadedFromGoalId ?? '',
     linkedGoalLabel: goal.linkedGoalLabel ?? '',
-    progressStatus: goal.progressStatus,
     measurements: goal.measurements.map((item) => {
       if (item.kind === 'milestone') {
         return {

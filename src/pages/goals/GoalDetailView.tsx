@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { Avatar, Textarea } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
-import { goalCompletion, newId } from "@/lib/goalsApi";
+import { newId } from "@/lib/goalsApi";
 import {
   measurementPanels,
 } from "@/lib/goals/measurements";
@@ -20,7 +20,7 @@ import type {
   PersonGoals,
   SendBackAuthor,
 } from "@/lib/goals/types";
-import { formatRefreshAge, goalTitle, trackLabel } from "./goalHelpers";
+import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
   recordMetricProgress,
@@ -200,11 +200,6 @@ export function GoalDetailView({
     cascadeFrom,
   });
   const title = goalTitle(goal, index);
-  const track = trackLabel(
-    status,
-    Math.round(goalCompletion(goal)),
-    goal.progressStatus,
-  );
   const panels = measurementPanels(goal.measurements);
   const comments = goal.comments ?? [];
   const canMutate = canEdit || canUpdateProgress;
@@ -540,13 +535,8 @@ export function GoalDetailView({
 
         <GoalSummaryCards
           goal={goal}
-          status={status}
           cycleLabel={cycleLabel}
           isCurrentCycle={isCurrentCycle}
-          canChangeStatus={canUpdateProgress}
-          onProgressStatus={(progressStatus) =>
-            onChange(touch(goal, { progressStatus }))
-          }
         />
 
         {editingSection === "progress" ? (
@@ -635,7 +625,6 @@ export function GoalDetailView({
                         </div>
                         <GoalMetricReadout
                           metric={panel.metric}
-                          track={track}
                           showWeight={false}
                         />
                         <div className="pd-goal-view__card-metrics">

@@ -71,7 +71,6 @@ import {
   goalSectionLabels,
   metricSummary,
   canViewPersonGoals,
-  trackLabel,
 } from "./goals/goalHelpers";
 import { GoalApprovalStatus } from "./goals/GoalApprovalStatus";
 import {
@@ -1289,12 +1288,10 @@ function GoalsTable({
         <div role="columnheader">Weight</div>
         <div role="columnheader">Progress</div>
         <div role="columnheader">Metric</div>
-        <div role="columnheader">Status</div>
         <div role="columnheader">Approval</div>
       </div>
       {goals.map((goal, index) => {
         const completion = Math.round(goalCompletion(goal));
-        const track = trackLabel(status, completion, goal.progressStatus);
         return (
           <button
             key={goal.id}
@@ -1321,12 +1318,6 @@ function GoalsTable({
             </div>
             <div className="pd-goals-table__metric" role="cell">
               {metricSummary(goal)}
-            </div>
-            <div
-              className={`pd-goals-table__track pd-goals-table__track--${track.tone}`}
-              role="cell"
-            >
-              {track.label}
             </div>
             <div className="pd-goals-table__approval" role="cell">
               <GoalApprovalStatus

@@ -620,7 +620,6 @@ export function blankGoal(options?: {
     description: '',
     weight: 0,
     ownerId: options?.ownerId,
-    progressStatus: 'on_track',
     measurements: withDefaultMetric ? appendMilestoneList([]) : [],
   }
 }

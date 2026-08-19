@@ -44,7 +44,6 @@ import {
 } from "@/lib/goals/measurements";
 import type {
   Goal,
-  GoalProgressStatus,
   Measurement,
   Milestone,
   PersonGoals,
@@ -54,10 +53,6 @@ import { sumMeasurementWeights } from "@/lib/goals/weightage";
 import {
   formatRefreshAge,
   goalTitle,
-  GOAL_PROGRESS_STATUS_OPTIONS,
-  progressStatusClass,
-  trackLabel,
-  trackToneClass,
 } from "@/pages/goals/goalHelpers";
 import {
   approvalCopy,
@@ -438,7 +433,6 @@ export function GoalUnifiedDetail({
   const [draft, setDraft] = useState(goal);
   const [baseline, setBaseline] = useState(goal);
   const [comment, setComment] = useState("");
-  const [statusOpen, setStatusOpen] = useState(false);
   const [cascadeOpen, setCascadeOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [showCascadeField, setShowCascadeField] = useState(
@@ -451,7 +445,6 @@ export function GoalUnifiedDetail({
     null,
   );
   const [editingCascadeFrom, setEditingCascadeFrom] = useState(false);
-  const statusRef = useRef<HTMLDivElement>(null);
   const editingRef = useRef(false);
   const onDraftChangeRef = useRef(onDraftChange);
   const commentFieldId = useId();
@@ -484,31 +477,9 @@ export function GoalUnifiedDetail({
     );
   }, [goal]);
 
-  useEffect(() => {
-    if (!statusOpen) return;
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        statusRef.current &&
-        !statusRef.current.contains(event.target as Node)
-      ) {
-        setStatusOpen(false);
-      }
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setStatusOpen(false);
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [statusOpen]);
-
   const isEditing = mode === "edit";
   const activeGoal = isEditing ? draft : baseline;
   const completion = Math.round(goalCompletion(activeGoal));
-  const track = trackLabel(status, completion, activeGoal.progressStatus);
   const approval = approvalCopy(status, postWindowApprovalStage);
   const approver = resolveApprovalPerson({
     status,
@@ -586,12 +557,6 @@ export function GoalUnifiedDetail({
     patchDraft({
       measurements: next.length === 0 ? [] : rebalanceMeasurementWeights(next),
     });
-  };
-
-  const setProgressStatus = (next: GoalProgressStatus) => {
-    if (isEditing) patchDraft({ progressStatus: next });
-    else onProgressChange(touch(goal, { progressStatus: next }));
-    setStatusOpen(false);
   };
 
   const submitComment = () => {
@@ -982,49 +947,6 @@ export function GoalUnifiedDetail({
           </span>
         </div>
         <div className="pd-people__summary-card">
-          <span className="pd-people__summary-label">Status</span>
-          {canUpdateProgress ? (
-            <div ref={statusRef} className="pd-goal-v2__status">
-              <button
-                type="button"
-                className={`pd-people__summary-value pd-goal-v2__status-btn ${trackToneClass(track.tone)}`}
-                aria-haspopup="listbox"
-                aria-expanded={statusOpen}
-                onClick={() => setStatusOpen((open) => !open)}
-              >
-                {track.label}
-                <ChevronDown size={14} strokeWidth={2.25} aria-hidden />
-              </button>
-              {statusOpen ? (
-                <div
-                  className="pd-goal-v2__status-menu"
-                  role="listbox"
-                  aria-label="Status"
-                >
-                  {GOAL_PROGRESS_STATUS_OPTIONS.map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      role="option"
-                      aria-selected={activeGoal.progressStatus === option.id}
-                      className={`pd-goal-v2__status-option ${progressStatusClass(option.id)}`}
-                      onClick={() => setProgressStatus(option.id)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <span
-              className={`pd-people__summary-value pd-goal-v2__status-btn ${trackToneClass(track.tone)} is-static`}
-            >
-              {track.label}
-            </span>
-          )}
-        </div>
-        <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">Goal weight</span>
           {isEditing ? (
             <span className="pd-people__summary-value pd-goal-v2__summary-edit">
@@ -1161,7 +1083,6 @@ export function GoalUnifiedDetail({
                           ) : null}
                           <GoalMetricReadout
                             metric={panel.metric}
-                            track={track}
                             showWeight={false}
                           />
                           <div className="pd-goal-view__card-metrics">

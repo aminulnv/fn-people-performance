@@ -7,7 +7,6 @@ import {
   metricSummary,
   metricTipDetails,
   personMatchesScope,
-  trackLabel,
 } from './goalHelpers'
 import type { Goal } from '@/lib/goals/types'
 
@@ -43,42 +42,6 @@ describe('goalSectionLabels', () => {
       goals: "Dionne's Goals",
       reports: "Dionne's Reports",
     })
-  })
-})
-
-describe('trackLabel', () => {
-  it('prefers an explicit progress status at any approval stage', () => {
-    expect(trackLabel('approved', 0, 'on_track')).toEqual({
-      label: 'On track',
-      tone: 'ok',
-    })
-    expect(trackLabel('draft', 0, 'on_track')).toEqual({
-      label: 'On track',
-      tone: 'ok',
-    })
-    expect(trackLabel('submitted', 0, 'off_track')).toEqual({
-      label: 'Delayed',
-      tone: 'danger',
-    })
-    expect(trackLabel('approved', 0, 'on_hold')).toEqual({
-      label: 'On hold',
-      tone: 'hold',
-    })
-  })
-
-  it('defaults to On track independently of approval and completion', () => {
-    for (const [status, completion] of [
-      ['draft', 0],
-      ['submitted', 90],
-      ['sent_back', 0],
-      ['approved', 0],
-      ['approved', 100],
-    ] as const) {
-      expect(trackLabel(status, completion)).toEqual({
-        label: 'On track',
-        tone: 'ok',
-      })
-    }
   })
 })
 

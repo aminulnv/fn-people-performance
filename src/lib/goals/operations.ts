@@ -204,7 +204,6 @@ export function resetGoalProgress(goal: Goal): Goal {
   return {
     ...goal,
     id: newId('goal'),
-    progressStatus: 'on_track',
     comments: [],
     measurements: goal.measurements.map(resetMeasurement),
     updatedAt: new Date().toISOString(),
