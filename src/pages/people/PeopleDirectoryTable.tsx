@@ -176,8 +176,9 @@ export function PeopleDirectoryTable({
 
   const virtualRows = shouldVirtualize ? virtualizer.getVirtualItems() : null
   const paddingTop = virtualRows?.[0]?.start ?? 0
+  const lastVirtualRow = virtualRows?.[virtualRows.length - 1]
   const paddingBottom = virtualRows
-    ? virtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
+    ? virtualizer.getTotalSize() - (lastVirtualRow?.end ?? 0)
     : 0
 
   const visible =

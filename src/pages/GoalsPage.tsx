@@ -236,7 +236,10 @@ function GoalsToolbar({
 
 type ManagerTab = GoalsManagerTab;
 
-const OVERVIEW_SCOPES: { id: GoalsDirectoryScope; label: string }[] = [
+const OVERVIEW_SCOPES: {
+  id: Extract<GoalsDirectoryScope, "mine" | "all" | "reports">;
+  label: string;
+}[] = [
   { id: "mine", label: "My Goals" },
   { id: "reports", label: "My Reports" },
   { id: "all", label: "Everyone" },
@@ -1473,7 +1476,7 @@ function ManagerPanel({
     status: active?.row.status ?? "draft",
     deadlinePassed:
       snapshot.cycle.phase === "hard_lock" &&
-      Boolean(active) &&
+      active != null &&
       !isGoalWindowOpenForPerson(snapshot.cycle, active.person) &&
       snapshot.cycle.postWindowGoalPolicy === "two_tier_approval",
   });
@@ -1849,7 +1852,7 @@ function EmployeePanel({
   const addGoal = () => {
     const next = blankGoal({ ownerId: personId });
     startCreating(next.id);
-    setGoals((current) => [...current, next]);
+    setGoals([...goals, next]);
   };
 
   const copyPreviousGoals = async () => {
@@ -1884,9 +1887,7 @@ function EmployeePanel({
         creatingIds.has(selectedGoal.id) &&
         isBlankGoalDraft(selectedGoal)
       ) {
-        setGoals((current) =>
-          current.filter((goal) => goal.id !== selectedGoal.id),
-        );
+        setGoals(goals.filter((goal) => goal.id !== selectedGoal.id));
       }
       stopCreating(selectedGoal.id);
       onOpenGoal(null);
@@ -1897,9 +1898,7 @@ function EmployeePanel({
     };
 
     const discardNewGoal = () => {
-      setGoals((current) =>
-        current.filter((goal) => goal.id !== selectedGoal.id),
-      );
+      setGoals(goals.filter((goal) => goal.id !== selectedGoal.id));
       stopCreating(selectedGoal.id);
       onOpenGoal(null);
     };

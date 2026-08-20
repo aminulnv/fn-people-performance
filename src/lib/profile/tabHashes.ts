@@ -19,11 +19,7 @@ export function profileTabFromHash(hash: string): ProfileTabId | null {
   if (normalized === GOALS_MY_GOALS_HASH || normalized === GOALS_MY_REPORTS_HASH) {
     return 'goals'
   }
-  if (
-    normalized === PROFILE_TAB_HASHES.profile ||
-    normalized === PROFILE_TAB_HASHES.performance ||
-    normalized === PROFILE_TAB_HASHES.team
-  ) {
+  if (normalized === 'profile' || normalized === 'performance' || normalized === 'team') {
     return normalized
   }
   return null
