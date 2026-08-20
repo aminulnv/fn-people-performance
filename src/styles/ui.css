@@ -228,7 +228,6 @@ a.pd-btn--secondary:visited {
 .pd-field__control:focus {
   outline: none;
   border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-theme) 16%, transparent);
 }
 
 .pd-field__control:disabled {
@@ -251,7 +250,7 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-field--error .pd-field__control:focus {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-red) 18%, transparent);
+  box-shadow: none;
 }
 
 .pd-field__hint,
@@ -319,11 +318,6 @@ a.pd-btn--secondary:visited {
   transition: transform 0.12s ease;
 }
 
-.pd-check__input:focus-visible+.pd-check__box {
-  outline: 2px solid color-mix(in srgb, var(--color-cta) 55%, transparent);
-  outline-offset: 2px;
-}
-
 .pd-check__input:checked+.pd-check__box {
   background: var(--color-cta);
   border-color: var(--color-cta);
@@ -379,11 +373,6 @@ a.pd-btn--secondary:visited {
   background: var(--color-white);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
   transition: transform 0.15s ease;
-}
-
-.pd-switch__input:focus-visible+.pd-switch__track {
-  outline: 2px solid color-mix(in srgb, var(--color-cta) 55%, transparent);
-  outline-offset: 2px;
 }
 
 .pd-switch__input:checked+.pd-switch__track {
@@ -778,6 +767,7 @@ a.pd-btn--secondary:visited {
   align-items: center;
   justify-content: center;
   text-align: center;
+  width: 100%;
   padding: 3rem 1.25rem 4rem;
   max-width: 28rem;
   margin-inline: auto;
@@ -809,17 +799,14 @@ a.pd-btn--secondary:visited {
   color: var(--color-danger);
 }
 
-.pd-page-status__icon--loading {
-  background: var(--color-theme-subtle);
-  color: var(--color-cta);
-}
-
 .pd-page-status__icon--info {
   background: color-mix(in srgb, var(--color-blue) 12%, transparent);
   color: var(--color-blue);
 }
 
 .pd-page-status__spin {
+  flex-shrink: 0;
+  color: var(--color-cta);
   animation: pd-page-status-spin 0.9s linear infinite;
 }
 
@@ -827,6 +814,20 @@ a.pd-btn--secondary:visited {
   to {
     transform: rotate(360deg);
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-page-status__spin {
+    animation: none;
+  }
+}
+
+.pd-page-status--loading {
+  padding: 1.25rem;
+}
+
+.pd-page-status--loading .pd-page-status__description {
+  margin-top: 0.75rem;
 }
 
 .pd-page-status__title {
@@ -1033,6 +1034,7 @@ a.pd-btn--secondary:visited {
   background: transparent;
 }
 
+.pd-count-badge,
 .pd-segmented__badge {
   display: inline-flex;
   align-items: center;
@@ -1047,6 +1049,11 @@ a.pd-btn--secondary:visited {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.pd-count-badge--muted {
+  background: color-mix(in srgb, var(--color-text) 62%, var(--color-bg-muted));
+  color: var(--color-surface);
 }
 
 .pd-segmented__btn:focus-visible {
@@ -1267,7 +1274,6 @@ a.pd-btn--secondary:visited {
 
 .pd-search__control:focus-within {
   border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-theme) 16%, transparent);
   color: var(--color-text);
 }
 
@@ -1492,13 +1498,11 @@ a.pd-btn--secondary:visited {
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 .pd-listbox.is-open .pd-listbox__trigger {
   border-color: var(--color-primary);
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 .pd-listbox__trigger:disabled {
@@ -1789,10 +1793,6 @@ a.pd-btn--secondary:visited {
   transition: transform 0.12s ease;
 }
 
-.pd-radio__input:focus-visible+.pd-radio__dot {
-  outline: 2px solid color-mix(in srgb, var(--color-cta) 55%, transparent);
-  outline-offset: 2px;
-}
 
 .pd-radio__input:checked+.pd-radio__dot {
   background: var(--color-cta);

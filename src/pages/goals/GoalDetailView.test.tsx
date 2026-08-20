@@ -40,29 +40,34 @@ const goal: Goal = {
   measurements: [],
 }
 
+function showTab(name: string | RegExp) {
+  fireEvent.click(screen.getByRole('button', { name }))
+}
+
+function startEditing() {
+  fireEvent.click(screen.getByRole('button', { name: 'Edit goal' }))
+}
+
 describe('GoalDetailView', () => {
   it('shows submission status without per-goal approve actions', () => {
     render(
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="submitted"
         commentAuthorName="Manager"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
     expect(screen.getByText('Pending approval')).toBeInTheDocument()
+    showTab('Details')
     expect(screen.getByText('Waiting on manager')).toBeInTheDocument()
-    const ownerRow = screen.getByLabelText('Owner Aminul Islam Borhan')
-    const approval = screen.getByText('Pending approval').closest('.pd-goal-view__approval')
-    expect(ownerRow.closest('.pd-goal-view__byline')?.nextElementSibling).toBe(
-      approval,
-    )
+    expect(
+      screen.getByText('Waiting on manager').closest('.pd-goal-view__approval'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Approve' }),
     ).not.toBeInTheDocument()
@@ -71,12 +76,34 @@ describe('GoalDetailView', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('keeps goal weight beside the owner name', () => {
+    render(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+      />,
+    )
+
+    const owner = screen.getByText('Aminul Islam Borhan')
+    const byline = owner.closest('.pd-goal-view__byline')
+    expect(byline).toHaveTextContent('Goal weight')
+    expect(byline).toHaveTextContent('100%')
+    expect(byline).not.toHaveTextContent('Draft')
+    expect(
+      screen.getByRole('heading', { name: /Improve delivery quality/ }),
+    ).toHaveTextContent('Draft')
+  })
+
   it('shows the manager avatar on the pending approval card', () => {
     render(
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cascadeFrom={{
           managerName: 'Line Manager',
@@ -87,10 +114,10 @@ describe('GoalDetailView', () => {
         status="submitted"
         commentAuthorName="Manager"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    showTab('Details')
     const avatar = screen.getByRole('img', { name: 'Approver Line Manager' })
     const person = avatar.closest('.pd-goal-view__approval-person')
     expect(person).toHaveTextContent('by')
@@ -106,7 +133,6 @@ describe('GoalDetailView', () => {
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cascadeFrom={{
           managerName: 'Line Manager',
@@ -120,13 +146,13 @@ describe('GoalDetailView', () => {
         postWindowApprovalStage="manager_manager"
         commentAuthorName="Manager"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    showTab('Details')
     expect(screen.getByRole('img', { name: 'Approver Skip Level' })).toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Approver Line Manager' })).toBeNull()
-    expect(screen.getByText('Pending final approval')).toBeInTheDocument()
+    expect(screen.getAllByText('Pending final approval').length).toBeGreaterThan(0)
   })
 
   it('shows the send-back note on the sent-back approval card', () => {
@@ -134,7 +160,6 @@ describe('GoalDetailView', () => {
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cascadeFrom={{
           managerName: 'Line Manager',
@@ -145,21 +170,22 @@ describe('GoalDetailView', () => {
         sendBackReason="Please tighten measurement targets."
         commentAuthorName="Manager"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
-    const card = screen.getByText('Sent back').closest('.pd-goal-view__approval')
+    showTab('Details')
+    const card = document.querySelector('.pd-goal-view__approval')
+    expect(card).toHaveTextContent('Sent back')
     expect(card).toHaveTextContent('Please tighten measurement targets.')
   })
 
   it('lets the owner add cascading from after the goal is created', () => {
+    const onChange = vi.fn()
     const onSave = vi.fn()
     render(
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cascadeFrom={{
           managerName: 'Line Manager',
@@ -175,18 +201,23 @@ describe('GoalDetailView', () => {
         status="draft"
         commentAuthorName="Aminul"
         canEdit
-        onChange={vi.fn()}
+        onChange={onChange}
         onSave={onSave}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    expect(
+      screen.queryByRole('button', { name: 'Add cascading from' }),
+    ).toBeNull()
+    startEditing()
+    showTab('Details')
     fireEvent.click(screen.getByRole('button', { name: 'Add cascading from' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascading from' }))
     fireEvent.click(screen.getByRole('option', { name: /Raise quality bar/ }))
 
-    expect(onSave).toHaveBeenCalledTimes(1)
-    expect(onSave.mock.calls[0][0]).toMatchObject({
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0]).toMatchObject({
       cascadedFromGoalId: 'mgr-1',
       linkedGoalLabel: 'Raise quality bar',
     })
@@ -201,7 +232,6 @@ describe('GoalDetailView', () => {
           linkedGoalLabel: 'Raise quality bar',
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cascadeFrom={{
           managerName: 'Line Manager',
@@ -217,10 +247,10 @@ describe('GoalDetailView', () => {
         status="draft"
         commentAuthorName="Aminul"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    showTab('Details')
     const from = screen.getByLabelText('Cascading from')
     expect(from).toHaveTextContent('Raise quality bar')
     expect(from).toHaveTextContent('Line Manager')
@@ -232,7 +262,6 @@ describe('GoalDetailView', () => {
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Line Manager' }}
         cascadedTo={[
           {
@@ -252,10 +281,10 @@ describe('GoalDetailView', () => {
         status="draft"
         commentAuthorName="Line Manager"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    showTab('Details')
     const to = screen.getByLabelText('Cascaded to')
     expect(to).toHaveTextContent('Untitled Cascading Goal from Line Manager')
     expect(to).toHaveTextContent('Direct Report')
@@ -270,7 +299,6 @@ describe('GoalDetailView', () => {
         <GoalDetailView
           goal={goal}
           index={0}
-          total={1}
           owner={{ name: 'Line Manager' }}
           cascadedTo={[
             {
@@ -285,11 +313,11 @@ describe('GoalDetailView', () => {
           status="draft"
           commentAuthorName="Line Manager"
           onChange={vi.fn()}
-          onSelectIndex={vi.fn()}
         />
       </MemoryRouter>,
     )
 
+    showTab('Details')
     expect(
       screen.getByRole('link', { name: 'Cut defects · Direct Report' }),
     ).toHaveAttribute('href', '/goals/q3/r1/c1')
@@ -311,7 +339,6 @@ describe('GoalDetailView', () => {
           ],
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -324,10 +351,10 @@ describe('GoalDetailView', () => {
           },
         ]}
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
+    showTab(/Discuss/)
     const avatar = screen.getByRole('img', { name: 'Line Manager' })
     expect(avatar.querySelector('img')).toHaveAttribute(
       'src',
@@ -341,7 +368,6 @@ describe('GoalDetailView', () => {
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Line Manager' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -353,12 +379,10 @@ describe('GoalDetailView', () => {
         ]}
         onCascade={onCascade}
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Cascade This Goal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cascade this goal' }))
 
     expect(
       screen.getByRole('dialog', { name: 'Cascade this goal' }),
@@ -369,13 +393,12 @@ describe('GoalDetailView', () => {
     expect(onCascade).toHaveBeenCalledWith(['1'])
   })
 
-  it('edits the title in place without opening a full edit form', () => {
+  it('opens one edit session for the title and returns to view after save', () => {
     const onSave = vi.fn()
     render(
       <GoalDetailView
         goal={goal}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -383,34 +406,76 @@ describe('GoalDetailView', () => {
         canEdit
         onChange={vi.fn()}
         onSave={onSave}
-        onSelectIndex={vi.fn()}
       />,
     )
 
     expect(
+      screen.getByRole('heading', { name: /Improve delivery quality/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Goal name')).not.toBeInTheDocument()
+    expect(
       screen.queryByRole('button', { name: 'More actions' }),
     ).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Edit title' }))
-
-    const nameField = screen.getByLabelText('Goal name')
-    expect(nameField).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Save Changes' }),
     ).not.toBeInTheDocument()
 
+    startEditing()
+    const nameField = screen.getByLabelText('Goal name')
     fireEvent.change(nameField, { target: { value: 'Raise the quality bar' } })
+    expect(onSave).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'Raise the quality bar' }),
     )
+    expect(screen.queryByLabelText('Goal name')).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Raise the quality bar/ }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit goal' })).toBeInTheDocument()
   })
 
-  it('edits the description in place', () => {
+  it('keeps structural edits local until the save icon is used', () => {
+    const onChange = vi.fn()
+    const onSave = vi.fn()
+    render(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        canEdit
+        manualSave
+        hasUnsavedChanges
+        onChange={onChange}
+        onSave={onSave}
+      />,
+    )
+
+    startEditing()
+    fireEvent.change(screen.getByLabelText('Goal name'), {
+      target: { value: 'Raise the quality bar' },
+    })
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onSave).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'Raise the quality bar' }),
+    )
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('edits the description in the edit session', () => {
     const onSave = vi.fn()
     render(
       <GoalDetailView
         goal={{ ...goal, details: 'Ship fewer defects' }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -418,16 +483,27 @@ describe('GoalDetailView', () => {
         canEdit
         onChange={vi.fn()}
         onSave={onSave}
-        onSelectIndex={vi.fn()}
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit description' }))
+    showTab('Details')
+    expect(
+      screen.queryByPlaceholderText('Add a description (optional)'),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('Ship fewer defects')).toBeInTheDocument()
+
+    startEditing()
     const field = screen.getByPlaceholderText('Add a description (optional)')
     fireEvent.change(field, { target: { value: 'Cut escaped defects' } })
+    expect(onSave).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save as draft' }))
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ details: 'Cut escaped defects' }),
     )
+    expect(
+      screen.queryByPlaceholderText('Add a description (optional)'),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the table metric tooltip on hover', async () => {
@@ -450,18 +526,16 @@ describe('GoalDetailView', () => {
           ],
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
         commentAuthorName="Aminul"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
     fireEvent.mouseEnter(
-      screen.getByLabelText('Start 0, current 2, target 6').closest('.pd-tooltip')!,
+      screen.getByLabelText('Current 2 of target 6').closest('.pd-tooltip')!,
     )
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Increase metric')
@@ -504,7 +578,6 @@ describe('GoalDetailView', () => {
           ],
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -512,14 +585,13 @@ describe('GoalDetailView', () => {
         commentAuthorId="1"
         canUpdateProgress
         onChange={onChange}
-        onSelectIndex={vi.fn()}
       />,
     )
 
-    const updates = screen.getByLabelText('Progress updates')
+    const updates = screen.getByLabelText('Progress logs')
     expect(updates).not.toHaveAttribute('open')
     expect(updates).toHaveTextContent('1 update')
-    fireEvent.click(screen.getByText('Updates'))
+    fireEvent.click(screen.getByText('Progress logs'))
     expect(updates).toHaveAttribute('open')
     expect(updates).toHaveTextContent('0 → 2')
     expect(updates).not.toHaveTextContent('Aminul')
@@ -528,15 +600,11 @@ describe('GoalDetailView', () => {
       '2026-08-10T09:15:00.000Z',
     )
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Log update for NPS' }),
-    )
-    const dialog = screen.getByRole('dialog', { name: 'Update progress' })
-    expect(dialog).toHaveTextContent('Last value: 0 → 2 → 6')
-    expect(dialog).toHaveTextContent('Q3 2026')
     const field = screen.getByLabelText('Current progress for NPS')
+    expect(screen.getByText(/Last value:/)).toHaveTextContent('0 → 2 → 6')
+    expect(screen.getByText(/Last value:/)).toHaveTextContent('Q3 2026')
     fireEvent.change(field, { target: { value: '5' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Update values' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
 
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0][0].measurements[0]).toMatchObject({
@@ -553,7 +621,7 @@ describe('GoalDetailView', () => {
     })
   })
 
-  it('opens the measurement editor on the same page', () => {
+  it('shows the measurement editor after entering the edit session', () => {
     render(
       <GoalDetailView
         goal={{
@@ -571,7 +639,6 @@ describe('GoalDetailView', () => {
           ],
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
@@ -579,25 +646,28 @@ describe('GoalDetailView', () => {
         canEdit
         onChange={vi.fn()}
         onSave={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
-    const metric = screen.getByLabelText('NPS')
-    expect(screen.getByLabelText('Values for NPS')).toHaveTextContent(
-      '— → — → 50',
-    )
-    expect(metric).toHaveTextContent('Weight')
-    expect(metric).toHaveTextContent('100%')
+    expect(screen.queryByText('Metrics')).not.toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Current progress for NPS'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit how to measure progress' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit metric name' }),
+    ).not.toBeInTheDocument()
 
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Edit how to measure progress' }),
-    )
-
-    expect(screen.getByText('How to measure progress?')).toBeInTheDocument()
+    startEditing()
+    expect(screen.getByText('Metrics')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit metric name' }))
     expect(screen.getByLabelText('Metric name')).toHaveValue('NPS')
-    expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument()
+    expect(screen.getByText('Log update')).toBeInTheDocument()
+    expect(
+      screen.getByLabelText('Current progress for NPS'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Save Changes' }),
     ).not.toBeInTheDocument()
@@ -629,13 +699,11 @@ describe('GoalDetailView', () => {
           ],
         }}
         index={0}
-        total={1}
         owner={{ name: 'Aminul Islam Borhan' }}
         cycleLabel="Q3 2026"
         status="draft"
         commentAuthorName="Aminul"
         onChange={vi.fn()}
-        onSelectIndex={vi.fn()}
       />,
     )
 
@@ -644,5 +712,190 @@ describe('GoalDetailView', () => {
     expect(
       nps.compareDocumentPosition(milestones) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+
+  it('hides the task list name in view when there is only one list', () => {
+    render(
+      <GoalDetailView
+        goal={{
+          ...goal,
+          measurements: [
+            {
+              id: 't1',
+              kind: 'milestone',
+              measureTitle: 'Prepare Product Requirement Doc',
+              listId: 'l1',
+              listTitle: 'Task List 1',
+              title: 'Task Item 001',
+              weight: 100,
+              complete: false,
+            },
+          ],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('Task List 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('Task List')).not.toBeInTheDocument()
+    expect(screen.getByText('Task Item 001')).toBeInTheDocument()
+  })
+
+  it('keeps one Edit button and leaves progress logging on view', () => {
+    const onChange = vi.fn()
+    render(
+      <GoalDetailView
+        goal={{
+          ...goal,
+          measurements: [
+            {
+              id: 'm1',
+              kind: 'metric',
+              title: 'NPS',
+              weight: 100,
+              unit: 'number',
+              direction: 'increase',
+              startValue: 0,
+              currentValue: 2,
+              targetValue: 6,
+            },
+          ],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        commentAuthorId="1"
+        canEdit
+        onChange={onChange}
+        onSave={vi.fn()}
+      />,
+    )
+
+    expect(screen.getAllByRole('button', { name: /^Edit/ })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Edit goal' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit how to measure progress' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Edit cascading from' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Current progress for NPS'), {
+      target: { value: '5' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].measurements[0]).toMatchObject({
+      currentValue: 5,
+    })
+    expect(screen.queryByLabelText('Goal name')).not.toBeInTheDocument()
+  })
+
+  it('uses the same form for a new goal without discuss or approval chrome', () => {
+    const onSave = vi.fn()
+    render(
+      <GoalDetailView
+        isNew
+        canEdit
+        manualSave
+        hasUnsavedChanges
+        goal={{
+          id: 'goal-new',
+          description: 'Ship the draft',
+          weight: 0,
+          measurements: [],
+        }}
+        index={0}
+        owner={{ name: 'Aminul' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+        onSave={onSave}
+      />,
+    )
+
+    expect(screen.getByLabelText('Add goal')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Name this goal')).toHaveValue(
+      'Ship the draft',
+    )
+    expect(screen.queryByRole('button', { name: /Discuss/ })).toBeNull()
+    expect(screen.queryByText('Pending approval')).toBeNull()
+    expect(screen.queryByText('Waiting on manager')).toBeNull()
+
+    const save = screen.getByRole('button', { name: 'Save as draft' })
+    expect(save).toBeEnabled()
+    expect(save).not.toHaveTextContent('Add Goal')
+    fireEvent.click(save)
+    expect(onSave).toHaveBeenCalledOnce()
+  })
+
+  it('disables save on a new goal when there is nothing to persist', () => {
+    render(
+      <GoalDetailView
+        isNew
+        canEdit
+        manualSave
+        goal={{
+          id: 'goal-new',
+          description: 'Ship the draft',
+          weight: 0,
+          measurements: [],
+        }}
+        index={0}
+        owner={{ name: 'Aminul' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Save as draft' })).toBeDisabled()
+  })
+
+  it('keeps add cascading from on details for a new goal', () => {
+    render(
+      <GoalDetailView
+        isNew
+        canEdit
+        manualSave
+        goal={{
+          id: 'goal-new',
+          description: 'Ship the draft',
+          weight: 0,
+          measurements: [],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cascadeFrom={{
+          managerName: 'Line Manager',
+          options: [],
+        }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('Owner Aminul Islam Borhan')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Add cascading from' }),
+    ).toBeNull()
+    showTab('Details')
+    expect(
+      screen.getByRole('button', { name: 'Add cascading from' }),
+    ).toBeInTheDocument()
   })
 })

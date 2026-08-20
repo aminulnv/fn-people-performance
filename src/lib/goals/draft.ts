@@ -1,4 +1,4 @@
-import type { Goal, Measurement, Milestone } from './types'
+import type { Goal, Measurement } from './types'
 import { coalesceMeasureGroups, measurementPanels, hasMeasurePanelName } from './measurements'
 import { sumMeasurementWeights } from './weightage'
 
@@ -15,12 +15,25 @@ function mergeMeasurement(
   local: Measurement[],
   persisted: Measurement,
 ): Measurement {
-  if (persisted.kind !== 'milestone') return persisted
-  const localItem = local.find(
-    (item): item is Milestone =>
-      item.kind === 'milestone' && item.id === persisted.id,
-  )
+  const localItem = local.find((item) => item.id === persisted.id)
   if (!localItem) return persisted
+  if (persisted.kind === 'metric' && localItem.kind === 'metric') {
+    return {
+      ...persisted,
+      title: preferLocalText(localItem.title, persisted.title) ?? '',
+      weight: localItem.weight,
+      unit: localItem.unit,
+      direction: localItem.direction,
+      startValue: localItem.startValue,
+      targetValue: localItem.targetValue,
+      currentValue: localItem.currentValue,
+      rangeMin: localItem.rangeMin,
+      rangeMax: localItem.rangeMax,
+    }
+  }
+  if (persisted.kind !== 'milestone' || localItem.kind !== 'milestone') {
+    return persisted
+  }
   return {
     ...persisted,
     measureGroupId: localItem.measureGroupId ?? persisted.measureGroupId,
@@ -31,6 +44,7 @@ function mergeMeasurement(
     listId: localItem.listId ?? persisted.listId,
     listTitle: preferLocalText(localItem.listTitle, persisted.listTitle),
     title: preferLocalText(localItem.title, persisted.title) ?? '',
+    weight: localItem.weight,
   }
 }
 
@@ -64,11 +78,21 @@ export function mergePersistedGoals(current: Goal[], persisted: Goal[]): Goal[] 
   return persisted.map((persistedGoal) => {
     const localGoal = current.find((goal) => goal.id === persistedGoal.id)
     if (!localGoal) return persistedGoal
+    const measurements = coalesceMeasureGroups(
+      mergeGoalMeasurements(localGoal.measurements, persistedGoal.measurements),
+    )
+    if (!isGoalDraftDirty(persistedGoal, localGoal)) {
+      return { ...persistedGoal, measurements }
+    }
     return {
       ...persistedGoal,
-      measurements: coalesceMeasureGroups(
-        mergeGoalMeasurements(localGoal.measurements, persistedGoal.measurements),
-      ),
+      description: localGoal.description,
+      weight: localGoal.weight,
+      ownerId: localGoal.ownerId,
+      details: localGoal.details,
+      cascadedFromGoalId: localGoal.cascadedFromGoalId,
+      linkedGoalLabel: localGoal.linkedGoalLabel,
+      measurements,
     }
   })
 }
@@ -154,5 +178,39 @@ export function isGoalDraftDirty(baseline: Goal, draft: Goal): boolean {
   return (
     JSON.stringify(goalDraftSnapshot(baseline)) !==
     JSON.stringify(goalDraftSnapshot(draft))
+  )
+}
+
+/** A newly opened create form with no user-entered content yet. */
+export function isBlankGoalDraft(goal: Goal): boolean {
+  return (
+    !goal.description.trim() &&
+    !(goal.details ?? '').trim() &&
+    !goal.cascadedFromGoalId &&
+    !goal.linkedGoalLabel &&
+    goal.measurements.length === 0 &&
+    !goal.weight
+  )
+}
+
+/**
+ * True when closing the goal panel should ask to save as draft or discard.
+ * A blank new goal is not promptable so Add Goal → immediate close stays quiet.
+ */
+export function hasPromptableUnsavedGoalDraft(
+  goals: Goal[],
+  persistedGoals: Goal[],
+): boolean {
+  const persistedById = new Map(persistedGoals.map((goal) => [goal.id, goal]))
+  const localById = new Map(goals.map((goal) => [goal.id, goal]))
+
+  for (const persisted of persistedGoals) {
+    const local = localById.get(persisted.id)
+    if (!local) return true
+    if (isGoalDraftDirty(persisted, local)) return true
+  }
+
+  return goals.some(
+    (goal) => !persistedById.has(goal.id) && !isBlankGoalDraft(goal),
   )
 }

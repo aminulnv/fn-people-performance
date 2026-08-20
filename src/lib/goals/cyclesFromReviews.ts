@@ -1,4 +1,4 @@
-import { normalizeCycleSettings } from "@/lib/reviews/demoData";
+import { resolveCyclePolicyForPerson } from "@/lib/reviews/cycleGroups";
 import {
   dayValue as toDay,
   todayDayValue as todayValue,
@@ -38,17 +38,26 @@ export function reviewCycleToGoalsCycle(
   cycle: ReviewCycle,
   manualPhase: DemoPhase = "window_open",
   today = new Date(),
+  employeeId?: number | null,
 ): GoalsCycle {
-  const settings = normalizeCycleSettings(cycle.settings);
+  const policy = resolveCyclePolicyForPerson(cycle, employeeId);
+  const resolved: ReviewCycle = {
+    ...cycle,
+    settings: policy.settings,
+    stagesConfig: policy.stagesConfig,
+    calibration: policy.calibration,
+  };
   return {
     id: cycle.id,
     label: cycle.name,
     day1: cycle.startDate,
-    phase: resolveGoalPhase(cycle, manualPhase, today),
-    goalCountPolicy: settings.goalCountPolicy,
-    postWindowGoalPolicy: settings.postWindowGoalPolicy,
-    goalWindow: { ...cycle.stagesConfig.goals.employee },
-    goalExtensions: structuredClone(cycle.stagesConfig.goals.extensions ?? []),
+    phase: resolveGoalPhase(resolved, manualPhase, today),
+    goalCountPolicy: policy.settings.goalCountPolicy,
+    postWindowGoalPolicy: policy.settings.postWindowGoalPolicy,
+    goalWindow: { ...policy.stagesConfig.goals.employee },
+    goalExtensions: policy.groupId
+      ? []
+      : structuredClone(policy.stagesConfig.goals.extensions ?? []),
   };
 }
 
@@ -79,14 +88,23 @@ export function pickDefaultCycleId(options: GoalsCycleOption[]): string | null {
   return options[0]?.id ?? null;
 }
 
+export function parseGoalsEmployeeId(
+  personId?: string | number | null,
+): number | undefined {
+  if (personId == null || personId === "") return undefined;
+  const employeeId = Number(personId);
+  return Number.isInteger(employeeId) ? employeeId : undefined;
+}
+
 export function resolveGoalsCycle(
   cycleId: string,
   manualPhase: DemoPhase,
   today = new Date(),
+  employeeId?: number | null,
 ): GoalsCycle | null {
   const review = getReviewCycle(cycleId);
   if (!review) return null;
-  return reviewCycleToGoalsCycle(review, manualPhase, today);
+  return reviewCycleToGoalsCycle(review, manualPhase, today, employeeId);
 }
 
 export function resolveGoalsCycleStatus(

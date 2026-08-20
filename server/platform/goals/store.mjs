@@ -6,7 +6,10 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
-import { resolveEffectiveGoalDeadline } from './deadline.mjs'
+import {
+  resolveEffectiveGoalDeadline,
+  stagesConfigForGoalPolicy,
+} from './deadline.mjs'
 import { assertGoalSubmission } from './submissionValidation.mjs'
 import { normalizeMilestoneWeightsInGoal } from './measurementWeights.mjs'
 
@@ -76,25 +79,37 @@ function assertVersion(row, expectedVersion) {
 async function postWindowApprovalStage(client, cycleId, employeeId) {
   const { rows } = await client.query(
     `SELECT
-       cycle.stages_config,
-       cycle.goal_count_policy,
-       cycle.post_window_goal_policy,
+       COALESCE(grp.stages_config, cycle.stages_config) AS stages_config,
+       COALESCE(grp.goal_count_policy, cycle.goal_count_policy) AS goal_count_policy,
+       COALESCE(grp.post_window_goal_policy, cycle.post_window_goal_policy)
+         AS post_window_goal_policy,
+       grp.id AS group_id,
        employee.employee_id,
        employee.department_id,
        employee.team_id
      FROM platform.review_cycles cycle
      JOIN platform.employees employee ON employee.employee_id = $2
+     LEFT JOIN platform.review_cycle_group_members membership
+       ON membership.cycle_id = cycle.id
+      AND membership.employee_id = employee.employee_id
+     LEFT JOIN platform.review_cycle_groups grp
+       ON grp.id = membership.group_id
+      AND grp.cycle_id = cycle.id
+      AND grp.deleted_at IS NULL
      WHERE cycle.id = $1
        AND cycle.deleted_at IS NULL`,
     [cycleId, employeeId],
   )
   const cycle = rows[0]
   if (!cycle) throw new HttpError(404, 'Performance cycle not found')
-  const goalWindowEnd = resolveEffectiveGoalDeadline(cycle.stages_config, {
-    employeeId: cycle.employee_id,
-    departmentId: cycle.department_id,
-    teamId: cycle.team_id,
-  })
+  const goalWindowEnd = resolveEffectiveGoalDeadline(
+    stagesConfigForGoalPolicy(cycle),
+    {
+      employeeId: cycle.employee_id,
+      departmentId: cycle.department_id,
+      teamId: cycle.team_id,
+    },
+  )
   const today = new Date().toISOString().slice(0, 10)
   const isLate = Boolean(goalWindowEnd && today > goalWindowEnd)
   return {

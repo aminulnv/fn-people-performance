@@ -9,10 +9,17 @@ import {
   getReviewCycle,
   importReviewCycles,
   listReviewCycles,
+  updateReviewCycle,
   updateReviewCycleCalibration,
   updateReviewCycleSettings,
   updateReviewCycleStages,
 } from './store.mjs'
+import {
+  copyCycleGroups,
+  createCycleGroup,
+  deleteCycleGroup,
+  updateCycleGroup,
+} from './groups.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -67,7 +74,7 @@ export function registerReviewCycleRoutes(app) {
       try {
         const source = await getReviewCycle(req.params.cycleId)
         if (!source) throw new HttpError(404, 'Cycle not found')
-        const cycle = await createReviewCycle(
+        const created = await createReviewCycle(
           {
             ...source,
             id: undefined,
@@ -79,7 +86,29 @@ export function registerReviewCycleRoutes(app) {
           },
           req.platformUser,
         )
+        if ((source.groups ?? []).length > 0) {
+          await copyCycleGroups(source.id, created.id, req.platformUser)
+        }
+        const cycle = (await getReviewCycle(created.id)) ?? created
         res.status(201).json({ cycle })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.patch(
+    '/api/platform/review-cycles/:cycleId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const cycle = await updateReviewCycle(
+          req.params.cycleId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        res.json({ cycle })
       } catch (err) {
         throw toHttp(err)
       }
@@ -155,6 +184,61 @@ export function registerReviewCycleRoutes(app) {
           req.params.cycleId,
           req.platformUser,
           expectedVersion,
+        )
+        res.json({ ok: true })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-cycles/:cycleId/groups',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const group = await createCycleGroup(
+          req.params.cycleId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        res.status(201).json({ group })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.patch(
+    '/api/platform/review-cycles/:cycleId/groups/:groupId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const group = await updateCycleGroup(
+          req.params.cycleId,
+          req.params.groupId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        res.json({ group })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.delete(
+    '/api/platform/review-cycles/:cycleId/groups/:groupId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        await deleteCycleGroup(
+          req.params.cycleId,
+          req.params.groupId,
+          req.platformUser,
         )
         res.json({ ok: true })
       } catch (err) {

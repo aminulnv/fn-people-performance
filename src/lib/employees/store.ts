@@ -14,6 +14,7 @@ import type {
   CreateEmployeeInput,
   PlatformDepartment,
   PlatformEmployee,
+  PlatformTeam,
   UpdateEmployeeInput,
 } from './types'
 
@@ -84,9 +85,10 @@ export function subscribeEmployeesStore(listener: Listener): () => void {
   }
 }
 
+/** Read-only snapshot. Do not mutate the returned array or its rows. */
 export function listEmployees(): PlatformEmployee[] {
   if (useMemoryBackend()) return listMemoryEmployees()
-  return cache.map((e) => ({ ...e }))
+  return cache
 }
 
 export function getEmployee(employeeId: number): PlatformEmployee | null {
@@ -225,6 +227,7 @@ export function clearEmployees(): void {
   clearMemoryEmployees()
   memoryDepartments = []
   memoryDepartmentSeq = 10_000
+  memoryTeams = []
   cache = []
   notify()
 }
@@ -349,4 +352,58 @@ export async function createDepartment(
       error: err instanceof Error ? err.message : 'Create failed.',
     }
   }
+}
+
+/** Extra teams created in the local/test backend. */
+let memoryTeams: PlatformTeam[] = []
+
+/** Test helper — replace the in-memory team catalog. */
+export function replaceTeams(teams: PlatformTeam[]): void {
+  if (!useMemoryBackend()) return
+  memoryTeams = teams.map((team) => ({ ...team }))
+}
+
+/**
+ * Team catalog (includes owner). Used to show team owner on profiles even
+ * when the employee payload does not yet include `teamOwnerId`.
+ */
+export async function listTeams(): Promise<PlatformTeam[]> {
+  if (useMemoryBackend()) {
+    if (memoryTeams.length > 0) {
+      return memoryTeams.map((team) => ({ ...team }))
+    }
+    const byKey = new Map<string, PlatformTeam>()
+    let seq = 1
+    for (const employee of listMemoryEmployees()) {
+      const name = employee.team.trim()
+      if (!name) continue
+      const departmentName = employee.department.trim()
+      const key = `${departmentName.toLowerCase()}::${name.toLowerCase()}`
+      const existing = byKey.get(key)
+      if (existing) {
+        existing.headcount += 1
+        if (existing.ownerEmployeeId == null && employee.teamOwnerId != null) {
+          existing.ownerEmployeeId = employee.teamOwnerId
+          existing.ownerName = employee.teamOwnerName ?? null
+        }
+        continue
+      }
+      byKey.set(key, {
+        id: employee.teamId ?? seq++,
+        name,
+        departmentId: employee.departmentId ?? 0,
+        departmentName,
+        ownerEmployeeId: employee.teamOwnerId ?? null,
+        ownerName: employee.teamOwnerName ?? null,
+        ownerEmail: null,
+        headcount: 1,
+      })
+    }
+    return [...byKey.values()].sort((left, right) =>
+      left.name.localeCompare(right.name),
+    )
+  }
+
+  const data = await apiFetch<{ teams: PlatformTeam[] }>('/api/platform/teams')
+  return Array.isArray(data.teams) ? data.teams : []
 }

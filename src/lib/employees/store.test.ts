@@ -16,6 +16,36 @@ describe('employees store', () => {
     expect(listEmployees()).toEqual([])
   })
 
+  it('returns the same list reference until the directory changes', async () => {
+    const first = listEmployees()
+    expect(listEmployees()).toBe(first)
+
+    expect(
+      (
+        await createEmployee({
+          employeeId: 101,
+          fullName: 'Test Person',
+          email: 'test.person@nextventures.io',
+          startDate: '2026-01-01',
+          jobTitle: 'Executive',
+          department: 'Product',
+          team: 'Core',
+          division: 'FundedNext',
+          reportsToName: '',
+          departmentHeadName: '',
+          hrbpName: '',
+          jobGrade: 'IC1',
+          site: '',
+          managerEmail: '',
+        })
+      ).ok,
+    ).toBe(true)
+
+    const afterCreate = listEmployees()
+    expect(afterCreate).not.toBe(first)
+    expect(listEmployees()).toBe(afterCreate)
+  })
+
   it('creates an employee with numeric id', async () => {
     const result = await createEmployee({
       employeeId: 101,

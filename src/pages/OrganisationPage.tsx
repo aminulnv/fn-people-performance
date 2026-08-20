@@ -285,7 +285,7 @@ export default function OrganisationPage() {
         grow: true,
       },
       { id: 'department', label: 'Department' },
-      { id: 'manager', label: 'Manager' },
+      { id: 'owner', label: 'Owner' },
       { id: 'headcount', label: 'Headcount' },
     ],
     [filteredTeams.length],

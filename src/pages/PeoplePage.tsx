@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  ArrowUpDown,
   Building2,
   Plus,
   Search,
@@ -11,98 +10,35 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { OrgChartLink } from '@/components/OrgChartLink'
-import {
-  tableDensityWrapClass,
-  TableDensityToggle,
-} from '@/components/TableDensityToggle'
-import {
-  Avatar,
-  EmptyState,
-  ResizableTable,
-  SegmentedControl,
-  type ResizableColumn,
-} from '@/components/ui'
+import { TableDensityToggle } from '@/components/TableDensityToggle'
+import { EmptyState, SegmentedControl } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { avatarStyle } from '@/lib/employees/avatar'
-import { isDirectReport } from '@/lib/employees/relationships'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import {
   readTableDensity,
   writeTableDensity,
   type TableDensity,
 } from '@/pages/people/prefs'
+import {
+  hashForPeopleScope,
+  peopleScopeFromHash,
+  type DirectoryScope,
+} from '@/pages/people/directoryHashes'
+import {
+  directoryStats,
+  employeeSearchHaystack,
+  filterDirectory,
+  type StatusFilter,
+} from '@/pages/people/filterDirectory'
+import { PeopleDirectoryTable } from '@/pages/people/PeopleDirectoryTable'
+import { useUrlHashTab } from '@/lib/routing/urlHash'
 import '@/styles/layout-people.css'
-
-type DirectoryScope = 'all' | 'reports' | 'department'
-type StatusFilter = 'all' | 'active' | 'inactive'
 
 const SCOPES: { id: DirectoryScope; label: string }[] = [
   { id: 'all', label: 'Everyone' },
   { id: 'reports', label: 'My Reports' },
   { id: 'department', label: 'My Department' },
 ]
-
-const PEOPLE_COLUMNS: ResizableColumn[] = [
-  {
-    id: 'employee-id',
-    label: (
-      <span className="pd-people__th">
-        Employee ID
-        <ArrowUpDown size={13} strokeWidth={1.75} aria-hidden />
-      </span>
-    ),
-    name: 'Employee ID',
-  },
-  { id: 'name', label: 'Name', grow: true },
-  { id: 'email', label: 'Email' },
-  { id: 'start-date', label: 'Start date' },
-  { id: 'job-title', label: 'Job title' },
-  { id: 'department', label: 'Department' },
-  { id: 'team', label: 'Team' },
-  { id: 'division', label: 'Division' },
-  { id: 'reports-to', label: 'Reports to' },
-  { id: 'department-head', label: 'Department head' },
-  { id: 'hrbp', label: 'HRBP' },
-  { id: 'job-grade', label: 'Job Grade' },
-  { id: 'status', label: 'Status' },
-]
-
-function uniqueNonEmpty(values: string[]): number {
-  return new Set(values.map((v) => v.trim()).filter(Boolean)).size
-}
-
-function PersonCell({
-  name,
-  size = 'md',
-  to,
-  avatarUrl,
-}: {
-  name: string
-  size?: 'sm' | 'md'
-  to?: string
-  avatarUrl?: string
-}) {
-  const label = to ? (
-    <Link to={to} className="pd-people__person-link">
-      {name}
-    </Link>
-  ) : (
-    <span className="pd-people__person-name">{name}</span>
-  )
-
-  return (
-    <div className="pd-people__person">
-      <Avatar
-        name={name}
-        src={avatarUrl || undefined}
-        size={size}
-        className="pd-people__avatar"
-        style={avatarStyle(name)}
-      />
-      {label}
-    </div>
-  )
-}
 
 export type PeoplePageProps = {
   /** Soft-rect radius preview at `/people-v3` (canonical `/people` uses Org pills). */
@@ -113,7 +49,12 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const { user } = useAuth()
   const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
-  const [scope, setScope] = useState<DirectoryScope>('all')
+  const deferredQuery = useDeferredValue(query)
+  const [scope, setScope] = useUrlHashTab<DirectoryScope>({
+    defaultTab: 'all',
+    tabFromHash: peopleScopeFromHash,
+    hashFromTab: hashForPeopleScope,
+  })
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
   const [tableDensity, setTableDensityState] =
     useState<TableDensity>(readTableDensity)
@@ -138,21 +79,22 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
       ),
     [employees],
   )
+  const searchHaystacks = useMemo(
+    () =>
+      new Map(
+        employees.map((employee) => [
+          employee.employeeId,
+          employeeSearchHaystack(employee),
+        ]),
+      ),
+    [employees],
+  )
 
   function toggleStatusFilter(next: StatusFilter) {
     setStatusFilter((current) => (current === next ? null : next))
   }
 
-  const stats = useMemo(() => {
-    const active = employees.filter((e) => e.isActive).length
-    return {
-      total: employees.length,
-      active,
-      inactive: employees.length - active,
-      departments: uniqueNonEmpty(employees.map((e) => e.department)),
-      teams: uniqueNonEmpty(employees.map((e) => e.team)),
-    }
-  }, [employees])
+  const stats = useMemo(() => directoryStats(employees), [employees])
 
   const me = useMemo(() => {
     const email = user?.email?.trim().toLowerCase()
@@ -164,58 +106,17 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
     )
   }, [employees, user?.email])
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const myDepartment = me?.department.trim() ?? ''
-
-    return [...employees]
-      .filter((employee) => {
-        if (statusFilter === 'active' && !employee.isActive) return false
-        if (statusFilter === 'inactive' && employee.isActive) return false
-        if (me && scope === 'reports') {
-          if (!isDirectReport(employee, me)) {
-            return false
-          }
-        }
-        if (me && scope === 'department') {
-          if (!myDepartment || employee.department.trim() !== myDepartment) {
-            return false
-          }
-        }
-        if (!q) return true
-        const haystack = [
-          String(employee.employeeId),
-          employee.fullName,
-          employee.email,
-          employee.startDate,
-          employee.jobTitle,
-          employee.department,
-          employee.team,
-          employee.division,
-          employee.reportsToName,
-          employee.departmentHeadName,
-          employee.hrbpName,
-          employee.jobGrade,
-        ]
-          .join(' ')
-          .toLowerCase()
-        return haystack.includes(q)
-      })
-      .sort((a, b) => {
-        const aDept = a.department.trim()
-        const bDept = b.department.trim()
-        const aBlank = aDept === ''
-        const bBlank = bDept === ''
-        if (aBlank !== bBlank) return aBlank ? 1 : -1
-        const byDept = aDept.localeCompare(bDept, undefined, {
-          sensitivity: 'base',
-        })
-        if (byDept !== 0) return byDept
-        return a.fullName.localeCompare(b.fullName, undefined, {
-          sensitivity: 'base',
-        })
-      })
-  }, [employees, me, query, scope, statusFilter])
+  const filtered = useMemo(
+    () =>
+      filterDirectory(employees, {
+        query: deferredQuery,
+        scope,
+        statusFilter,
+        me,
+        haystacks: searchHaystacks,
+      }),
+    [deferredQuery, employees, me, scope, searchHaystacks, statusFilter],
+  )
 
   return (
     <div
@@ -407,75 +308,12 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             }
           />
         ) : (
-          <div className={tableDensityWrapClass(tableDensity)}>
-            <ResizableTable
-              className="pd-people__table"
-              storageKey="people-directory-column-widths"
-              columns={PEOPLE_COLUMNS}
-            >
-              <tbody>
-                {filtered.map((employee) => {
-                  const manager =
-                    (employee.reportsToId != null
-                      ? employeesById.get(employee.reportsToId)
-                      : undefined) ??
-                    employeesByName.get(
-                      employee.reportsToName.trim().toLocaleLowerCase(),
-                    )
-
-                  return (
-                    <tr key={employee.employeeId}>
-                      <td className="pd-people__id">{employee.employeeId}</td>
-                      <td>
-                        <PersonCell
-                          name={employee.fullName}
-                          avatarUrl={employee.avatarUrl}
-                          to={`/people/${employee.employeeId}`}
-                        />
-                      </td>
-                      <td>{employee.email || '—'}</td>
-                      <td>{employee.startDate || '—'}</td>
-                      <td>{employee.jobTitle || '—'}</td>
-                      <td>{employee.department || '—'}</td>
-                      <td>{employee.team || '—'}</td>
-                      <td>{employee.division || '—'}</td>
-                      <td>
-                        {employee.reportsToName ? (
-                          <PersonCell
-                            name={employee.reportsToName}
-                            size="sm"
-                            avatarUrl={manager?.avatarUrl}
-                            to={
-                              manager
-                                ? `/people/${manager.employeeId}`
-                                : undefined
-                            }
-                          />
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                      <td>{employee.departmentHeadName || '—'}</td>
-                      <td>{employee.hrbpName || '—'}</td>
-                      <td>{employee.jobGrade || '—'}</td>
-                      <td>
-                        <span
-                          className={[
-                            'pd-people__status',
-                            employee.isActive
-                              ? 'pd-people__status--active'
-                              : 'pd-people__status--inactive',
-                          ].join(' ')}
-                        >
-                          {employee.isActive ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </ResizableTable>
-          </div>
+          <PeopleDirectoryTable
+            employees={filtered}
+            employeesById={employeesById}
+            employeesByName={employeesByName}
+            tableDensity={tableDensity}
+          />
         )}
       </section>
     </div>

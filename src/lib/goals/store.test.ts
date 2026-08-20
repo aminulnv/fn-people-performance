@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearEmployees, createEmployee, getEmployee, updateEmployee } from "@/lib/employees/store";
 import {
+  createCycleGroup,
   createReviewCycle,
   getReviewCycle,
   resetReviewsStoreForTests,
+  updateCycleGroup,
   updateCycleStagesConfig,
   updateCycleSettings,
 } from "@/lib/reviews/store";
@@ -447,5 +449,102 @@ describe("goal approval mutations", () => {
     expect(() => savePersonGoals(ctx("1", "3"), next)).toThrow(
       "You do not have permission to edit these goals.",
     );
+  });
+});
+
+describe("cycle people groups on Goals", () => {
+  beforeEach(async () => {
+    localStorage.clear();
+    resetNotificationsForTests();
+    clearEmployees();
+    await seedDirectory();
+    setSignedInPerson("1");
+    resetGoalsDemo();
+    setActivePerson("1");
+  });
+
+  afterEach(() => {
+    clearEmployees();
+  });
+
+  it("uses the person's group deadline, count, and late policy", async () => {
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
+    if (!cycle) throw new Error("Expected the active performance cycle");
+
+    const group = await createCycleGroup(cycle.id, {
+      name: "Leadership",
+      memberIds: [1],
+    });
+    const stages = structuredClone(group.stagesConfig);
+    stages.goals.employee.endDate = "2026-06-10";
+    stages.goals.extensions = [];
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        postWindowGoalPolicy: "hard_stop",
+        goalCountPolicy: {
+          ...group.settings.goalCountPolicy,
+          minimumRequired: 8,
+          recommendedMinimum: 8,
+          recommendedMaximum: 10,
+        },
+      },
+      stagesConfig: stages,
+    });
+
+    setActivePerson("1");
+    const grouped = getGoalsSnapshot();
+    expect(grouped.cycle.goalWindow?.endDate).toBe("2026-06-10");
+    expect(grouped.cycle.postWindowGoalPolicy).toBe("hard_stop");
+    expect(grouped.cycle.goalCountPolicy.minimumRequired).toBe(8);
+    expect(grouped.cycle.phase).toBe("hard_lock");
+    expect(grouped.cycle.goalExtensions).toEqual([]);
+    expect(() => submitPersonGoals(ctx("1", "1"))).toThrow(
+      "permission to submit",
+    );
+
+    setActivePerson("2");
+    const ungrouped = getGoalsSnapshot();
+    expect(ungrouped.cycle.goalWindow?.endDate).toBe(
+      cycle.stagesConfig.goals.employee.endDate,
+    );
+    expect(ungrouped.cycle.postWindowGoalPolicy).toBe(
+      cycle.settings.postWindowGoalPolicy,
+    );
+    expect(ungrouped.cycle.goalCountPolicy.minimumRequired).toBe(
+      cycle.settings.goalCountPolicy.minimumRequired,
+    );
+  });
+
+  it("blocks submit when the group requires more goals than the cycle default", async () => {
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
+    if (!cycle) throw new Error("Expected the active performance cycle");
+    const group = await createCycleGroup(cycle.id, {
+      name: "Leadership",
+      memberIds: [1],
+    });
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        goalCountPolicy: {
+          ...group.settings.goalCountPolicy,
+          minimumRequired: 8,
+          recommendedMinimum: 8,
+          recommendedMaximum: 10,
+        },
+      },
+    });
+
+    expect(() => submitPersonGoals(ctx("1", "1"))).toThrow("Add at least 8 goals.");
+  });
+
+  it("still applies cycle defaults when the cycle has no groups", () => {
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
+    if (!cycle) throw new Error("Expected the active performance cycle");
+    const snapshot = getGoalsSnapshot();
+    expect(cycle.groups ?? []).toEqual([]);
+    expect(snapshot.cycle.goalCountPolicy).toEqual(cycle.settings.goalCountPolicy);
+    expect(snapshot.cycle.postWindowGoalPolicy).toBe(
+      cycle.settings.postWindowGoalPolicy,
+    );
+    expect(snapshot.cycle.goalWindow).toEqual(cycle.stagesConfig.goals.employee);
   });
 });

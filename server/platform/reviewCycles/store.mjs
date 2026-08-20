@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
+import { attachGroupsToCycles } from './groups.mjs'
 import {
   validateCalibration,
   validateCycleStagesConfig,
@@ -52,6 +53,7 @@ function mapCycle(row, excludedEmployeeIds = []) {
       autoScorecardGeneration: row.auto_scorecard_generation,
     },
     calibration: row.calibration_config,
+    groups: [],
     isTest: row.is_test || undefined,
     createdAt: isoTimestamp(row.created_at),
     updatedAt: isoTimestamp(row.updated_at),
@@ -70,20 +72,31 @@ async function loadExclusions(client, cycleId) {
   return rows.map((row) => Number(row.employee_id))
 }
 
-async function replaceExclusions(client, cycleId, employeeIds) {
+function sameEmployeeIds(left, right) {
+  if (left.length !== right.length) return false
+  const sortedLeft = [...left].sort((a, b) => a - b)
+  const sortedRight = [...right].sort((a, b) => a - b)
+  return sortedLeft.every((id, index) => id === sortedRight[index])
+}
+
+async function replaceExclusions(client, cycleId, employeeIds, currentIds) {
+  const unique = [
+    ...new Set((employeeIds ?? []).map(Number).filter(Number.isInteger)),
+  ]
+  const existing = currentIds ?? (await loadExclusions(client, cycleId))
+  if (sameEmployeeIds(existing, unique)) return unique
+
   await client.query(
     `DELETE FROM platform.review_cycle_grade_exclusions WHERE cycle_id = $1`,
     [cycleId],
   )
-  const unique = [...new Set((employeeIds ?? []).map(Number).filter(Number.isInteger))]
-  for (const employeeId of unique) {
-    await client.query(
-      `INSERT INTO platform.review_cycle_grade_exclusions (cycle_id, employee_id)
-       VALUES ($1, $2)
-       ON CONFLICT DO NOTHING`,
-      [cycleId, employeeId],
-    )
-  }
+  if (unique.length === 0) return unique
+  await client.query(
+    `INSERT INTO platform.review_cycle_grade_exclusions (cycle_id, employee_id)
+     SELECT $1, unnest($2::int[])
+     ON CONFLICT DO NOTHING`,
+    [cycleId, unique],
+  )
   return unique
 }
 
@@ -103,6 +116,12 @@ async function mapCycleWithExclusions(client, row) {
   if (!row) return null
   const exclusions = await loadExclusions(client, row.id)
   return mapCycle(row, exclusions)
+}
+
+async function withAttachedGroups(client, cycle) {
+  if (!cycle) return null
+  const [next] = await attachGroupsToCycles(client, [cycle])
+  return next
 }
 
 function assertExpectedVersion(row, expectedVersion) {
@@ -133,11 +152,25 @@ export async function listReviewCycles() {
        WHERE deleted_at IS NULL
        ORDER BY start_date DESC, created_at DESC`,
     )
-    const cycles = []
-    for (const row of rows) {
-      cycles.push(await mapCycleWithExclusions(client, row))
+    if (rows.length === 0) return []
+
+    const { rows: exclusionRows } = await client.query(
+      `SELECT cycle_id, employee_id
+       FROM platform.review_cycle_grade_exclusions
+       WHERE cycle_id = ANY($1::text[])
+       ORDER BY employee_id`,
+      [rows.map((row) => row.id)],
+    )
+    const exclusionsByCycle = new Map()
+    for (const row of exclusionRows) {
+      const list = exclusionsByCycle.get(row.cycle_id) ?? []
+      list.push(Number(row.employee_id))
+      exclusionsByCycle.set(row.cycle_id, list)
     }
-    return cycles
+    const cycles = rows.map((row) =>
+      mapCycle(row, exclusionsByCycle.get(row.id) ?? []),
+    )
+    return attachGroupsToCycles(client, cycles)
   } finally {
     client.release()
   }
@@ -147,7 +180,8 @@ export async function getReviewCycle(cycleId) {
   const client = await getPool().connect()
   try {
     const row = await getCycleRow(client, cycleId)
-    return mapCycleWithExclusions(client, row)
+    const cycle = await mapCycleWithExclusions(client, row)
+    return withAttachedGroups(client, cycle)
   } finally {
     client.release()
   }
@@ -200,7 +234,8 @@ export async function createReviewCycle(input, platformUser) {
       id,
       input.settings.excludedEmployeeIds,
     )
-    const cycle = mapCycle(rows[0], exclusions)
+    const created = mapCycle(rows[0], exclusions)
+    const cycle = await withAttachedGroups(client, created)
     await appendActivityEvent(client, {
       eventKey: input.isTest ? 'review_cycle.test_created' : 'review_cycle.created',
       entityType: 'review_cycle',
@@ -229,7 +264,14 @@ export async function createReviewCycle(input, platformUser) {
   }
 }
 
-export async function updateReviewCycleSettings(cycleId, patch, platformUser) {
+function assertPostWindowGoalPolicy(policy) {
+  if (!policy) return
+  if (policy !== 'hard_stop' && policy !== 'two_tier_approval') {
+    throw new HttpError(400, 'Invalid post-window goal policy.')
+  }
+}
+
+export async function updateReviewCycle(cycleId, patch, platformUser) {
   const client = await getPool().connect()
   const actor = actorFromUser(platformUser)
   try {
@@ -240,8 +282,6 @@ export async function updateReviewCycleSettings(cycleId, patch, platformUser) {
 
     const before = await mapCycleWithExclusions(client, row)
     const nextSettings = {
-      ...before.settings,
-      ...patch,
       reviewTypes: patch.reviewTypes
         ? { ...patch.reviewTypes, line_manager: true }
         : before.settings.reviewTypes,
@@ -249,10 +289,65 @@ export async function updateReviewCycleSettings(cycleId, patch, platformUser) {
         ...before.settings.goalCountPolicy,
         ...patch.goalCountPolicy,
       },
+      postWindowGoalPolicy:
+        patch.postWindowGoalPolicy ?? before.settings.postWindowGoalPolicy,
       excludedEmployeeIds:
         patch.excludedEmployeeIds ?? before.settings.excludedEmployeeIds,
+      autoScorecardGeneration:
+        patch.autoScorecardGeneration ??
+        before.settings.autoScorecardGeneration,
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)
+    assertPostWindowGoalPolicy(patch.postWindowGoalPolicy)
+
+    const stagesConfig = patch.stagesConfig
+      ? normalizeStagesConfig(patch.stagesConfig, {
+          startDate: isoDate(row.start_date),
+          endDate: isoDate(row.end_date),
+        })
+      : before.stagesConfig
+    if (patch.stagesConfig) validateCycleStagesConfig(stagesConfig)
+
+    const nextCalibration = patch.calibration
+      ? {
+          ...before.calibration,
+          ...patch.calibration,
+          gradeDistribution: patch.calibration.gradeDistribution
+            ? { ...patch.calibration.gradeDistribution }
+            : before.calibration.gradeDistribution,
+        }
+      : before.calibration
+    if (patch.calibration) validateCalibration(nextCalibration)
+
+    const nextName = patch.name?.trim() || before.name
+    const nextStartDate = patch.startDate ?? before.startDate
+    const nextEndDate = patch.endDate ?? before.endDate
+    const headerChanged =
+      nextName !== before.name ||
+      nextStartDate !== before.startDate ||
+      nextEndDate !== before.endDate
+    const settingsChanged =
+      fieldChanges(before.settings, nextSettings, [
+        'reviewTypes',
+        'goalCountPolicy',
+        'postWindowGoalPolicy',
+        'excludedEmployeeIds',
+        'autoScorecardGeneration',
+      ]).length > 0
+    const stagesChanged =
+      JSON.stringify(before.stagesConfig) !== JSON.stringify(stagesConfig)
+    const calibrationChanged =
+      JSON.stringify(before.calibration) !== JSON.stringify(nextCalibration)
+
+    if (
+      !headerChanged &&
+      !settingsChanged &&
+      !stagesChanged &&
+      !calibrationChanged
+    ) {
+      await client.query('COMMIT')
+      return withAttachedGroups(client, before)
+    }
 
     const { rows } = await client.query(
       `UPDATE platform.review_cycles
@@ -263,186 +358,133 @@ export async function updateReviewCycleSettings(cycleId, patch, platformUser) {
            goal_count_policy = $6::jsonb,
            post_window_goal_policy = $7,
            auto_scorecard_generation = $8,
+           stages_config = $9::jsonb,
+           calibration_config = $10::jsonb,
            version = version + 1,
-           updated_by_employee_id = $9,
+           updated_by_employee_id = $11,
            updated_at = now()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING *`,
       [
         cycleId,
-        patch.name?.trim() || before.name,
-        patch.startDate ?? before.startDate,
-        patch.endDate ?? before.endDate,
+        nextName,
+        nextStartDate,
+        nextEndDate,
         JSON.stringify(nextSettings.reviewTypes),
         JSON.stringify(nextSettings.goalCountPolicy),
         nextSettings.postWindowGoalPolicy,
         Boolean(nextSettings.autoScorecardGeneration),
+        JSON.stringify(stagesConfig),
+        JSON.stringify(nextCalibration),
         actor.actorEmployeeId,
       ],
     )
-    const exclusions = await replaceExclusions(
-      client,
-      cycleId,
-      nextSettings.excludedEmployeeIds,
-    )
+    const exclusions =
+      patch.excludedEmployeeIds != null
+        ? await replaceExclusions(
+            client,
+            cycleId,
+            nextSettings.excludedEmployeeIds,
+            before.settings.excludedEmployeeIds,
+          )
+        : before.settings.excludedEmployeeIds
     const cycle = mapCycle(rows[0], exclusions)
-    const changes = fieldChanges(before, cycle, [
-      'name',
-      'startDate',
-      'endDate',
-    ]).concat(
-      fieldChanges(before.settings, cycle.settings, [
-        'reviewTypes',
-        'goalCountPolicy',
-        'postWindowGoalPolicy',
-        'excludedEmployeeIds',
-        'autoScorecardGeneration',
-      ]),
-    )
-    if (changes.length > 0) {
+
+    if (headerChanged || settingsChanged) {
       await appendActivityEvent(client, {
         eventKey: 'review_cycle.settings_updated',
         entityType: 'review_cycle',
         entityId: cycle.id,
         ...actor,
         summary: `Updated settings for ${cycle.name}`,
-        changes,
+        changes: fieldChanges(before, cycle, [
+          'name',
+          'startDate',
+          'endDate',
+        ]).concat(
+          fieldChanges(before.settings, cycle.settings, [
+            'reviewTypes',
+            'goalCountPolicy',
+            'postWindowGoalPolicy',
+            'excludedEmployeeIds',
+            'autoScorecardGeneration',
+          ]),
+        ),
         metadata: { version: cycle.version },
         source: 'api',
       })
     }
+    if (stagesChanged) {
+      await appendActivityEvent(client, {
+        eventKey: 'review_cycle.stages_updated',
+        entityType: 'review_cycle',
+        entityId: cycle.id,
+        ...actor,
+        summary: `Updated stages for ${cycle.name}`,
+        changes: [
+          ...fieldChanges(
+            { stagesConfig: before.stagesConfig },
+            { stagesConfig: cycle.stagesConfig },
+            ['stagesConfig'],
+          ),
+          ...fieldChanges(before.settings, cycle.settings, [
+            'postWindowGoalPolicy',
+          ]),
+        ],
+        metadata: { version: cycle.version },
+        source: 'api',
+      })
+    }
+    if (calibrationChanged) {
+      await appendActivityEvent(client, {
+        eventKey: 'review_cycle.calibration_updated',
+        entityType: 'review_cycle',
+        entityId: cycle.id,
+        ...actor,
+        summary: `Updated calibration for ${cycle.name}`,
+        changes: fieldChanges(
+          { calibration: before.calibration },
+          { calibration: cycle.calibration },
+          ['calibration'],
+        ),
+        metadata: { version: cycle.version },
+        source: 'api',
+      })
+    }
+
     await client.query('COMMIT')
-    return cycle
+    return withAttachedGroups(client, cycle)
   } catch (error) {
     await client.query('ROLLBACK')
     throw error
   } finally {
     client.release()
   }
+}
+
+export async function updateReviewCycleSettings(cycleId, patch, platformUser) {
+  return updateReviewCycle(cycleId, patch, platformUser)
 }
 
 export async function updateReviewCycleStages(cycleId, input, platformUser) {
-  const client = await getPool().connect()
-  const actor = actorFromUser(platformUser)
-  try {
-    await client.query('BEGIN')
-    const row = await getCycleRow(client, cycleId, { forUpdate: true })
-    if (!row) throw new HttpError(404, 'Cycle not found.')
-    assertExpectedVersion(row, input.expectedVersion)
-    const stagesConfig = normalizeStagesConfig(input.stagesConfig, {
-      startDate: isoDate(row.start_date),
-      endDate: isoDate(row.end_date),
-    })
-    validateCycleStagesConfig(stagesConfig)
-    if (input.postWindowGoalPolicy) {
-      // validated by DB check; keep early message for clients
-      if (
-        input.postWindowGoalPolicy !== 'hard_stop' &&
-        input.postWindowGoalPolicy !== 'two_tier_approval'
-      ) {
-        throw new HttpError(400, 'Invalid post-window goal policy.')
-      }
-    }
-
-    const before = await mapCycleWithExclusions(client, row)
-    const { rows } = await client.query(
-      `UPDATE platform.review_cycles
-       SET stages_config = $2::jsonb,
-           post_window_goal_policy = COALESCE($3, post_window_goal_policy),
-           version = version + 1,
-           updated_by_employee_id = $4,
-           updated_at = now()
-       WHERE id = $1 AND deleted_at IS NULL
-       RETURNING *`,
-      [
-        cycleId,
-        JSON.stringify(stagesConfig),
-        input.postWindowGoalPolicy ?? null,
-        actor.actorEmployeeId,
-      ],
-    )
-    const cycle = mapCycle(rows[0], before.settings.excludedEmployeeIds)
-    await appendActivityEvent(client, {
-      eventKey: 'review_cycle.stages_updated',
-      entityType: 'review_cycle',
-      entityId: cycle.id,
-      ...actor,
-      summary: `Updated stages for ${cycle.name}`,
-      changes: [
-        ...fieldChanges(
-          { stagesConfig: before.stagesConfig },
-          { stagesConfig: cycle.stagesConfig },
-          ['stagesConfig'],
-        ),
-        ...fieldChanges(before.settings, cycle.settings, [
-          'postWindowGoalPolicy',
-        ]),
-      ],
-      metadata: { version: cycle.version },
-      source: 'api',
-    })
-    await client.query('COMMIT')
-    return cycle
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
+  return updateReviewCycle(
+    cycleId,
+    {
+      stagesConfig: input.stagesConfig,
+      postWindowGoalPolicy: input.postWindowGoalPolicy,
+      expectedVersion: input.expectedVersion,
+    },
+    platformUser,
+  )
 }
 
 export async function updateReviewCycleCalibration(cycleId, patch, platformUser) {
-  const client = await getPool().connect()
-  const actor = actorFromUser(platformUser)
-  try {
-    await client.query('BEGIN')
-    const row = await getCycleRow(client, cycleId, { forUpdate: true })
-    if (!row) throw new HttpError(404, 'Cycle not found.')
-    assertExpectedVersion(row, patch.expectedVersion)
-
-    const before = await mapCycleWithExclusions(client, row)
-    const nextCalibration = {
-      ...before.calibration,
-      ...patch,
-      gradeDistribution: patch.gradeDistribution
-        ? { ...patch.gradeDistribution }
-        : before.calibration.gradeDistribution,
-    }
-    validateCalibration(nextCalibration)
-
-    const { rows } = await client.query(
-      `UPDATE platform.review_cycles
-       SET calibration_config = $2::jsonb,
-           version = version + 1,
-           updated_by_employee_id = $3,
-           updated_at = now()
-       WHERE id = $1 AND deleted_at IS NULL
-       RETURNING *`,
-      [cycleId, JSON.stringify(nextCalibration), actor.actorEmployeeId],
-    )
-    const cycle = mapCycle(rows[0], before.settings.excludedEmployeeIds)
-    await appendActivityEvent(client, {
-      eventKey: 'review_cycle.calibration_updated',
-      entityType: 'review_cycle',
-      entityId: cycle.id,
-      ...actor,
-      summary: `Updated calibration for ${cycle.name}`,
-      changes: fieldChanges(
-        { calibration: before.calibration },
-        { calibration: cycle.calibration },
-        ['calibration'],
-      ),
-      metadata: { version: cycle.version },
-      source: 'api',
-    })
-    await client.query('COMMIT')
-    return cycle
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
+  const { expectedVersion, ...calibration } = patch
+  return updateReviewCycle(
+    cycleId,
+    { calibration, expectedVersion },
+    platformUser,
+  )
 }
 
 export async function deleteReviewCycle(cycleId, platformUser, expectedVersion) {

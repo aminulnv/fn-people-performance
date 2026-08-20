@@ -10,6 +10,7 @@ import {
   Copy,
   GitBranch,
   Hash,
+  Crown,
   HeartHandshake,
   History,
   KeyRound,
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  CountBadge,
   PageStatus,
   PageStatusLink,
   PageStatusRetry,
@@ -33,15 +35,27 @@ import {
 } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { countDirectReports, resolveDepartmentHead } from '@/lib/employees/relationships'
+import {
+  countDirectReports,
+  resolveDepartmentHead,
+  resolveHrbp,
+  resolveTeamOwner,
+  teamOwnerFallbackName,
+} from '@/lib/employees/relationships'
 import {
   findEmployeeByEmail,
   getEmployee,
   listEmployees,
+  listTeams,
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import type { PlatformEmployee } from '@/lib/employees/types'
-import { organisationPathForEmployee } from '@/lib/organisation/paths'
+import type { PlatformEmployee, PlatformTeam } from '@/lib/employees/types'
+import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
+import {
+  departmentPathForName,
+  organisationPathForEmployee,
+  teamPathForNames,
+} from '@/lib/organisation/paths'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
 import {
   ActivityLogDrawer,
@@ -49,6 +63,13 @@ import {
 import { EmployeeProfilePerformanceTab } from '@/pages/profile/EmployeeProfilePerformanceTab'
 import { EmployeeProfileTeamTab } from '@/pages/profile/EmployeeProfileTeamTab'
 import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
+import { goalTodoBadgeLabel } from '@/lib/goals/todoCounts'
+import { useGoalTodoCounts } from '@/lib/goals/useGoalTodoCounts'
+import {
+  hashForProfileTab,
+  profileTabFromHash,
+} from '@/lib/profile/tabHashes'
+import { useUrlHashTab } from '@/lib/routing/urlHash'
 import { useAuth } from '@/lib/useAuth'
 import '@/styles/layout-people.css'
 import '@/styles/layout-activity.css'
@@ -60,22 +81,32 @@ const PROFILE_TABS: {
   label: string
   icon: LucideIcon
 }[] = [
-  { id: 'profile', label: 'Profile', icon: UserRound },
-  { id: 'performance', label: 'Performance', icon: Star },
-  { id: 'goals', label: 'Goals', icon: Target },
-  { id: 'team', label: 'Team', icon: Users },
-]
+    { id: 'profile', label: 'Profile', icon: UserRound },
+    { id: 'performance', label: 'Performance', icon: Star },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'team', label: 'Team', icon: Users },
+  ]
+
+export function profileTabOptions(goalTodoCount = 0) {
+  return PROFILE_TABS.map((item) => ({
+    id: item.id,
+    label: (
+      <>
+        <item.icon size={15} strokeWidth={1.75} aria-hidden />
+        {item.label}
+        {item.id === 'goals' ? (
+          <CountBadge
+            count={goalTodoCount}
+            aria-label={goalTodoBadgeLabel(goalTodoCount, 'total')}
+          />
+        ) : null}
+      </>
+    ),
+  }))
+}
 
 /** Shared with the create/edit form so both modes render the same tab strip. */
-export const PROFILE_TAB_OPTIONS = PROFILE_TABS.map((item) => ({
-  id: item.id,
-  label: (
-    <>
-      <item.icon size={15} strokeWidth={1.75} aria-hidden />
-      {item.label}
-    </>
-  ),
-}))
+export const PROFILE_TAB_OPTIONS = profileTabOptions()
 
 function formatStartDate(iso: string): string {
   if (!iso) return '—'
@@ -166,19 +197,86 @@ export function resolveManager(
   )
 }
 
+function PersonLink({
+  person,
+  fallbackName,
+}: {
+  person: PlatformEmployee | null
+  fallbackName: string
+}) {
+  if (person) {
+    return (
+      <Link
+        to={`/people/${person.employeeId}`}
+        className="pd-people__person pd-people__person-link"
+      >
+        <Avatar
+          name={person.fullName}
+          src={person.avatarUrl || undefined}
+          size="sm"
+          style={avatarStyle(person.fullName)}
+        />
+        <span>{person.fullName}</span>
+      </Link>
+    )
+  }
+  if (fallbackName) {
+    return (
+      <span className="pd-people__person">
+        <Avatar
+          name={fallbackName}
+          size="sm"
+          style={avatarStyle(fallbackName)}
+        />
+        <span>{fallbackName}</span>
+      </span>
+    )
+  }
+  return '—'
+}
+
+function OrgUnitLink({
+  href,
+  children,
+}: {
+  href: string | null
+  children: string
+}) {
+  if (!children) return '—'
+  if (!href) return children
+  return (
+    <Link to={href} className="pd-profile__link">
+      {children}
+    </Link>
+  )
+}
+
 export function EmployeeProfileView({
   employee,
   manager,
   departmentHead,
+  hrbp,
   isSelf = false,
 }: {
   employee: PlatformEmployee
   manager: PlatformEmployee | null
   departmentHead: PlatformEmployee | null
+  hrbp: PlatformEmployee | null
   isSelf?: boolean
 }) {
   const { user } = useAuth()
-  const [tab, setTab] = useState<(typeof PROFILE_TABS)[number]['id']>('profile')
+  const { employees } = useEmployees()
+  const [teams, setTeams] = useState<PlatformTeam[]>([])
+  const goalTodos = useGoalTodoCounts()
+  const tabOptions = useMemo(
+    () => profileTabOptions(goalTodos.total),
+    [goalTodos.total],
+  )
+  const [tab, setTab] = useUrlHashTab<ProfileTabId>({
+    defaultTab: 'profile',
+    tabFromHash: profileTabFromHash,
+    hashFromTab: hashForProfileTab,
+  })
   const [activityOpen, setActivityOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -193,9 +291,39 @@ export function EmployeeProfileView({
   const managerName = manager?.fullName || employee.reportsToName
   const departmentHeadName =
     departmentHead?.fullName || employee.departmentHeadName
+  const hrbpName = hrbp?.fullName || employee.hrbpName
+  const orgTeams = useMemo(
+    () => buildOrganisationFromEmployees(employees).teams,
+    [employees],
+  )
+  const teamOwnerSources = useMemo(
+    () => ({ teams, orgTeams }),
+    [teams, orgTeams],
+  )
+  const teamOwner = useMemo(
+    () => resolveTeamOwner(employee, teamOwnerSources),
+    [employee, teamOwnerSources],
+  )
+  const teamOwnerName =
+    teamOwner?.fullName ||
+    teamOwnerFallbackName(employee, teamOwnerSources)
   const managerReportCount = countDirectReports(manager)
   const directoryCount = listEmployees().length
   const orgPath = organisationPathForEmployee(employee)
+
+  useEffect(() => {
+    let cancelled = false
+    void listTeams()
+      .then((rows) => {
+        if (!cancelled) setTeams(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setTeams([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [employees])
 
   useEffect(() => {
     if (!moreOpen) return
@@ -252,7 +380,7 @@ export function EmployeeProfileView({
           {canEdit ? (
             <Link
               to={`/people/${employee.employeeId}/edit`}
-              className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+              className="pd-people__ghost-btn pd-people__ghost-btn--outline"
             >
               <Pencil size={15} strokeWidth={1.75} aria-hidden />
               Edit
@@ -313,7 +441,7 @@ export function EmployeeProfileView({
       <SegmentedControl
         className="pd-profile__tabs"
         buttonClassName="pd-profile__tab"
-        options={PROFILE_TAB_OPTIONS}
+        options={tabOptions}
         value={tab}
         onChange={setTab}
         aria-label="Employee sections"
@@ -365,10 +493,27 @@ export function EmployeeProfileView({
                   {employee.jobGrade || '—'}
                 </DetailRow>
                 <DetailRow label="Department" icon={Building2}>
-                  {employee.department || '—'}
+                  <OrgUnitLink
+                    href={departmentPathForName(employee.department)}
+                  >
+                    {employee.department}
+                  </OrgUnitLink>
                 </DetailRow>
                 <DetailRow label="Team" icon={Users}>
-                  {employee.team || '—'}
+                  <OrgUnitLink
+                    href={teamPathForNames(
+                      employee.department,
+                      employee.team,
+                    )}
+                  >
+                    {employee.team}
+                  </OrgUnitLink>
+                </DetailRow>
+                <DetailRow label="Team Owner" icon={Crown}>
+                  <PersonLink
+                    person={teamOwner}
+                    fallbackName={teamOwnerName}
+                  />
                 </DetailRow>
                 <DetailRow label="Division" icon={GitBranch}>
                   {employee.division || '—'}
@@ -376,64 +521,19 @@ export function EmployeeProfileView({
                 <DetailRow label="Site" icon={MapPin}>
                   {employee.site || '—'}
                 </DetailRow>
-                <DetailRow label="Line manager" icon={UserRound}>
-                  {manager ? (
-                    <Link
-                      to={`/people/${manager.employeeId}`}
-                      className="pd-people__person pd-people__person-link"
-                    >
-                      <Avatar
-                        name={manager.fullName}
-                        src={manager.avatarUrl || undefined}
-                        size="sm"
-                        style={avatarStyle(manager.fullName)}
-                      />
-                      <span>{manager.fullName}</span>
-                    </Link>
-                  ) : managerName ? (
-                    <span className="pd-people__person">
-                      <Avatar
-                        name={managerName}
-                        size="sm"
-                        style={avatarStyle(managerName)}
-                      />
-                      <span>{managerName}</span>
-                    </span>
-                  ) : (
-                    '—'
-                  )}
+                <DetailRow label="Line Manager" icon={UserRound}>
+                  <PersonLink person={manager} fallbackName={managerName} />
                 </DetailRow>
                 <DetailRow label="Department Head" icon={Network}>
-                  {departmentHead ? (
-                    <Link
-                      to={`/people/${departmentHead.employeeId}`}
-                      className="pd-people__person pd-people__person-link"
-                    >
-                      <Avatar
-                        name={departmentHead.fullName}
-                        src={departmentHead.avatarUrl || undefined}
-                        size="sm"
-                        style={avatarStyle(departmentHead.fullName)}
-                      />
-                      <span>{departmentHead.fullName}</span>
-                    </Link>
-                  ) : departmentHeadName ? (
-                    <span className="pd-people__person">
-                      <Avatar
-                        name={departmentHeadName}
-                        size="sm"
-                        style={avatarStyle(departmentHeadName)}
-                      />
-                      <span>{departmentHeadName}</span>
-                    </span>
-                  ) : (
-                    '—'
-                  )}
+                  <PersonLink
+                    person={departmentHead}
+                    fallbackName={departmentHeadName}
+                  />
                 </DetailRow>
                 <DetailRow label="HRBP" icon={HeartHandshake}>
-                  {employee.hrbpName || '—'}
+                  <PersonLink person={hrbp} fallbackName={hrbpName} />
                 </DetailRow>
-                <DetailRow label="Start date" icon={Calendar}>
+                <DetailRow label="Joining Date" icon={Calendar}>
                   {formatStartDate(employee.startDate)}
                 </DetailRow>
               </dl>
@@ -445,11 +545,11 @@ export function EmployeeProfileView({
               manager={
                 managerName
                   ? {
-                      fullName: managerName,
-                      jobTitle: manager?.jobTitle,
-                      avatarUrl: manager?.avatarUrl,
-                      employeeId: manager?.employeeId,
-                    }
+                    fullName: managerName,
+                    jobTitle: manager?.jobTitle,
+                    avatarUrl: manager?.avatarUrl,
+                    employeeId: manager?.employeeId,
+                  }
                   : null
               }
               person={{
@@ -528,6 +628,7 @@ export default function EmployeeProfilePage() {
     () => resolveDepartmentHead(employee),
     [employee],
   )
+  const hrbp = useMemo(() => resolveHrbp(employee), [employee])
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return <Navigate to="/people" replace />
@@ -552,7 +653,7 @@ export default function EmployeeProfilePage() {
         aria-label="Employee load error"
         description={loadError || 'Failed to load the employee directory.'}
         action={
-          <PageStatusRetry onClick={() => void reload().catch(() => {})} />
+          <PageStatusRetry onClick={() => void reload().catch(() => { })} />
         }
       />
     )
@@ -576,6 +677,7 @@ export default function EmployeeProfilePage() {
       employee={employee}
       manager={manager}
       departmentHead={departmentHead}
+      hrbp={hrbp}
     />
   )
 }

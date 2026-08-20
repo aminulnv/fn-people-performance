@@ -29,4 +29,25 @@ describe('GoalSubmitBlockNotice', () => {
     )
     expect(onOpenGoal).toHaveBeenCalledWith('goal-cascade')
   })
+
+  it('lists every blocker so global and later goal issues stay visible', () => {
+    render(
+      <GoalSubmitBlockNotice
+        blockers={[
+          { reason: 'Weights need to add up to 100%.' },
+          {
+            reason: 'Ship quality needs a title.',
+            goalId: 'g1',
+            goalTitle: 'Ship quality',
+            suffix: ' needs a title.',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Weights need to add up to 100%',
+    )
+    expect(screen.getByRole('alert')).toHaveTextContent('needs a title')
+  })
 })

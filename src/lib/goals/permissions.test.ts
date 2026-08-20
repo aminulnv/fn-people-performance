@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   deriveGoalCapabilities,
   isDirectManager,
+  countPendingGoalApprovals,
+  countPendingGoalApprovalsForManager,
   orderManagerReports,
   selectManagerApprovalQueue,
   selectManagerReports,
@@ -313,5 +315,44 @@ describe("selectManagerApprovalQueue", () => {
     );
 
     expect(result.map(({ person: item }) => item.id)).toEqual(["e1", "m1"]);
+  });
+});
+
+describe("countPendingGoalApprovals", () => {
+  it("counts submitted reports in the manager approval queue", () => {
+    const senior = person({
+      id: "s1",
+      name: "Senior",
+      reportIds: ["m1"],
+    });
+    const manager = person({ id: "m1", name: "Manager", managerId: "s1" });
+    const employee = person({ id: "e1", name: "Employee", managerId: "m1" });
+    const people = [senior, manager, employee];
+    const byPerson = {
+      m1: row("m1", "submitted"),
+      e1: {
+        ...row("e1", "submitted"),
+        postWindowApprovalStage: "manager_manager" as const,
+      },
+    };
+
+    expect(
+      countPendingGoalApprovals(
+        selectManagerApprovalQueue(senior, people, byPerson),
+      ),
+    ).toBe(2);
+    expect(
+      countPendingGoalApprovalsForManager(senior, people, byPerson),
+    ).toBe(2);
+  });
+
+  it("ignores reports that are not submitted", () => {
+    expect(
+      countPendingGoalApprovals([
+        { row: row("a", "draft") },
+        { row: row("b", "approved") },
+        { row: row("c", "submitted") },
+      ]),
+    ).toBe(1);
   });
 });

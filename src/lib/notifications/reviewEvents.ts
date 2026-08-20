@@ -1,10 +1,13 @@
 import { NOTIFICATION_EVENTS } from './catalogue'
-import { emitNotification } from './store'
+import { emitNotifications } from './store'
 
 export type NotificationRecipient = {
   id: string
   name: string
 }
+
+/** In-browser notify is for a targeted list, not the whole directory. */
+const MAX_INLINE_DEADLINE_RECIPIENTS = 25
 
 export function notifyReviewDeadlineChanged({
   actorId,
@@ -23,9 +26,17 @@ export function notifyReviewDeadlineChanged({
   newDate: string
   recipients: NotificationRecipient[]
 }): void {
-  if (!oldDate || !newDate || oldDate === newDate) return
-  for (const recipient of recipients) {
-    emitNotification({
+  if (
+    !oldDate ||
+    !newDate ||
+    oldDate === newDate ||
+    recipients.length === 0 ||
+    recipients.length > MAX_INLINE_DEADLINE_RECIPIENTS
+  ) {
+    return
+  }
+  emitNotifications(
+    recipients.map((recipient) => ({
       eventKey: NOTIFICATION_EVENTS.REVIEW_DEADLINE_UPDATED,
       recipientId: recipient.id,
       actorId,
@@ -38,6 +49,6 @@ export function notifyReviewDeadlineChanged({
         oldDate,
         newDate,
       },
-    })
-  }
+    })),
+  )
 }

@@ -1,4 +1,4 @@
-import { useState, type HTMLAttributes } from 'react'
+import { memo, useState, type HTMLAttributes } from 'react'
 import { nameInitials } from '@/layout/utils'
 import { cx } from '@/lib/cx'
 
@@ -11,7 +11,7 @@ export type AvatarProps = HTMLAttributes<HTMLSpanElement> & {
   alt?: string
 }
 
-export function Avatar({
+export const Avatar = memo(function Avatar({
   name,
   src,
   size = 'md',
@@ -37,6 +37,8 @@ export function Avatar({
           className="pd-avatar__image"
           src={trimmed}
           alt=""
+          loading="lazy"
+          decoding="async"
           onError={() => setFailedSrc(trimmed)}
         />
       ) : (
@@ -46,4 +48,4 @@ export function Avatar({
       )}
     </span>
   )
-}
+})

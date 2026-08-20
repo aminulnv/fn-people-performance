@@ -76,10 +76,10 @@ export function canSubmitGoals(
   if (sumGoalWeights(goals) !== 100) {
     blockers.push({ reason: 'Weights need to add up to 100%.' })
   }
-  goals.some((goal, index) => {
+  for (const [index, goal] of goals.entries()) {
     if (!goal.description.trim()) {
       blockers.push(goalBlocker(goal, index, ' needs a title.'))
-      return true
+      continue
     }
     if (goal.measurements.length < 1) {
       blockers.push(
@@ -91,22 +91,20 @@ export function canSubmitGoals(
             : ' still needs a measure.',
         ),
       )
-      return true
+      continue
     }
     if (
       measurementPanels(goal.measurements).some((panel) => !hasMeasurePanelName(panel))
     ) {
       blockers.push(goalBlocker(goal, index, ' still needs a name on each measure.'))
-      return true
+      continue
     }
     if (sumMeasurementWeights(goal.measurements) !== 100) {
       blockers.push(
         goalBlocker(goal, index, ' measures need to add up to 100%.'),
       )
-      return true
     }
-    return false
-  })
+  }
   return {
     ok: blockers.length === 0,
     reasons: blockers.map((blocker) => blocker.reason),

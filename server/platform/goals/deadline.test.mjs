@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { resolveEffectiveGoalDeadline } from './deadline.mjs'
+import {
+  resolveEffectiveGoalDeadline,
+  stagesConfigForGoalPolicy,
+} from './deadline.mjs'
 
 describe('resolveEffectiveGoalDeadline', () => {
   it('uses the latest matching population extension', () => {
@@ -53,6 +56,36 @@ describe('resolveEffectiveGoalDeadline', () => {
         teamId: 12,
       }),
       '2026-07-01',
+    )
+  })
+})
+
+describe('stagesConfigForGoalPolicy', () => {
+  it('keeps cycle extensions for ungrouped people', () => {
+    const stagesConfig = {
+      goals: {
+        employee: { startDate: '2026-06-01', endDate: '2026-07-01' },
+        extensions: [{ id: 'ext', endDate: '2026-08-01', scope: { type: 'people', employeeIds: [1] } }],
+      },
+    }
+    assert.deepEqual(stagesConfigForGoalPolicy({ stages_config: stagesConfig }), stagesConfig)
+  })
+
+  it('drops cycle extensions when the person is in a group', () => {
+    const stagesConfig = {
+      goals: {
+        employee: { startDate: '2026-06-01', endDate: '2026-07-15' },
+        extensions: [{ id: 'ext', endDate: '2026-08-01', scope: { type: 'people', employeeIds: [1] } }],
+      },
+    }
+    assert.deepEqual(
+      stagesConfigForGoalPolicy({ stages_config: stagesConfig, group_id: 'group-1' }),
+      {
+        goals: {
+          employee: { startDate: '2026-06-01', endDate: '2026-07-15' },
+          extensions: [],
+        },
+      },
     )
   })
 })

@@ -1,9 +1,66 @@
+import { hashMatches, normalizeUrlHash } from '@/lib/routing/urlHash'
 import type { DemoPerson, Goal, Metric } from '@/lib/goals/types'
 import { hasSystemPermission } from '@/lib/accessControl/types'
-import { METRIC_UNITS, strategyLabel } from '@/lib/goals/measurements'
+import {
+  METRIC_UNITS,
+  measurementPanels,
+  strategyLabel,
+} from '@/lib/goals/measurements'
+
+export const GOALS_MY_GOALS_HASH = 'my-goals'
+export const GOALS_MY_REPORTS_HASH = 'my-reports'
+export const GOALS_EVERYONE_HASH = 'everyone'
+
+export type GoalsManagerTab = 'mine' | 'team'
 
 export function goalsDetailPath(cycleId: string, personId: string): string {
   return `/goals/${encodeURIComponent(cycleId)}/${encodeURIComponent(personId)}`
+}
+
+export function goalsMyGoalsPath(cycleId: string, personId: string): string {
+  return `${goalsDetailPath(cycleId, personId)}#${GOALS_MY_GOALS_HASH}`
+}
+
+export function goalsMyReportsPath(cycleId: string, personId: string): string {
+  return `${goalsDetailPath(cycleId, personId)}#${GOALS_MY_REPORTS_HASH}`
+}
+
+export function hashForManagerTab(tab: GoalsManagerTab): string {
+  return tab === 'team' ? GOALS_MY_REPORTS_HASH : GOALS_MY_GOALS_HASH
+}
+
+export function managerTabFromHash(hash: string): GoalsManagerTab | null {
+  const normalized = normalizeUrlHash(hash)
+  if (normalized === GOALS_MY_REPORTS_HASH) return 'team'
+  if (normalized === GOALS_MY_GOALS_HASH) return 'mine'
+  return null
+}
+
+export function isGoalsMyReportsHash(hash: string): boolean {
+  return hashMatches(hash, GOALS_MY_REPORTS_HASH)
+}
+
+export function hashForGoalsScope(
+  scope: Extract<GoalsDirectoryScope, 'mine' | 'reports' | 'all'>,
+): string {
+  switch (scope) {
+    case 'mine':
+      return GOALS_MY_GOALS_HASH
+    case 'reports':
+      return GOALS_MY_REPORTS_HASH
+    case 'all':
+      return GOALS_EVERYONE_HASH
+  }
+}
+
+export function goalsScopeFromHash(
+  hash: string,
+): Extract<GoalsDirectoryScope, 'mine' | 'reports' | 'all'> | null {
+  const normalized = normalizeUrlHash(hash)
+  if (normalized === GOALS_MY_GOALS_HASH) return 'mine'
+  if (normalized === GOALS_MY_REPORTS_HASH) return 'reports'
+  if (normalized === GOALS_EVERYONE_HASH) return 'all'
+  return null
 }
 
 export function goalsGoalPath(
@@ -73,8 +130,11 @@ export function metricTipDetails(goal: Goal): MetricTipDetails | null {
   return metricTipFromMetric(metric)
 }
 
-export function metricCountLabel(goal: Goal): string {
-  const count = goal.measurements.length
+export function metricCount(goal: Goal): number {
+  return measurementPanels(goal.measurements).length
+}
+
+export function metricCountLabel(count: number): string {
   if (count === 0) return '—'
   return count === 1 ? '1 metric' : `${count} metrics`
 }

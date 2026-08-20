@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Construction, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
-import { Tooltip } from '@/components/ui'
+import { CountBadge, Tooltip } from '@/components/ui'
+import { goalTodoBadgeLabel } from '@/lib/goals/todoCounts'
 import type { NavItem, BrandConfig } from './types'
 import { applySidebarExpanded } from '@/lib/sidebarPrefs'
 import { useSidebarPrefs } from './useSidebarPrefs'
@@ -39,18 +40,26 @@ function NavItemLink({
   collapsed: boolean
   onNavigate: () => void
 }) {
-  const { icon: Icon, label, path, end, comingSoon } = item
+  const { icon: Icon, label, path, end, comingSoon, badgeCount = 0 } = item
+  const pendingLabel = goalTodoBadgeLabel(badgeCount, 'total')
   const ariaLabel = collapsed
-    ? comingSoon
-      ? `${label} (coming soon)`
-      : label
+    ? [comingSoon ? `${label} (coming soon)` : label, pendingLabel]
+        .filter(Boolean)
+        .join(', ')
     : undefined
 
   const link = (
     <NavLink
       to={path}
       end={end ?? path === '/'}
-      className={({ isActive }) => navLinkClass(collapsed, isActive)}
+      className={({ isActive }) =>
+        [
+          navLinkClass(collapsed, isActive),
+          badgeCount > 0 && 'pd-sidebar-nav__link--has-badge',
+        ]
+          .filter(Boolean)
+          .join(' ')
+      }
       aria-label={ariaLabel}
       onClick={(e) => {
         e.stopPropagation()
@@ -63,6 +72,12 @@ function NavItemLink({
       <span className="pd-sidebar-nav__label" aria-hidden={collapsed}>
         {label}
       </span>
+      <CountBadge
+        count={badgeCount}
+        className="pd-sidebar-nav__badge"
+        aria-label={collapsed ? undefined : pendingLabel}
+        aria-hidden={collapsed || undefined}
+      />
       {comingSoon ? (
         collapsed ? (
           <span className="pd-sidebar-nav__coming-soon" aria-hidden="true">
@@ -90,7 +105,13 @@ function NavItemLink({
 
   return (
     <Tooltip
-      content={comingSoon ? `${label} · Coming soon` : label}
+      content={
+        comingSoon
+          ? `${label} · Coming soon`
+          : pendingLabel
+            ? `${label} · ${pendingLabel}`
+            : label
+      }
       side="right"
       className="pd-sidebar-nav__tooltip"
     >

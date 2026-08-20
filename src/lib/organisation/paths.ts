@@ -15,6 +15,21 @@ function teamKey(departmentName: string, teamName: string): string {
   return `${departmentKey(departmentName)}::${teamName.trim().toLowerCase() || 'unassigned'}`
 }
 
+export function departmentPathForName(departmentName: string): string | null {
+  const trimmed = departmentName.trim()
+  if (!trimmed) return null
+  return departmentDetailPath(departmentKey(trimmed))
+}
+
+export function teamPathForNames(
+  departmentName: string,
+  teamName: string,
+): string | null {
+  const team = teamName.trim()
+  if (!team) return null
+  return teamDetailPath(teamKey(departmentName, team))
+}
+
 /** Best organisation detail page for a directory person. */
 export function organisationPathForEmployee(
   employee: Pick<PlatformEmployee, 'department' | 'team'>,

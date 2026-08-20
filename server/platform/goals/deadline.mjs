@@ -14,6 +14,19 @@ function extensionMatchesSubject(extension, subject) {
   return false
 }
 
+/** Grouped people use the group window only — cycle extensions do not apply. */
+export function stagesConfigForGoalPolicy(row) {
+  const stagesConfig = row?.stages_config
+  if (!row?.group_id) return stagesConfig
+  return {
+    ...stagesConfig,
+    goals: {
+      ...(stagesConfig?.goals ?? {}),
+      extensions: [],
+    },
+  }
+}
+
 /** Latest matching deadline wins when population-specific extensions overlap. */
 export function resolveEffectiveGoalDeadline(stagesConfig, subject) {
   const baseDeadline = stagesConfig?.goals?.employee?.endDate

@@ -309,6 +309,25 @@
   background: var(--color-cta);
 }
 
+.pd-people__ghost-btn--outline {
+  background: transparent;
+  border-color: var(--color-cta);
+  color: var(--color-cta);
+}
+
+a.pd-people__ghost-btn--outline,
+a.pd-people__ghost-btn--outline:link,
+a.pd-people__ghost-btn--outline:visited {
+  color: var(--color-cta);
+}
+
+.pd-people__ghost-btn--outline:hover:not(:disabled),
+a.pd-people__ghost-btn--outline:hover {
+  background: var(--color-cta);
+  border-color: var(--color-cta);
+  color: var(--color-on-cta);
+}
+
 .pd-people__ghost-btn--success {
   background: var(--color-success);
   border-color: var(--color-success);
@@ -795,7 +814,6 @@
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 .pd-people__input:disabled,
@@ -860,7 +878,8 @@
 }
 
 .pd-people__table-wrap {
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(70dvh, 40rem);
   scrollbar-width: none;
   -ms-overflow-style: none;
   --people-table-font: 0.875rem;
@@ -969,6 +988,15 @@
 
 .pd-people__table tbody tr:hover td {
   background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
+}
+
+.pd-people__table tbody tr.pd-people__virtual-pad td,
+.pd-people__table tbody tr.pd-people__virtual-pad:hover td {
+  height: 0;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+  background: transparent;
 }
 
 .pd-people__table th {
@@ -1093,6 +1121,7 @@
 
   .pd-page--pane .pd-people__table-wrap {
     overflow: auto;
+    max-height: none;
   }
 
   .pd-page--pane .pd-people__table {
@@ -1340,7 +1369,6 @@
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
 .pd-profile--editing .pd-profile__hero-title-row .pd-listbox {
@@ -1365,7 +1393,6 @@
 .pd-profile--editing .pd-profile__hero-title-row .pd-listbox__trigger:focus-visible,
 .pd-profile--editing .pd-profile__hero-title-row .pd-listbox.is-open .pd-listbox__trigger {
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .pd-profile--editing .pd-profile__detail-value {
@@ -1430,7 +1457,6 @@
   outline: none;
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .pd-profile--editing .pd-profile__inline-input:disabled,
@@ -1459,7 +1485,6 @@
 .pd-profile--editing .pd-profile__detail-value .pd-listbox.is-open .pd-listbox__trigger {
   border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
   background: var(--color-surface);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .pd-profile--editing .pd-profile__hero-actions .pd-people__message {
@@ -1569,6 +1594,15 @@
   min-width: 0;
   word-break: break-word;
   grid-column: 3;
+}
+
+.pd-profile__detail-value .pd-people__person,
+.pd-profile__detail-value .pd-people__person-name,
+.pd-profile__detail-value .pd-people__person-link {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  color: inherit;
 }
 
 .pd-profile__email {

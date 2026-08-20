@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatProgressTimestamp,
+  goalLastUpdatedAt,
   latestProgressAt,
   progressLogSummary,
   recordMetricProgress,
@@ -140,5 +141,43 @@ describe('latestProgressAt', () => {
     }
 
     expect(latestProgressAt(goal)).toBe('2026-08-10T00:00:00.000Z')
+  })
+})
+
+describe('goalLastUpdatedAt', () => {
+  it('falls back to updatedAt when there is no progress log', () => {
+    const goal: Goal = {
+      id: 'g1',
+      description: 'Quality',
+      weight: 100,
+      measurements: [metric],
+      updatedAt: '2026-08-08T00:00:00.000Z',
+    }
+
+    expect(goalLastUpdatedAt(goal)).toBe('2026-08-08T00:00:00.000Z')
+  })
+
+  it('prefers the newest progress log over updatedAt', () => {
+    const goal: Goal = {
+      id: 'g1',
+      description: 'Quality',
+      weight: 100,
+      updatedAt: '2026-08-01T00:00:00.000Z',
+      measurements: [
+        {
+          ...metric,
+          progressLog: [
+            {
+              id: 'a',
+              recordedAt: '2026-08-10T00:00:00.000Z',
+              authorName: 'Ada',
+              to: 10,
+            },
+          ],
+        },
+      ],
+    }
+
+    expect(goalLastUpdatedAt(goal)).toBe('2026-08-10T00:00:00.000Z')
   })
 })

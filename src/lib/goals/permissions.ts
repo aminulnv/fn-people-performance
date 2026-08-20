@@ -175,6 +175,24 @@ export function selectManagerApprovalQueue(
   return [...directReports, ...lateSkipLevel];
 }
 
+/** Reports whose goals are waiting on this manager to approve or send back. */
+export function countPendingGoalApprovals(
+  reports: readonly { row: PersonGoals }[],
+): number {
+  return reports.filter(({ row }) => row.status === "submitted").length;
+}
+
+/** Pending approvals in the signed-in manager’s My Reports queue. */
+export function countPendingGoalApprovalsForManager(
+  manager: DemoPerson,
+  people: DemoPerson[],
+  byPerson: Record<string, PersonGoals>,
+): number {
+  return countPendingGoalApprovals(
+    selectManagerApprovalQueue(manager, people, byPerson),
+  );
+}
+
 /** Final late approvals first, then other pending, then the rest. */
 export function orderManagerReports<T extends { row: PersonGoals }>(
   reports: T[],

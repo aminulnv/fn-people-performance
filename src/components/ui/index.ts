@@ -25,6 +25,9 @@ export type { FieldProps } from './Field'
 export { Badge } from './Badge'
 export type { BadgeProps, BadgeVariant } from './Badge'
 
+export { CountBadge } from './CountBadge'
+export type { CountBadgeProps } from './CountBadge'
+
 export { Avatar } from './Avatar'
 export type { AvatarProps, AvatarSize } from './Avatar'
 

@@ -4,7 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
-import { clearEmployees, createEmployee } from '@/lib/employees/store'
+import {
+  listMemoryEmployees,
+} from '@/lib/employees/memoryStore'
+import { clearEmployees, createEmployee, replaceTeams } from '@/lib/employees/store'
 import EmployeeFormPage from '@/pages/EmployeeFormPage'
 import EmployeeProfilePage from '@/pages/EmployeeProfilePage'
 import MyProfilePage from '@/pages/MyProfilePage'
@@ -15,12 +18,16 @@ const { employeesState } = vi.hoisted(() => ({
     loadState: 'ready' as 'idle' | 'loading' | 'ready' | 'error',
     loadError: null as string | null,
     isLoading: false,
-    reload: vi.fn(async () => {}),
+    reload: vi.fn(async () => { }),
   },
 }))
 
 vi.mock('@/lib/employees/useEmployees', () => ({
   useEmployees: () => employeesState,
+}))
+
+vi.mock('@/lib/goals/useGoalTodoCounts', () => ({
+  useGoalTodoCounts: () => ({ own: 0, reports: 1, total: 1 }),
 }))
 
 function signIn(permissions: ('platform.write_all' | 'platform.read_all')[]) {
@@ -203,6 +210,40 @@ describe('V1 employee profiles', () => {
     ).toBeInTheDocument()
   })
 
+  it('places team owner directly under team in the employee details list', async () => {
+    await seedEmployee()
+    signIn(['platform.read_all'])
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      document.querySelector('.pd-profile__detail-group-title'),
+    ).toBeNull()
+    expect(
+      [...document.querySelectorAll('.pd-profile__detail-label-text')].map(
+        (el) => el.textContent,
+      ),
+    ).toEqual([
+      'Email',
+      'Employee ID',
+      'Status',
+      'Role',
+      'Seniority',
+      'Department',
+      'Team',
+      'Team Owner',
+      'Division',
+      'Site',
+      'Line Manager',
+      'Department Head',
+      'HRBP',
+      'Joining Date',
+    ])
+  })
+
   it('links a resolved line manager to their V1 profile', async () => {
     await seedManagerWithReports()
     signIn(['platform.read_all'])
@@ -215,6 +256,129 @@ describe('V1 employee profiles', () => {
     expect(
       profile.container.querySelector('.pd-profile__org-node.is-link'),
     ).toHaveAttribute('href', '/people/2')
+  })
+
+  it('links a team catalog owner to their V1 profile', async () => {
+    const owner = await createEmployee({
+      employeeId: 5,
+      fullName: 'Angie Rahman',
+      email: 'angie@example.com',
+      startDate: '2018-01-01',
+      jobTitle: 'Team Lead',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    if (!owner.ok) throw new Error(owner.error)
+
+    const employee = await createEmployee({
+      employeeId: 1,
+      fullName: 'Test Employee',
+      email: 'employee@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Engineer',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    if (!employee.ok) throw new Error(employee.error)
+
+    replaceTeams([
+      {
+        id: 9,
+        name: 'Performance & Total Rewards',
+        departmentId: 2,
+        departmentName: 'People & Culture',
+        ownerEmployeeId: owner.employee.employeeId,
+        ownerName: owner.employee.fullName,
+        ownerEmail: null,
+        headcount: 2,
+      },
+    ])
+    employeesState.employees = listMemoryEmployees() as never[]
+
+    signIn(['platform.read_all'])
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(screen.getByText('Team Owner')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('link', { name: /Angie Rahman/ }),
+    ).toHaveAttribute('href', '/people/5')
+    expect(
+      screen.getByRole('link', { name: 'People & Culture' }),
+    ).toHaveAttribute('href', '/organisation/departments/people%20%26%20culture')
+    expect(
+      screen.getByRole('link', { name: 'Performance & Total Rewards' }),
+    ).toHaveAttribute(
+      'href',
+      '/organisation/teams/people%20%26%20culture%3A%3Aperformance%20%26%20total%20rewards',
+    )
+  })
+
+  it('links a resolved HRBP to their V1 profile', async () => {
+    const hrbp = await createEmployee({
+      employeeId: 4,
+      fullName: 'Nadia Islam',
+      email: 'hrbp@example.com',
+      startDate: '2019-01-01',
+      jobTitle: 'HR Business Partner',
+      department: 'People',
+      team: '',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    if (!hrbp.ok) throw new Error(hrbp.error)
+
+    const employee = await createEmployee({
+      employeeId: 1,
+      fullName: 'Test Employee',
+      email: 'employee@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Engineer',
+      department: 'Product',
+      team: '',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: hrbp.employee.fullName,
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    if (!employee.ok) throw new Error(employee.error)
+    employeesState.employees = [hrbp.employee, employee.employee] as never[]
+
+    signIn(['platform.read_all'])
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: /Nadia Islam/ }),
+    ).toHaveAttribute('href', '/people/4')
   })
 
   it('shows the manager’s actual number of direct reports', async () => {
@@ -253,6 +417,20 @@ describe('V1 employee profiles', () => {
     ).toHaveAttribute('href', '/people/3')
   })
 
+  it('shows the pending-approval count on the Goals section tab', async () => {
+    await seedEmployee()
+    signIn(['platform.read_all'])
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      await screen.findByRole('button', { name: /Goals.*1 item needs attention/ }),
+    ).toBeInTheDocument()
+  })
+
   it('links org structures and permissions', async () => {
     await seedEmployee()
     signIn(['platform.read_all'])
@@ -265,6 +443,10 @@ describe('V1 employee profiles', () => {
     expect(
       await screen.findByRole('link', { name: /Org Structures/ }),
     ).toHaveAttribute('href', '/organisation/departments/product')
+    expect(screen.getByRole('link', { name: 'Product' })).toHaveAttribute(
+      'href',
+      '/organisation/departments/product',
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     expect(

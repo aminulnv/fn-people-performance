@@ -8,12 +8,18 @@ import {
   processModeLabel,
 } from "@/lib/reviews/labels";
 import { formatDateRange } from "@/lib/reviews/periods";
+import {
+  createCycleGroup,
+  deleteCycleGroup,
+} from "@/lib/reviews/store";
 import type { ReviewCycle } from "@/lib/reviews/types";
 import { CycleSettingsCalendar } from "./CycleSettingsCalendar";
 import { CycleDetailsEditPage } from "./CycleDetailsEditPage";
 import { CalibrationEditPage } from "./CalibrationEditPage";
+import { CycleGroupsSection } from "./CycleGroupsSection";
 import { CycleReviewSettingsPrototype } from "./CycleReviewSettingsPrototype";
 import { GoalsSettingsEditPage } from "./GoalsSettingsEditPage";
+import { GroupSettingsView } from "./GroupSettingsView";
 import { ReviewSettingsEditPage } from "./ReviewSettingsEditPage";
 
 type CycleSettingsViewProps = {
@@ -26,6 +32,7 @@ type EditTarget =
   | "goals-settings"
   | "review-settings"
   | "calibration"
+  | { groupId: string }
   | null;
 
 export function CycleSettingsView({
@@ -55,6 +62,19 @@ export function CycleSettingsView({
   }
   if (editing === "calibration") {
     return <CalibrationEditPage cycle={cycle} onClose={closeEdit} />;
+  }
+  if (editing && typeof editing === "object") {
+    const group = (cycle.groups ?? []).find((item) => item.id === editing.groupId);
+    if (group) {
+      return (
+        <GroupSettingsView
+          cycle={cycle}
+          group={group}
+          onClose={closeEdit}
+          onEditingChange={onEditingChange}
+        />
+      );
+    }
   }
 
   const extensionCount = cycle.stagesConfig.goals.extensions?.length ?? 0;
@@ -101,6 +121,17 @@ export function CycleSettingsView({
           <CycleSettingsCalendar cycle={cycle} size="large" />
         </div>
       </div>
+
+      <CycleGroupsSection
+        cycle={cycle}
+        onCreate={(input) => {
+          void createCycleGroup(cycle.id, input).catch(() => {});
+        }}
+        onDelete={(groupId) => {
+          void deleteCycleGroup(cycle.id, groupId).catch(() => {});
+        }}
+        onOpenGroup={(groupId) => openEdit({ groupId })}
+      />
 
       <section
         className="pd-reviews-settings__section"

@@ -92,12 +92,22 @@ export function formatProgressTimestamp(iso: string): string {
   return progressDateFormat.format(date)
 }
 
-export function latestProgressAt(goal: Goal): string | undefined {
+export function latestProgressLogAt(
+  measurements: Array<{ progressLog?: ProgressLogEntry[] }>,
+): string | undefined {
   let latest: string | undefined
-  for (const measurement of goal.measurements) {
+  for (const measurement of measurements) {
     for (const entry of measurement.progressLog ?? []) {
       if (!latest || entry.recordedAt > latest) latest = entry.recordedAt
     }
   }
   return latest
+}
+
+export function latestProgressAt(goal: Goal): string | undefined {
+  return latestProgressLogAt(goal.measurements)
+}
+
+export function goalLastUpdatedAt(goal: Goal): string | undefined {
+  return latestProgressAt(goal) ?? goal.updatedAt
 }

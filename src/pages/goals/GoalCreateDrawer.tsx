@@ -92,6 +92,7 @@ export function GoalCreateDrawer({
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
+      if (document.querySelector('dialog[open]')) return
       if (isSideSheetOpenRef.current) {
         setIsSideSheetOpen(false)
         return

@@ -36,7 +36,7 @@ export const layoutConfig: AppLayoutConfig = {
     logoUrl: publicUrl('images/logo.svg'),
   },
   navItems: [
-    { path: '/', label: 'Home', icon: Home, end: true, comingSoon: true },
+    { path: '/', label: 'Home', icon: Home, end: true },
     profileNavItem,
     { path: '/organisation', label: 'Organisation', icon: Landmark },
     { path: '/people', label: 'People', icon: Users },

@@ -20,10 +20,11 @@ import {
   GRADE_BAND_ORDER,
   GRADE_RECOMMENDATION_META,
 } from '@/lib/reviews/labels'
-import { updateCalibrationLogic } from '@/lib/reviews/store'
+import { updateCycleGroup, updateReviewCycle } from '@/lib/reviews/store'
 import type {
   CalibrationLogic,
   CalibrationModeId,
+  CycleGroup,
   GradeBandId,
   GradeRecommendationId,
   ReviewCycle,
@@ -32,6 +33,7 @@ import { EditPageShell } from './EditPageShell'
 
 type CalibrationEditPageProps = {
   cycle: ReviewCycle
+  group?: CycleGroup
   onClose: () => void
 }
 
@@ -56,10 +58,11 @@ const RECOMMENDATION_ICONS: Record<GradeRecommendationId, LucideIcon> = {
 
 export function CalibrationEditPage({
   cycle,
+  group,
   onClose,
 }: CalibrationEditPageProps) {
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
-    structuredClone(cycle.calibration),
+    structuredClone((group ?? cycle).calibration),
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -81,13 +84,19 @@ export function CalibrationEditPage({
     })
   }
 
-  const save = async () => {
+  const save = () => {
     if (total !== 100) {
       setError(`Grade distribution must total 100% (currently ${total}%).`)
       return
     }
+    setError(null)
     try {
-      await updateCalibrationLogic(cycle.id, draft)
+      const pending = group
+        ? updateCycleGroup(cycle.id, group.id, { calibration: draft })
+        : updateReviewCycle(cycle.id, { calibration: draft })
+      void pending.catch(() => {
+        /* Shown on the cycle page after close. */
+      })
       onClose()
     } catch (err) {
       setError(
@@ -98,7 +107,11 @@ export function CalibrationEditPage({
 
   return (
     <EditPageShell
-      title="Calculation & calibration"
+      title={
+        group
+          ? `${group.name} · Calculation & calibration`
+          : 'Calculation & calibration'
+      }
       description="Choose how grades are recommended, reviewed, and distributed."
       onBack={onClose}
       onSave={save}

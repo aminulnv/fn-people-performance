@@ -6,7 +6,10 @@ import {
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { useAuth } from '@/lib/useAuth'
-import { resolveDepartmentHead } from '@/lib/employees/relationships'
+import {
+  resolveDepartmentHead,
+  resolveHrbp,
+} from '@/lib/employees/relationships'
 import {
   EmployeeProfileView,
   resolveManager,
@@ -32,6 +35,7 @@ export default function MyProfilePage() {
     () => resolveDepartmentHead(employee),
     [employee],
   )
+  const hrbp = useMemo(() => resolveHrbp(employee), [employee])
 
   if (!user) {
     return null
@@ -80,6 +84,7 @@ export default function MyProfilePage() {
       employee={employee}
       manager={manager}
       departmentHead={departmentHead}
+      hrbp={hrbp}
       isSelf
     />
   )

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { CalendarClock, CalendarRange } from "lucide-react";
 import { Input, SegmentedControl } from "@/components/ui";
-import { updateCycleSettings, updateCycleStagesConfig } from "@/lib/reviews/store";
+import { updateReviewCycle } from "@/lib/reviews/store";
 import type { ReviewCycle, StageProcessMode } from "@/lib/reviews/types";
 import { EditPageShell } from "./EditPageShell";
 
@@ -34,15 +34,19 @@ export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPagePro
   const activeMode =
     PROCESS_MODES.find((mode) => mode.id === processMode) ?? PROCESS_MODES[0];
 
-  const save = async () => {
+  const save = () => {
+    setError(null);
     try {
-      await updateCycleSettings(cycle.id, { name, startDate, endDate });
-      if (processMode !== cycle.stagesConfig.processMode) {
-        await updateCycleStagesConfig(cycle.id, {
-          ...cycle.stagesConfig,
-          processMode,
-        });
-      }
+      void updateReviewCycle(cycle.id, {
+        name,
+        startDate,
+        endDate,
+        ...(processMode !== cycle.stagesConfig.processMode
+          ? { stagesConfig: { ...cycle.stagesConfig, processMode } }
+          : {}),
+      }).catch(() => {
+        /* Shown on the cycle page after close. */
+      });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");

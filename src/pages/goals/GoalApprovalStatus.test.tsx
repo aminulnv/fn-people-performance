@@ -11,7 +11,7 @@ describe("GoalApprovalStatus", () => {
     expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 
-  it("shows Draft in the approval column", () => {
+  it("shows Draft as a status chip", () => {
     render(<GoalApprovalStatus status="draft" />);
     expect(screen.getByText("Draft")).toBeInTheDocument();
     expect(screen.queryByText("—")).not.toBeInTheDocument();
@@ -22,6 +22,16 @@ describe("GoalApprovalStatus", () => {
     expect(screen.getByText("Pending")).toBeInTheDocument();
     rerender(<GoalApprovalStatus status="approved" />);
     expect(screen.getByLabelText("Approved")).toBeInTheDocument();
+  });
+
+  it("labels approved when used as a chip", () => {
+    render(<GoalApprovalStatus status="approved" labeled />);
+    expect(screen.getByText("Approved")).toBeInTheDocument();
+  });
+
+  it("uses the full pending label on a chip", () => {
+    render(<GoalApprovalStatus status="submitted" labeled />);
+    expect(screen.getByText("Pending approval")).toBeInTheDocument();
   });
 
   it("names the final approval stage for a late submission", () => {

@@ -13,35 +13,37 @@ const goal: Goal = {
 }
 
 describe('GoalSummaryCards', () => {
-  it('shows cycle, weight, and completion in read and edit', () => {
-    render(
-      <GoalSummaryCards
-        goal={goal}
-        cycleLabel="Q3 2026"
-        isCurrentCycle
-      />,
-    )
+  it('shows goal weight without cycle capacity copy', () => {
+    render(<GoalSummaryCards goal={goal} />)
 
-    const summary = screen.getByRole('group', { name: 'Goal summary' })
-    expect(summary).toHaveTextContent('Q3 2026')
-    expect(summary).toHaveTextContent('Current')
-    expect(summary).toHaveTextContent('40%')
-    expect(summary).toHaveTextContent('Completion')
+    expect(screen.getByText('Goal weight')).toBeInTheDocument()
+    expect(screen.getByText('40%')).toBeInTheDocument()
+    expect(screen.queryByText(/used/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/left/i)).not.toBeInTheDocument()
   })
 
   it('lets weight be edited when the cards are on the write view', () => {
     const onWeightChange = vi.fn()
     render(
-      <GoalSummaryCards
-        goal={goal}
-        cycleLabel="Q3 2026"
-        onWeightChange={onWeightChange}
-      />,
+      <GoalSummaryCards goal={goal} onWeightChange={onWeightChange} />,
     )
 
-    fireEvent.change(screen.getByLabelText('Goal weight'), {
+    const field = screen.getByRole('textbox', { name: 'Goal weight' })
+    fireEvent.change(field, {
       target: { value: '55' },
     })
+    expect(onWeightChange).not.toHaveBeenCalled()
+    fireEvent.blur(field)
     expect(onWeightChange).toHaveBeenCalledWith(55)
+  })
+
+  it('steps goal weight in five-percent increments', () => {
+    const onWeightChange = vi.fn()
+    render(
+      <GoalSummaryCards goal={goal} onWeightChange={onWeightChange} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase goal weight' }))
+    expect(onWeightChange).toHaveBeenCalledWith(45)
   })
 })

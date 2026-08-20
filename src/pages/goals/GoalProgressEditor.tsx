@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { BarChart3 } from 'lucide-react'
 import {
   appendMilestoneList,
   appendMilestoneToList,
@@ -18,56 +18,51 @@ import {
   withMilestoneListTitle,
   withMilestoneTitle,
 } from '@/lib/goals/measurements'
+import { recordMetricProgress, type ProgressLogAuthor } from '@/lib/goals/progressLog'
 import { MeasureTypeAddButtons } from '@/pages/goals/MeasureTypeSwitch'
 import { NumberMeasureEditCard } from '@/pages/goals/NumberMeasureEditCard'
 import { TodoMeasureEditCard } from '@/pages/goals/TodoMeasureEditCard'
 import type { Goal, Measurement, Milestone } from '@/lib/goals/types'
 import { sumMeasurementWeights } from '@/lib/goals/weightage'
 
-function MeasureHead({
-  title,
-  removeLabel,
-  onRemove,
-}: {
-  title: string
-  removeLabel: string
-  onRemove?: () => void
-}) {
+function panelWeights(measurements: Measurement[]): number[] {
+  return measurementPanels(measurements).map((panel) =>
+    panel.kind === 'metric' ? panel.metric.weight : panel.weight,
+  )
+}
+
+function isEvenMeasurementSplit(measurements: Measurement[]): boolean {
+  const current = panelWeights(measurements)
+  if (current.length === 0) return true
+  const even = panelWeights(rebalanceMeasurementWeights(measurements))
   return (
-    <div className="pd-goal-create__measure-head">
-      <h3 className="pd-goal-create__measure-title">{title}</h3>
-      {onRemove ? (
-        <button
-          type="button"
-          className="pd-goal-create__icon-btn pd-goal-create__icon-btn--danger"
-          aria-label={removeLabel}
-          onClick={onRemove}
-        >
-          <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-        </button>
-      ) : null}
-    </div>
+    current.length === even.length &&
+    current.every((weight, index) => weight === even[index])
   )
 }
 
 export function GoalProgressEditor({
   goal,
   onChange,
-  onDone,
   measureNameError,
   measurementWeightError,
+  progressAuthor,
+  cycleLabel,
 }: {
   goal: Goal
   onChange: (goal: Goal) => void
-  onDone?: () => void
   measureNameError?: string
   measurementWeightError?: string
+  progressAuthor?: ProgressLogAuthor
+  cycleLabel?: string
 }) {
   const measureWeight = sumMeasurementWeights(goal.measurements)
   const measurements = goal.measurements
   const panels = measurementPanels(measurements)
   const goalRef = useRef(goal)
+  const onChangeRef = useRef(onChange)
   goalRef.current = goal
+  onChangeRef.current = onChange
   const [focusMilestoneId, setFocusMilestoneId] = useState<string | null>(null)
 
   const patch = (partial: Partial<Goal>) =>
@@ -77,13 +72,14 @@ export function GoalProgressEditor({
 
   /** Legacy or seeded goals can arrive weightless; give them a starting split. */
   useEffect(() => {
-    if (measurements.length === 0) return
-    if (sumMeasurementWeights(measurements) > 0) return
-    onChange({
+    const current = goalRef.current.measurements
+    if (current.length === 0) return
+    if (sumMeasurementWeights(current) > 0) return
+    onChangeRef.current({
       ...goalRef.current,
-      measurements: rebalanceMeasurementWeights(measurements),
+      measurements: rebalanceMeasurementWeights(current),
     })
-  }, [goal, measurements, onChange])
+  }, [goal.id])
 
   /**
    * Adding or removing a measurement re-splits evenly; per-measurement edits keep
@@ -113,10 +109,11 @@ export function GoalProgressEditor({
   const addMilestoneMeasure = () =>
     setMeasurements(appendMilestoneList(currentMeasurements()))
 
-  const todoMeasureCount = (panelIndex: number) =>
-    panels
-      .slice(0, panelIndex + 1)
-      .filter((entry) => entry.kind === 'todo_measure').length
+  const panelCount = measurementPanels(measurements).length
+  const canDistribute =
+    panelCount > 1 && !isEvenMeasurementSplit(measurements)
+  const showWeightFooter =
+    panelCount > 0 && (measureWeight !== 100 || canDistribute)
 
   return (
     <section
@@ -124,57 +121,54 @@ export function GoalProgressEditor({
       aria-label="Progress measurement"
     >
       <div className="pd-goal-create__progress-head">
-        <h2>How to measure progress?</h2>
-        <div className="pd-goal-create__progress-head-actions">
-          {onDone ? (
-            <button
-              type="button"
-              className="pd-people__ghost-btn"
-              onClick={onDone}
-            >
-              Done
-            </button>
-          ) : null}
-        </div>
+        <h2>
+          <BarChart3 size={16} strokeWidth={2.25} aria-hidden />
+          Metrics
+        </h2>
       </div>
 
-      {panels.map((panel, index) =>
+      {panels.map((panel) =>
         panel.kind === 'metric' ? (
           <div key={panel.key} className="pd-goal-create__measure-block">
-            <MeasureHead
-              title={`Metric ${
-                panels.slice(0, index + 1).filter((item) => item.kind === 'metric')
-                  .length
-              }`}
-              removeLabel={`Remove metric ${
-                panels.slice(0, index + 1).filter((item) => item.kind === 'metric')
-                  .length
-              }`}
-              onRemove={() => removeMeasurement(panel.metric.id)}
-            />
             <NumberMeasureEditCard
               metric={panel.metric}
               onChange={updateMeasurement}
+              onRemove={() => removeMeasurement(panel.metric.id)}
+              cycleLabel={cycleLabel}
+              goalTitle={goal.description}
+              onLogProgress={
+                progressAuthor
+                  ? (nextValue) => {
+                      const current = currentMeasurements().find(
+                        (item) => item.id === panel.metric.id,
+                      )
+                      if (!current || current.kind !== 'metric') return
+                      updateMeasurement(
+                        recordMetricProgress(
+                          current,
+                          nextValue,
+                          progressAuthor,
+                        ),
+                      )
+                    }
+                  : undefined
+              }
             />
           </div>
         ) : panel.kind === 'todo_measure' ? (
           <div key={panel.key} className="pd-goal-create__measure-block">
-            <MeasureHead
-              title={`Metric ${todoMeasureCount(index)}`}
-              removeLabel={`Remove metric ${todoMeasureCount(index)}`}
+            <TodoMeasureEditCard
+              panel={panel}
+              measurements={measurements}
+              measureTitle={readMeasureGroupTitle(measurements, panel.measureGroupId)}
+              canRemoveList={panel.lists.length > 1}
+              addListClassName="pd-people__ghost-btn pd-goal-create__add-todo-list pd-goal-measure-card__add-list"
+              addTodoClassName="pd-people__ghost-btn pd-goal-measure-card__add-todo"
               onRemove={() =>
                 setMeasurements(
                   removeTodoMeasure(currentMeasurements(), panel.measureGroupId),
                 )
               }
-            />
-            <TodoMeasureEditCard
-              panel={panel}
-              measurements={measurements}
-              measureTitle={readMeasureGroupTitle(measurements, panel.measureGroupId)}
-              canRemoveList={panel.lists.length > 1 || measurements.length > 1}
-              addListClassName="pd-goal-create__text-btn pd-goal-create__add-todo-list pd-goal-measure-card__add-list"
-              addTodoClassName="pd-goal-measure-card__add-todo"
               onChangeMeasureTitle={(measureTitle) =>
                 patch({
                   measurements: withMeasureTitle(
@@ -271,23 +265,24 @@ export function GoalProgressEditor({
         </p>
       ) : null}
 
-      <div className="pd-goal-create__weight-footer">
-        <p className="pd-goal-create__weight-hint">
-          Measurement weights: {measureWeight}% / 100%
-          {measureWeight === 100
-            ? ' — split evenly, edit any weight to override.'
-            : ' — edit the weights beside each measurement so they total 100%.'}
-        </p>
-        {measurements.length > 1 ? (
-          <button
-            type="button"
-            className="pd-goal-create__text-btn"
-            onClick={distributeWeightsEvenly}
-          >
-            Distribute Evenly
-          </button>
-        ) : null}
-      </div>
+      {showWeightFooter ? (
+        <div className="pd-goal-create__weight-footer">
+          <p className="pd-goal-create__weight-hint" role="status">
+            {measureWeight !== 100
+              ? `Weights total ${measureWeight}% of 100%.`
+              : 'Weights do not split evenly.'}
+          </p>
+          {canDistribute ? (
+            <button
+              type="button"
+              className="pd-goal-create__text-btn"
+              onClick={distributeWeightsEvenly}
+            >
+              Distribute evenly
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   )
 }

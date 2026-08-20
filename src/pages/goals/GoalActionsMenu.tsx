@@ -1,13 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import {
-  Copy,
-  GitFork,
-  History,
-  Maximize2,
-  MoreHorizontal,
-  Trash2,
-} from 'lucide-react'
+import { Copy, GitFork, History, Maximize2, MoreHorizontal, Trash2 } from 'lucide-react'
+import { ConfirmDialog, DropdownMenu } from '@/components/ui'
 import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
@@ -39,7 +33,39 @@ export function hasGoalActions({
   )
 }
 
+function ToolbarButton({
+  label,
+  ariaLabel,
+  danger = false,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string
+  ariaLabel?: string
+  danger?: boolean
+  disabled?: boolean
+  onClick?: () => void
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      className={`pd-people__ghost-btn${
+        danger ? ' pd-people__ghost-btn--danger' : ''
+      }`}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+      {label}
+    </button>
+  )
+}
+
 export function GoalActionsMenu({
+  variant = 'toolbar',
   label = 'More actions',
   canCascade = false,
   canRemove = false,
@@ -50,6 +76,7 @@ export function GoalActionsMenu({
   onCascade,
   onRemove,
 }: {
+  variant?: 'toolbar' | 'menu'
   label?: string
   canCascade?: boolean
   canRemove?: boolean
@@ -65,30 +92,10 @@ export function GoalActionsMenu({
   onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
 }) {
-  const [menuOpen, setMenuOpen] = useState(false)
   const [cascadeOpen, setCascadeOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [removeOpen, setRemoveOpen] = useState(false)
   const canViewActivity = Boolean(activityFilters)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setMenuOpen(false)
-      }
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [menuOpen])
 
   if (
     !hasGoalActions({
@@ -103,97 +110,8 @@ export function GoalActionsMenu({
     return null
   }
 
-  return (
+  const dialogs = (
     <>
-      <div ref={menuRef} className="pd-goal-view__menu">
-        <button
-          type="button"
-          className="pd-people__icon-btn"
-          aria-label={label}
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-        </button>
-        {menuOpen ? (
-          <div className="pd-goal-view__menu-panel" role="menu">
-            {fullViewHref ? (
-              <Link
-                role="menuitem"
-                className="pd-goal-view__menu-item"
-                to={fullViewHref}
-                onClick={() => setMenuOpen(false)}
-              >
-                <Maximize2 size={15} strokeWidth={1.75} aria-hidden />
-                Open full view
-              </Link>
-            ) : null}
-            {onDuplicate ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="pd-goal-view__menu-item"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onDuplicate()
-                }}
-              >
-                <Copy size={15} strokeWidth={1.75} aria-hidden />
-                Duplicate
-              </button>
-            ) : null}
-            {onCascade ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="pd-goal-view__menu-item"
-                disabled={!canCascade}
-                title={
-                  canCascade
-                    ? 'Create a child goal for selected reports'
-                    : 'No direct reports to cascade to'
-                }
-                onClick={() => {
-                  if (!canCascade) return
-                  setMenuOpen(false)
-                  setCascadeOpen(true)
-                }}
-              >
-                <GitFork size={15} strokeWidth={1.75} aria-hidden />
-                Cascade This Goal
-              </button>
-            ) : null}
-            {canViewActivity ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="pd-goal-view__menu-item"
-                onClick={() => {
-                  setMenuOpen(false)
-                  setActivityOpen(true)
-                }}
-              >
-                <History size={15} strokeWidth={1.75} aria-hidden />
-                View activity
-              </button>
-            ) : null}
-            {canRemove && onRemove ? (
-              <button
-                type="button"
-                role="menuitem"
-                className="pd-goal-view__menu-item pd-goal-view__menu-item--danger"
-                onClick={() => {
-                  setMenuOpen(false)
-                  onRemove()
-                }}
-              >
-                <Trash2 size={15} strokeWidth={1.75} aria-hidden />
-                Remove Goal
-              </button>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
       {onCascade ? (
         <GoalCascadeTargetDialog
           open={cascadeOpen}
@@ -210,6 +128,126 @@ export function GoalActionsMenu({
           filters={activityFilters}
         />
       ) : null}
+      {canRemove && onRemove ? (
+        <ConfirmDialog
+          open={removeOpen}
+          onClose={() => setRemoveOpen(false)}
+          onConfirm={() => {
+            setRemoveOpen(false)
+            onRemove()
+          }}
+          title="Remove this goal?"
+          description="This goal will be removed from the current cycle. This cannot be undone."
+          confirmLabel="Remove Goal"
+          cancelLabel="Keep goal"
+          confirmVariant="danger"
+        />
+      ) : null}
+    </>
+  )
+
+  if (variant === 'menu') {
+    const items = [
+      onDuplicate
+        ? {
+            id: 'duplicate',
+            label: 'Duplicate',
+            icon: <Copy size={16} strokeWidth={1.75} />,
+            onSelect: onDuplicate,
+          }
+        : null,
+      onCascade
+        ? {
+            id: 'cascade',
+            label: 'Cascade',
+            icon: <GitFork size={16} strokeWidth={1.75} />,
+            disabled: !canCascade,
+            onSelect: () => setCascadeOpen(true),
+          }
+        : null,
+      canViewActivity
+        ? {
+            id: 'activity',
+            label: 'Activity',
+            icon: <History size={16} strokeWidth={1.75} />,
+            onSelect: () => setActivityOpen(true),
+          }
+        : null,
+      canRemove && onRemove
+        ? {
+            id: 'remove',
+            label: 'Remove',
+            danger: true,
+            icon: <Trash2 size={16} strokeWidth={1.75} />,
+            onSelect: () => setRemoveOpen(true),
+          }
+        : null,
+    ].filter((item) => item != null)
+
+    return (
+      <>
+        <DropdownMenu
+          label={label}
+          align="end"
+          trigger={
+            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
+          }
+          triggerProps={{
+            className: 'pd-people__icon-btn',
+            'aria-label': label,
+            title: 'More actions',
+          }}
+          items={items}
+        />
+        {dialogs}
+      </>
+    )
+  }
+
+  return (
+    <>
+      {onDuplicate ? (
+        <ToolbarButton label="Duplicate" onClick={onDuplicate}>
+          <Copy size={16} strokeWidth={1.75} aria-hidden />
+        </ToolbarButton>
+      ) : null}
+      {onCascade ? (
+        <ToolbarButton
+          label="Cascade"
+          ariaLabel="Cascade this goal"
+          disabled={!canCascade}
+          onClick={() => {
+            if (!canCascade) return
+            setCascadeOpen(true)
+          }}
+        >
+          <GitFork size={16} strokeWidth={1.75} aria-hidden />
+        </ToolbarButton>
+      ) : null}
+      {fullViewHref ? (
+        <Link className="pd-people__ghost-btn" to={fullViewHref}>
+          <Maximize2 size={16} strokeWidth={1.75} aria-hidden />
+          Full view
+        </Link>
+      ) : null}
+      {canViewActivity ? (
+        <ToolbarButton
+          label="Activity"
+          onClick={() => setActivityOpen(true)}
+        >
+          <History size={16} strokeWidth={1.75} aria-hidden />
+        </ToolbarButton>
+      ) : null}
+      {canRemove && onRemove ? (
+        <ToolbarButton
+          label="Remove"
+          danger
+          onClick={() => setRemoveOpen(true)}
+        >
+          <Trash2 size={16} strokeWidth={1.75} aria-hidden />
+        </ToolbarButton>
+      ) : null}
+      {dialogs}
     </>
   )
 }

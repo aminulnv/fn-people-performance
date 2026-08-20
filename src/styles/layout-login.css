@@ -222,7 +222,6 @@
 
 .pd-login__username:focus-within {
   border-color: color-mix(in srgb, white 60%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, white 10%, transparent);
 }
 
 .pd-login__input::placeholder {
@@ -232,10 +231,8 @@
 .pd-login__input:focus {
   outline: none;
   border-color: color-mix(in srgb, white 60%, transparent);
-  box-shadow: 0 0 0 3px color-mix(in srgb, white 10%, transparent);
 }
 
-/* The wrapper draws the focus ring for the split username field. */
 .pd-login__input--username:focus {
   box-shadow: none;
 }

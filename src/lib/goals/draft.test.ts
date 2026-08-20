@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isGoalDraftDirty, mergePersistedGoals, validateGoalDraft } from '@/lib/goals/draft'
+import {
+  hasPromptableUnsavedGoalDraft,
+  isBlankGoalDraft,
+  isGoalDraftDirty,
+  mergePersistedGoals,
+  validateGoalDraft,
+} from '@/lib/goals/draft'
 import type { Goal } from '@/lib/goals/types'
 
 const goal: Goal = {
@@ -119,5 +125,52 @@ describe('shared draft helpers (V1/V2 contract)', () => {
     const merged = mergePersistedGoals([local], [persisted])[0]
     expect(merged?.measurements).toHaveLength(2)
     expect(merged?.measurements[1]).toMatchObject({ id: 't2', title: '' })
+  })
+
+  it('keeps in-flight title, details, and weight across a persist refresh', () => {
+    const merged = mergePersistedGoals(
+      [{ ...goal, description: 'Ship reviews now', details: 'Local', weight: 70 }],
+      [goal],
+    )[0]
+    expect(merged).toMatchObject({
+      description: 'Ship reviews now',
+      details: 'Local',
+      weight: 70,
+    })
+  })
+
+  it('treats an empty new goal as a blank draft', () => {
+    expect(
+      isBlankGoalDraft({
+        id: 'new',
+        description: '',
+        weight: 0,
+        measurements: [],
+      }),
+    ).toBe(true)
+    expect(isBlankGoalDraft({ ...goal, description: '' })).toBe(false)
+  })
+
+  it('does not prompt when the only local goal is a blank create draft', () => {
+    const blank: Goal = {
+      id: 'new',
+      description: '',
+      weight: 0,
+      measurements: [],
+    }
+    expect(hasPromptableUnsavedGoalDraft([blank], [])).toBe(false)
+    expect(
+      hasPromptableUnsavedGoalDraft([{ ...blank, description: 'Ship it' }], []),
+    ).toBe(true)
+  })
+
+  it('prompts when an existing goal has unsaved edits', () => {
+    expect(
+      hasPromptableUnsavedGoalDraft(
+        [{ ...goal, details: 'Changed' }],
+        [goal],
+      ),
+    ).toBe(true)
+    expect(hasPromptableUnsavedGoalDraft([goal], [goal])).toBe(false)
   })
 })

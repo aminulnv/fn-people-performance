@@ -3,12 +3,15 @@ import type { ReactNode } from 'react'
 import type { Measurement, Milestone } from '@/lib/goals/types'
 import type { MeasurementPanel, TodoListPanel } from '@/lib/goals/measurements'
 import {
+  numberedTaskListTitle,
   readMilestoneListTitle,
   readMilestoneTitle,
   uniqueMilestonesById,
 } from '@/lib/goals/measurements'
-import { FocusSafeTextField } from './FocusSafeTextField'
+import { GoalTodoCheck } from './GoalTodoCheck'
+import { FocusSafeTextArea } from './FocusSafeTextField'
 import { TaskListNameField, MeasureTitleField } from './MeasureTitleField'
+import { MeasureTypeIcon } from './MeasureTypeSwitch'
 import { GoalTodoMeasureReadout, GoalWeightInput } from './GoalMeasurementReadout'
 
 type TodoMeasurePanel = Extract<MeasurementPanel, { kind: 'todo_measure' }>
@@ -22,6 +25,7 @@ export function TodoMeasureEditCard({
   onChangeListTitle,
   onChangeMilestoneTitle,
   onChangeMilestone,
+  onRemove,
   onAddTodoList,
   onAddItem,
   onRemoveItem,
@@ -36,15 +40,15 @@ export function TodoMeasureEditCard({
   metricsClassName = 'pd-goal-view__card-metrics',
   todoListClassName = 'pd-goal-view__todos',
   todoItemClassName = 'pd-goal-view__todo',
-  todoCheckClassName = 'pd-goal-measure-card__todo-check',
-  addTodoClassName = 'pd-goal-measure-card__add-todo',
-  addListClassName = 'pd-goal-v2__row-btn pd-goal-measure-card__add-list',
+  addTodoClassName = 'pd-people__ghost-btn pd-goal-measure-card__add-todo',
+  addListClassName = 'pd-people__ghost-btn pd-goal-measure-card__add-list',
 }: {
   panel: TodoMeasurePanel
   measurements: Measurement[]
   measureTitle: string
   onChangeMeasureTitle: (title: string) => void
   onChangeWeight: (weight: number) => void
+  onRemove?: () => void
   onChangeListTitle: (listKey: string, listTitle: string) => void
   onChangeMilestoneTitle: (milestoneId: string, title: string) => void
   onChangeMilestone: (milestoneId: string, patch: Partial<Milestone>) => void
@@ -62,7 +66,6 @@ export function TodoMeasureEditCard({
   metricsClassName?: string
   todoListClassName?: string
   todoItemClassName?: string
-  todoCheckClassName?: string
   addTodoClassName?: string
   addListClassName?: string
 }) {
@@ -70,48 +73,56 @@ export function TodoMeasureEditCard({
     ? `Weight for ${measureTitle.trim()}`
     : 'Weight'
 
-  const renderTodoList = (list: TodoListPanel) => {
+  const showListChrome = panel.lists.length > 1
+
+  const renderTodoList = (list: TodoListPanel, index: number) => {
     const todos = uniqueMilestonesById(list.todos)
     const complete = todos.filter((todo) => todo.complete).length
     const total = todos.length
 
     return (
-      <div key={list.listKey} className="pd-goal-measure-card__list">
-        <div className="pd-goal-measure-card__list-head">
-          <TaskListNameField
-            inputKey={list.listKey}
-            value={readMilestoneListTitle(measurements, list.listKey)}
-            onChange={(listTitle) => onChangeListTitle(list.listKey, listTitle)}
-          />
-          <span className="pd-goal-measure-card__list-count">
-            {complete}/{total} done
-          </span>
-          {canRemoveList ? (
-            <button
-              type="button"
-              className="pd-goal-measure-card__list-delete"
-              aria-label={`Remove ${readMilestoneListTitle(measurements, list.listKey).trim() || 'task list'}`}
-              onClick={() => onRemoveList(list.listKey)}
-            >
-              <Trash2 size={14} strokeWidth={1.75} aria-hidden />
-            </button>
-          ) : null}
-        </div>
+      <div
+        key={list.listKey}
+        className={`pd-goal-measure-card__list${
+          showListChrome ? '' : ' pd-goal-measure-card__list--bare'
+        }`}
+      >
+        {showListChrome ? (
+          <div className="pd-goal-measure-card__list-head">
+            <TaskListNameField
+              inputKey={list.listKey}
+              value={readMilestoneListTitle(measurements, list.listKey)}
+              placeholder={numberedTaskListTitle(index + 1)}
+              onChange={(listTitle) => onChangeListTitle(list.listKey, listTitle)}
+            />
+            <span className="pd-goal-measure-card__list-count">
+              {complete}/{total} done
+            </span>
+            {canRemoveList ? (
+              <button
+                type="button"
+                className="pd-goal-measure-card__list-delete"
+                aria-label={`Remove ${readMilestoneListTitle(measurements, list.listKey).trim() || 'task list'}`}
+                onClick={() => onRemoveList(list.listKey)}
+              >
+                <Trash2 size={14} strokeWidth={1.75} aria-hidden />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="pd-goal-measure-card__list-scroll">
           <ul className={todoListClassName}>
             {todos.map((todo) => (
               <li key={todo.id} className={todoItemClassName}>
-                <input
-                  type="checkbox"
-                  className={todoCheckClassName}
+                <GoalTodoCheck
                   checked={todo.complete}
-                  aria-label={`Mark ${readMilestoneTitle(measurements, todo.id).trim() || 'milestone'} complete`}
-                  onChange={(event) =>
-                    onChangeMilestone(todo.id, { complete: event.target.checked })
+                  ariaLabel={`Mark ${readMilestoneTitle(measurements, todo.id).trim() || 'milestone'} complete`}
+                  onChange={(complete) =>
+                    onChangeMilestone(todo.id, { complete })
                   }
                 />
-                <FocusSafeTextField
+                <FocusSafeTextArea
                   className="pd-goal-measure-card__todo-input"
                   inputKey={todo.id}
                   value={readMilestoneTitle(measurements, todo.id)}
@@ -120,6 +131,11 @@ export function TodoMeasureEditCard({
                   requestFocus={focusMilestoneId === todo.id}
                   onFocusRequested={onFocusMilestone}
                   onChange={(title) => onChangeMilestoneTitle(todo.id, title)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter') return
+                    event.preventDefault()
+                    event.currentTarget.blur()
+                  }}
                 />
                 {todos.length > 1 ? (
                   <button
@@ -136,14 +152,16 @@ export function TodoMeasureEditCard({
           </ul>
         </div>
 
-        <button
-          type="button"
-          className={addTodoClassName}
-          onClick={() => onAddItem(list.listKey)}
-        >
-          <Plus size={15} strokeWidth={2} aria-hidden />
-          Add to do
-        </button>
+        <div className="pd-goal-measure-card__list-actions">
+          <button
+            type="button"
+            className={addTodoClassName}
+            onClick={() => onAddItem(list.listKey)}
+          >
+            <Plus size={15} strokeWidth={2} aria-hidden />
+            Add to do
+          </button>
+        </div>
       </div>
     )
   }
@@ -152,29 +170,37 @@ export function TodoMeasureEditCard({
     <section className={cardClassName} aria-label={measureTitle.trim() || 'Measure'}>
       <div className={headClassName}>
         <div className={titleClassName}>
+          <MeasureTypeIcon kind="todo" />
           <MeasureTitleField
             inputKey={panel.measureGroupId}
             value={measureTitle}
             onChange={onChangeMeasureTitle}
           />
         </div>
-        <GoalTodoMeasureReadout panel={panel} />
         <div className={metricsClassName}>
+          <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
           <GoalWeightInput
             weight={panel.weight}
             ariaLabel={weightLabel}
             onChange={onChangeWeight}
           />
+          {onRemove ? (
+            <button
+              type="button"
+              className="pd-goal-create__icon-btn pd-goal-create__icon-btn--danger"
+              aria-label={`Remove ${measureTitle.trim() || 'milestone'}`}
+              onClick={onRemove}
+            >
+              <Trash2 size={15} strokeWidth={1.75} aria-hidden />
+            </button>
+          ) : null}
         </div>
       </div>
 
       {meta ? <div className="pd-goal-measure-card__meta">{meta}</div> : null}
 
       <div className="pd-goal-measure-card__body">
-        {panel.lists.map((list) => renderTodoList(list))}
-      </div>
-
-      <div className="pd-goal-measure-card__foot">
+        {panel.lists.map((list, index) => renderTodoList(list, index))}
         <button type="button" className={addListClassName} onClick={onAddTodoList}>
           <Plus size={15} strokeWidth={2} aria-hidden />
           Add task list

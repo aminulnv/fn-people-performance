@@ -9,6 +9,9 @@ import {
 
 const MIN_COLUMN_WIDTH = 72
 const KEYBOARD_RESIZE_STEP = 16
+/** Header plus a short sample — enough to size columns without walking every row. */
+const MEASURE_ROW_CAP = 24
+const RESIZE_WIDTH_EPSILON = 2
 
 export type ResizableColumn = {
   id: string
@@ -25,6 +28,11 @@ type ResizableTableProps = {
   columns: ResizableColumn[]
   className?: string
   children: ReactNode
+  /**
+   * Bump after the first real body rows mount (virtualized tables) so auto-fit
+   * can sample visible cells. Do not change this on scroll or search.
+   */
+  fitKey?: string | number
 }
 
 type ColumnWidths = Record<string, number>
@@ -97,21 +105,15 @@ function measureNaturalColumnWidths(
   const rowCount = table.rows.length
   if (rowCount === 0) return widths
 
-  const usesColumnTags = table.querySelector('[data-col]') != null
+  const sampleCount = Math.min(rowCount, MEASURE_ROW_CAP)
 
   columns.forEach((column, columnIndex) => {
     let max = minWidthOf(column)
-    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+    for (let rowIndex = 0; rowIndex < sampleCount; rowIndex += 1) {
       const row = table.rows[rowIndex]
-      if (!row) continue
-
-      const cell = usesColumnTags
-        ? Array.from(row.cells).find(
-            (candidate) => candidate.dataset.col === column.id,
-          )
-        : row.cells[columnIndex]
+      const cell = row?.cells[columnIndex]
       if (!cell) continue
-      max = Math.max(max, Math.ceil(cell.getBoundingClientRect().width))
+      max = Math.max(max, cell.offsetWidth)
     }
     widths[column.id] = max
   })
@@ -156,6 +158,7 @@ export function ResizableTable({
   columns,
   className,
   children,
+  fitKey,
 }: ResizableTableProps) {
   const storedWidths = readStoredWidths(storageKeyFor(storageKey))
   const [manualWidths, setManualWidths] = useState<ColumnWidths>(storedWidths)
@@ -169,6 +172,7 @@ export function ResizableTable({
   const headerRowRef = useRef<HTMLTableRowElement>(null)
   const resizeStartRef = useRef<ResizeStart | null>(null)
   const refitRef = useRef<RefitRequest | null>(null)
+  const naturalWidthsRef = useRef<ColumnWidths>({})
 
   const activeWidths = hasManualLayout ? manualWidths : (autoLayout?.widths ?? {})
   const isAutoLaidOut = !hasManualLayout && autoLayout != null
@@ -217,19 +221,34 @@ export function ResizableTable({
     if (!table || !wrap || table.rows.length === 0) return
 
     const natural = measureNaturalColumnWidths(table, columns)
+    naturalWidthsRef.current = natural
     const available = Math.max(wrap.clientWidth, 1)
     setAutoLayout(distributeAutoWidths(columns, natural, available))
-  }, [columns, children, fitPass, hasManualLayout])
+  }, [columns, fitKey, fitPass, hasManualLayout])
 
   useEffect(() => {
     if (hasManualLayout) return
     const wrap = tableRef.current?.parentElement
     if (!wrap || typeof ResizeObserver === 'undefined') return
 
-    const observer = new ResizeObserver(() => requestAutoFit())
+    let lastWidth = wrap.clientWidth
+    const observer = new ResizeObserver(() => {
+      const nextWidth = wrap.clientWidth
+      if (Math.abs(nextWidth - lastWidth) < RESIZE_WIDTH_EPSILON) return
+      lastWidth = nextWidth
+
+      const natural = naturalWidthsRef.current
+      if (Object.keys(natural).length === 0) {
+        requestAutoFit()
+        return
+      }
+      setAutoLayout(
+        distributeAutoWidths(columns, natural, Math.max(nextWidth, 1)),
+      )
+    })
     observer.observe(wrap)
     return () => observer.disconnect()
-  }, [hasManualLayout])
+  }, [columns, hasManualLayout])
 
   useLayoutEffect(() => {
     const refit = refitRef.current

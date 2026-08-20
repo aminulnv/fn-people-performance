@@ -20,6 +20,8 @@ function normalizeEmployee(
     ...rest,
     team: typeof rest.team === 'string' ? rest.team : (wing ?? ''),
     avatarUrl: typeof rest.avatarUrl === 'string' ? rest.avatarUrl : '',
+    teamOwnerName:
+      typeof rest.teamOwnerName === 'string' ? rest.teamOwnerName : '',
   }
 }
 
@@ -38,8 +40,9 @@ export function subscribeMemoryEmployees(listener: Listener): () => void {
   }
 }
 
+/** Read-only snapshot. Do not mutate the returned array or its rows. */
 export function listMemoryEmployees(): PlatformEmployee[] {
-  return state.employees.map((e) => ({ ...e }))
+  return state.employees
 }
 
 export function getMemoryEmployee(
@@ -118,6 +121,7 @@ export function createMemoryEmployee(
     reportsToName: input.reportsToName.trim(),
     departmentHeadName: input.departmentHeadName.trim(),
     hrbpName: input.hrbpName.trim(),
+    teamOwnerName: '',
     jobGrade: input.jobGrade.trim(),
     site: (input.site ?? '').trim(),
     avatarUrl:
@@ -185,6 +189,8 @@ export function updateMemoryEmployee(
     reportsToName: input.reportsToName.trim(),
     departmentHeadName: input.departmentHeadName.trim(),
     hrbpName: input.hrbpName.trim(),
+    teamOwnerName: existing.teamOwnerName ?? '',
+    teamOwnerId: existing.teamOwnerId,
     jobGrade: input.jobGrade.trim(),
     site: (input.site ?? '').trim(),
     avatarUrl:
@@ -211,6 +217,7 @@ export function updateMemoryEmployee(
         departmentHeadId:
           e.departmentHeadId === employeeId ? nextId : e.departmentHeadId,
         hrbpId: e.hrbpId === employeeId ? nextId : e.hrbpId,
+        teamOwnerId: e.teamOwnerId === employeeId ? nextId : e.teamOwnerId,
       }
     }),
   })

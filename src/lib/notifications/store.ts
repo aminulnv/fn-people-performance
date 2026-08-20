@@ -85,11 +85,15 @@ export function getNotificationFeed(recipientId: string): NotificationFeed {
   )
 }
 
-export function emitNotification(
+function applyEmit(
+  state: NotificationStateSnapshot,
   input: NotificationTemplateInput,
   options: EmitNotificationOptions = {},
-): NotificationRecord {
-  const state = readState()
+): {
+  state: NotificationStateSnapshot
+  record: NotificationRecord
+  changed: boolean
+} {
   const template = renderNotificationTemplate(input.eventKey, input.variables)
   const now = (options.now ?? new Date()).toISOString()
   const duplicate = state.items.find(
@@ -98,10 +102,11 @@ export function emitNotification(
       item.dedupeKey === input.dedupeKey &&
       item.state !== 'superseded',
   )
-  const duplicatePolicy =
-    options.duplicate ?? 'ignore'
+  const duplicatePolicy = options.duplicate ?? 'ignore'
 
-  if (duplicate && duplicatePolicy === 'ignore') return duplicate
+  if (duplicate && duplicatePolicy === 'ignore') {
+    return { state, record: duplicate, changed: false }
+  }
 
   if (duplicate) {
     const contentIsUnchanged =
@@ -119,7 +124,7 @@ export function emitNotification(
       (duplicatePolicy === 'refresh' ||
         (duplicatePolicy === 'reopen' && alreadyOpen))
     ) {
-      return duplicate
+      return { state, record: duplicate, changed: false }
     }
     const next: NotificationRecord = {
       ...duplicate,
@@ -146,11 +151,14 @@ export function emitNotification(
       completedAt: duplicatePolicy === 'reopen' ? undefined : duplicate.completedAt,
       metadata: input.metadata,
     }
-    writeState({
-      ...state,
-      items: state.items.map((item) => (item.id === duplicate.id ? next : item)),
-    })
-    return next
+    return {
+      state: {
+        ...state,
+        items: state.items.map((item) => (item.id === duplicate.id ? next : item)),
+      },
+      record: next,
+      changed: true,
+    }
   }
 
   const created: NotificationRecord = {
@@ -174,8 +182,44 @@ export function emitNotification(
     updatedAt: now,
     metadata: input.metadata,
   }
-  writeState({ ...state, items: [...state.items, created] })
-  return created
+  return {
+    state: { ...state, items: [...state.items, created] },
+    record: created,
+    changed: true,
+  }
+}
+
+export function emitNotification(
+  input: NotificationTemplateInput,
+  options: EmitNotificationOptions = {},
+): NotificationRecord {
+  const result = applyEmit(readState(), input, options)
+  if (result.changed) writeState(result.state)
+  return result.record
+}
+
+/** Apply many emits with a single localStorage write. */
+export function emitNotifications(
+  inputs: NotificationTemplateInput[],
+  options: EmitNotificationOptions = {},
+): NotificationRecord[] {
+  if (inputs.length === 0) return []
+  if (inputs.length === 1) {
+    const first = inputs[0]
+    return first ? [emitNotification(first, options)] : []
+  }
+
+  let state = readState()
+  const records: NotificationRecord[] = []
+  let changed = false
+  for (const input of inputs) {
+    const result = applyEmit(state, input, options)
+    state = result.state
+    records.push(result.record)
+    if (result.changed) changed = true
+  }
+  if (changed) writeState(state)
+  return records
 }
 
 function updateRecipientItems(

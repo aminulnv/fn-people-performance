@@ -42,6 +42,7 @@ export function createInitialSnapshot(): GoalsSnapshot {
       goalCountPolicy: selected.goalCountPolicy,
       postWindowGoalPolicy: selected.postWindowGoalPolicy,
       goalWindow: selected.goalWindow,
+      goalExtensions: selected.goalExtensions,
     },
     cycleStatus: selected.status,
     availableCycles: options.length > 0 ? options : [selected],

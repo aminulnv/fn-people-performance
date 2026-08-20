@@ -1,11 +1,16 @@
 import type { ReactNode } from 'react'
+import { ChevronRight } from 'lucide-react'
 import type { Milestone } from '@/lib/goals/types'
-import type { MeasurementPanel } from '@/lib/goals/measurements'
-import { todoMeasureItems, uniqueMilestonesById } from '@/lib/goals/measurements'
-import { measurePanelName } from '@/pages/goals-v2/measurePanelDisplay'
+import {
+  numberedTaskListTitle,
+  todoMeasureItems,
+  uniqueMilestonesById,
+  type MeasurementPanel,
+} from '@/lib/goals/measurements'
+import { measurePanelName } from '@/pages/goals/measurePanelDisplay'
 import {
   GoalTodoMeasureReadout,
-  GoalWeightReadout,
+  formatWeightReadout,
 } from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
 
@@ -14,10 +19,10 @@ type TodoMeasurePanel = Extract<MeasurementPanel, { kind: 'todo_measure' }>
 export function TodoMeasureViewCard({
   panel,
   renderTodoItem,
-  cardClassName = 'pd-goal-view__card pd-goal-measure-card',
-  headClassName = 'pd-goal-view__card-head',
-  titleClassName = 'pd-goal-view__card-title',
-  metricsClassName = 'pd-goal-view__card-metrics',
+  cardClassName = 'pd-goal-view__fold pd-goal-measure-card',
+  headClassName = 'pd-goal-view__fold-head',
+  titleClassName = 'pd-goal-view__fold-title',
+  metricsClassName = 'pd-goal-view__fold-meta',
   todoListClassName = 'pd-goal-view__todos',
   todoItemClassName = 'pd-goal-view__todo',
 }: {
@@ -31,37 +36,49 @@ export function TodoMeasureViewCard({
   todoItemClassName?: string
 }) {
   const name = measurePanelName(panel)
+  const weightLabel = formatWeightReadout(panel.weight)
   const progressEntries = todoMeasureItems(panel).flatMap(
     (todo) => todo.progressLog ?? [],
   )
 
   return (
-    <section className={cardClassName} aria-label={name || 'Measure'}>
-      <div className={headClassName}>
+    <details
+      className={cardClassName}
+      aria-label={name || 'Measure'}
+      open
+    >
+      <summary className={headClassName}>
+        <ChevronRight
+          size={14}
+          strokeWidth={2.25}
+          className="pd-goal-view__fold-chevron"
+          aria-hidden
+        />
         <div className={titleClassName}>
-          {name ? <h2>{name}</h2> : null}
+          {name ? (
+            <h2>
+              {name}
+              {weightLabel ? ` · ${weightLabel}` : ''}
+            </h2>
+          ) : null}
         </div>
-        <GoalTodoMeasureReadout panel={panel} />
         <div className={metricsClassName}>
-          <GoalWeightReadout weight={panel.weight} />
+          <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
         </div>
-      </div>
+      </summary>
 
       <div className="pd-goal-measure-card__body">
-        {panel.lists.map((list) => {
+        {panel.lists.map((list, index) => {
           const todos = uniqueMilestonesById(list.todos)
-          const complete = todos.filter((todo) => todo.complete).length
-          const total = todos.length
           return (
             <div key={list.listKey} className="pd-goal-measure-card__list">
-              <div className="pd-goal-measure-card__list-head">
-                <span className="pd-goal-measure-card__list-label">
-                  {list.listTitle.trim() || 'Task list'}
-                </span>
-                <span className="pd-goal-measure-card__list-count">
-                  {complete}/{total} done
-                </span>
-              </div>
+              {panel.lists.length > 1 ? (
+                <div className="pd-goal-measure-card__list-head">
+                  <span className="pd-goal-measure-card__list-label">
+                    {list.listTitle.trim() || numberedTaskListTitle(index + 1)}
+                  </span>
+                </div>
+              ) : null}
               <ul className={todoListClassName}>
                 {todos.map((todo) => (
                   <li key={todo.id} className={todoItemClassName}>
@@ -75,6 +92,6 @@ export function TodoMeasureViewCard({
       </div>
 
       <GoalProgressLog entries={progressEntries} />
-    </section>
+    </details>
   )
 }

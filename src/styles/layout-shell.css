@@ -598,6 +598,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 }
 
 .pd-sidebar-nav__link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.625rem;
@@ -657,6 +658,11 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   color: #e8c547;
 }
 
+.pd-sidebar-nav__badge {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
 .pd-sidebar-nav__link.is-active .pd-sidebar-nav__coming-soon {
   color: #f0d35c;
 }
@@ -673,6 +679,20 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   min-width: 0;
   overflow: hidden;
   pointer-events: none;
+}
+
+.pd-sidebar-nav__link--collapsed.pd-sidebar-nav__link--has-badge {
+  overflow: visible;
+}
+
+.pd-sidebar-nav__link--collapsed .pd-sidebar-nav__badge {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.15rem;
+  margin-left: 0;
+  min-width: 1rem;
+  height: 1rem;
+  font-size: 0.625rem;
 }
 
 .pd-sidebar-nav__link.is-active .pd-sidebar-nav__label {
@@ -1007,7 +1027,6 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-topbar__search:focus-within {
   border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-theme) 16%, transparent);
   color: var(--color-text);
 }
 
@@ -1576,6 +1595,29 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   .pd-page--pane {
     height: 100%;
   }
+}
+
+/*
+ * Status pages (loading, error, not-found) fill the content pane so the
+ * message sits in the middle. Specificity beats `.pd-page.pd-people` /
+ * `.pd-page.pd-reviews`, which otherwise pin content to the top.
+ */
+.pd-app-main:has(> .pd-page--status) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-app-main > .pd-page.pd-page--status {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 100%;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  gap: 0;
 }
 
 /* Unbuilt modules — centered empty state only (title lives in top bar) */

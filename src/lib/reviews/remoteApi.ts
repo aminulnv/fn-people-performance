@@ -1,6 +1,7 @@
 import { apiFetch } from '@/lib/apiClient'
 import type {
   CalibrationLogic,
+  CycleGroup,
   CycleSettings,
   CycleStagesConfig,
   ReviewCycle,
@@ -29,6 +30,17 @@ export async function createTestCycleRemote(
   const response = await apiFetch<{ cycle: ReviewCycle }>(
     `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/test-copies`,
     { method: 'POST', body: {} },
+  )
+  return response.cycle
+}
+
+export async function updateReviewCycleRemote(
+  cycleId: string,
+  patch: Record<string, unknown>,
+): Promise<ReviewCycle> {
+  const response = await apiFetch<{ cycle: ReviewCycle }>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}`,
+    { method: 'PATCH', body: patch },
   )
   return response.cycle
 }
@@ -83,6 +95,39 @@ export async function deleteReviewCycleRemote(
     method: 'DELETE',
     body: { expectedVersion },
   })
+}
+
+export async function createCycleGroupRemote(
+  cycleId: string,
+  body: Record<string, unknown>,
+): Promise<CycleGroup> {
+  const response = await apiFetch<{ group: CycleGroup }>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/groups`,
+    { method: 'POST', body },
+  )
+  return response.group
+}
+
+export async function updateCycleGroupRemote(
+  cycleId: string,
+  groupId: string,
+  patch: Record<string, unknown>,
+): Promise<CycleGroup> {
+  const response = await apiFetch<{ group: CycleGroup }>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`,
+    { method: 'PATCH', body: patch },
+  )
+  return response.group
+}
+
+export async function deleteCycleGroupRemote(
+  cycleId: string,
+  groupId: string,
+): Promise<void> {
+  await apiFetch(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`,
+    { method: 'DELETE' },
+  )
 }
 
 export async function importReviewCyclesRemote(

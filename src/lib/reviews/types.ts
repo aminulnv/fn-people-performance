@@ -120,6 +120,26 @@ export type CalibrationLogic = {
   gradeDistribution: Record<GradeBandId, number>;
 };
 
+export type CycleGroup = {
+  id: string;
+  cycleId: string;
+  name: string;
+  memberIds: number[];
+  stagesConfig: CycleStagesConfig;
+  settings: CycleSettings;
+  calibration: CalibrationLogic;
+  createdAt: string;
+  updatedAt?: string;
+  version?: number;
+};
+
+export type CyclePolicyResolution = {
+  settings: CycleSettings;
+  stagesConfig: CycleStagesConfig;
+  calibration: CalibrationLogic;
+  groupId: string | null;
+};
+
 export type ReviewCycle = {
   id: string;
   name: string;
@@ -130,6 +150,8 @@ export type ReviewCycle = {
   stagesConfig: CycleStagesConfig;
   settings: CycleSettings;
   calibration: CalibrationLogic;
+  /** Named exceptions. People not listed use the cycle defaults. */
+  groups?: CycleGroup[];
   isTest?: boolean;
   createdAt: string;
   updatedAt?: string;
@@ -137,8 +159,14 @@ export type ReviewCycle = {
   version?: number;
 };
 
+export type ReviewsMutationError = {
+  cycleId: string;
+  message: string;
+};
+
 export type ReviewsSnapshot = {
   cycles: ReviewCycle[];
+  mutationError?: ReviewsMutationError | null;
 };
 
 export type CyclePeriodOption = {

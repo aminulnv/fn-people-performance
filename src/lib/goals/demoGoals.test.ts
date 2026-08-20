@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_CYCLE_SETTINGS } from '@/lib/reviews/demoData'
 import { buildDemoGoals } from './demoGoals'
-import { sumMeasurementWeights } from './weightage'
+import { canSubmitGoals, sumMeasurementWeights } from './weightage'
 
 describe('buildDemoGoals', () => {
   const goals = buildDemoGoals('2026-q1', 'p1')
@@ -19,5 +20,11 @@ describe('buildDemoGoals', () => {
     for (const goal of goals) {
       expect(sumMeasurementWeights(goal.measurements)).toBe(100)
     }
+  })
+
+  it('can be submitted under the default cycle policy', () => {
+    expect(canSubmitGoals(goals, DEFAULT_CYCLE_SETTINGS.goalCountPolicy).ok).toBe(
+      true,
+    )
   })
 })

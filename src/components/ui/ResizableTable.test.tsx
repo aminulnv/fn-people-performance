@@ -36,7 +36,7 @@ afterEach(() => {
 })
 
 describe('ResizableTable', () => {
-  it('auto-fits columns until someone resizes one', async () => {
+  it('auto-fits columns until someone resizes one', () => {
     renderTable()
 
     expect(document.querySelector('table')).not.toHaveClass(

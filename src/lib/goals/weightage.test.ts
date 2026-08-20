@@ -13,8 +13,24 @@ const POLICY = {
 function readyGoal(
   partial: Partial<Goal> & Pick<Goal, 'description' | 'weight'>,
 ): Goal {
-  const goal = blankGoal({ withDefaultMetric: true })
-  return { ...goal, ...partial }
+  const goal = blankGoal()
+  return {
+    ...goal,
+    measurements: [
+      {
+        id: `${goal.id}-metric`,
+        kind: 'metric',
+        title: 'Progress',
+        weight: 100,
+        unit: 'number',
+        direction: 'increase',
+        startValue: 0,
+        targetValue: 100,
+        currentValue: 0,
+      },
+    ],
+    ...partial,
+  }
 }
 
 describe('canSubmitGoals', () => {
@@ -93,5 +109,20 @@ describe('canSubmitGoals', () => {
       suffix: ' still needs a measure — or remove it.',
     })
     expect(check.blockers[0]?.goalId).toBeTruthy()
+  })
+
+  it('lists every broken goal instead of stopping at the first', () => {
+    const check = canSubmitGoals(
+      [
+        readyGoal({ description: ' ', weight: 50 }),
+        readyGoal({ description: ' ', weight: 50 }),
+      ],
+      POLICY,
+    )
+    expect(check.blockers).toHaveLength(2)
+    expect(check.blockers.map((blocker) => blocker.suffix)).toEqual([
+      ' needs a title.',
+      ' needs a title.',
+    ])
   })
 })

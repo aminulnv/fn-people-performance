@@ -64,31 +64,52 @@ export function PageStatus({
   ...props
 }: PageStatusProps) {
   const { icon: Icon, defaultTitle } = VARIANTS[variant]
-  const resolvedTitle = title ?? defaultTitle
+  const isLoading = variant === 'loading'
+  const resolvedTitle = isLoading ? undefined : (title ?? defaultTitle)
+  const resolvedDescription = isLoading
+    ? (description ?? title ?? defaultTitle)
+    : description
 
   return (
     <div
-      className={cx('pd-page', 'pd-page--status', pageClassName, className)}
-      aria-busy={variant === 'loading' ? true : undefined}
+      className={cx(
+        'pd-page',
+        'pd-page--status',
+        pageClassName,
+        className,
+      )}
+      aria-busy={isLoading ? true : undefined}
       {...props}
     >
-      <div className="pd-page-status">
-        <div
-          className={cx(
-            'pd-page-status__icon',
-            `pd-page-status__icon--${variant}`,
-          )}
-          aria-hidden
-        >
+      <div
+        className={cx(
+          'pd-page-status',
+          isLoading && 'pd-page-status--loading',
+        )}
+      >
+        {isLoading ? (
           <Icon
             size={28}
             strokeWidth={1.75}
-            className={variant === 'loading' ? 'pd-page-status__spin' : undefined}
+            className="pd-page-status__spin"
+            aria-hidden
           />
-        </div>
-        <h1 className="pd-page-status__title">{resolvedTitle}</h1>
-        {description ? (
-          <p className="pd-page-status__description">{description}</p>
+        ) : (
+          <div
+            className={cx(
+              'pd-page-status__icon',
+              `pd-page-status__icon--${variant}`,
+            )}
+            aria-hidden
+          >
+            <Icon size={28} strokeWidth={1.75} />
+          </div>
+        )}
+        {resolvedTitle ? (
+          <h1 className="pd-page-status__title">{resolvedTitle}</h1>
+        ) : null}
+        {resolvedDescription ? (
+          <p className="pd-page-status__description">{resolvedDescription}</p>
         ) : null}
         {action ? <div className="pd-page-status__action">{action}</div> : null}
       </div>

@@ -16,12 +16,12 @@ export const METRIC_STRATEGIES: {
   id: MetricStrategy
   label: string
 }[] = [
-  { id: 'increase', label: 'Increase' },
-  { id: 'decrease', label: 'Decrease' },
-  { id: 'between', label: 'Between' },
-  { id: 'keep_above', label: 'Keep above' },
-  { id: 'keep_below', label: 'Keep below' },
-]
+    { id: 'increase', label: 'Increase' },
+    { id: 'decrease', label: 'Decrease' },
+    { id: 'between', label: 'Between' },
+    { id: 'keep_above', label: 'Keep above' },
+    { id: 'keep_below', label: 'Keep below' },
+  ]
 
 export const METRIC_UNITS: { value: MetricUnit; label: string }[] = [
   { value: 'number', label: 'Number' },
@@ -78,6 +78,39 @@ export function uniqueMilestonesById(todos: Milestone[]): Milestone[] {
     unique.push(todo)
   }
   return unique
+}
+
+export const DEFAULT_TASK_LIST_TITLE = 'Task List'
+
+const GENERATED_TASK_LIST_TITLE = /^task list(?: (\d+))?$/i
+
+export function numberedTaskListTitle(index: number): string {
+  return `${DEFAULT_TASK_LIST_TITLE} ${index}`
+}
+
+export function isGeneratedTaskListTitle(title: string | undefined): boolean {
+  const trimmed = title?.trim() ?? ''
+  if (trimmed === '') return true
+  return GENERATED_TASK_LIST_TITLE.test(trimmed)
+}
+
+function generatedTaskListNumber(title: string | undefined): number | undefined {
+  const trimmed = title?.trim() ?? ''
+  if (trimmed === '') return 0
+  const match = GENERATED_TASK_LIST_TITLE.exec(trimmed)
+  if (!match) return undefined
+  return match[1] ? Number(match[1]) : 0
+}
+
+function nextNumberedTaskListTitle(titles: string[]): string {
+  const used = new Set<number>()
+  for (const title of titles) {
+    const number = generatedTaskListNumber(title)
+    if (number && number >= 1) used.add(number)
+  }
+  let next = 1
+  while (used.has(next)) next += 1
+  return numberedTaskListTitle(next)
 }
 
 export function blankMilestone(
@@ -314,7 +347,7 @@ export function withMeasureTitle(
   const nextTitle = measureTitle.trim() === '' ? undefined : measureTitle.trim()
   const next = normalized.map((item) =>
     item.kind === 'milestone' &&
-    milestoneMeasureGroupId(item) === measureGroupId
+      milestoneMeasureGroupId(item) === measureGroupId
       ? { ...item, measureTitle: nextTitle }
       : item,
   )
@@ -415,7 +448,7 @@ export function replaceMilestoneList(
 export function appendMilestoneList(measurements: Measurement[]): Measurement[] {
   return rebalanceMeasurementWeights([
     ...normalizeMilestoneListIds(measurements),
-    blankMilestone(),
+    blankMilestone(0, { listTitle: DEFAULT_TASK_LIST_TITLE }),
   ])
 }
 
@@ -433,10 +466,39 @@ export function appendTodoListToMeasure(
   )
   if (!sample) return normalized
 
+  const panel = measurementPanels(normalized).find(
+    (entry): entry is Extract<MeasurementPanel, { kind: 'todo_measure' }> =>
+      entry.kind === 'todo_measure' &&
+      entry.measureGroupId === measureGroupId,
+  )
+
+  let nextMeasurements = normalized
+  if (panel?.lists.length === 1) {
+    const only = panel.lists[0]
+    if (only && isGeneratedTaskListTitle(only.listTitle)) {
+      nextMeasurements = replaceMilestoneList(
+        nextMeasurements,
+        only.listKey,
+        withMilestoneListTitle(only.todos, numberedTaskListTitle(1)),
+      )
+    }
+  }
+
+  const titledPanel = measurementPanels(nextMeasurements).find(
+    (entry): entry is Extract<MeasurementPanel, { kind: 'todo_measure' }> =>
+      entry.kind === 'todo_measure' &&
+      entry.measureGroupId === measureGroupId,
+  )
+  const nextTitle =
+    listTitle?.trim() ||
+    nextNumberedTaskListTitle(
+      titledPanel?.lists.map((list) => list.listTitle) ?? [],
+    )
+
   const newList = blankMilestone(0, {
     measureGroupId,
     measureTitle: sample.measureTitle,
-    listTitle,
+    listTitle: nextTitle,
   })
 
   let insertAt = normalized.length
@@ -451,7 +513,7 @@ export function appendTodoListToMeasure(
     }
   }
 
-  const next = [...normalized]
+  const next = [...nextMeasurements]
   next.splice(insertAt, 0, newList)
   return stampMeasureGroup(
     rebalanceMeasurementWeights(next),
@@ -507,6 +569,15 @@ export function removeMilestoneList(
     }
     const remainingLists = panel.lists.filter((list) => list.listKey !== listKey)
     if (remainingLists.length === 0) continue
+    if (remainingLists.length === 1) {
+      const only = remainingLists[0]
+      if (only && isGeneratedTaskListTitle(only.listTitle)) {
+        next.push(
+          ...withMilestoneListTitle(only.todos, DEFAULT_TASK_LIST_TITLE),
+        )
+        continue
+      }
+    }
     for (const list of remainingLists) {
       next.push(...list.todos)
     }
@@ -728,13 +799,13 @@ export type TodoListPanel = {
 export type MeasurementPanel =
   | { key: string; kind: 'metric'; metric: Metric }
   | {
-      key: string
-      kind: 'todo_measure'
-      measureGroupId: string
-      title: string
-      weight: number
-      lists: TodoListPanel[]
-    }
+    key: string
+    kind: 'todo_measure'
+    measureGroupId: string
+    title: string
+    weight: number
+    lists: TodoListPanel[]
+  }
 
 function todoListsFromItems(items: Milestone[]): TodoListPanel[] {
   const lists: TodoListPanel[] = []

@@ -4,6 +4,13 @@ import {
   formatRefreshAge,
   goalSectionLabels,
   goalTitle,
+  goalsMyReportsPath,
+  goalsMyGoalsPath,
+  hashForManagerTab,
+  isGoalsMyReportsHash,
+  managerTabFromHash,
+  metricCount,
+  metricCountLabel,
   metricSummary,
   metricTipDetails,
   personMatchesScope,
@@ -29,6 +36,45 @@ describe('goalTitle', () => {
   })
 })
 
+describe('goalsMyReportsPath', () => {
+  it('appends the my-reports hash', () => {
+    expect(goalsMyReportsPath('q3-2026', '1')).toBe(
+      '/goals/q3-2026/1#my-reports',
+    )
+  })
+})
+
+describe('goalsMyGoalsPath', () => {
+  it('appends the my-goals hash', () => {
+    expect(goalsMyGoalsPath('q3-2026', '1')).toBe(
+      '/goals/q3-2026/1#my-goals',
+    )
+  })
+})
+
+describe('managerTabFromHash', () => {
+  it('maps goal section hashes to manager tabs', () => {
+    expect(managerTabFromHash('#my-reports')).toBe('team')
+    expect(managerTabFromHash('#my-goals')).toBe('mine')
+    expect(managerTabFromHash('#profile')).toBeNull()
+  })
+})
+
+describe('hashForManagerTab', () => {
+  it('maps manager tabs to goal section hashes', () => {
+    expect(hashForManagerTab('team')).toBe('my-reports')
+    expect(hashForManagerTab('mine')).toBe('my-goals')
+  })
+})
+
+describe('isGoalsMyReportsHash', () => {
+  it('matches the hash with or without a leading #', () => {
+    expect(isGoalsMyReportsHash('#my-reports')).toBe(true)
+    expect(isGoalsMyReportsHash('my-reports')).toBe(true)
+    expect(isGoalsMyReportsHash('#my-goals')).toBe(false)
+  })
+})
+
 describe('goalSectionLabels', () => {
   it('uses first-person labels on the viewer profile', () => {
     expect(goalSectionLabels('Dionne Fonseka', true)).toEqual({
@@ -42,6 +88,44 @@ describe('goalSectionLabels', () => {
       goals: "Dionne's Goals",
       reports: "Dionne's Reports",
     })
+  })
+})
+
+describe('metricCount', () => {
+  it('counts measurement panels on a goal', () => {
+    expect(
+      metricCount({
+        ...untitled,
+        measurements: [
+          {
+            id: 'm1',
+            kind: 'metric',
+            title: 'NPS',
+            weight: 50,
+            unit: 'number',
+            direction: 'increase',
+            startValue: 0,
+            targetValue: 10,
+          },
+          {
+            id: 'm2',
+            kind: 'metric',
+            title: 'Revenue',
+            weight: 50,
+            unit: 'currency',
+            direction: 'increase',
+            startValue: 0,
+            targetValue: 1,
+          },
+        ],
+      }),
+    ).toBe(2)
+  })
+
+  it('labels a compact count for the table badge', () => {
+    expect(metricCountLabel(0)).toBe('—')
+    expect(metricCountLabel(1)).toBe('1 metric')
+    expect(metricCountLabel(2)).toBe('2 metrics')
   })
 })
 
@@ -212,5 +296,10 @@ describe('formatRefreshAge', () => {
   it('formats hours for recent updates', () => {
     const now = Date.parse('2026-08-14T12:00:00.000Z')
     expect(formatRefreshAge('2026-08-14T09:00:00.000Z', now)).toBe('3h')
+  })
+
+  it('formats whole days as a compact age', () => {
+    const now = Date.parse('2026-08-20T12:00:00.000Z')
+    expect(formatRefreshAge('2026-08-13T12:00:00.000Z', now)).toBe('7d')
   })
 })

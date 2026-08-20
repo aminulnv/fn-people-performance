@@ -10,9 +10,9 @@ import { useAuth } from '@/lib/auth'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import {
-  goalsV2DetailPath,
-  goalsV2GoalPath,
-} from '@/pages/goals-v2/paths'
+  goalsDetailPath,
+  goalsGoalPath,
+} from '@/pages/goals/goalHelpers'
 import { RequirePlatformWrite } from '@/layout/RequirePlatformWrite'
 import {
   GlobalRouteProgressComplete,
@@ -21,11 +21,10 @@ import {
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const HomePage = lazy(() => import('@/pages/HomePage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
-/** Unified view/edit redesign — lives beside `goals` until one direction wins. */
-const GoalsV2Page = lazy(() => import('@/pages/GoalsV2Page'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
 const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
@@ -74,13 +73,13 @@ function LegacyCycleRedirect() {
   )
 }
 
-/** Legacy `/goals/:cycleId/...` URLs → unified full-view at `/goals-v2/...`. */
-function LegacyGoalsDetailRedirect() {
+/** Legacy `/goals-v2/...` URLs → canonical `/goals/...`. */
+function LegacyGoalsV2Redirect() {
   const { cycleId = '', personId = '', goalId } = useParams()
   if (!cycleId || !personId) return <Navigate to="/goals" replace />
   const path = goalId
-    ? goalsV2GoalPath(cycleId, personId, goalId)
-    : goalsV2DetailPath(cycleId, personId)
+    ? goalsGoalPath(cycleId, personId, goalId)
+    : goalsDetailPath(cycleId, personId)
   return <Navigate to={path} replace />
 }
 
@@ -95,7 +94,7 @@ function App() {
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<AuthenticatedLayout />}>
-              <Route index element={<ComingSoonPage page="home" />} />
+              <Route index element={<HomePage />} />
               <Route path="profile" element={<MyProfilePage />} />
               <Route path="people" element={<PeoplePage />} />
               <Route path="people-v3" element={<PeopleV3Page />} />
@@ -119,12 +118,12 @@ function App() {
               <Route path="goals" element={<GoalsPage />} />
               <Route
                 path="goals/:cycleId/:personId/:goalId?"
-                element={<LegacyGoalsDetailRedirect />}
+                element={<GoalsPage />}
               />
               <Route path="goals-v2" element={<Navigate to="/goals" replace />} />
               <Route
                 path="goals-v2/:cycleId/:personId/:goalId?"
-                element={<GoalsV2Page />}
+                element={<LegacyGoalsV2Redirect />}
               />
               <Route
                 path="reviews"

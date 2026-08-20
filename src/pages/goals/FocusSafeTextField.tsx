@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
+import { useFocusSafeDraft } from './useFocusSafeDraft'
 
 /**
- * Text input that keeps local value while focused so autosave / server
- * round-trips cannot snap the field back mid-edit.
+ * Text input that keeps local value while focused so parent
+ * updates and server round-trips cannot snap the field back
+ * or re-render the page on every keystroke. Commits on blur.
  */
 export function FocusSafeTextField({
   value,
@@ -31,21 +33,8 @@ export function FocusSafeTextField({
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void
 }) {
   const label = ariaLabel ?? placeholder ?? 'Text'
-  const [text, setText] = useState(value)
-  const focusedRef = useRef(false)
-  const keyRef = useRef(inputKey)
+  const draft = useFocusSafeDraft(value, inputKey)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (inputKey !== undefined && keyRef.current !== inputKey) {
-      keyRef.current = inputKey
-      focusedRef.current = false
-      setText(value)
-      return
-    }
-    if (focusedRef.current) return
-    setText(value)
-  }, [value, inputKey])
 
   useEffect(() => {
     if (!requestFocus) return
@@ -58,24 +47,22 @@ export function FocusSafeTextField({
       ref={inputRef}
       type="text"
       className={className}
-      value={text}
+      value={draft.text}
       placeholder={placeholder}
       aria-label={label}
       onFocus={() => {
-        focusedRef.current = true
+        draft.markFocused()
       }}
       onBlur={() => {
-        focusedRef.current = false
-        const trimmed = text.trim()
-        if (trimmed !== text) setText(trimmed)
+        const trimmed = draft.text.trim()
+        if (trimmed !== draft.text) draft.setText(trimmed)
+        draft.markBlurred()
         onChange(trimmed)
         onBlurComplete?.()
       }}
       onKeyDown={onKeyDown}
       onChange={(event) => {
-        const next = event.target.value
-        setText(next)
-        onChange(next)
+        draft.setText(event.target.value)
       }}
     />
   )
@@ -108,21 +95,8 @@ export function FocusSafeTextArea({
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void
 }) {
   const label = ariaLabel ?? placeholder ?? 'Text'
-  const [text, setText] = useState(value)
-  const focusedRef = useRef(false)
-  const keyRef = useRef(inputKey)
+  const draft = useFocusSafeDraft(value, inputKey)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    if (inputKey !== undefined && keyRef.current !== inputKey) {
-      keyRef.current = inputKey
-      focusedRef.current = false
-      setText(value)
-      return
-    }
-    if (focusedRef.current) return
-    setText(value)
-  }, [value, inputKey])
 
   useEffect(() => {
     if (!requestFocus) return
@@ -135,24 +109,71 @@ export function FocusSafeTextArea({
       ref={inputRef}
       rows={1}
       className={className}
-      value={text}
+      value={draft.text}
       placeholder={placeholder}
       aria-label={label}
       onFocus={() => {
-        focusedRef.current = true
+        draft.markFocused()
       }}
       onBlur={() => {
-        focusedRef.current = false
-        const trimmed = text.trim()
-        if (trimmed !== text) setText(trimmed)
+        const trimmed = draft.text.trim()
+        if (trimmed !== draft.text) draft.setText(trimmed)
+        draft.markBlurred()
         onChange(trimmed)
         onBlurComplete?.()
       }}
       onKeyDown={onKeyDown}
       onChange={(event) => {
-        const next = event.target.value
-        setText(next)
-        onChange(next)
+        draft.setText(event.target.value)
+      }}
+    />
+  )
+}
+
+function parseOptionalNumber(raw: string): number | '' {
+  if (raw.trim() === '') return ''
+  const next = Number(raw)
+  return Number.isFinite(next) ? next : ''
+}
+
+/** Numeric input that types locally and commits the parsed value on blur. */
+export function FocusSafeNumberField({
+  value,
+  onCommit,
+  inputKey,
+  className,
+  ariaLabel,
+  disabled,
+}: {
+  value: number | ''
+  onCommit: (next: number | '') => void
+  inputKey?: string
+  className?: string
+  ariaLabel: string
+  disabled?: boolean
+}) {
+  const stored = value === '' ? '' : String(value)
+  const draft = useFocusSafeDraft(stored, inputKey)
+
+  return (
+    <input
+      type="number"
+      inputMode="decimal"
+      className={className}
+      value={draft.text}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onFocus={() => {
+        draft.markFocused()
+      }}
+      onChange={(event) => {
+        draft.setText(event.target.value)
+      }}
+      onBlur={() => {
+        const next = parseOptionalNumber(draft.text)
+        draft.markBlurred()
+        draft.setText(next === '' ? '' : String(next))
+        if (next !== value) onCommit(next)
       }}
     />
   )

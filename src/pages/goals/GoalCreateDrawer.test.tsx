@@ -41,6 +41,26 @@ describe('GoalCreateDrawer', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('leaves the drawer open when another dialog is already showing', () => {
+    const onClose = vi.fn()
+    const nested = document.createElement('dialog')
+    nested.setAttribute('open', '')
+    document.body.append(nested)
+    try {
+      render(
+        <GoalCreateDrawer onClose={onClose}>
+          <p>Goal fields</p>
+        </GoalCreateDrawer>,
+      )
+
+      fireEvent.keyDown(document, { key: 'Escape' })
+
+      expect(onClose).not.toHaveBeenCalled()
+    } finally {
+      nested.remove()
+    }
+  })
+
   it('closes when the background is clicked', () => {
     const onClose = vi.fn()
     render(

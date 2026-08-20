@@ -1,17 +1,31 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInitialReviewsSnapshot } from "./demoData";
 import { buildPeriod, formatDateRange } from "./periods";
+import { updateReviewCycleRemote } from "./remoteApi";
 import { resolveCycleStatus } from "./status";
 import {
+  clearReviewsMutationError,
+  createCycleGroup,
   createReviewCycle,
   createTestCycle,
   deleteReviewCycle,
   getReviewCycle,
+  getReviewsSnapshot,
   resetReviewsStoreForTests,
+  setReviewsLocalModeForTests,
   sortCyclesForList,
   updateCycleSettings,
   updateCycleStagesConfig,
+  updateReviewCycle,
 } from "./store";
+
+vi.mock("./remoteApi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./remoteApi")>();
+  return {
+    ...actual,
+    updateReviewCycleRemote: vi.fn(),
+  };
+});
 
 beforeEach(() => {
   resetReviewsStoreForTests();
@@ -205,6 +219,107 @@ describe("reviews store", () => {
     );
   });
 
+  it("saves settings and stages in one local commit", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+
+    const stages = structuredClone(cycle.stagesConfig);
+    stages.goals.employee.endDate = "2026-07-20";
+
+    const updated = await updateReviewCycle(cycle.id, {
+      settings: { postWindowGoalPolicy: "hard_stop" },
+      stagesConfig: stages,
+    });
+
+    expect(updated.version).toBe((cycle.version ?? 1) + 1);
+    expect(updated.settings.postWindowGoalPolicy).toBe("hard_stop");
+    expect(updated.stagesConfig.goals.employee.endDate).toBe("2026-07-20");
+  });
+
+  it("rejects an invalid combined patch synchronously", () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    expect(getReviewCycle(cycle.id)).not.toBeNull();
+
+    expect(() =>
+      updateReviewCycle(cycle.id, {
+        settings: {
+          goalCountPolicy: {
+            minimumRequired: 3,
+            recommendedMinimum: 2,
+            recommendedMaximum: 7,
+            maximumAllowed: null,
+          },
+        },
+      }),
+    ).toThrow("Recommended minimum cannot be lower");
+  });
+
+  it("applies a remote save locally before the request settles", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    expect(getReviewCycle(cycle.id)).not.toBeNull();
+
+    let resolveRemote!: (value: ReturnType<typeof getReviewCycle>) => void;
+    vi.mocked(updateReviewCycleRemote).mockReturnValue(
+      new Promise((resolve) => {
+        resolveRemote = resolve;
+      }),
+    );
+    setReviewsLocalModeForTests(false);
+
+    const pending = updateReviewCycle(cycle.id, { name: "Optimistic name" });
+    expect(getReviewCycle(cycle.id)?.name).toBe("Optimistic name");
+
+    resolveRemote({
+      ...getReviewCycle(cycle.id)!,
+      name: "Server name",
+      version: 4,
+    });
+    await expect(pending).resolves.toMatchObject({
+      name: "Server name",
+      version: 4,
+    });
+  });
+
+  it("reverts an optimistic save and surfaces the mutation error", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    expect(getReviewCycle(cycle.id)).not.toBeNull();
+
+    vi.mocked(updateReviewCycleRemote).mockRejectedValue(
+      new Error("Cycle was updated by someone else. Reload and try again."),
+    );
+    setReviewsLocalModeForTests(false);
+
+    const pending = updateReviewCycle(cycle.id, { name: "Optimistic name" });
+    expect(getReviewCycle(cycle.id)?.name).toBe("Optimistic name");
+
+    await expect(pending).rejects.toThrow("updated by someone else");
+    expect(getReviewCycle(cycle.id)?.name).toBe(cycle.name);
+    expect(getReviewsSnapshot().mutationError).toEqual({
+      cycleId: cycle.id,
+      message: "Cycle was updated by someone else. Reload and try again.",
+    });
+
+    clearReviewsMutationError();
+    expect(getReviewsSnapshot().mutationError).toBeNull();
+  });
+
+  it("skips a local write when the cycle patch is unchanged", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+
+    const updated = await updateReviewCycle(cycle.id, {
+      name: cycle.name,
+      settings: cycle.settings,
+      stagesConfig: cycle.stagesConfig,
+    });
+
+    expect(updated.version).toBe(cycle.version);
+    expect(updated.updatedAt).toBe(cycle.updatedAt);
+  });
+
   it("rejects extensions that reach the performance stage", async () => {
     const cycle = createInitialReviewsSnapshot().cycles[0];
     if (!cycle) throw new Error("Expected seeded cycle");
@@ -220,5 +335,75 @@ describe("reviews store", () => {
     await expect(
       updateCycleStagesConfig(cycle.id, stages),
     ).rejects.toThrow("before performance review starts");
+  });
+
+  it("creates a people group that clones the current cycle settings", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+
+    const group = await createCycleGroup(cycle.id, {
+      name: "Leadership",
+      memberIds: [101],
+    });
+
+    expect(group.name).toBe("Leadership");
+    expect(group.settings).toEqual(cycle.settings);
+    expect(group.stagesConfig).toEqual(cycle.stagesConfig);
+    expect(group.calibration).toEqual(cycle.calibration);
+    expect(getReviewCycle(cycle.id)?.groups).toEqual([group]);
+  });
+
+  it("moves a person when they are added to a second group", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+
+    const first = await createCycleGroup(cycle.id, {
+      name: "Leadership",
+      memberIds: [101, 102],
+    });
+    await createCycleGroup(cycle.id, {
+      name: "Senior leadership",
+      memberIds: [101],
+    });
+
+    const stored = getReviewCycle(cycle.id);
+    expect(stored?.groups?.find((group) => group.id === first.id)?.memberIds).toEqual(
+      [102],
+    );
+    expect(
+      stored?.groups?.find((group) => group.name === "Senior leadership")
+        ?.memberIds,
+    ).toEqual([101]);
+  });
+
+  it("copies groups onto a test cycle with new ids", async () => {
+    const source = await createReviewCycle({
+      type: "ad-hoc",
+      name: "Source",
+      startDate: "2026-01-01",
+      endDate: "2026-02-01",
+    });
+    const group = await createCycleGroup(source.id, {
+      name: "Leadership",
+      memberIds: [9],
+    });
+    const test = await createTestCycle(source.id);
+    expect(test.groups).toHaveLength(1);
+    expect(test.groups?.[0]?.id).not.toBe(group.id);
+    expect(test.groups?.[0]?.cycleId).toBe(test.id);
+    expect(test.groups?.[0]?.name).toBe("Leadership");
+    expect(test.groups?.[0]?.memberIds).toEqual([9]);
+  });
+
+  it("leaves existing cycles with no groups unchanged", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    expect(cycle.groups ?? []).toEqual([]);
+
+    const updated = await updateReviewCycle(cycle.id, {
+      settings: cycle.settings,
+      stagesConfig: cycle.stagesConfig,
+    });
+    expect(updated.groups ?? []).toEqual([]);
   });
 });

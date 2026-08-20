@@ -16,6 +16,7 @@
   /* App aliases used by layout — follow surface/text tokens (flip in .dark) */
   --color-bg: var(--color-surface);
   --color-bg-muted: var(--color-muted-bg);
+  --color-surface-subtle: var(--color-neutral-hover);
   --color-text: var(--color-text-primary);
   --color-text-secondary: var(--color-text-sec);
   --color-border: var(--color-divider);

@@ -72,7 +72,7 @@ TEAM_OWNERS: dict[str, str] = {
     "Payments Research & Development": "Sheikh Syed Ahmed",
     "Payroll": "Elvira Moey Shae'Fee",
     "People Experience": "Elvira Moey Shae'Fee",
-    "Performance & Total Rewards": "Elvira Moey Shae'Fee",
+    "Performance & Total Rewards": "Angie Ng Yun Ni",
     "Platform": "MD. Selim Mahmud",
     "Platform Operations": "Md. Ruhul Amin Siraji",
     "PR & Awards": "Rifat Ahmed",

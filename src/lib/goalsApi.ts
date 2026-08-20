@@ -51,6 +51,8 @@ export type {
 export type { GoalMutationContext }
 
 export { isEligibleForCycle }
+import { canSubmitGoals } from './goals/weightage'
+
 export {
   canSubmitGoals,
   goalCompletion,
@@ -255,6 +257,12 @@ export async function submitGoals(
   context: GoalMutationContext,
   goals?: Goal[],
 ): Promise<GoalsSnapshot> {
+  const snapshot = getGoalsSnapshot()
+  const toSubmit = goals ?? snapshot.byPerson[context.subjectId]?.goals ?? []
+  const check = canSubmitGoals(toSubmit, snapshot.cycle.goalCountPolicy)
+  if (!check.ok) {
+    throw new Error(check.reasons[0] ?? 'These goals cannot be submitted yet.')
+  }
   if (useLocalGoals()) {
     if (goals) savePersonGoals(context, goals)
     return delay(submitPersonGoals(context))

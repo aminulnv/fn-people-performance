@@ -621,10 +621,10 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     options={catalogOptions.site}
                   />
                 </DetailRow>
-                <DetailRow label="Line manager" icon={UserRound}>
+                <DetailRow label="Line Manager" icon={UserRound}>
                   <ListboxSelect
                     name="reportsTo"
-                    aria-label="Line manager"
+                    aria-label="Line Manager"
                     value={reportsToValue}
                     onValueChange={onReportsToChange}
                     placeholder="Select manager"
@@ -652,9 +652,9 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     {form.hrbpName.trim() || 'Set after save via department'}
                   </div>
                 </DetailRow>
-                <DetailRow label="Start date" icon={Calendar}>
+                <DetailRow label="Joining Date" icon={Calendar}>
                   <InlineInput
-                    label="Start date"
+                    label="Joining Date"
                     type="date"
                     value={form.startDate}
                     onChange={(value) => onFieldChange('startDate', value)}

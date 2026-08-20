@@ -3,12 +3,10 @@ import {
   approveGoals,
   cascadeGoalToReports,
   copyPreviousGoals as copyPreviousGoalsFromCycle,
-  fetchGoalsSnapshot,
   saveGoals,
   saveProgress,
   sendBackGoals,
   submitGoals,
-  watchGoalsSnapshot,
   type GoalMutationContext,
 } from "@/lib/goalsApi";
 import { isEligibleForCycle } from "@/lib/goals/demoData";
@@ -33,7 +31,6 @@ import {
   type GoalCapabilities,
 } from "@/lib/goals/permissions";
 import {
-  getGoalsSnapshot,
   getGoalsSnapshotForCycle,
   setActiveCycle,
   setActivePerson,
@@ -45,10 +42,12 @@ import type {
   PersonGoals,
 } from "@/lib/goals/types";
 import { newId } from "@/lib/goals/weightage";
+import { hasSystemPermission } from "@/lib/accessControl/types";
+import { useSharedGoalsSnapshot } from "@/lib/goals/useSharedGoalsSnapshot";
 import { useCurrentPerson } from "@/lib/useCurrentPerson";
 
 export type GoalsControllerActions = {
-  saveGoals: (subjectId: string, goals: Goal[]) => Promise<void>;
+  saveGoals: (subjectId: string, goals: Goal[]) => Promise<boolean>;
   saveGoal: (subjectId: string, goal: Goal) => Promise<void>;
   saveProgress: (subjectId: string, goals: Goal[]) => Promise<void>;
   addComment: (
@@ -99,51 +98,16 @@ export function useGoalsController({
   subjectId: string;
 }): GoalsController {
   const actor = useCurrentPerson();
-  const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(null);
+  const snapshot = useSharedGoalsSnapshot();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const pendingMutationCountRef = useRef(0);
 
-  const refresh = useCallback(async () => {
-    setSnapshot(await fetchGoalsSnapshot());
-  }, []);
-
-  const syncSnapshot = useCallback(() => {
-    setSnapshot(getGoalsSnapshot());
-  }, []);
-
-  const refreshDebounceRef = useRef<number | null>(null);
-  const scheduleRemoteRefresh = useCallback(() => {
-    if (refreshDebounceRef.current !== null) {
-      window.clearTimeout(refreshDebounceRef.current);
-    }
-    refreshDebounceRef.current = window.setTimeout(() => {
-      refreshDebounceRef.current = null;
-      void refresh();
-    }, 150);
-  }, [refresh]);
-
   useEffect(() => {
     if (cycleId) setActiveCycle(cycleId);
     setActivePerson(subjectId);
   }, [cycleId, subjectId]);
-
-  useEffect(() => {
-    void refresh();
-    return watchGoalsSnapshot(() => {
-      scheduleRemoteRefresh();
-    });
-  }, [refresh, scheduleRemoteRefresh]);
-
-  useEffect(
-    () => () => {
-      if (refreshDebounceRef.current !== null) {
-        window.clearTimeout(refreshDebounceRef.current);
-      }
-    },
-    [],
-  );
 
   const subject = useMemo(() => {
     if (!snapshot) return null;
@@ -264,7 +228,6 @@ export function useGoalsController({
       );
       try {
         const result = await operation;
-        syncSnapshot();
         return result;
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -274,13 +237,16 @@ export function useGoalsController({
         if (pendingMutationCountRef.current === 0) setBusy(false);
       }
     },
-    [syncSnapshot],
+    [],
   );
 
   const actions = useMemo<GoalsControllerActions>(() => {
     return {
       async saveGoals(targetSubjectId, goals) {
-        await run(() => saveGoals(mutationContext(targetSubjectId), goals));
+        const result = await run(() =>
+          saveGoals(mutationContext(targetSubjectId), goals),
+        );
+        return result !== undefined;
       },
       async saveGoal(targetSubjectId, goal) {
         const row = snapshot?.byPerson[targetSubjectId];
@@ -355,8 +321,17 @@ export function useGoalsController({
       },
       async cascadeGoal(targetSubjectId, goalId, reportIds) {
         if (!actor || !snapshot) throw new Error("Goals are still loading.");
+        const subject = snapshot.people.find(
+          (person) => person.id === targetSubjectId,
+        );
+        const allowedReportIds = hasSystemPermission(
+          actor.permissions,
+          "platform.write_all",
+        )
+          ? (subject?.reportIds ?? [])
+          : actor.reportIds;
         const chosenIds = [...new Set(reportIds)].filter((reportId) =>
-          actor.reportIds.includes(reportId),
+          allowedReportIds.includes(reportId),
         );
         if (chosenIds.length === 0) {
           throw new Error(

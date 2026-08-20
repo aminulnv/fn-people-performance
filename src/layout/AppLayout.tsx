@@ -14,12 +14,14 @@ import {
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
+import { getGoalsSnapshot } from '@/lib/goals/store'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
 import { TopBarCycleNav } from './TopBarCycleNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
 import { navItemsForPermissions } from '@/config/layout'
+import { useGoalTodoCounts } from '@/lib/goals/useGoalTodoCounts'
 import { useAuth } from '@/lib/useAuth'
 
 interface AppLayoutProps extends AppLayoutConfig {
@@ -38,9 +40,15 @@ export function AppLayout({
   const { employees } = useEmployees({ load: false })
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
+  const goalTodos = useGoalTodoCounts()
   const visibleNavItems = useMemo(
-    () => navItemsForPermissions(navItems, user?.permissions),
-    [navItems, user?.permissions],
+    () =>
+      navItemsForPermissions(navItems, user?.permissions).map((item) =>
+        item.path === '/goals'
+          ? { ...item, badgeCount: goalTodos.total }
+          : item,
+      ),
+    [goalTodos.total, navItems, user?.permissions],
   )
 
   useEffect(() => {
@@ -77,25 +85,15 @@ export function AppLayout({
     { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
     pathname,
   )
-  const goalItemMatch =
-    matchPath(
-      { path: '/goals-v2/:cycleId/:personId/:goalId', end: true },
-      pathname,
-    ) ??
-    matchPath(
-      { path: '/goals/:cycleId/:personId/:goalId', end: true },
-      pathname,
-    )
+  const goalItemMatch = matchPath(
+    { path: '/goals/:cycleId/:personId/:goalId', end: true },
+    pathname,
+  )
   const goalsDetailMatch =
-    matchPath(
-      { path: '/goals-v2/:cycleId/:personId', end: true },
-      pathname,
-    ) ??
     matchPath(
       { path: '/goals/:cycleId/:personId', end: true },
       pathname,
-    ) ??
-    goalItemMatch
+    ) ?? goalItemMatch
   const profileEmployeeId = Number(
     employeeEditMatch?.params.employeeId ??
     employeeProfileMatch?.params.employeeId ??
@@ -149,6 +147,19 @@ export function AppLayout({
   const goalsCycleLabel = goalsCycleId
     ? (getReviewCycle(goalsCycleId)?.name ?? cycleLabelFromKey(goalsCycleId))
     : undefined
+  const goalsGoalId = goalItemMatch?.params.goalId
+    ? decodeURIComponent(goalItemMatch.params.goalId)
+    : undefined
+  const goalsPersonId = goalsDetailMatch?.params.personId
+    ? decodeURIComponent(goalsDetailMatch.params.personId)
+    : undefined
+  const goalsGoalTitle = (() => {
+    if (!goalsGoalId || !goalsPersonId) return undefined
+    const row = getGoalsSnapshot().byPerson[goalsPersonId]
+    const index = row?.goals.findIndex((goal) => goal.id === goalsGoalId) ?? -1
+    if (index < 0 || !row) return undefined
+    return row.goals[index].description.trim() || `Untitled goal ${index + 1}`
+  })()
 
   const breadcrumbs = useMemo(
     () =>
@@ -169,11 +180,13 @@ export function AppLayout({
         cycleName,
         scorecardCycleLabel,
         goalsCycleLabel,
+        goalsGoalTitle,
       }),
     [
       cycleName,
       departmentIdParam,
       goalsCycleLabel,
+      goalsGoalTitle,
       navItems,
       orgSnapshot,
       pathname,

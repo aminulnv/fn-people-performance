@@ -12,6 +12,7 @@ export type BreadcrumbContext = {
   cycleName?: string | null
   scorecardCycleLabel?: string | null
   goalsCycleLabel?: string | null
+  goalsGoalTitle?: string | null
 }
 
 function matchNavItem(
@@ -47,6 +48,7 @@ export function buildBreadcrumbs({
   cycleName,
   scorecardCycleLabel,
   goalsCycleLabel,
+  goalsGoalTitle,
 }: BreadcrumbContext): BreadcrumbItem[] {
   if (pathname === '/people/new' || pathname.startsWith('/people/new/')) {
     return [peopleRoot(), { label: 'Add employee' }]
@@ -161,14 +163,6 @@ export function buildBreadcrumbs({
 
   const goalsDetail =
     matchPath(
-      { path: '/goals-v2/:cycleId/:personId/:goalId', end: true },
-      pathname,
-    ) ??
-    matchPath(
-      { path: '/goals-v2/:cycleId/:personId', end: true },
-      pathname,
-    ) ??
-    matchPath(
       { path: '/goals/:cycleId/:personId/:goalId', end: true },
       pathname,
     ) ??
@@ -180,11 +174,18 @@ export function buildBreadcrumbs({
     const cycleId = goalsDetail.params.cycleId
       ? decodeURIComponent(goalsDetail.params.cycleId)
       : ''
+    const personId = decodeURIComponent(goalsDetail.params.personId)
     const root = goalsRoot(pathname)
+    const personLabel = employeeName?.trim() || 'Goals'
+    const personHref = `/goals/${encodeURIComponent(cycleId)}/${encodeURIComponent(personId)}`
+    const goalTitle = goalsGoalTitle?.trim()
     return [
       root,
       { label: goalsCycleLabel?.trim() || cycleId || 'Cycle', href: root.href },
-      { label: employeeName?.trim() || 'Goals' },
+      goalTitle
+        ? { label: personLabel, href: personHref }
+        : { label: personLabel },
+      ...(goalTitle ? [{ label: goalTitle }] : []),
     ]
   }
 
@@ -215,9 +216,6 @@ export function resolveTopBarIcon(
   pathname: string,
   navItems: NavItem[],
 ): NavItem['icon'] | undefined {
-  if (pathname === '/goals-v2' || pathname.startsWith('/goals-v2/')) {
-    return navItems.find((item) => item.path === '/goals')?.icon
-  }
   if (
     pathname === profileNavItem.path ||
     pathname.startsWith(`${profileNavItem.path}/`)

@@ -1,38 +1,35 @@
 import { useState } from "react";
 import { CalendarRange, Target } from "lucide-react";
 import { Input, Switch } from "@/components/ui";
-import { ApiError } from "@/lib/apiClient";
-import { listEmployees } from "@/lib/employees/store";
-import { notifyReviewDeadlineChanged } from "@/lib/notifications/reviewEvents";
 import { normalizeCycleSettings } from "@/lib/reviews/demoData";
-import {
-  getReviewCycle,
-  updateCycleSettings,
-  updateCycleStagesConfig,
-} from "@/lib/reviews/store";
+import { updateCycleGroup, updateReviewCycle } from "@/lib/reviews/store";
 import type {
+  CycleGroup,
   CycleSettings,
-  CycleStagesConfig,
   DateRange,
   PostWindowGoalPolicy,
   ReviewCycle,
 } from "@/lib/reviews/types";
-import { useAuth } from "@/lib/useAuth";
 import { EditPageShell } from "./EditPageShell";
 import { GoalCycleExtensionsEditor } from "./GoalCycleExtensionsEditor";
 import { DateCell, StageRow, StageTable } from "./StageDateTable";
 
 type GoalsSettingsEditPageProps = {
   cycle: ReviewCycle;
+  group?: CycleGroup;
   onClose: () => void;
 };
 
-export function GoalsSettingsEditPage({ cycle, onClose }: GoalsSettingsEditPageProps) {
-  const { user } = useAuth();
+export function GoalsSettingsEditPage({
+  cycle,
+  group,
+  onClose,
+}: GoalsSettingsEditPageProps) {
+  const source = group ?? cycle;
   const [settings, setSettings] = useState<CycleSettings>(() =>
-    normalizeCycleSettings(cycle.settings),
+    normalizeCycleSettings(source.settings),
   );
-  const [goals, setGoals] = useState(() => structuredClone(cycle.stagesConfig.goals));
+  const [goals, setGoals] = useState(() => structuredClone(source.stagesConfig.goals));
   const [error, setError] = useState<string | null>(null);
   const allowLateSubmissions =
     settings.postWindowGoalPolicy === "two_tier_approval";
@@ -44,51 +41,33 @@ export function GoalsSettingsEditPage({ cycle, onClose }: GoalsSettingsEditPageP
     }));
   };
 
-  const save = async () => {
+  const save = () => {
+    setError(null);
     try {
-      await updateCycleSettings(cycle.id, settings);
-
-      const current = getReviewCycle(cycle.id) ?? cycle;
-      const nextStagesConfig: CycleStagesConfig = {
-        ...current.stagesConfig,
-        goals,
+      const stagesConfig = {
+        ...source.stagesConfig,
+        goals: group ? { ...goals, extensions: [] } : goals,
       };
-      await updateCycleStagesConfig(current.id, nextStagesConfig);
-
-      const recipients = listEmployees()
-        .filter((employee) => employee.isActive)
-        .map((employee) => ({
-          id: String(employee.employeeId),
-          name: employee.fullName,
-        }));
-
-      if (cycle.stagesConfig.goals.employee.endDate !== goals.employee.endDate) {
-        notifyReviewDeadlineChanged({
-          actorId: user?.personId,
-          cycleId: cycle.id,
-          cycleName: cycle.name,
-          recipients,
-          stage: "goal setting",
-          oldDate: cycle.stagesConfig.goals.employee.endDate,
-          newDate: goals.employee.endDate,
-        });
-      }
-
+      const pending = group
+        ? updateCycleGroup(cycle.id, group.id, { settings, stagesConfig })
+        : updateReviewCycle(cycle.id, { settings, stagesConfig });
+      void pending.catch(() => {
+        /* Shown on the cycle page after close. */
+      });
       onClose();
     } catch (err) {
-      if (err instanceof ApiError) {
-        const body = err.body as { error?: string } | null;
-        setError(body?.error ?? err.message);
-        return;
-      }
       setError(err instanceof Error ? err.message : "Could not save settings.");
     }
   };
 
   return (
     <EditPageShell
-      title="Goals settings"
-      description="Goal windows, submission rules, and deadline extensions."
+      title={group ? `${group.name} · Goals settings` : "Goals settings"}
+      description={
+        group
+          ? "Goal windows and submission rules for this group."
+          : "Goal windows, submission rules, and deadline extensions."
+      }
       onBack={onClose}
       onSave={save}
       error={error}
@@ -117,16 +96,18 @@ export function GoalsSettingsEditPage({ cycle, onClose }: GoalsSettingsEditPageP
                 />
               </StageRow>
             </StageTable>
-            <GoalCycleExtensionsEditor
-              extensions={goals.extensions ?? []}
-              baseEndDate={goals.employee.endDate}
-              performanceStartDate={
-                cycle.stagesConfig.performance.managerStart.date
-              }
-              onChange={(extensions) =>
-                setGoals((current) => ({ ...current, extensions }))
-              }
-            />
+            {group ? null : (
+              <GoalCycleExtensionsEditor
+                extensions={goals.extensions ?? []}
+                baseEndDate={goals.employee.endDate}
+                performanceStartDate={
+                  cycle.stagesConfig.performance.managerStart.date
+                }
+                onChange={(extensions) =>
+                  setGoals((current) => ({ ...current, extensions }))
+                }
+              />
+            )}
           </section>
         </div>
 

@@ -38,6 +38,8 @@ const EMPLOYEE_SELECT = `
     head.name AS department_head_name,
     hrbp.employee_id AS hrbp_id,
     hrbp.name AS hrbp_name,
+    own.employee_id AS team_owner_id,
+    own.name AS team_owner_name,
     mgr.employee_id AS manager_id,
     mgr.name AS reports_to_name,
     mgr.email AS manager_email
@@ -47,6 +49,7 @@ const EMPLOYEE_SELECT = `
   LEFT JOIN platform.divisions div ON div.id = e.division_id
   LEFT JOIN platform.employees head ON head.employee_id = e.department_head_employee_id
   LEFT JOIN platform.employees hrbp ON hrbp.employee_id = d.hrbp_employee_id
+  LEFT JOIN platform.employees own ON own.employee_id = t.owner_employee_id
   LEFT JOIN platform.employees mgr ON mgr.employee_id = e.reports_to_employee_id
 `
 
@@ -78,6 +81,7 @@ export function mapEmployeeRow(row) {
     reportsToName: row.reports_to_name ?? '',
     departmentHeadName: row.department_head_name ?? '',
     hrbpName: row.hrbp_name ?? '',
+    teamOwnerName: row.team_owner_name ?? '',
     jobGrade: row.job_grade ?? '',
     site: row.site ?? '',
     avatarUrl: row.avatar_url ?? '',
@@ -85,6 +89,7 @@ export function mapEmployeeRow(row) {
     reportsToId: row.manager_id ?? undefined,
     departmentHeadId: row.department_head_id ?? undefined,
     hrbpId: row.hrbp_id ?? undefined,
+    teamOwnerId: row.team_owner_id ?? undefined,
     isActive: row.status === 'active',
     createdAt: isoTimestamp(row.created_at),
     updatedAt: isoTimestamp(row.updated_at),

@@ -13,6 +13,7 @@ import {
 import { subscribeReviewsStore } from "@/lib/reviews/store";
 import {
   listGoalCycleOptions,
+  parseGoalsEmployeeId,
   pickDefaultCycleId,
   resolveGoalsCycle,
   resolveGoalsCycleStatus,
@@ -290,7 +291,12 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
   }
 
   const phase = phaseFor(state, activeCycleId);
-  const fromReviews = resolveGoalsCycle(activeCycleId, phase);
+  const fromReviews = resolveGoalsCycle(
+    activeCycleId,
+    phase,
+    new Date(),
+    parseGoalsEmployeeId(state.activePersonId),
+  );
   const option = options.find((c) => c.id === activeCycleId);
 
   const cycle = fromReviews ??
@@ -319,28 +325,34 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
       enrichPersonGoalsActors(row, merged.people),
     ]),
   );
-  const isPastGoalWindow =
-    cycle.postWindowGoalPolicy === "hard_stop" &&
-    (cycle.phase === "hard_lock" ||
-      cycle.phase === "check_in" ||
-      cycle.phase === "closed");
-  const byPerson: Record<string, PersonGoals> = isPastGoalWindow
-    ? Object.fromEntries(
-        Object.entries(enrichedByPerson).map(([personId, row]) => {
-          const person = merged.people.find(
-            (candidate) => candidate.id === personId,
-          );
-          const isIncomplete =
-            person &&
-            isEligibleForCycle(person, cycle) &&
-            (row.status === "draft" || row.status === "sent_back");
-          return [
-            personId,
-            isIncomplete ? { ...row, status: "incomplete" as const } : row,
-          ];
-        }),
-      )
-    : enrichedByPerson;
+  const byPerson: Record<string, PersonGoals> = Object.fromEntries(
+    Object.entries(enrichedByPerson).map(([personId, row]) => {
+      const personCycle =
+        resolveGoalsCycle(
+          cycle.id,
+          phase,
+          new Date(),
+          parseGoalsEmployeeId(personId),
+        ) ?? cycle;
+      const isPastGoalWindow =
+        personCycle.postWindowGoalPolicy === "hard_stop" &&
+        (personCycle.phase === "hard_lock" ||
+          personCycle.phase === "check_in" ||
+          personCycle.phase === "closed");
+      const person = merged.people.find(
+        (candidate) => candidate.id === personId,
+      );
+      const isIncomplete =
+        isPastGoalWindow &&
+        person &&
+        isEligibleForCycle(person, personCycle) &&
+        (row.status === "draft" || row.status === "sent_back");
+      return [
+        personId,
+        isIncomplete ? { ...row, status: "incomplete" as const } : row,
+      ];
+    }),
+  );
 
   return {
     cycle: {
@@ -351,6 +363,7 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
       goalCountPolicy: cycle.goalCountPolicy,
       postWindowGoalPolicy: cycle.postWindowGoalPolicy,
       goalWindow: cycle.goalWindow,
+      goalExtensions: cycle.goalExtensions,
     },
     cycleStatus,
     availableCycles,
@@ -567,16 +580,24 @@ function requireMutationActors(context: GoalMutationContext): {
 
 function capabilitiesFor(context: GoalMutationContext) {
   const { snap, actor, subject, row } = requireMutationActors(context);
+  const cycle =
+    resolveGoalsCycle(
+      snap.cycle.id,
+      snap.cycle.phase,
+      new Date(),
+      parseGoalsEmployeeId(subject.id),
+    ) ?? snap.cycle;
   return {
     snap,
     actor,
     subject,
     row,
+    cycle,
     capabilities: deriveGoalCapabilities({
       actor,
       subject,
       row,
-      cycle: snap.cycle,
+      cycle,
       cycleStatus: snap.cycleStatus,
     }),
   };
@@ -586,7 +607,8 @@ export function savePersonGoals(
   context: GoalMutationContext,
   goals: Goal[],
 ): GoalsSnapshot {
-  const { snap, actor, subject, row, capabilities } = capabilitiesFor(context);
+  const { actor, subject, row, cycle, capabilities } =
+    capabilitiesFor(context);
   if (!capabilities.canEditStructure) {
     throw new Error("You do not have permission to edit these goals.");
   }
@@ -625,8 +647,8 @@ export function savePersonGoals(
         ...current,
         status: "submitted",
         postWindowApprovalStage:
-          snap.cycle.phase === "hard_lock" &&
-          snap.cycle.postWindowGoalPolicy === "two_tier_approval"
+          cycle.phase === "hard_lock" &&
+          cycle.postWindowGoalPolicy === "two_tier_approval"
             ? "manager"
             : undefined,
         goals: clone(goals),
@@ -718,12 +740,13 @@ export function copyPreviousCycleGoals(
 }
 
 export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
-  const { snap, actor, subject, row, capabilities } = capabilitiesFor(context);
+  const { actor, subject, row, cycle, capabilities } =
+    capabilitiesFor(context);
   if (!capabilities.canSubmit) {
     throw new Error("You do not have permission to submit these goals.");
   }
 
-  if (!isEligibleForCycle(subject, snap.cycle)) {
+  if (!isEligibleForCycle(subject, cycle)) {
     return updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
       ...current,
       status: "not_eligible",
@@ -733,15 +756,15 @@ export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
   if (row.status !== "draft" && row.status !== "sent_back") {
     throw new Error("Goals are not in a submittable state.");
   }
-  const check = canSubmitGoals(row.goals, snap.cycle.goalCountPolicy);
+  const check = canSubmitGoals(row.goals, cycle.goalCountPolicy);
   if (!check.ok) throw new Error(check.reasons[0] ?? "Cannot submit.");
 
   const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
     ...current,
     status: "submitted",
     postWindowApprovalStage:
-      snap.cycle.phase === "hard_lock" &&
-      snap.cycle.postWindowGoalPolicy === "two_tier_approval"
+      cycle.phase === "hard_lock" &&
+      cycle.postWindowGoalPolicy === "two_tier_approval"
         ? "manager"
         : undefined,
     sendBackReason: undefined,
@@ -886,16 +909,23 @@ export function applyHardLockIncompletes(): GoalsSnapshot {
   const cycleId = snap.cycle.id;
   const bucket = { ...ensureCycleBucket(state, cycleId) };
   const newlyIncomplete: DemoPerson[] = [];
+  const phase = phaseFor(state, cycleId);
 
-  if (snap.cycle.postWindowGoalPolicy === "hard_stop") {
-    for (const person of snap.people) {
-      const row = snap.byPerson[person.id] ?? emptyPersonGoals(person.id);
-      bucket[person.id] = row;
-      if (row.status === "draft" || row.status === "sent_back") {
-        if (isEligibleForCycle(person, snap.cycle)) {
-          bucket[person.id] = { ...row, status: "incomplete" };
-          newlyIncomplete.push(person);
-        }
+  for (const person of snap.people) {
+    const row = snap.byPerson[person.id] ?? emptyPersonGoals(person.id);
+    bucket[person.id] = row;
+    const personCycle =
+      resolveGoalsCycle(
+        cycleId,
+        phase,
+        new Date(),
+        parseGoalsEmployeeId(person.id),
+      ) ?? snap.cycle;
+    if (personCycle.postWindowGoalPolicy !== "hard_stop") continue;
+    if (row.status === "draft" || row.status === "sent_back") {
+      if (isEligibleForCycle(person, personCycle)) {
+        bucket[person.id] = { ...row, status: "incomplete" };
+        newlyIncomplete.push(person);
       }
     }
   }

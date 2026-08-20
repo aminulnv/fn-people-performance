@@ -90,10 +90,10 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('uses /goals as the Goals root on full-view routes', () => {
+  it('uses /goals as the Goals root on detail routes', () => {
     expect(
       buildBreadcrumbs({
-        pathname: '/goals-v2/q2-2026/42',
+        pathname: '/goals/q2-2026/42',
         navItems,
         employeeName: 'Aminul Islam Borhan',
         goalsCycleLabel: 'Q2 2026',
@@ -155,18 +155,20 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('keeps Goals > cycle > person when a saved goal is open', () => {
+  it('adds the open goal after a linked person crumb', () => {
     expect(
       buildBreadcrumbs({
         pathname: '/goals/q2-2026/42/goal-1',
         navItems,
         employeeName: 'Aminul Islam Borhan',
         goalsCycleLabel: 'Q2 2026',
+        goalsGoalTitle: 'Ship quality',
       }),
     ).toEqual([
       { label: 'Goals', href: '/goals' },
       { label: 'Q2 2026', href: '/goals' },
-      { label: 'Aminul Islam Borhan' },
+      { label: 'Aminul Islam Borhan', href: '/goals/q2-2026/42' },
+      { label: 'Ship quality' },
     ])
   })
 
@@ -182,7 +184,7 @@ describe('buildBreadcrumbs', () => {
 })
 
 describe('resolveTopBarIcon', () => {
-  it('resolves the Goals icon for goals-v2 routes', () => {
-    expect(resolveTopBarIcon('/goals-v2/q2-2026/42', navItems)).toBe(Home)
+  it('resolves the Goals icon for goals detail routes', () => {
+    expect(resolveTopBarIcon('/goals/q2-2026/42', navItems)).toBe(Home)
   })
 })

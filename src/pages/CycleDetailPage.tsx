@@ -17,6 +17,7 @@ import { setActiveCycle } from '@/lib/goals/store'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath, cyclesListPath } from '@/lib/reviews/paths'
 import {
+  clearReviewsMutationError,
   createTestCycle,
   deleteReviewCycle,
   getReviewCycle,
@@ -147,6 +148,19 @@ export default function CycleDetailPage() {
       {menuError ? (
         <p className="pd-reviews-modal__error" role="alert">
           {menuError}
+        </p>
+      ) : null}
+
+      {snapshot.mutationError?.cycleId === cycle.id ? (
+        <p className="pd-reviews-modal__error pd-reviews-save-error" role="alert">
+          <span>{snapshot.mutationError.message}</span>
+          <button
+            type="button"
+            className="pd-reviews-save-error__dismiss"
+            onClick={clearReviewsMutationError}
+          >
+            Dismiss
+          </button>
         </p>
       ) : null}
 

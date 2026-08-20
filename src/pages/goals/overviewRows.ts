@@ -3,11 +3,12 @@ import type {
   GoalsSnapshot,
   PersonGoals,
 } from '@/lib/goals/types'
+import { goalLastUpdatedAt } from '@/lib/goals/progressLog'
 import { goalCompletion } from '@/lib/goals/weightage'
 import {
   canViewPersonGoals,
   goalTitle,
-  metricCountLabel,
+  metricCount,
   personMatchesScope,
   type GoalsDirectoryScope,
 } from './goalHelpers'
@@ -22,7 +23,8 @@ export type GoalRow = {
   goalId: string
   weight: number
   completion: number
-  metric: string
+  lastUpdatedAt?: string
+  metricCount: number
 }
 
 /** First row for a person carries the rowspan; later rows use 0 and skip the owner cell. */
@@ -91,7 +93,8 @@ export function goalRows(
       goalId: goal.id,
       weight: goal.weight,
       completion: Math.round(goalCompletion(goal)),
-      metric: metricCountLabel(goal),
+      lastUpdatedAt: goalLastUpdatedAt(goal),
+      metricCount: metricCount(goal),
     }))
   })
 }

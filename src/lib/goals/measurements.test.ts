@@ -221,6 +221,55 @@ describe('measurementPanels', () => {
     }
   })
 
+  it('names a single list Task List and numbers it when a second is added', () => {
+    const created = appendMilestoneList([])
+    const createdPanel = measurementPanels(created)[0]
+    expect(createdPanel?.kind).toBe('todo_measure')
+    if (createdPanel?.kind === 'todo_measure') {
+      expect(createdPanel.lists.map((list) => list.listTitle)).toEqual(['Task List'])
+    }
+
+    const groupId =
+      createdPanel?.kind === 'todo_measure' ? createdPanel.measureGroupId : ''
+    const withSecond = appendTodoListToMeasure(created, groupId)
+    const numbered = measurementPanels(withSecond)[0]
+    expect(numbered?.kind).toBe('todo_measure')
+    if (numbered?.kind === 'todo_measure') {
+      expect(numbered.lists.map((list) => list.listTitle)).toEqual([
+        'Task List 1',
+        'Task List 2',
+      ])
+    }
+
+    const remaining = removeMilestoneList(
+      withSecond,
+      numbered && numbered.kind === 'todo_measure'
+        ? numbered.lists[1]!.listKey
+        : '',
+    )
+    const collapsed = measurementPanels(remaining)[0]
+    expect(collapsed?.kind).toBe('todo_measure')
+    if (collapsed?.kind === 'todo_measure') {
+      expect(collapsed.lists.map((list) => list.listTitle)).toEqual(['Task List'])
+    }
+  })
+
+  it('does not rename a custom list when adding another', () => {
+    const first = blankMilestone(0, { listTitle: 'Shopping' })
+    const next = appendTodoListToMeasure(
+      [first],
+      first.measureGroupId ?? first.listId ?? first.id,
+    )
+    const panel = measurementPanels(next)[0]
+    expect(panel?.kind).toBe('todo_measure')
+    if (panel?.kind === 'todo_measure') {
+      expect(panel.lists.map((list) => list.listTitle)).toEqual([
+        'Shopping',
+        'Task List 1',
+      ])
+    }
+  })
+
   it('adds items only to the selected checklist', () => {
     const listKey = 'list-1'
     const first = { ...blankMilestone(), id: listKey, listId: listKey }

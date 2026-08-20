@@ -8,6 +8,8 @@ export interface NavItem {
   end?: boolean
   /** Sidebar shows a right-aligned construction marker when true. */
   comingSoon?: boolean
+  /** Red count pill, e.g. goals awaiting the signed-in manager’s review. */
+  badgeCount?: number
   /** When set, the item is hidden unless the user has this permission. */
   requiredPermission?: SystemPermission
 }

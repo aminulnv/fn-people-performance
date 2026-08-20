@@ -92,4 +92,88 @@ describe('resolveGoalPhase', () => {
       'previous',
     )
   })
+
+  it('maps an ungrouped person to the cycle defaults, including extensions', () => {
+    const host = cycle()
+    host.stagesConfig.goals.extensions = [
+      {
+        id: 'ext-1',
+        endDate: '2026-07-15',
+        scope: { type: 'people', employeeIds: [202] },
+      },
+    ]
+    const mapped = reviewCycleToGoalsCycle(
+      host,
+      'window_open',
+      new Date('2026-06-15T12:00:00Z'),
+      202,
+    )
+    expect(mapped.goalWindow).toEqual(host.stagesConfig.goals.employee)
+    expect(mapped.goalExtensions).toEqual(host.stagesConfig.goals.extensions)
+    expect(mapped.postWindowGoalPolicy).toBe('two_tier_approval')
+  })
+
+  it('maps a grouped person to that group window and policy without extensions', () => {
+    const host = cycle()
+    host.stagesConfig.goals.extensions = [
+      {
+        id: 'ext-1',
+        endDate: '2026-07-15',
+        scope: { type: 'people', employeeIds: [101] },
+      },
+    ]
+    const groupWindow = { startDate: '2026-06-01', endDate: '2026-08-01' }
+    host.groups = [
+      {
+        id: 'group-leadership',
+        cycleId: host.id,
+        name: 'Leadership',
+        memberIds: [101],
+        settings: {
+          ...host.settings,
+          postWindowGoalPolicy: 'hard_stop',
+          goalCountPolicy: {
+            ...host.settings.goalCountPolicy,
+            minimumRequired: 4,
+          },
+        },
+        stagesConfig: {
+          ...host.stagesConfig,
+          goals: { employee: groupWindow, extensions: host.stagesConfig.goals.extensions },
+        },
+        calibration: host.calibration,
+        createdAt: host.createdAt,
+      },
+    ]
+
+    const mapped = reviewCycleToGoalsCycle(
+      host,
+      'window_open',
+      new Date('2026-07-15T12:00:00Z'),
+      101,
+    )
+    expect(mapped.goalWindow).toEqual(groupWindow)
+    expect(mapped.goalExtensions).toEqual([])
+    expect(mapped.postWindowGoalPolicy).toBe('hard_stop')
+    expect(mapped.goalCountPolicy.minimumRequired).toBe(4)
+    expect(mapped.phase).toBe('window_open')
+
+    const ungrouped = reviewCycleToGoalsCycle(
+      host,
+      'window_open',
+      new Date('2026-07-15T12:00:00Z'),
+      202,
+    )
+    expect(ungrouped.goalWindow).toEqual(host.stagesConfig.goals.employee)
+    expect(ungrouped.phase).toBe('hard_lock')
+    expect(ungrouped.goalExtensions).toHaveLength(1)
+  })
+
+  it('keeps cycles with no groups identical to the previous mapping', () => {
+    const host = cycle()
+    const today = new Date('2026-06-15T12:00:00Z')
+    expect(reviewCycleToGoalsCycle(host, 'window_open', today, 101)).toEqual(
+      reviewCycleToGoalsCycle(host, 'window_open', today),
+    )
+  })
 })

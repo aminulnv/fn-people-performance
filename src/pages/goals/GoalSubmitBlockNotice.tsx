@@ -1,6 +1,29 @@
 import { CircleAlert } from 'lucide-react'
 import type { SubmitGoalBlocker } from '@/lib/goals/weightage'
 
+function BlockerLine({
+  blocker,
+  onOpenGoal,
+}: {
+  blocker: SubmitGoalBlocker
+  onOpenGoal?: (goalId: string) => void
+}) {
+  const canOpen = Boolean(blocker.goalId && blocker.goalTitle && onOpenGoal)
+  if (!canOpen) return <>{blocker.reason}</>
+  return (
+    <>
+      <button
+        type="button"
+        className="pd-goals-sendback__goal"
+        onClick={() => onOpenGoal?.(blocker.goalId!)}
+      >
+        {blocker.goalTitle}
+      </button>
+      {blocker.suffix}
+    </>
+  )
+}
+
 export function GoalSubmitBlockNotice({
   blockers,
   onOpenGoal,
@@ -8,10 +31,7 @@ export function GoalSubmitBlockNotice({
   blockers: SubmitGoalBlocker[]
   onOpenGoal?: (goalId: string) => void
 }) {
-  const focus = blockers.find((blocker) => blocker.goalId) ?? blockers[0]
-  if (!focus) return null
-
-  const canOpen = Boolean(focus.goalId && focus.goalTitle && onOpenGoal)
+  if (blockers.length === 0) return null
 
   return (
     <aside className="pd-goals-sendback pd-goals-sendback--danger" role="alert">
@@ -22,22 +42,19 @@ export function GoalSubmitBlockNotice({
         <div className="pd-goals-sendback__head">
           <p className="pd-goals-sendback__title">Action required</p>
         </div>
-        <p className="pd-goals-sendback__reason">
-          {canOpen ? (
-            <>
-              <button
-                type="button"
-                className="pd-goals-sendback__goal"
-                onClick={() => onOpenGoal?.(focus.goalId!)}
-              >
-                {focus.goalTitle}
-              </button>
-              {focus.suffix}
-            </>
-          ) : (
-            blockers.map((blocker) => blocker.reason).join(' ')
-          )}
-        </p>
+        {blockers.length === 1 ? (
+          <p className="pd-goals-sendback__reason">
+            <BlockerLine blocker={blockers[0]} onOpenGoal={onOpenGoal} />
+          </p>
+        ) : (
+          <ul className="pd-goals-sendback__reason">
+            {blockers.map((blocker, index) => (
+              <li key={`${blocker.goalId ?? 'global'}-${index}`}>
+                <BlockerLine blocker={blocker} onOpenGoal={onOpenGoal} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </aside>
   )

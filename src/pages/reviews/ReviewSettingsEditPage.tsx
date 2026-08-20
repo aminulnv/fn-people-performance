@@ -15,18 +15,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Switch } from "@/components/ui";
-import { listEmployees } from "@/lib/employees/store";
-import { notifyReviewDeadlineChanged } from "@/lib/notifications/reviewEvents";
 import { normalizeCycleSettings } from "@/lib/reviews/demoData";
 import { REVIEW_TYPE_META, REVIEW_TYPE_ORDER } from "@/lib/reviews/labels";
-import { updateCycleSettings, updateCycleStagesConfig } from "@/lib/reviews/store";
+import { updateCycleGroup, updateReviewCycle } from "@/lib/reviews/store";
 import type {
+  CycleGroup,
   CycleSettings,
   CycleStagesConfig,
   ReviewCycle,
   ReviewTypeId,
 } from "@/lib/reviews/types";
-import { useAuth } from "@/lib/useAuth";
 import { EditPageShell } from "./EditPageShell";
 import {
   exclusionsLabel,
@@ -36,6 +34,7 @@ import { DateCell, StageRow, StageTable } from "./StageDateTable";
 
 type ReviewSettingsEditPageProps = {
   cycle: ReviewCycle;
+  group?: CycleGroup;
   onClose: () => void;
 };
 
@@ -49,14 +48,15 @@ const REVIEW_TYPE_ICONS: Record<ReviewTypeId, LucideIcon> = {
 
 export function ReviewSettingsEditPage({
   cycle,
+  group,
   onClose,
 }: ReviewSettingsEditPageProps) {
-  const { user } = useAuth();
+  const source = group ?? cycle;
   const [settings, setSettings] = useState<CycleSettings>(() =>
-    normalizeCycleSettings(cycle.settings),
+    normalizeCycleSettings(source.settings),
   );
   const [stagesConfig, setStagesConfig] = useState<CycleStagesConfig>(() =>
-    structuredClone(cycle.stagesConfig),
+    structuredClone(source.stagesConfig),
   );
   const [error, setError] = useState<string | null>(null);
   const [exclusionsOpen, setExclusionsOpen] = useState(false);
@@ -84,36 +84,23 @@ export function ReviewSettingsEditPage({
     }));
   };
 
-  const save = async () => {
+  const save = () => {
+    setError(null);
     try {
-      await updateCycleSettings(cycle.id, {
-        reviewTypes: settings.reviewTypes,
-        excludedEmployeeIds: settings.excludedEmployeeIds,
-        autoScorecardGeneration: settings.autoScorecardGeneration,
+      const patch = {
+        settings: {
+          reviewTypes: settings.reviewTypes,
+          excludedEmployeeIds: settings.excludedEmployeeIds,
+          autoScorecardGeneration: settings.autoScorecardGeneration,
+        },
+        stagesConfig,
+      };
+      const pending = group
+        ? updateCycleGroup(cycle.id, group.id, patch)
+        : updateReviewCycle(cycle.id, patch);
+      void pending.catch(() => {
+        /* Shown on the cycle page after close. */
       });
-      await updateCycleStagesConfig(cycle.id, stagesConfig);
-
-      const recipients = listEmployees()
-        .filter((employee) => employee.isActive)
-        .map((employee) => ({
-          id: String(employee.employeeId),
-          name: employee.fullName,
-        }));
-      if (
-        cycle.stagesConfig.performance.managerEnd.date !==
-        stagesConfig.performance.managerEnd.date
-      ) {
-        notifyReviewDeadlineChanged({
-          actorId: user?.personId,
-          cycleId: cycle.id,
-          cycleName: cycle.name,
-          recipients,
-          stage: "performance review",
-          oldDate: cycle.stagesConfig.performance.managerEnd.date,
-          newDate: stagesConfig.performance.managerEnd.date,
-        });
-      }
-
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");
@@ -123,7 +110,7 @@ export function ReviewSettingsEditPage({
   return (
     <>
       <EditPageShell
-        title="Review settings"
+        title={group ? `${group.name} · Review settings` : "Review settings"}
         description="Configure the performance review window, review types, and publishing."
         onBack={onClose}
         onSave={save}

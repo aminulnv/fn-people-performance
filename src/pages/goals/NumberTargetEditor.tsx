@@ -16,6 +16,7 @@ import {
   strategyLabel,
 } from '@/lib/goals/measurements'
 import type { Metric, MetricStrategy } from '@/lib/goals/types'
+import { FocusSafeNumberField } from './FocusSafeTextField'
 
 function StrategyIcon({
   strategy,
@@ -167,10 +168,52 @@ export function NumberTargetEditor({
       ? 'Target value'
       : 'Upper limit'
 
-  const parseOptional = (raw: string): number | '' => {
-    if (raw.trim() === '') return ''
-    const next = Number(raw)
-    return Number.isFinite(next) ? next : ''
+  const commitLower = (next: number | '') => {
+    if (strategy === 'increase' || strategy === 'decrease') {
+      const startValue = next === '' ? undefined : next
+      onChange({
+        ...metric,
+        startValue,
+        currentValue: startValue,
+      })
+      return
+    }
+    if (strategy === 'keep_above') {
+      const rangeMin = next === '' ? undefined : next
+      onChange({
+        ...metric,
+        rangeMin,
+        targetValue: rangeMin,
+      })
+      return
+    }
+    onChange({
+      ...metric,
+      rangeMin: next === '' ? undefined : next,
+    })
+  }
+
+  const commitUpper = (next: number | '') => {
+    if (strategy === 'increase' || strategy === 'decrease') {
+      onChange({
+        ...metric,
+        targetValue: next === '' ? undefined : next,
+      })
+      return
+    }
+    if (strategy === 'keep_below') {
+      const rangeMax = next === '' ? undefined : next
+      onChange({
+        ...metric,
+        rangeMax,
+        targetValue: rangeMax,
+      })
+      return
+    }
+    onChange({
+      ...metric,
+      rangeMax: next === '' ? undefined : next,
+    })
   }
 
   return (
@@ -182,44 +225,13 @@ export function NumberTargetEditor({
         <label className="pd-goal-create__target-field">
           <span className="pd-goal-create__target-field-label">{lowerLabel}</span>
           <span className="pd-goal-create__target-control">
-            <input
-              type="number"
-              inputMode="decimal"
+            <FocusSafeNumberField
               className="pd-goal-create__shell-input"
               value={lowerValue}
               disabled={disabled}
-              onChange={(event) => {
-                const next = parseOptional(event.target.value)
-                if (strategy === 'increase' || strategy === 'decrease') {
-                  const startValue = next === '' ? undefined : next
-                  onChange({
-                    ...metric,
-                    startValue,
-                    currentValue: startValue,
-                  })
-                  return
-                }
-                if (strategy === 'keep_above') {
-                  const rangeMin = next === '' ? undefined : next
-                  onChange({
-                    ...metric,
-                    rangeMin,
-                    targetValue: rangeMin,
-                  })
-                  return
-                }
-                if (strategy === 'between') {
-                  onChange({
-                    ...metric,
-                    rangeMin: next === '' ? undefined : next,
-                  })
-                  return
-                }
-                onChange({
-                  ...metric,
-                  rangeMin: next === '' ? undefined : next,
-                })
-              }}
+              ariaLabel={lowerLabel}
+              inputKey={`${metric.id}-lower`}
+              onCommit={commitLower}
             />
           </span>
         </label>
@@ -243,42 +255,13 @@ export function NumberTargetEditor({
         <label className="pd-goal-create__target-field">
           <span className="pd-goal-create__target-field-label">{upperLabel}</span>
           <span className="pd-goal-create__target-control">
-            <input
-              type="number"
-              inputMode="decimal"
+            <FocusSafeNumberField
               className="pd-goal-create__shell-input"
               value={upperValue}
               disabled={disabled}
-              onChange={(event) => {
-                const next = parseOptional(event.target.value)
-                if (strategy === 'increase' || strategy === 'decrease') {
-                  onChange({
-                    ...metric,
-                    targetValue: next === '' ? undefined : next,
-                  })
-                  return
-                }
-                if (strategy === 'keep_below') {
-                  const rangeMax = next === '' ? undefined : next
-                  onChange({
-                    ...metric,
-                    rangeMax,
-                    targetValue: rangeMax,
-                  })
-                  return
-                }
-                if (strategy === 'between') {
-                  onChange({
-                    ...metric,
-                    rangeMax: next === '' ? undefined : next,
-                  })
-                  return
-                }
-                onChange({
-                  ...metric,
-                  rangeMax: next === '' ? undefined : next,
-                })
-              }}
+              ariaLabel={upperLabel}
+              inputKey={`${metric.id}-upper`}
+              onCommit={commitUpper}
             />
           </span>
         </label>

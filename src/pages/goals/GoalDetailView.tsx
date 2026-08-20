@@ -1,14 +1,12 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { GitFork, Pencil, Save, Send } from "lucide-react";
 import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  GitFork,
-  Pencil,
-  Send,
-} from "lucide-react";
-import { Avatar, Textarea } from "@/components/ui";
+  Avatar,
+  Badge,
+  CountBadge,
+  SegmentedControl,
+} from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { newId } from "@/lib/goalsApi";
 import {
@@ -20,6 +18,7 @@ import type {
   PersonGoals,
   SendBackAuthor,
 } from "@/lib/goals/types";
+import { validateGoalDraft } from "@/lib/goals/draft";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
@@ -27,9 +26,7 @@ import {
   recordMilestoneProgress,
 } from "@/lib/goals/progressLog";
 import { GoalSummaryCards } from "./GoalSummaryCards";
-import { approvalCopy, resolveApprovalPerson } from "./approvalDisplay";
-import { GoalAutosaveStatus } from "./GoalAutosaveStatus";
-import type { GoalDraftSaveState } from "./useGoalDraftAutosave";
+import { GoalApprovalCard } from "./GoalApprovalCard";
 import type { RequestGoalEdit } from "./useGoalEditGuard";
 import {
   EMPTY_LINE_MANAGER_CASCADE,
@@ -42,10 +39,10 @@ import {
 import { GoalActionsMenu, hasGoalActions } from "./GoalActionsMenu";
 import type { CascadeTarget } from "./GoalCascadeTargetDialog";
 import { GoalProgressEditor } from "./GoalProgressEditor";
-import { GoalMetricReadout, GoalWeightReadout } from "./GoalMeasurementReadout";
-import { GoalProgressLog } from "./GoalProgressLog";
-import { MetricProgressUpdate } from "./MetricProgressUpdate";
+import { NumberMeasureViewCard } from "./NumberMeasureViewCard";
 import { TodoMeasureViewCard } from "./TodoMeasureViewCard";
+import { GoalTodoCheck } from "./GoalTodoCheck";
+import { statusLabel, statusVariant } from "./statusLabels";
 import type {
   CascadeRecipient,
   LineManagerCascade,
@@ -63,6 +60,8 @@ type CommentAuthor = {
   avatarUrl?: string;
 };
 
+type GoalViewTab = "details" | "measure" | "discuss";
+
 function commentAuthor(
   comment: { authorId?: string; authorName: string },
   authors: CommentAuthor[],
@@ -76,7 +75,6 @@ function commentAuthor(
 type GoalDetailViewProps = {
   goal: Goal;
   index: number;
-  total: number;
   owner: GoalOwner;
   cascadeFrom?: LineManagerCascade;
   cascadedTo?: CascadeRecipient[];
@@ -91,57 +89,43 @@ type GoalDetailViewProps = {
   commentAuthorName: string;
   commentAuthorId?: string;
   commentAuthors?: CommentAuthor[];
+  /** New unsaved goal — same form as edit, without discuss/approval chrome. */
+  isNew?: boolean;
   canEdit?: boolean;
   canUpdateProgress?: boolean;
   canRemove?: boolean;
   canCascade?: boolean;
   cascadeTargets?: CascadeTarget[];
-  /** Used for the quiet Activity log entry in the overflow menu. */
+  /** Used for the quiet Activity log entry in the toolbar. */
   cycleId?: string;
   subjectId?: string;
-  /** Opens the unified goal detail page from the overflow menu. */
+  /** Opens the unified goal detail page from the toolbar. */
   fullViewHref?: string;
   onRequestEdit?: RequestGoalEdit;
-  /** Autosave state of the owning draft, surfaced next to the goal title. */
-  saveState?: GoalDraftSaveState;
+  /**
+   * Kept for callers. Edit-session fields stay local until Save;
+   * progress logging always goes through `onChange`.
+   */
+  manualSave?: boolean;
+  /** Enables Save when the parent draft differs from what is persisted. */
+  hasUnsavedChanges?: boolean;
   onChange: (goal: Goal) => void;
-  /** Structural edits (title, description, measurements) persist as a full save. */
+  /** Persist a comment immediately, even while structural edits stay local. */
+  onAddComment?: (text: string) => void;
+  /** Persist the edit session and return to view. */
   onSave?: (goal: Goal) => void;
   onDuplicate?: () => void;
   onCascade?: (reportIds: string[]) => void;
   onRemove?: () => void;
-  onSelectIndex: (index: number) => void;
 };
 
 function touch(goal: Goal, partial: Partial<Goal>): Goal {
   return { ...goal, ...partial, updatedAt: new Date().toISOString() };
 }
 
-type EditableSection = "title" | "description" | "progress";
-
-function SectionEditButton({
-  label,
-  onClick,
-}: {
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      className="pd-goal-view__section-edit"
-      aria-label={label}
-      onClick={onClick}
-    >
-      <Pencil size={14} strokeWidth={1.75} aria-hidden />
-    </button>
-  );
-}
-
 export function GoalDetailView({
   goal,
   index,
-  total,
   owner,
   cascadeFrom = EMPTY_LINE_MANAGER_CASCADE,
   cascadedTo = [],
@@ -156,6 +140,7 @@ export function GoalDetailView({
   commentAuthorName,
   commentAuthorId,
   commentAuthors = [],
+  isNew = false,
   canEdit = false,
   canUpdateProgress = false,
   canRemove = false,
@@ -165,44 +150,69 @@ export function GoalDetailView({
   subjectId,
   fullViewHref,
   onRequestEdit = (startEditing) => startEditing(),
-  saveState,
+  hasUnsavedChanges = false,
   onChange,
+  onAddComment,
   onSave,
   onDuplicate,
   onCascade,
   onRemove,
-  onSelectIndex,
 }: GoalDetailViewProps) {
+  const [tab, setTab] = useState<GoalViewTab>("measure");
   const [comment, setComment] = useState("");
-  const [editingSection, setEditingSection] = useState<EditableSection | null>(
-    null,
-  );
+  const [editing, setEditing] = useState(isNew);
+  const [nameTouched, setNameTouched] = useState(false);
   const [cascadeFromOpen, setCascadeFromOpen] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(goal.description);
+  const [detailsDraft, setDetailsDraft] = useState(goal.details ?? "");
   const titleRef = useRef<HTMLTextAreaElement>(null);
+  const titleFocusedRef = useRef(false);
+  const detailsFocusedRef = useRef(false);
+  const editSnapshotRef = useRef<Goal | null>(null);
+  const goalRef = useRef(goal);
   const commentFieldId = useId();
   const titleFieldId = useId();
+  goalRef.current = goal;
+  const isEditing = canEdit && editing;
+  const canLogProgress = canUpdateProgress || canEdit;
+  const canMutate = canEdit || canUpdateProgress;
 
   useEffect(() => {
-    setEditingSection(null);
     setCascadeFromOpen(false);
-  }, [goal.id]);
+    setNameTouched(false);
+    setTitleDraft(goal.description);
+    setDetailsDraft(goal.details ?? "");
+    setTab("measure");
+    setEditing(isNew);
+    editSnapshotRef.current = null;
+  }, [goal.id, isNew]);
 
   useEffect(() => {
-    if (editingSection === "title") titleRef.current?.focus();
-  }, [editingSection]);
+    if (titleFocusedRef.current) return;
+    setTitleDraft(goal.description);
+  }, [goal.description]);
 
-  const approval = approvalCopy(status, postWindowApprovalStage);
-  const approver = resolveApprovalPerson({
-    status,
-    postWindowApprovalStage,
-    sendBackBy,
-    approvedBy,
-    cascadeFrom,
+  useEffect(() => {
+    if (detailsFocusedRef.current) return;
+    setDetailsDraft(goal.details ?? "");
+  }, [goal.details]);
+
+  useEffect(() => {
+    if (!isEditing) return;
+    titleRef.current?.focus();
+  }, [isEditing, goal.id]);
+
+  const title = goalTitle({ ...goal, description: titleDraft }, index);
+  const draftValidation = validateGoalDraft({
+    ...goal,
+    description: titleDraft,
+    details: detailsDraft || undefined,
   });
-  const title = goalTitle(goal, index);
+  const textDraftDirty =
+    titleDraft !== goal.description || detailsDraft !== (goal.details ?? "");
+  const saveEnabled = hasUnsavedChanges || textDraftDirty;
   const panels = measurementPanels(goal.measurements);
   const comments = goal.comments ?? [];
-  const canMutate = canEdit || canUpdateProgress;
   const progressAuthor = {
     id: commentAuthorId,
     name: commentAuthorName,
@@ -213,27 +223,90 @@ export function GoalDetailView({
   );
 
   const persistStructure = (next: Goal) => {
+    goalRef.current = next;
+    onChange(next);
+  };
+
+  const goalWithTextDrafts = (base: Goal): Goal => {
+    let next = base;
+    if (titleDraft !== base.description) {
+      next = touch(next, { description: titleDraft });
+    }
+    if (detailsDraft !== (base.details ?? "")) {
+      next = touch(next, { details: detailsDraft || undefined });
+    }
+    return next;
+  };
+
+  const startEditing = () => {
+    editSnapshotRef.current = goalRef.current;
+    setTitleDraft(goalRef.current.description);
+    setDetailsDraft(goalRef.current.details ?? "");
+    setCascadeFromOpen(false);
+    setNameTouched(false);
+    setEditing(true);
+  };
+
+  const stopEditing = () => {
+    setEditing(false);
+    setCascadeFromOpen(false);
+    setNameTouched(false);
+    editSnapshotRef.current = null;
+  };
+
+  const saveDraft = () => {
+    const next = goalWithTextDrafts(goalRef.current);
+    goalRef.current = next;
     if (onSave) onSave(next);
     else onChange(next);
+    if (!isNew) stopEditing();
+  };
+
+  const cancelEditing = () => {
+    const snapshot = editSnapshotRef.current;
+    if (snapshot) {
+      goalRef.current = snapshot;
+      onChange(snapshot);
+      setTitleDraft(snapshot.description);
+      setDetailsDraft(snapshot.details ?? "");
+    }
+    stopEditing();
+  };
+
+  const commitTitleDraft = () => {
+    if (titleDraft === goalRef.current.description) return;
+    persistStructure(touch(goalRef.current, { description: titleDraft }));
+  };
+
+  const commitDetailsDraft = () => {
+    if ((goalRef.current.details ?? "") === detailsDraft) return;
+    persistStructure(
+      touch(goalRef.current, { details: detailsDraft || undefined }),
+    );
   };
 
   const patchStructure = (partial: Partial<Goal>) => {
-    persistStructure(touch(goal, partial));
+    persistStructure(touch(goalRef.current, partial));
   };
 
   const patchMeasurement = (id: string, next: Measurement) => {
-    onChange(
-      touch(goal, {
-        measurements: goal.measurements.map((item) =>
-          item.id === id ? next : item,
-        ),
-      }),
-    );
+    const updated = touch(goalRef.current, {
+      measurements: goalRef.current.measurements.map((item) =>
+        item.id === id ? next : item,
+      ),
+    });
+    goalRef.current = updated;
+    onChange(updated);
   };
 
   const submitComment = () => {
     const text = comment.trim();
     if (!text) return;
+    if (onAddComment) {
+      onAddComment(text);
+      setComment("");
+      return;
+    }
     onChange(
       touch(goal, {
         comments: [
@@ -259,13 +332,50 @@ export function GoalDetailView({
     onViewActivity: Boolean(cycleId),
     fullViewHref,
   });
+  const showToolbar = hasOverflowMenu || canEdit;
+  const statusText =
+    status === "submitted" && postWindowApprovalStage === "manager_manager"
+      ? "Pending final approval"
+      : statusLabel(status);
+  const statusBadge = (
+    <Badge
+      variant={statusVariant(status)}
+      className="pd-goal-view__title-status"
+    >
+      {statusText}
+    </Badge>
+  );
 
   return (
-    <>
-      <div className="pd-goal-view" aria-label={title}>
-        <header className="pd-goal-view__header">
-          <div className="pd-goal-view__chrome">
-            {editingSection === "title" ? (
+    <div className="pd-goal-view" aria-label={isNew ? "Add goal" : title}>
+      <SegmentedControl
+        className="pd-goal-view__tabs"
+        aria-label="Goal sections"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { id: "details", label: "Details" },
+          { id: "measure", label: "Measure" },
+          ...(isNew
+            ? []
+            : [
+                {
+                  id: "discuss" as const,
+                  label: (
+                    <>
+                      Discuss
+                      <CountBadge count={comments.length} tone="muted" />
+                    </>
+                  ),
+                },
+              ]),
+        ]}
+      />
+
+      <header className="pd-goal-view__header">
+        <div className="pd-goal-view__chrome">
+          {isEditing ? (
+            <>
               <div className="pd-goal-create__title-edit">
                 <label className="pd-sr-only" htmlFor={titleFieldId}>
                   Goal name
@@ -274,91 +384,51 @@ export function GoalDetailView({
                   id={titleFieldId}
                   ref={titleRef}
                   className="pd-goal-create__title-input"
-                  value={goal.description}
+                  value={titleDraft}
                   rows={1}
-                  placeholder="Goal name"
-                  onChange={(event) =>
-                    patchStructure({ description: event.target.value })
-                  }
+                  placeholder={isNew ? "Name this goal" : "Goal name"}
+                  aria-invalid={Boolean(draftValidation.nameError)}
+                  onFocus={() => {
+                    titleFocusedRef.current = true;
+                  }}
+                  onChange={(event) => setTitleDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      setEditingSection(null);
+                      titleFocusedRef.current = false;
+                      commitTitleDraft();
+                      titleRef.current?.blur();
                     }
-                    if (event.key === "Escape") setEditingSection(null);
+                    if (event.key === "Escape") {
+                      setTitleDraft(goal.description);
+                      titleFocusedRef.current = false;
+                      titleRef.current?.blur();
+                    }
                   }}
-                  onBlur={() => setEditingSection(null)}
+                  onBlur={() => {
+                    titleFocusedRef.current = false;
+                    setNameTouched(true);
+                    commitTitleDraft();
+                  }}
                 />
-              </div>
-            ) : (
-              <h1 className="pd-goal-view__title">
-                <span>{title}</span>
-                {canEdit ? (
-                  <SectionEditButton
-                    label="Edit title"
-                    onClick={() =>
-                      onRequestEdit(() => setEditingSection("title"))
-                    }
-                  />
+                {nameTouched && draftValidation.nameError ? (
+                  <p className="pd-goal-create__title-error" role="alert">
+                    {draftValidation.nameError}
+                  </p>
                 ) : null}
-              </h1>
-            )}
-
-            {total > 1 ? (
-              <div className="pd-goal-view__pager">
-                <button
-                  type="button"
-                  className="pd-people__icon-btn"
-                  disabled={index <= 0}
-                  aria-label="Previous goal"
-                  onClick={() => onSelectIndex(index - 1)}
-                >
-                  <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
-                </button>
-                <span>
-                  {index + 1} / {total}
-                </span>
-                <button
-                  type="button"
-                  className="pd-people__icon-btn"
-                  disabled={index >= total - 1}
-                  aria-label="Next goal"
-                  onClick={() => onSelectIndex(index + 1)}
-                >
-                  <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
-                </button>
               </div>
-            ) : null}
+              {isNew ? null : statusBadge}
+            </>
+          ) : (
+            <h1 className="pd-goal-view__title">
+              {title}
+              {statusBadge}
+            </h1>
+          )}
+        </div>
 
-            {hasOverflowMenu ? (
-              <div className="pd-goal-view__actions">
-                <GoalActionsMenu
-                  canCascade={canCascade}
-                  canRemove={canRemove}
-                  cascadeTargets={cascadeTargets}
-                  fullViewHref={fullViewHref}
-                  activityFilters={
-                    cycleId
-                      ? {
-                          goalId: goal.id,
-                          cycleId,
-                          subjectEmployeeId: subjectId
-                            ? Number(subjectId)
-                            : owner.id
-                              ? Number(owner.id)
-                              : undefined,
-                        }
-                      : undefined
-                  }
-                  onDuplicate={onDuplicate}
-                  onCascade={onCascade}
-                  onRemove={onRemove}
-                />
-              </div>
-            ) : null}
-          </div>
-
-          <div className="pd-goal-view__byline">
+        <div className="pd-goal-view__byline">
+          <div className="pd-goal-view__byline-start">
             {owner.id ? (
               <Link
                 to={`/people/${owner.id}`}
@@ -387,89 +457,78 @@ export function GoalDetailView({
                 <p>{owner.name}</p>
               </div>
             )}
-            <div className="pd-goal-view__meta">
-              {saveState ? <GoalAutosaveStatus state={saveState} /> : null}
-              <p>
+          </div>
+          <GoalSummaryCards
+            goal={goal}
+            onWeightChange={
+              isEditing ? (weight) => patchStructure({ weight }) : undefined
+            }
+          />
+        </div>
+        {status === "sent_back" && sendBackReason ? (
+          <p className="pd-goal-view__status-reason">{sendBackReason}</p>
+        ) : null}
+      </header>
+
+      {tab === "details" ? (
+        <div className="pd-goal-view__panel">
+          {isNew ? null : (
+            <GoalApprovalCard
+              status={status}
+              postWindowApprovalStage={postWindowApprovalStage}
+              sendBackReason={sendBackReason}
+              sendBackBy={sendBackBy}
+              approvedBy={approvedBy}
+              cascadeFrom={cascadeFrom}
+            />
+          )}
+
+          {isNew ? null : (
+            <p className="pd-goal-view__updated">
+              <span className="pd-goal-view__cycle">
+                {cycleLabel}
+                {isCurrentCycle ? (
+                  <Badge variant="completed">Current</Badge>
+                ) : null}
+              </span>
+              <span>
                 {lastProgressAt
                   ? `Updated ${formatRefreshAge(lastProgressAt)}`
                   : "No progress updates yet"}
-              </p>
-            </div>
-          </div>
+              </span>
+            </p>
+          )}
 
-          <div
-            className={`pd-goal-view__approval pd-goal-view__approval--${approval.tone}`}
-          >
-            <span className="pd-goal-view__approval-icon" aria-hidden>
-              <Check size={16} strokeWidth={2.5} />
-            </span>
-            <div className="pd-goal-view__approval-copy">
-              <p className="pd-goal-view__approval-title">{approval.title}</p>
-              {approver ? (
-                <div className="pd-goal-view__approval-person">
-                  <span className="pd-goal-view__approval-prefix">
-                    {approval.personPrefix}
-                  </span>
-                  <Avatar
-                    name={approver.name}
-                    src={approver.avatarUrl}
-                    size="sm"
-                    alt={`Approver ${approver.name}`}
-                    style={avatarStyle(approver.name)}
-                  />
-                  <p className="pd-goal-view__approval-sub">{approver.name}</p>
-                </div>
-              ) : (
-                <p className="pd-goal-view__approval-sub">{approval.sub}</p>
-              )}
-            </div>
-            {status === "sent_back" && sendBackReason ? (
-              <p className="pd-goal-view__approval-reason">{sendBackReason}</p>
-            ) : null}
-          </div>
-
-          {goal.details?.trim() || canEdit ? (
+          {goal.details?.trim() || isEditing ? (
             <section
               className="pd-goal-view__description-card"
               aria-label="Description"
             >
-              <div className="pd-goal-view__section-head">
-                <p className="pd-goal-view__description-label">Description</p>
-                {canEdit && editingSection !== "description" ? (
-                  <SectionEditButton
-                    label="Edit description"
-                    onClick={() =>
-                      onRequestEdit(() => setEditingSection("description"))
-                    }
-                  />
-                ) : null}
-              </div>
-              {editingSection === "description" ? (
-                <Textarea
-                  value={goal.details ?? ""}
+              <p className="pd-goal-view__description-label">Description</p>
+              {isEditing ? (
+                <textarea
+                  className="pd-goal-view__description-input"
+                  value={detailsDraft}
                   placeholder="Add a description (optional)"
                   rows={3}
-                  autoFocus
-                  onChange={(event) =>
-                    patchStructure({
-                      details: event.target.value || undefined,
-                    })
-                  }
-                  onBlur={() => setEditingSection(null)}
+                  onFocus={() => {
+                    detailsFocusedRef.current = true;
+                  }}
+                  onChange={(event) => setDetailsDraft(event.target.value)}
+                  onBlur={() => {
+                    detailsFocusedRef.current = false;
+                    commitDetailsDraft();
+                  }}
                 />
               ) : (
-                <p
-                  className={`pd-goal-view__description${
-                    goal.details?.trim() ? "" : " is-empty"
-                  }`}
-                >
-                  {goal.details?.trim() || "Add a description"}
+                <p className="pd-goal-view__description">
+                  {goal.details?.trim()}
                 </p>
               )}
             </section>
           ) : null}
 
-          {canEdit && cascadeFromOpen ? (
+          {isEditing && (cascadeFromOpen || cascadeFromSelected) ? (
             <section
               className="pd-goal-view__description-card"
               aria-label="Cascading from"
@@ -488,35 +547,23 @@ export function GoalDetailView({
               className="pd-goal-view__description-card"
               aria-label="Cascading from"
             >
-              <div className="pd-goal-view__section-head">
-                <CascadeLabel
-                  as="p"
-                  className="pd-goal-view__description-label"
-                >
-                  Cascading from
-                </CascadeLabel>
-                {canEdit ? (
-                  <SectionEditButton
-                    label="Edit cascading from"
-                    onClick={() =>
-                      onRequestEdit(() => setCascadeFromOpen(true))
-                    }
-                  />
-                ) : null}
-              </div>
+              <CascadeLabel
+                as="p"
+                className="pd-goal-view__description-label"
+              >
+                Cascading from
+              </CascadeLabel>
               <GoalCascadeFromReadout
                 goal={goal}
                 cascadeFrom={cascadeFrom}
                 hrefFor={cascadeHref}
               />
             </section>
-          ) : canEdit && cascadeFrom.managerName ? (
+          ) : isEditing && cascadeFrom.managerName ? (
             <button
               type="button"
               className="pd-people__ghost-btn pd-goal-create__add-field"
-              onClick={() =>
-                onRequestEdit(() => setCascadeFromOpen(true))
-              }
+              onClick={() => setCascadeFromOpen(true)}
             >
               <GitFork size={16} strokeWidth={2} aria-hidden />
               Add cascading from
@@ -531,109 +578,77 @@ export function GoalDetailView({
               <GoalCascadedTo recipients={cascadedTo} hrefFor={cascadeHref} />
             </section>
           ) : null}
-        </header>
+        </div>
+      ) : null}
 
-        <GoalSummaryCards
-          goal={goal}
-          cycleLabel={cycleLabel}
-          isCurrentCycle={isCurrentCycle}
-        />
-
-        {editingSection === "progress" ? (
-          <div className="pd-goal-create">
-            <div className="pd-goal-create__stack">
-              <GoalProgressEditor
-                goal={goal}
-                onChange={persistStructure}
-                onDone={() => setEditingSection(null)}
-              />
-            </div>
-          </div>
-        ) : (
-          <div className="pd-goal-view__body">
-            <div className="pd-goal-view__main">
-              <div className="pd-goal-view__section-head">
-                <h2>Metrics</h2>
-                {canEdit ? (
-                  <SectionEditButton
-                    label="Edit how to measure progress"
-                    onClick={() =>
-                      onRequestEdit(() => setEditingSection("progress"))
-                    }
-                  />
-                ) : null}
+      {tab === "measure" ? (
+        <div className="pd-goal-view__panel">
+          {isEditing ? (
+            <div className="pd-goal-create">
+              <div className="pd-goal-create__stack">
+                <GoalProgressEditor
+                  goal={goal}
+                  onChange={persistStructure}
+                  measureNameError={draftValidation.measurementNameError}
+                  measurementWeightError={draftValidation.measurementWeightError}
+                  progressAuthor={progressAuthor}
+                  cycleLabel={cycleLabel}
+                />
               </div>
-              {panels.length === 0 ? (
-                <section className="pd-goal-view__card" aria-label="Milestones">
-                  <div className="pd-goal-view__card-head">
-                    <div className="pd-goal-view__card-title">
-                      <h2>Milestones</h2>
-                    </div>
-                  </div>
-                  <p className="pd-goal-view__empty">
-                    No milestones on this goal yet.
-                  </p>
-                </section>
-              ) : (
-                panels.map((panel) =>
-                  panel.kind === "todo_measure" ? (
-                    <TodoMeasureViewCard
-                      key={panel.key}
-                      panel={panel}
-                      renderTodoItem={(todo) => (
-                        <>
-                          <input
-                            type="checkbox"
-                            className="pd-goal-v2__todo-check pd-goal-todo__check"
-                            checked={todo.complete}
-                            disabled={!canMutate}
-                            aria-label={`Mark ${
-                              todo.title.trim() || "milestone"
-                            } complete`}
-                            onChange={(event) =>
-                              patchMeasurement(
-                                todo.id,
-                                recordMilestoneProgress(
-                                  todo,
-                                  event.target.checked,
-                                  progressAuthor,
-                                ),
-                              )
-                            }
-                          />
-                          <p
-                            className={`pd-goal-view__todo-title${
-                              todo.complete ? " is-done" : ""
-                            }`}
-                          >
-                            {todo.title || "Untitled milestone"}
-                          </p>
-                        </>
-                      )}
-                    />
-                  ) : (
-                    <section
-                      key={panel.key}
-                      className="pd-goal-view__card"
-                      aria-label={panel.metric.title.trim() || "Measure"}
-                    >
-                      <div className="pd-goal-view__card-head">
-                        <div className="pd-goal-view__card-title">
-                          {panel.metric.title.trim() ? (
-                            <h2>{panel.metric.title.trim()}</h2>
-                          ) : null}
-                        </div>
-                        <GoalMetricReadout
-                          metric={panel.metric}
-                          showWeight={false}
-                        />
-                        <div className="pd-goal-view__card-metrics">
-                          {canUpdateProgress ? (
-                            <MetricProgressUpdate
-                              metric={panel.metric}
-                              goalTitle={goalTitle(goal, index)}
-                              cycleLabel={cycleLabel}
-                              onCommit={(nextValue) =>
+            </div>
+          ) : (
+            <div className="pd-goal-view__body">
+              <div className="pd-goal-view__main">
+                {panels.length === 0 ? (
+                  <section className="pd-goal-view__fold" aria-label="Measures">
+                    <p className="pd-goal-view__empty">
+                      No measures on this goal yet.
+                    </p>
+                  </section>
+                ) : (
+                  panels.map((panel) =>
+                    panel.kind === "todo_measure" ? (
+                      <TodoMeasureViewCard
+                        key={panel.key}
+                        panel={panel}
+                        renderTodoItem={(todo) => (
+                          <>
+                            <GoalTodoCheck
+                              checked={todo.complete}
+                              disabled={!canLogProgress}
+                              ariaLabel={`Mark ${
+                                todo.title.trim() || "milestone"
+                              } complete`}
+                              onChange={(complete) =>
+                                patchMeasurement(
+                                  todo.id,
+                                  recordMilestoneProgress(
+                                    todo,
+                                    complete,
+                                    progressAuthor,
+                                  ),
+                                )
+                              }
+                            />
+                            <p
+                              className={`pd-goal-view__todo-title${
+                                todo.complete ? " is-done" : ""
+                              }`}
+                            >
+                              {todo.title || "Untitled milestone"}
+                            </p>
+                          </>
+                        )}
+                      />
+                    ) : (
+                      <NumberMeasureViewCard
+                        key={panel.key}
+                        metric={panel.metric}
+                        goalTitle={goalTitle(goal, index)}
+                        cycleLabel={cycleLabel}
+                        onLogProgress={
+                          canLogProgress
+                            ? (nextValue) =>
                                 patchMeasurement(
                                   panel.metric.id,
                                   recordMetricProgress(
@@ -642,25 +657,20 @@ export function GoalDetailView({
                                     progressAuthor,
                                   ),
                                 )
-                              }
-                            />
-                          ) : null}
-                          <GoalWeightReadout weight={panel.metric.weight} />
-                        </div>
-                      </div>
-                      <GoalProgressLog
-                        entries={panel.metric.progressLog ?? []}
+                            : undefined
+                        }
                       />
-                    </section>
-                  ),
-                )
-              )}
+                    ),
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      ) : null}
 
+      {tab === "discuss" && !isNew ? (
         <section className="pd-goal-view__comments" aria-label="Comments">
-          <h2>Comments</h2>
           {comments.length > 0 ? (
             <ul className="pd-goal-view__comment-list">
               {comments.map((item) => (
@@ -682,7 +692,9 @@ export function GoalDetailView({
                 </li>
               ))}
             </ul>
-          ) : null}
+          ) : (
+            <p className="pd-goal-view__empty">No comments yet.</p>
+          )}
           <label className="pd-goal-view__composer" htmlFor={commentFieldId}>
             <span className="pd-sr-only">Add comment</span>
             <input
@@ -710,7 +722,69 @@ export function GoalDetailView({
             </button>
           </label>
         </section>
-      </div>
-    </>
+      ) : null}
+
+      {showToolbar ? (
+        <footer className="pd-goal-view__toolbar">
+          {canEdit && !isEditing ? (
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              aria-label="Edit goal"
+              onClick={() => onRequestEdit(startEditing)}
+            >
+              <Pencil size={16} strokeWidth={1.75} aria-hidden />
+              Edit
+            </button>
+          ) : null}
+          {isEditing && !isNew ? (
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              onClick={cancelEditing}
+            >
+              Cancel
+            </button>
+          ) : null}
+          {isEditing ? (
+            <button
+              type="button"
+              className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+              aria-label="Save as draft"
+              disabled={!saveEnabled}
+              onClick={() => onRequestEdit(saveDraft)}
+            >
+              <Save size={16} strokeWidth={1.75} aria-hidden />
+              Save
+            </button>
+          ) : null}
+          {hasOverflowMenu ? (
+            <GoalActionsMenu
+              canCascade={canCascade}
+              canRemove={canRemove}
+              cascadeTargets={cascadeTargets}
+              fullViewHref={fullViewHref}
+              activityFilters={
+                cycleId
+                  ? {
+                      goalId: goal.id,
+                      cycleId,
+                      subjectEmployeeId: subjectId
+                        ? Number(subjectId)
+                        : owner.id
+                          ? Number(owner.id)
+                          : undefined,
+                    }
+                  : undefined
+              }
+              onDuplicate={onDuplicate}
+              onCascade={onCascade}
+              onRemove={onRemove}
+            />
+          ) : null}
+        </footer>
+      ) : null}
+
+    </div>
   );
 }
