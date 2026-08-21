@@ -8,6 +8,7 @@ const REQUIRED_MIGRATIONS = [
   '00014_activity_ledger_integrity.sql',
   '00015_goal_approval_actor.sql',
   '00022_review_cycle_groups.sql',
+  '00023_review_appraisal.sql',
 ]
 
 export async function assertPlatformMigrations() {

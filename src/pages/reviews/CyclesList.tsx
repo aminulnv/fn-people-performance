@@ -19,6 +19,7 @@ import {
   type ResizableColumn,
 } from '@/components/ui'
 import { formatDateRange } from '@/lib/reviews/periods'
+import { PURPOSE_LABEL } from '@/lib/reviews/purpose'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import { sortCyclesForList } from '@/lib/reviews/store'
 import {
@@ -117,7 +118,8 @@ export function CyclesList() {
         name: 'Cycle name',
         grow: true,
       },
-      { id: 'cycle-type', label: 'Cycle type' },
+      { id: 'purpose', label: 'Purpose' },
+      { id: 'cycle-type', label: 'Kind' },
       { id: 'timeframe', label: 'Timeframe' },
       { id: 'status', label: 'Status' },
     ],
@@ -365,7 +367,10 @@ function CycleRow({ cycle }: { cycle: ReviewCycle }) {
         </Link>
       </td>
       <td className="pd-reviews-cycles__muted">
-        {cycle.type === 'regular' ? 'Regular' : 'Ad-hoc'}
+        {PURPOSE_LABEL[cycle.purpose ?? 'quarterly_checkin']}
+      </td>
+      <td className="pd-reviews-cycles__muted">
+        {cycle.type === 'regular' ? 'Scheduled' : 'Custom dates'}
       </td>
       <td className="pd-reviews-cycles__muted">
         {formatDateRange(cycle.startDate, cycle.endDate)}

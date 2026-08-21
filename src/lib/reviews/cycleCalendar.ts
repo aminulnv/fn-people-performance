@@ -98,21 +98,64 @@ export function extractCycleCalendarMarkers(
       endDate: cycle.endDate,
     },
     ...groupStages.flatMap((stagesConfig) => {
-      const ranges: CycleCalendarRange[] = [
-        {
+      const stages = stagesConfig.reviewStages ?? []
+      const ranges: CycleCalendarRange[] = []
+      const goalsOn =
+        stages.length === 0 ||
+        stages.some((stage) => stage.id === 'goals' && stage.enabled)
+      if (goalsOn) {
+        ranges.push({
           kind: 'goal-setting',
           label: 'Goal setting',
           startDate: stagesConfig.goals.employee.startDate,
           endDate: stagesConfig.goals.employee.endDate,
-        },
-        {
+        })
+      }
+      const selfReview = stages.find((stage) => stage.id === 'self_review' && stage.enabled)
+      const manager = stages.find((stage) => stage.id === 'manager_review' && stage.enabled)
+      if (selfReview?.start && selfReview.end) {
+        ranges.push({
+          kind: 'performance-review',
+          label: 'Self-review',
+          startDate: selfReview.start.date,
+          endDate: selfReview.end.date,
+        })
+      }
+      if (manager?.start && manager.end) {
+        ranges.push({
+          kind: 'performance-review',
+          label: 'Manager review',
+          startDate: manager.start.date,
+          endDate: manager.end.date,
+        })
+      }
+      if (stages.length === 0) {
+        ranges.push({
           kind: 'performance-review',
           label: 'Performance review',
           startDate: stagesConfig.performance.managerStart.date,
           endDate: stagesConfig.performance.managerEnd.date,
-        },
-      ]
-      if (stagesConfig.calibration.enabled) {
+        })
+      }
+      const hod = stages.find((stage) => stage.id === 'calibration_hod_hrbp' && stage.enabled)
+      const slt = stages.find((stage) => stage.id === 'calibration_slt' && stage.enabled)
+      if (hod?.start && hod.end) {
+        ranges.push({
+          kind: 'calibration',
+          label: 'HOD / HRBP calibration',
+          startDate: hod.start.date,
+          endDate: hod.end.date,
+        })
+      }
+      if (slt?.start && slt.end) {
+        ranges.push({
+          kind: 'calibration',
+          label: 'SLT calibration',
+          startDate: slt.start.date,
+          endDate: slt.end.date,
+        })
+      }
+      if (stages.length === 0 && stagesConfig.calibration.enabled) {
         ranges.push({
           kind: 'calibration',
           label: 'Calibration',

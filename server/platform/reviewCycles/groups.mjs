@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
+import { normalizeReviewPolicy } from './reviewConfig.mjs'
 import {
   normalizeStagesConfig,
   validateCalibration,
@@ -32,18 +33,24 @@ function uniqueEmployeeIds(employeeIds) {
 export function mapCycleGroup(row, memberIds = [], quarter) {
   const startDate = isoDate(quarter?.startDate ?? row.start_date)
   const endDate = isoDate(quarter?.endDate ?? row.end_date)
+  const purpose = quarter?.purpose ?? row.purpose ?? 'quarterly_checkin'
   return {
     id: row.id,
     cycleId: row.cycle_id,
     name: row.name,
     memberIds,
-    stagesConfig: normalizeStagesConfig(row.stages_config, { startDate, endDate }),
+    stagesConfig: normalizeStagesConfig(row.stages_config, {
+      startDate,
+      endDate,
+      purpose,
+    }),
     settings: {
       reviewTypes: row.review_types,
       goalCountPolicy: row.goal_count_policy,
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds: [],
       autoScorecardGeneration: row.auto_scorecard_generation,
+      reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose),
     },
     calibration: row.calibration_config,
     createdAt: isoTimestamp(row.created_at),
@@ -57,7 +64,8 @@ export async function loadGroupsForCycles(client, cycleIds) {
   const { rows } = await client.query(
     `SELECT group_row.*,
             cycle.start_date,
-            cycle.end_date
+            cycle.end_date,
+            cycle.purpose
      FROM platform.review_cycle_groups group_row
      JOIN platform.review_cycles cycle ON cycle.id = group_row.cycle_id
      WHERE group_row.cycle_id = ANY($1::text[])
@@ -86,6 +94,7 @@ export async function loadGroupsForCycles(client, cycleIds) {
     const group = mapCycleGroup(row, membersByGroup.get(row.id) ?? [], {
       startDate: row.start_date,
       endDate: row.end_date,
+      purpose: row.purpose,
     })
     const list = groupsByCycle.get(row.cycle_id) ?? []
     list.push(group)
@@ -131,9 +140,9 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
     `INSERT INTO platform.review_cycle_groups (
        id, cycle_id, name, stages_config, review_types, goal_count_policy,
        post_window_goal_policy, auto_scorecard_generation, calibration_config,
-       created_by_employee_id, updated_by_employee_id
+       review_policy, created_by_employee_id, updated_by_employee_id
      ) VALUES (
-       $1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9::jsonb,$10,$10
+       $1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9::jsonb,$10::jsonb,$11,$11
      )
      RETURNING *`,
     [
@@ -146,6 +155,7 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
       input.settings.postWindowGoalPolicy,
       Boolean(input.settings.autoScorecardGeneration),
       JSON.stringify(input.calibration),
+      JSON.stringify(normalizeReviewPolicy(input.settings.reviewPolicy, input.purpose)),
       actor.actorEmployeeId,
     ],
   )
@@ -192,7 +202,7 @@ function actorFromUser(platformUser) {
 
 async function getGroupRow(client, cycleId, groupId, { forUpdate = false } = {}) {
   const { rows } = await client.query(
-    `SELECT group_row.*, cycle.start_date, cycle.end_date
+    `SELECT group_row.*, cycle.start_date, cycle.end_date, cycle.purpose
      FROM platform.review_cycle_groups group_row
      JOIN platform.review_cycles cycle ON cycle.id = group_row.cycle_id
      WHERE group_row.id = $1
@@ -218,7 +228,7 @@ async function loadGroup(client, cycleId, groupId) {
   return mapCycleGroup(
     row,
     rows.map((item) => Number(item.employee_id)),
-    { startDate: row.start_date, endDate: row.end_date },
+    { startDate: row.start_date, endDate: row.end_date, purpose: row.purpose },
   )
 }
 
@@ -292,6 +302,10 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
       autoScorecardGeneration:
         patch.autoScorecardGeneration ??
         before.settings.autoScorecardGeneration,
+      reviewPolicy: normalizeReviewPolicy(
+        patch.reviewPolicy ?? before.settings.reviewPolicy,
+        row.purpose,
+      ),
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)
     if (
@@ -331,8 +345,9 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
            post_window_goal_policy = $7,
            auto_scorecard_generation = $8,
            calibration_config = $9::jsonb,
+           review_policy = $10::jsonb,
            version = version + 1,
-           updated_by_employee_id = $10,
+           updated_by_employee_id = $11,
            updated_at = now()
        WHERE id = $1 AND cycle_id = $2 AND deleted_at IS NULL
        RETURNING *`,
@@ -346,6 +361,7 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
         nextSettings.postWindowGoalPolicy,
         Boolean(nextSettings.autoScorecardGeneration),
         JSON.stringify(nextCalibration),
+        JSON.stringify(nextSettings.reviewPolicy),
         actor.actorEmployeeId,
       ],
     )

@@ -5,6 +5,7 @@ import {
   normalizeCycleSettings,
   normalizeStagesConfig,
 } from "./demoData";
+import { inferPurpose, inferYearKey, suggestedSourceLinks } from "./purpose";
 import {
   assignMembersExclusively,
   cloneCycleSettingsIntoGroup,
@@ -14,7 +15,9 @@ import { findPeriod } from "./periods";
 import type {
   CalibrationLogic,
   CycleGroup,
+  CyclePurpose,
   CycleSettings,
+  CycleSourceLink,
   CycleStagesConfig,
   GoalCycleExtension,
   ReviewCycle,
@@ -146,10 +149,6 @@ function validateGoalCountPolicy(
   }
 }
 
-function cloneSettings(): CycleSettings {
-  return normalizeCycleSettings();
-}
-
 /** Production API still validates legacy department/team goal windows until redeployed. */
 function compatStagesConfigForRemote(config: CycleStagesConfig) {
   const employee = config.goals.employee;
@@ -231,20 +230,31 @@ export function newCycleId(prefix: string): string {
 }
 
 function normalizeStoredCycle(cycle: ReviewCycle): ReviewCycle {
+  const purpose =
+    cycle.purpose ??
+    inferPurpose(
+      cycle.periodKey,
+      cycle.type === "ad-hoc" ? "custom" : "quarterly_checkin",
+    );
   return {
     ...cycle,
-    settings: normalizeCycleSettings(cycle.settings),
+    purpose,
+    yearKey: cycle.yearKey ?? inferYearKey(cycle.periodKey, cycle.startDate),
+    sourceLinks: cycle.sourceLinks ?? [],
+    settings: normalizeCycleSettings(cycle.settings, purpose),
     stagesConfig: normalizeStagesConfig(cycle.stagesConfig, {
       startDate: cycle.startDate,
       endDate: cycle.endDate,
+      purpose,
     }),
     groups: cycleGroupsOf(cycle).map((group) => ({
       ...group,
       cycleId: group.cycleId || cycle.id,
-      settings: normalizeCycleSettings(group.settings),
+      settings: normalizeCycleSettings(group.settings, purpose),
       stagesConfig: normalizeStagesConfig(group.stagesConfig, {
         startDate: cycle.startDate,
         endDate: cycle.endDate,
+        purpose,
       }),
       memberIds: [...group.memberIds],
     })),
@@ -277,10 +287,13 @@ export async function ensureReviewCyclesLoaded(): Promise<void> {
 
 export type CreateReviewCycleInput = {
   type: ReviewCycleType;
+  purpose?: CyclePurpose;
   periodKey?: string;
+  yearKey?: string;
   name?: string;
   startDate?: string;
   endDate?: string;
+  sourceLinks?: CycleSourceLink[];
 };
 
 export async function createReviewCycle(
@@ -300,15 +313,29 @@ export async function createReviewCycle(
     if (existing && useLocalReviews()) {
       throw new Error(`${period.label} already exists.`);
     }
+    const purpose =
+      input.purpose ?? inferPurpose(period.key, "quarterly_checkin");
     cycle = {
       id: period.key,
       name: period.label,
       type: "regular",
+      purpose,
       startDate: period.startDate,
       endDate: period.endDate,
       periodKey: period.key,
-      stagesConfig: buildDefaultStagesConfig(period.startDate, period.endDate),
-      settings: cloneSettings(),
+      yearKey: input.yearKey ?? inferYearKey(period.key, period.startDate),
+      sourceLinks:
+        input.sourceLinks ??
+        (purpose === "annual_appraisal"
+          ? suggestedSourceLinks(period.key.slice(-4), getState().cycles)
+          : []),
+      stagesConfig: buildDefaultStagesConfig(
+        period.startDate,
+        period.endDate,
+        purpose,
+        period.key,
+      ),
+      settings: normalizeCycleSettings(undefined, purpose),
       calibration: cloneCalibration(),
       groups: [],
       createdAt,
@@ -318,14 +345,18 @@ export async function createReviewCycle(
     const name = input.name?.trim() || "Ad-hoc cycle";
     const startDate = input.startDate ?? new Date().toISOString().slice(0, 10);
     const endDate = input.endDate ?? startDate;
+    const purpose = input.purpose ?? "custom";
     cycle = {
       id: newCycleId("adhoc"),
       name,
       type: "ad-hoc",
+      purpose,
       startDate,
       endDate,
-      stagesConfig: buildDefaultStagesConfig(startDate, endDate),
-      settings: cloneSettings(),
+      yearKey: input.yearKey ?? inferYearKey(undefined, startDate),
+      sourceLinks: input.sourceLinks ?? [],
+      stagesConfig: buildDefaultStagesConfig(startDate, endDate, purpose),
+      settings: normalizeCycleSettings(undefined, purpose),
       calibration: cloneCalibration(),
       groups: [],
       createdAt,
@@ -379,6 +410,9 @@ export type UpdateReviewCycleInput = {
   name?: string;
   startDate?: string;
   endDate?: string;
+  purpose?: CyclePurpose;
+  yearKey?: string;
+  sourceLinks?: CycleSourceLink[];
   settings?: Partial<CycleSettings>;
   stagesConfig?: CycleStagesConfig;
   calibration?: Partial<CalibrationLogic>;
@@ -395,10 +429,12 @@ function mergeCyclePatch(
   };
   if (settings?.goalCountPolicy) validateGoalCountPolicy(goalCountPolicy);
 
+  const purpose = patch.purpose ?? current.purpose;
   const stagesConfig = patch.stagesConfig
     ? normalizeStagesConfig(patch.stagesConfig, {
         startDate: patch.startDate ?? current.startDate,
         endDate: patch.endDate ?? current.endDate,
+        purpose,
       })
     : current.stagesConfig;
   if (patch.stagesConfig) validateCycleStagesConfig(stagesConfig);
@@ -408,6 +444,9 @@ function mergeCyclePatch(
     name: patch.name?.trim() || current.name,
     startDate: patch.startDate ?? current.startDate,
     endDate: patch.endDate ?? current.endDate,
+    purpose,
+    yearKey: patch.yearKey ?? current.yearKey,
+    sourceLinks: patch.sourceLinks ?? current.sourceLinks,
     settings: {
       ...current.settings,
       reviewTypes: settings?.reviewTypes
@@ -421,6 +460,7 @@ function mergeCyclePatch(
       autoScorecardGeneration:
         settings?.autoScorecardGeneration ??
         current.settings.autoScorecardGeneration,
+      reviewPolicy: settings?.reviewPolicy ?? current.settings.reviewPolicy,
     },
     stagesConfig,
     calibration: patch.calibration
@@ -465,6 +505,9 @@ function buildReviewCycleRemoteBody(
   if (patch.name !== undefined) body.name = patch.name;
   if (patch.startDate !== undefined) body.startDate = patch.startDate;
   if (patch.endDate !== undefined) body.endDate = patch.endDate;
+  if (patch.purpose !== undefined) body.purpose = patch.purpose;
+  if (patch.yearKey !== undefined) body.yearKey = patch.yearKey;
+  if (patch.sourceLinks !== undefined) body.sourceLinks = patch.sourceLinks;
   if (patch.settings) Object.assign(body, patch.settings);
   if (patch.stagesConfig) {
     body.stagesConfig = compatStagesConfigForRemote(merged.stagesConfig);
@@ -679,6 +722,7 @@ export function updateCycleGroup(
       ? normalizeStagesConfig(patch.stagesConfig, {
           startDate: cycle.startDate,
           endDate: cycle.endDate,
+          purpose: cycle.purpose,
         })
       : current.stagesConfig,
     calibration: patch.calibration
@@ -934,23 +978,36 @@ function validateGoalExtensions(
 }
 
 function validateCycleStagesConfig(config: CycleStagesConfig): void {
-  const ranges = [
-    [
+  const enabled = new Map(
+    (config.reviewStages ?? []).map((stage) => [stage.id, stage.enabled]),
+  );
+  const goalsOn = enabled.get("goals") !== false;
+  const reviewOn =
+    enabled.get("self_review") === true ||
+    enabled.get("manager_review") !== false;
+
+  const ranges: Array<[string, string, string]> = [];
+  if (goalsOn) {
+    ranges.push([
       "Goal setting",
       config.goals.employee.startDate,
       config.goals.employee.endDate,
-    ],
-    [
-      "Performance review",
+    ]);
+  }
+  if (enabled.get("self_review")) {
+    ranges.push([
+      "Self-review",
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
-    ],
-    [
-      "Performance review",
+    ]);
+  }
+  if (enabled.get("manager_review") !== false) {
+    ranges.push([
+      "Manager review",
       config.performance.managerStart.date,
       config.performance.managerEnd.date,
-    ],
-  ] as const;
+    ]);
+  }
 
   for (const [label, startDate, endDate] of ranges) {
     if (!startDate || !endDate) {
@@ -961,7 +1018,11 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
     }
   }
 
-  if (config.goals.employee.endDate >= config.performance.employeeStart.date) {
+  if (
+    goalsOn &&
+    reviewOn &&
+    config.goals.employee.endDate >= config.performance.employeeStart.date
+  ) {
     throw new Error(
       "Performance review must start after the employee goal lock date.",
     );

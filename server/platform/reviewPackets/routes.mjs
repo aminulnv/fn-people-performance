@@ -1,0 +1,119 @@
+import { asyncHandler, HttpError } from '../../errors.mjs'
+import { requirePlatformAuth, requirePlatformPermission } from '../auth.mjs'
+import {
+  calibrateReviewPacket,
+  createReviewAppeal,
+  getReviewPacket,
+  listReviewPackets,
+  markPacketViewed,
+  releaseReviewPackets,
+  saveReviewDraft,
+} from './store.mjs'
+
+function toHttp(err) {
+  if (err instanceof HttpError) return err
+  const status = err?.statusCode
+  if (typeof status === 'number' && status >= 400 && status < 600) {
+    return new HttpError(status, err.message || 'Request failed')
+  }
+  return new HttpError(500, err instanceof Error ? err.message : 'Request failed')
+}
+
+export function registerReviewPacketRoutes(app) {
+  app.get(
+    '/api/platform/review-cycles/:cycleId/packets',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      res.json({ packets: await listReviewPackets(req.params.cycleId) })
+    }),
+  )
+
+  app.get(
+    '/api/platform/review-cycles/:cycleId/packets/:employeeId',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const packet = await getReviewPacket(
+        req.params.cycleId,
+        Number(req.params.employeeId),
+      )
+      if (!packet) throw new HttpError(404, 'Review not found')
+      if (
+        req.platformUser?.employeeId &&
+        Number(req.platformUser.employeeId) === packet.employeeId
+      ) {
+        await markPacketViewed(packet.id)
+      }
+      res.json({ packet })
+    }),
+  )
+
+  app.patch(
+    '/api/platform/review-packets/:packetId',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await saveReviewDraft(
+          req.params.packetId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        res.json({ packet })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-packets/:packetId/calibrate',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await calibrateReviewPacket(
+          req.params.packetId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        res.json({ packet })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-cycles/:cycleId/release',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const packets = await releaseReviewPackets(
+          req.params.cycleId,
+          req.body?.target === 'employees' ? 'employees' : 'managers',
+          req.platformUser,
+        )
+        res.json({ packets })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-packets/:packetId/appeals',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await createReviewAppeal(
+          req.params.packetId,
+          req.body?.body,
+          req.platformUser,
+        )
+        res.json({ packet })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+}

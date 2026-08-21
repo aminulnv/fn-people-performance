@@ -172,6 +172,18 @@ export function formatDateTimeValue(value: DateTimeValue): string {
 export function stagesConfigToTimeline(
   config: CycleStagesConfig,
 ): CycleStage[] {
+  const enabled = (config.reviewStages ?? []).filter((stage) => stage.enabled)
+  if (enabled.length > 0) {
+    return enabled.map((stage) => ({
+      id: stage.id === 'goals' ? 'employee_goals' : stage.id,
+      label:
+        stage.id === 'goals'
+          ? 'Goal setting'
+          : stage.id.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
+      startDate: stage.start?.date ?? config.goals.employee.startDate,
+      endDate: stage.end?.date,
+    }))
+  }
   return [
     {
       id: 'employee_goals',

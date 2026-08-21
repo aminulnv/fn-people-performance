@@ -14,15 +14,18 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  Button,
   CycleSelect,
   EmptyState,
   ResizableTable,
   type CycleSelectOption,
   type ResizableColumn,
 } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import { fetchReviewPackets, releaseReviewCycle } from '@/lib/reviews/packetsApi'
 import {
   buildScorecardsForCycle,
   gradeLabel,
@@ -31,6 +34,7 @@ import {
   type ScorecardRow,
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
+import type { ReviewPacketStatus } from '@/lib/reviews/types'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 
@@ -104,16 +108,55 @@ export function ScorecardsList() {
   }, [cycles])
 
   const [cycleKey, setCycleKey] = useState('q3-2026')
+  const [packetStatusByEmployee, setPacketStatusByEmployee] = useState<
+    Record<number, ReviewPacketStatus>
+  >({})
+  const [releaseError, setReleaseError] = useState<string | null>(null)
+  const canRelease = hasSystemPermission(
+    user?.permissions ?? [],
+    'platform.write_all',
+  )
 
   useEffect(() => {
     if (cycleOptions.some((option) => option.id === cycleKey)) return
     setCycleKey(cycleOptions[0]?.id ?? 'q3-2026')
   }, [cycleKey, cycleOptions])
 
-  const rows = useMemo(
-    () => buildScorecardsForCycle(cycleKey, employees, user?.email),
-    [cycleKey, employees, user?.email],
-  )
+  useEffect(() => {
+    let cancelled = false
+    void fetchReviewPackets(cycleKey)
+      .then((packets) => {
+        if (cancelled) return
+        const next: Record<number, ReviewPacketStatus> = {}
+        for (const packet of packets) {
+          next[packet.employeeId] = packet.status
+        }
+        setPacketStatusByEmployee(next)
+      })
+      .catch(() => {
+        if (!cancelled) setPacketStatusByEmployee({})
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [cycleKey])
+
+  const rows = useMemo(() => {
+    const built = buildScorecardsForCycle(cycleKey, employees, user?.email)
+    return built.map((row) => {
+      const packetStatus = packetStatusByEmployee[row.employeeId]
+      if (!packetStatus) return row
+      const status: ScorecardStatus =
+        packetStatus === 'not_started'
+          ? 'not_started'
+          : packetStatus === 'released_to_employees' ||
+              packetStatus === 'released_to_managers' ||
+              packetStatus === 'calibrated'
+            ? 'completed'
+            : 'in_progress'
+      return { ...row, status }
+    })
+  }, [cycleKey, employees, packetStatusByEmployee, user?.email])
 
   const managerRows = useMemo(
     () => rows.filter((row) => row.isMine),
@@ -331,6 +374,52 @@ export function ScorecardsList() {
         </div>
 
         <div className="pd-people__toolbar">
+          {canRelease ? (
+            <>
+              <Button
+                variant="secondary"
+                size="sm"
+                pill
+                onClick={() => {
+                  setReleaseError(null)
+                  void releaseReviewCycle(cycleKey, 'managers')
+                    .then((packets) => {
+                      const next: Record<number, ReviewPacketStatus> = {}
+                      for (const packet of packets) next[packet.employeeId] = packet.status
+                      setPacketStatusByEmployee(next)
+                    })
+                    .catch((err: unknown) => {
+                      setReleaseError(
+                        err instanceof Error ? err.message : 'Could not release to managers.',
+                      )
+                    })
+                }}
+              >
+                Release to managers
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                pill
+                onClick={() => {
+                  setReleaseError(null)
+                  void releaseReviewCycle(cycleKey, 'employees')
+                    .then((packets) => {
+                      const next: Record<number, ReviewPacketStatus> = {}
+                      for (const packet of packets) next[packet.employeeId] = packet.status
+                      setPacketStatusByEmployee(next)
+                    })
+                    .catch((err: unknown) => {
+                      setReleaseError(
+                        err instanceof Error ? err.message : 'Could not release to employees.',
+                      )
+                    })
+                }}
+              >
+                Release to employees
+              </Button>
+            </>
+          ) : null}
           <button
             type="button"
             className="pd-people__icon-btn"
@@ -353,6 +442,12 @@ export function ScorecardsList() {
           </button>
         </div>
       </div>
+
+      {releaseError ? (
+        <p className="pd-reviews-flow__hint" role="alert">
+          {releaseError}
+        </p>
+      ) : null}
 
       <section
         className="pd-people__panel pd-people__panel--table"

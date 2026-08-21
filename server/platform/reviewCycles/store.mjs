@@ -8,6 +8,11 @@ import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { attachGroupsToCycles } from './groups.mjs'
 import {
+  inferPurpose,
+  inferYearKey,
+  normalizeReviewPolicy,
+} from './reviewConfig.mjs'
+import {
   validateCalibration,
   validateCycleStagesConfig,
   validateGoalCountPolicy,
@@ -34,23 +39,33 @@ function actorFromUser(platformUser) {
   }
 }
 
-function mapCycle(row, excludedEmployeeIds = []) {
+function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
   const startDate = isoDate(row.start_date)
   const endDate = isoDate(row.end_date)
+  const purpose =
+    row.purpose || inferPurpose(row.period_key, row.cycle_type === 'ad-hoc' ? 'custom' : 'quarterly_checkin')
   return {
     id: row.id,
     name: row.name,
     type: row.cycle_type,
+    purpose,
     startDate,
     endDate,
     periodKey: row.period_key ?? undefined,
-    stagesConfig: normalizeStagesConfig(row.stages_config, { startDate, endDate }),
+    yearKey: row.year_key ?? inferYearKey(row.period_key, startDate) ?? undefined,
+    sourceLinks,
+    stagesConfig: normalizeStagesConfig(row.stages_config, {
+      startDate,
+      endDate,
+      purpose,
+    }),
     settings: {
       reviewTypes: row.review_types,
       goalCountPolicy: row.goal_count_policy,
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
+      reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose),
     },
     calibration: row.calibration_config,
     groups: [],
@@ -59,6 +74,52 @@ function mapCycle(row, excludedEmployeeIds = []) {
     updatedAt: isoTimestamp(row.updated_at),
     version: Number(row.version),
   }
+}
+
+async function loadSourceLinks(client, cycleId) {
+  const { rows } = await client.query(
+    `SELECT source_cycle_id, weight_percent, excluded, transition_grade
+     FROM platform.review_cycle_sources
+     WHERE cycle_id = $1
+     ORDER BY sort_order, source_cycle_id`,
+    [cycleId],
+  )
+  return rows.map((row) => ({
+    sourceCycleId: row.source_cycle_id,
+    weightPercent: Number(row.weight_percent),
+    excluded: Boolean(row.excluded),
+    transitionGrade: row.transition_grade,
+  }))
+}
+
+async function replaceSourceLinks(client, cycleId, links) {
+  const next = Array.isArray(links) ? links : []
+  await client.query(
+    `DELETE FROM platform.review_cycle_sources WHERE cycle_id = $1`,
+    [cycleId],
+  )
+  for (const [index, link] of next.entries()) {
+    if (!link?.sourceCycleId) continue
+    await client.query(
+      `INSERT INTO platform.review_cycle_sources (
+         cycle_id, source_cycle_id, weight_percent, excluded, transition_grade, sort_order
+       ) VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (cycle_id, source_cycle_id) DO UPDATE
+       SET weight_percent = EXCLUDED.weight_percent,
+           excluded = EXCLUDED.excluded,
+           transition_grade = EXCLUDED.transition_grade,
+           sort_order = EXCLUDED.sort_order`,
+      [
+        cycleId,
+        link.sourceCycleId,
+        Number.isInteger(link.weightPercent) ? link.weightPercent : 25,
+        Boolean(link.excluded),
+        link.transitionGrade ?? null,
+        index,
+      ],
+    )
+  }
+  return loadSourceLinks(client, cycleId)
 }
 
 async function loadExclusions(client, cycleId) {
@@ -115,7 +176,8 @@ async function getCycleRow(client, cycleId, { forUpdate = false, includeDeleted 
 async function mapCycleWithExclusions(client, row) {
   if (!row) return null
   const exclusions = await loadExclusions(client, row.id)
-  return mapCycle(row, exclusions)
+  const sourceLinks = await loadSourceLinks(client, row.id)
+  return mapCycle(row, exclusions, sourceLinks)
 }
 
 async function withAttachedGroups(client, cycle) {
@@ -167,8 +229,30 @@ export async function listReviewCycles() {
       list.push(Number(row.employee_id))
       exclusionsByCycle.set(row.cycle_id, list)
     }
+    const { rows: sourceRows } = await client.query(
+      `SELECT cycle_id, source_cycle_id, weight_percent, excluded, transition_grade
+       FROM platform.review_cycle_sources
+       WHERE cycle_id = ANY($1::text[])
+       ORDER BY sort_order, source_cycle_id`,
+      [rows.map((row) => row.id)],
+    )
+    const sourcesByCycle = new Map()
+    for (const row of sourceRows) {
+      const list = sourcesByCycle.get(row.cycle_id) ?? []
+      list.push({
+        sourceCycleId: row.source_cycle_id,
+        weightPercent: Number(row.weight_percent),
+        excluded: Boolean(row.excluded),
+        transitionGrade: row.transition_grade,
+      })
+      sourcesByCycle.set(row.cycle_id, list)
+    }
     const cycles = rows.map((row) =>
-      mapCycle(row, exclusionsByCycle.get(row.id) ?? []),
+      mapCycle(
+        row,
+        exclusionsByCycle.get(row.id) ?? [],
+        sourcesByCycle.get(row.id) ?? [],
+      ),
     )
     return attachGroupsToCycles(client, cycles)
   } finally {
@@ -192,13 +276,25 @@ export async function createReviewCycle(input, platformUser) {
   const actor = actorFromUser(platformUser)
   try {
     await client.query('BEGIN')
+    const purpose =
+      input.purpose ||
+      inferPurpose(
+        input.periodKey,
+        input.type === 'ad-hoc' ? 'custom' : 'quarterly_checkin',
+      )
     const stagesConfig = normalizeStagesConfig(input.stagesConfig, {
       startDate: input.startDate,
       endDate: input.endDate,
+      purpose,
+      periodKey: input.periodKey,
     })
     validateGoalCountPolicy(input.settings.goalCountPolicy)
     validateCycleStagesConfig(stagesConfig)
     validateCalibration(input.calibration)
+    const reviewPolicy = normalizeReviewPolicy(
+      input.settings.reviewPolicy,
+      purpose,
+    )
 
     const id = input.id || `adhoc-${crypto.randomUUID()}`
     const { rows } = await client.query(
@@ -206,9 +302,10 @@ export async function createReviewCycle(input, platformUser) {
          id, name, cycle_type, period_key, start_date, end_date, is_test,
          source_cycle_id, stages_config, review_types, goal_count_policy,
          post_window_goal_policy, auto_scorecard_generation, calibration_config,
+         purpose, year_key, review_policy,
          created_by_employee_id, updated_by_employee_id
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15,$15
+         $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15,$16,$17::jsonb,$18,$18
        )
        RETURNING *`,
       [
@@ -226,6 +323,9 @@ export async function createReviewCycle(input, platformUser) {
         input.settings.postWindowGoalPolicy,
         Boolean(input.settings.autoScorecardGeneration),
         JSON.stringify(input.calibration),
+        purpose,
+        input.yearKey ?? inferYearKey(input.periodKey, input.startDate),
+        JSON.stringify(reviewPolicy),
         actor.actorEmployeeId,
       ],
     )
@@ -234,7 +334,8 @@ export async function createReviewCycle(input, platformUser) {
       id,
       input.settings.excludedEmployeeIds,
     )
-    const created = mapCycle(rows[0], exclusions)
+    const sourceLinks = await replaceSourceLinks(client, id, input.sourceLinks)
+    const created = mapCycle(rows[0], exclusions, sourceLinks)
     const cycle = await withAttachedGroups(client, created)
     await appendActivityEvent(client, {
       eventKey: input.isTest ? 'review_cycle.test_created' : 'review_cycle.created',
@@ -281,6 +382,7 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
     assertExpectedVersion(row, patch.expectedVersion)
 
     const before = await mapCycleWithExclusions(client, row)
+    const nextPurpose = patch.purpose ?? before.purpose
     const nextSettings = {
       reviewTypes: patch.reviewTypes
         ? { ...patch.reviewTypes, line_manager: true }
@@ -296,6 +398,10 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
       autoScorecardGeneration:
         patch.autoScorecardGeneration ??
         before.settings.autoScorecardGeneration,
+      reviewPolicy: normalizeReviewPolicy(
+        patch.reviewPolicy ?? before.settings.reviewPolicy,
+        nextPurpose,
+      ),
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)
     assertPostWindowGoalPolicy(patch.postWindowGoalPolicy)
@@ -304,6 +410,7 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
       ? normalizeStagesConfig(patch.stagesConfig, {
           startDate: isoDate(row.start_date),
           endDate: isoDate(row.end_date),
+          purpose: nextPurpose,
         })
       : before.stagesConfig
     if (patch.stagesConfig) validateCycleStagesConfig(stagesConfig)
@@ -322,10 +429,13 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
     const nextName = patch.name?.trim() || before.name
     const nextStartDate = patch.startDate ?? before.startDate
     const nextEndDate = patch.endDate ?? before.endDate
+    const nextYearKey = patch.yearKey ?? before.yearKey ?? null
     const headerChanged =
       nextName !== before.name ||
       nextStartDate !== before.startDate ||
-      nextEndDate !== before.endDate
+      nextEndDate !== before.endDate ||
+      nextPurpose !== before.purpose ||
+      nextYearKey !== (before.yearKey ?? null)
     const settingsChanged =
       fieldChanges(before.settings, nextSettings, [
         'reviewTypes',
@@ -333,7 +443,11 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
         'postWindowGoalPolicy',
         'excludedEmployeeIds',
         'autoScorecardGeneration',
+        'reviewPolicy',
       ]).length > 0
+    const sourcesChanged =
+      patch.sourceLinks != null &&
+      JSON.stringify(patch.sourceLinks) !== JSON.stringify(before.sourceLinks)
     const stagesChanged =
       JSON.stringify(before.stagesConfig) !== JSON.stringify(stagesConfig)
     const calibrationChanged =
@@ -343,7 +457,8 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
       !headerChanged &&
       !settingsChanged &&
       !stagesChanged &&
-      !calibrationChanged
+      !calibrationChanged &&
+      !sourcesChanged
     ) {
       await client.query('COMMIT')
       return withAttachedGroups(client, before)
@@ -360,8 +475,11 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
            auto_scorecard_generation = $8,
            stages_config = $9::jsonb,
            calibration_config = $10::jsonb,
+           purpose = $11,
+           year_key = $12,
+           review_policy = $13::jsonb,
            version = version + 1,
-           updated_by_employee_id = $11,
+           updated_by_employee_id = $14,
            updated_at = now()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING *`,
@@ -376,6 +494,9 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
         Boolean(nextSettings.autoScorecardGeneration),
         JSON.stringify(stagesConfig),
         JSON.stringify(nextCalibration),
+        nextPurpose,
+        nextYearKey,
+        JSON.stringify(nextSettings.reviewPolicy),
         actor.actorEmployeeId,
       ],
     )
@@ -388,7 +509,11 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
             before.settings.excludedEmployeeIds,
           )
         : before.settings.excludedEmployeeIds
-    const cycle = mapCycle(rows[0], exclusions)
+    const sourceLinks =
+      patch.sourceLinks != null
+        ? await replaceSourceLinks(client, cycleId, patch.sourceLinks)
+        : before.sourceLinks
+    const cycle = mapCycle(rows[0], exclusions, sourceLinks)
 
     if (headerChanged || settingsChanged) {
       await appendActivityEvent(client, {

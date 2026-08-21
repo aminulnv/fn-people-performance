@@ -1,6 +1,7 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button, ConfirmDialog } from '@/components/ui'
 import { formatDateRange } from '@/lib/reviews/periods'
+import { describeEnabledFlow } from '@/lib/reviews/reviewStages'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { useState } from 'react'
 
@@ -68,8 +69,8 @@ export function CycleGroupsSection({
                 <th scope="col">Group</th>
                 <th scope="col">People</th>
                 <th scope="col">Goals</th>
-                <th scope="col">Reviews</th>
-                <th scope="col">Calibration</th>
+                <th scope="col">Review flow</th>
+                <th scope="col">Window</th>
                 <th scope="col">
                   <span className="pd-sr-only">Actions</span>
                 </th>
@@ -154,18 +155,13 @@ function GroupRow({
         {formatDateRange(goalWindow.startDate, goalWindow.endDate)}
       </td>
       <td className="pd-cycle-groups__date">
+        {describeEnabledFlow(group.stagesConfig.reviewStages)}
+      </td>
+      <td className="pd-cycle-groups__date">
         {formatDateRange(
           reviewWindow.managerStart.date,
           reviewWindow.managerEnd.date,
         )}
-      </td>
-      <td className="pd-cycle-groups__date">
-        {group.stagesConfig.calibration.enabled
-          ? formatDateRange(
-              group.stagesConfig.calibration.start.date,
-              group.stagesConfig.calibration.end.date,
-            )
-          : '—'}
       </td>
       <td>
         <div className="pd-cycle-groups__row-actions">

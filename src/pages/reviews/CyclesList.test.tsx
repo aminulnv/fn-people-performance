@@ -25,7 +25,7 @@ describe('CyclesList', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByText('Regular'))
+    fireEvent.click(screen.getByText('Scheduled'))
     expect(screen.getByText('Opened cycle')).toBeInTheDocument()
   })
 })

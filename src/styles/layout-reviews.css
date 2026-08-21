@@ -3876,3 +3876,108 @@
   background: var(--color-surface, var(--color-bg));
   color: var(--color-text);
 }
+
+.pd-reviews-flow {
+  display: grid;
+  gap: var(--spacing-2);
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface, var(--color-bg));
+}
+
+.pd-reviews-flow__kicker,
+.pd-reviews-flow__hint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.pd-reviews-flow__path {
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+}
+
+.pd-reviews-stage-list,
+.pd-reviews-pillar-list,
+.pd-reviews-question-list,
+.pd-reviews-link-list {
+  display: grid;
+  gap: var(--spacing-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd-reviews-stage-list__item,
+.pd-reviews-pillar-list__item,
+.pd-reviews-question-list__item {
+  display: grid;
+  gap: var(--spacing-3);
+  padding-block: var(--spacing-3);
+  border-top: 1px solid var(--color-border);
+}
+
+.pd-reviews-stage-list__top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+  align-items: flex-start;
+}
+
+.pd-reviews-stage-list__title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.pd-reviews-stage-list__hint {
+  margin: var(--spacing-1) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.pd-reviews-policy-grid {
+  display: grid;
+  gap: var(--spacing-4);
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.pd-reviews-link-list__row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.pd-review-packet {
+  display: grid;
+  gap: var(--spacing-4);
+}
+
+.pd-review-packet__header {
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.pd-review-packet__back {
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.pd-review-packet__title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.pd-review-packet__meta,
+.pd-review-packet__grade {
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.pd-review-packet__actions {
+  display: flex;
+  gap: var(--spacing-3);
+}

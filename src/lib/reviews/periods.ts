@@ -19,6 +19,29 @@ export function periodKey(year: number, quarter: number): string {
   return `q${quarter}-${year}`
 }
 
+export function annualPeriodKey(year: number): string {
+  return `annual-${year}`
+}
+
+export function findAnnualPeriod(key: string): CyclePeriodOption | undefined {
+  const match = /^annual-(\d{4})$/i.exec(key.trim())
+  if (!match) return undefined
+  const year = Number(match[1])
+  return {
+    key: annualPeriodKey(year),
+    label: `Annual ${year}`,
+    startDate: `${year + 1}-01-01`,
+    endDate: `${year + 1}-02-15`,
+  }
+}
+
+export function listAnnualPeriods(referenceDate = new Date()): CyclePeriodOption[] {
+  const year = referenceDate.getFullYear()
+  return [year - 1, year, year + 1]
+    .map((value) => findAnnualPeriod(annualPeriodKey(value)))
+    .filter((period): period is CyclePeriodOption => Boolean(period))
+}
+
 export function buildPeriod(
   year: number,
   quarter: 1 | 2 | 3 | 4,
@@ -47,11 +70,24 @@ export function listSelectablePeriods(
 }
 
 export function findPeriod(key: string): CyclePeriodOption | undefined {
+  const annual = findAnnualPeriod(key)
+  if (annual) return annual
   const match = /^q([1-4])-(\d{4})$/i.exec(key.trim())
   if (!match) return undefined
   const quarter = Number(match[1]) as 1 | 2 | 3 | 4
   const year = Number(match[2])
   return buildPeriod(year, quarter)
+}
+
+/** Quarter periods only — used by the quarterly create picker. */
+export function listQuarterPeriods(referenceDate = new Date()): CyclePeriodOption[] {
+  return listSelectablePeriods(referenceDate).filter((period) =>
+    /^q[1-4]-/i.test(period.key),
+  )
+}
+
+export function listCreatePeriods(referenceDate = new Date()): CyclePeriodOption[] {
+  return [...listAnnualPeriods(referenceDate), ...listSelectablePeriods(referenceDate)]
 }
 
 /** Calendar-day key for date-only values, so timezones cannot shift a stage. */

@@ -7,6 +7,8 @@ import {
   deleteCycleGroup,
 } from "@/lib/reviews/store";
 import { cycleForOverviewCalendar } from "@/lib/reviews/cycleCalendar";
+import { PURPOSE_HINT, PURPOSE_LABEL } from "@/lib/reviews/purpose";
+import { describeEnabledFlow } from "@/lib/reviews/reviewStages";
 import type { CycleGroup, ReviewCycle } from "@/lib/reviews/types";
 import { CycleSettingsCalendar } from "./CycleSettingsCalendar";
 import { CycleDetailsEditPage } from "./CycleDetailsEditPage";
@@ -86,6 +88,13 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
               </span>
             </div>
           </div>
+          <p className="pd-reviews-flow__hint">
+            {PURPOSE_LABEL[cycle.purpose ?? "quarterly_checkin"]}.{" "}
+            {PURPOSE_HINT[cycle.purpose ?? "quarterly_checkin"]}{" "}
+            {groups[0]
+              ? describeEnabledFlow(groups[0].stagesConfig.reviewStages)
+              : "Add a group to turn stages on for people."}
+          </p>
         </div>
 
         <div className="pd-reviews-overview__calendar">

@@ -11,6 +11,7 @@ export type AuthUser = {
   email: string
   name: string
   personId: string
+  employeeId?: number | null
   permissions: SystemPermission[]
   title: string
 }
@@ -81,6 +82,7 @@ function authUserFromPlatform(user: PlatformAuthUser): AuthUser {
     email: user.email,
     name: user.name,
     personId: employeeId != null ? String(employeeId) : user.id,
+    employeeId,
     permissions: permissionsForEmail(user.email, user.permissions),
     title: user.title ?? '',
   }

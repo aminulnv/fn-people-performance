@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, Modal, Select } from '@/components/ui'
-import { listSelectablePeriods } from '@/lib/reviews/periods'
+import { listAnnualPeriods, listQuarterPeriods } from '@/lib/reviews/periods'
+import { PURPOSE_HINT, PURPOSE_LABEL } from '@/lib/reviews/purpose'
 import { createReviewCycle } from '@/lib/reviews/store'
-import type { ReviewCycle, ReviewCycleType } from '@/lib/reviews/types'
+import type { CyclePurpose, ReviewCycle } from '@/lib/reviews/types'
 
 type AddReviewCycleModalProps = {
   open: boolean
@@ -17,13 +18,12 @@ export function AddReviewCycleModal({
   onCreated,
   existingPeriodKeys,
 }: AddReviewCycleModalProps) {
-  const periods = useMemo(() => listSelectablePeriods(), [])
-  const availablePeriods = useMemo(
-    () => periods.filter((p) => !existingPeriodKeys.has(p.key)),
-    [existingPeriodKeys, periods],
-  )
+  const quarters = useMemo(() => listQuarterPeriods(), [])
+  const annuals = useMemo(() => listAnnualPeriods(), [])
+  const availableQuarters = quarters.filter((item) => !existingPeriodKeys.has(item.key))
+  const availableAnnuals = annuals.filter((item) => !existingPeriodKeys.has(item.key))
 
-  const [type, setType] = useState<ReviewCycleType>('regular')
+  const [purpose, setPurpose] = useState<CyclePurpose>('quarterly_checkin')
   const [periodKey, setPeriodKey] = useState('')
   const [adhocName, setAdhocName] = useState('')
   const [startDate, setStartDate] = useState('')
@@ -32,29 +32,39 @@ export function AddReviewCycleModal({
 
   useEffect(() => {
     if (!open) return
-    setType('regular')
-    setPeriodKey(availablePeriods[0]?.key ?? '')
+    setPurpose('quarterly_checkin')
+    setPeriodKey(availableQuarters[0]?.key ?? '')
     setAdhocName('')
     setStartDate('')
     setEndDate('')
     setError(null)
-  }, [open, availablePeriods])
+  }, [open, availableQuarters])
 
-  const handleClose = () => {
-    onClose()
-  }
+  useEffect(() => {
+    if (purpose === 'quarterly_checkin') {
+      setPeriodKey(availableQuarters[0]?.key ?? '')
+    }
+    if (purpose === 'annual_appraisal') {
+      setPeriodKey(availableAnnuals[0]?.key ?? '')
+    }
+  }, [purpose, availableAnnuals, availableQuarters])
 
   const handleConfirm = async () => {
     try {
       setError(null)
       const cycle =
-        type === 'regular'
-          ? await createReviewCycle({ type: 'regular', periodKey })
-          : await createReviewCycle({
+        purpose === 'custom'
+          ? await createReviewCycle({
               type: 'ad-hoc',
-              name: adhocName || 'Ad-hoc cycle',
+              purpose: 'custom',
+              name: adhocName || 'Custom cycle',
               startDate: startDate || undefined,
               endDate: endDate || startDate || undefined,
+            })
+          : await createReviewCycle({
+              type: 'regular',
+              purpose,
+              periodKey,
             })
       onCreated(cycle)
     } catch (err) {
@@ -65,120 +75,112 @@ export function AddReviewCycleModal({
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      title="Add Cycle"
-      description="Create a cycle for goals and performance reviews."
+      onClose={onClose}
+      title="Add cycle"
+      description="Pick the kind of cycle first. You can turn stages on or off after it is created."
       className="pd-reviews-modal"
       actions={
         <>
-          <Button variant="secondary" pill onClick={handleClose}>
+          <Button variant="secondary" pill onClick={onClose}>
             Cancel
           </Button>
-          <Button variant="primary" pill onClick={handleConfirm}>
-            Confirm
+          <Button variant="primary" pill onClick={() => void handleConfirm()}>
+            Create cycle
           </Button>
         </>
       }
     >
       <fieldset className="pd-reviews-type-picker">
-        <legend className="pd-sr-only">Cycle type</legend>
-        <label
-          className={[
-            'pd-reviews-type-option',
-            type === 'regular' ? 'is-selected' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <input
-            type="radio"
-            name="cycle-type"
-            value="regular"
-            checked={type === 'regular'}
-            onChange={() => setType('regular')}
-          />
-          <span className="pd-reviews-type-option__radio" aria-hidden />
-          <span className="pd-reviews-type-option__text">
-            <span className="pd-reviews-type-option__title">Regular cycle</span>
-            <span className="pd-reviews-type-option__desc">
-              Create a standard cycle using fixed dates for goals
-              and performance reviews.
+        <legend className="pd-sr-only">What kind of cycle</legend>
+        {(['quarterly_checkin', 'annual_appraisal', 'custom'] as const).map((id) => (
+          <label
+            key={id}
+            className={[
+              'pd-reviews-type-option',
+              purpose === id ? 'is-selected' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            <input
+              type="radio"
+              name="cycle-purpose"
+              value={id}
+              checked={purpose === id}
+              onChange={() => setPurpose(id)}
+            />
+            <span className="pd-reviews-type-option__radio" aria-hidden />
+            <span className="pd-reviews-type-option__text">
+              <span className="pd-reviews-type-option__title">
+                {PURPOSE_LABEL[id]}
+              </span>
+              <span className="pd-reviews-type-option__desc">
+                {PURPOSE_HINT[id]}
+              </span>
             </span>
-          </span>
-        </label>
-
-        <label
-          className={[
-            'pd-reviews-type-option',
-            type === 'ad-hoc' ? 'is-selected' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <input
-            type="radio"
-            name="cycle-type"
-            value="ad-hoc"
-            checked={type === 'ad-hoc'}
-            onChange={() => setType('ad-hoc')}
-          />
-          <span className="pd-reviews-type-option__radio" aria-hidden />
-          <span className="pd-reviews-type-option__text">
-            <span className="pd-reviews-type-option__title">Ad-hoc cycle</span>
-            <span className="pd-reviews-type-option__desc">
-              Set up a custom cycle with manual dates, ideal for
-              special cases like testing features or unique assessments.
-            </span>
-          </span>
-        </label>
+          </label>
+        ))}
       </fieldset>
 
-      {type === 'regular' ? (
-        <div className="pd-reviews-modal__field">
-          <Select
-            label="Select Cycle"
-            hint="Choose the period for this cycle."
-            value={periodKey}
-            onChange={(e) => setPeriodKey(e.target.value)}
-            options={availablePeriods.map((period) => ({
-              value: period.key,
-              label: `Cycle: ${period.label}`,
-            }))}
-          />
-        </div>
-      ) : (
+      {purpose === 'quarterly_checkin' ? (
+        <Select
+          label="Quarter"
+          hint="One quarter. Manager check-in is on; annual stages stay off."
+          value={periodKey}
+          onChange={(event) => setPeriodKey(event.target.value)}
+          options={availableQuarters.map((period) => ({
+            value: period.key,
+            label: period.label,
+          }))}
+        />
+      ) : null}
+
+      {purpose === 'annual_appraisal' ? (
+        <Select
+          label="Appraisal year"
+          hint="The window opens in January of the following year. Linked quarters can be chosen in cycle details."
+          value={periodKey}
+          onChange={(event) => setPeriodKey(event.target.value)}
+          options={availableAnnuals.map((period) => ({
+            value: period.key,
+            label: period.label,
+          }))}
+        />
+      ) : null}
+
+      {purpose === 'custom' ? (
         <div className="pd-reviews-modal__adhoc">
           <label className="pd-field">
             <span className="pd-field__label">Cycle name</span>
             <input
               className="pd-field__control"
               value={adhocName}
-              onChange={(e) => setAdhocName(e.target.value)}
-              placeholder="e.g. Mid-year special review"
+              onChange={(event) => setAdhocName(event.target.value)}
+              placeholder="e.g. Leadership mid-year"
             />
           </label>
           <div className="pd-reviews-modal__dates">
             <label className="pd-field">
-              <span className="pd-field__label">Start date</span>
+              <span className="pd-field__label">Starts</span>
               <input
                 type="date"
                 className="pd-field__control"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(event) => setStartDate(event.target.value)}
               />
             </label>
             <label className="pd-field">
-              <span className="pd-field__label">End date</span>
+              <span className="pd-field__label">Ends</span>
               <input
                 type="date"
                 className="pd-field__control"
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
+                onChange={(event) => setEndDate(event.target.value)}
               />
             </label>
           </div>
         </div>
-      )}
+      ) : null}
 
       {error ? (
         <p className="pd-reviews-modal__error" role="alert">

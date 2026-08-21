@@ -1,5 +1,7 @@
 export type ReviewCycleType = "regular" | "ad-hoc";
 
+export type CyclePurpose = "quarterly_checkin" | "annual_appraisal" | "custom";
+
 export type ReviewCycleStatus = "future" | "current" | "previous" | "manual";
 
 export type CycleSectionId = "settings";
@@ -46,9 +48,31 @@ export type GoalCycleExtension = {
 export type CycleStageId =
   | "employee_goals"
   | "performance_review"
+  | "self_review"
+  | "manager_review"
   | "calibration"
+  | "calibration_hod_hrbp"
+  | "calibration_slt"
   | "publish_managers"
-  | "publish_employees";
+  | "publish_employees"
+  | "appeal";
+
+export type ReviewStageId =
+  | "goals"
+  | "self_review"
+  | "manager_review"
+  | "calibration_hod_hrbp"
+  | "calibration_slt"
+  | "publish_managers"
+  | "publish_employees"
+  | "appeal";
+
+export type ReviewStageConfig = {
+  id: ReviewStageId;
+  enabled: boolean;
+  start?: DateTimeValue;
+  end?: DateTimeValue;
+};
 
 export type CycleStage = {
   id: CycleStageId;
@@ -82,6 +106,11 @@ export type CycleStagesConfig = {
     toManager: DateTimeValue;
     toAll: DateTimeValue;
   };
+  /**
+   * Source of truth for which review windows run.
+   * Legacy goals/performance/calibration/publish stay in sync so Goals is unchanged.
+   */
+  reviewStages?: ReviewStageConfig[];
 };
 
 export type ReviewTypeId =
@@ -99,6 +128,90 @@ export type GoalCountPolicy = {
 
 export type PostWindowGoalPolicy = "hard_stop" | "two_tier_approval";
 
+export type ScorecardPillarKind =
+  | "goals"
+  | "skills"
+  | "values"
+  | "leadership"
+  | "custom";
+
+export type ScorecardPillar = {
+  id: string;
+  kind: ScorecardPillarKind;
+  label: string;
+  enabled: boolean;
+  weight: number;
+  pullLinkedQuarters: boolean;
+};
+
+export type ReviewQuestionVisibility = "employee" | "manager" | "calibrators";
+
+export type ReviewQuestion = {
+  id: string;
+  prompt: string;
+  enabled: boolean;
+  required: boolean;
+  visibility: ReviewQuestionVisibility[];
+};
+
+export type GradeBandDefinition = {
+  id: GradeBandId;
+  label: string;
+  sort: number;
+};
+
+export type ReviewPolicy = {
+  selfReview: {
+    ratePillars: boolean;
+    rateOverall: boolean;
+    visibility: "blinded" | "visible_first" | "sequential";
+    latePolicy: "proceed" | "block" | "ptr_unblock";
+  };
+  managerReview: {
+    narrative: "off" | "overall" | "per_pillar";
+    gapCommentTiers: number;
+    goalsScoreEdit: "read_only" | "override_with_reason";
+    finalGradeEdit: "confirm_only" | "override_with_reason";
+    gradeSuggestion: "none" | "completion_reference" | "weighted_suggest";
+    latePolicy: "escalate" | "extend" | "ptr_delegate";
+    escalationRoles: Array<"hod" | "slt" | "ptr">;
+  };
+  calibration: {
+    editors: "hod" | "hrbp" | "hod_and_hrbp";
+    distribution: "off" | "guidance" | "enforced";
+  };
+  release: {
+    mode:
+      | "batch_ptr"
+      | "manager_then_deadline"
+      | "window_then_auto"
+      | "immediate_on_submit";
+    acknowledgement: "none" | "first_view" | "acknowledge_button";
+  };
+  appeal: {
+    mode: "record_only" | "can_change_with_ptr";
+    days: number;
+  };
+  eligibility: {
+    excludeNoticePeriod: boolean;
+    excludeProbation: boolean;
+    excludePip: boolean;
+  };
+  scorecard: {
+    pillars: ScorecardPillar[];
+    questions: ReviewQuestion[];
+    bands: GradeBandDefinition[];
+    extraGradeFields: Array<"contribution" | "impact">;
+  };
+};
+
+export type CycleSourceLink = {
+  sourceCycleId: string;
+  weightPercent: number;
+  excluded: boolean;
+  transitionGrade?: GradeBandId | null;
+};
+
 export type CycleSettings = {
   reviewTypes: Record<ReviewTypeId, boolean>;
   goalCountPolicy: GoalCountPolicy;
@@ -107,6 +220,7 @@ export type CycleSettings = {
   /** Employee IDs excluded from automatic grade publishing. */
   excludedEmployeeIds: number[];
   autoScorecardGeneration: boolean;
+  reviewPolicy?: ReviewPolicy;
 };
 
 export type GradeBandId =
@@ -147,9 +261,12 @@ export type ReviewCycle = {
   id: string;
   name: string;
   type: ReviewCycleType;
+  purpose?: CyclePurpose;
   startDate: string;
   endDate: string;
   periodKey?: string;
+  yearKey?: string;
+  sourceLinks?: CycleSourceLink[];
   stagesConfig: CycleStagesConfig;
   settings: CycleSettings;
   calibration: CalibrationLogic;
@@ -160,6 +277,76 @@ export type ReviewCycle = {
   updatedAt?: string;
   /** Optimistic concurrency token from the server. */
   version?: number;
+};
+
+export type ReviewPacketStatus =
+  | "not_started"
+  | "self_in_progress"
+  | "self_submitted"
+  | "manager_in_progress"
+  | "manager_submitted"
+  | "in_calibration"
+  | "calibrated"
+  | "released_to_managers"
+  | "released_to_employees"
+  | "appealed";
+
+export type ReviewActorRole = "self" | "manager";
+
+export type ReviewAnswer = {
+  questionId: string;
+  actorRole: ReviewActorRole;
+  body: string;
+};
+
+export type ReviewPillarScore = {
+  pillarId: string;
+  actorRole: ReviewActorRole;
+  grade: GradeBandId | null;
+  comment: string;
+};
+
+export type ReviewCalibrationEvent = {
+  id: string;
+  stageId: ReviewStageId;
+  fromGrade: GradeBandId | null;
+  toGrade: GradeBandId;
+  reason: string;
+  actorEmployeeId: number | null;
+  actorName: string;
+  createdAt: string;
+};
+
+export type ReviewAppeal = {
+  id: string;
+  body: string;
+  status: "open" | "recorded" | "resolved";
+  createdAt: string;
+  createdByEmployeeId: number | null;
+};
+
+export type ReviewPacket = {
+  id: string;
+  cycleId: string;
+  groupId: string | null;
+  employeeId: number;
+  managerEmployeeId: number | null;
+  status: ReviewPacketStatus;
+  selfOverallGrade: GradeBandId | null;
+  managerOverallGrade: GradeBandId | null;
+  calibratedOverallGrade: GradeBandId | null;
+  publishedOverallGrade: GradeBandId | null;
+  managerOverrideReason: string;
+  goalsComponent: Record<string, unknown> | null;
+  answers: ReviewAnswer[];
+  pillarScores: ReviewPillarScore[];
+  calibrationEvents: ReviewCalibrationEvent[];
+  appeals: ReviewAppeal[];
+  firstViewedAt?: string;
+  releasedToManagerAt?: string;
+  releasedToEmployeeAt?: string;
+  version: number;
+  updatedAt?: string;
 };
 
 export type ReviewsMutationError = {

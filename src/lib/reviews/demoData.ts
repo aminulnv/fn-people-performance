@@ -1,6 +1,16 @@
 import { buildPeriod } from "./periods";
+import { inferPurpose, inferYearKey } from "./purpose";
+import { defaultReviewPolicy, normalizeReviewPolicy } from "./reviewPolicy";
+import {
+  applyNestedWindowsToReviewStages,
+  defaultReviewStages,
+  deriveReviewStagesFromLegacy,
+  mergeReviewStages,
+  syncLegacyStageWindows,
+} from "./reviewStages";
 import type {
   CalibrationLogic,
+  CyclePurpose,
   CycleSettings,
   CycleStagesConfig,
   DateTimeValue,
@@ -31,24 +41,32 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
   postWindowGoalPolicy: "two_tier_approval",
   excludedEmployeeIds: [],
   autoScorecardGeneration: false,
+  reviewPolicy: defaultReviewPolicy("quarterly_checkin"),
 };
 
 export function normalizeCycleSettings(
   settings?: Partial<CycleSettings>,
+  purpose: CyclePurpose = "quarterly_checkin",
 ): CycleSettings {
+  const reviewTypes = {
+    ...DEFAULT_CYCLE_SETTINGS.reviewTypes,
+    ...settings?.reviewTypes,
+    line_manager: true,
+    ...(purpose === "annual_appraisal" ? { self: true } : {}),
+  };
+  if (settings?.reviewTypes?.self != null) {
+    reviewTypes.self = settings.reviewTypes.self;
+  }
   return {
     ...DEFAULT_CYCLE_SETTINGS,
     ...settings,
-    reviewTypes: {
-      ...DEFAULT_CYCLE_SETTINGS.reviewTypes,
-      ...settings?.reviewTypes,
-      line_manager: true,
-    },
+    reviewTypes,
     goalCountPolicy: {
       ...DEFAULT_CYCLE_SETTINGS.goalCountPolicy,
       ...settings?.goalCountPolicy,
     },
     excludedEmployeeIds: [...(settings?.excludedEmployeeIds ?? [])],
+    reviewPolicy: normalizeReviewPolicy(settings?.reviewPolicy, purpose),
   };
 }
 
@@ -67,15 +85,16 @@ export const DEFAULT_CALIBRATION: CalibrationLogic = {
 /** Strip legacy department/team goal windows and fill any missing fields. */
 export function normalizeStagesConfig(
   config?: Partial<CycleStagesConfig>,
-  quarter?: { startDate: string; endDate: string },
+  quarter?: { startDate: string; endDate: string; purpose?: CyclePurpose },
 ): CycleStagesConfig {
   const defaults = buildDefaultStagesConfig(
     quarter?.startDate ?? "2026-07-01",
     quarter?.endDate ?? "2026-09-30",
+    quarter?.purpose,
   );
   if (!config) return defaults;
 
-  return {
+  const merged: CycleStagesConfig = {
     processMode: "schedule",
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
@@ -130,18 +149,28 @@ export function normalizeStagesConfig(
       },
     },
   };
+  const purpose = quarter?.purpose ?? "quarterly_checkin";
+  merged.reviewStages = mergeReviewStages(
+    config.reviewStages,
+    config.reviewStages?.length
+      ? defaultReviewStages(purpose, merged)
+      : deriveReviewStagesFromLegacy(purpose, merged),
+  );
+  return syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged));
 }
 
 /** Default stage windows relative to a quarter timeframe. */
 export function buildDefaultStagesConfig(
   startDate: string,
   endDate: string,
+  purpose: CyclePurpose = "quarterly_checkin",
+  periodKey?: string,
 ): CycleStagesConfig {
   const start = parseIso(startDate);
   const end = parseIso(endDate);
   if (!start || !end) {
-    return {
-      processMode: "schedule",
+    const fallback = {
+      processMode: "schedule" as const,
       goals: {
         employee: { startDate, endDate },
         extensions: [],
@@ -153,7 +182,7 @@ export function buildDefaultStagesConfig(
         managerEnd: at(endDate),
       },
       calibration: {
-        enabled: true,
+        enabled: purpose !== "quarterly_checkin",
         start: at(endDate),
         end: at(endDate),
         manualStart: at(endDate),
@@ -163,6 +192,10 @@ export function buildDefaultStagesConfig(
         toAll: at(endDate),
       },
     };
+    return syncLegacyStageWindows({
+      ...fallback,
+      reviewStages: defaultReviewStages(purpose, fallback, periodKey),
+    });
   }
 
   const goalsStart = addDays(start, -25);
@@ -174,8 +207,8 @@ export function buildDefaultStagesConfig(
   const publishManagers = addDays(calEnd, 3);
   const publishEmployees = addDays(publishManagers, 7);
 
-  return {
-    processMode: "schedule",
+  const built = {
+    processMode: "schedule" as const,
     goals: {
       employee: {
         startDate: toIso(goalsStart),
@@ -190,7 +223,7 @@ export function buildDefaultStagesConfig(
       managerEnd: at(toIso(reviewEnd)),
     },
     calibration: {
-      enabled: true,
+      enabled: purpose !== "quarterly_checkin",
       start: at(toIso(calStart)),
       end: at(toIso(calEnd)),
       manualStart: at(toIso(calStart)),
@@ -200,6 +233,10 @@ export function buildDefaultStagesConfig(
       toAll: at(toIso(publishEmployees)),
     },
   };
+  return syncLegacyStageWindows({
+    ...built,
+    reviewStages: defaultReviewStages(purpose, built, periodKey),
+  });
 }
 
 /** @deprecated Prefer buildDefaultStagesConfig — kept name for call-site clarity. */
@@ -241,14 +278,18 @@ function regularCycle(
   period: ReturnType<typeof buildPeriod>,
   createdAt: string,
 ): ReviewCycle {
+  const purpose = inferPurpose(period.key, "quarterly_checkin");
   return {
     id: period.key,
     name: period.label,
     type: "regular",
+    purpose,
     startDate: period.startDate,
     endDate: period.endDate,
     periodKey: period.key,
-    stagesConfig: buildDefaultStagesConfig(period.startDate, period.endDate),
+    yearKey: inferYearKey(period.key, period.startDate),
+    sourceLinks: [],
+    stagesConfig: buildDefaultStagesConfig(period.startDate, period.endDate, purpose),
     settings: cloneSettings(),
     calibration: cloneCalibration(),
     createdAt,

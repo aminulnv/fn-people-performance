@@ -1,5 +1,13 @@
 /** Shared cycle validation helpers for the platform API. */
 
+import {
+  applyNestedWindowsToReviewStages,
+  defaultReviewStages,
+  deriveReviewStagesFromLegacy,
+  mergeReviewStages,
+  syncLegacyStageWindows,
+} from './reviewConfig.mjs'
+
 function parseIso(iso) {
   const [y, m, d] = String(iso).split('-').map(Number)
   if (!y || !m || !d) return null
@@ -23,11 +31,11 @@ function at(date) {
   return { date, time: '00:00' }
 }
 
-export function buildDefaultStagesConfig(startDate, endDate) {
+export function buildDefaultStagesConfig(startDate, endDate, purpose = 'quarterly_checkin', periodKey) {
   const start = parseIso(startDate)
   const end = parseIso(endDate)
   if (!start || !end) {
-    return {
+    const fallback = {
       processMode: 'schedule',
       goals: {
         employee: { startDate, endDate },
@@ -40,7 +48,7 @@ export function buildDefaultStagesConfig(startDate, endDate) {
         managerEnd: at(endDate),
       },
       calibration: {
-        enabled: true,
+        enabled: purpose !== 'quarterly_checkin',
         start: at(endDate),
         end: at(endDate),
         manualStart: at(endDate),
@@ -50,6 +58,10 @@ export function buildDefaultStagesConfig(startDate, endDate) {
         toAll: at(endDate),
       },
     }
+    return syncLegacyStageWindows({
+      ...fallback,
+      reviewStages: defaultReviewStages(purpose, fallback, periodKey),
+    })
   }
 
   const goalsStart = addDays(start, -25)
@@ -61,7 +73,7 @@ export function buildDefaultStagesConfig(startDate, endDate) {
   const publishManagers = addDays(calEnd, 3)
   const publishEmployees = addDays(publishManagers, 7)
 
-  return {
+  const built = {
     processMode: 'schedule',
     goals: {
       employee: {
@@ -77,7 +89,7 @@ export function buildDefaultStagesConfig(startDate, endDate) {
       managerEnd: at(toIso(reviewEnd)),
     },
     calibration: {
-      enabled: true,
+      enabled: purpose !== 'quarterly_checkin',
       start: at(toIso(calStart)),
       end: at(toIso(calEnd)),
       manualStart: at(toIso(calStart)),
@@ -87,15 +99,25 @@ export function buildDefaultStagesConfig(startDate, endDate) {
       toAll: at(toIso(publishEmployees)),
     },
   }
+  return syncLegacyStageWindows({
+    ...built,
+    reviewStages: defaultReviewStages(purpose, built, periodKey),
+  })
 }
 
 export function normalizeStagesConfig(config, quarter = {}) {
   const startDate = quarter.startDate ?? '2026-07-01'
   const endDate = quarter.endDate ?? '2026-09-30'
-  const defaults = buildDefaultStagesConfig(startDate, endDate)
+  const purpose = quarter.purpose ?? 'quarterly_checkin'
+  const defaults = buildDefaultStagesConfig(
+    startDate,
+    endDate,
+    purpose,
+    quarter.periodKey,
+  )
   if (!config) return defaults
 
-  return {
+  const merged = {
     processMode: 'schedule',
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
@@ -150,6 +172,13 @@ export function normalizeStagesConfig(config, quarter = {}) {
       },
     },
   }
+  merged.reviewStages = mergeReviewStages(
+    config.reviewStages,
+    config.reviewStages?.length
+      ? defaultReviewStages(purpose, merged)
+      : deriveReviewStagesFromLegacy(purpose, merged),
+  )
+  return syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged))
 }
 
 function validationError(message) {
@@ -198,23 +227,35 @@ export function validateCycleStagesConfig(config) {
     throw validationError('Cycle stages are incomplete. Reload and try again.')
   }
 
-  const ranges = [
-    [
+  const enabled = new Map(
+    (config.reviewStages ?? []).map((stage) => [stage.id, stage.enabled]),
+  )
+  const goalsOn = enabled.get('goals') !== false
+  const reviewOn =
+    enabled.get('self_review') === true || enabled.get('manager_review') !== false
+
+  const ranges = []
+  if (goalsOn) {
+    ranges.push([
       'Goal setting',
       config.goals.employee.startDate,
       config.goals.employee.endDate,
-    ],
-    [
-      'Performance review',
+    ])
+  }
+  if (enabled.get('self_review')) {
+    ranges.push([
+      'Self-review',
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
-    ],
-    [
-      'Performance review',
+    ])
+  }
+  if (enabled.get('manager_review') !== false) {
+    ranges.push([
+      'Manager review',
       config.performance.managerStart.date,
       config.performance.managerEnd.date,
-    ],
-  ]
+    ])
+  }
 
   for (const [label, startDate, endDate] of ranges) {
     if (!startDate || !endDate) {
@@ -225,7 +266,7 @@ export function validateCycleStagesConfig(config) {
     }
   }
 
-  if (config.goals.employee.endDate >= config.performance.employeeStart.date) {
+  if (goalsOn && reviewOn && config.goals.employee.endDate >= config.performance.employeeStart.date) {
     throw validationError(
       'Performance review must start after the employee goal lock date.',
     )
