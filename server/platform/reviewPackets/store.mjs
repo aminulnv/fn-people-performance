@@ -59,7 +59,7 @@ async function loadChildren(client, packetIds) {
     `SELECT event.*, employee.name AS full_name
      FROM platform.review_calibration_events event
      LEFT JOIN platform.employees employee
-       ON employee.employee_id = event.actor_employee_id`
+       ON employee.employee_id = event.actor_employee_id
      WHERE event.packet_id = ANY($1::text[])
      ORDER BY event.created_at`,
     [packetIds],
