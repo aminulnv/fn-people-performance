@@ -73,7 +73,7 @@ export function GroupMembersEditor({
     [employees, selected],
   )
 
-  const matches = useMemo(() => {
+  const matches = useMemo((): MemberMatch[] => {
     const q = query.trim().toLowerCase()
 
     const people = employees
