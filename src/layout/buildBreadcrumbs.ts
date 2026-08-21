@@ -134,7 +134,7 @@ export function buildBreadcrumbs({
     ) ?? matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
   if (cycleDetail?.params.cycleId) {
     return [
-      { label: 'Performance Cycles', href: '/cycles' },
+      { label: 'Cycles', href: '/cycles' },
       {
         label:
           cycleName?.trim() ||

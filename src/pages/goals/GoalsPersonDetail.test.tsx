@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
@@ -66,6 +66,13 @@ function signInManager() {
   })
 }
 
+function LocationReadout() {
+  const location = useLocation()
+  return (
+    <p>{`${location.pathname}${location.search}${location.hash}`}</p>
+  )
+}
+
 function renderReportGoals() {
   return render(
     <MemoryRouter>
@@ -92,6 +99,24 @@ describe('GoalsPersonDetail manager review', () => {
     cleanup()
     clearEmployees()
     clearSession()
+  })
+
+  it('does not rewrite the People directory hash when embedded', async () => {
+    render(
+      <MemoryRouter initialEntries={['/people?employee=1#everyone']}>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+          <LocationReadout />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('region', { name: 'Direct Report goals' }),
+      ).toBeInTheDocument()
+    })
+    expect(screen.getByText('/people?employee=1#everyone')).toBeInTheDocument()
   })
 
   it('nests the report goals under the same review card as My Reports', async () => {
@@ -171,7 +196,7 @@ describe('GoalsPersonDetail submission status', () => {
     clearSession()
   })
 
-  it('shows the approval card once instead of an approval column', async () => {
+  it('keeps draft status in the summary instead of a banner', async () => {
     render(
       <MemoryRouter>
         <AuthProvider>
@@ -181,16 +206,15 @@ describe('GoalsPersonDetail submission status', () => {
     )
 
     await waitFor(() => {
-      expect(screen.getByText('Not submitted yet')).toBeInTheDocument()
+      expect(
+        screen.getByRole('group', { name: /goal totals/i }),
+      ).toHaveTextContent('Draft')
     })
-    const card = screen.getByText('Not submitted yet').closest(
-      '.pd-goal-view__approval',
-    )
-    expect(card).toHaveTextContent('Draft')
+    expect(document.querySelector('.pd-goal-view__approval')).toBeNull()
+    expect(screen.queryByText('Not submitted yet')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('columnheader', { name: 'Approval' }),
     ).not.toBeInTheDocument()
-    expect(screen.getAllByText('Not submitted yet')).toHaveLength(1)
   })
 
   it('expands nested measures from the goal row arrow', async () => {

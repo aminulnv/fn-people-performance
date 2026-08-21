@@ -76,7 +76,7 @@ export function normalizeStagesConfig(
   if (!config) return defaults;
 
   return {
-    processMode: config.processMode ?? defaults.processMode,
+    processMode: "schedule",
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
       extensions: config.goals?.extensions ?? [],

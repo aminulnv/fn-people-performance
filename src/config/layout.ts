@@ -1,6 +1,6 @@
 import {
   BarChart3,
-  CalendarRange,
+  CalendarCog,
   Component,
   Home,
   IdCard,
@@ -43,7 +43,7 @@ export const layoutConfig: AppLayoutConfig = {
     {
       path: '/cycles',
       label: 'Cycles',
-      icon: CalendarRange,
+      icon: CalendarCog,
       requiredPermission: 'platform.write_all',
     },
     { path: '/goals', label: 'Goals', icon: Target },

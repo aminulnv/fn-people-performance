@@ -1,7 +1,6 @@
 import type { CycleSectionId } from './types'
 
 export const CYCLE_SECTIONS = [
-  { id: 'goals', label: 'Goals' },
   { id: 'settings', label: 'Cycle Settings' },
 ] as const satisfies ReadonlyArray<{ id: CycleSectionId; label: string }>
 

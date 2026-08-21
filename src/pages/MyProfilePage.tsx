@@ -1,10 +1,6 @@
 import { useMemo } from 'react'
 import { PageStatus, PageStatusLink, PageStatusRetry } from '@/components/ui'
-import {
-  findEmployeeByEmail,
-  getEmployee,
-} from '@/lib/employees/store'
-import { useEmployees } from '@/lib/employees/useEmployees'
+import { useEmployeeProfile } from '@/lib/employees/useEmployeeProfile'
 import { useAuth } from '@/lib/useAuth'
 import {
   resolveDepartmentHead,
@@ -18,17 +14,12 @@ import '@/styles/layout-people.css'
 
 export default function MyProfilePage() {
   const { user } = useAuth()
-  const { employees, isLoading, loadError, reload } = useEmployees()
-
-  const employee = useMemo(() => {
-    if (!user) return null
-    const employeeId = Number(user.personId)
-    return (
-      (Number.isFinite(employeeId) && employeeId > 0
-        ? getEmployee(employeeId)
-        : null) ?? findEmployeeByEmail(user.email)
-    )
-  }, [user, employees])
+  const employeeId = Number(user?.personId)
+  const { employee, isLoading, loadError, reload } = useEmployeeProfile({
+    employeeId:
+      Number.isFinite(employeeId) && employeeId > 0 ? employeeId : null,
+    email: user?.email,
+  })
 
   const manager = useMemo(() => resolveManager(employee), [employee])
   const departmentHead = useMemo(

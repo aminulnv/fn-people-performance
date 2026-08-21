@@ -1,4 +1,4 @@
--- Named people groups under a performance cycle. Each group owns a full
+-- Named people groups under a cycle. Each group owns a full
 -- settings blob. A person can belong to at most one group per cycle.
 
 CREATE TABLE IF NOT EXISTS platform.review_cycle_groups (

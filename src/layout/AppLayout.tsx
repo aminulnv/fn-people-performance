@@ -16,7 +16,6 @@ import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
 import { getGoalsSnapshot } from '@/lib/goals/store'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
-import { TopBarCycleNav } from './TopBarCycleNav'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
@@ -134,7 +133,6 @@ export function AppLayout({
   const cycleName = cycleIdParam
     ? getReviewCycle(cycleIdParam)?.name
     : undefined
-  const isCycleDetail = Boolean(cycleIdParam)
   const scorecardCycleKey = scorecardDetailMatch?.params.cycleKey
     ? decodeURIComponent(scorecardDetailMatch.params.cycleKey)
     : undefined
@@ -221,7 +219,6 @@ export function AppLayout({
             <TopBar
               breadcrumbs={breadcrumbs}
               titleIcon={titleIcon}
-              centerSlot={isCycleDetail ? <TopBarCycleNav /> : null}
               onSignOut={onSignOut}
               onMobileMenuOpen={() => setIsMobileOpen(true)}
               isMobile={isMobile}

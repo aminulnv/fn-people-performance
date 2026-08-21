@@ -117,7 +117,7 @@ export async function changeDemoPhase(phase: DemoPhase): Promise<GoalsSnapshot> 
   return delay(setDemoPhase(phase))
 }
 
-/** Performance cycles available for goal setting and reviews. */
+/** Cycles available for goal setting and reviews. */
 export function listGoalCycles() {
   return getGoalsSnapshot().availableCycles
 }

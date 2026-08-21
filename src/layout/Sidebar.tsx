@@ -44,8 +44,8 @@ function NavItemLink({
   const pendingLabel = goalTodoBadgeLabel(badgeCount, 'total')
   const ariaLabel = collapsed
     ? [comingSoon ? `${label} (coming soon)` : label, pendingLabel]
-        .filter(Boolean)
-        .join(', ')
+      .filter(Boolean)
+      .join(', ')
     : undefined
 
   const link = (

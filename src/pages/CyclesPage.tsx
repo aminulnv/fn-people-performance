@@ -6,7 +6,7 @@ export default function CyclesPage() {
   return (
     <div
       className="pd-page pd-page--pane pd-page--wide pd-people pd-reviews"
-      aria-label="Performance Cycles"
+      aria-label="Cycles"
     >
       <CyclesList />
     </div>

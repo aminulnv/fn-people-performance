@@ -6,8 +6,9 @@ import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
 import {
   listMemoryEmployees,
+  replaceMemoryEmployees,
 } from '@/lib/employees/memoryStore'
-import { clearEmployees, createEmployee, replaceTeams } from '@/lib/employees/store'
+import { clearEmployees, createEmployee } from '@/lib/employees/store'
 import EmployeeFormPage from '@/pages/EmployeeFormPage'
 import EmployeeProfilePage from '@/pages/EmployeeProfilePage'
 import MyProfilePage from '@/pages/MyProfilePage'
@@ -135,6 +136,21 @@ describe('V1 employee profiles', () => {
     cleanup()
     clearSession()
     clearEmployees()
+  })
+
+  it('renders a cached employee while the directory is still loading', async () => {
+    await seedEmployee()
+    signIn(['platform.read_all'])
+    employeesState.loadState = 'loading'
+    employeesState.isLoading = true
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(screen.getByRole('heading', { name: 'Test Employee' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Loading employee')).not.toBeInTheDocument()
   })
 
   it('waits for the directory before deciding an employee is missing', () => {
@@ -295,18 +311,17 @@ describe('V1 employee profiles', () => {
     })
     if (!employee.ok) throw new Error(employee.error)
 
-    replaceTeams([
-      {
-        id: 9,
-        name: 'Performance & Total Rewards',
-        departmentId: 2,
-        departmentName: 'People & Culture',
-        ownerEmployeeId: owner.employee.employeeId,
-        ownerName: owner.employee.fullName,
-        ownerEmail: null,
-        headcount: 2,
-      },
-    ])
+    replaceMemoryEmployees(
+      listMemoryEmployees().map((row) =>
+        row.employeeId === 1
+          ? {
+              ...row,
+              teamOwnerId: owner.employee.employeeId,
+              teamOwnerName: owner.employee.fullName,
+            }
+          : row,
+      ),
+    )
     employeesState.employees = listMemoryEmployees() as never[]
 
     signIn(['platform.read_all'])

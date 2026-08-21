@@ -61,7 +61,7 @@ describe('resolveEffectiveGoalDeadline', () => {
 })
 
 describe('stagesConfigForGoalPolicy', () => {
-  it('keeps cycle extensions for ungrouped people', () => {
+  it('leaves stages unchanged when no group is present', () => {
     const stagesConfig = {
       goals: {
         employee: { startDate: '2026-06-01', endDate: '2026-07-01' },

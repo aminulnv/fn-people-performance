@@ -4,15 +4,16 @@ import { getGoalsSnapshot } from '@/lib/goals/store'
 import type { GoalsSnapshot } from '@/lib/goals/types'
 
 const listeners = new Set<(snapshot: GoalsSnapshot) => void>()
+const peekListeners = new Set<(snapshot: GoalsSnapshot) => void>()
 let latest: GoalsSnapshot | null = null
 let stopStoreWatch: (() => void) | null = null
 let refreshTimer: number | null = null
 let requestId = 0
 
 function emit(snapshot: GoalsSnapshot) {
-  if (listeners.size === 0) return
   latest = snapshot
   for (const listener of listeners) listener(snapshot)
+  for (const listener of peekListeners) listener(snapshot)
 }
 
 function refreshSharedSnapshot() {
@@ -60,7 +61,19 @@ export function watchSharedGoalsSnapshot(
 
 export function resetSharedGoalsSnapshotForTests() {
   listeners.clear()
+  peekListeners.clear()
   stopSharedWatch()
+}
+
+/** Subscribe to a snapshot that is already hydrated — does not start a fetch. */
+export function subscribeHydratedGoalsSnapshot(
+  onChange: (snapshot: GoalsSnapshot) => void,
+): () => void {
+  peekListeners.add(onChange)
+  if (latest) onChange(latest)
+  return () => {
+    peekListeners.delete(onChange)
+  }
 }
 
 /** Immediate store snapshot, then the shared remote hydration. */

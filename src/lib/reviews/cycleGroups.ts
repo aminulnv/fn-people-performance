@@ -21,7 +21,7 @@ export function findCycleGroupForPerson(
   )
 }
 
-/** Cycle defaults unless the person is in exactly one group. */
+/** Group settings if the person is listed; otherwise they are not in this cycle. */
 export function resolveCyclePolicyForPerson(
   cycle: ReviewCycle,
   employeeId?: number | null,
@@ -65,6 +65,7 @@ export function assignMembersExclusively(
   })
 }
 
+/** Starting template for a new group — not a live default for ungrouped people. */
 export function cloneCycleSettingsIntoGroup(
   cycle: ReviewCycle,
   input: { id: string; name: string; memberIds?: number[] },

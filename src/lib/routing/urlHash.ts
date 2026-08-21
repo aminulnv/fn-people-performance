@@ -25,6 +25,8 @@ type UseUrlHashTabOptions<T extends string> = {
   defaultTab: T
   tabFromHash: (hash: string) => T | null
   hashFromTab: (tab: T) => string
+  /** When false, read/write nothing — used inside overlays that must not own the hash. */
+  enabled?: boolean
 }
 
 /** Keeps a segmented tab control in sync with the location hash. */
@@ -32,6 +34,7 @@ export function useUrlHashTab<T extends string>({
   defaultTab,
   tabFromHash,
   hashFromTab,
+  enabled = true,
 }: UseUrlHashTabOptions<T>): readonly [T, (tab: T) => void] {
   const location = useLocation()
   const navigate = useNavigate()
@@ -39,6 +42,7 @@ export function useUrlHashTab<T extends string>({
   const tab = tabFromHash(location.hash) ?? defaultTab
 
   useEffect(() => {
+    if (!enabled) return
     if (tabFromHash(location.hash) !== null) return
     navigate(locationWithHash(location, hashFromTab(defaultTab)), {
       replace: true,
@@ -52,15 +56,17 @@ export function useUrlHashTab<T extends string>({
     location.search,
     navigate,
     tabFromHash,
+    enabled,
   ])
 
   const setTab = useCallback(
     (next: T) => {
+      if (!enabled) return
       const nextHash = hashFromTab(next)
       if (hashMatches(location.hash, nextHash)) return
       navigate(locationWithHash(location, nextHash), { replace: true })
     },
-    [hashFromTab, location, navigate],
+    [enabled, hashFromTab, location, navigate],
   )
 
   return [tab, setTab] as const

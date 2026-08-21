@@ -5,11 +5,15 @@ export function MeasureTitleField({
   onChange,
   inputKey,
   placeholder = 'Metric name',
+  editLabel = 'Edit metric name',
+  inputLabel = 'Metric name',
 }: {
   value: string
   onChange: (value: string) => void
   inputKey?: string
   placeholder?: string
+  editLabel?: string
+  inputLabel?: string
 }) {
   return (
     <InlinePencilField
@@ -17,8 +21,8 @@ export function MeasureTitleField({
       onChange={onChange}
       inputKey={inputKey}
       placeholder={placeholder}
-      editLabel="Edit metric name"
-      inputLabel="Metric name"
+      editLabel={editLabel}
+      inputLabel={inputLabel}
       displayClassName="pd-goal-measure-card__title-display"
       inputClassName="pd-goal-measure-card__title-input"
     />

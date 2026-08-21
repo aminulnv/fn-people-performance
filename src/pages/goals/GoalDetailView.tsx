@@ -617,7 +617,7 @@ export function GoalDetailView({
                               checked={todo.complete}
                               disabled={!canLogProgress}
                               ariaLabel={`Mark ${
-                                todo.title.trim() || "milestone"
+                                todo.title.trim() || "task"
                               } complete`}
                               onChange={(complete) =>
                                 patchMeasurement(
@@ -635,7 +635,7 @@ export function GoalDetailView({
                                 todo.complete ? " is-done" : ""
                               }`}
                             >
-                              {todo.title || "Untitled milestone"}
+                              {todo.title || "Untitled task"}
                             </p>
                           </>
                         )}

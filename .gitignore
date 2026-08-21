@@ -17,8 +17,8 @@ dist
 !.env.deploy.example
 !.env.platform.example
 
-# ClickUp task log (local tracking, not for repo)
-conext_docs/clickup-project-tasks.md
+# Local working docs (not for repo)
+conext_docs/
 
 # Local HR source data / generated PII (never publish)
 *.csv

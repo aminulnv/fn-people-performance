@@ -10,6 +10,7 @@ import type {
 } from '@/lib/goals/types'
 import {
   getCurrentReviewCycleId,
+  parseGoalsEmployeeId,
   resolveGoalsCycle,
 } from '@/lib/goals/cyclesFromReviews'
 import { getReviewCycle } from '@/lib/reviews/store'
@@ -175,11 +176,17 @@ export function resolveHomeBanners(
 ): HomeBannerContent[] {
   const cycleId = getCurrentReviewCycleId(today) ?? snapshot.cycle.id
   const cycle =
-    resolveGoalsCycle(cycleId, snapshot.cycle.phase, today) ?? snapshot.cycle
+    resolveGoalsCycle(
+      cycleId,
+      snapshot.cycle.phase,
+      today,
+      parseGoalsEmployeeId(person.id),
+    ) ?? snapshot.cycle
   const cycleStatus =
     snapshot.availableCycles.find((option) => option.id === cycleId)?.status ??
     snapshot.cycleStatus
 
+  if (cycle.assignedGroupId === null) return []
   if (!isActiveCycle(cycleStatus) || cycle.phase === 'closed') return []
 
   const row = snapshot.byPerson[person.id]

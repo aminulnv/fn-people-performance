@@ -251,7 +251,7 @@ export function CyclesList() {
               onClick={() => setAddOpen(true)}
             >
               <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Performance Cycle
+              Add Cycle
             </button>
           </div>
         </div>
@@ -262,7 +262,7 @@ export function CyclesList() {
         aria-labelledby="reviews-cycles-heading"
       >
         <h2 id="reviews-cycles-heading" className="pd-sr-only">
-          Performance Cycles
+          Cycles
         </h2>
 
         {filtered.length === 0 ? (
@@ -271,7 +271,7 @@ export function CyclesList() {
               className="pd-people__empty-panel"
               icon={CalendarDays}
               title={
-                cycles.length === 0 ? 'No performance cycles yet' : 'No matches'
+                cycles.length === 0 ? 'No cycles yet' : 'No matches'
               }
               description={
                 cycles.length === 0
@@ -288,7 +288,7 @@ export function CyclesList() {
                     onClick={() => setAddOpen(true)}
                   >
                     <Plus size={18} strokeWidth={2} aria-hidden />
-                    Add Performance Cycle
+                    Add Cycle
                   </button>
                 ) : (
                   <button
@@ -336,16 +336,28 @@ export function CyclesList() {
 }
 
 function CycleRow({ cycle }: { cycle: ReviewCycle }) {
+  const navigate = useNavigate()
   const status = resolveCycleStatus(cycle)
   const Icon = cycle.type === 'ad-hoc' ? Building2 : CalendarDays
+  const to = cycleDetailPath(cycle.id, 'settings')
 
   return (
-    <tr>
+    <tr
+      className="pd-people__row-link"
+      tabIndex={0}
+      onClick={(event) => {
+        const target = event.target as HTMLElement
+        if (target.closest('a, button')) return
+        navigate(to)
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        navigate(to)
+      }}
+    >
       <td>
-        <Link
-          to={cycleDetailPath(cycle.id, 'settings')}
-          className="pd-reviews-cycle-link"
-        >
+        <Link to={to} className="pd-reviews-cycle-link">
           <span className="pd-reviews-cycle-link__icon" aria-hidden>
             <Icon size={16} strokeWidth={1.75} />
           </span>

@@ -34,7 +34,10 @@ export function GoalSubmitBlockNotice({
   if (blockers.length === 0) return null
 
   return (
-    <aside className="pd-goals-sendback pd-goals-sendback--danger" role="alert">
+    <aside
+      className="pd-goals-sendback pd-goals-sendback--danger pd-goals-sendback--compact"
+      role="alert"
+    >
       <span className="pd-goals-sendback__icon" aria-hidden>
         <CircleAlert size={13} strokeWidth={2.25} />
       </span>

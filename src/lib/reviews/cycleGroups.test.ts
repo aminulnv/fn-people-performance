@@ -41,13 +41,11 @@ function group(overrides: Partial<CycleGroup> = {}): CycleGroup {
 }
 
 describe('resolveCyclePolicyForPerson', () => {
-  it('returns cycle defaults when the person is in no group', () => {
+  it('does not assign a group when the person is listed nowhere', () => {
     const host = cycle()
+    host.groups = [group()]
     const resolved = resolveCyclePolicyForPerson(host, 202)
     expect(resolved.groupId).toBeNull()
-    expect(resolved.settings.goalCountPolicy).toEqual(
-      host.settings.goalCountPolicy,
-    )
   })
 
   it('returns the matching group settings', () => {
@@ -76,7 +74,7 @@ describe('assignMembersExclusively', () => {
 })
 
 describe('cloneCycleSettingsIntoGroup', () => {
-  it('copies the current cycle settings onto a new group', () => {
+  it('starts a new group from the cycle timeframe template', () => {
     const host = cycle()
     host.settings.postWindowGoalPolicy = 'hard_stop'
     const created = cloneCycleSettingsIntoGroup(host, {

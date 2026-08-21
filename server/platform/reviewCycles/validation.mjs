@@ -1,4 +1,4 @@
-/** Shared Performance Cycle validation helpers for the platform API. */
+/** Shared cycle validation helpers for the platform API. */
 
 function parseIso(iso) {
   const [y, m, d] = String(iso).split('-').map(Number)
@@ -96,7 +96,7 @@ export function normalizeStagesConfig(config, quarter = {}) {
   if (!config) return defaults
 
   return {
-    processMode: config.processMode ?? defaults.processMode,
+    processMode: 'schedule',
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
       extensions: config.goals?.extensions ?? [],

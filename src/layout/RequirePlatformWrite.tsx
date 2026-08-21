@@ -22,7 +22,7 @@ export function RequirePlatformWrite({ children }: RequirePlatformWriteProps) {
       <PageStatus
         variant="forbidden"
         aria-label="Access denied"
-        description="You do not have permission to manage performance cycles. Contact an administrator if you need access."
+        description="You do not have permission to manage cycles. Contact an administrator if you need access."
         action={<PageStatusLink to="/" label="Back to home" />}
       />
     )

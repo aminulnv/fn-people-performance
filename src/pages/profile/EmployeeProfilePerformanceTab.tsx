@@ -20,7 +20,7 @@ export function EmployeeProfilePerformanceTab({
   isSelf?: boolean
 }) {
   const { user } = useAuth()
-  const { employees } = useEmployees()
+  const { employees } = useEmployees({ load: false })
   const rows = useMemo(
     () =>
       buildEmployeeScorecardHistory(employee, employees, user?.email),
@@ -36,8 +36,8 @@ export function EmployeeProfilePerformanceTab({
           title="No performance reviews yet"
           description={
             isSelf
-              ? 'Scorecards will appear here once a performance cycle is available.'
-              : 'Scorecards for this employee will appear here once a performance cycle is available.'
+              ? 'Scorecards will appear here once a cycle is available.'
+              : 'Scorecards for this employee will appear here once a cycle is available.'
           }
         />
       </div>

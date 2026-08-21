@@ -32,6 +32,16 @@ export type PlatformEmployee = {
   updatedAt: string
 }
 
+/** One-person profile payload — avoids downloading the full directory. */
+export type EmployeeProfilePayload = {
+  employee: PlatformEmployee
+  related: PlatformEmployee[]
+  directReports: PlatformEmployee[]
+  managerDirectReportCount: number
+  directoryCount: number
+  nestedReportCounts: Record<number, number>
+}
+
 export type CreateEmployeeInput = {
   employeeId: number
   fullName: string

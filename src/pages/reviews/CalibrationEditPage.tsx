@@ -20,7 +20,7 @@ import {
   GRADE_BAND_ORDER,
   GRADE_RECOMMENDATION_META,
 } from '@/lib/reviews/labels'
-import { updateCycleGroup, updateReviewCycle } from '@/lib/reviews/store'
+import { updateCycleGroup } from '@/lib/reviews/store'
 import type {
   CalibrationLogic,
   CalibrationModeId,
@@ -33,8 +33,9 @@ import { EditPageShell } from './EditPageShell'
 
 type CalibrationEditPageProps = {
   cycle: ReviewCycle
-  group?: CycleGroup
+  group: CycleGroup
   onClose: () => void
+  embedded?: boolean
 }
 
 const MODE_ORDER: CalibrationModeId[] = ['manual', 'department', 'central']
@@ -60,9 +61,10 @@ export function CalibrationEditPage({
   cycle,
   group,
   onClose,
+  embedded = false,
 }: CalibrationEditPageProps) {
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
-    structuredClone((group ?? cycle).calibration),
+    structuredClone(group.calibration),
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -91,13 +93,13 @@ export function CalibrationEditPage({
     }
     setError(null)
     try {
-      const pending = group
-        ? updateCycleGroup(cycle.id, group.id, { calibration: draft })
-        : updateReviewCycle(cycle.id, { calibration: draft })
+      const pending = updateCycleGroup(cycle.id, group.id, {
+        calibration: draft,
+      })
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
       })
-      onClose()
+      if (!embedded) onClose()
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Could not save calibration.',
@@ -107,27 +109,19 @@ export function CalibrationEditPage({
 
   return (
     <EditPageShell
-      title={
-        group
-          ? `${group.name} · Calculation & calibration`
-          : 'Calculation & calibration'
-      }
+      title={`${group.name} · Calculation & calibration`}
       description="Choose how grades are recommended, reviewed, and distributed."
       onBack={onClose}
       onSave={save}
       error={error}
+      embedded={embedded}
     >
       <div className="pd-reviews-calibration-edit__choices">
         <section className="pd-reviews-edit-section">
           <header className="pd-reviews-edit-card__head">
             <Shuffle size={16} strokeWidth={1.75} aria-hidden />
-            <h3 className="pd-reviews-edit-section__title">
-              Who calibrates grades?
-            </h3>
+            <h3 className="pd-reviews-edit-section__title">Calibrators</h3>
           </header>
-          <p className="pd-reviews-edit-section__lede">
-            Select who can make final grade adjustments.
-          </p>
           <div
             className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
             role="listbox"
@@ -150,6 +144,7 @@ export function CalibrationEditPage({
                   onClick={() =>
                     setDraft((prev) => ({ ...prev, calibrationMode: id }))
                   }
+                  title={CALIBRATION_MODE_META[id].description}
                 >
                   <span className="pd-reviews-choice-picker__title">
                     <span className="pd-reviews-choice-picker__label">
@@ -160,7 +155,6 @@ export function CalibrationEditPage({
                       <Check size={15} strokeWidth={2.5} aria-hidden />
                     ) : null}
                   </span>
-                  <span>{CALIBRATION_MODE_META[id].description}</span>
                 </button>
               )
             })}
@@ -170,13 +164,8 @@ export function CalibrationEditPage({
         <section className="pd-reviews-edit-section">
           <header className="pd-reviews-edit-card__head">
             <Slash size={18} strokeWidth={1.75} />
-            <h3 className="pd-reviews-edit-section__title">
-              Grade recommendation
-            </h3>
+            <h3 className="pd-reviews-edit-section__title">Recommendation</h3>
           </header>
-          <p className="pd-reviews-edit-section__lede">
-            Set the suggested grade when no calibration input exists.
-          </p>
           <div
             className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
             role="listbox"
@@ -199,6 +188,7 @@ export function CalibrationEditPage({
                   onClick={() =>
                     setDraft((prev) => ({ ...prev, gradeRecommendation: id }))
                   }
+                  title={GRADE_RECOMMENDATION_META[id].description}
                 >
                   <span className="pd-reviews-choice-picker__title">
                     <span className="pd-reviews-choice-picker__label">
@@ -213,7 +203,6 @@ export function CalibrationEditPage({
                       <Check size={15} strokeWidth={2.5} aria-hidden />
                     ) : null}
                   </span>
-                  <span>{GRADE_RECOMMENDATION_META[id].description}</span>
                 </button>
               )
             })}
@@ -226,13 +215,8 @@ export function CalibrationEditPage({
           <div>
             <div className="pd-reviews-edit-card__head">
               <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-section__title">
-                Expected grade distribution
-              </h3>
+              <h3 className="pd-reviews-edit-section__title">Distribution</h3>
             </div>
-            <p className="pd-reviews-edit-section__lede">
-              Set the benchmark percentage expected in each grade band.
-            </p>
           </div>
           <span
             className={[
@@ -243,15 +227,25 @@ export function CalibrationEditPage({
             {total}% total
           </span>
         </header>
+        <div className="pd-reviews-distribution__bar" aria-hidden>
+          {GRADE_BAND_ORDER.map((id) => {
+            const value = draft.gradeDistribution[id]
+            if (value <= 0) return null
+            return (
+              <span
+                key={id}
+                className={`pd-reviews-distribution__seg is-${id}`}
+                style={{ flexGrow: value }}
+              />
+            )
+          })}
+        </div>
         <ul className="pd-reviews-distribution">
           {GRADE_BAND_ORDER.map((id) => (
-            <li key={id} className="pd-reviews-distribution__row">
+            <li key={id} className={`pd-reviews-distribution__row is-${id}`}>
               <div className="pd-reviews-distribution__text">
                 <span className="pd-reviews-distribution__label">
                   {GRADE_BAND_META[id].label}
-                </span>
-                <span className="pd-reviews-distribution__hint">
-                  % of employees
                 </span>
               </div>
               <div className="pd-reviews-distribution__controls">

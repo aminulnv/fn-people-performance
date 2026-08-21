@@ -66,4 +66,46 @@ export function DateCell({
   );
 }
 
+export function StageWindowFields({
+  startLabel,
+  endLabel,
+  startValue,
+  endValue,
+  onStartChange,
+  onEndChange,
+}: {
+  startLabel: string;
+  endLabel: string;
+  startValue: string;
+  endValue: string;
+  onStartChange: (value: string) => void;
+  onEndChange: (value: string) => void;
+}) {
+  return (
+    <div className="pd-reviews-window">
+      <div className="pd-reviews-window__date">
+        <span className="pd-reviews-window__label">{startLabel}</span>
+        <DateCell
+          label={startLabel}
+          value={startValue}
+          onChange={onStartChange}
+        />
+      </div>
+      <div className="pd-reviews-window__track" aria-hidden>
+        <span className="pd-reviews-window__line" />
+        <span className="pd-reviews-window__dot" />
+        <span className="pd-reviews-window__line" />
+      </div>
+      <div className="pd-reviews-window__date pd-reviews-window__date--end">
+        <span className="pd-reviews-window__label">{endLabel}</span>
+        <DateCell
+          label={endLabel}
+          value={endValue}
+          onChange={onEndChange}
+        />
+      </div>
+    </div>
+  );
+}
+
 type CssVars = CSSProperties & Record<"--stage-date-columns", number>;

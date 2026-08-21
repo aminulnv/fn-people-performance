@@ -79,10 +79,9 @@ function assertVersion(row, expectedVersion) {
 async function postWindowApprovalStage(client, cycleId, employeeId) {
   const { rows } = await client.query(
     `SELECT
-       COALESCE(grp.stages_config, cycle.stages_config) AS stages_config,
-       COALESCE(grp.goal_count_policy, cycle.goal_count_policy) AS goal_count_policy,
-       COALESCE(grp.post_window_goal_policy, cycle.post_window_goal_policy)
-         AS post_window_goal_policy,
+       grp.stages_config AS stages_config,
+       grp.goal_count_policy AS goal_count_policy,
+       grp.post_window_goal_policy AS post_window_goal_policy,
        grp.id AS group_id,
        employee.employee_id,
        employee.department_id,
@@ -101,7 +100,13 @@ async function postWindowApprovalStage(client, cycleId, employeeId) {
     [cycleId, employeeId],
   )
   const cycle = rows[0]
-  if (!cycle) throw new HttpError(404, 'Performance cycle not found')
+  if (!cycle) throw new HttpError(404, 'Cycle not found')
+  if (!cycle.group_id) {
+    throw new HttpError(
+      409,
+      'This person is not in a cycle group, so they have no goal settings.',
+    )
+  }
   const goalWindowEnd = resolveEffectiveGoalDeadline(
     stagesConfigForGoalPolicy(cycle),
     {

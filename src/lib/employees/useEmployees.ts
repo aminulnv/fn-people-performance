@@ -57,7 +57,7 @@ export function useEmployees(options?: {
       loadState,
       loadError: getEmployeesLoadError(),
       isLoading: loadState === 'idle' || loadState === 'loading',
-      reload: () => loadEmployees(),
+      reload: () => loadEmployees({ reload: true }),
     }
   }, [version])
 }

@@ -10,18 +10,7 @@ import type {
   GradeRecommendationId,
   PostWindowGoalPolicy,
   ReviewTypeId,
-  StageProcessMode,
 } from './types'
-
-export function processModeLabel(mode: StageProcessMode): string {
-  return mode === 'manual' ? 'Manual' : 'Schedule'
-}
-
-export function processModeHint(mode: StageProcessMode): string {
-  return mode === 'manual'
-    ? 'Stages are advanced manually — dates below are guidance.'
-    : 'Stages open and close automatically on configured dates.'
-}
 
 export const REVIEW_TYPE_META: Record<
   ReviewTypeId,

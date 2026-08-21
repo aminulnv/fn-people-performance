@@ -20,7 +20,23 @@ test('normalizeStagesConfig fills missing performance and publish defaults', () 
 
   assert.ok(normalized.performance?.employeeStart?.date)
   assert.ok(normalized.publish?.toAll?.date)
+  assert.equal(normalized.processMode, 'schedule')
   assert.doesNotThrow(() => validateCycleStagesConfig(normalized))
+})
+
+test('normalizeStagesConfig always schedules stages by date', () => {
+  const normalized = normalizeStagesConfig(
+    {
+      processMode: 'manual',
+      goals: {
+        employee: { startDate: '2026-07-01', endDate: '2026-07-30' },
+        extensions: [],
+      },
+    },
+    { startDate: '2026-07-01', endDate: '2026-09-30' },
+  )
+
+  assert.equal(normalized.processMode, 'schedule')
 })
 
 test('validateCycleStagesConfig rejects invalid goal windows with 400', () => {

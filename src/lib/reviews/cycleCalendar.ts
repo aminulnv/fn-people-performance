@@ -75,11 +75,20 @@ function clipRangeToCycle(
   }
 }
 
+function stagesFromGroups(cycle: ReviewCycle) {
+  return (cycle.groups ?? []).map((group) => group.stagesConfig)
+}
+
+/** Stage colours are per group. Only paint them when a single group is in view. */
+export function cycleForOverviewCalendar(cycle: ReviewCycle): ReviewCycle {
+  return (cycle.groups?.length ?? 0) === 1 ? cycle : { ...cycle, groups: [] }
+}
+
 export function extractCycleCalendarMarkers(
   cycle: ReviewCycle,
 ): CycleCalendarMarkers {
-  const { stagesConfig } = cycle
   const bounds = { startDate: cycle.startDate, endDate: cycle.endDate }
+  const groupStages = stagesFromGroups(cycle)
 
   const rawRanges: CycleCalendarRange[] = [
     {
@@ -88,28 +97,32 @@ export function extractCycleCalendarMarkers(
       startDate: cycle.startDate,
       endDate: cycle.endDate,
     },
-    {
-      kind: 'goal-setting',
-      label: 'Goal setting',
-      startDate: stagesConfig.goals.employee.startDate,
-      endDate: stagesConfig.goals.employee.endDate,
-    },
-    {
-      kind: 'performance-review',
-      label: 'Performance review',
-      startDate: stagesConfig.performance.managerStart.date,
-      endDate: stagesConfig.performance.managerEnd.date,
-    },
+    ...groupStages.flatMap((stagesConfig) => {
+      const ranges: CycleCalendarRange[] = [
+        {
+          kind: 'goal-setting',
+          label: 'Goal setting',
+          startDate: stagesConfig.goals.employee.startDate,
+          endDate: stagesConfig.goals.employee.endDate,
+        },
+        {
+          kind: 'performance-review',
+          label: 'Performance review',
+          startDate: stagesConfig.performance.managerStart.date,
+          endDate: stagesConfig.performance.managerEnd.date,
+        },
+      ]
+      if (stagesConfig.calibration.enabled) {
+        ranges.push({
+          kind: 'calibration',
+          label: 'Calibration',
+          startDate: stagesConfig.calibration.start.date,
+          endDate: stagesConfig.calibration.end.date,
+        })
+      }
+      return ranges
+    }),
   ]
-
-  if (stagesConfig.calibration.enabled) {
-    rawRanges.push({
-      kind: 'calibration',
-      label: 'Calibration',
-      startDate: stagesConfig.calibration.start.date,
-      endDate: stagesConfig.calibration.end.date,
-    })
-  }
 
   const ranges = rawRanges
     .map((range) =>
@@ -119,23 +132,20 @@ export function extractCycleCalendarMarkers(
     )
     .filter((range): range is CycleCalendarRange => range !== null)
 
-  const milestones: CycleCalendarMilestone[] = [
-    {
-      kind: 'publish-managers' as const,
-      label: 'Publish to managers',
-      date: stagesConfig.publish.toManager.date,
-    },
-    {
-      kind: 'publish-employees' as const,
-      label: 'Publish to employees',
-      date: stagesConfig.publish.toAll.date,
-    },
-    ...(stagesConfig.goals.extensions ?? []).map((extension) => ({
-      kind: 'goal-extension' as const,
-      label: 'Goal deadline extension',
-      date: extension.endDate,
-    })),
-  ].filter((milestone) => isDateInCycle(milestone.date, bounds))
+  const milestones: CycleCalendarMilestone[] = groupStages
+    .flatMap((stagesConfig) => [
+      {
+        kind: 'publish-managers' as const,
+        label: 'Publish to managers',
+        date: stagesConfig.publish.toManager.date,
+      },
+      {
+        kind: 'publish-employees' as const,
+        label: 'Publish to employees',
+        date: stagesConfig.publish.toAll.date,
+      },
+    ])
+    .filter((milestone) => isDateInCycle(milestone.date, bounds))
 
   return { ranges, milestones, bounds }
 }
@@ -211,6 +221,62 @@ export function daysInMonth(year: number, month: number): number {
 export function weekdayIndex(year: number, month: number, day: number): number {
   const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
   return (weekday + 6) % 7
+}
+
+/** Sunday = 0 … Saturday = 6 */
+export function sundayWeekdayIndex(
+  year: number,
+  month: number,
+  day: number,
+): number {
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay()
+}
+
+export type CalendarMonthCell = {
+  iso: string
+  day: number
+  inMonth: boolean
+}
+
+/** Six Sunday-start weeks, including days from the neighbouring months. */
+export function listCalendarMonthCells(
+  year: number,
+  month: number,
+): CalendarMonthCell[] {
+  const leading = sundayWeekdayIndex(year, month, 1)
+  const daysThis = daysInMonth(year, month)
+  const prev =
+    month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
+  const next =
+    month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 }
+  const prevDays = daysInMonth(prev.year, prev.month)
+  const cells: CalendarMonthCell[] = []
+
+  for (let offset = leading; offset > 0; offset -= 1) {
+    const day = prevDays - offset + 1
+    cells.push({
+      iso: toIsoDate(prev.year, prev.month, day),
+      day,
+      inMonth: false,
+    })
+  }
+  for (let day = 1; day <= daysThis; day += 1) {
+    cells.push({
+      iso: toIsoDate(year, month, day),
+      day,
+      inMonth: true,
+    })
+  }
+  let nextDay = 1
+  while (cells.length < 42) {
+    cells.push({
+      iso: toIsoDate(next.year, next.month, nextDay),
+      day: nextDay,
+      inMonth: false,
+    })
+    nextDay += 1
+  }
+  return cells
 }
 
 export function markersForDay(

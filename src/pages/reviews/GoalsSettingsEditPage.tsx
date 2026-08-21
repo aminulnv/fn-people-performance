@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { CalendarRange, Target } from "lucide-react";
-import { Input, Switch } from "@/components/ui";
+import { Switch } from "@/components/ui";
 import { normalizeCycleSettings } from "@/lib/reviews/demoData";
-import { updateCycleGroup, updateReviewCycle } from "@/lib/reviews/store";
+import { updateCycleGroup } from "@/lib/reviews/store";
 import type {
   CycleGroup,
   CycleSettings,
@@ -10,22 +10,24 @@ import type {
   PostWindowGoalPolicy,
   ReviewCycle,
 } from "@/lib/reviews/types";
+import { CountStepperField } from "./CountStepperField";
 import { EditPageShell } from "./EditPageShell";
-import { GoalCycleExtensionsEditor } from "./GoalCycleExtensionsEditor";
-import { DateCell, StageRow, StageTable } from "./StageDateTable";
+import { StageWindowFields } from "./StageDateTable";
 
 type GoalsSettingsEditPageProps = {
   cycle: ReviewCycle;
-  group?: CycleGroup;
+  group: CycleGroup;
   onClose: () => void;
+  embedded?: boolean;
 };
 
 export function GoalsSettingsEditPage({
   cycle,
   group,
   onClose,
+  embedded = false,
 }: GoalsSettingsEditPageProps) {
-  const source = group ?? cycle;
+  const source = group;
   const [settings, setSettings] = useState<CycleSettings>(() =>
     normalizeCycleSettings(source.settings),
   );
@@ -46,15 +48,16 @@ export function GoalsSettingsEditPage({
     try {
       const stagesConfig = {
         ...source.stagesConfig,
-        goals: group ? { ...goals, extensions: [] } : goals,
+        goals: { ...goals, extensions: [] },
       };
-      const pending = group
-        ? updateCycleGroup(cycle.id, group.id, { settings, stagesConfig })
-        : updateReviewCycle(cycle.id, { settings, stagesConfig });
+      const pending = updateCycleGroup(cycle.id, group.id, {
+        settings,
+        stagesConfig,
+      });
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
       });
-      onClose();
+      if (!embedded) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");
     }
@@ -62,52 +65,28 @@ export function GoalsSettingsEditPage({
 
   return (
     <EditPageShell
-      title={group ? `${group.name} · Goals settings` : "Goals settings"}
-      description={
-        group
-          ? "Goal windows and submission rules for this group."
-          : "Goal windows, submission rules, and deadline extensions."
-      }
+      title={`${group.name} · Goals settings`}
+      description="Goal windows and submission rules for the people in this group."
       onBack={onClose}
       onSave={save}
       error={error}
+      embedded={embedded}
     >
       <div className="pd-reviews-settings-edit">
         <div className="pd-reviews-settings-edit__column">
-          <section className="pd-reviews-edit-card">
+          <section className="pd-reviews-edit-card pd-reviews-edit-card--window">
             <header className="pd-reviews-edit-card__head">
               <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Goal windows</h3>
+              <h3 className="pd-reviews-edit-card__title">Goal window</h3>
             </header>
-            <p className="pd-reviews-edit-card__lede">
-              When goal setting opens and closes during the cycle.
-            </p>
-            <StageTable columns={["Stage", "Opens", "Closes"]}>
-              <StageRow label="Goal setting">
-                <DateCell
-                  label="Goal setting opens"
-                  value={goals.employee.startDate}
-                  onChange={(startDate) => setGoalRange({ startDate })}
-                />
-                <DateCell
-                  label="Goal setting locks"
-                  value={goals.employee.endDate}
-                  onChange={(endDate) => setGoalRange({ endDate })}
-                />
-              </StageRow>
-            </StageTable>
-            {group ? null : (
-              <GoalCycleExtensionsEditor
-                extensions={goals.extensions ?? []}
-                baseEndDate={goals.employee.endDate}
-                performanceStartDate={
-                  cycle.stagesConfig.performance.managerStart.date
-                }
-                onChange={(extensions) =>
-                  setGoals((current) => ({ ...current, extensions }))
-                }
-              />
-            )}
+            <StageWindowFields
+              startLabel="Opens"
+              endLabel="Closes"
+              startValue={goals.employee.startDate}
+              endValue={goals.employee.endDate}
+              onStartChange={(startDate) => setGoalRange({ startDate })}
+              onEndChange={(endDate) => setGoalRange({ endDate })}
+            />
           </section>
         </div>
 
@@ -116,101 +95,83 @@ export function GoalsSettingsEditPage({
             <div className="pd-reviews-edit-card__heading">
               <header className="pd-reviews-edit-card__head">
                 <Target size={16} strokeWidth={1.75} aria-hidden />
-                <h3 className="pd-reviews-edit-card__title">Goal-count policy</h3>
+                <h3 className="pd-reviews-edit-card__title">Goal count</h3>
               </header>
-              <p className="pd-reviews-edit-card__lede">
-                Required limits block submission. Recommended limits only show a
-                warning.
-              </p>
             </div>
-            <div className="pd-reviews-policy-grid">
-              <Input
-                label="Minimum required"
-                hint="Hard lower limit"
-                type="number"
-                min={1}
-                step={1}
-                value={settings.goalCountPolicy.minimumRequired}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    goalCountPolicy: {
-                      ...prev.goalCountPolicy,
-                      minimumRequired: Number(event.target.value),
-                    },
-                  }))
-                }
-              />
-              <Input
-                label="Maximum allowed"
-                hint="Optional hard upper limit"
-                type="number"
-                min={1}
-                step={1}
-                placeholder="No maximum"
-                value={settings.goalCountPolicy.maximumAllowed ?? ""}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    goalCountPolicy: {
-                      ...prev.goalCountPolicy,
-                      maximumAllowed:
-                        event.target.value === ""
-                          ? null
-                          : Number(event.target.value),
-                    },
-                  }))
-                }
-              />
-              <Input
-                label="Recommended minimum"
-                hint="Warn below this number"
-                type="number"
-                min={1}
-                step={1}
-                value={settings.goalCountPolicy.recommendedMinimum}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    goalCountPolicy: {
-                      ...prev.goalCountPolicy,
-                      recommendedMinimum: Number(event.target.value),
-                    },
-                  }))
-                }
-              />
-              <Input
-                label="Recommended maximum"
-                hint="Warn above this number"
-                type="number"
-                min={1}
-                step={1}
-                value={settings.goalCountPolicy.recommendedMaximum}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    goalCountPolicy: {
-                      ...prev.goalCountPolicy,
-                      recommendedMaximum: Number(event.target.value),
-                    },
-                  }))
-                }
-              />
+            <div className="pd-reviews-policy">
+              <div className="pd-reviews-policy__group">
+                <h4 className="pd-reviews-policy__title">Required</h4>
+                <div className="pd-reviews-policy-grid">
+                  <CountStepperField
+                    label="Minimum"
+                    value={settings.goalCountPolicy.minimumRequired}
+                    onChange={(minimumRequired) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        goalCountPolicy: {
+                          ...prev.goalCountPolicy,
+                          minimumRequired: minimumRequired ?? 1,
+                        },
+                      }))
+                    }
+                  />
+                  <CountStepperField
+                    label="Maximum"
+                    allowEmpty
+                    placeholder="None"
+                    emptyStepTo={settings.goalCountPolicy.recommendedMaximum}
+                    value={settings.goalCountPolicy.maximumAllowed}
+                    onChange={(maximumAllowed) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        goalCountPolicy: {
+                          ...prev.goalCountPolicy,
+                          maximumAllowed,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div className="pd-reviews-policy__group">
+                <h4 className="pd-reviews-policy__title">Recommended</h4>
+                <div className="pd-reviews-policy-grid">
+                  <CountStepperField
+                    label="Minimum"
+                    value={settings.goalCountPolicy.recommendedMinimum}
+                    onChange={(recommendedMinimum) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        goalCountPolicy: {
+                          ...prev.goalCountPolicy,
+                          recommendedMinimum: recommendedMinimum ?? 1,
+                        },
+                      }))
+                    }
+                  />
+                  <CountStepperField
+                    label="Maximum"
+                    value={settings.goalCountPolicy.recommendedMaximum}
+                    onChange={(recommendedMaximum) =>
+                      setSettings((prev) => ({
+                        ...prev,
+                        goalCountPolicy: {
+                          ...prev.goalCountPolicy,
+                          recommendedMaximum: recommendedMaximum ?? 1,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="pd-reviews-edit-card">
-            <div className="pd-reviews-goal-policy">
-              <div>
-                <h4 className="pd-reviews-goal-policy__title">
-                  Allow submissions after deadline
-                </h4>
-                <p className="pd-reviews-goal-policy__desc">
-                  {allowLateSubmissions
-                    ? "People can still create and submit goals. Those submissions need direct manager and skip-level manager approval."
-                    : "Goal creation, editing, and submission stop when the deadline passes."}
-                </p>
-              </div>
+          <section className="pd-reviews-edit-card pd-reviews-edit-card--policy">
+            <div className="pd-reviews-goal-policy pd-reviews-goal-policy--card">
+              <h4 className="pd-reviews-goal-policy__title">
+                Allow after deadline
+              </h4>
               <Switch
                 label="Allow submissions after deadline"
                 className="pd-reviews-type-list__switch"

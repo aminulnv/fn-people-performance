@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
-  daysInMonth,
   extractCycleCalendarMarkers,
   initialCalendarMonthIndex,
   isDateInCycle,
   legendItems,
+  listCalendarMonthCells,
   listCycleCalendarMonths,
   markersForDay,
   primaryCalendarFillKind,
   toIsoDate,
-  weekdayIndex,
+  type CycleCalendarMarkerKind,
   type CycleCalendarMonth,
 } from "@/lib/reviews/cycleCalendar";
 import { formatShortDate } from "@/lib/reviews/periods";
@@ -22,22 +22,27 @@ type CycleSettingsCalendarProps = {
   size?: "default" | "large";
 };
 
-const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const WEEKDAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
 const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
+  "January",
+  "February",
+  "March",
+  "April",
   "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
+
+const MILESTONE_KINDS = new Set<CycleCalendarMarkerKind>([
+  "publish-managers",
+  "publish-employees",
+]);
 
 export function CycleSettingsCalendar({
   cycle,
@@ -70,12 +75,12 @@ export function CycleSettingsCalendar({
     today.getMonth() + 1,
     today.getDate(),
   );
-  const activeMonth = months[monthIndex] ?? months[0]
-  const canGoPrev = monthIndex > 0
-  const canGoNext = monthIndex < months.length - 1
+  const activeMonth = months[monthIndex] ?? months[0];
+  const canGoPrev = monthIndex > 0;
+  const canGoNext = monthIndex < months.length - 1;
 
   if (!activeMonth) {
-    return null
+    return null;
   }
 
   return (
@@ -91,26 +96,26 @@ export function CycleSettingsCalendar({
       <div className="pd-cycle-calendar__nav">
         <button
           type="button"
-          className="pd-people__icon-btn pd-cycle-calendar__nav-btn"
+          className="pd-cycle-calendar__nav-btn"
           aria-label="Previous month"
           disabled={!canGoPrev}
           onClick={() => setMonthIndex((index) => Math.max(0, index - 1))}
         >
-          <ChevronLeft size={18} strokeWidth={2} aria-hidden />
+          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
         </button>
         <p className="pd-cycle-calendar__nav-label">
           {MONTH_LABELS[activeMonth.month - 1]} {activeMonth.year}
         </p>
         <button
           type="button"
-          className="pd-people__icon-btn pd-cycle-calendar__nav-btn"
+          className="pd-cycle-calendar__nav-btn"
           aria-label="Next month"
           disabled={!canGoNext}
           onClick={() =>
             setMonthIndex((index) => Math.min(months.length - 1, index + 1))
           }
         >
-          <ChevronRight size={18} strokeWidth={2} aria-hidden />
+          <ChevronRight size={18} strokeWidth={1.75} aria-hidden />
         </button>
       </div>
 
@@ -140,22 +145,7 @@ type MonthGridProps = {
 };
 
 function MonthGrid({ month, markers, todayIso }: MonthGridProps) {
-  const totalDays = daysInMonth(month.year, month.month);
-  const leadingBlanks = weekdayIndex(month.year, month.month, 1);
-  const cells: Array<{ iso: string | null; day: number | null }> = [];
-
-  for (let index = 0; index < leadingBlanks; index += 1) {
-    cells.push({ iso: null, day: null });
-  }
-  for (let day = 1; day <= totalDays; day += 1) {
-    cells.push({
-      iso: toIsoDate(month.year, month.month, day),
-      day,
-    });
-  }
-  while (cells.length % 7 !== 0) {
-    cells.push({ iso: null, day: null });
-  }
+  const cells = listCalendarMonthCells(month.year, month.month);
 
   return (
     <section
@@ -171,45 +161,42 @@ function MonthGrid({ month, markers, todayIso }: MonthGridProps) {
       </div>
       <div className="pd-cycle-calendar__grid" role="grid">
         {cells.map((cell, index) => {
-          if (!cell.iso || cell.day == null) {
-            return (
-              <span
-                key={`blank-${month.key}-${index}`}
-                className="pd-cycle-calendar__day is-empty"
-                aria-hidden
-              />
-            );
-          }
-
           const inCycle = isDateInCycle(cell.iso, markers.bounds);
           const dayMarkers = markersForDay(cell.iso, markers);
           const fillKind = inCycle ? primaryCalendarFillKind(dayMarkers) : null;
           const isToday = cell.iso === todayIso;
-          const title = inCycle ? buildDayTitle(cell.iso, dayMarkers) : undefined;
-
-          if (!inCycle) {
-            return (
-              <span
-                key={`outside-${month.key}-${index}`}
-                className="pd-cycle-calendar__day is-empty"
-                aria-hidden
-              />
-            );
-          }
+          const title = inCycle
+            ? buildDayTitle(cell.iso, dayMarkers)
+            : undefined;
+          const column = index % 7;
+          const connectsLeft =
+            Boolean(fillKind) &&
+            column > 0 &&
+            fillKindForCell(cells[index - 1], markers) === fillKind;
+          const connectsRight =
+            Boolean(fillKind) &&
+            column < 6 &&
+            fillKindForCell(cells[index + 1], markers) === fillKind;
 
           return (
             <div
               key={cell.iso}
               className={[
                 "pd-cycle-calendar__day",
+                cell.inMonth ? "is-in-month" : "is-adjacent",
+                inCycle ? "is-in-cycle" : "",
                 fillKind ? `fill-${fillKind}` : "",
+                fillKind && MILESTONE_KINDS.has(fillKind) ? "is-milestone" : "",
+                connectsLeft ? "is-connect-left" : "",
+                connectsRight ? "is-connect-right" : "",
                 isToday ? "is-today" : "",
               ]
                 .filter(Boolean)
                 .join(" ")}
               role="gridcell"
               title={title}
-              aria-label={title}
+              aria-label={title ?? `${cell.day}`}
+              aria-current={isToday ? "date" : undefined}
             >
               <span className="pd-cycle-calendar__day-num">{cell.day}</span>
             </div>
@@ -218,6 +205,14 @@ function MonthGrid({ month, markers, todayIso }: MonthGridProps) {
       </div>
     </section>
   );
+}
+
+function fillKindForCell(
+  cell: { iso: string } | undefined,
+  markers: ReturnType<typeof extractCycleCalendarMarkers>,
+): CycleCalendarMarkerKind | null {
+  if (!cell?.iso || !isDateInCycle(cell.iso, markers.bounds)) return null;
+  return primaryCalendarFillKind(markersForDay(cell.iso, markers));
 }
 
 function buildDayTitle(

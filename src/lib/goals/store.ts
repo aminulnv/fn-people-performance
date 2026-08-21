@@ -364,6 +364,7 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
       postWindowGoalPolicy: cycle.postWindowGoalPolicy,
       goalWindow: cycle.goalWindow,
       goalExtensions: cycle.goalExtensions,
+      assignedGroupId: cycle.assignedGroupId,
     },
     cycleStatus,
     availableCycles,

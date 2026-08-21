@@ -5,7 +5,6 @@ import {
   Network,
   Pencil,
   Send,
-  Sparkles,
   UserCheck,
   UserMinus,
   UserRound,
@@ -17,7 +16,7 @@ import {
 import { Switch } from "@/components/ui";
 import { normalizeCycleSettings } from "@/lib/reviews/demoData";
 import { REVIEW_TYPE_META, REVIEW_TYPE_ORDER } from "@/lib/reviews/labels";
-import { updateCycleGroup, updateReviewCycle } from "@/lib/reviews/store";
+import { updateCycleGroup } from "@/lib/reviews/store";
 import type {
   CycleGroup,
   CycleSettings,
@@ -30,12 +29,13 @@ import {
   exclusionsLabel,
   GradePublishingExclusionsDrawer,
 } from "./GradePublishingExclusionsDrawer";
-import { DateCell, StageRow, StageTable } from "./StageDateTable";
+import { StageWindowFields } from "./StageDateTable";
 
 type ReviewSettingsEditPageProps = {
   cycle: ReviewCycle;
-  group?: CycleGroup;
+  group: CycleGroup;
   onClose: () => void;
+  embedded?: boolean;
 };
 
 const REVIEW_TYPE_ICONS: Record<ReviewTypeId, LucideIcon> = {
@@ -50,8 +50,9 @@ export function ReviewSettingsEditPage({
   cycle,
   group,
   onClose,
+  embedded = false,
 }: ReviewSettingsEditPageProps) {
-  const source = group ?? cycle;
+  const source = group;
   const [settings, setSettings] = useState<CycleSettings>(() =>
     normalizeCycleSettings(source.settings),
   );
@@ -95,13 +96,11 @@ export function ReviewSettingsEditPage({
         },
         stagesConfig,
       };
-      const pending = group
-        ? updateCycleGroup(cycle.id, group.id, patch)
-        : updateReviewCycle(cycle.id, patch);
+      const pending = updateCycleGroup(cycle.id, group.id, patch);
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
       });
-      onClose();
+      if (!embedded) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");
     }
@@ -110,40 +109,31 @@ export function ReviewSettingsEditPage({
   return (
     <>
       <EditPageShell
-        title={group ? `${group.name} · Review settings` : "Review settings"}
-        description="Configure the performance review window, review types, and publishing."
+        title={`${group.name} · Review settings`}
+        description="Review window, types, and publishing for the people in this group."
         onBack={onClose}
         onSave={save}
         error={error}
+        embedded={embedded}
       >
-        <div className="pd-reviews-edit__body pd-reviews-edit__body--stacked">
-          <section className="pd-reviews-edit-card">
+        <div className="pd-reviews-edit__body--wide">
+          <section className="pd-reviews-edit-card pd-reviews-edit-card--window">
             <header className="pd-reviews-edit-card__head">
               <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Performance review</h3>
+              <h3 className="pd-reviews-edit-card__title">Review window</h3>
             </header>
-            <p className="pd-reviews-edit-card__lede">
-              After goal setting ends, line managers complete performance
-              reviews in this window.
-            </p>
-            <StageTable columns={["Stage", "Starts", "Ends"]}>
-              <StageRow label="Performance review">
-                <DateCell
-                  label="Review starts"
-                  value={stagesConfig.performance.managerStart.date}
-                  onChange={(date) =>
-                    setPerformanceReviewDate("managerStart", date)
-                  }
-                />
-                <DateCell
-                  label="Review ends"
-                  value={stagesConfig.performance.managerEnd.date}
-                  onChange={(date) =>
-                    setPerformanceReviewDate("managerEnd", date)
-                  }
-                />
-              </StageRow>
-            </StageTable>
+            <StageWindowFields
+              startLabel="Starts"
+              endLabel="Ends"
+              startValue={stagesConfig.performance.managerStart.date}
+              endValue={stagesConfig.performance.managerEnd.date}
+              onStartChange={(date) =>
+                setPerformanceReviewDate("managerStart", date)
+              }
+              onEndChange={(date) =>
+                setPerformanceReviewDate("managerEnd", date)
+              }
+            />
           </section>
 
           <div className="pd-reviews-settings-edit pd-reviews-settings-edit--balanced">
@@ -153,9 +143,6 @@ export function ReviewSettingsEditPage({
                   <Users size={16} strokeWidth={1.75} aria-hidden />
                   <h3 className="pd-reviews-edit-card__title">Review types</h3>
                 </header>
-                <p className="pd-reviews-edit-card__lede">
-                  Each enabled type creates a separate scorecard.
-                </p>
               </div>
               <ul className="pd-reviews-type-list">
                 {REVIEW_TYPE_ORDER.map((id) => {
@@ -178,7 +165,7 @@ export function ReviewSettingsEditPage({
                       <div className="pd-reviews-type-list__text">
                         <div className="pd-reviews-type-list__title-row">
                           <span className="pd-reviews-type-list__label">
-                            {meta.label}
+                            {meta.label.replace(/ reviews$/i, "")}
                           </span>
                           {meta.badge === "required" ? (
                             <span className="pd-reviews-chip pd-reviews-chip--required">
@@ -187,14 +174,10 @@ export function ReviewSettingsEditPage({
                           ) : null}
                           {meta.badge === "recommended" ? (
                             <span className="pd-reviews-chip pd-reviews-chip--recommended">
-                              <Sparkles size={12} strokeWidth={2} aria-hidden />
                               Recommended
                             </span>
                           ) : null}
                         </div>
-                        <p className="pd-reviews-type-list__desc">
-                          {meta.description}
-                        </p>
                       </div>
                       <Switch
                         label={meta.label}
@@ -218,23 +201,15 @@ export function ReviewSettingsEditPage({
                   <Send size={16} strokeWidth={1.75} aria-hidden />
                   <h3 className="pd-reviews-edit-card__title">Publishing</h3>
                 </header>
-                <p className="pd-reviews-edit-card__lede">
-                  Control grade delivery and scorecard processing.
-                </p>
               </div>
               <div className="pd-reviews-publish-list">
                 <div className="pd-reviews-publish-row">
                   <div className="pd-reviews-publish-row__icon" aria-hidden>
                     <UserMinus size={16} strokeWidth={1.75} />
                   </div>
-                  <div>
-                    <h4 className="pd-reviews-publish-row__title">
-                      Grade exclusions
-                    </h4>
-                    <p className="pd-reviews-publish-row__desc">
-                      People who will not receive their grade automatically.
-                    </p>
-                  </div>
+                  <h4 className="pd-reviews-publish-row__title">
+                    Grade exclusions
+                  </h4>
                   <div className="pd-reviews-publish-row__meta">
                     <span className="pd-reviews-publish-row__value">
                       <UserRound size={14} strokeWidth={1.75} aria-hidden />
@@ -255,14 +230,9 @@ export function ReviewSettingsEditPage({
                   <div className="pd-reviews-publish-row__icon" aria-hidden>
                     <WandSparkles size={16} strokeWidth={1.75} />
                   </div>
-                  <div>
-                    <h4 className="pd-reviews-publish-row__title">
-                      Auto scorecard generation
-                    </h4>
-                    <p className="pd-reviews-publish-row__desc">
-                      Keep scorecards in sync as the cycle advances.
-                    </p>
-                  </div>
+                  <h4 className="pd-reviews-publish-row__title">
+                    Auto scorecards
+                  </h4>
                   <Switch
                     label="Auto scorecard generation"
                     className="pd-reviews-type-list__switch"

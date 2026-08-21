@@ -25,15 +25,13 @@ function scheduledGoalPhase(cycle: ReviewCycle, today: Date): DemoPhase {
 
 export function resolveGoalPhase(
   cycle: ReviewCycle,
-  manualPhase: DemoPhase = "window_open",
+  _manualPhase: DemoPhase = "window_open",
   today = new Date(),
 ): DemoPhase {
-  return cycle.stagesConfig.processMode === "manual"
-    ? manualPhase
-    : scheduledGoalPhase(cycle, today);
+  return scheduledGoalPhase(cycle, today);
 }
 
-/** Map a performance cycle into the Goals cycle shape (same identity). */
+/** Map a cycle into the Goals cycle shape (same identity). */
 export function reviewCycleToGoalsCycle(
   cycle: ReviewCycle,
   manualPhase: DemoPhase = "window_open",
@@ -51,13 +49,18 @@ export function reviewCycleToGoalsCycle(
     id: cycle.id,
     label: cycle.name,
     day1: cycle.startDate,
-    phase: resolveGoalPhase(resolved, manualPhase, today),
+    phase:
+      employeeId != null && !policy.groupId
+        ? "not_open"
+        : resolveGoalPhase(resolved, manualPhase, today),
     goalCountPolicy: policy.settings.goalCountPolicy,
     postWindowGoalPolicy: policy.settings.postWindowGoalPolicy,
     goalWindow: { ...policy.stagesConfig.goals.employee },
     goalExtensions: policy.groupId
       ? []
       : structuredClone(policy.stagesConfig.goals.extensions ?? []),
+    assignedGroupId:
+      employeeId == null ? undefined : policy.groupId,
   };
 }
 
@@ -120,7 +123,6 @@ export function goalCycleStatus(
   review: ReviewCycle,
   today = new Date(),
 ): ReviewCycleStatus {
-  if (review.stagesConfig.processMode === "manual") return "manual";
   const now = todayValue(today);
   const start = toDay(review.stagesConfig.goals.employee.startDate);
   const end = Math.max(

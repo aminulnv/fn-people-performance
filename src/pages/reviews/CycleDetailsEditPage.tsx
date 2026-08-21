@@ -1,38 +1,25 @@
 import { useState } from "react";
-import { CalendarClock, CalendarRange } from "lucide-react";
-import { Input, SegmentedControl } from "@/components/ui";
+import { CalendarRange } from "lucide-react";
+import { Input } from "@/components/ui";
 import { updateReviewCycle } from "@/lib/reviews/store";
-import type { ReviewCycle, StageProcessMode } from "@/lib/reviews/types";
+import type { ReviewCycle } from "@/lib/reviews/types";
 import { EditPageShell } from "./EditPageShell";
 
 type CycleDetailsEditPageProps = {
   cycle: ReviewCycle;
   onClose: () => void;
+  embedded?: boolean;
 };
 
-const PROCESS_MODES: { id: StageProcessMode; label: string; hint: string }[] =
-  [
-    {
-      id: "schedule",
-      label: "Schedule",
-      hint: "Stages open and close automatically on the dates below.",
-    },
-    {
-      id: "manual",
-      label: "Manual",
-      hint: "Dates below stay as guidance — you move the cycle forward yourself.",
-    },
-  ];
-
-export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPageProps) {
+export function CycleDetailsEditPage({
+  cycle,
+  onClose,
+  embedded = false,
+}: CycleDetailsEditPageProps) {
   const [name, setName] = useState(cycle.name);
   const [startDate, setStartDate] = useState(cycle.startDate);
   const [endDate, setEndDate] = useState(cycle.endDate);
-  const [processMode, setProcessMode] = useState(cycle.stagesConfig.processMode);
   const [error, setError] = useState<string | null>(null);
-
-  const activeMode =
-    PROCESS_MODES.find((mode) => mode.id === processMode) ?? PROCESS_MODES[0];
 
   const save = () => {
     setError(null);
@@ -41,13 +28,10 @@ export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPagePro
         name,
         startDate,
         endDate,
-        ...(processMode !== cycle.stagesConfig.processMode
-          ? { stagesConfig: { ...cycle.stagesConfig, processMode } }
-          : {}),
       }).catch(() => {
         /* Shown on the cycle page after close. */
       });
-      onClose();
+      if (!embedded) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");
     }
@@ -56,10 +40,11 @@ export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPagePro
   return (
     <EditPageShell
       title="Cycle details"
-      description="Set the cycle name, overall timeframe, and how stages advance."
       onBack={onClose}
       onSave={save}
       error={error}
+      embedded={embedded}
+      actionsPlacement="bottom"
     >
       <div className="pd-reviews-edit__body pd-reviews-edit__body--stacked">
         <section className="pd-reviews-edit-card">
@@ -69,7 +54,6 @@ export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPagePro
           </header>
           <Input
             label="Cycle name"
-            hint="Shown throughout Goals and Reviews."
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -87,22 +71,6 @@ export function CycleDetailsEditPage({ cycle, onClose }: CycleDetailsEditPagePro
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-        </section>
-
-        <section className="pd-reviews-edit-card pd-reviews-mode-card">
-          <div className="pd-reviews-mode-card__copy">
-            <header className="pd-reviews-edit-card__head">
-              <CalendarClock size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">How stages advance</h3>
-            </header>
-            <p className="pd-reviews-edit-card__lede">{activeMode.hint}</p>
-          </div>
-          <SegmentedControl
-            aria-label="How to process cycle stages"
-            options={PROCESS_MODES.map(({ id, label }) => ({ id, label }))}
-            value={activeMode.id}
-            onChange={setProcessMode}
-          />
         </section>
       </div>
     </EditPageShell>

@@ -34,7 +34,7 @@ describe('RequirePlatformWrite', () => {
     renderGate(['platform.read_all'])
     expect(
       await screen.findByText(
-        /do not have permission to manage performance cycles/i,
+        /do not have permission to manage cycles/i,
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('Cycle admin content')).not.toBeInTheDocument()

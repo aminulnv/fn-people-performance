@@ -9,9 +9,14 @@ import {
   subscribeMemoryEmployees,
   updateMemoryEmployee,
 } from './memoryStore'
+import {
+  countDirectReports,
+  listDirectReports,
+} from './relationships'
 import type {
   CreateDepartmentInput,
   CreateEmployeeInput,
+  EmployeeProfilePayload,
   PlatformDepartment,
   PlatformEmployee,
   PlatformTeam,
@@ -38,6 +43,9 @@ let loadState: 'idle' | 'loading' | 'ready' | 'error' = useMemoryBackend()
   : 'idle'
 let loadError: string | null = null
 let loadPromise: Promise<void> | null = null
+/** Profile-sized extras keyed by subject employee id. */
+const profileExtras = new Map<number, EmployeeProfilePayload>()
+const profileLoadPromises = new Map<number, Promise<EmployeeProfilePayload | null>>()
 /** Bumps on every store change — stable snapshot for useSyncExternalStore. */
 let storeVersion = 0
 
@@ -102,8 +110,133 @@ export function findEmployeeByEmail(email: string): PlatformEmployee | null {
   return cache.find((e) => e.email.toLowerCase() === normalized) ?? null
 }
 
+export function getEmployeeProfileExtras(
+  employeeId: number,
+): EmployeeProfilePayload | null {
+  return profileExtras.get(employeeId) ?? null
+}
+
+function upsertEmployeesIntoCache(employees: PlatformEmployee[]) {
+  if (employees.length === 0) return
+  const byId = new Map(cache.map((row) => [row.employeeId, row]))
+  for (const row of employees) {
+    byId.set(row.employeeId, { ...row })
+  }
+  cache = [...byId.values()]
+}
+
+function rememberProfile(payload: EmployeeProfilePayload) {
+  profileExtras.set(payload.employee.employeeId, payload)
+  if (!useMemoryBackend()) {
+    upsertEmployeesIntoCache([
+      payload.employee,
+      ...payload.related,
+      ...payload.directReports,
+    ])
+  }
+  notify()
+}
+
+function uniqueRelatedFromMemory(employee: PlatformEmployee): PlatformEmployee[] {
+  const people: PlatformEmployee[] = []
+  const add = (person: PlatformEmployee | null) => {
+    if (!person || person.employeeId === employee.employeeId) return
+    if (people.some((row) => row.employeeId === person.employeeId)) return
+    people.push(person)
+  }
+  if (employee.reportsToId != null) add(getMemoryEmployee(employee.reportsToId))
+  if (employee.managerEmail) add(findMemoryEmployeeByEmail(employee.managerEmail))
+  if (employee.departmentHeadId != null) {
+    add(getMemoryEmployee(employee.departmentHeadId))
+  }
+  if (employee.hrbpId != null) add(getMemoryEmployee(employee.hrbpId))
+  if (employee.teamOwnerId != null) add(getMemoryEmployee(employee.teamOwnerId))
+  return people
+}
+
+function memoryEmployeeProfile(
+  employeeId: number,
+): EmployeeProfilePayload | null {
+  const employee = getMemoryEmployee(employeeId)
+  if (!employee) return null
+  const related = uniqueRelatedFromMemory(employee)
+  const directReports = listDirectReports(employee)
+  const manager =
+    related.find((person) => person.employeeId === employee.reportsToId) ??
+    (employee.managerEmail
+      ? findMemoryEmployeeByEmail(employee.managerEmail)
+      : null)
+  const nestedReportCounts: Record<number, number> = {}
+  for (const report of directReports) {
+    nestedReportCounts[report.employeeId] = countDirectReports(report)
+  }
+  return {
+    employee,
+    related,
+    directReports,
+    managerDirectReportCount: countDirectReports(manager),
+    directoryCount: listMemoryEmployees().length,
+    nestedReportCounts,
+  }
+}
+
+/**
+ * One-person profile read. Renders /people/:id without waiting for the
+ * full directory. Dedupes in-flight requests per employee.
+ */
+export async function loadEmployeeProfile(
+  employeeId: number,
+): Promise<EmployeeProfilePayload | null> {
+  if (!Number.isInteger(employeeId) || employeeId <= 0) return null
+
+  const cached = profileExtras.get(employeeId)
+  if (cached) return cached
+
+  const pending = profileLoadPromises.get(employeeId)
+  if (pending) return pending
+
+  const request = (async () => {
+    if (useMemoryBackend()) {
+      const payload = memoryEmployeeProfile(employeeId)
+      if (payload) rememberProfile(payload)
+      return payload
+    }
+
+    try {
+      const payload = await apiFetch<EmployeeProfilePayload>(
+        `/api/platform/employees/${employeeId}`,
+      )
+      if (!payload?.employee) return null
+      rememberProfile({
+        employee: payload.employee,
+        related: Array.isArray(payload.related) ? payload.related : [],
+        directReports: Array.isArray(payload.directReports)
+          ? payload.directReports
+          : [],
+        managerDirectReportCount: payload.managerDirectReportCount ?? 0,
+        directoryCount: payload.directoryCount ?? 0,
+        nestedReportCounts: payload.nestedReportCounts ?? {},
+      })
+      return profileExtras.get(employeeId) ?? payload
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null
+      throw err
+    }
+  })()
+
+  profileLoadPromises.set(employeeId, request)
+  try {
+    return await request
+  } finally {
+    profileLoadPromises.delete(employeeId)
+  }
+}
+
 /** Fetch the live directory from RDS via /api/platform. */
-export async function loadEmployees(): Promise<void> {
+export async function loadEmployees(options?: {
+  /** Re-fetch even when the directory is already ready. */
+  reload?: boolean
+}): Promise<void> {
   if (useMemoryBackend()) {
     cache = listMemoryEmployees()
     loadState = 'ready'
@@ -113,10 +246,13 @@ export async function loadEmployees(): Promise<void> {
   }
 
   if (loadPromise) return loadPromise
+  if (loadState === 'ready' && !options?.reload) return
 
-  loadState = 'loading'
-  loadError = null
-  notify()
+  if (loadState !== 'ready') {
+    loadState = 'loading'
+    loadError = null
+    notify()
+  }
 
   loadPromise = (async () => {
     try {
@@ -174,7 +310,7 @@ export async function createEmployee(
       '/api/platform/employees',
       { method: 'POST', body: input },
     )
-    await loadEmployees()
+    await loadEmployees({ reload: true })
     return { ok: true, employee: data.employee }
   } catch (err) {
     if (err instanceof ApiError) {
@@ -204,7 +340,7 @@ export async function updateEmployee(
       `/api/platform/employees/${employeeId}`,
       { method: 'PATCH', body: input },
     )
-    await loadEmployees()
+    await loadEmployees({ reload: true })
     return { ok: true, employee: data.employee }
   } catch (err) {
     if (err instanceof ApiError) {
@@ -229,6 +365,8 @@ export function clearEmployees(): void {
   memoryDepartmentSeq = 10_000
   memoryTeams = []
   cache = []
+  profileExtras.clear()
+  profileLoadPromises.clear()
   notify()
 }
 

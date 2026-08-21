@@ -260,6 +260,13 @@
   background: var(--color-surface-raised, var(--color-surface));
   color: var(--color-text);
   cursor: pointer;
+  text-decoration: none;
+}
+
+a.pd-people__icon-btn,
+a.pd-people__icon-btn:link,
+a.pd-people__icon-btn:visited {
+  color: var(--color-text);
 }
 
 .pd-people__icon-btn:hover:not(:disabled) {
@@ -884,18 +891,22 @@ a.pd-people__ghost-btn--outline:hover {
   -ms-overflow-style: none;
   --people-table-font: 0.875rem;
   --people-table-line: 1.35;
-  --people-table-cell-y: 0.65rem;
+  --people-table-cell-y: 0.45rem;
   --people-table-cell-x: 0.85rem;
-  --people-table-head-y: 0.65rem;
-  --people-table-head-font: 0.75rem;
-  --people-table-person-gap: 0.55rem;
+  --people-table-head-bg: color-mix(in srgb,
+      var(--color-text) 2%,
+      var(--color-surface-raised, var(--color-surface)));
+  --people-table-person-gap: 0.45rem;
   --people-table-person-line: 1.35;
-  --people-table-avatar-md: 2rem;
-  --people-table-avatar-md-font: 0.6875rem;
-  --people-table-avatar-sm: 1.625rem;
-  --people-table-avatar-sm-font: 0.5625rem;
-  --people-table-status-min-h: 1.55rem;
-  --people-table-status-pad-y: 0.15rem;
+  --people-table-person-stack-line: 1.1;
+  --people-table-email-font: 0.625rem;
+  --people-table-email-line: 1.05;
+  --people-table-avatar-md: 1.625rem;
+  --people-table-avatar-md-font: 0.5625rem;
+  --people-table-avatar-sm: 1.375rem;
+  --people-table-avatar-sm-font: 0.5rem;
+  --people-table-status-min-h: 1.3rem;
+  --people-table-status-pad-y: 0.1rem;
   --people-table-status-pad-x: 0.55rem;
   --people-table-status-font: 0.8125rem;
 }
@@ -933,10 +944,11 @@ a.pd-people__ghost-btn--outline:hover {
   --people-table-line: 1.25;
   --people-table-cell-y: 0.4rem;
   --people-table-cell-x: 0.65rem;
-  --people-table-head-y: 0.45rem;
-  --people-table-head-font: 0.6875rem;
   --people-table-person-gap: 0.375rem;
   --people-table-person-line: 1.25;
+  --people-table-person-stack-line: 1.05;
+  --people-table-email-font: 0.5rem;
+  --people-table-email-line: 1.05;
   --people-table-avatar-md: 1.375rem;
   --people-table-avatar-md-font: 0.5rem;
   --people-table-avatar-sm: 1.25rem;
@@ -990,6 +1002,19 @@ a.pd-people__ghost-btn--outline:hover {
   background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
 }
 
+.pd-people__table tbody tr.pd-people__row-link {
+  cursor: pointer;
+}
+
+.pd-people__table tbody tr.pd-people__row-link:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
+  outline-offset: -2px;
+}
+
+.pd-people__table tbody tr.pd-people__row-link.is-selected td {
+  background: var(--color-neutral-hover, var(--color-muted-bg));
+}
+
 .pd-people__table tbody tr.pd-people__virtual-pad td,
 .pd-people__table tbody tr.pd-people__virtual-pad:hover td {
   height: 0;
@@ -1000,20 +1025,17 @@ a.pd-people__ghost-btn--outline:hover {
 }
 
 .pd-people__table th {
-  padding-block: var(--people-table-head-y);
-  font-size: var(--people-table-head-font);
+  font-size: inherit;
   font-weight: 600;
-  letter-spacing: 0.01em;
-  color: var(--color-text-secondary);
-  background: color-mix(in srgb,
-      var(--color-text) 5.5%,
-      var(--color-surface-raised, var(--color-surface)));
+  letter-spacing: inherit;
+  color: var(--color-text);
+  background: var(--people-table-head-bg);
 }
 
 .pd-people__table td {
   color: var(--color-text);
   font-size: inherit;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .pd-people__table:has(.pd-table-resize__handle) th {
@@ -1156,6 +1178,29 @@ a.pd-people__ghost-btn--outline:hover {
   min-width: 0;
 }
 
+.pd-people__person-identity {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.pd-people__person--stacked .pd-people__person-name,
+.pd-people__person--stacked .pd-people__person-link {
+  line-height: var(--people-table-person-stack-line);
+}
+
+.pd-people__person-email {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: var(--people-table-email-font);
+  font-weight: 400;
+  line-height: var(--people-table-email-line);
+  color: var(--color-text-secondary);
+}
+
 .pd-people__table-wrap .pd-people__table .pd-people__avatar.pd-avatar--md {
   width: var(--people-table-avatar-md);
   height: var(--people-table-avatar-md);
@@ -1177,6 +1222,14 @@ a.pd-people__ghost-btn--outline:hover {
 }
 
 .pd-people__person-link {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
   text-decoration: none;
 }
 
@@ -1191,7 +1244,7 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-people__id {
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 400;
 }
 
 .pd-people__status {
@@ -1272,6 +1325,70 @@ a.pd-people__ghost-btn--outline:hover {
 /* —— Employee profile —— */
 .pd-profile {
   gap: 0.85rem;
+}
+
+.pd-profile--embedded {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  margin-inline: 0;
+}
+
+.pd-profile--embedded .pd-profile__hero,
+.pd-profile--embedded .pd-profile__grid,
+.pd-profile--embedded .pd-profile__col,
+.pd-profile--embedded .pd-profile__card,
+.pd-profile--embedded .pd-profile__panel,
+.pd-profile--embedded .pd-goals {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pd-profile--embedded .pd-profile__grid {
+  grid-template-columns: 1fr;
+}
+
+.pd-profile--embedded .pd-profile__name {
+  font-size: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.pd-profile--embedded .pd-profile__hero-meta {
+  overflow-wrap: anywhere;
+}
+
+.pd-profile--embedded .pd-profile__tabs {
+  width: 100%;
+  max-width: 100%;
+}
+
+.pd-profile--embedded .pd-profile__tab {
+  flex: 1 1 0;
+  min-width: 0;
+  justify-content: center;
+  padding-inline: 0.45rem;
+}
+
+.pd-profile--embedded .pd-profile__email,
+.pd-profile--embedded .pd-profile__link {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.pd-profile--embedded .pd-profile__hero {
+  flex-wrap: nowrap;
+  align-items: flex-start;
+}
+
+.pd-profile--embedded .pd-profile__hero-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.pd-profile--embedded .pd-profile__hero-actions {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  margin-inline-start: auto;
 }
 
 .pd-profile__hero {

@@ -11,11 +11,15 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 export function EmployeeProfileTeamTab({
   employee,
   isSelf = false,
+  reports: reportsOverride,
+  reportCounts,
 }: {
   employee: PlatformEmployee
   isSelf?: boolean
+  reports?: PlatformEmployee[]
+  reportCounts?: Record<number, number>
 }) {
-  const reports = listDirectReports(employee)
+  const reports = reportsOverride ?? listDirectReports(employee)
 
   if (reports.length === 0) {
     return (
@@ -44,7 +48,8 @@ export function EmployeeProfileTeamTab({
       </header>
       <ul className="pd-profile__people-list">
         {reports.map((report) => {
-          const reportCount = countDirectReports(report)
+          const reportCount =
+            reportCounts?.[report.employeeId] ?? countDirectReports(report)
           const meta = [report.jobTitle, report.team || report.department]
             .filter(Boolean)
             .join(' · ')

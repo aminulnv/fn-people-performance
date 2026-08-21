@@ -170,6 +170,56 @@ function buildPerformanceGoals(
   )
 }
 
+function resolveScorecardReviewer(
+  employee: PlatformEmployee,
+  active: PlatformEmployee[],
+  byEmail: Map<string, PlatformEmployee>,
+): PlatformEmployee {
+  const manager =
+    (employee.managerEmail
+      ? byEmail.get(employee.managerEmail.trim().toLowerCase())
+      : undefined) ??
+    (employee.reportsToName
+      ? active.find(
+          (person) =>
+            person.fullName.trim().toLowerCase() ===
+            employee.reportsToName.trim().toLowerCase(),
+        )
+      : undefined)
+
+  if (manager) return manager
+  if (active.length === 0) return employee
+  return hashPick(employee.employeeId, active)
+}
+
+function toScorecardRow(
+  cycleKey: string,
+  employee: PlatformEmployee,
+  reviewer: PlatformEmployee,
+  status: ScorecardStatus,
+  isMine: boolean,
+): ScorecardRow {
+  return {
+    id: `${cycleKey}-${employee.employeeId}`,
+    cycleKey,
+    cycleLabel: cycleLabelFromKey(cycleKey),
+    employeeId: employee.employeeId,
+    employeeName: employee.fullName,
+    employeeAvatarUrl: employee.avatarUrl,
+    reviewerId: reviewer.employeeId,
+    reviewerName: reviewer.fullName,
+    reviewerAvatarUrl: reviewer.avatarUrl,
+    gradeHidden: true,
+    grade: status === 'not_started' ? null : 'performing',
+    role: employee.jobTitle || '—',
+    seniority: employee.jobGrade || '—',
+    team: employee.team || '—',
+    department: employee.department || '—',
+    status,
+    isMine,
+  }
+}
+
 /** Scorecards for one person across all review cycles (includes inactive subjects). */
 export function buildEmployeeScorecardHistory(
   employee: PlatformEmployee,
@@ -182,21 +232,27 @@ export function buildEmployeeScorecardHistory(
   const directory = hasActiveSubject
     ? employees
     : [...employees, { ...employee, isActive: true }]
+  const active = directory.filter((person) => person.isActive)
+  const byEmail = new Map(
+    active.map((person) => [person.email.trim().toLowerCase(), person]),
+  )
+  const meEmail = currentUserEmail?.trim().toLowerCase() ?? ''
+  const me = meEmail ? byEmail.get(meEmail) : undefined
+  const subjectIndex = active.findIndex(
+    (person) => person.employeeId === employee.employeeId,
+  )
+  const reviewer = resolveScorecardReviewer(employee, active, byEmail)
+  const status = hashPick(employee.employeeId + Math.max(subjectIndex, 0), STATUSES)
+  const isMine = me ? isDirectReport(employee, me) : false
 
   return listReviewCycles()
     .slice()
     .sort((left, right) =>
       (right.periodKey ?? '').localeCompare(left.periodKey ?? ''),
     )
-    .map((cycle) => {
-      const rows = buildScorecardsForCycle(
-        cycle.id,
-        directory,
-        currentUserEmail,
-      )
-      return rows.find((row) => row.employeeId === employee.employeeId) ?? null
-    })
-    .filter((row): row is ScorecardRow => row != null)
+    .map((cycle) =>
+      toScorecardRow(cycle.id, employee, reviewer, status, isMine),
+    )
 }
 
 export function buildScorecardsForCycle(
@@ -209,47 +265,13 @@ export function buildScorecardsForCycle(
     active.map((person) => [person.email.trim().toLowerCase(), person]),
   )
   const meEmail = currentUserEmail?.trim().toLowerCase() ?? ''
-  const cycleLabel = cycleLabelFromKey(cycleKey)
-
   const me = meEmail ? byEmail.get(meEmail) : undefined
 
   return active.map((employee, index) => {
-    const manager =
-      (employee.managerEmail
-        ? byEmail.get(employee.managerEmail.trim().toLowerCase())
-        : undefined) ??
-      (employee.reportsToName
-        ? active.find(
-            (person) =>
-              person.fullName.trim().toLowerCase() ===
-              employee.reportsToName.trim().toLowerCase(),
-          )
-        : undefined)
-
-    const reviewer = manager ?? hashPick(employee.employeeId, active)
+    const reviewer = resolveScorecardReviewer(employee, active, byEmail)
     const status = hashPick(employee.employeeId + index, STATUSES)
-    const grade = status === 'not_started' ? null : 'performing'
     const isMine = me ? isDirectReport(employee, me) : false
-
-    return {
-      id: `${cycleKey}-${employee.employeeId}`,
-      cycleKey,
-      cycleLabel,
-      employeeId: employee.employeeId,
-      employeeName: employee.fullName,
-      employeeAvatarUrl: employee.avatarUrl,
-      reviewerId: reviewer.employeeId,
-      reviewerName: reviewer.fullName,
-      reviewerAvatarUrl: reviewer.avatarUrl,
-      gradeHidden: true,
-      grade,
-      role: employee.jobTitle || '—',
-      seniority: employee.jobGrade || '—',
-      team: employee.team || '—',
-      department: employee.department || '—',
-      status,
-      isMine,
-    }
+    return toScorecardRow(cycleKey, employee, reviewer, status, isMine)
   })
 }
 

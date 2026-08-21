@@ -111,6 +111,79 @@ export async function getPlatformEmployee(employeeId) {
   return rows[0] ? mapEmployeeRow(rows[0]) : null
 }
 
+function uniquePositiveIds(ids) {
+  return [
+    ...new Set(
+      ids.filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  ]
+}
+
+/**
+ * Profile-sized read: the subject, their reporting line, and direct reports.
+ * Avoids `listPlatformEmployees` (full directory × 7 joins) on /people/:id.
+ */
+export async function getPlatformEmployeeProfile(employeeId) {
+  const employee = await getPlatformEmployee(employeeId)
+  if (!employee) return null
+
+  const relatedIds = uniquePositiveIds([
+    employee.reportsToId,
+    employee.departmentHeadId,
+    employee.hrbpId,
+    employee.teamOwnerId,
+  ]).filter((id) => id !== employeeId)
+
+  const pool = getPool()
+  const [relatedResult, reportsResult, managerCountResult, directoryResult] =
+    await Promise.all([
+      relatedIds.length > 0
+        ? pool.query(`${EMPLOYEE_SELECT} WHERE e.employee_id = ANY($1::int[])`, [
+            relatedIds,
+          ])
+        : Promise.resolve({ rows: [] }),
+      pool.query(
+        `${EMPLOYEE_SELECT} WHERE e.reports_to_employee_id = $1 ORDER BY e.name ASC`,
+        [employeeId],
+      ),
+      employee.reportsToId
+        ? pool.query(
+            `SELECT count(*)::int AS n
+             FROM platform.employees
+             WHERE reports_to_employee_id = $1`,
+            [employee.reportsToId],
+          )
+        : Promise.resolve({ rows: [{ n: 0 }] }),
+      pool.query(`SELECT count(*)::int AS n FROM platform.employees`),
+    ])
+
+  const reportIds = reportsResult.rows.map((row) => row.employee_id)
+  const nestedResult =
+    reportIds.length > 0
+      ? await pool.query(
+          `SELECT reports_to_employee_id AS manager_id, count(*)::int AS n
+           FROM platform.employees
+           WHERE reports_to_employee_id = ANY($1::int[])
+           GROUP BY reports_to_employee_id`,
+          [reportIds],
+        )
+      : { rows: [] }
+
+  const nestedReportCounts = {}
+  for (const row of nestedResult.rows) {
+    nestedReportCounts[row.manager_id] = row.n
+  }
+
+  return {
+    employee,
+    related: relatedResult.rows.map(mapEmployeeRow),
+    directReports: reportsResult.rows.map(mapEmployeeRow),
+    managerDirectReportCount: managerCountResult.rows[0]?.n ?? 0,
+    directoryCount: directoryResult.rows[0]?.n ?? 0,
+    nestedReportCounts,
+  }
+}
+
 async function ensureDepartment(client, name) {
   const trimmed = name.trim()
   if (!trimmed) return null

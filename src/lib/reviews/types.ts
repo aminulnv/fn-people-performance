@@ -2,8 +2,9 @@ export type ReviewCycleType = "regular" | "ad-hoc";
 
 export type ReviewCycleStatus = "future" | "current" | "previous" | "manual";
 
-export type CycleSectionId = "goals" | "settings";
+export type CycleSectionId = "settings";
 
+/** Stored field. Stages always advance on configured dates; `"manual"` is coerced to `"schedule"`. */
 export type StageProcessMode = "schedule" | "manual";
 
 export type DateRange = {
@@ -57,6 +58,7 @@ export type CycleStage = {
 };
 
 export type CycleStagesConfig = {
+  /** Always `"schedule"` after load; stages open and close on the dates below. */
   processMode: StageProcessMode;
   goals: {
     employee: DateRange;
@@ -137,6 +139,7 @@ export type CyclePolicyResolution = {
   settings: CycleSettings;
   stagesConfig: CycleStagesConfig;
   calibration: CalibrationLogic;
+  /** Null when the person is not listed in any group and is not in the cycle. */
   groupId: string | null;
 };
 
@@ -150,7 +153,7 @@ export type ReviewCycle = {
   stagesConfig: CycleStagesConfig;
   settings: CycleSettings;
   calibration: CalibrationLogic;
-  /** Named exceptions. People not listed use the cycle defaults. */
+  /** Named groups. Goal/review/calibration rules apply only to listed members. */
   groups?: CycleGroup[];
   isTest?: boolean;
   createdAt: string;

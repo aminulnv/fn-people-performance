@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Building2,
   Plus,
@@ -31,6 +31,7 @@ import {
   type StatusFilter,
 } from '@/pages/people/filterDirectory'
 import { PeopleDirectoryTable } from '@/pages/people/PeopleDirectoryTable'
+import { PeopleProfileDrawer } from '@/pages/people/PeopleProfileDrawer'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
 import '@/styles/layout-people.css'
 
@@ -47,9 +48,31 @@ export type PeoplePageProps = {
 
 export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const { employees, loadState, loadError } = useEmployees()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
+  const selectedEmployeeId = useMemo(() => {
+    const raw = Number(searchParams.get('employee'))
+    return Number.isInteger(raw) && raw > 0 ? raw : null
+  }, [searchParams])
+
+  function setSelectedEmployeeId(next: number | null) {
+    const params = new URLSearchParams(searchParams)
+    if (next) params.set('employee', String(next))
+    else params.delete('employee')
+    const search = params.toString()
+    navigate(
+      {
+        pathname: location.pathname,
+        search: search ? `?${search}` : '',
+        hash: location.hash,
+      },
+      { replace: true },
+    )
+  }
   const [scope, setScope] = useUrlHashTab<DirectoryScope>({
     defaultTab: 'all',
     tabFromHash: peopleScopeFromHash,
@@ -274,14 +297,18 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           </p>
         ) : employees.length === 0 ? (
           <div className="pd-people__empty-state">
-            <p className="pd-people__empty">No employees yet.</p>
-            <Link
-              to="/people/new"
-              className="pd-people__create-btn pd-people__create-btn--secondary"
-            >
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Employee
-            </Link>
+            <EmptyState
+              className="pd-empty--inline"
+              icon={Users}
+              title="No employees yet"
+              description="Add people to the directory to get started."
+              action={
+                <Link to="/people/new" className="pd-people__create-btn">
+                  <Plus size={18} strokeWidth={2} aria-hidden />
+                  Add Employee
+                </Link>
+              }
+            />
           </div>
         ) : filtered.length === 0 ? (
           <EmptyState
@@ -313,9 +340,17 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             employeesById={employeesById}
             employeesByName={employeesByName}
             tableDensity={tableDensity}
+            selectedEmployeeId={selectedEmployeeId}
+            onSelectEmployee={setSelectedEmployeeId}
           />
         )}
       </section>
+      {selectedEmployeeId ? (
+        <PeopleProfileDrawer
+          employeeId={selectedEmployeeId}
+          onClose={() => setSelectedEmployeeId(null)}
+        />
+      ) : null}
     </div>
   )
 }

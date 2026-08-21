@@ -37,6 +37,11 @@
   --shadow-low: 0 1px 3px color-mix(in srgb, var(--color-theme) 12%, transparent);
   --shadow-deep: rgba(9, 14, 21, 0.16) 0px 5px 40px 0px;
   --shadow-filter: drop-shadow(0 8px 20px color-mix(in srgb, black 22%, transparent));
+
+  /* Right-rail drawers: slide from the first frame (no start delay). */
+  --pd-drawer-in-duration: 180ms;
+  --pd-drawer-in-delay: 0s;
+  --pd-drawer-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /*

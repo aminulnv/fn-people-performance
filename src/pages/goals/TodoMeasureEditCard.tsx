@@ -117,7 +117,7 @@ export function TodoMeasureEditCard({
               <li key={todo.id} className={todoItemClassName}>
                 <GoalTodoCheck
                   checked={todo.complete}
-                  ariaLabel={`Mark ${readMilestoneTitle(measurements, todo.id).trim() || 'milestone'} complete`}
+                  ariaLabel={`Mark ${readMilestoneTitle(measurements, todo.id).trim() || 'task'} complete`}
                   onChange={(complete) =>
                     onChangeMilestone(todo.id, { complete })
                   }
@@ -126,8 +126,8 @@ export function TodoMeasureEditCard({
                   className="pd-goal-measure-card__todo-input"
                   inputKey={todo.id}
                   value={readMilestoneTitle(measurements, todo.id)}
-                  placeholder="Untitled milestone"
-                  ariaLabel="Milestone"
+                  placeholder="Untitled task"
+                  ariaLabel="Task"
                   requestFocus={focusMilestoneId === todo.id}
                   onFocusRequested={onFocusMilestone}
                   onChange={(title) => onChangeMilestoneTitle(todo.id, title)}
@@ -141,7 +141,7 @@ export function TodoMeasureEditCard({
                   <button
                     type="button"
                     className="pd-goal-measure-card__todo-delete"
-                    aria-label={`Remove milestone${todo.title ? ` ${todo.title}` : ''}`}
+                    aria-label={`Remove task${todo.title ? ` ${todo.title}` : ''}`}
                     onClick={() => onRemoveItem(todo.id)}
                   >
                     <Trash2 size={14} strokeWidth={1.75} aria-hidden />
@@ -159,7 +159,7 @@ export function TodoMeasureEditCard({
             onClick={() => onAddItem(list.listKey)}
           >
             <Plus size={15} strokeWidth={2} aria-hidden />
-            Add to do
+            Add task
           </button>
         </div>
       </div>
@@ -175,6 +175,9 @@ export function TodoMeasureEditCard({
             inputKey={panel.measureGroupId}
             value={measureTitle}
             onChange={onChangeMeasureTitle}
+            placeholder="Milestone name"
+            editLabel="Edit milestone name"
+            inputLabel="Milestone name"
           />
         </div>
         <div className={metricsClassName}>

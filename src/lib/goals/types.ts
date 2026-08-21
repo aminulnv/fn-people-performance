@@ -166,7 +166,7 @@ export type GoalWindow = {
 export type GoalsCycle = {
   id: string;
   label: string;
-  /** YYYY-MM-DD — eligibility Day 1 (performance cycle start) */
+  /** YYYY-MM-DD — eligibility Day 1 (cycle start) */
   day1: string;
   phase: DemoPhase;
   goalCountPolicy: GoalCountPolicy;
@@ -174,9 +174,14 @@ export type GoalsCycle = {
   /** Explains to the employee when goal editing opens and closes. */
   goalWindow?: GoalWindow;
   goalExtensions?: GoalCycleExtension[];
+  /**
+   * Set when this cycle was resolved for a specific person.
+   * `null` means they are not in a group and are not in the cycle.
+   */
+  assignedGroupId?: string | null;
 };
 
-/** Performance-cycle status badge on the Goals cycle picker. */
+/** Cycle status badge on the Goals cycle picker. */
 export type GoalsCycleStatus = "future" | "current" | "previous" | "manual";
 
 export type GoalsCycleOption = GoalsCycle & {
@@ -187,7 +192,7 @@ export type GoalsSnapshot = {
   /** Active review/goal cycle (shared identity with Reviews). */
   cycle: GoalsCycle;
   cycleStatus: GoalsCycleStatus;
-  /** All performance cycles available for goal setting. */
+  /** All cycles available for goal setting. */
   availableCycles: GoalsCycleOption[];
   activePersonId: string;
   people: DemoPerson[];

@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   History,
   MoreHorizontal,
   Plus,
-  Target,
   Trash2,
 } from 'lucide-react'
 import {
   ConfirmDialog,
   DropdownMenu,
-  EmptyState,
 } from '@/components/ui'
 import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
-import { setActiveCycle } from '@/lib/goals/store'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
 import { cycleDetailPath, cyclesListPath } from '@/lib/reviews/paths'
 import {
@@ -46,12 +43,10 @@ export default function CycleDetailPage() {
   )
 
   const [menuError, setMenuError] = useState<string | null>(null)
-  const [settingsEditing, setSettingsEditing] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
 
   useEffect(() => {
-    setSettingsEditing(false)
     setMenuError(null)
     setDeleteOpen(false)
     setActivityOpen(false)
@@ -66,7 +61,6 @@ export default function CycleDetailPage() {
   }
 
   const status = resolveCycleStatus(cycle)
-  const showCycleChrome = section !== 'settings' || !settingsEditing
 
   const handleCreateTest = async () => {
     try {
@@ -96,54 +90,52 @@ export default function CycleDetailPage() {
 
   return (
     <div className="pd-page pd-reviews pd-reviews--cycle" aria-label={cycle.name}>
-      {showCycleChrome ? (
-        <header className="pd-reviews-cycle-header">
-          <div className="pd-reviews-cycle-header__title">
-            <h1>{cycle.name}</h1>
-            <span className={`pd-reviews-status pd-reviews-status--${status}`}>
-              {cycleStatusLabel(status)}
-            </span>
-          </div>
-          <div className="pd-reviews-cycle-header__actions">
-            <DropdownMenu
-              label="More cycle actions"
-              align="end"
-              className="pd-reviews-cycle-menu"
-              trigger={
-                <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-              }
-              triggerProps={{
-                className: 'pd-people__icon-btn',
-                'aria-label': 'More cycle actions',
-                title: 'More actions',
-              }}
-              items={[
-                {
-                  id: 'activity',
-                  label: 'View activity',
-                  icon: <History size={16} strokeWidth={1.75} />,
-                  onSelect: () => setActivityOpen(true),
+      <header className="pd-reviews-cycle-header">
+        <div className="pd-reviews-cycle-header__title">
+          <h1>{cycle.name}</h1>
+          <span className={`pd-reviews-status pd-reviews-status--${status}`}>
+            {cycleStatusLabel(status)}
+          </span>
+        </div>
+        <div className="pd-reviews-cycle-header__actions">
+          <DropdownMenu
+            label="More cycle actions"
+            align="end"
+            className="pd-reviews-cycle-menu"
+            trigger={
+              <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
+            }
+            triggerProps={{
+              className: 'pd-people__icon-btn',
+              'aria-label': 'More cycle actions',
+              title: 'More actions',
+            }}
+            items={[
+              {
+                id: 'activity',
+                label: 'View activity',
+                icon: <History size={16} strokeWidth={1.75} />,
+                onSelect: () => setActivityOpen(true),
+              },
+              {
+                id: 'create-test',
+                label: 'Create Test Cycle',
+                icon: <Plus size={16} strokeWidth={1.75} />,
+                onSelect: () => {
+                  void handleCreateTest()
                 },
-                {
-                  id: 'delete',
-                  label: 'Delete Cycle',
-                  danger: true,
-                  icon: <Trash2 size={16} strokeWidth={1.75} />,
-                  onSelect: () => setDeleteOpen(true),
-                },
-              ]}
-            />
-            <button
-              type="button"
-              className="pd-people__create-btn"
-              onClick={handleCreateTest}
-            >
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Create Test Cycle
-            </button>
-          </div>
-        </header>
-      ) : null}
+              },
+              {
+                id: 'delete',
+                label: 'Delete Cycle',
+                danger: true,
+                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                onSelect: () => setDeleteOpen(true),
+              },
+            ]}
+          />
+        </div>
+      </header>
 
       {menuError ? (
         <p className="pd-reviews-modal__error" role="alert">
@@ -164,32 +156,7 @@ export default function CycleDetailPage() {
         </p>
       ) : null}
 
-      {section === 'settings' ? (
-        <CycleSettingsView
-          key={cycle.id}
-          cycle={cycle}
-          onEditingChange={setSettingsEditing}
-        />
-      ) : (
-        <div className="pd-reviews__body">
-          <EmptyState
-            className="pd-empty--inline"
-            icon={Target}
-            title={`Goals · ${cycle.name}`}
-            description="Goals for this performance cycle are managed on the Goals page. Open Goals to select this cycle and add or review goals."
-            action={
-              <Link
-                to="/goals"
-                className="pd-people__create-btn"
-                onClick={() => setActiveCycle(cycle.id)}
-              >
-                <Target size={18} strokeWidth={2} aria-hidden />
-                Open goals for {cycle.name}
-              </Link>
-            }
-          />
-        </div>
-      )}
+      <CycleSettingsView key={cycle.id} cycle={cycle} />
 
       <ConfirmDialog
         open={deleteOpen}

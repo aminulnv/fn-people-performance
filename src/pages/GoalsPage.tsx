@@ -246,7 +246,7 @@ const OVERVIEW_SCOPES: {
 ];
 
 const GOALS_COLUMNS: ResizableColumn[] = [
-  { id: "owner", label: "Owner" },
+  { id: "owner", label: "Owner", minWidth: 220 },
   { id: "goals", label: "Goals", minWidth: 180 },
   { id: "weight", label: "Weight" },
   { id: "progress", label: "Progress" },
@@ -830,30 +830,30 @@ function GoalsOverview() {
                               )}
                               className="pd-goals-overview__owner-link"
                             >
-                            <Avatar
-                              name={row.person.name}
-                              src={row.person.avatarUrl}
-                              size="sm"
-                              className="pd-people__avatar"
-                              style={avatarStyle(row.person.name)}
-                            />
-                            <div className="pd-goals-overview__owner-text">
-                              <span className="pd-people__person-name">
-                                {row.person.name}
-                              </span>
-                              {ownerMetaLines.length > 0 ? (
-                                <span className="pd-goals-overview__owner-meta">
-                                  {ownerMetaLines.map((line, index) => (
-                                    <span
-                                      key={`${index}-${line}`}
-                                      className="pd-goals-overview__owner-meta-line"
-                                    >
-                                      {line}
-                                    </span>
-                                  ))}
+                              <Avatar
+                                name={row.person.name}
+                                src={row.person.avatarUrl}
+                                size="sm"
+                                className="pd-people__avatar"
+                                style={avatarStyle(row.person.name)}
+                              />
+                              <div className="pd-goals-overview__owner-text">
+                                <span className="pd-people__person-name">
+                                  {row.person.name}
                                 </span>
-                              ) : null}
-                            </div>
+                                {ownerMetaLines.length > 0 ? (
+                                  <span className="pd-goals-overview__owner-meta">
+                                    {ownerMetaLines.map((line, index) => (
+                                      <span
+                                        key={`${index}-${line}`}
+                                        className="pd-goals-overview__owner-meta-line"
+                                      >
+                                        {line}
+                                      </span>
+                                    ))}
+                                  </span>
+                                ) : null}
+                              </div>
                             </Link>
                           </div>
                         </td>
@@ -960,12 +960,17 @@ export function GoalsPersonDetail({
     actions,
   } = useGoalsController({ cycleId, subjectId: personId });
   const [sendBackReason, setSendBackReason] = useState("");
-  const managerTab: ManagerTab = goalId
-    ? "mine"
-    : managerTabFromHash(location.hash) ?? "mine";
+  const [embeddedManagerTab, setEmbeddedManagerTab] =
+    useState<ManagerTab>("mine");
+  const managerTab: ManagerTab = embedded
+    ? embeddedManagerTab
+    : goalId
+      ? "mine"
+      : managerTabFromHash(location.hash) ?? "mine";
   const [embeddedGoalId, setEmbeddedGoalId] = useState<string | null>(null);
 
   useEffect(() => {
+    if (embedded) return;
     if (goalId) {
       if (location.hash !== `#${GOALS_MY_GOALS_HASH}`) {
         navigate(locationWithHash(location, GOALS_MY_GOALS_HASH), {
@@ -979,7 +984,7 @@ export function GoalsPersonDetail({
         replace: true,
       });
     }
-  }, [goalId, location, navigate]);
+  }, [embedded, goalId, location, navigate]);
 
   useEffect(() => {
     if (embedded || !cycleId || !goalId || !snapshot) return;
@@ -996,6 +1001,10 @@ export function GoalsPersonDetail({
   }, [cycleId, embedded, goalId, navigate, personId, snapshot]);
 
   const setManagerTab = (tab: ManagerTab) => {
+    if (embedded) {
+      setEmbeddedManagerTab(tab);
+      return;
+    }
     navigate(locationWithHash(location, hashForManagerTab(tab)), {
       replace: true,
     });
@@ -1062,15 +1071,15 @@ export function GoalsPersonDetail({
       <div className="pd-page pd-goals" aria-label="Goals">
         <PageHeader
           title="Goals"
-          description="Select a performance cycle to set goals under it."
+          description="Select a cycle to set goals under it."
         />
         <EmptyState
           icon={Target}
           title="No goal cycles yet"
           description={
             canManageCycles
-              ? "Add a performance cycle, then come back to set goals."
-              : "Ask an administrator to add a performance cycle before setting goals."
+              ? "Add a cycle, then come back to set goals."
+              : "Ask an administrator to add a cycle before setting goals."
           }
           action={
             canManageCycles ? (
@@ -1079,7 +1088,7 @@ export function GoalsPersonDetail({
                 className="pd-people__create-btn"
               >
                 <Plus size={18} strokeWidth={2} aria-hidden />
-                Add Performance Cycle
+                Add Cycle
               </Link>
             ) : undefined
           }
@@ -2070,8 +2079,12 @@ function EmployeePanel({
       />
 
       {showsGoals ? (
-        <>
-          {!lateStage && !sendBackReason ? (
+        <div className="pd-goals__notices">
+          {!lateStage &&
+          !sendBackReason &&
+          row.status !== "draft" &&
+          row.status !== "incomplete" &&
+          row.status !== "not_eligible" ? (
             <GoalApprovalCard
               status={row.status}
               postWindowApprovalStage={row.postWindowApprovalStage}
@@ -2130,6 +2143,7 @@ function EmployeePanel({
           {canEditDraft &&
             (row.status === "draft" || row.status === "sent_back") &&
             goals.length > 0 &&
+            submitCheck.ok &&
             submitCheck.warning ? (
             <GoalCountNotice message={submitCheck.warning} />
           ) : null}
@@ -2141,8 +2155,7 @@ function EmployeePanel({
               No submission by Day 30 — flagged incomplete. Quarter score is 0.
             </Notice>
           ) : null}
-
-        </>
+        </div>
       ) : null}
 
       {!showsGoals ? null : goals.length === 0 ? (
@@ -2299,7 +2312,7 @@ function GoalsTable({
         <div role="columnheader">Goals</div>
         <div role="columnheader">Weight</div>
         <div role="columnheader">Progress</div>
-        <div className="pd-goals-table__metric" role="columnheader">
+        <div className="pd-goals-table__metric-head" role="columnheader">
           Metrics
         </div>
         {showActions ? (

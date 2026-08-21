@@ -9,7 +9,7 @@ describe('PageStatus', () => {
       <MemoryRouter>
         <PageStatus
           variant="forbidden"
-          description="You do not have permission to manage performance cycles."
+          description="You do not have permission to manage cycles."
           action={<PageStatusLink to="/" label="Back to home" />}
         />
       </MemoryRouter>,
@@ -17,7 +17,7 @@ describe('PageStatus', () => {
 
     expect(screen.getByRole('heading', { name: 'Access restricted' })).toBeInTheDocument()
     expect(
-      screen.getByText(/do not have permission to manage performance cycles/i),
+      screen.getByText(/do not have permission to manage cycles/i),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to home' })).toHaveAttribute(
       'href',

@@ -3,7 +3,9 @@ import {
   clearEmployees,
   createEmployee,
   getEmployee,
+  getEmployeeProfileExtras,
   listEmployees,
+  loadEmployeeProfile,
   updateEmployee,
 } from './store'
 
@@ -190,5 +192,66 @@ describe('employees store', () => {
     expect(result.employee.employeeId).toBe(401)
     expect(getEmployee(301)).toBeNull()
     expect(getEmployee(401)?.fullName).toBe('Move Me')
+  })
+
+  it('builds a profile payload from the subject and related people only', async () => {
+    const manager = await createEmployee({
+      employeeId: 10,
+      fullName: 'Line Manager',
+      email: 'manager@nextventures.io',
+      startDate: '2020-01-01',
+      jobTitle: 'Manager',
+      department: 'Product',
+      team: 'Core',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    expect(manager.ok).toBe(true)
+
+    const report = await createEmployee({
+      employeeId: 11,
+      fullName: 'Direct Report',
+      email: 'report@nextventures.io',
+      startDate: '2024-01-01',
+      jobTitle: 'Engineer',
+      department: 'Product',
+      team: 'Core',
+      division: '',
+      reportsToName: 'Line Manager',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: 'manager@nextventures.io',
+    })
+    expect(report.ok).toBe(true)
+
+    await createEmployee({
+      employeeId: 12,
+      fullName: 'Unrelated Person',
+      email: 'other@nextventures.io',
+      startDate: '2024-01-01',
+      jobTitle: 'Designer',
+      department: 'Design',
+      team: '',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+
+    const payload = await loadEmployeeProfile(10)
+    expect(payload?.employee.employeeId).toBe(10)
+    expect(payload?.directReports.map((row) => row.employeeId)).toEqual([11])
+    expect(payload?.directoryCount).toBe(3)
+    expect(getEmployeeProfileExtras(10)?.managerDirectReportCount).toBe(0)
   })
 })

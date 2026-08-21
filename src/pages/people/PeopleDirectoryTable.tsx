@@ -1,6 +1,4 @@
 import { memo, useLayoutEffect, useMemo, useRef } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowUpDown } from 'lucide-react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Avatar, ResizableTable, type ResizableColumn } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
@@ -9,27 +7,12 @@ import { tableDensityWrapClass } from '@/components/TableDensityToggle'
 import type { TableDensity } from '@/pages/people/prefs'
 
 const PEOPLE_COLUMNS: ResizableColumn[] = [
-  {
-    id: 'employee-id',
-    label: (
-      <span className="pd-people__th">
-        Employee ID
-        <ArrowUpDown size={13} strokeWidth={1.75} aria-hidden />
-      </span>
-    ),
-    name: 'Employee ID',
-  },
+  { id: 'employee-id', label: 'ID' },
   { id: 'name', label: 'Name', grow: true },
-  { id: 'email', label: 'Email' },
-  { id: 'start-date', label: 'Start date' },
   { id: 'job-title', label: 'Job title' },
   { id: 'department', label: 'Department' },
   { id: 'team', label: 'Team' },
-  { id: 'division', label: 'Division' },
   { id: 'reports-to', label: 'Reports to' },
-  { id: 'department-head', label: 'Department head' },
-  { id: 'hrbp', label: 'HRBP' },
-  { id: 'job-grade', label: 'Job Grade' },
   { id: 'status', label: 'Status' },
 ]
 
@@ -39,26 +22,42 @@ const OVERSCAN = 8
 
 const PersonCell = memo(function PersonCell({
   name,
+  email,
   size = 'md',
-  to,
+  onSelect,
   avatarUrl,
 }: {
   name: string
+  email?: string
   size?: 'sm' | 'md'
-  to?: string
+  onSelect?: () => void
   avatarUrl?: string
 }) {
   const style = useMemo(() => avatarStyle(name), [name])
-  const label = to ? (
-    <Link to={to} className="pd-people__person-link">
+  const label = onSelect ? (
+    <button
+      type="button"
+      className="pd-people__person-link"
+      onClick={(event) => {
+        event.stopPropagation()
+        onSelect()
+      }}
+    >
       {name}
-    </Link>
+    </button>
   ) : (
     <span className="pd-people__person-name">{name}</span>
   )
 
   return (
-    <div className="pd-people__person">
+    <div
+      className={[
+        'pd-people__person',
+        email ? 'pd-people__person--stacked' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <Avatar
         name={name}
         src={avatarUrl || undefined}
@@ -66,7 +65,14 @@ const PersonCell = memo(function PersonCell({
         className="pd-people__avatar"
         style={style}
       />
-      {label}
+      {email ? (
+        <span className="pd-people__person-identity">
+          {label}
+          <span className="pd-people__person-email">{email}</span>
+        </span>
+      ) : (
+        label
+      )}
     </div>
   )
 })
@@ -74,41 +80,60 @@ const PersonCell = memo(function PersonCell({
 const DirectoryRow = memo(function DirectoryRow({
   employee,
   manager,
+  isSelected,
+  onSelect,
 }: {
   employee: PlatformEmployee
   manager: PlatformEmployee | undefined
+  isSelected: boolean
+  onSelect: (employeeId: number) => void
 }) {
+  const openProfile = () => onSelect(employee.employeeId)
+
   return (
-    <tr>
+    <tr
+      className={['pd-people__row-link', isSelected ? 'is-selected' : '']
+        .filter(Boolean)
+        .join(' ')}
+      tabIndex={0}
+      aria-selected={isSelected}
+      onClick={(event) => {
+        const target = event.target as HTMLElement
+        if (target.closest('a, button')) return
+        openProfile()
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        openProfile()
+      }}
+    >
       <td className="pd-people__id">{employee.employeeId}</td>
       <td>
         <PersonCell
           name={employee.fullName}
+          email={employee.email || undefined}
           avatarUrl={employee.avatarUrl}
-          to={`/people/${employee.employeeId}`}
+          onSelect={openProfile}
         />
       </td>
-      <td>{employee.email || '—'}</td>
-      <td>{employee.startDate || '—'}</td>
       <td>{employee.jobTitle || '—'}</td>
       <td>{employee.department || '—'}</td>
       <td>{employee.team || '—'}</td>
-      <td>{employee.division || '—'}</td>
       <td>
         {employee.reportsToName ? (
           <PersonCell
             name={employee.reportsToName}
             size="sm"
             avatarUrl={manager?.avatarUrl}
-            to={manager ? `/people/${manager.employeeId}` : undefined}
+            onSelect={
+              manager ? () => onSelect(manager.employeeId) : undefined
+            }
           />
         ) : (
           '—'
         )}
       </td>
-      <td>{employee.departmentHeadName || '—'}</td>
-      <td>{employee.hrbpName || '—'}</td>
-      <td>{employee.jobGrade || '—'}</td>
       <td>
         <span
           className={[
@@ -152,15 +177,19 @@ export function PeopleDirectoryTable({
   employeesById,
   employeesByName,
   tableDensity,
+  selectedEmployeeId,
+  onSelectEmployee,
 }: {
   employees: PlatformEmployee[]
   employeesById: ReadonlyMap<number, PlatformEmployee>
   employeesByName: ReadonlyMap<string, PlatformEmployee>
   tableDensity: TableDensity
+  selectedEmployeeId?: number | null
+  onSelectEmployee: (employeeId: number) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldVirtualize = employees.length >= VIRTUALIZE_AFTER
-  const estimateSize = tableDensity === 'condensed' ? 36 : 52
+  const estimateSize = tableDensity === 'condensed' ? 36 : 40
 
   const virtualizer = useVirtualizer({
     count: shouldVirtualize ? employees.length : 0,
@@ -185,9 +214,9 @@ export function PeopleDirectoryTable({
     virtualRows && virtualRows.length > 0
       ? virtualRows.map((row) => employees[row.index]).filter(Boolean)
       : employees.slice(
-          0,
-          shouldVirtualize ? VIRTUALIZE_AFTER : employees.length,
-        )
+        0,
+        shouldVirtualize ? VIRTUALIZE_AFTER : employees.length,
+      )
 
   return (
     <div ref={scrollRef} className={tableDensityWrapClass(tableDensity)}>
@@ -204,6 +233,8 @@ export function PeopleDirectoryTable({
               key={employee.employeeId}
               employee={employee}
               manager={resolveManager(employee, employeesById, employeesByName)}
+              isSelected={selectedEmployeeId === employee.employeeId}
+              onSelect={onSelectEmployee}
             />
           ))}
           <SpacerRow height={paddingBottom} />

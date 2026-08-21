@@ -66,12 +66,12 @@ describe('FocusSafeTextField', () => {
         value=""
         onChange={onChange}
         inputKey="todo-1"
-        placeholder="Untitled milestone"
-        ariaLabel="Milestone"
+        placeholder="Untitled task"
+        ariaLabel="Task"
       />,
     )
 
-    const input = screen.getByLabelText('Milestone')
+    const input = screen.getByLabelText('Task')
     fireEvent.focus(input)
     fireEvent.change(input, { target: { value: 'Ship the feature' } })
 
@@ -80,8 +80,8 @@ describe('FocusSafeTextField', () => {
         value=""
         onChange={onChange}
         inputKey="todo-1"
-        placeholder="Untitled milestone"
-        ariaLabel="Milestone"
+        placeholder="Untitled task"
+        ariaLabel="Task"
       />,
     )
 

@@ -71,14 +71,17 @@ describe('resolveGoalPhase', () => {
     ).toBe(expected)
   })
 
-  it('uses the explicit phase for manually processed cycles', () => {
+  it('advances by date even when a stored cycle is marked manual', () => {
     expect(
-      reviewCycleToGoalsCycle(
+      resolveGoalPhase(
         cycle('manual'),
         'check_in',
         new Date('2026-06-15T12:00:00Z'),
-      ).phase,
-    ).toBe('check_in')
+      ),
+    ).toBe('window_open')
+    expect(
+      goalCycleStatus(cycle('manual'), new Date('2026-06-15T12:00:00Z')),
+    ).toBe('current')
   })
 
   it('treats the configured early goal window as part of the current cycle', () => {
@@ -93,7 +96,7 @@ describe('resolveGoalPhase', () => {
     )
   })
 
-  it('maps an ungrouped person to the cycle defaults, including extensions', () => {
+  it('does not apply cycle settings to an ungrouped person', () => {
     const host = cycle()
     host.stagesConfig.goals.extensions = [
       {
@@ -108,9 +111,8 @@ describe('resolveGoalPhase', () => {
       new Date('2026-06-15T12:00:00Z'),
       202,
     )
-    expect(mapped.goalWindow).toEqual(host.stagesConfig.goals.employee)
-    expect(mapped.goalExtensions).toEqual(host.stagesConfig.goals.extensions)
-    expect(mapped.postWindowGoalPolicy).toBe('two_tier_approval')
+    expect(mapped.assignedGroupId).toBeNull()
+    expect(mapped.phase).toBe('not_open')
   })
 
   it('maps a grouped person to that group window and policy without extensions', () => {
@@ -164,15 +166,17 @@ describe('resolveGoalPhase', () => {
       new Date('2026-07-15T12:00:00Z'),
       202,
     )
-    expect(ungrouped.goalWindow).toEqual(host.stagesConfig.goals.employee)
-    expect(ungrouped.phase).toBe('hard_lock')
-    expect(ungrouped.goalExtensions).toHaveLength(1)
+    expect(ungrouped.assignedGroupId).toBeNull()
+    expect(ungrouped.phase).toBe('not_open')
   })
 
-  it('keeps cycles with no groups identical to the previous mapping', () => {
+  it('does not treat an ungrouped person as part of the cycle policy', () => {
     const host = cycle()
     const today = new Date('2026-06-15T12:00:00Z')
-    expect(reviewCycleToGoalsCycle(host, 'window_open', today, 101)).toEqual(
+    const mapped = reviewCycleToGoalsCycle(host, 'window_open', today, 101)
+    expect(mapped.assignedGroupId).toBeNull()
+    expect(mapped.phase).toBe('not_open')
+    expect(mapped).not.toEqual(
       reviewCycleToGoalsCycle(host, 'window_open', today),
     )
   })

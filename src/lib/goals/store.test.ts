@@ -6,8 +6,6 @@ import {
   getReviewCycle,
   resetReviewsStoreForTests,
   updateCycleGroup,
-  updateCycleStagesConfig,
-  updateCycleSettings,
 } from "@/lib/reviews/store";
 import {
   getNotificationFeed,
@@ -131,6 +129,15 @@ function ctx(subjectId: string, actorId = subjectId): GoalMutationContext {
   };
 }
 
+async function putPeopleInGroup(memberIds: number[]) {
+  const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
+  if (!cycle) throw new Error("Expected the active cycle");
+  return createCycleGroup(cycle.id, {
+    name: "Everyone",
+    memberIds,
+  });
+}
+
 describe("goal snapshot reads", () => {
   beforeEach(async () => {
     localStorage.clear();
@@ -139,6 +146,7 @@ describe("goal snapshot reads", () => {
     await seedDirectory();
     setSignedInPerson("2");
     resetGoalsDemo();
+    await putPeopleInGroup([1, 2, 3, 4]);
   });
 
   afterEach(() => {
@@ -165,15 +173,19 @@ describe("goal snapshot reads", () => {
     expect(stored).toContain("Draft retained for next session");
   });
 
-  it("updates goal access immediately when cycle stage dates change", async () => {
+  it("updates goal access immediately when the group window changes", async () => {
+    setActivePerson("1");
     const before = getGoalsSnapshot();
     expect(before.cycle.phase).toBe("window_open");
     const reviewCycle = getReviewCycle(before.cycle.id);
-    if (!reviewCycle) throw new Error("Expected the active performance cycle");
-    const stages = structuredClone(reviewCycle.stagesConfig);
+    const group = reviewCycle?.groups?.[0];
+    if (!reviewCycle || !group) {
+      throw new Error("Expected the active cycle group");
+    }
+    const stages = structuredClone(group.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
 
-    await updateCycleStagesConfig(reviewCycle.id, stages);
+    await updateCycleGroup(reviewCycle.id, group.id, { stagesConfig: stages });
 
     expect(getGoalsSnapshot().cycle.phase).toBe("hard_lock");
   });
@@ -274,6 +286,8 @@ describe("goal snapshot reads", () => {
     vi.setSystemTime(new Date("2026-03-15T12:00:00Z"));
     await createReviewCycle({ type: "regular", periodKey: "q1-2026" });
     await createReviewCycle({ type: "regular", periodKey: "q2-2026" });
+    await createCycleGroup("q1-2026", { name: "Everyone", memberIds: [1] });
+    await createCycleGroup("q2-2026", { name: "Everyone", memberIds: [1] });
     setSignedInPerson("1");
     resetGoalsDemo();
 
@@ -303,6 +317,7 @@ describe("goal approval mutations", () => {
     // Manager is signed in so the report seeds as submitted.
     setSignedInPerson("2");
     resetGoalsDemo();
+    await putPeopleInGroup([1, 2, 3, 4]);
   });
 
   afterEach(() => {
@@ -380,12 +395,15 @@ describe("goal approval mutations", () => {
   it("routes post-window submissions through manager and manager’s manager", async () => {
     sendBackSubmission(ctx("1", "2"), "Submit this as an exception.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active performance cycle");
-    const stages = structuredClone(cycle.stagesConfig);
+    const group = cycle?.groups?.[0];
+    if (!cycle || !group) {
+      throw new Error("Expected the active cycle group");
+    }
+    const stages = structuredClone(group.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
-    await updateCycleStagesConfig(cycle.id, stages);
-    await updateCycleSettings(cycle.id, {
-      postWindowGoalPolicy: "two_tier_approval",
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: stages,
+      settings: { postWindowGoalPolicy: "two_tier_approval" },
     });
 
     const submitted = submitPersonGoals(ctx("1", "1"));
@@ -412,11 +430,16 @@ describe("goal approval mutations", () => {
   it("blocks post-window input when the cycle uses a hard stop", async () => {
     sendBackSubmission(ctx("1", "2"), "Revise after the deadline.");
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active performance cycle");
-    const stages = structuredClone(cycle.stagesConfig);
+    const group = cycle?.groups?.[0];
+    if (!cycle || !group) {
+      throw new Error("Expected the active cycle group");
+    }
+    const stages = structuredClone(group.stagesConfig);
     stages.goals.employee.endDate = "2026-06-10";
-    await updateCycleStagesConfig(cycle.id, stages);
-    await updateCycleSettings(cycle.id, { postWindowGoalPolicy: "hard_stop" });
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: stages,
+      settings: { postWindowGoalPolicy: "hard_stop" },
+    });
 
     expect(() => submitPersonGoals(ctx("1", "1"))).toThrow(
       "permission to submit",
@@ -469,7 +492,7 @@ describe("cycle people groups on Goals", () => {
 
   it("uses the person's group deadline, count, and late policy", async () => {
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active performance cycle");
+    if (!cycle) throw new Error("Expected the active cycle");
 
     const group = await createCycleGroup(cycle.id, {
       name: "Leadership",
@@ -504,20 +527,16 @@ describe("cycle people groups on Goals", () => {
 
     setActivePerson("2");
     const ungrouped = getGoalsSnapshot();
-    expect(ungrouped.cycle.goalWindow?.endDate).toBe(
-      cycle.stagesConfig.goals.employee.endDate,
-    );
-    expect(ungrouped.cycle.postWindowGoalPolicy).toBe(
-      cycle.settings.postWindowGoalPolicy,
-    );
-    expect(ungrouped.cycle.goalCountPolicy.minimumRequired).toBe(
-      cycle.settings.goalCountPolicy.minimumRequired,
+    expect(ungrouped.cycle.assignedGroupId).toBeNull();
+    expect(ungrouped.cycle.phase).toBe("not_open");
+    expect(() => submitPersonGoals(ctx("2", "2"))).toThrow(
+      "permission to submit",
     );
   });
 
-  it("blocks submit when the group requires more goals than the cycle default", async () => {
+  it("blocks submit when the group requires more goals than the template", async () => {
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active performance cycle");
+    if (!cycle) throw new Error("Expected the active cycle");
     const group = await createCycleGroup(cycle.id, {
       name: "Leadership",
       memberIds: [1],
@@ -536,15 +555,13 @@ describe("cycle people groups on Goals", () => {
     expect(() => submitPersonGoals(ctx("1", "1"))).toThrow("Add at least 8 goals.");
   });
 
-  it("still applies cycle defaults when the cycle has no groups", () => {
+  it("does not apply cycle settings when the person is in no group", () => {
     const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
-    if (!cycle) throw new Error("Expected the active performance cycle");
+    if (!cycle) throw new Error("Expected the active cycle");
+    setActivePerson("1");
     const snapshot = getGoalsSnapshot();
     expect(cycle.groups ?? []).toEqual([]);
-    expect(snapshot.cycle.goalCountPolicy).toEqual(cycle.settings.goalCountPolicy);
-    expect(snapshot.cycle.postWindowGoalPolicy).toBe(
-      cycle.settings.postWindowGoalPolicy,
-    );
-    expect(snapshot.cycle.goalWindow).toEqual(cycle.stagesConfig.goals.employee);
+    expect(snapshot.cycle.assignedGroupId).toBeNull();
+    expect(snapshot.cycle.phase).toBe("not_open");
   });
 });

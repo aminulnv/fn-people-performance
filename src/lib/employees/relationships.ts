@@ -46,6 +46,35 @@ export function countDirectReports(manager: PlatformEmployee | null): number {
   return listDirectReports(manager).length
 }
 
+/** Enough of a person to link from profile fields before the directory lands. */
+export function relatedPersonStub(
+  employeeId: number | undefined,
+  fullName: string,
+  email = '',
+): PlatformEmployee | null {
+  if (employeeId == null || employeeId <= 0) return null
+  return {
+    employeeId,
+    fullName: fullName.trim(),
+    email,
+    startDate: '',
+    jobTitle: '',
+    department: '',
+    team: '',
+    division: '',
+    reportsToName: '',
+    departmentHeadName: '',
+    hrbpName: '',
+    jobGrade: '',
+    site: '',
+    avatarUrl: '',
+    managerEmail: '',
+    isActive: true,
+    createdAt: '',
+    updatedAt: '',
+  }
+}
+
 export function resolveDepartmentHead(
   employee: PlatformEmployee | null,
 ): PlatformEmployee | null {
@@ -55,12 +84,16 @@ export function resolveDepartmentHead(
     if (match) return match
   }
   const headName = employee.departmentHeadName.trim().toLocaleLowerCase()
-  if (!headName) return null
-  return (
-    listEmployees().find(
+  if (headName) {
+    const match = listEmployees().find(
       (candidate) =>
         candidate.fullName.trim().toLocaleLowerCase() === headName,
-    ) ?? null
+    )
+    if (match) return match
+  }
+  return relatedPersonStub(
+    employee.departmentHeadId,
+    employee.departmentHeadName,
   )
 }
 
@@ -73,13 +106,14 @@ export function resolveHrbp(
     if (match) return match
   }
   const hrbpName = employee.hrbpName.trim().toLocaleLowerCase()
-  if (!hrbpName) return null
-  return (
-    listEmployees().find(
+  if (hrbpName) {
+    const match = listEmployees().find(
       (candidate) =>
         candidate.fullName.trim().toLocaleLowerCase() === hrbpName,
-    ) ?? null
-  )
+    )
+    if (match) return match
+  }
+  return relatedPersonStub(employee.hrbpId, employee.hrbpName)
 }
 
 export type TeamOwnerSources = {
@@ -182,5 +216,8 @@ export function resolveTeamOwner(
   )
   if (fromCatalog) return fromCatalog
 
-  return personByIdOrName(employee.teamOwnerId, employee.teamOwnerName)
+  return (
+    personByIdOrName(employee.teamOwnerId, employee.teamOwnerName) ??
+    relatedPersonStub(employee.teamOwnerId, employee.teamOwnerName ?? '')
+  )
 }

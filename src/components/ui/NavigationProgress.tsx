@@ -82,9 +82,11 @@ export function NavigationProgressProvider({ children }: { children: ReactNode }
     }, FINISH_MS)
   }, [clearTimers])
 
+  const pageKey = pageIdentity(location.pathname)
+
   useEffect(() => {
     start()
-  }, [location.key, start])
+  }, [pageKey, start])
 
   useEffect(() => clearTimers, [clearTimers])
 
@@ -112,14 +114,24 @@ export function RouteProgressComplete() {
 }
 
 /**
- * Suspense boundary content keyed by navigation so completion only runs after
- * the next lazy page chunk has loaded (not when the URL changes).
+ * Ignores URL bits that only open a right-rail drawer, so the page stays
+ * mounted and the panel can start sliding on the same click.
+ */
+function pageIdentity(pathname: string): string {
+  const goalsPerson = pathname.match(/^(\/goals\/[^/]+\/[^/]+)/)
+  if (goalsPerson) return goalsPerson[1]
+  return pathname
+}
+
+/**
+ * Suspense boundary content keyed by page, so completion runs after the next
+ * lazy page chunk has loaded. Drawer-only URL changes keep the page mounted.
  */
 export function SuspenseRouteContent() {
-  const { key } = useLocation()
+  const { pathname } = useLocation()
 
   return (
-    <Fragment key={key}>
+    <Fragment key={pageIdentity(pathname)}>
       <Outlet />
       <RouteProgressComplete />
     </Fragment>

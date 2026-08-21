@@ -4,7 +4,12 @@ import type { DemoPerson, GoalsCycle, GoalsSnapshot, PersonGoals } from '@/lib/g
 const mockGetGoalsSnapshot = vi.fn<() => GoalsSnapshot>()
 const mockGetCurrentReviewCycleId = vi.fn<(today?: Date) => string | null>()
 const mockResolveGoalsCycle = vi.fn<
-  (cycleId: string, manualPhase: GoalsCycle['phase'], today?: Date) => GoalsCycle | null
+  (
+    cycleId: string,
+    manualPhase: GoalsCycle['phase'],
+    today?: Date,
+    employeeId?: number | null,
+  ) => GoalsCycle | null
 >()
 const mockGetReviewCycle = vi.fn()
 
@@ -14,11 +19,17 @@ vi.mock('@/lib/goals/store', () => ({
 
 vi.mock('@/lib/goals/cyclesFromReviews', () => ({
   getCurrentReviewCycleId: (today?: Date) => mockGetCurrentReviewCycleId(today),
+  parseGoalsEmployeeId: (personId?: string | number | null) => {
+    if (personId == null || personId === '') return undefined
+    const employeeId = Number(personId)
+    return Number.isInteger(employeeId) ? employeeId : undefined
+  },
   resolveGoalsCycle: (
     cycleId: string,
     manualPhase: GoalsCycle['phase'],
     today?: Date,
-  ) => mockResolveGoalsCycle(cycleId, manualPhase, today),
+    employeeId?: number | null,
+  ) => mockResolveGoalsCycle(cycleId, manualPhase, today, employeeId),
 }))
 
 vi.mock('@/lib/reviews/store', () => ({
@@ -313,5 +324,15 @@ describe('resolveHomeBanners', () => {
       false,
     )
     expect(needsOwnGoalSubmission(row({ status: 'approved', goals: [] }))).toBe(true)
+  })
+
+  it('returns no banners when the person is not in a cycle group', () => {
+    mockGetGoalsSnapshot.mockReturnValue(snapshot())
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({ assignedGroupId: null, phase: 'not_open' }),
+    )
+
+    expect(resolveHomeBanners(person())).toEqual([])
   })
 })

@@ -16,6 +16,7 @@ import {
 import {
   createPlatformDepartment,
   getPlatformEmployee,
+  getPlatformEmployeeProfile,
   listPlatformDepartments,
   listPlatformDivisions,
   listPlatformEmployees,
@@ -156,9 +157,9 @@ export function registerPlatformRoutes(app) {
       if (!Number.isInteger(employeeId)) {
         throw new HttpError(400, 'Invalid employee id')
       }
-      const employee = await getPlatformEmployee(employeeId)
-      if (!employee) throw new HttpError(404, 'Employee not found')
-      res.json({ employee })
+      const profile = await getPlatformEmployeeProfile(employeeId)
+      if (!profile) throw new HttpError(404, 'Employee not found')
+      res.json(profile)
     }),
   )
 

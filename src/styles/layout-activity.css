@@ -65,7 +65,7 @@
   box-shadow: var(--shadow-deep);
   color: var(--color-text);
   outline: none;
-  animation: pd-activity-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
+  animation: pd-activity-drawer-in var(--pd-drawer-in-duration) var(--pd-drawer-in-ease) var(--pd-drawer-in-delay) both;
 }
 
 .pd-activity-drawer__head {

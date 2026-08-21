@@ -56,7 +56,7 @@ export function recordMilestoneProgress(
         author,
         todo.complete ? 1 : 0,
         complete ? 1 : 0,
-        todo.title.trim() || 'Milestone',
+        todo.title.trim() || 'Task',
         at,
       ),
     ],
@@ -73,7 +73,7 @@ export function progressLogStatusLabel(entry: ProgressLogEntry): string {
 
 export function progressLogSummary(entry: ProgressLogEntry): string {
   if (isMilestoneProgressLog(entry)) {
-    const title = entry.label ?? 'Milestone'
+    const title = entry.label ?? 'Task'
     return `${progressLogStatusLabel(entry)}: ${title}`
   }
   const from = entry.from == null ? '—' : String(entry.from)

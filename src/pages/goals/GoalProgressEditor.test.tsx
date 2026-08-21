@@ -125,6 +125,7 @@ describe('GoalProgressEditor', () => {
     expect(screen.queryByDisplayValue('Task List 1')).toBeNull()
     expect(screen.queryByText('0/1 done')).toBeNull()
     expect(screen.getByDisplayValue('Task Item 001')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add task' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add task list' })).toBeInTheDocument()
   })
 

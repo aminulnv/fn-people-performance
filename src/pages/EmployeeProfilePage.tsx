@@ -16,6 +16,7 @@ import {
   KeyRound,
   Mail,
   MapPin,
+  Maximize2,
   MoreHorizontal,
   Network,
   Pencil,
@@ -37,6 +38,7 @@ import { hasSystemPermission } from '@/lib/accessControl/types'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   countDirectReports,
+  relatedPersonStub,
   resolveDepartmentHead,
   resolveHrbp,
   resolveTeamOwner,
@@ -45,12 +47,12 @@ import {
 import {
   findEmployeeByEmail,
   getEmployee,
+  getEmployeeProfileExtras,
   listEmployees,
-  listTeams,
 } from '@/lib/employees/store'
+import { useEmployeeProfile } from '@/lib/employees/useEmployeeProfile'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import type { PlatformEmployee, PlatformTeam } from '@/lib/employees/types'
-import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
+import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   departmentPathForName,
   organisationPathForEmployee,
@@ -188,12 +190,17 @@ export function resolveManager(
     if (match) return match
   }
   const managerName = employee.reportsToName.trim().toLocaleLowerCase()
-  if (!managerName) return null
-  return (
-    listEmployees().find(
+  if (managerName) {
+    const match = listEmployees().find(
       (candidate) =>
         candidate.fullName.trim().toLocaleLowerCase() === managerName,
-    ) ?? null
+    )
+    if (match) return match
+  }
+  return relatedPersonStub(
+    employee.reportsToId,
+    employee.reportsToName,
+    employee.managerEmail,
   )
 }
 
@@ -257,26 +264,34 @@ export function EmployeeProfileView({
   departmentHead,
   hrbp,
   isSelf = false,
+  embedded = false,
+  fullViewHref,
 }: {
   employee: PlatformEmployee
   manager: PlatformEmployee | null
   departmentHead: PlatformEmployee | null
   hrbp: PlatformEmployee | null
   isSelf?: boolean
+  /** Render inside a side panel; tabs stay local so the directory hash is free. */
+  embedded?: boolean
+  fullViewHref?: string
 }) {
   const { user } = useAuth()
-  const { employees } = useEmployees()
-  const [teams, setTeams] = useState<PlatformTeam[]>([])
-  const goalTodos = useGoalTodoCounts()
+  const { employees, loadState } = useEmployees({ load: false })
+  const [hashTab, setHashTab] = useUrlHashTab<ProfileTabId>({
+    defaultTab: 'profile',
+    tabFromHash: profileTabFromHash,
+    hashFromTab: hashForProfileTab,
+    enabled: !embedded,
+  })
+  const [localTab, setLocalTab] = useState<ProfileTabId>('profile')
+  const tab = embedded ? localTab : hashTab
+  const setTab = embedded ? setLocalTab : setHashTab
+  const goalTodos = useGoalTodoCounts({ load: tab === 'goals' })
   const tabOptions = useMemo(
     () => profileTabOptions(goalTodos.total),
     [goalTodos.total],
   )
-  const [tab, setTab] = useUrlHashTab<ProfileTabId>({
-    defaultTab: 'profile',
-    tabFromHash: profileTabFromHash,
-    hashFromTab: hashForProfileTab,
-  })
   const [activityOpen, setActivityOpen] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement>(null)
@@ -292,38 +307,23 @@ export function EmployeeProfileView({
   const departmentHeadName =
     departmentHead?.fullName || employee.departmentHeadName
   const hrbpName = hrbp?.fullName || employee.hrbpName
-  const orgTeams = useMemo(
-    () => buildOrganisationFromEmployees(employees).teams,
-    [employees],
-  )
-  const teamOwnerSources = useMemo(
-    () => ({ teams, orgTeams }),
-    [teams, orgTeams],
-  )
+  const extras = getEmployeeProfileExtras(employee.employeeId)
+  const directoryReady = loadState === 'ready'
   const teamOwner = useMemo(
-    () => resolveTeamOwner(employee, teamOwnerSources),
-    [employee, teamOwnerSources],
+    () => resolveTeamOwner(employee),
+    [employee, employees],
   )
   const teamOwnerName =
-    teamOwner?.fullName ||
-    teamOwnerFallbackName(employee, teamOwnerSources)
-  const managerReportCount = countDirectReports(manager)
-  const directoryCount = listEmployees().length
+    teamOwner?.fullName || teamOwnerFallbackName(employee)
+  const managerReportCount =
+    extras?.managerDirectReportCount ?? countDirectReports(manager)
+  const directoryCount = extras?.directoryCount ?? listEmployees().length
   const orgPath = organisationPathForEmployee(employee)
 
   useEffect(() => {
-    let cancelled = false
-    void listTeams()
-      .then((rows) => {
-        if (!cancelled) setTeams(rows)
-      })
-      .catch(() => {
-        if (!cancelled) setTeams([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [employees])
+    if (!embedded) return
+    setLocalTab('profile')
+  }, [embedded, employee.employeeId])
 
   useEffect(() => {
     if (!moreOpen) return
@@ -354,7 +354,14 @@ export function EmployeeProfileView({
   }
 
   return (
-    <div className="pd-page pd-people pd-profile" aria-label={employee.fullName}>
+    <div
+      className={
+        embedded
+          ? 'pd-people pd-profile pd-profile--embedded'
+          : 'pd-page pd-people pd-profile'
+      }
+      aria-label={employee.fullName}
+    >
       <section className="pd-profile__hero">
         <div className="pd-profile__hero-main">
           <Avatar
@@ -377,13 +384,32 @@ export function EmployeeProfileView({
         </div>
 
         <div className="pd-profile__hero-actions">
+          {fullViewHref ? (
+            <Link
+              to={fullViewHref}
+              className={
+                embedded ? 'pd-people__icon-btn' : 'pd-people__ghost-btn'
+              }
+              aria-label="Full view"
+              title="Full view"
+            >
+              <Maximize2 size={16} strokeWidth={1.75} aria-hidden />
+              {embedded ? null : 'Full view'}
+            </Link>
+          ) : null}
           {canEdit ? (
             <Link
               to={`/people/${employee.employeeId}/edit`}
-              className="pd-people__ghost-btn pd-people__ghost-btn--outline"
+              className={
+                embedded
+                  ? 'pd-people__icon-btn'
+                  : 'pd-people__ghost-btn pd-people__ghost-btn--outline'
+              }
+              aria-label="Edit"
+              title="Edit"
             >
-              <Pencil size={15} strokeWidth={1.75} aria-hidden />
-              Edit
+              <Pencil size={16} strokeWidth={1.75} aria-hidden />
+              {embedded ? null : 'Edit'}
             </Link>
           ) : null}
           <div className="pd-profile__more" ref={moreMenuRef}>
@@ -455,7 +481,14 @@ export function EmployeeProfileView({
           isSelf={isSelf}
         />
       ) : tab === 'team' ? (
-        <EmployeeProfileTeamTab employee={employee} isSelf={isSelf} />
+        <EmployeeProfileTeamTab
+          employee={employee}
+          isSelf={isSelf}
+          reports={
+            directoryReady ? undefined : extras?.directReports
+          }
+          reportCounts={extras?.nestedReportCounts}
+        />
       ) : (
         <div className="pd-profile__grid">
           <div className="pd-profile__col">
@@ -586,18 +619,20 @@ export function EmployeeProfileView({
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
               </Link>
-              <Link
-                to={isSelf ? '/organisation/chart' : '/people'}
-                className="pd-profile__nav-card"
-              >
-                <GitBranch size={18} strokeWidth={1.75} aria-hidden />
-                <span>
-                  <span className="pd-profile__nav-title">
-                    {isSelf ? 'View Org Chart' : 'Back to People'}
+              {embedded && !isSelf ? null : (
+                <Link
+                  to={isSelf ? '/organisation/chart' : '/people'}
+                  className="pd-profile__nav-card"
+                >
+                  <GitBranch size={18} strokeWidth={1.75} aria-hidden />
+                  <span>
+                    <span className="pd-profile__nav-title">
+                      {isSelf ? 'View Org Chart' : 'Back to People'}
+                    </span>
                   </span>
-                </span>
-                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-              </Link>
+                  <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+                </Link>
+              )}
             </nav>
           </aside>
         </div>
@@ -616,12 +651,10 @@ export function EmployeeProfileView({
 export default function EmployeeProfilePage() {
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
-  const { employees, isLoading, loadError, reload } = useEmployees()
-
-  const employee = useMemo(() => {
-    if (!Number.isInteger(employeeId) || employeeId <= 0) return null
-    return getEmployee(employeeId)
-  }, [employeeId, employees])
+  const { employee, isLoading, loadError, reload } = useEmployeeProfile({
+    employeeId:
+      Number.isInteger(employeeId) && employeeId > 0 ? employeeId : null,
+  })
 
   const manager = useMemo(() => resolveManager(employee), [employee])
   const departmentHead = useMemo(
