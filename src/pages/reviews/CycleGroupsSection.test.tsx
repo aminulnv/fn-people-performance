@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { CycleGroupsSection } from './CycleGroupsSection'
@@ -96,7 +96,7 @@ function sampleCycle(groups: CycleGroup[]): ReviewCycle {
 }
 
 describe('CycleGroupsSection', () => {
-  it('lists groups in a table with shared stage columns', () => {
+  it('lists groups as cards with people counts', () => {
     render(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup(), sampleGroup({ id: 'group-2', name: 'New group', memberIds: [] })])}
@@ -106,17 +106,14 @@ describe('CycleGroupsSection', () => {
       />,
     )
 
-    const table = screen.getByRole('table')
-    expect(within(table).getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'People' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'Goals' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'Review flow' })).toBeInTheDocument()
-    expect(within(table).getByRole('columnheader', { name: 'Window' })).toBeInTheDocument()
-    expect(screen.getByText('1 person')).toBeInTheDocument()
-    expect(screen.getByText('0 people')).toBeInTheDocument()
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Everyone' })).toHaveTextContent('1 person')
+    expect(screen.getByRole('button', { name: 'New group' })).toHaveTextContent('0 people')
+    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
   })
 
-  it('opens a group from its name', () => {
+  it('opens a group from its card', () => {
     const onOpenGroup = vi.fn()
     render(
       <CycleGroupsSection
@@ -129,6 +126,21 @@ describe('CycleGroupsSection', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Everyone' }))
     expect(onOpenGroup).toHaveBeenCalledWith('group-1')
+  })
+
+  it('adds a group from the dashed card', () => {
+    const onAddGroup = vi.fn()
+    render(
+      <CycleGroupsSection
+        cycle={sampleCycle([sampleGroup()])}
+        onAddGroup={onAddGroup}
+        onDelete={() => {}}
+        onOpenGroup={() => {}}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create new group' }))
+    expect(onAddGroup).toHaveBeenCalled()
   })
 
   it('confirms before deleting a group', () => {
@@ -159,7 +171,7 @@ describe('CycleGroupsSection', () => {
     )
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Create first group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create a group' }))
     expect(onAddGroup).toHaveBeenCalled()
   })
 })

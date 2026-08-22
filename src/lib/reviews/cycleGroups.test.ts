@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { buildDefaultStagesConfig, DEFAULT_CALIBRATION, DEFAULT_CYCLE_SETTINGS } from './demoData'
+import { buildDefaultStagesConfig, DEFAULT_CALIBRATION, DEFAULT_CYCLE_SETTINGS, normalizeCalibration } from './demoData'
 import {
   assignMembersExclusively,
   cloneCycleSettingsIntoGroup,
+  cycleMemberIds,
   findCycleGroupForPerson,
   groupDiffersFromCycle,
   resolveCyclePolicyForPerson,
@@ -93,5 +94,28 @@ describe('findCycleGroupForPerson', () => {
   it('returns null for a missing or invalid employee id', () => {
     expect(findCycleGroupForPerson(cycle(), 1)).toBeNull()
     expect(findCycleGroupForPerson(cycle(), Number.NaN)).toBeNull()
+  })
+})
+
+describe('cycleMemberIds', () => {
+  it('returns unique people listed on any group', () => {
+    const host = cycle()
+    host.groups = [
+      group({ id: 'a', memberIds: [101, 102] }),
+      group({ id: 'b', memberIds: [102, 103] }),
+    ]
+    expect(cycleMemberIds(host).sort((left, right) => left - right)).toEqual([
+      101, 102, 103,
+    ])
+  })
+})
+
+describe('normalizeCalibration', () => {
+  it('keeps unique senior leadership ids', () => {
+    expect(
+      normalizeCalibration({
+        sltMemberIds: [11, 11, 0, 22],
+      }).sltMemberIds,
+    ).toEqual([11, 22])
   })
 })

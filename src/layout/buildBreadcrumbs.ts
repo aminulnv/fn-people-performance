@@ -1,6 +1,7 @@
 import { matchPath } from 'react-router-dom'
 import type { BreadcrumbItem } from '@/components/ui'
 import { profileNavItem, settingsNavItem } from '@/config/layout'
+import { cycleDetailPath } from '@/lib/reviews/paths'
 import type { NavItem } from './types'
 
 export type BreadcrumbContext = {
@@ -10,6 +11,7 @@ export type BreadcrumbContext = {
   departmentName?: string | null
   teamName?: string | null
   cycleName?: string | null
+  cycleGroupName?: string | null
   scorecardCycleLabel?: string | null
   goalsCycleLabel?: string | null
   goalsGoalTitle?: string | null
@@ -46,6 +48,7 @@ export function buildBreadcrumbs({
   departmentName,
   teamName,
   cycleName,
+  cycleGroupName,
   scorecardCycleLabel,
   goalsCycleLabel,
   goalsGoalTitle,
@@ -123,6 +126,26 @@ export function buildBreadcrumbs({
       { label: 'Organisation', href: '/organisation' },
       {
         label: teamName?.trim() || decodeURIComponent(team.params.teamId),
+      },
+    ]
+  }
+
+  const cycleGroup = matchPath(
+    { path: '/cycles/:cycleId/groups/:groupId', end: true },
+    pathname,
+  )
+  if (cycleGroup?.params.cycleId && cycleGroup.params.groupId) {
+    const cycleId = decodeURIComponent(cycleGroup.params.cycleId)
+    return [
+      { label: 'Cycles', href: '/cycles' },
+      {
+        label: cycleName?.trim() || cycleId,
+        href: cycleDetailPath(cycleId),
+      },
+      {
+        label:
+          cycleGroupName?.trim() ||
+          decodeURIComponent(cycleGroup.params.groupId),
       },
     ]
   }

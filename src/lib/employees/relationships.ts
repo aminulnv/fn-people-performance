@@ -1,3 +1,4 @@
+import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import type { OrgTeam } from '@/lib/organisation/types'
 import { getEmployee, listEmployees } from './store'
 import type { PlatformEmployee, PlatformTeam } from './types'
@@ -183,12 +184,19 @@ export function findOrgTeam(
   return nameMatches.length === 1 ? nameMatches[0] : null
 }
 
+function orgTeamsForOwner(
+  sources: TeamOwnerSources,
+): OrgTeam[] {
+  if (sources.orgTeams) return sources.orgTeams
+  return buildOrganisationFromEmployees(listEmployees()).teams
+}
+
 export function teamOwnerFallbackName(
   employee: PlatformEmployee | null,
   sources: TeamOwnerSources = {},
 ): string {
   if (!employee) return ''
-  const orgTeam = findOrgTeam(employee, sources.orgTeams ?? [])
+  const orgTeam = findOrgTeam(employee, orgTeamsForOwner(sources))
   const fromOrg = orgTeam?.manager?.fullName.trim() ?? ''
   if (fromOrg) return fromOrg
   const catalog = findCatalogTeam(employee, sources.teams ?? [])
@@ -202,7 +210,7 @@ export function resolveTeamOwner(
   sources: TeamOwnerSources = {},
 ): PlatformEmployee | null {
   if (!employee) return null
-  const orgTeam = findOrgTeam(employee, sources.orgTeams ?? [])
+  const orgTeam = findOrgTeam(employee, orgTeamsForOwner(sources))
   const fromOrg = personByIdOrName(
     orgTeam?.manager?.employeeId,
     orgTeam?.manager?.fullName,

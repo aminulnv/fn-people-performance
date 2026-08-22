@@ -121,6 +121,24 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
+  it('builds Cycles > cycle > group for group settings', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/cycles/q1-2027/groups/group-1',
+        navItems: [
+          ...navItems,
+          { path: '/cycles', label: 'Cycles', icon: Home },
+        ],
+        cycleName: 'Q1 2027',
+        cycleGroupName: 'Everyone',
+      }),
+    ).toEqual([
+      { label: 'Cycles', href: '/cycles' },
+      { label: 'Q1 2027', href: '/cycles/q1-2027/settings' },
+      { label: 'Everyone' },
+    ])
+  })
+
   it('builds Reviews > Scorecards > cycle > full name for scorecard detail', () => {
     expect(
       buildBreadcrumbs({

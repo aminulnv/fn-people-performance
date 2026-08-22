@@ -9,6 +9,17 @@ export function cycleGroupsOf(cycle: Pick<ReviewCycle, 'groups'>): CycleGroup[] 
   return cycle.groups ?? []
 }
 
+/** People listed on any group. Anyone else is outside the cycle. */
+export function cycleMemberIds(cycle: Pick<ReviewCycle, 'groups'>): number[] {
+  return [
+    ...new Set(
+      cycleGroupsOf(cycle).flatMap((group) =>
+        group.memberIds.filter((id) => Number.isInteger(id)),
+      ),
+    ),
+  ]
+}
+
 export function findCycleGroupForPerson(
   cycle: Pick<ReviewCycle, 'groups'>,
   employeeId: number,

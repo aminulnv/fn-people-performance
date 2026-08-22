@@ -130,6 +130,10 @@ describe('listCycleCalendarMonths', () => {
       '2026-09',
     ])
   })
+
+  it('caps runaway date ranges so the calendar cannot freeze the page', () => {
+    expect(listCycleCalendarMonths('2000-01-01', '2099-12-31')).toHaveLength(24)
+  })
 })
 
 describe('initialCalendarMonthIndex', () => {

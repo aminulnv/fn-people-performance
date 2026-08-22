@@ -1,0 +1,295 @@
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  MemoryRouter,
+  Route,
+  Routes,
+  useLocation,
+  useSearchParams,
+} from 'react-router-dom'
+import type { PlatformEmployee } from '@/lib/employees/types'
+import type { ReviewPacket } from '@/lib/reviews/types'
+import { createCycleGroup, listReviewCycles, resetReviewsStoreForTests } from '@/lib/reviews/store'
+import ScorecardDetailPage from '@/pages/ScorecardDetailPage'
+import { ReviewPacketView } from './ReviewPacketView'
+
+const { employeesState, authState, packetState, saveReviewPacket } = vi.hoisted(
+  () => ({
+    employeesState: {
+      employees: [] as PlatformEmployee[],
+      loadState: 'ready' as const,
+      loadError: null as string | null,
+      isLoading: false,
+      reload: vi.fn(async () => {}),
+    },
+    authState: {
+      user: {
+        id: '1',
+        email: 'alex.manager@example.com',
+        name: 'Alex Manager',
+        personId: '1',
+        employeeId: 1,
+      },
+    },
+    packetState: {
+      packet: null as ReviewPacket | null,
+    },
+    saveReviewPacket: vi.fn(),
+  }),
+)
+
+vi.mock('@/lib/employees/useEmployees', () => ({
+  useEmployees: () => employeesState,
+}))
+
+vi.mock('@/lib/auth', () => ({
+  useAuth: () => authState,
+}))
+
+vi.mock('@/lib/useAuth', () => ({
+  useAuth: () => authState,
+}))
+
+vi.mock('@/lib/goalsApi', () => ({
+  selectGoalCycle: async () => {},
+}))
+
+vi.mock('@/lib/goals/store', () => ({
+  getGoalsSnapshotForCycle: () => ({ byPerson: {} }),
+  subscribeGoalsStore: () => () => {},
+}))
+
+vi.mock('@/lib/reviews/packetsApi', () => ({
+  fetchReviewPacket: async () => {
+    if (!packetState.packet) throw new Error('missing packet')
+    return packetState.packet
+  },
+  saveReviewPacket,
+  calibrateReviewPacket: vi.fn(),
+  appealReviewPacket: vi.fn(),
+}))
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+  }
+})
+
+function employee(
+  partial: Partial<PlatformEmployee> & { employeeId: number; fullName: string },
+): PlatformEmployee {
+  return {
+    email: `${partial.fullName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+    startDate: '2024-01-01',
+    jobTitle: 'Engineer',
+    department: 'Product',
+    team: 'Core',
+    division: '',
+    reportsToName: '',
+    departmentHeadName: '',
+    hrbpName: '',
+    jobGrade: 'IC2',
+    site: '',
+    avatarUrl: '',
+    managerEmail: '',
+    isActive: true,
+    createdAt: '2024-01-01T00:00:00.000Z',
+    updatedAt: '2024-01-01T00:00:00.000Z',
+    ...partial,
+  }
+}
+
+function packet(cycleId: string, partial: Partial<ReviewPacket> = {}): ReviewPacket {
+  return {
+    id: 'pkt-1',
+    cycleId,
+    groupId: 'group-1',
+    employeeId: 2,
+    managerEmployeeId: 1,
+    status: 'manager_in_progress',
+    selfOverallGrade: null,
+    managerOverallGrade: null,
+    calibratedOverallGrade: null,
+    publishedOverallGrade: null,
+    managerOverrideReason: '',
+    goalsComponent: null,
+    answers: [],
+    pillarScores: [],
+    calibrationEvents: [],
+    appeals: [],
+    version: 1,
+    ...partial,
+  }
+}
+
+let cycleId = 'q3-2026'
+
+beforeEach(async () => {
+  resetReviewsStoreForTests()
+  const manager = employee({
+    employeeId: 1,
+    fullName: 'Alex Manager',
+    email: 'alex.manager@example.com',
+    jobTitle: 'Engineering Manager',
+    jobGrade: 'M1',
+  })
+  const report = employee({
+    employeeId: 2,
+    fullName: 'Riley Report',
+    reportsToId: 1,
+    reportsToName: 'Alex Manager',
+    managerEmail: 'alex.manager@example.com',
+  })
+  employeesState.employees = [manager, report]
+  const cycle = listReviewCycles()[0]
+  if (!cycle) throw new Error('expected a seeded cycle')
+  cycleId = cycle.id
+  await createCycleGroup(cycle.id, {
+    name: 'Everyone',
+    memberIds: [1, 2],
+  })
+  packetState.packet = packet(cycle.id)
+  saveReviewPacket.mockReset()
+  saveReviewPacket.mockImplementation(async (_id: string, body: { submit?: boolean }) => ({
+    ...packetState.packet!,
+    status: body.submit ? 'manager_submitted' : 'manager_in_progress',
+    managerOverallGrade: 'performing',
+  }))
+})
+
+afterEach(() => {
+  cleanup()
+  employeesState.employees = []
+  packetState.packet = null
+})
+
+function ScorecardRoute() {
+  const [params] = useSearchParams()
+  const location = useLocation()
+  if (params.get('mode') === 'edit') {
+    return <ReviewPacketView cycleId={cycleId} employeeId={2} />
+  }
+  const notice = (
+    location.state as { reviewNotice?: { message: string } } | null
+  )?.reviewNotice
+  return (
+    <>
+      <p>Scorecard view</p>
+      {notice ? <p role="status">{notice.message}</p> : null}
+    </>
+  )
+}
+
+function renderEdit() {
+  return render(
+    <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2?mode=edit`]}>
+      <Routes>
+        <Route
+          path="/reviews/scorecards/:cycleKey/:employeeId"
+          element={<ScorecardRoute />}
+        />
+      </Routes>
+    </MemoryRouter>,
+  )
+}
+
+describe('ScorecardDetailPage', () => {
+  it('floats Edit in the same action island as the editor', async () => {
+    render(
+      <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2`]}>
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const toolbar = await screen.findByRole('toolbar', { name: 'Review actions' })
+    expect(toolbar.querySelector('.pd-review-packet__island')).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
+      'href',
+      `/reviews/scorecards/${cycleId}/2?mode=edit`,
+    )
+    expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
+  })
+})
+
+describe('ReviewPacketView', () => {
+  it('keeps Cancel, Save draft, and Submit in one action row', async () => {
+    renderEdit()
+    const toolbar = await screen.findByRole('toolbar', { name: 'Review actions' })
+    const actions = toolbar.querySelector('.pd-review-packet__actions')
+    expect(toolbar.querySelector('.pd-review-packet__island')).toBeTruthy()
+    expect(actions?.querySelectorAll('button')).toHaveLength(3)
+    expect(actions).toHaveTextContent('Cancel')
+    expect(actions).toHaveTextContent('Save draft')
+    expect(actions).toHaveTextContent('Submit')
+  })
+
+  it('leaves edit mode immediately when Cancel has nothing to discard', async () => {
+    renderEdit()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('Scorecard view')).toBeInTheDocument()
+  })
+
+  it('warns before Cancel discards unsaved edits', async () => {
+    renderEdit()
+    await screen.findByRole('button', { name: 'Cancel' })
+
+    const strengths = screen.getByRole('textbox', { name: /^Strengths/ })
+    fireEvent.change(strengths, {
+      target: { value: 'Shipped the cycle work' },
+    })
+    await waitFor(() => expect(strengths).toHaveValue('Shipped the cycle work'))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByRole('dialog', { name: 'Unsaved changes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
+    expect(screen.queryByText('Scorecard view')).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: /^Strengths/ })).toHaveValue(
+      'Shipped the cycle work',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(screen.getByText('Scorecard view')).toBeInTheDocument()
+  })
+
+  it('keeps the editor open after Save draft', async () => {
+    renderEdit()
+    const saveDraft = await screen.findByRole('button', { name: 'Save draft' })
+    await waitFor(() => expect(saveDraft).toBeEnabled())
+
+    fireEvent.click(saveDraft)
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Draft saved.')
+    expect(notice.className).toContain('pd-review-packet__banner--success')
+    expect(saveReviewPacket).toHaveBeenCalledWith(
+      'pkt-1',
+      expect.objectContaining({ submit: false }),
+    )
+    expect(screen.queryByText('Scorecard view')).not.toBeInTheDocument()
+  })
+
+  it('leaves edit mode after Submit', async () => {
+    renderEdit()
+    const submit = await screen.findByRole('button', { name: 'Submit' })
+    await waitFor(() => expect(submit).toBeEnabled())
+
+    fireEvent.click(submit)
+    await waitFor(() => {
+      expect(screen.getByText('Scorecard view')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Review submitted.')
+    expect(saveReviewPacket).toHaveBeenCalledWith(
+      'pkt-1',
+      expect.objectContaining({ submit: true }),
+    )
+  })
+})

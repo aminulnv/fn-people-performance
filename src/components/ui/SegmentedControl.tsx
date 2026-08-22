@@ -13,6 +13,9 @@ import { cx } from '@/lib/cx'
 export type SegmentedOption<T extends string = string> = {
   id: T
   label: ReactNode
+  disabled?: boolean
+  /** Shown on hover when the option is disabled. */
+  title?: string
 }
 
 export type SegmentedControlProps<T extends string = string> = Omit<
@@ -94,7 +97,8 @@ export function SegmentedControl<T extends string>({
   }, [updateIndicator, options])
 
   const select = (id: T) => {
-    if (id === visualValue) return
+    const option = options.find((item) => item.id === id)
+    if (!option || option.disabled || id === visualValue) return
     setVisualValue(id)
     startTransition(() => onChange(id))
   }
@@ -123,6 +127,7 @@ export function SegmentedControl<T extends string>({
 
       {options.map((option) => {
         const isActive = option.id === visualValue
+        const isDisabled = Boolean(option.disabled)
         return (
           <button
             key={option.id}
@@ -135,8 +140,11 @@ export function SegmentedControl<T extends string>({
               'pd-segmented__btn',
               buttonClassName,
               isActive && 'is-active',
+              isDisabled && 'is-disabled',
             )}
             aria-pressed={isActive}
+            aria-disabled={isDisabled || undefined}
+            title={isDisabled ? option.title : undefined}
             onClick={() => select(option.id)}
           >
             {option.label}

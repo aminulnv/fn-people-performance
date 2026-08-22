@@ -1,87 +1,29 @@
+import {
+  applyScorecardTemplate,
+  DEFAULT_GRADE_BANDS,
+  mergePillarCatalog,
+  SCORECARD_PILLAR_CATALOG,
+  templateIdForPurpose,
+} from './scorecardTemplates'
 import type {
   CyclePurpose,
-  GradeBandDefinition,
   ReviewPolicy,
   ReviewQuestion,
   ScorecardPillar,
 } from './types'
 
-export const DEFAULT_GRADE_BANDS: GradeBandDefinition[] = [
-  { id: 'exceptional', label: 'Exceptional', sort: 1 },
-  { id: 'exceeding', label: 'Exceeding', sort: 2 },
-  { id: 'performing', label: 'Performing', sort: 3 },
-  { id: 'developing', label: 'Developing', sort: 4 },
-  { id: 'unsatisfactory', label: 'Unsatisfactory', sort: 5 },
-]
+export {
+  DEFAULT_ANNUAL_QUESTIONS,
+  DEFAULT_GRADE_BANDS,
+} from './scorecardTemplates'
 
-export const DEFAULT_ANNUAL_PILLARS: ScorecardPillar[] = [
-  {
-    id: 'goals',
-    kind: 'goals',
-    label: 'Goals',
-    enabled: true,
-    weight: 50,
-    pullLinkedQuarters: true,
-  },
-  {
-    id: 'skills',
-    kind: 'skills',
-    label: 'Skills',
-    enabled: true,
-    weight: 25,
-    pullLinkedQuarters: false,
-  },
-  {
-    id: 'values',
-    kind: 'values',
-    label: 'Core Values',
-    enabled: true,
-    weight: 25,
-    pullLinkedQuarters: false,
-  },
-]
-
-export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
-  {
-    id: 'delivered',
-    prompt: 'What did I deliver this year?',
-    enabled: true,
-    required: true,
-    visibility: ['employee', 'manager', 'calibrators'],
-  },
-  {
-    id: 'values',
-    prompt: "How did I demonstrate FN's Core Values?",
-    enabled: true,
-    required: true,
-    visibility: ['employee', 'manager', 'calibrators'],
-  },
-  {
-    id: 'improve',
-    prompt: 'What do I need to further improve on?',
-    enabled: true,
-    required: false,
-    visibility: ['employee', 'manager', 'calibrators'],
-  },
-  {
-    id: 'support',
-    prompt: 'Is the company giving me the support I need to perform at my optimal level?',
-    enabled: true,
-    required: false,
-    visibility: ['employee', 'manager', 'calibrators'],
-  },
-  {
-    id: 'retain',
-    prompt: 'Will we do what it takes to retain this person?',
-    enabled: true,
-    required: false,
-    visibility: ['calibrators'],
-  },
-]
+export const DEFAULT_ANNUAL_PILLARS: ScorecardPillar[] = SCORECARD_PILLAR_CATALOG.map(
+  (pillar) => ({ ...pillar }),
+)
 
 export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin'): ReviewPolicy {
   const isAnnual = purpose === 'annual_appraisal'
-  return {
+  const base: ReviewPolicy = {
     selfReview: {
       ratePillars: isAnnual,
       rateOverall: isAnnual,
@@ -89,7 +31,7 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
       latePolicy: 'proceed',
     },
     managerReview: {
-      narrative: isAnnual ? 'overall' : 'overall',
+      narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
       goalsScoreEdit: 'read_only',
       finalGradeEdit: 'override_with_reason',
@@ -115,15 +57,13 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
       excludePip: false,
     },
     scorecard: {
-      pillars: DEFAULT_ANNUAL_PILLARS.map((pillar) => ({ ...pillar })),
-      questions: DEFAULT_ANNUAL_QUESTIONS.map((question) => ({
-        ...question,
-        visibility: [...question.visibility],
-      })),
+      pillars: [],
+      questions: [],
       bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
       extraGradeFields: [],
     },
   }
+  return applyScorecardTemplate(base, templateIdForPurpose(purpose))
 }
 
 export function normalizeReviewPolicy(
@@ -145,12 +85,13 @@ export function normalizeReviewPolicy(
     appeal: { ...defaults.appeal, ...policy.appeal },
     eligibility: { ...defaults.eligibility, ...policy.eligibility },
     scorecard: {
-      pillars:
+      pillars: mergePillarCatalog(
         policy.scorecard?.pillars?.length
           ? policy.scorecard.pillars
           : defaults.scorecard.pillars,
+      ),
       questions:
-        policy.scorecard?.questions?.length
+        policy.scorecard?.questions != null
           ? policy.scorecard.questions
           : defaults.scorecard.questions,
       bands:

@@ -1,126 +1,120 @@
-import { useState } from "react";
-import { Pencil } from "lucide-react";
-import { Button } from "@/components/ui";
-import { dayValue, formatShortDate } from "@/lib/reviews/periods";
-import {
-  createCycleGroup,
-  deleteCycleGroup,
-} from "@/lib/reviews/store";
-import { cycleForOverviewCalendar } from "@/lib/reviews/cycleCalendar";
-import { PURPOSE_HINT, PURPOSE_LABEL } from "@/lib/reviews/purpose";
-import { describeEnabledFlow } from "@/lib/reviews/reviewStages";
-import type { CycleGroup, ReviewCycle } from "@/lib/reviews/types";
-import { CycleSettingsCalendar } from "./CycleSettingsCalendar";
-import { CycleDetailsEditPage } from "./CycleDetailsEditPage";
-import { CycleGroupsSection } from "./CycleGroupsSection";
-import { GroupSettingsView } from "./GroupSettingsView";
-import { SettingsSidePanel } from "./SettingsSidePanel";
+import { useState } from 'react'
+import { Pencil } from 'lucide-react'
+import { Button } from '@/components/ui'
+import { dayValue, formatDateRange } from '@/lib/reviews/periods'
+import { includedCycleCount } from '@/lib/reviews/groupSummary'
+import { PURPOSE_LABEL, PURPOSE_SHORT } from '@/lib/reviews/purpose'
+import { createCycleGroup, deleteCycleGroup } from '@/lib/reviews/store'
+import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
+import { CycleDetailsEditPage } from './CycleDetailsEditPage'
+import { CycleGroupsSection } from './CycleGroupsSection'
+import { CyclePublishSection } from './CyclePublishSection'
+import { GroupSettingsView } from './GroupSettingsView'
+import { SettingsSidePanel } from './SettingsSidePanel'
 
 type CycleSettingsViewProps = {
-  cycle: ReviewCycle;
-};
+  cycle: ReviewCycle
+}
 
-type EditTarget = "cycle-details" | { groupId: string } | null;
+type EditTarget = 'cycle-details' | { groupId: string } | null
 
 export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
-  const [editing, setEditing] = useState<EditTarget>(null);
-  const [openedGroup, setOpenedGroup] = useState<CycleGroup | null>(null);
-  const groups = cycle.groups ?? [];
+  const [editing, setEditing] = useState<EditTarget>(null)
+  const [openedGroup, setOpenedGroup] = useState<CycleGroup | null>(null)
+  const groups = cycle.groups ?? []
   const editingGroup =
-    editing && typeof editing === "object"
+    editing && typeof editing === 'object'
       ? (groups.find((item) => item.id === editing.groupId) ??
         (openedGroup?.id === editing.groupId ? openedGroup : null))
-      : null;
+      : null
   const cycleForEditor =
     editingGroup && !groups.some((group) => group.id === editingGroup.id)
       ? { ...cycle, groups: [...groups, editingGroup] }
-      : cycle;
+      : cycle
   const closeEditor = () => {
-    setEditing(null);
-    setOpenedGroup(null);
-  };
+    setEditing(null)
+    setOpenedGroup(null)
+  }
   const openGroup = (group: CycleGroup) => {
-    setOpenedGroup(group);
-    setEditing({ groupId: group.id });
-  };
+    setOpenedGroup(group)
+    setEditing({ groupId: group.id })
+  }
 
-  const calendarCycle = cycleForOverviewCalendar(cycle);
-  const sameYear = cycle.startDate.slice(0, 4) === cycle.endDate.slice(0, 4);
-  const dayCount = inclusiveDayCount(cycle.startDate, cycle.endDate);
+  const purpose = cycle.purpose ?? 'quarterly_checkin'
+  const dayCount = inclusiveDayCount(cycle.startDate, cycle.endDate)
+  const included = purpose === 'annual_appraisal' ? includedCycleCount(cycle) : null
 
   return (
-    <div className="pd-reviews-settings">
+    <div className="pd-reviews-settings pd-cycle-setup">
       <section
-        className="pd-reviews-overview"
+        className="pd-cycle-setup__identity"
         aria-labelledby="cycle-overview-heading"
       >
-        <div className="pd-reviews-overview__identity">
-          <header className="pd-reviews-overview__toolbar">
-            <h2
-              className="pd-reviews-overview__eyebrow"
-              id="cycle-overview-heading"
-            >
-              Cycle details
+        <header className="pd-cycle-setup__identity-head">
+          <div>
+            <h2 className="pd-cycle-setup__eyebrow" id="cycle-overview-heading">
+              About this cycle
             </h2>
-            <EditButton onClick={() => setEditing("cycle-details")} />
-          </header>
-
-          <div className="pd-reviews-overview__span">
-            <div className="pd-reviews-overview__date">
-              <span className="pd-reviews-overview__date-label">Starts</span>
-              <span className="pd-reviews-overview__date-value">
-                {formatShortDate(cycle.startDate, {
-                  omitYear: sameYear,
-                })}
-              </span>
-            </div>
-            <div className="pd-reviews-overview__span-track" aria-hidden>
-              <span className="pd-reviews-overview__span-line" />
-              <span className="pd-reviews-overview__span-meta">
-                {dayCount === 1 ? "1 day" : `${dayCount} days`}
-              </span>
-              <span className="pd-reviews-overview__span-line" />
-            </div>
-            <div className="pd-reviews-overview__date pd-reviews-overview__date--end">
-              <span className="pd-reviews-overview__date-label">Ends</span>
-              <span className="pd-reviews-overview__date-value">
-                {formatShortDate(cycle.endDate)}
-              </span>
-            </div>
+            <p className="pd-cycle-setup__purpose">{PURPOSE_LABEL[purpose]}</p>
+            <p className="pd-cycle-setup__lede">{PURPOSE_SHORT[purpose]}</p>
           </div>
-          <p className="pd-reviews-flow__hint">
-            {PURPOSE_LABEL[cycle.purpose ?? "quarterly_checkin"]}.{" "}
-            {PURPOSE_HINT[cycle.purpose ?? "quarterly_checkin"]}{" "}
-            {groups[0]
-              ? describeEnabledFlow(groups[0].stagesConfig.reviewStages)
-              : "Add a group to turn stages on for people."}
-          </p>
-        </div>
+          <Button
+            variant="primary"
+            size="sm"
+            pill
+            onClick={() => setEditing('cycle-details')}
+          >
+            <Pencil size={13} strokeWidth={2} aria-hidden />
+            Edit
+          </Button>
+        </header>
 
-        <div className="pd-reviews-overview__calendar">
-          <CycleSettingsCalendar cycle={calendarCycle} size="large" />
-        </div>
+        <dl className="pd-cycle-setup__facts">
+          <div className="pd-cycle-setup__fact">
+            <dt>Dates</dt>
+            <dd>
+              {formatDateRange(cycle.startDate, cycle.endDate)}
+              <span className="pd-cycle-setup__fact-aside">
+                {dayCount === 1 ? '1 day' : `${dayCount} days`}
+              </span>
+            </dd>
+          </div>
+          {cycle.yearKey ? (
+            <div className="pd-cycle-setup__fact">
+              <dt>Year</dt>
+              <dd>{cycle.yearKey}</dd>
+            </div>
+          ) : null}
+          {included ? (
+            <div className="pd-cycle-setup__fact">
+              <dt>Includes</dt>
+              <dd>{included}</dd>
+            </div>
+          ) : null}
+        </dl>
       </section>
 
       <CycleGroupsSection
         cycle={cycle}
         onAddGroup={() => {
-          void createCycleGroup(cycle.id, { name: "New group" })
+          void createCycleGroup(cycle.id, { name: 'New group' })
             .then((group) => {
-              openGroup(group);
+              openGroup(group)
             })
-            .catch(() => {});
+            .catch(() => {})
         }}
         onDelete={(groupId) => {
-          void deleteCycleGroup(cycle.id, groupId).catch(() => {});
+          void deleteCycleGroup(cycle.id, groupId).catch(() => {})
         }}
         onOpenGroup={(groupId) => {
-          const group = groups.find((item) => item.id === groupId);
-          if (group) openGroup(group);
+          const group = groups.find((item) => item.id === groupId)
+          if (group) openGroup(group)
         }}
       />
 
-      {editing === "cycle-details" ? (
+      <CyclePublishSection cycle={cycle} />
+
+      {editing === 'cycle-details' ? (
         <SettingsSidePanel
           label="Cycle details"
           closeLabel="Close cycle details"
@@ -142,20 +136,11 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
         />
       ) : null}
     </div>
-  );
+  )
 }
 
 function inclusiveDayCount(startDate: string, endDate: string): number {
   const days =
-    Math.round((dayValue(endDate) - dayValue(startDate)) / 86_400_000) + 1;
-  return Number.isFinite(days) && days > 0 ? days : 1;
-}
-
-function EditButton({ onClick }: { onClick: () => void }) {
-  return (
-    <Button variant="primary" size="sm" pill onClick={onClick}>
-      <Pencil size={13} strokeWidth={2} aria-hidden />
-      Edit
-    </Button>
-  );
+    Math.round((dayValue(endDate) - dayValue(startDate)) / 86_400_000) + 1
+  return Number.isFinite(days) && days > 0 ? days : 1
 }

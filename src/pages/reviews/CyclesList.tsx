@@ -96,6 +96,7 @@ export function CyclesList() {
       const haystack = [
         cycle.name,
         cycle.type,
+        PURPOSE_LABEL[cycle.purpose ?? 'quarterly_checkin'],
         statusLabel,
         formatDateRange(cycle.startDate, cycle.endDate),
       ]
@@ -328,6 +329,7 @@ export function CyclesList() {
         open={addOpen}
         onClose={() => setAddOpen(false)}
         existingPeriodKeys={existingPeriodKeys}
+        cycles={cycles}
         onCreated={(cycle) => {
           setAddOpen(false)
           navigate(cycleDetailPath(cycle.id, 'settings'))

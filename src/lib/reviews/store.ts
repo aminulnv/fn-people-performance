@@ -12,9 +12,11 @@ import {
   cycleGroupsOf,
 } from "./cycleGroups";
 import { findPeriod } from "./periods";
+import { applyCycleModules } from "./reviewStages";
 import type {
   CalibrationLogic,
   CycleGroup,
+  CycleModules,
   CyclePurpose,
   CycleSettings,
   CycleSourceLink,
@@ -166,6 +168,7 @@ function cloneCalibration(): CalibrationLogic {
   return {
     ...DEFAULT_CALIBRATION,
     gradeDistribution: { ...DEFAULT_CALIBRATION.gradeDistribution },
+    sltMemberIds: [...(DEFAULT_CALIBRATION.sltMemberIds ?? [])],
   };
 }
 
@@ -294,7 +297,19 @@ export type CreateReviewCycleInput = {
   startDate?: string;
   endDate?: string;
   sourceLinks?: CycleSourceLink[];
+  modules?: CycleModules;
 };
+
+function applyCreateModules(
+  config: CycleStagesConfig,
+  modules: CycleModules | undefined,
+  purpose: CyclePurpose,
+  periodKey?: string,
+): CycleStagesConfig {
+  return modules
+    ? applyCycleModules(config, modules, purpose, periodKey)
+    : config
+}
 
 export async function createReviewCycle(
   input: CreateReviewCycleInput,
@@ -329,9 +344,14 @@ export async function createReviewCycle(
         (purpose === "annual_appraisal"
           ? suggestedSourceLinks(period.key.slice(-4), getState().cycles)
           : []),
-      stagesConfig: buildDefaultStagesConfig(
-        period.startDate,
-        period.endDate,
+      stagesConfig: applyCreateModules(
+        buildDefaultStagesConfig(
+          period.startDate,
+          period.endDate,
+          purpose,
+          period.key,
+        ),
+        input.modules,
         purpose,
         period.key,
       ),
@@ -355,7 +375,11 @@ export async function createReviewCycle(
       endDate,
       yearKey: input.yearKey ?? inferYearKey(undefined, startDate),
       sourceLinks: input.sourceLinks ?? [],
-      stagesConfig: buildDefaultStagesConfig(startDate, endDate, purpose),
+      stagesConfig: applyCreateModules(
+        buildDefaultStagesConfig(startDate, endDate, purpose),
+        input.modules,
+        purpose,
+      ),
       settings: normalizeCycleSettings(undefined, purpose),
       calibration: cloneCalibration(),
       groups: [],
@@ -981,10 +1005,13 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
   const enabled = new Map(
     (config.reviewStages ?? []).map((stage) => [stage.id, stage.enabled]),
   );
-  const goalsOn = enabled.get("goals") !== false;
-  const reviewOn =
-    enabled.get("self_review") === true ||
-    enabled.get("manager_review") !== false;
+  const hasStages = (config.reviewStages ?? []).length > 0;
+  const goalsOn = hasStages ? enabled.get("goals") === true : true;
+  const selfOn = enabled.get("self_review") === true;
+  const managerOn = hasStages
+    ? enabled.get("manager_review") === true
+    : true;
+  const reviewOn = selfOn || managerOn;
 
   const ranges: Array<[string, string, string]> = [];
   if (goalsOn) {
@@ -994,14 +1021,14 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
       config.goals.employee.endDate,
     ]);
   }
-  if (enabled.get("self_review")) {
+  if (selfOn) {
     ranges.push([
       "Self-review",
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
     ]);
   }
-  if (enabled.get("manager_review") !== false) {
+  if (managerOn) {
     ranges.push([
       "Manager review",
       config.performance.managerStart.date,

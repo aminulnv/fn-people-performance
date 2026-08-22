@@ -230,9 +230,11 @@ export function validateCycleStagesConfig(config) {
   const enabled = new Map(
     (config.reviewStages ?? []).map((stage) => [stage.id, stage.enabled]),
   )
-  const goalsOn = enabled.get('goals') !== false
-  const reviewOn =
-    enabled.get('self_review') === true || enabled.get('manager_review') !== false
+  const hasStages = (config.reviewStages ?? []).length > 0
+  const goalsOn = hasStages ? enabled.get('goals') === true : true
+  const selfOn = enabled.get('self_review') === true
+  const managerOn = hasStages ? enabled.get('manager_review') === true : true
+  const reviewOn = selfOn || managerOn
 
   const ranges = []
   if (goalsOn) {
@@ -242,14 +244,14 @@ export function validateCycleStagesConfig(config) {
       config.goals.employee.endDate,
     ])
   }
-  if (enabled.get('self_review')) {
+  if (selfOn) {
     ranges.push([
       'Self-review',
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
     ])
   }
-  if (enabled.get('manager_review') !== false) {
+  if (managerOn) {
     ranges.push([
       'Manager review',
       config.performance.managerStart.date,

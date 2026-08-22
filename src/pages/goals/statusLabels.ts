@@ -1,4 +1,5 @@
 import type { BadgeVariant } from '@/components/ui'
+import type { CycleEligibilityReason } from '@/lib/goals/demoData'
 import type { DemoPhase, SubmissionStatus } from '@/lib/goalsApi'
 
 export function statusLabel(status: SubmissionStatus): string {
@@ -31,6 +32,28 @@ export function submissionStatusLabel(
 ): string {
   if (goalCount === 0 && status === 'draft') return 'Not started'
   return statusLabel(status)
+}
+
+export function cycleIneligibilityStatusLabel(
+  reason: CycleEligibilityReason,
+): string {
+  return reason === 'not_in_cycle' ? 'Not in this cycle' : statusLabel('not_eligible')
+}
+
+export function cycleIneligibilityEmptyState(
+  personName: string,
+  reason: CycleEligibilityReason,
+): { title: string; description: string } {
+  if (reason === 'not_in_cycle') {
+    return {
+      title: 'Not in this cycle',
+      description: `${personName} is not assigned to a review group for this cycle.`,
+    }
+  }
+  return {
+    title: 'Not eligible this quarter',
+    description: `${personName} joined after Day 1, so goal setting starts next quarter.`,
+  }
 }
 
 export function statusVariant(status: SubmissionStatus): BadgeVariant {

@@ -74,6 +74,12 @@ export type ReviewStageConfig = {
   end?: DateTimeValue;
 };
 
+/** High-level cycle modules. Kind only presets these; it does not lock them. */
+export type CycleModules = {
+  goals: boolean;
+  reviews: boolean;
+};
+
 export type CycleStage = {
   id: CycleStageId;
   label: string;
@@ -234,6 +240,8 @@ export type CalibrationLogic = {
   calibrationMode: CalibrationModeId;
   gradeRecommendation: GradeRecommendationId;
   gradeDistribution: Record<GradeBandId, number>;
+  /** People who sit in SLT calibration for this group. */
+  sltMemberIds?: number[];
 };
 
 export type CycleGroup = {

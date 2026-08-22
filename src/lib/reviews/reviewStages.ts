@@ -1,4 +1,5 @@
 import type {
+  CycleModules,
   CyclePurpose,
   CycleStagesConfig,
   DateTimeValue,
@@ -17,6 +18,16 @@ export const REVIEW_STAGE_ORDER: ReviewStageId[] = [
   'appeal',
 ]
 
+/** Review-module stages. Goal setting belongs to the Goals module, not this list. */
+export const REVIEW_FLOW_STAGE_ORDER: ReviewStageId[] = REVIEW_STAGE_ORDER.filter(
+  (id) => id !== 'goals',
+)
+
+/** Cycle-wide release. Dates live on Publish results, not the group window. */
+export function isCyclePublishStage(id: ReviewStageId): boolean {
+  return id === 'publish_managers' || id === 'publish_employees'
+}
+
 export const REVIEW_STAGE_LABEL: Record<ReviewStageId, string> = {
   goals: 'Goal setting',
   self_review: 'Self-review',
@@ -34,8 +45,10 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
   manager_review: 'The line manager rates the person and submits a grade.',
   calibration_hod_hrbp: 'HOD and HRBP align grades across the department.',
   calibration_slt: 'SLT reviews the department outcome with the HOD.',
-  publish_managers: 'Managers see the final grade before employees.',
-  publish_employees: 'Employees can see their released grade.',
+  publish_managers:
+    'Managers see the final grade first. The date is under Publish results on the cycle.',
+  publish_employees:
+    'Employees see their released grade. The date is under Publish results on the cycle.',
   appeal: 'Employee can leave a written record after release.',
 }
 
@@ -71,6 +84,77 @@ export function presetEnabledStages(
     return ['manager_review']
   }
   return ['goals', 'manager_review']
+}
+
+export function cycleModulesOf(
+  stages: ReviewStageConfig[] | undefined,
+): CycleModules {
+  return {
+    goals: Boolean(stages?.some((stage) => stage.id === 'goals' && stage.enabled)),
+    reviews: Boolean(
+      stages?.some((stage) => stage.id !== 'goals' && stage.enabled),
+    ),
+  }
+}
+
+export function isGoalsModuleEnabled(
+  stages: ReviewStageConfig[] | undefined,
+): boolean {
+  return cycleModulesOf(stages).goals
+}
+
+export function isReviewsModuleEnabled(
+  stages: ReviewStageConfig[] | undefined,
+): boolean {
+  return cycleModulesOf(stages).reviews
+}
+
+export function presetCycleModules(
+  purpose: CyclePurpose,
+  periodKey?: string,
+): CycleModules {
+  const enabled = presetEnabledStages(purpose, periodKey)
+  return {
+    goals: enabled.includes('goals'),
+    reviews: enabled.some((id) => id !== 'goals'),
+  }
+}
+
+/**
+ * Stages to turn on when the Reviews module is enabled.
+ * Q4's goals-only preset is Reviews off — turning Reviews on uses the
+ * normal quarterly check-in (manager only), not a second Q4 lock.
+ */
+export function presetReviewFlowStages(
+  purpose: CyclePurpose,
+  periodKey?: string,
+): ReviewStageId[] {
+  const key = isGoalsOnlyQuarter(periodKey) ? undefined : periodKey
+  return presetEnabledStages(purpose, key).filter((id) => id !== 'goals')
+}
+
+export function applyCycleModules(
+  config: CycleStagesConfig,
+  modules: CycleModules,
+  purpose: CyclePurpose,
+  periodKey?: string,
+): CycleStagesConfig {
+  const reviewsWereOn = isReviewsModuleEnabled(config.reviewStages)
+  const reviewPreset = new Set(presetReviewFlowStages(purpose, periodKey))
+  const reviewStages = (config.reviewStages ?? []).map((stage) => {
+    if (stage.id === 'goals') {
+      return { ...stage, enabled: modules.goals }
+    }
+    if (!modules.reviews) {
+      return { ...stage, enabled: false }
+    }
+    if (reviewsWereOn) return stage
+    return { ...stage, enabled: reviewPreset.has(stage.id) }
+  })
+  return syncLegacyStageWindows({
+    ...config,
+    reviewStages,
+  })
 }
 
 /** Used when loading cycles that predate the reviewStages field. */
@@ -310,9 +394,27 @@ export function mergeReviewStages(
 }
 
 export function describeEnabledFlow(stages: ReviewStageConfig[] | undefined): string {
-  const labels = enabledReviewStages(stages).map(
-    (stage) => REVIEW_STAGE_LABEL[stage.id],
-  )
+  const labels = enabledReviewStages(stages)
+    .filter((stage) => stage.id !== 'goals')
+    .map((stage) => REVIEW_STAGE_LABEL[stage.id])
   if (labels.length === 0) return 'No review stages are on.'
   return labels.join(' → ')
+}
+
+export function describeCycleModules(
+  stages: ReviewStageConfig[] | undefined,
+): string {
+  const { goals, reviews } = cycleModulesOf(stages)
+  if (goals && reviews) return 'Goals and reviews.'
+  if (goals) return 'Goals only.'
+  if (reviews) return 'Reviews only.'
+  return 'No modules are on.'
+}
+
+export function describeCycleSetup(
+  stages: ReviewStageConfig[] | undefined,
+): string {
+  const modules = describeCycleModules(stages)
+  if (!isReviewsModuleEnabled(stages)) return modules
+  return `${modules} ${describeEnabledFlow(stages)}`
 }

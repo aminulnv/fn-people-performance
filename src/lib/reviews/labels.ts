@@ -76,6 +76,43 @@ export const GRADE_BAND_ORDER: GradeBandId[] = [
   'unsatisfactory',
 ]
 
+/** Low → high. Used on the overall-grade radio list. */
+export const OVERALL_GRADE_ORDER: GradeBandId[] = [
+  'unsatisfactory',
+  'developing',
+  'performing',
+  'exceeding',
+  'exceptional',
+]
+
+export const GRADE_BAND_CRITERIA: Record<GradeBandId, readonly [string, string, string]> = {
+  unsatisfactory: [
+    'Significantly misses goals despite management support.',
+    'Significant competency gaps affecting performance.',
+    'Behaviours frequently inconsistent with company values.',
+  ],
+  developing: [
+    'Partially achieves goals; requires regular support.',
+    'Some gaps in key competencies needing targeted improvement.',
+    'Inconsistent alignment with company values — improvement expected.',
+  ],
+  performing: [
+    'Reliably achieves goals with minimal guidance.',
+    'Demonstrates core competencies expected for their grade and role.',
+    'Consistently lives company values in day-to-day work.',
+  ],
+  exceeding: [
+    'Achieves all goals and often delivers beyond what was asked.',
+    'Demonstrates competencies above role expectations.',
+    'Consistently applies company values and influences the team positively.',
+  ],
+  exceptional: [
+    'Consistently exceeds all goals.',
+    'Operates at a skill level significantly above their grade.',
+    'Embodies and actively elevates the company culture — recognised as a role model for both performance and values.',
+  ],
+}
+
 export const CALIBRATION_MODE_META: Record<
   CalibrationModeId,
   { label: string; description: string }

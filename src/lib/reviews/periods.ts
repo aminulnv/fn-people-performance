@@ -37,7 +37,7 @@ export function findAnnualPeriod(key: string): CyclePeriodOption | undefined {
 
 export function listAnnualPeriods(referenceDate = new Date()): CyclePeriodOption[] {
   const year = referenceDate.getFullYear()
-  return [year - 1, year, year + 1]
+  return [year, year + 1, year - 1]
     .map((value) => findAnnualPeriod(annualPeriodKey(value)))
     .filter((period): period is CyclePeriodOption => Boolean(period))
 }

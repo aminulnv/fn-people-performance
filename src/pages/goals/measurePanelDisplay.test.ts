@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { Metric, Milestone } from '@/lib/goals/types'
-import { measurePanelLatestProgressAt } from './measurePanelDisplay'
+import {
+  measurePanelKindLabel,
+  measurePanelLatestProgressAt,
+} from './measurePanelDisplay'
 
 const metric: Metric = {
   id: 'm1',
@@ -38,6 +41,31 @@ const todo: Milestone = {
     },
   ],
 }
+
+describe('measurePanelKindLabel', () => {
+  it('labels a number panel as Metric', () => {
+    expect(
+      measurePanelKindLabel({
+        key: 'metric',
+        kind: 'metric',
+        metric,
+      }),
+    ).toBe('Metric')
+  })
+
+  it('labels a todo panel as Milestone', () => {
+    expect(
+      measurePanelKindLabel({
+        key: 'todos',
+        kind: 'todo_measure',
+        measureGroupId: 'g1',
+        title: 'Quality process',
+        weight: 50,
+        lists: [],
+      }),
+    ).toBe('Milestone')
+  })
+})
 
 describe('measurePanelLatestProgressAt', () => {
   it('reads the metric progress log', () => {

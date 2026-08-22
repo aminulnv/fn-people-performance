@@ -663,8 +663,7 @@ ul.pd-goals-sendback__reason {
 }
 
 /*
- * Goals list table — neutral only (no --color-theme).
- * Uses cream / divider / neutral-hover / text-* so light + dark both read clean.
+ * Goals list table — grey goal rows, white metric rows.
  */
 .pd-goals-table {
   border: 1px solid var(--color-divider);
@@ -680,9 +679,9 @@ ul.pd-goals-sendback__reason {
   display: grid;
   grid-template-columns:
     minmax(12rem, 2.4fr) 5.5rem minmax(7rem, 1fr) 11.5rem;
-  gap: 0.75rem;
+  gap: 0.7rem;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.55rem 0.95rem;
 }
 
 .pd-goals-table--with-owner .pd-goals-table__head,
@@ -722,7 +721,7 @@ ul.pd-goals-sendback__reason {
 .pd-goals-table__head {
   border-bottom: 1px solid var(--color-divider);
   border-radius: 0.875rem 0.875rem 0 0;
-  padding-block: 0.65rem;
+  padding-block: 0.5rem;
   background: color-mix(in srgb,
       var(--color-text) 2%,
       var(--color-surface-raised, var(--color-surface)));
@@ -741,7 +740,7 @@ ul.pd-goals-sendback__reason {
   width: 100%;
   border: 0;
   border-top: 1px solid var(--color-divider);
-  background: transparent;
+  background: var(--color-neutral-hover);
   color: inherit;
   font: inherit;
   text-align: left;
@@ -757,16 +756,36 @@ ul.pd-goals-sendback__reason {
   border-top: 1px solid var(--color-divider);
 }
 
+.pd-goals-table__group:last-child>.pd-goals-table__row:last-child {
+  border-bottom-left-radius: calc(0.875rem - 1px);
+  border-bottom-right-radius: calc(0.875rem - 1px);
+}
+
 .pd-goals-table__row--measure {
+  --pd-goals-measure-pad-y: 0.28rem;
   border-top-color: color-mix(in srgb, var(--color-divider) 55%, transparent);
+  background: var(--color-surface-raised, var(--color-surface));
+  padding-block: var(--pd-goals-measure-pad-y);
+}
+
+.pd-goals-table__goal {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  min-width: 0;
 }
 
 .pd-goals-table__name-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
   width: 100%;
+}
+
+.pd-goals-table__name-cell--measure {
+  min-height: 1.25rem;
+  gap: 0.35rem;
 }
 
 .pd-goals-table__name-cell .pd-goals-table__title,
@@ -782,8 +801,8 @@ ul.pd-goals-sendback__reason {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.375rem;
+  height: 1.375rem;
   padding: 0;
   border-radius: 0.35rem;
   cursor: pointer;
@@ -796,27 +815,100 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-table__expand-spacer {
-  width: 1.5rem;
+  width: 1.375rem;
+  flex: 0 0 auto;
+}
+
+.pd-goals-table__branch {
+  position: relative;
+  width: 1.375rem;
+  align-self: stretch;
+  flex: 0 0 auto;
+}
+
+.pd-goals-table__branch::before,
+.pd-goals-table__branch::after {
+  content: '';
+  position: absolute;
+  background: color-mix(in srgb, var(--color-text) 22%, var(--color-divider));
+}
+
+.pd-goals-table__branch::before {
+  left: 50%;
+  top: calc(-1 * var(--pd-goals-measure-pad-y, 0.55rem));
+  bottom: calc(-1 * var(--pd-goals-measure-pad-y, 0.55rem));
+  width: 0.0625rem;
+}
+
+.pd-goals-table__row--measure:last-child .pd-goals-table__branch::before {
+  bottom: 50%;
+}
+
+.pd-goals-table__branch::after {
+  left: 50%;
+  top: 50%;
+  width: 0.5rem;
+  height: 0.0625rem;
+}
+
+.pd-goals-table__measure-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  color: var(--color-text-secondary);
   flex: 0 0 auto;
 }
 
 .pd-goals-table__measure-name {
   display: block;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  color: var(--color-text-secondary);
-  line-height: 1.35;
+  color: var(--color-text);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pd-goals-table__row:hover {
-  background: var(--color-neutral-hover);
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+}
+
+.pd-goals-table__row--measure:hover {
+  background: var(--color-surface-raised, var(--color-surface));
+}
+
+.pd-goals-table__row--measure .pd-goals-table__progress {
+  gap: 0.12rem;
+}
+
+.pd-goals-table__row--measure .pd-goals-table__progress .pd-progress__track {
+  height: 0.25rem;
+}
+
+.pd-goals-table__row--measure .pd-goals-table__weight-pill {
+  min-width: 2.35rem;
+  padding-block: 0.12rem;
+  font-size: 0.6875rem;
+}
+
+.pd-goals-table__row--measure .pd-goals-table__metric .pd-goal-readout__checklist {
+  min-height: 1.375rem;
+  padding-block: 0.16rem;
 }
 
 .pd-goals-table__title {
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--color-text);
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .pd-goals-table__weight-pill {
@@ -907,7 +999,7 @@ ul.pd-goals-sendback__reason {
 .pd-goals-table__progress {
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.22rem;
   min-width: 0;
 }
 
@@ -924,7 +1016,7 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-table__progress .pd-progress__track {
-  height: 0.35rem;
+  height: 0.32rem;
   background: var(--color-divider);
 }
 
@@ -1240,6 +1332,14 @@ ul.pd-goals-sendback__reason {
   display: flex;
   align-items: center;
   justify-content: flex-end;
+}
+
+.pd-goals-table__actions .pd-people__icon-btn,
+.pd-goals-table__actions .pd-menu__trigger {
+  width: 2rem;
+  height: 2rem;
+  min-height: 2rem;
+  padding: 0;
 }
 
 .pd-goals-table__dash {
@@ -1633,7 +1733,7 @@ ul.pd-goals-sendback__reason {
 .pd-goals-approval {
   display: block;
   margin-bottom: 0.75rem;
-  padding: 0.75rem 1rem 1rem;
+  padding: 0.7rem 1rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: 0.875rem;
   background: var(--color-surface);
@@ -1717,7 +1817,7 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-approval__goals {
-  margin-top: 0.85rem;
+  margin-top: 0.7rem;
 }
 
 .pd-goals-approval__empty {

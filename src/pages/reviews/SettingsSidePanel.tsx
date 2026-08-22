@@ -2,12 +2,17 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import {
+  SettingsSideSheetRail,
+  type SettingsSideSheet,
+} from './SettingsSideSheetRail'
 
 const DEFAULT_PANEL_WIDTH = 736
 const MIN_PANEL_WIDTH = 400
@@ -30,6 +35,12 @@ type SettingsSidePanelProps = {
   closeLabel: string
   /** Replaces the default heading when the caller needs an editable title. */
   title?: ReactNode
+  /** Extra chrome actions before Close — e.g. Full view. */
+  tools?: ReactNode
+  /** Pinned top navigation under the title. */
+  subnav?: ReactNode
+  /** Pull-out sheet on the left of the panel, like the goals OKR window. */
+  sideSheet?: SettingsSideSheet
   onClose: () => void
 }
 
@@ -38,6 +49,9 @@ export function SettingsSidePanel({
   label,
   closeLabel,
   title,
+  tools,
+  subnav,
+  sideSheet,
   onClose,
 }: SettingsSidePanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -48,7 +62,15 @@ export function SettingsSidePanel({
   const [panelWidth, setPanelWidth] = useState(() =>
     panelWidthWithinViewport(DEFAULT_PANEL_WIDTH),
   )
+  const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
+  const isSideSheetOpenRef = useRef(isSideSheetOpen)
   onCloseRef.current = onClose
+  isSideSheetOpenRef.current = isSideSheetOpen
+
+  const hasSideSheet = Boolean(sideSheet)
+  useEffect(() => {
+    if (!hasSideSheet) setIsSideSheetOpen(false)
+  }, [hasSideSheet])
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -58,6 +80,10 @@ export function SettingsSidePanel({
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       if (document.querySelector('dialog[open], .pd-reviews-drawer')) return
+      if (isSideSheetOpenRef.current) {
+        setIsSideSheetOpen(false)
+        return
+      }
       onCloseRef.current()
     }
     document.addEventListener('keydown', closeOnEscape)
@@ -91,13 +117,27 @@ export function SettingsSidePanel({
   }
 
   return createPortal(
-    <div className="pd-settings-panel">
+    <div
+      className="pd-settings-panel"
+      style={
+        { '--pd-settings-panel-width': `${panelWidth}px` } as CSSProperties
+      }
+    >
       <button
         type="button"
         className="pd-settings-panel__scrim"
         aria-label={closeLabel}
         onClick={onClose}
       />
+      {sideSheet ? (
+        <SettingsSideSheetRail
+          sideSheet={sideSheet}
+          layout="overlay"
+          panelWidth={panelWidth}
+          isOpen={isSideSheetOpen}
+          onOpenChange={setIsSideSheetOpen}
+        />
+      ) : null}
       <aside
         ref={panelRef}
         className="pd-settings-panel__sheet"
@@ -142,6 +182,7 @@ export function SettingsSidePanel({
             {title ?? <h2 className="pd-settings-panel__title">{label}</h2>}
           </div>
           <div className="pd-settings-panel__tools">
+            {tools}
             <button
               type="button"
               className="pd-people__icon-btn"
@@ -153,6 +194,9 @@ export function SettingsSidePanel({
             </button>
           </div>
         </header>
+        {subnav ? (
+          <div className="pd-settings-panel__subnav">{subnav}</div>
+        ) : null}
         <div className="pd-settings-panel__body">{children}</div>
       </aside>
     </div>,

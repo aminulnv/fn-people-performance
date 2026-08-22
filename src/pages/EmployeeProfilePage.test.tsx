@@ -346,6 +346,94 @@ describe('V1 employee profiles', () => {
     )
   })
 
+  it('shows the organisation team owner on My Profile, not the department head stored as team owner', async () => {
+    const departmentHead = await createEmployee({
+      employeeId: 9,
+      fullName: "Elvira Moey Shae'Fee",
+      email: 'elvira@example.com',
+      startDate: '2016-01-01',
+      jobTitle: 'Head of People',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    const owner = await createEmployee({
+      employeeId: 5,
+      fullName: 'Angie Ng Yun Ni',
+      email: 'angie@example.com',
+      startDate: '2018-01-01',
+      jobTitle: 'Team Lead',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: departmentHead.ok ? departmentHead.employee.fullName : '',
+      departmentHeadName: departmentHead.ok
+        ? departmentHead.employee.fullName
+        : '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: departmentHead.ok ? departmentHead.employee.email : '',
+    })
+    const employee = await createEmployee({
+      employeeId: 1,
+      fullName: 'Aminul Islam Borhan',
+      email: 'employee@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Sr. Executive',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: owner.ok ? owner.employee.fullName : '',
+      departmentHeadName: departmentHead.ok
+        ? departmentHead.employee.fullName
+        : '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: owner.ok ? owner.employee.email : '',
+    })
+    if (!departmentHead.ok) throw new Error(departmentHead.error)
+    if (!owner.ok) throw new Error(owner.error)
+    if (!employee.ok) throw new Error(employee.error)
+
+    replaceMemoryEmployees(
+      listMemoryEmployees().map((row) =>
+        row.employeeId === 1
+          ? {
+              ...row,
+              teamOwnerId: departmentHead.employee.employeeId,
+              teamOwnerName: departmentHead.employee.fullName,
+              departmentHeadId: departmentHead.employee.employeeId,
+            }
+          : row,
+      ),
+    )
+    employeesState.employees = listMemoryEmployees() as never[]
+
+    signIn(['platform.read_all'])
+
+    renderRoute('/profile', <Route path="/profile" element={<MyProfilePage />} />)
+
+    const teamOwnerRow = (await screen.findByText('Team Owner')).closest(
+      '.pd-profile__detail-row',
+    )
+    expect(teamOwnerRow).toHaveTextContent('Angie Ng Yun Ni')
+    expect(teamOwnerRow).not.toHaveTextContent("Elvira Moey Shae'Fee")
+    expect(
+      teamOwnerRow?.querySelector('a.pd-people__person-link'),
+    ).toHaveAttribute('href', '/people/5')
+    expect(
+      screen.getByText('Department Head').closest('.pd-profile__detail-row'),
+    ).toHaveTextContent("Elvira Moey Shae'Fee")
+  })
+
   it('links a resolved HRBP to their V1 profile', async () => {
     const hrbp = await createEmployee({
       employeeId: 4,

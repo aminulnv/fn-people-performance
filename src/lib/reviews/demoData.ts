@@ -80,7 +80,29 @@ export const DEFAULT_CALIBRATION: CalibrationLogic = {
     developing: 28,
     unsatisfactory: 5,
   },
+  sltMemberIds: [],
 };
+
+export function normalizeCalibration(
+  calibration?: Partial<CalibrationLogic>,
+): CalibrationLogic {
+  const sltMemberIds = [
+    ...new Set(
+      (calibration?.sltMemberIds ?? []).filter(
+        (id) => Number.isInteger(id) && id > 0,
+      ),
+    ),
+  ];
+  return {
+    ...DEFAULT_CALIBRATION,
+    ...calibration,
+    gradeDistribution: {
+      ...DEFAULT_CALIBRATION.gradeDistribution,
+      ...calibration?.gradeDistribution,
+    },
+    sltMemberIds,
+  };
+}
 
 /** Strip legacy department/team goal windows and fill any missing fields. */
 export function normalizeStagesConfig(
@@ -268,10 +290,7 @@ function cloneSettings(): CycleSettings {
 }
 
 function cloneCalibration(): CalibrationLogic {
-  return {
-    ...DEFAULT_CALIBRATION,
-    gradeDistribution: { ...DEFAULT_CALIBRATION.gradeDistribution },
-  };
+  return normalizeCalibration();
 }
 
 function regularCycle(
@@ -289,7 +308,12 @@ function regularCycle(
     periodKey: period.key,
     yearKey: inferYearKey(period.key, period.startDate),
     sourceLinks: [],
-    stagesConfig: buildDefaultStagesConfig(period.startDate, period.endDate, purpose),
+    stagesConfig: buildDefaultStagesConfig(
+      period.startDate,
+      period.endDate,
+      purpose,
+      period.key,
+    ),
     settings: cloneSettings(),
     calibration: cloneCalibration(),
     createdAt,

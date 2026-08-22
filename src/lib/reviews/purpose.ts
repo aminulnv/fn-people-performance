@@ -7,12 +7,18 @@ export const PURPOSE_LABEL: Record<CyclePurpose, string> = {
   custom: 'Custom cycle',
 }
 
+export const PURPOSE_SHORT: Record<CyclePurpose, string> = {
+  quarterly_checkin: 'Goals, a manager rating, or both.',
+  annual_appraisal: 'Year-end packet from the cycles you pick.',
+  custom: 'Your own dates and modules.',
+}
+
 export const PURPOSE_HINT: Record<CyclePurpose, string> = {
   quarterly_checkin:
-    'Goals plus a manager rating for one quarter. Employees do not self-rate.',
+    'Starts with goals and a manager rating. Q4 starts with goals only. Kind is a preset — you can change the modules.',
   annual_appraisal:
-    'Year-end packet. Pulls Q1–Q3 ratings, rates Q4 inside this review, then calibrates and releases one final grade.',
-  custom: 'Your own dates and stages. Nothing is assumed until you turn it on.',
+    'Starts as review only. You choose which cycles roll into the year-end packet. Goal setting stays on those cycles.',
+  custom: 'Your own dates. Turn Goals and Reviews on for what this cycle needs.',
 }
 
 export function inferPurpose(
@@ -41,17 +47,69 @@ export function defaultSourcePeriodKeys(yearKey: string): string[] {
 export function suggestedSourceLinks(
   yearKey: string,
   cycles: ReviewCycle[],
-): ReviewCycle['sourceLinks'] {
-  return defaultSourcePeriodKeys(yearKey)
-    .map((key) => cycles.find((cycle) => cycle.periodKey === key || cycle.id === key))
-    .filter((cycle): cycle is ReviewCycle => Boolean(cycle))
-    .map((cycle) => ({
-      sourceCycleId: cycle.id,
-      weightPercent: 25,
+): NonNullable<ReviewCycle['sourceLinks']> {
+  return sourceLinksFromIds(
+    defaultSourcePeriodKeys(yearKey)
+      .map((key) => cycles.find((cycle) => cycle.periodKey === key || cycle.id === key))
+      .filter((cycle): cycle is ReviewCycle => Boolean(cycle))
+      .map((cycle) => cycle.id),
+    cycles,
+    yearKey,
+  )
+}
+
+export function cyclePurposeOf(cycle: Pick<ReviewCycle, 'purpose' | 'periodKey' | 'type'>): CyclePurpose {
+  return (
+    cycle.purpose ??
+    inferPurpose(
+      cycle.periodKey,
+      cycle.type === 'ad-hoc' ? 'custom' : 'quarterly_checkin',
+    )
+  )
+}
+
+export function isLinkableSourceCycle(
+  cycle: ReviewCycle,
+  excludeId?: string,
+): boolean {
+  if (excludeId && cycle.id === excludeId) return false
+  return cyclePurposeOf(cycle) !== 'annual_appraisal'
+}
+
+export function listLinkableSourceCycles(
+  cycles: ReviewCycle[],
+  opts?: { excludeId?: string; yearKey?: string },
+): ReviewCycle[] {
+  const yearKey = opts?.yearKey
+  return cycles
+    .filter((cycle) => isLinkableSourceCycle(cycle, opts?.excludeId))
+    .sort((left, right) => {
+      const leftMatch = yearKey && left.yearKey === yearKey ? 0 : 1
+      const rightMatch = yearKey && right.yearKey === yearKey ? 0 : 1
+      if (leftMatch !== rightMatch) return leftMatch - rightMatch
+      return left.startDate.localeCompare(right.startDate)
+    })
+}
+
+export function sourceLinksFromIds(
+  sourceIds: string[],
+  cycles: ReviewCycle[],
+  yearKey?: string,
+): NonNullable<ReviewCycle['sourceLinks']> {
+  const unique = [...new Set(sourceIds.filter(Boolean))]
+  const weightPercent = Math.round(100 / Math.max(unique.length, 1))
+  return unique.map((sourceCycleId) => {
+    const source = cycles.find((cycle) => cycle.id === sourceCycleId)
+    return {
+      sourceCycleId,
+      weightPercent,
       excluded: false,
       transitionGrade:
-        cycle.periodKey === `q1-${yearKey}` ? ('performing' as const) : null,
-    }))
+        source?.periodKey && yearKey && source.periodKey === `q1-${yearKey}`
+          ? ('performing' as const)
+          : null,
+    }
+  })
 }
 
 export function quarterLabelForCycle(cycle: Pick<ReviewCycle, 'periodKey' | 'name'>): string {

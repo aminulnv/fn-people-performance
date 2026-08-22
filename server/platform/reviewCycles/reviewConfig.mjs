@@ -46,6 +46,30 @@ export function presetEnabledStages(purpose, periodKey) {
   return ['goals', 'manager_review']
 }
 
+export function cycleModulesOf(stages) {
+  return {
+    goals: Boolean(stages?.some((stage) => stage.id === 'goals' && stage.enabled)),
+    reviews: Boolean(stages?.some((stage) => stage.id !== 'goals' && stage.enabled)),
+  }
+}
+
+export function presetReviewFlowStages(purpose, periodKey) {
+  const key = isGoalsOnlyQuarter(periodKey) ? undefined : periodKey
+  return presetEnabledStages(purpose, key).filter((id) => id !== 'goals')
+}
+
+export function applyCycleModules(config, modules, purpose, periodKey) {
+  const reviewsWereOn = cycleModulesOf(config.reviewStages).reviews
+  const reviewPreset = new Set(presetReviewFlowStages(purpose, periodKey))
+  const reviewStages = (config.reviewStages ?? []).map((stage) => {
+    if (stage.id === 'goals') return { ...stage, enabled: modules.goals }
+    if (!modules.reviews) return { ...stage, enabled: false }
+    if (reviewsWereOn) return stage
+    return { ...stage, enabled: reviewPreset.has(stage.id) }
+  })
+  return syncLegacyStageWindows({ ...config, reviewStages })
+}
+
 function at(date, time = '00:00') {
   return { date, time }
 }

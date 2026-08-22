@@ -53,6 +53,7 @@ import {
 import { useEmployeeProfile } from '@/lib/employees/useEmployeeProfile'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import {
   departmentPathForName,
   organisationPathForEmployee,
@@ -309,12 +310,20 @@ export function EmployeeProfileView({
   const hrbpName = hrbp?.fullName || employee.hrbpName
   const extras = getEmployeeProfileExtras(employee.employeeId)
   const directoryReady = loadState === 'ready'
+  const teamOwnerSources = useMemo(
+    () => ({
+      orgTeams: buildOrganisationFromEmployees(
+        employees.length > 0 ? employees : listEmployees(),
+      ).teams,
+    }),
+    [employees],
+  )
   const teamOwner = useMemo(
-    () => resolveTeamOwner(employee),
-    [employee, employees],
+    () => resolveTeamOwner(employee, teamOwnerSources),
+    [employee, teamOwnerSources],
   )
   const teamOwnerName =
-    teamOwner?.fullName || teamOwnerFallbackName(employee)
+    teamOwner?.fullName || teamOwnerFallbackName(employee, teamOwnerSources)
   const managerReportCount =
     extras?.managerDirectReportCount ?? countDirectReports(manager)
   const directoryCount = extras?.directoryCount ?? listEmployees().length

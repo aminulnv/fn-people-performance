@@ -7,15 +7,21 @@ import { clearEmployees, createEmployee } from '@/lib/employees/store'
 import {
   getGoalsSnapshot,
   resetGoalsDemo,
+  setActivePerson,
   setSignedInPerson,
 } from '@/lib/goals/store'
+import {
+  createCycleGroup,
+  getReviewCycle,
+  resetReviewsStoreForTests,
+} from '@/lib/reviews/store'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
 import GoalsPage from '@/pages/GoalsPage'
 
 const MANAGER_ID = '2'
 const REPORT_ID = '1'
 
-async function seedDirectory() {
+async function seedDirectory(reportStartDate = '2024-01-01') {
   const rows = [
     {
       employeeId: 2,
@@ -30,7 +36,7 @@ async function seedDirectory() {
       employeeId: 1,
       fullName: 'Direct Report',
       email: 'report@example.com',
-      startDate: '2024-01-01',
+      startDate: reportStartDate,
       jobTitle: 'Executive',
       managerEmail: 'manager@example.com',
       reportsToName: 'Line Manager',
@@ -50,6 +56,15 @@ async function seedDirectory() {
     })
     if (!created.ok) throw new Error(created.error)
   }
+}
+
+async function putPeopleInGroup(memberIds: number[]) {
+  const cycle = getReviewCycle(getGoalsSnapshot().cycle.id)
+  if (!cycle) throw new Error('Expected the active cycle')
+  return createCycleGroup(cycle.id, {
+    name: 'Everyone',
+    memberIds,
+  })
 }
 
 function signInManager() {
@@ -89,9 +104,11 @@ describe('GoalsPersonDetail manager review', () => {
     sessionStorage.clear()
     clearSession()
     clearEmployees()
+    resetReviewsStoreForTests()
     await seedDirectory()
     setSignedInPerson(MANAGER_ID)
     resetGoalsDemo()
+    await putPeopleInGroup([1, 2])
     signInManager()
   })
 
@@ -184,9 +201,11 @@ describe('GoalsPersonDetail submission status', () => {
     sessionStorage.clear()
     clearSession()
     clearEmployees()
+    resetReviewsStoreForTests()
     await seedDirectory()
     setSignedInPerson(REPORT_ID)
     resetGoalsDemo()
+    await putPeopleInGroup([1, 2])
     signInReport()
   })
 
@@ -240,5 +259,76 @@ describe('GoalsPersonDetail submission status', () => {
       }),
     ).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('Defects closed')).toBeInTheDocument()
+  })
+})
+
+describe('GoalsPersonDetail cycle eligibility', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    clearSession()
+    clearEmployees()
+    resetReviewsStoreForTests()
+    await seedDirectory()
+    setSignedInPerson(REPORT_ID)
+    resetGoalsDemo()
+    signInReport()
+  })
+
+  afterEach(() => {
+    cleanup()
+    clearEmployees()
+    clearSession()
+  })
+
+  it('does not say they joined after Day 1 when they were left out of the cycle groups', async () => {
+    await putPeopleInGroup([2])
+    setActivePerson(REPORT_ID)
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Not in this cycle' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Direct Report is not assigned to a review group for this cycle.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/joined after Day 1/)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: /goal totals/i }),
+    ).toHaveTextContent('Not in this cycle')
+  })
+
+  it('keeps the Day 1 message for a grouped late joiner', async () => {
+    clearEmployees()
+    await seedDirectory('2026-07-15')
+    resetGoalsDemo()
+    await putPeopleInGroup([1, 2])
+    setActivePerson(REPORT_ID)
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Not eligible this quarter' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Direct Report joined after Day 1, so goal setting starts next quarter.',
+      ),
+    ).toBeInTheDocument()
   })
 })

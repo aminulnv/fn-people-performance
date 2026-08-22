@@ -5,27 +5,32 @@ import {
   CircleCheck,
   CircleDashed,
   Clock3,
-  Columns3,
   Eye,
   EyeOff,
-  MoreHorizontal,
   Search,
-  Settings2,
 } from 'lucide-react'
 import {
   Avatar,
-  Button,
   CycleSelect,
   EmptyState,
   ResizableTable,
+  SegmentedControl,
   type CycleSelectOption,
   type ResizableColumn,
 } from '@/components/ui'
-import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { isDirectReport } from '@/lib/employees/relationships'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { fetchReviewPackets, releaseReviewCycle } from '@/lib/reviews/packetsApi'
+import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
+import {
+  defaultScorecardScope,
+  hashForScorecardScope,
+  resolveScorecardScope,
+  scorecardMatchesScope,
+  scorecardScopeFromHash,
+  visibleScorecardScopes,
+} from '@/lib/reviews/scorecardScope'
 import {
   buildScorecardsForCycle,
   gradeLabel,
@@ -34,7 +39,8 @@ import {
   type ScorecardRow,
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
-import type { ReviewPacketStatus } from '@/lib/reviews/types'
+import { useUrlHashTab } from '@/lib/routing/urlHash'
+import type { ReviewPacket } from '@/lib/reviews/types'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 
@@ -87,8 +93,35 @@ export function ScorecardsList() {
   const { employees, loadState, loadError } = useEmployees()
   const { cycles } = useReviewsSnapshot()
   const [query, setQuery] = useState('')
-  const [mineOnly, setMineOnly] = useState(true)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+
+  const me = useMemo(() => {
+    const email = user?.email?.trim().toLowerCase()
+    if (!email) return null
+    return (
+      employees.find(
+        (employee) => employee.email.trim().toLowerCase() === email,
+      ) ?? null
+    )
+  }, [employees, user?.email])
+
+  const hasDirectReports = useMemo(
+    () =>
+      me ? employees.some((employee) => isDirectReport(employee, me)) : false,
+    [employees, me],
+  )
+  const defaultScope = defaultScorecardScope(hasDirectReports)
+  const [scope, setScope] = useUrlHashTab({
+    defaultTab: defaultScope,
+    tabFromHash: scorecardScopeFromHash,
+    hashFromTab: hashForScorecardScope,
+    enabled: Boolean(me),
+  })
+  const overviewScopes = visibleScorecardScopes({
+    hasViewer: Boolean(me),
+    hasDirectReports,
+  })
+  const visibleScope = resolveScorecardScope(scope, overviewScopes)
 
   const cycleOptions = useMemo<CycleSelectOption[]>(() => {
     const fromStore = cycles
@@ -108,14 +141,7 @@ export function ScorecardsList() {
   }, [cycles])
 
   const [cycleKey, setCycleKey] = useState('q3-2026')
-  const [packetStatusByEmployee, setPacketStatusByEmployee] = useState<
-    Record<number, ReviewPacketStatus>
-  >({})
-  const [releaseError, setReleaseError] = useState<string | null>(null)
-  const canRelease = hasSystemPermission(
-    user?.permissions ?? [],
-    'platform.write_all',
-  )
+  const [packets, setPackets] = useState<ReviewPacket[]>([])
 
   useEffect(() => {
     if (cycleOptions.some((option) => option.id === cycleKey)) return
@@ -124,50 +150,30 @@ export function ScorecardsList() {
 
   useEffect(() => {
     let cancelled = false
+    setPackets([])
     void fetchReviewPackets(cycleKey)
-      .then((packets) => {
-        if (cancelled) return
-        const next: Record<number, ReviewPacketStatus> = {}
-        for (const packet of packets) {
-          next[packet.employeeId] = packet.status
-        }
-        setPacketStatusByEmployee(next)
+      .then((next) => {
+        if (!cancelled) setPackets(next)
       })
       .catch(() => {
-        if (!cancelled) setPacketStatusByEmployee({})
+        if (!cancelled) setPackets([])
       })
     return () => {
       cancelled = true
     }
   }, [cycleKey])
 
-  const rows = useMemo(() => {
-    const built = buildScorecardsForCycle(cycleKey, employees, user?.email)
-    return built.map((row) => {
-      const packetStatus = packetStatusByEmployee[row.employeeId]
-      if (!packetStatus) return row
-      const status: ScorecardStatus =
-        packetStatus === 'not_started'
-          ? 'not_started'
-          : packetStatus === 'released_to_employees' ||
-              packetStatus === 'released_to_managers' ||
-              packetStatus === 'calibrated'
-            ? 'completed'
-            : 'in_progress'
-      return { ...row, status }
-    })
-  }, [cycleKey, employees, packetStatusByEmployee, user?.email])
-
-  const managerRows = useMemo(
-    () => rows.filter((row) => row.isMine),
-    [rows],
+  const rows = useMemo(
+    () => buildScorecardsForCycle(cycleKey, employees, user?.email, packets),
+    [cycleKey, employees, packets, user?.email],
   )
 
-  const hasDirectReports = managerRows.length > 0
-
   const queueRows = useMemo(
-    () => (mineOnly ? managerRows : rows),
-    [managerRows, mineOnly, rows],
+    () =>
+      rows.filter((row) =>
+        scorecardMatchesScope(row, visibleScope, me?.employeeId ?? null),
+      ),
+    [me?.employeeId, rows, visibleScope],
   )
 
   const stats = useMemo(() => {
@@ -358,103 +364,29 @@ export function ScorecardsList() {
             onChange={setCycleKey}
           />
 
-          <button
-            type="button"
-            className={[
-              'pd-people__chip',
-              mineOnly ? 'is-active' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-pressed={mineOnly}
-            onClick={() => setMineOnly((value) => !value)}
-          >
-            My performance reviews
-          </button>
-        </div>
-
-        <div className="pd-people__toolbar">
-          {canRelease ? (
-            <>
-              <Button
-                variant="secondary"
-                size="sm"
-                pill
-                onClick={() => {
-                  setReleaseError(null)
-                  void releaseReviewCycle(cycleKey, 'managers')
-                    .then((packets) => {
-                      const next: Record<number, ReviewPacketStatus> = {}
-                      for (const packet of packets) next[packet.employeeId] = packet.status
-                      setPacketStatusByEmployee(next)
-                    })
-                    .catch((err: unknown) => {
-                      setReleaseError(
-                        err instanceof Error ? err.message : 'Could not release to managers.',
-                      )
-                    })
-                }}
-              >
-                Release to managers
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                pill
-                onClick={() => {
-                  setReleaseError(null)
-                  void releaseReviewCycle(cycleKey, 'employees')
-                    .then((packets) => {
-                      const next: Record<number, ReviewPacketStatus> = {}
-                      for (const packet of packets) next[packet.employeeId] = packet.status
-                      setPacketStatusByEmployee(next)
-                    })
-                    .catch((err: unknown) => {
-                      setReleaseError(
-                        err instanceof Error ? err.message : 'Could not release to employees.',
-                      )
-                    })
-                }}
-              >
-                Release to employees
-              </Button>
-            </>
+          {overviewScopes.length > 1 ? (
+            <SegmentedControl
+              className="pd-people__scope"
+              buttonClassName="pd-people__scope-btn"
+              options={overviewScopes}
+              value={visibleScope}
+              onChange={setScope}
+              aria-label="Reviews scope"
+            />
           ) : null}
-          <button
-            type="button"
-            className="pd-people__icon-btn"
-            aria-label="More actions"
-            title="More actions"
-          >
-            <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
-          </button>
-          <button
-            type="button"
-            className="pd-people__ghost-btn"
-            title="Column Settings"
-          >
-            <Columns3 size={16} strokeWidth={1.75} aria-hidden />
-            Column Settings
-          </button>
-          <button type="button" className="pd-people__create-btn">
-            <Settings2 size={16} strokeWidth={1.75} aria-hidden />
-            Manage performance reviews
-          </button>
         </div>
       </div>
-
-      {releaseError ? (
-        <p className="pd-reviews-flow__hint" role="alert">
-          {releaseError}
-        </p>
-      ) : null}
 
       <section
         className="pd-people__panel pd-people__panel--table"
         aria-labelledby="scorecards-heading"
       >
         <h2 id="scorecards-heading" className="pd-sr-only">
-          Performance reviews
+          {visibleScope === 'mine'
+            ? 'My reviews'
+            : visibleScope === 'reports'
+              ? "My Reports' reviews"
+              : "Everyone's reviews"}
         </h2>
 
         {loadState === 'loading' && employees.length === 0 ? (
@@ -471,11 +403,13 @@ export function ScorecardsList() {
               title={queueRows.length === 0 ? 'No performance reviews yet' : 'No matches'}
               description={
                 queueRows.length === 0
-                  ? mineOnly
-                    ? hasDirectReports
-                      ? 'No direct reports match this cycle.'
-                      : 'You have no direct reports to review for this cycle.'
-                    : 'Add people in the directory to show performance reviews for this cycle.'
+                  ? visibleScope === 'mine'
+                    ? 'You do not have a performance review in this cycle yet.'
+                    : visibleScope === 'reports'
+                      ? hasDirectReports
+                        ? 'No direct reports match this cycle.'
+                        : 'You have no direct reports to review for this cycle.'
+                      : 'Add people to a group on the cycle settings page to open reviews for this cycle.'
                   : statusFilter !== 'all'
                     ? 'No performance reviews match this status. Try another filter or clear it.'
                     : 'Try a different search or cycle.'

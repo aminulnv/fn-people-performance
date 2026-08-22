@@ -11,6 +11,7 @@ import type {
   ReviewCycle,
 } from "@/lib/reviews/types";
 import { CountStepperField } from "./CountStepperField";
+import { CycleModuleField, ModuleSettingsLock } from "./CycleModulesFields";
 import { EditPageShell } from "./EditPageShell";
 import { StageWindowFields } from "./StageDateTable";
 
@@ -19,6 +20,8 @@ type GoalsSettingsEditPageProps = {
   group: CycleGroup;
   onClose: () => void;
   embedded?: boolean;
+  enabled?: boolean;
+  onEnabledChange?: (enabled: boolean) => void;
 };
 
 export function GoalsSettingsEditPage({
@@ -26,6 +29,8 @@ export function GoalsSettingsEditPage({
   group,
   onClose,
   embedded = false,
+  enabled = true,
+  onEnabledChange,
 }: GoalsSettingsEditPageProps) {
   const source = group;
   const [settings, setSettings] = useState<CycleSettings>(() =>
@@ -65,13 +70,29 @@ export function GoalsSettingsEditPage({
 
   return (
     <EditPageShell
-      title={`${group.name} · Goals settings`}
-      description="Goal windows and submission rules for the people in this group."
+      title={`${group.name} · Goals`}
+      description={
+        enabled
+          ? "When people can set goals, and how many they need."
+          : "Turn on Goals to set the window and how many people need."
+      }
       onBack={onClose}
       onSave={save}
       error={error}
       embedded={embedded}
+      showActions={enabled}
+      actionsPlacement={embedded ? "bottom" : "top"}
     >
+      {onEnabledChange ? (
+        <section className="pd-reviews-edit-card pd-reviews-module-enable">
+          <CycleModuleField
+            id="goals"
+            enabled={enabled}
+            onChange={onEnabledChange}
+          />
+        </section>
+      ) : null}
+      <ModuleSettingsLock locked={!enabled} label="Goal settings">
       <div className="pd-reviews-settings-edit">
         <div className="pd-reviews-settings-edit__column">
           <section className="pd-reviews-edit-card pd-reviews-edit-card--window">
@@ -100,10 +121,10 @@ export function GoalsSettingsEditPage({
             </div>
             <div className="pd-reviews-policy">
               <div className="pd-reviews-policy__group">
-                <h4 className="pd-reviews-policy__title">Required</h4>
+                <h4 className="pd-reviews-policy__title">People must have</h4>
                 <div className="pd-reviews-policy-grid">
                   <CountStepperField
-                    label="Minimum"
+                    label="At least"
                     value={settings.goalCountPolicy.minimumRequired}
                     onChange={(minimumRequired) =>
                       setSettings((prev) => ({
@@ -116,9 +137,9 @@ export function GoalsSettingsEditPage({
                     }
                   />
                   <CountStepperField
-                    label="Maximum"
+                    label="At most"
                     allowEmpty
-                    placeholder="None"
+                    placeholder="No limit"
                     emptyStepTo={settings.goalCountPolicy.recommendedMaximum}
                     value={settings.goalCountPolicy.maximumAllowed}
                     onChange={(maximumAllowed) =>
@@ -133,11 +154,15 @@ export function GoalsSettingsEditPage({
                   />
                 </div>
               </div>
-              <div className="pd-reviews-policy__group">
-                <h4 className="pd-reviews-policy__title">Recommended</h4>
+              <details className="pd-cycle-setup__more">
+                <summary>Suggested range</summary>
+                <p className="pd-reviews-flow__hint">
+                  A hint on the goals page. People can still submit if they stay
+                  inside the required range.
+                </p>
                 <div className="pd-reviews-policy-grid">
                   <CountStepperField
-                    label="Minimum"
+                    label="From"
                     value={settings.goalCountPolicy.recommendedMinimum}
                     onChange={(recommendedMinimum) =>
                       setSettings((prev) => ({
@@ -150,7 +175,7 @@ export function GoalsSettingsEditPage({
                     }
                   />
                   <CountStepperField
-                    label="Maximum"
+                    label="To"
                     value={settings.goalCountPolicy.recommendedMaximum}
                     onChange={(recommendedMaximum) =>
                       setSettings((prev) => ({
@@ -163,7 +188,7 @@ export function GoalsSettingsEditPage({
                     }
                   />
                 </div>
-              </div>
+              </details>
             </div>
           </section>
 
@@ -189,6 +214,7 @@ export function GoalsSettingsEditPage({
           </section>
         </div>
       </div>
+      </ModuleSettingsLock>
     </EditPageShell>
   );
 }

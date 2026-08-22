@@ -1,13 +1,8 @@
-import { Pencil, Plus, Trash2 } from 'lucide-react'
-import { Button, ConfirmDialog } from '@/components/ui'
-import { formatDateRange } from '@/lib/reviews/periods'
-import { describeEnabledFlow } from '@/lib/reviews/reviewStages'
-import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
+import { Plus, Trash2, UsersRound } from 'lucide-react'
 import { useState } from 'react'
-
-function peopleCountLabel(count: number): string {
-  return count === 1 ? '1 person' : `${count} people`
-}
+import { Button, ConfirmDialog, EmptyState } from '@/components/ui'
+import { peopleCountLabel } from '@/lib/reviews/groupSummary'
+import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 
 type CycleGroupsSectionProps = {
   cycle: ReviewCycle
@@ -31,19 +26,25 @@ export function CycleGroupsSection({
       className="pd-reviews-settings__section"
       aria-labelledby="cycle-groups-heading"
     >
-      <div className="pd-reviews-settings__section-head">
-        <div className="pd-reviews-settings__section-title-row">
-          <h3
-            className="pd-reviews-settings__section-title"
-            id="cycle-groups-heading"
-          >
-            Groups
-          </h3>
-          {groups.length > 0 ? (
-            <span className="pd-reviews-settings__section-count">
-              {groups.length === 1 ? '1 group' : `${groups.length} groups`}
-            </span>
-          ) : null}
+      <header className="pd-reviews-settings__section-head">
+        <div>
+          <div className="pd-reviews-settings__section-title-row">
+            <h3
+              className="pd-reviews-settings__section-title"
+              id="cycle-groups-heading"
+            >
+              People in this cycle
+            </h3>
+            {groups.length > 0 ? (
+              <span className="pd-reviews-settings__section-count">
+                {groups.length === 1 ? '1 group' : `${groups.length} groups`}
+              </span>
+            ) : null}
+          </div>
+          <p className="pd-reviews-settings__section-lede">
+            A group is a set of people who follow the same rules. One group is
+            enough unless some people need different dates or forms.
+          </p>
         </div>
         {groups.length > 0 ? (
           <Button variant="primary" size="sm" pill onClick={onAddGroup}>
@@ -51,43 +52,47 @@ export function CycleGroupsSection({
             Add group
           </Button>
         ) : null}
-      </div>
+      </header>
 
       {groups.length === 0 ? (
-        <div className="pd-cycle-groups__empty">
-          <p className="pd-cycle-groups__empty-title">No groups yet</p>
-          <Button variant="primary" pill onClick={onAddGroup}>
-            <Plus size={14} strokeWidth={2} aria-hidden />
-            Create first group
-          </Button>
-        </div>
+        <EmptyState
+          className="pd-cycle-setup__empty"
+          icon={UsersRound}
+          title="No one is in this cycle yet"
+          description="Create a group, add people, and choose whether they set goals, do reviews, or both."
+          action={
+            <Button variant="primary" pill onClick={onAddGroup}>
+              <Plus size={14} strokeWidth={2} aria-hidden />
+              Create a group
+            </Button>
+          }
+        />
       ) : (
-        <div className="pd-cycle-groups__table-wrap">
-          <table className="pd-cycle-groups__table">
-            <thead>
-              <tr>
-                <th scope="col">Group</th>
-                <th scope="col">People</th>
-                <th scope="col">Goals</th>
-                <th scope="col">Review flow</th>
-                <th scope="col">Window</th>
-                <th scope="col">
-                  <span className="pd-sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {groups.map((group) => (
-                <GroupRow
-                  key={group.id}
-                  group={group}
-                  onOpen={() => onOpenGroup(group.id)}
-                  onDelete={() => setDeleteId(group.id)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="pd-cycle-setup__groups">
+          {groups.map((group) => (
+            <li key={group.id}>
+              <GroupCard
+                group={group}
+                onOpen={() => onOpenGroup(group.id)}
+                onDelete={() => setDeleteId(group.id)}
+              />
+            </li>
+          ))}
+          <li>
+            <button
+              type="button"
+              className="pd-cycle-setup__group-create"
+              onClick={onAddGroup}
+            >
+              <span className="pd-cycle-setup__group-create-icon" aria-hidden>
+                <Plus size={18} strokeWidth={2.25} />
+              </span>
+              <span className="pd-cycle-setup__group-create-label">
+                Create new group
+              </span>
+            </button>
+          </li>
+        </ul>
       )}
 
       <ConfirmDialog
@@ -111,7 +116,7 @@ export function CycleGroupsSection({
   )
 }
 
-function GroupRow({
+function GroupCard({
   group,
   onOpen,
   onDelete,
@@ -120,71 +125,34 @@ function GroupRow({
   onOpen: () => void
   onDelete: () => void
 }) {
-  const goalWindow = group.stagesConfig.goals.employee
-  const reviewWindow = group.stagesConfig.performance
+  const people = peopleCountLabel(group.memberIds.length)
+  const countId = `${group.id}-people-count`
 
   return (
-    <tr
-      className="pd-cycle-groups__row"
-      tabIndex={0}
-      onClick={(event) => {
-        const target = event.target as HTMLElement
-        if (target.closest('button')) return
-        onOpen()
-      }}
-      onKeyDown={(event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return
-        if ((event.target as HTMLElement).closest('button')) return
-        event.preventDefault()
-        onOpen()
-      }}
-    >
-      <th scope="row">
-        <button
-          type="button"
-          className="pd-cycle-groups__name"
-          onClick={onOpen}
-        >
-          {group.name}
-        </button>
-      </th>
-      <td className="pd-cycle-groups__people-count">
-        {peopleCountLabel(group.memberIds.length)}
-      </td>
-      <td className="pd-cycle-groups__date">
-        {formatDateRange(goalWindow.startDate, goalWindow.endDate)}
-      </td>
-      <td className="pd-cycle-groups__date">
-        {describeEnabledFlow(group.stagesConfig.reviewStages)}
-      </td>
-      <td className="pd-cycle-groups__date">
-        {formatDateRange(
-          reviewWindow.managerStart.date,
-          reviewWindow.managerEnd.date,
-        )}
-      </td>
-      <td>
-        <div className="pd-cycle-groups__row-actions">
-          <Button
-            variant="ghost"
-            size="sm"
-            pill
-            aria-label={`Delete ${group.name}`}
-            onClick={onDelete}
-          >
-            <Trash2 size={14} strokeWidth={2} aria-hidden />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            pill
-            aria-label={`Edit ${group.name}`}
-            onClick={onOpen}
-          >
-            <Pencil size={14} strokeWidth={2} aria-hidden />
-          </Button>
-        </div>
-      </td>
-    </tr>
+    <article className="pd-cycle-setup__group">
+      <button
+        type="button"
+        className="pd-cycle-setup__group-main"
+        aria-label={group.name}
+        aria-describedby={countId}
+        onClick={onOpen}
+      >
+        <span className="pd-cycle-setup__group-icon" aria-hidden>
+          <UsersRound size={28} strokeWidth={1.75} />
+        </span>
+        <span className="pd-cycle-setup__group-name">{group.name}</span>
+        <span className="pd-cycle-setup__group-count" id={countId}>
+          {people}
+        </span>
+      </button>
+      <button
+        type="button"
+        className="pd-cycle-setup__group-delete"
+        aria-label={`Delete ${group.name}`}
+        onClick={onDelete}
+      >
+        <Trash2 size={14} strokeWidth={2} aria-hidden />
+      </button>
+    </article>
   )
 }

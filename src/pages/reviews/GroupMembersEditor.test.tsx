@@ -14,9 +14,18 @@ const { employeesState } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/lib/employees/useEmployees', () => ({
-  useEmployees: () => employeesState,
-}))
+vi.mock('@/lib/employees/useEmployees', async () => {
+  const { buildOrganisationFromEmployees } = await import(
+    '@/lib/organisation/fromEmployees'
+  )
+  return {
+    useEmployees: () => employeesState,
+    useOrganisation: () => ({
+      ...employeesState,
+      organisation: buildOrganisationFromEmployees(employeesState.employees),
+    }),
+  }
+})
 
 function person(
   id: number,
@@ -131,6 +140,66 @@ describe('GroupMembersEditor', () => {
     expect(
       screen.queryByRole('button', { name: 'Remove Sheikh Syed Ahmed' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows each department Core team with that team’s headcount', () => {
+    employeesState.employees = [
+      person(1, {
+        fullName: 'Syed Abdullah Jayed',
+        department: 'Management',
+        team: 'Core',
+      }),
+      person(2, {
+        fullName: 'Syed Abdullah Galib',
+        department: 'Management',
+        team: 'Core',
+      }),
+      person(3, {
+        fullName: 'Tanzim Hasan Fahim',
+        department: 'Technology',
+        team: 'Core',
+      }),
+      person(4, {
+        fullName: 'Md. Abdullah Al Monaem',
+        department: 'Operations',
+        team: 'Core',
+      }),
+    ]
+
+    render(<Harness />)
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add people to this group' }), {
+      target: { value: 'Core' },
+    })
+
+    const picker = screen.getByRole('listbox', { name: 'People to add' })
+    expect(within(picker).getByText('Management · 2 people')).toBeInTheDocument()
+    expect(within(picker).getByText('Technology · 1 person')).toBeInTheDocument()
+    expect(within(picker).getByText('Operations · 1 person')).toBeInTheDocument()
+    expect(within(picker).queryByText(/19 people/)).not.toBeInTheDocument()
+  })
+
+  it('does not offer departments when picking people only', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Jayed Sarker', department: 'Leadership' }),
+    ]
+
+    render(
+      <GroupMembersEditor
+        memberIds={[]}
+        onChange={() => {}}
+        searchLabel="Add senior leaders"
+        placeholder="Add a person…"
+        peopleOnly
+      />,
+    )
+    fireEvent.focus(screen.getByRole('combobox', { name: 'Add senior leaders' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Add senior leaders' }), {
+      target: { value: 'Lead' },
+    })
+
+    const picker = screen.getByRole('listbox', { name: 'People to add' })
+    expect(within(picker).getAllByRole('option')).toHaveLength(1)
+    expect(within(picker).getByRole('option', { name: /Jayed Sarker/ })).toBeInTheDocument()
   })
 
   it('removes checked people in bulk from the member list', () => {

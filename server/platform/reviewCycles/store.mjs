@@ -161,6 +161,15 @@ async function replaceExclusions(client, cycleId, employeeIds, currentIds) {
   return unique
 }
 
+async function allocateCycleId(client, preferredId) {
+  const existing = await getCycleRow(client, preferredId, { includeDeleted: true })
+  if (!existing) return preferredId
+  if (!existing.deleted_at) {
+    throw new HttpError(409, 'A cycle for this period already exists.')
+  }
+  return `${preferredId}-${crypto.randomUUID().slice(0, 8)}`
+}
+
 async function getCycleRow(client, cycleId, { forUpdate = false, includeDeleted = false } = {}) {
   const { rows } = await client.query(
     `SELECT *
@@ -296,7 +305,10 @@ export async function createReviewCycle(input, platformUser) {
       purpose,
     )
 
-    const id = input.id || `adhoc-${crypto.randomUUID()}`
+    const id = await allocateCycleId(
+      client,
+      input.id || input.periodKey || `adhoc-${crypto.randomUUID()}`,
+    )
     const { rows } = await client.query(
       `INSERT INTO platform.review_cycles (
          id, name, cycle_type, period_key, start_date, end_date, is_test,

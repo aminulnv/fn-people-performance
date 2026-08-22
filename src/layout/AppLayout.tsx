@@ -123,16 +123,28 @@ export function AppLayout({
     return buildOrganisationFromEmployees(employees)
   }, [departmentIdParam, employees, teamIdParam])
 
+  const cycleGroupMatch = matchPath(
+    { path: '/cycles/:cycleId/groups/:groupId', end: true },
+    pathname,
+  )
   const cycleDetailMatch =
     matchPath(
       { path: '/cycles/:cycleId/:section', end: true },
       pathname,
     ) ??
     matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
-  const cycleIdParam = cycleDetailMatch?.params.cycleId
-  const cycleName = cycleIdParam
-    ? getReviewCycle(cycleIdParam)?.name
-    : undefined
+  const cycleIdParam =
+    cycleGroupMatch?.params.cycleId ?? cycleDetailMatch?.params.cycleId
+  const cycle = cycleIdParam ? getReviewCycle(cycleIdParam) : undefined
+  const cycleName = cycle?.name
+  const cycleGroupName = (() => {
+    const groupId = cycleGroupMatch?.params.groupId
+    if (!cycle || !groupId) return undefined
+    const decoded = decodeURIComponent(groupId)
+    return cycle.groups?.find(
+      (group) => group.id === groupId || group.id === decoded,
+    )?.name
+  })()
   const scorecardCycleKey = scorecardDetailMatch?.params.cycleKey
     ? decodeURIComponent(scorecardDetailMatch.params.cycleKey)
     : undefined
@@ -176,11 +188,13 @@ export function AppLayout({
           )?.name
           : undefined,
         cycleName,
+        cycleGroupName,
         scorecardCycleLabel,
         goalsCycleLabel,
         goalsGoalTitle,
       }),
     [
+      cycleGroupName,
       cycleName,
       departmentIdParam,
       goalsCycleLabel,

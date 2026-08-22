@@ -92,6 +92,68 @@ describe("reviews store", () => {
     expect(getReviewCycle(created.id)?.id).toBe(created.id);
   });
 
+  it("creates an annual appraisal with year stages and linked quarters", async () => {
+    const created = await createReviewCycle({
+      type: "regular",
+      purpose: "annual_appraisal",
+      periodKey: "annual-2028",
+    });
+    expect(created.purpose).toBe("annual_appraisal");
+    expect(created.id).toBe("annual-2028");
+    expect(created.startDate).toBe("2029-01-01");
+    expect(created.endDate).toBe("2029-02-15");
+    const enabled = (created.stagesConfig.reviewStages ?? [])
+      .filter((stage) => stage.enabled)
+      .map((stage) => stage.id);
+    expect(enabled).toContain("self_review");
+    expect(enabled).toContain("manager_review");
+    expect(enabled).not.toContain("goals");
+  });
+
+  it("creates Q4 as a goals-only cycle", async () => {
+    const created = await createReviewCycle({
+      type: "regular",
+      purpose: "quarterly_checkin",
+      periodKey: "q4-2028",
+    });
+    const enabled = (created.stagesConfig.reviewStages ?? [])
+      .filter((stage) => stage.enabled)
+      .map((stage) => stage.id);
+    expect(enabled).toEqual(["goals"]);
+  });
+
+  it("honours module overrides when creating a cycle", async () => {
+    const created = await createReviewCycle({
+      type: "regular",
+      purpose: "quarterly_checkin",
+      periodKey: "q4-2029",
+      modules: { goals: true, reviews: true },
+    });
+    const enabled = (created.stagesConfig.reviewStages ?? [])
+      .filter((stage) => stage.enabled)
+      .map((stage) => stage.id);
+    expect(enabled).toContain("goals");
+    expect(enabled).toContain("manager_review");
+  });
+
+  it("lets an annual period be created again after it was deleted", async () => {
+    const first = await createReviewCycle({
+      type: "regular",
+      purpose: "annual_appraisal",
+      periodKey: "annual-2029",
+    });
+    await deleteReviewCycle(first.id);
+    expect(getReviewCycle(first.id)).toBeNull();
+
+    const second = await createReviewCycle({
+      type: "regular",
+      purpose: "annual_appraisal",
+      periodKey: "annual-2029",
+    });
+    expect(second.periodKey).toBe("annual-2029");
+    expect(getReviewCycle(second.id)?.name).toBe("Annual 2029");
+  });
+
   it("creates a test cycle from an existing one", async () => {
     const source = await createReviewCycle({
       type: "ad-hoc",

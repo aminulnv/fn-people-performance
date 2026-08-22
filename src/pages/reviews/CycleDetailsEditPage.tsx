@@ -1,11 +1,18 @@
 import { useMemo, useState } from 'react'
 import { CalendarRange, Link2 } from 'lucide-react'
 import { Input, Select } from '@/components/ui'
-import { PURPOSE_HINT, PURPOSE_LABEL } from '@/lib/reviews/purpose'
-import { updateReviewCycle } from '@/lib/reviews/store'
+import {
+  PURPOSE_HINT,
+  PURPOSE_LABEL,
+  listLinkableSourceCycles,
+  sourceLinksFromIds,
+} from '@/lib/reviews/purpose'
+import { applyCycleModules, presetCycleModules } from '@/lib/reviews/reviewStages'
+import { updateCycleGroup, updateReviewCycle } from '@/lib/reviews/store'
 import type { CyclePurpose, ReviewCycle } from '@/lib/reviews/types'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { EditPageShell } from './EditPageShell'
+import { SourceCyclePicker } from './SourceCyclePicker'
 
 type CycleDetailsEditPageProps = {
   cycle: ReviewCycle
@@ -19,10 +26,9 @@ export function CycleDetailsEditPage({
   embedded = false,
 }: CycleDetailsEditPageProps) {
   const { cycles } = useReviewsSnapshot()
+  const originalPurpose = cycle.purpose ?? 'quarterly_checkin'
   const [name, setName] = useState(cycle.name)
-  const [purpose, setPurpose] = useState<CyclePurpose>(
-    cycle.purpose ?? 'quarterly_checkin',
-  )
+  const [purpose, setPurpose] = useState<CyclePurpose>(originalPurpose)
   const [yearKey, setYearKey] = useState(cycle.yearKey ?? '')
   const [startDate, setStartDate] = useState(cycle.startDate)
   const [endDate, setEndDate] = useState(cycle.endDate)
@@ -33,17 +39,19 @@ export function CycleDetailsEditPage({
 
   const linkable = useMemo(
     () =>
-      cycles.filter(
-        (item) =>
-          item.id !== cycle.id &&
-          item.purpose === 'quarterly_checkin' &&
-          (!yearKey || item.yearKey === yearKey),
-      ),
+      listLinkableSourceCycles(cycles, {
+        excludeId: cycle.id,
+        yearKey: yearKey || undefined,
+      }),
     [cycles, cycle.id, yearKey],
   )
 
   const save = () => {
     setError(null)
+    const purposeChanged = purpose !== originalPurpose
+    const nextModules = purposeChanged
+      ? presetCycleModules(purpose, cycle.periodKey)
+      : null
     try {
       void updateReviewCycle(cycle.id, {
         name,
@@ -51,12 +59,34 @@ export function CycleDetailsEditPage({
         yearKey: yearKey || undefined,
         startDate,
         endDate,
-        sourceLinks: sourceIds.map((sourceCycleId) => ({
-          sourceCycleId,
-          weightPercent: Math.round(100 / Math.max(sourceIds.length, 1)),
-          excluded: false,
-        })),
-      }).catch(() => {})
+        sourceLinks: sourceLinksFromIds(sourceIds, cycles, yearKey || undefined),
+        ...(nextModules
+          ? {
+              stagesConfig: applyCycleModules(
+                cycle.stagesConfig,
+                nextModules,
+                purpose,
+                cycle.periodKey,
+              ),
+            }
+          : {}),
+      })
+        .then(() => {
+          if (!nextModules) return
+          return Promise.all(
+            (cycle.groups ?? []).map((group) =>
+              updateCycleGroup(cycle.id, group.id, {
+                stagesConfig: applyCycleModules(
+                  group.stagesConfig,
+                  nextModules,
+                  purpose,
+                  cycle.periodKey,
+                ),
+              }),
+            ),
+          )
+        })
+        .catch(() => {})
       if (!embedded) onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings.')
@@ -76,7 +106,7 @@ export function CycleDetailsEditPage({
         <section className="pd-reviews-edit-card">
           <header className="pd-reviews-edit-card__head">
             <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-            <h3 className="pd-reviews-edit-card__title">What this cycle is</h3>
+            <h3 className="pd-reviews-edit-card__title">Name and dates</h3>
           </header>
           <p className="pd-reviews-flow__hint">{PURPOSE_HINT[purpose]}</p>
           <Input
@@ -85,9 +115,11 @@ export function CycleDetailsEditPage({
             onChange={(event) => setName(event.target.value)}
           />
           <Select
-            label="Purpose"
+            label="Kind"
             value={purpose}
-            onChange={(event) => setPurpose(event.target.value as CyclePurpose)}
+            onChange={(event) =>
+              setPurpose(event.target.value as CyclePurpose)
+            }
             options={(
               ['quarterly_checkin', 'annual_appraisal', 'custom'] as const
             ).map((id) => ({
@@ -121,41 +153,18 @@ export function CycleDetailsEditPage({
           <section className="pd-reviews-edit-card">
             <header className="pd-reviews-edit-card__head">
               <Link2 size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Linked quarters</h3>
+              <h3 className="pd-reviews-edit-card__title">Included cycles</h3>
             </header>
             <p className="pd-reviews-flow__hint">
-              The annual Goals score is the average of these quarters. Turn a
-              quarter off in the list if it should not count.
+              The annual Goals score is the average of the cycles you include.
+              Quarterly check-ins and custom cycles can both count.
             </p>
-            {linkable.length === 0 ? (
-              <p className="pd-reviews-flow__hint">
-                No quarterly cycles for this year yet.
-              </p>
-            ) : (
-              <ul className="pd-reviews-link-list">
-                {linkable.map((item) => {
-                  const checked = sourceIds.includes(item.id)
-                  return (
-                    <li key={item.id}>
-                      <label className="pd-reviews-link-list__row">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => {
-                            setSourceIds((current) =>
-                              checked
-                                ? current.filter((id) => id !== item.id)
-                                : [...current, item.id],
-                            )
-                          }}
-                        />
-                        <span>{item.name}</span>
-                      </label>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
+            <SourceCyclePicker
+              cycles={linkable}
+              selectedIds={sourceIds}
+              onChange={setSourceIds}
+              emptyLabel="No quarterly or custom cycles to include yet."
+            />
           </section>
         ) : null}
       </div>

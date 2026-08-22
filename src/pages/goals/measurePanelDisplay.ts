@@ -16,6 +16,10 @@ export function measurePanelName(panel: MeasurementPanel): string {
   return panel.title.trim()
 }
 
+export function measurePanelKindLabel(panel: MeasurementPanel): 'Metric' | 'Milestone' {
+  return panel.kind === 'metric' ? 'Metric' : 'Milestone'
+}
+
 export function measurePanelListLabel(
   panel: MeasurementPanel,
   index: number,

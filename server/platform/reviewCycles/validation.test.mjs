@@ -39,6 +39,16 @@ test('normalizeStagesConfig always schedules stages by date', () => {
   assert.equal(normalized.processMode, 'schedule')
 })
 
+test('validateCycleStagesConfig accepts a Q4 goals-only cycle', () => {
+  const config = buildDefaultStagesConfig(
+    '2026-10-01',
+    '2026-12-31',
+    'quarterly_checkin',
+    'q4-2026',
+  )
+  assert.doesNotThrow(() => validateCycleStagesConfig(config))
+})
+
 test('validateCycleStagesConfig rejects invalid goal windows with 400', () => {
   const config = buildDefaultStagesConfig('2026-07-01', '2026-09-30')
   config.goals.employee = {

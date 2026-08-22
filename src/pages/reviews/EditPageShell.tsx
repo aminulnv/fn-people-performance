@@ -13,6 +13,8 @@ type EditPageShellProps = {
   embedded?: boolean
   /** Where Save / Cancel sit. Cycle details uses below the form. */
   actionsPlacement?: 'top' | 'bottom'
+  /** Hide Save until the module is turned on. */
+  showActions?: boolean
   children: ReactNode
 }
 
@@ -25,9 +27,10 @@ export function EditPageShell({
   error,
   embedded = false,
   actionsPlacement = 'top',
+  showActions = true,
   children,
 }: EditPageShellProps) {
-  const actions = (
+  const actions = showActions ? (
     <div className="pd-reviews-edit__actions">
       {embedded ? null : (
         <Button variant="secondary" pill onClick={onBack}>
@@ -38,9 +41,9 @@ export function EditPageShell({
         Save
       </Button>
     </div>
-  )
+  ) : null
   const showHeading = !embedded
-  const showTopActions = actionsPlacement === 'top'
+  const showTopActions = actionsPlacement === 'top' && Boolean(actions)
   const showHeader = showHeading || showTopActions
 
   return (
@@ -76,7 +79,7 @@ export function EditPageShell({
       ) : null}
 
       <div className="pd-reviews-edit__body">{children}</div>
-      {actionsPlacement === 'bottom' ? (
+      {actionsPlacement === 'bottom' && actions ? (
         <div className="pd-reviews-edit__footer">{actions}</div>
       ) : null}
     </div>

@@ -1,5 +1,5 @@
 import { DEFAULT_CYCLE_SETTINGS } from "@/lib/reviews/demoData";
-import type { DemoPerson, GoalsCycle, GoalsSnapshot } from "./types";
+import type { DemoPerson, GoalsCycle, GoalsSnapshot, SubmissionStatus } from "./types";
 import { listGoalCycleOptions, pickDefaultCycleId } from "./cyclesFromReviews";
 
 /**
@@ -52,10 +52,31 @@ export function createInitialSnapshot(): GoalsSnapshot {
   };
 }
 
+export type CycleEligibilityReason = "not_in_cycle" | "joined_after_day1";
+
+export function cycleEligibility(
+  person: DemoPerson,
+  cycle: GoalsCycle,
+): CycleEligibilityReason | null {
+  if (cycle.assignedGroupId === null) return "not_in_cycle";
+  if (person.joinDate > cycle.day1) return "joined_after_day1";
+  return null;
+}
+
+export function cycleIneligibilityReason(
+  person: DemoPerson,
+  cycle: GoalsCycle,
+  status?: SubmissionStatus,
+): CycleEligibilityReason | null {
+  return (
+    cycleEligibility(person, cycle) ??
+    (status === "not_eligible" ? "joined_after_day1" : null)
+  );
+}
+
 export function isEligibleForCycle(
   person: DemoPerson,
   cycle: GoalsCycle,
 ): boolean {
-  if (cycle.assignedGroupId === null) return false;
-  return person.joinDate <= cycle.day1;
+  return cycleEligibility(person, cycle) == null;
 }

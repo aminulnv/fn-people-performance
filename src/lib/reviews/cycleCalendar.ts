@@ -204,8 +204,12 @@ export function listCycleCalendarMonths(
   const months: CycleCalendarMonth[] = []
   let year = startYear
   let month = startMonth
+  const maxMonths = 24
 
-  while (year < endYear || (year === endYear && month <= endMonth)) {
+  while (
+    months.length < maxMonths &&
+    (year < endYear || (year === endYear && month <= endMonth))
+  ) {
     months.push({
       year,
       month,

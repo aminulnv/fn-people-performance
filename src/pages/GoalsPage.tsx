@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
-  ChevronDown,
-  ChevronRight,
   CircleAlert,
   CircleCheck,
   Clock3,
   FilePenLine,
-  History,
   Plus,
   Search,
   Target,
@@ -28,7 +25,6 @@ import {
 } from "@/components/ui";
 import {
   canSubmitGoals,
-  goalCompletion,
   overallCompletion,
   sumGoalWeights,
   type DemoPhase,
@@ -41,7 +37,7 @@ import {
   isBlankGoalDraft,
   isGoalDraftDirty,
 } from "@/lib/goals/draft";
-import { blankGoal, measurementPanels } from "@/lib/goals/measurements";
+import { blankGoal } from "@/lib/goals/measurements";
 import type {
   CascadeRecipient,
   GoalOwnerOption,
@@ -66,7 +62,7 @@ import type { OkrReferenceScope } from "@/lib/okr/reference";
 import { setActiveCycle } from "@/lib/goals/store";
 import { useSharedGoalsSnapshot } from "@/lib/goals/useSharedGoalsSnapshot";
 import { DEMO_PHASES } from "@/lib/goals/phases";
-import { GoalActionsMenu, hasGoalActions } from "./goals/GoalActionsMenu";
+import { GoalProgressAge, GoalsTable, MetricsCountBadge } from "./goals/GoalsTable";
 import { GoalSendBackNotice } from "./goals/GoalSendBackNotice";
 import { GoalSubmitBlockNotice } from "./goals/GoalSubmitBlockNotice";
 import { GoalCountNotice } from "./goals/GoalCountNotice";
@@ -85,22 +81,16 @@ import {
   OKR_REFERENCE_TAB_LABEL,
 } from "./goals/GoalOkrReferenceSheet";
 import { GoalDetailView } from "./goals/GoalDetailView";
-import { BufferedWeightInput, GoalMeasureReadout, formatWeightReadout } from "./goals/GoalMeasurementReadout";
 import type { CascadeTarget } from "./goals/GoalCascadeTargetDialog";
 import { ReportGoalsCard } from "./goals/ReportGoalsCard";
 import { GoalsCycleSelect } from "./goals/GoalsCycleSelect";
-import {
-  useGoalsController,
-  subjectIsEligible,
-} from "./goals/useGoalsController";
+import { useGoalsController } from "./goals/useGoalsController";
 import {
   goalTitle,
   goalSectionLabels,
   goalsDetailPath,
   goalsGoalPath,
-  formatRefreshAge,
   canViewPersonGoals,
-  metricCountLabel,
   GOALS_MY_GOALS_HASH,
   hashForManagerTab,
   hashForGoalsScope,
@@ -110,15 +100,6 @@ import {
   type GoalsManagerTab,
 } from "./goals/goalHelpers";
 import { locationWithHash, useUrlHashTab } from "@/lib/routing/urlHash";
-import {
-  measurePanelLatestProgressAt,
-  measurePanelName,
-  measurePanelProgress,
-} from "./goals/measurePanelDisplay";
-import {
-  formatProgressTimestamp,
-  goalLastUpdatedAt,
-} from "@/lib/goals/progressLog";
 import {
   describeEmptyGoalsList,
   goalRows,
@@ -131,7 +112,13 @@ import {
 } from "./goals/overviewRows";
 import { GoalApprovalCard } from "./goals/GoalApprovalCard";
 import { GoalApprovalStatus } from "./goals/GoalApprovalStatus";
-import { statusLabel, submissionStatusLabel } from "./goals/statusLabels";
+import {
+  cycleIneligibilityEmptyState,
+  cycleIneligibilityStatusLabel,
+  statusLabel,
+  submissionStatusLabel,
+} from "./goals/statusLabels";
+import { cycleIneligibilityReason } from "@/lib/goals/demoData";
 import { cyclesListPath } from "@/lib/reviews/paths";
 import "@/styles/layout-people.css";
 import "@/styles/layout-goals.css";
@@ -169,37 +156,6 @@ function okrSideSheetFor(personId: string) {
     label: OKR_REFERENCE_SHEET_LABEL,
     content: <GoalOkrReferenceSheet scope={scope} />,
   };
-}
-
-function MetricsCountBadge({ count }: { count: number }) {
-  return (
-    <CountBadge
-      count={count}
-      tone="muted"
-      aria-label={metricCountLabel(count)}
-    />
-  );
-}
-
-function compactUpdateAge(iso?: string): string | null {
-  if (!iso) return null;
-  const age = formatRefreshAge(iso);
-  return age === "—" ? null : age;
-}
-
-function GoalProgressAge({ at }: { at?: string }) {
-  const age = compactUpdateAge(at);
-  if (!age || !at) return null;
-  return (
-    <span
-      className="pd-goals-progress-age"
-      title={formatProgressTimestamp(at)}
-      aria-label={`Updated ${age}`}
-    >
-      <History size={12} strokeWidth={1.75} aria-hidden />
-      {age}
-    </span>
-  );
 }
 
 function Notice({
@@ -1132,9 +1088,15 @@ export function GoalsPersonDetail({
     );
   }
 
-  const eligible = subjectIsEligible(active, snapshot);
-  const weightTotal = sumGoalWeights(activeGoals.goals);
-  const completion = Math.round(overallCompletion(activeGoals.goals));
+  const ineligibility = cycleIneligibilityReason(
+    active,
+    snapshot.cycle,
+    activeGoals.status,
+  );
+  const weightTotal = ineligibility ? 0 : sumGoalWeights(activeGoals.goals);
+  const completion = ineligibility
+    ? 0
+    : Math.round(overallCompletion(activeGoals.goals));
   const canEditDraft = Boolean(capabilities?.canEditStructure);
   const pendingCount = countPendingGoalApprovals(reports);
   const ownTodoCount = countOwnGoalTodos(activeGoals, snapshot.cycle, {
@@ -1257,7 +1219,7 @@ export function GoalsPersonDetail({
       })}
       isCurrentCycle={isCurrentCycle}
       row={activeGoals}
-      eligible={eligible}
+      ineligibility={ineligibility}
       canEditDraft={canEditDraft}
       canUpdateProgress={Boolean(capabilities?.canUpdateProgress)}
       canDuplicate={Boolean(capabilities?.canDuplicate)}
@@ -1353,16 +1315,18 @@ export function GoalsPersonDetail({
           <div className="pd-people__summary-card">
             <span className="pd-people__summary-label">Status</span>
             <span className="pd-people__summary-value">
-              {submissionStatusLabel(
-                activeGoals.status,
-                activeGoals.goals.length,
-              )}
+              {ineligibility
+                ? cycleIneligibilityStatusLabel(ineligibility)
+                : submissionStatusLabel(
+                    activeGoals.status,
+                    activeGoals.goals.length,
+                  )}
             </span>
           </div>
           <div className="pd-people__summary-card">
             <span className="pd-people__summary-label">Goals</span>
             <span className="pd-people__summary-value">
-              {activeGoals.goals.length}
+              {ineligibility ? 0 : activeGoals.goals.length}
             </span>
           </div>
           <div className="pd-people__summary-card">
@@ -1719,7 +1683,7 @@ function EmployeePanel({
   editLock,
   isCurrentCycle,
   row,
-  eligible,
+  ineligibility,
   canEditDraft,
   canUpdateProgress,
   canDuplicate,
@@ -1759,7 +1723,7 @@ function EmployeePanel({
   editLock: string | null;
   isCurrentCycle: boolean;
   row: PersonGoals;
-  eligible: boolean;
+  ineligibility: ReturnType<typeof cycleIneligibilityReason>;
   canEditDraft: boolean;
   canUpdateProgress: boolean;
   canDuplicate: boolean;
@@ -1873,14 +1837,15 @@ function EmployeePanel({
 
   if (toolbarOnly && !toolbarStart) return null;
 
-  if (!toolbarOnly && (!eligible || row.status === "not_eligible")) {
+  if (!toolbarOnly && ineligibility) {
+    const empty = cycleIneligibilityEmptyState(personName, ineligibility);
     return (
       <>
         <GoalsToolbar start={toolbarStart} />
         <EmptyState
           icon={Target}
-          title="Not eligible this quarter"
-          description={`${personName} joined after Day 1, so goal setting starts next quarter.`}
+          title={empty.title}
+          description={empty.description}
         />
       </>
     );
@@ -2243,269 +2208,6 @@ function EmployeePanel({
         />
       )}
       {goalDrawer}
-    </div>
-  );
-}
-
-type GoalsTableRow = {
-  goal: Goal;
-  title: string;
-  /** Set only when the table spans several people, e.g. a manager's reports. */
-  owner?: { id: string; name: string; avatarUrl?: string };
-};
-
-function GoalsTable({
-  rows,
-  onOpen,
-  label = "All goals",
-  cycleId,
-  subjectId,
-  canEditWeight = false,
-  canCascade = false,
-  canRemove = false,
-  cascadeTargets = [],
-  onDuplicate,
-  onCascade,
-  onRemove,
-  onWeightChange,
-}: {
-  rows: GoalsTableRow[];
-  onOpen: (id: string) => void;
-  label?: string;
-  cycleId?: string;
-  subjectId?: string;
-  canEditWeight?: boolean;
-  canCascade?: boolean;
-  canRemove?: boolean;
-  cascadeTargets?: CascadeTarget[];
-  onDuplicate?: (goalId: string) => void;
-  onCascade?: (goalId: string, reportIds: string[]) => void;
-  onRemove?: (goalId: string) => void;
-  onWeightChange?: (goalId: string, weight: number) => void;
-}) {
-  const showOwner = rows.some((row) => row.owner);
-  const showActions = hasGoalActions({
-    onDuplicate,
-    onCascade,
-    onRemove,
-    canRemove,
-    onViewActivity: Boolean(cycleId),
-  });
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const toggleExpanded = (goalId: string) => {
-    setExpandedIds((current) => {
-      const next = new Set(current);
-      if (next.has(goalId)) next.delete(goalId);
-      else next.add(goalId);
-      return next;
-    });
-  };
-  return (
-    <div
-      className={`pd-goals-table${showOwner ? " pd-goals-table--with-owner" : ""}${showActions ? " pd-goals-table--with-actions" : ""
-        }`}
-      role="table"
-      aria-label={label}
-    >
-      <div className="pd-goals-table__head" role="row">
-        {showOwner ? <div role="columnheader">Owner</div> : null}
-        <div role="columnheader">Goals</div>
-        <div role="columnheader">Weight</div>
-        <div role="columnheader">Progress</div>
-        <div className="pd-goals-table__metric-head" role="columnheader">
-          Metrics
-        </div>
-        {showActions ? (
-          <div role="columnheader">
-            <span className="pd-sr-only">Actions</span>
-          </div>
-        ) : null}
-      </div>
-      {rows.map(({ goal, title, owner }) => {
-        const completion = Math.round(goalCompletion(goal));
-        const openGoal = () => onOpen(goal.id);
-        const panels = measurementPanels(goal.measurements);
-        const isOpen = expandedIds.has(goal.id);
-        const openRow = {
-          tabIndex: 0 as const,
-          onClick: openGoal,
-          onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openGoal();
-            }
-          },
-        };
-        return (
-          <div key={goal.id} className="pd-goals-table__group" role="rowgroup">
-            <div className="pd-goals-table__row" role="row" {...openRow}>
-              {owner ? (
-                <div className="pd-goals-table__owner" role="cell">
-                  <Avatar
-                    name={owner.name}
-                    src={owner.avatarUrl || undefined}
-                    size="sm"
-                  />
-                  <span className="pd-goals-table__owner-name">{owner.name}</span>
-                </div>
-              ) : null}
-              <div className="pd-goals-table__goal" role="cell">
-                <div className="pd-goals-table__name-cell">
-                  {panels.length > 0 ? (
-                    <button
-                      type="button"
-                      className="pd-goals-table__expand"
-                      aria-expanded={isOpen}
-                      aria-label={
-                        isOpen ? `Collapse ${title}` : `Expand ${title}`
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleExpanded(goal.id);
-                      }}
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
-                      {isOpen ? (
-                        <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
-                      ) : (
-                        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-                      )}
-                    </button>
-                  ) : (
-                    <span className="pd-goals-table__expand-spacer" aria-hidden />
-                  )}
-                  <span className="pd-goals-table__title">{title}</span>
-                </div>
-              </div>
-              <div className="pd-goals-table__weight" role="cell">
-                {canEditWeight && onWeightChange ? (
-                  <div
-                    className="pd-goals-table__weight-edit"
-                    onClick={(event) => event.stopPropagation()}
-                    onKeyDown={(event) => event.stopPropagation()}
-                  >
-                    <BufferedWeightInput
-                      weight={goal.weight}
-                      ariaLabel={`Weight for ${title}`}
-                      onChange={(weight) => onWeightChange(goal.id, weight)}
-                    />
-                    <span className="pd-goals-table__weight-suffix" aria-hidden>
-                      %
-                    </span>
-                  </div>
-                ) : (
-                  <span className="pd-goals-table__weight-pill">
-                    {formatWeightReadout(goal.weight)}
-                  </span>
-                )}
-              </div>
-              <div className="pd-goals-table__progress" role="cell">
-                <div className="pd-goals-table__progress-meta">
-                  <GoalProgressAge at={goalLastUpdatedAt(goal)} />
-                  <span className="pd-goals-table__progress-label">
-                    {completion}%
-                  </span>
-                </div>
-                <Progress value={completion} />
-              </div>
-              <div className="pd-goals-table__metric" role="cell">
-                <MetricsCountBadge count={panels.length} />
-              </div>
-              {showActions ? (
-                <div
-                  className="pd-goals-table__actions"
-                  role="cell"
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => event.stopPropagation()}
-                >
-                  <GoalActionsMenu
-                    variant="menu"
-                    label={`More actions for ${title}`}
-                    canCascade={canCascade}
-                    canRemove={canRemove}
-                    cascadeTargets={cascadeTargets}
-                    activityFilters={
-                      cycleId
-                        ? {
-                          goalId: goal.id,
-                          cycleId,
-                          subjectEmployeeId: subjectId
-                            ? Number(subjectId)
-                            : owner?.id
-                              ? Number(owner.id)
-                              : undefined,
-                        }
-                        : undefined
-                    }
-                    onDuplicate={
-                      onDuplicate ? () => onDuplicate(goal.id) : undefined
-                    }
-                    onCascade={
-                      onCascade
-                        ? (reportIds) => onCascade(goal.id, reportIds)
-                        : undefined
-                    }
-                    onRemove={onRemove ? () => onRemove(goal.id) : undefined}
-                  />
-                </div>
-              ) : null}
-            </div>
-            {isOpen
-              ? panels.map((panel) => {
-                  const measureName = measurePanelName(panel) || "Measure";
-                  const measureProgress = measurePanelProgress(panel);
-                  const measureWeight =
-                    panel.kind === "metric" ? panel.metric.weight : panel.weight;
-                  return (
-                    <div
-                      key={panel.key}
-                      className="pd-goals-table__row pd-goals-table__row--measure"
-                      role="row"
-                      {...openRow}
-                    >
-                      {showOwner ? (
-                        <div className="pd-goals-table__owner" role="cell" />
-                      ) : null}
-                      <div className="pd-goals-table__goal" role="cell">
-                        <div className="pd-goals-table__name-cell">
-                          <span
-                            className="pd-goals-table__expand-spacer"
-                            aria-hidden
-                          />
-                          <span className="pd-goals-table__measure-name">
-                            {measureName}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="pd-goals-table__weight" role="cell">
-                        <span className="pd-goals-table__weight-pill">
-                          {formatWeightReadout(measureWeight)}
-                        </span>
-                      </div>
-                      <div className="pd-goals-table__progress" role="cell">
-                        <div className="pd-goals-table__progress-meta">
-                          <GoalProgressAge
-                            at={measurePanelLatestProgressAt(panel)}
-                          />
-                          <span className="pd-goals-table__progress-label">
-                            {measureProgress}%
-                          </span>
-                        </div>
-                        <Progress value={measureProgress} />
-                      </div>
-                      <div className="pd-goals-table__metric" role="cell">
-                        <GoalMeasureReadout panel={panel} />
-                      </div>
-                      {showActions ? (
-                        <div className="pd-goals-table__actions" role="cell" />
-                      ) : null}
-                    </div>
-                  );
-                })
-              : null}
-          </div>
-        );
-      })}
     </div>
   );
 }

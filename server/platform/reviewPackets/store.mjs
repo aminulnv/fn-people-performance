@@ -132,19 +132,32 @@ function withChildren(row, children) {
 }
 
 async function ensurePacketsForCycle(client, cycle) {
-  const groups = cycle.groups ?? []
-  for (const group of groups) {
-    for (const employeeId of group.memberIds) {
-      await client.query(
-        `INSERT INTO platform.review_packets (
-           id, cycle_id, group_id, employee_id, status
-         ) VALUES ($1,$2,$3,$4,'not_started')
-         ON CONFLICT (cycle_id, employee_id) DO UPDATE
-         SET group_id = EXCLUDED.group_id`,
-        [`pkt-${cycle.id}-${employeeId}`, cycle.id, group.id, employeeId],
-      )
-    }
-  }
+  await client.query(
+    `INSERT INTO platform.review_packets (
+       id, cycle_id, group_id, employee_id, manager_employee_id, status
+     )
+     SELECT
+       'pkt-' || member.cycle_id || '-' || member.employee_id,
+       member.cycle_id,
+       member.group_id,
+       member.employee_id,
+       employee.reports_to_employee_id,
+       'not_started'
+     FROM platform.review_cycle_group_members member
+     JOIN platform.employees employee
+       ON employee.employee_id = member.employee_id
+     JOIN platform.review_cycle_groups grp
+       ON grp.id = member.group_id
+      AND grp.deleted_at IS NULL
+     WHERE member.cycle_id = $1
+     ON CONFLICT (cycle_id, employee_id) DO UPDATE
+     SET group_id = EXCLUDED.group_id,
+         manager_employee_id = COALESCE(
+           platform.review_packets.manager_employee_id,
+           EXCLUDED.manager_employee_id
+         )`,
+    [cycle.id],
+  )
 }
 
 export async function listReviewPackets(cycleId) {

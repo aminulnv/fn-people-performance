@@ -20,6 +20,7 @@ import {
   GRADE_BAND_ORDER,
   GRADE_RECOMMENDATION_META,
 } from '@/lib/reviews/labels'
+import { normalizeCalibration } from '@/lib/reviews/demoData'
 import { updateCycleGroup } from '@/lib/reviews/store'
 import type {
   CalibrationLogic,
@@ -30,6 +31,7 @@ import type {
   ReviewCycle,
 } from '@/lib/reviews/types'
 import { EditPageShell } from './EditPageShell'
+import { GroupMembersEditor } from './GroupMembersEditor'
 
 type CalibrationEditPageProps = {
   cycle: ReviewCycle
@@ -64,7 +66,7 @@ export function CalibrationEditPage({
   embedded = false,
 }: CalibrationEditPageProps) {
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
-    structuredClone(group.calibration),
+    normalizeCalibration(group.calibration),
   )
   const [error, setError] = useState<string | null>(null)
 
@@ -94,7 +96,7 @@ export function CalibrationEditPage({
     setError(null)
     try {
       const pending = updateCycleGroup(cycle.id, group.id, {
-        calibration: draft,
+        calibration: normalizeCalibration(draft),
       })
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
@@ -109,12 +111,13 @@ export function CalibrationEditPage({
 
   return (
     <EditPageShell
-      title={`${group.name} · Calculation & calibration`}
-      description="Choose how grades are recommended, reviewed, and distributed."
+      title={`${group.name} · Calibration`}
+      description="Who aligns grades, how they are suggested, and the target mix."
       onBack={onClose}
       onSave={save}
       error={error}
       embedded={embedded}
+      actionsPlacement={embedded ? 'bottom' : 'top'}
     >
       <div className="pd-reviews-calibration-edit__choices">
         <section className="pd-reviews-edit-section">
@@ -209,6 +212,22 @@ export function CalibrationEditPage({
           </div>
         </section>
       </div>
+
+      <section className="pd-reviews-group-form__block">
+        <h3 className="pd-field__label">Senior leadership</h3>
+        <p className="pd-reviews-flow__hint">
+          People who sit in SLT calibration for this group.
+        </p>
+        <GroupMembersEditor
+          memberIds={draft.sltMemberIds ?? []}
+          onChange={(sltMemberIds) =>
+            setDraft((prev) => ({ ...prev, sltMemberIds }))
+          }
+          searchLabel="Add senior leaders"
+          placeholder="Add a person…"
+          peopleOnly
+        />
+      </section>
 
       <section className="pd-reviews-edit-section">
         <header className="pd-reviews-distribution__header">

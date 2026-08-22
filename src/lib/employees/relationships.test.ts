@@ -192,4 +192,44 @@ describe('resolveTeamOwner', () => {
       })?.fullName,
     ).toBe('Angie Rahman')
   })
+
+  it('uses the directory-derived owner when sources are omitted', async () => {
+    const departmentHead = await createEmployee({
+      employeeId: 9,
+      fullName: "Elvira Moey Shae'Fee",
+      email: 'elvira@example.com',
+      startDate: '2016-01-01',
+      jobTitle: 'Head of People',
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    const owner = await createEmployee({
+      ...ownerInput,
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+    })
+    const member = await createEmployee({
+      ...memberInput,
+      department: 'People & Culture',
+      team: 'Performance & Total Rewards',
+      reportsToName: ownerInput.fullName,
+      managerEmail: ownerInput.email,
+    })
+    if (!departmentHead.ok) throw new Error(departmentHead.error)
+    if (!owner.ok) throw new Error(owner.error)
+    if (!member.ok) throw new Error(member.error)
+
+    assignTeamOwner(member.employee.employeeId, departmentHead.employee)
+
+    expect(
+      resolveTeamOwner(getEmployee(member.employee.employeeId))?.fullName,
+    ).toBe('Angie Rahman')
+  })
 })

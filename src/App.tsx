@@ -28,6 +28,7 @@ const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
 const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
+const GroupSettingsPage = lazy(() => import('@/pages/reviews/GroupSettingsPage'))
 const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
 /** Canonical People directory — same pill controls as Organisation. */
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
@@ -155,6 +156,14 @@ function App() {
                 element={
                   <RequirePlatformWrite>
                     <CyclesPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="cycles/:cycleId/groups/:groupId"
+                element={
+                  <RequirePlatformWrite>
+                    <GroupSettingsPage />
                   </RequirePlatformWrite>
                 }
               />

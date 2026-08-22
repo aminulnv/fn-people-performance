@@ -14,3 +14,12 @@ export function cycleDetailPath(
 ): string {
   return `/cycles/${encodeURIComponent(cycleId)}/${section}`
 }
+
+export function cycleGroupPath(
+  cycleId: string,
+  groupId: string,
+  section?: string,
+): string {
+  const path = `/cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`
+  return section ? `${path}#${encodeURIComponent(section)}` : path
+}

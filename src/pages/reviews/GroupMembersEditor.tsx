@@ -9,13 +9,17 @@ import {
 import { Avatar, Button } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { useEmployees } from '@/lib/employees/useEmployees'
-import { employeeIdsForScope } from '@/lib/reviews/cycleGroups'
+import { useOrganisation } from '@/lib/employees/useEmployees'
+import type { OrgDepartment, OrgTeam } from '@/lib/organisation/types'
 
 type GroupMembersEditorProps = {
   memberIds: number[]
   claimedIds?: number[]
   onChange: (memberIds: number[]) => void
+  searchLabel?: string
+  placeholder?: string
+  /** People only — no department or team bulk add. */
+  peopleOnly?: boolean
 }
 
 type MemberMatch = {
@@ -50,12 +54,30 @@ function personMatchesQuery(employee: PlatformEmployee, query: string): boolean 
     .includes(query)
 }
 
+function isAssignedOrgLabel(name: string): boolean {
+  return Boolean(name.trim()) && name.trim().toLowerCase() !== 'unassigned'
+}
+
+function peopleCountLabel(count: number): string {
+  return count === 1 ? '1 person' : `${count} people`
+}
+
+function remainingMemberIds(
+  unit: Pick<OrgDepartment | OrgTeam, 'memberIds'>,
+  selected: Set<number>,
+): number[] {
+  return unit.memberIds.filter((id) => !selected.has(id))
+}
+
 export function GroupMembersEditor({
   memberIds,
   claimedIds = [],
   onChange,
+  searchLabel = 'Add people to this group',
+  placeholder = 'Add people, a team, or a department…',
+  peopleOnly = false,
 }: GroupMembersEditorProps) {
-  const { employees } = useEmployees({ load: true })
+  const { employees, organisation } = useOrganisation()
   const pickerId = useId()
   const wrapRef = useRef<HTMLDivElement>(null)
   const [query, setQuery] = useState('')
@@ -95,62 +117,46 @@ export function GroupMembersEditor({
         person: employee,
       }))
 
-    if (!q) return people
+    if (!q || peopleOnly) return people
 
-    const departments = [
-      ...new Map(
-        employees
-          .filter((employee) => employee.isActive && employee.department)
-          .map((employee) => [employee.department, employee]),
-      ).values(),
-    ]
-      .filter((employee) => employee.department.toLowerCase().includes(q))
-      .map((employee) => {
-        const ids = employeeIdsForScope(employees, {
-          type: 'department',
-          departmentId: employee.departmentId,
-          departmentName: employee.department,
-        }).filter((id) => !selected.has(id))
-        return {
-          key: `dept:${employee.departmentId ?? employee.department}`,
-          section: 'Departments' as const,
-          label: employee.department,
-          description: `${ids.length} ${ids.length === 1 ? 'person' : 'people'}`,
-          icon: Building2,
-          ids,
-        }
-      })
+    const departments = organisation.departments
+      .filter(
+        (department) =>
+          isAssignedOrgLabel(department.name) &&
+          department.headcount > 0 &&
+          department.name.toLowerCase().includes(q),
+      )
+      .map((department) => ({
+        key: `dept:${department.id}`,
+        section: 'Departments' as const,
+        label: department.name,
+        description: peopleCountLabel(department.headcount),
+        icon: Building2,
+        ids: remainingMemberIds(department, selected),
+      }))
       .filter((match) => match.ids.length > 0)
 
-    const teams = [
-      ...new Map(
-        employees
-          .filter((employee) => employee.isActive && employee.team)
-          .map((employee) => [`${employee.department}:${employee.team}`, employee]),
-      ).values(),
-    ]
-      .filter((employee) => employee.team.toLowerCase().includes(q))
-      .map((employee) => {
-        const ids = employeeIdsForScope(employees, {
-          type: 'team',
-          teamId: employee.teamId,
-          teamName: employee.team,
-        }).filter((id) => !selected.has(id))
-        return {
-          key: `team:${employee.teamId ?? employee.team}`,
-          section: 'Teams' as const,
-          label: employee.team,
-          description: employee.department
-            ? `${employee.department} · ${ids.length} ${ids.length === 1 ? 'person' : 'people'}`
-            : `${ids.length} ${ids.length === 1 ? 'person' : 'people'}`,
-          icon: UsersRound,
-          ids,
-        }
-      })
+    const teams = organisation.teams
+      .filter(
+        (team) =>
+          isAssignedOrgLabel(team.name) &&
+          team.headcount > 0 &&
+          team.name.toLowerCase().includes(q),
+      )
+      .map((team) => ({
+        key: `team:${team.id}`,
+        section: 'Teams' as const,
+        label: team.name,
+        description: team.departmentName
+          ? `${team.departmentName} · ${peopleCountLabel(team.headcount)}`
+          : peopleCountLabel(team.headcount),
+        icon: UsersRound,
+        ids: remainingMemberIds(team, selected),
+      }))
       .filter((match) => match.ids.length > 0)
 
     return [...people, ...departments, ...teams]
-  }, [claimedElsewhere, employees, query, selected])
+  }, [claimedElsewhere, employees, organisation, peopleOnly, query, selected])
 
   const groupedMatches = useMemo(() => {
     const sections: MemberMatch['section'][] = ['People', 'Departments', 'Teams']
@@ -260,7 +266,7 @@ export function GroupMembersEditor({
             strokeWidth={1.75}
             aria-hidden
           />
-          <span className="pd-sr-only">Add people to this group</span>
+          <span className="pd-sr-only">{searchLabel}</span>
           <input
             type="search"
             value={query}
@@ -269,7 +275,7 @@ export function GroupMembersEditor({
               setOpen(true)
             }}
             onFocus={() => setOpen(true)}
-            placeholder="Add people, a team, or a department…"
+            placeholder={placeholder}
             className="pd-cycle-extensions__search-input"
             aria-expanded={open}
             aria-controls={pickerId}
