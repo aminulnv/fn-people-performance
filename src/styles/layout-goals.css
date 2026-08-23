@@ -4288,19 +4288,6 @@ ul.pd-goals-sendback__reason {
   transform: rotate(90deg);
 }
 
-.pd-goal-progress-log__heading {
-  margin: 0;
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.pd-goal-progress-log__count {
-  font-size: 0.6875rem;
-  font-weight: 500;
-}
-
 .pd-goal-progress-log__body {
   padding: 0 1.25rem 0.65rem 1.75rem;
 }
