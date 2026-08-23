@@ -229,7 +229,7 @@ export function resolveScorecardViewStage(input: {
   ) {
     return current.id
   }
-  return open.at(-1)?.id ?? input.steps[0]?.id ?? 'self_review'
+  return open[open.length - 1]?.id ?? input.steps[0]?.id ?? 'self_review'
 }
 
 export function gradeForViewStage(

@@ -34,7 +34,7 @@ export function AnnualGoalsQuarters({
 }) {
   const defaultId =
     rows.find((row) => row.kind === "progress")?.sourceCycleId ??
-    rows.at(-1)?.sourceCycleId ??
+    rows[rows.length - 1]?.sourceCycleId ??
     "";
   const [selectedId, setSelectedId] = useState(defaultId);
 
