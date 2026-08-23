@@ -53,7 +53,7 @@ describe('GoalMeasureLogHover', () => {
     expect(log.querySelector('.pd-count-badge')).toBeNull()
   })
 
-  it('opens the hover menu on the count and lists existing logs', () => {
+  it('uses the same Log button when history is read-only', () => {
     render(
       <GoalMeasureLogHover
         measureName="Primary outcome completion"
@@ -61,21 +61,30 @@ describe('GoalMeasureLogHover', () => {
       />,
     )
 
-    fireEvent.mouseEnter(
-      screen.getByRole('button', {
-        name: '1 progress log for Primary outcome completion',
-      }).parentElement!,
+    const log = screen.getByRole('button', {
+      name: 'Log progress for Primary outcome completion, 1 update',
+    })
+    expect(log).toHaveTextContent('Log')
+    expect(log.querySelector('svg')).toBeTruthy()
+    expect(log.querySelector('.pd-count-badge')).toHaveClass(
+      'pd-count-badge--muted',
     )
+    expect(
+      screen.queryByRole('button', {
+        name: '1 progress log for Primary outcome completion',
+      }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.mouseEnter(log.parentElement!)
 
     expect(
       screen.getByRole('dialog', { name: 'Progress logs 1 update' }),
     ).toBeInTheDocument()
-    expect(
-      screen.getByRole('heading', { name: 'Progress logs 1 update' }),
-    ).toBeInTheDocument()
     expect(screen.getByText('0 → 60')).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /Log progress/ }),
+      screen.queryByLabelText(
+        'Current progress for Primary outcome completion',
+      ),
     ).not.toBeInTheDocument()
   })
 
