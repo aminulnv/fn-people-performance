@@ -52,6 +52,15 @@ describe("goal cycle extensions", () => {
     expect(resolveGoalDeadline(cycle, person)).toBe("2026-08-31");
   });
 
+  it("matches a department when ids arrive as strings", () => {
+    expect(
+      resolveGoalDeadline(
+        { ...cycle, goalExtensions: [cycle.goalExtensions![0]] },
+        { ...person, id: "202", departmentId: "4" as unknown as number },
+      ),
+    ).toBe("2026-08-20");
+  });
+
   it("keeps only matching populations open", () => {
     expect(
       isGoalWindowOpenForPerson(cycle, person, "2026-08-25"),

@@ -15,6 +15,7 @@ import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
 import { getGoalsSnapshot } from '@/lib/goals/store'
+import { displayGoalTitle } from '@/lib/goals/weightage'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
@@ -168,7 +169,7 @@ export function AppLayout({
     const row = getGoalsSnapshot().byPerson[goalsPersonId]
     const index = row?.goals.findIndex((goal) => goal.id === goalsGoalId) ?? -1
     if (index < 0 || !row) return undefined
-    return row.goals[index].description.trim() || `Untitled goal ${index + 1}`
+    return displayGoalTitle(row.goals[index], index)
   })()
 
   const breadcrumbs = useMemo(

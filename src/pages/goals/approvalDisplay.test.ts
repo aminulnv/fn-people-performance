@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { approvalCopy, resolveApprovalPerson } from "./approvalDisplay";
+import {
+  approvalCopy,
+  batchStatusLabel,
+  resolveApprovalPerson,
+} from "./approvalDisplay";
 
 describe("approvalCopy", () => {
   it("names the skip-level wait state for late final approval", () => {
@@ -61,5 +65,21 @@ describe("resolveApprovalPerson", () => {
       avatarUrl: "final.png",
     });
     expect(approvalCopy("approved").sub).toBe("Approval complete");
+  });
+});
+
+describe("batchStatusLabel", () => {
+  it("uses the submission status without a goal count", () => {
+    expect(batchStatusLabel("draft", 3)).toBe("Draft");
+    expect(batchStatusLabel("draft", 0)).toBe("Not started");
+    expect(batchStatusLabel("sent_back", 3)).toBe("Sent back");
+    expect(batchStatusLabel("approved", 3)).toBe("Approved");
+  });
+
+  it("names the skip-level wait while late final approval is pending", () => {
+    expect(batchStatusLabel("submitted", 3)).toBe("Pending approval");
+    expect(batchStatusLabel("submitted", 3, "manager_manager")).toBe(
+      "Pending final approval",
+    );
   });
 });

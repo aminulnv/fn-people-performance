@@ -5,6 +5,7 @@ import type {
   PersonGoals,
 } from '@/lib/goals/types'
 import { resolveGoalDeadline } from '@/lib/goals/goalExtensions'
+import { displayGoalTitle } from '@/lib/goals/weightage'
 import { NOTIFICATION_EVENTS } from './catalogue'
 import {
   completeNotificationAction,
@@ -404,7 +405,7 @@ export function notifyGoalCascaded({
     goalId: goal.id,
     variables: {
       manager: actor.name,
-      goal: goal.description.trim() || 'Untitled goal',
+      goal: displayGoalTitle(goal, 0),
       cycle: snapshot.cycle.label,
     },
   })

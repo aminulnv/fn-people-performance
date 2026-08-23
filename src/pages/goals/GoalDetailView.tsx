@@ -19,6 +19,7 @@ import type {
   SendBackAuthor,
 } from "@/lib/goals/types";
 import { validateGoalDraft } from "@/lib/goals/draft";
+import { editorGoalTitle } from "@/lib/goals/weightage";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
@@ -117,6 +118,8 @@ type GoalDetailViewProps = {
   onDuplicate?: () => void;
   onCascade?: (reportIds: string[]) => void;
   onRemove?: () => void;
+  /** Measure that opened this window — flashes that card for a few seconds. */
+  highlightMeasureKey?: string | null;
 };
 
 function touch(goal: Goal, partial: Partial<Goal>): Goal {
@@ -157,13 +160,17 @@ export function GoalDetailView({
   onDuplicate,
   onCascade,
   onRemove,
+  highlightMeasureKey,
 }: GoalDetailViewProps) {
   const [tab, setTab] = useState<GoalViewTab>("measure");
+  const [flashingMeasureKey, setFlashingMeasureKey] = useState<string | null>(
+    () => highlightMeasureKey ?? null,
+  );
   const [comment, setComment] = useState("");
   const [editing, setEditing] = useState(isNew);
   const [nameTouched, setNameTouched] = useState(false);
   const [cascadeFromOpen, setCascadeFromOpen] = useState(false);
-  const [titleDraft, setTitleDraft] = useState(goal.description);
+  const [titleDraft, setTitleDraft] = useState(() => editorGoalTitle(goal));
   const [detailsDraft, setDetailsDraft] = useState(goal.details ?? "");
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const titleFocusedRef = useRef(false);
@@ -180,7 +187,7 @@ export function GoalDetailView({
   useEffect(() => {
     setCascadeFromOpen(false);
     setNameTouched(false);
-    setTitleDraft(goal.description);
+    setTitleDraft(editorGoalTitle(goal));
     setDetailsDraft(goal.details ?? "");
     setTab("measure");
     setEditing(isNew);
@@ -188,8 +195,27 @@ export function GoalDetailView({
   }, [goal.id, isNew]);
 
   useEffect(() => {
+    if (!highlightMeasureKey) {
+      setFlashingMeasureKey(null);
+      return;
+    }
+    setTab("measure");
+    setFlashingMeasureKey(highlightMeasureKey);
+    const timeout = window.setTimeout(() => setFlashingMeasureKey(null), 2800);
+    return () => window.clearTimeout(timeout);
+  }, [highlightMeasureKey]);
+
+  useEffect(() => {
+    if (!flashingMeasureKey) return;
+    const node = document.querySelector(
+      `[data-measure-panel="${CSS.escape(flashingMeasureKey)}"]`,
+    );
+    node?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [flashingMeasureKey]);
+
+  useEffect(() => {
     if (titleFocusedRef.current) return;
-    setTitleDraft(goal.description);
+    setTitleDraft(editorGoalTitle(goal));
   }, [goal.description]);
 
   useEffect(() => {
@@ -240,7 +266,7 @@ export function GoalDetailView({
 
   const startEditing = () => {
     editSnapshotRef.current = goalRef.current;
-    setTitleDraft(goalRef.current.description);
+    setTitleDraft(editorGoalTitle(goalRef.current));
     setDetailsDraft(goalRef.current.details ?? "");
     setCascadeFromOpen(false);
     setNameTouched(false);
@@ -267,7 +293,7 @@ export function GoalDetailView({
     if (snapshot) {
       goalRef.current = snapshot;
       onChange(snapshot);
-      setTitleDraft(snapshot.description);
+      setTitleDraft(editorGoalTitle(snapshot));
       setDetailsDraft(snapshot.details ?? "");
     }
     stopEditing();
@@ -611,6 +637,7 @@ export function GoalDetailView({
                       <TodoMeasureViewCard
                         key={panel.key}
                         panel={panel}
+                        highlighted={flashingMeasureKey === panel.key}
                         renderTodoItem={(todo) => (
                           <>
                             <GoalTodoCheck
@@ -644,6 +671,7 @@ export function GoalDetailView({
                       <NumberMeasureViewCard
                         key={panel.key}
                         metric={panel.metric}
+                        highlighted={flashingMeasureKey === panel.key}
                         goalTitle={goalTitle(goal, index)}
                         cycleLabel={cycleLabel}
                         onLogProgress={

@@ -39,6 +39,39 @@ test('normalizeStagesConfig always schedules stages by date', () => {
   assert.equal(normalized.processMode, 'schedule')
 })
 
+test('normalizeStagesConfig coerces string department ids on extensions', () => {
+  const config = buildDefaultStagesConfig('2026-07-01', '2026-09-30')
+  config.goals.extensions = [
+    {
+      id: 'product-extension',
+      endDate: '2026-08-01',
+      scope: {
+        type: 'department',
+        departmentId: '16',
+        departmentName: 'Product',
+      },
+    },
+  ]
+
+  const normalized = normalizeStagesConfig(config, {
+    startDate: '2026-07-01',
+    endDate: '2026-09-30',
+  })
+
+  assert.deepEqual(normalized.goals.extensions, [
+    {
+      id: 'product-extension',
+      endDate: '2026-08-01',
+      scope: {
+        type: 'department',
+        departmentId: 16,
+        departmentName: 'Product',
+      },
+    },
+  ])
+  assert.doesNotThrow(() => validateCycleStagesConfig(normalized))
+})
+
 test('validateCycleStagesConfig accepts a Q4 goals-only cycle', () => {
   const config = buildDefaultStagesConfig(
     '2026-10-01',

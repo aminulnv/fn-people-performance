@@ -71,13 +71,17 @@ export function progressLogStatusLabel(entry: ProgressLogEntry): string {
   return entry.to ? 'Marked Completed' : 'Marked Incomplete'
 }
 
+export function numericProgressSummary(entry: ProgressLogEntry): string {
+  const from = entry.from == null ? '—' : String(entry.from)
+  return `${from} → ${entry.to}`
+}
+
 export function progressLogSummary(entry: ProgressLogEntry): string {
   if (isMilestoneProgressLog(entry)) {
     const title = entry.label ?? 'Task'
     return `${progressLogStatusLabel(entry)}: ${title}`
   }
-  const from = entry.from == null ? '—' : String(entry.from)
-  return `${from} → ${entry.to}`
+  return numericProgressSummary(entry)
 }
 
 const progressDateFormat = new Intl.DateTimeFormat('en-GB', {

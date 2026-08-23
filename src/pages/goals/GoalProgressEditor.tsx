@@ -5,6 +5,8 @@ import {
   appendMilestoneToList,
   appendTodoListToMeasure,
   blankMetric,
+  canEditMeasurementWeights,
+  lockSoloMeasurementWeights,
   measurementPanels,
   readMeasureGroupTitle,
   rebalanceMeasurementWeights,
@@ -70,11 +72,20 @@ export function GoalProgressEditor({
 
   const currentMeasurements = () => goalRef.current.measurements
 
-  /** Legacy or seeded goals can arrive weightless; give them a starting split. */
+  /** Seed empty weights, and keep a lone measure locked at 100%. */
   useEffect(() => {
     const current = goalRef.current.measurements
     if (current.length === 0) return
-    if (sumMeasurementWeights(current) > 0) return
+    const allocated = sumMeasurementWeights(current)
+    const locked = lockSoloMeasurementWeights(current)
+    if (locked !== current) {
+      onChangeRef.current({
+        ...goalRef.current,
+        measurements: locked,
+      })
+      return
+    }
+    if (allocated > 0) return
     onChangeRef.current({
       ...goalRef.current,
       measurements: rebalanceMeasurementWeights(current),
@@ -110,6 +121,7 @@ export function GoalProgressEditor({
     setMeasurements(appendMilestoneList(currentMeasurements()))
 
   const panelCount = measurementPanels(measurements).length
+  const canEditMeasureWeight = canEditMeasurementWeights(measurements)
   const canDistribute =
     panelCount > 1 && !isEvenMeasurementSplit(measurements)
   const showWeightFooter =
@@ -132,6 +144,7 @@ export function GoalProgressEditor({
           <div key={panel.key} className="pd-goal-create__measure-block">
             <NumberMeasureEditCard
               metric={panel.metric}
+              canEditWeight={canEditMeasureWeight}
               onChange={updateMeasurement}
               onRemove={() => removeMeasurement(panel.metric.id)}
               cycleLabel={cycleLabel}
@@ -160,6 +173,7 @@ export function GoalProgressEditor({
             <TodoMeasureEditCard
               panel={panel}
               measurements={measurements}
+              canEditWeight={canEditMeasureWeight}
               measureTitle={readMeasureGroupTitle(measurements, panel.measureGroupId)}
               canRemoveList={panel.lists.length > 1}
               addListClassName="pd-people__ghost-btn pd-goal-create__add-todo-list pd-goal-measure-card__add-list"

@@ -27,6 +27,48 @@ function addDays(date, days) {
   return next
 }
 
+function integerId(value) {
+  if (value == null || String(value).trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isInteger(parsed) ? parsed : undefined
+}
+
+function normalizeGoalExtensions(extensions) {
+  return (extensions ?? []).map((extension) => {
+    const scope = extension.scope
+    if (scope?.type === 'department') {
+      return {
+        ...extension,
+        scope: {
+          ...scope,
+          departmentId: integerId(scope.departmentId) ?? scope.departmentId,
+        },
+      }
+    }
+    if (scope?.type === 'team') {
+      return {
+        ...extension,
+        scope: {
+          ...scope,
+          teamId: integerId(scope.teamId) ?? scope.teamId,
+        },
+      }
+    }
+    if (scope?.type === 'people') {
+      return {
+        ...extension,
+        scope: {
+          ...scope,
+          employeeIds: (scope.employeeIds ?? [])
+            .map((id) => integerId(id))
+            .filter((id) => id != null),
+        },
+      }
+    }
+    return extension
+  })
+}
+
 function at(date) {
   return { date, time: '00:00' }
 }
@@ -121,7 +163,7 @@ export function normalizeStagesConfig(config, quarter = {}) {
     processMode: 'schedule',
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
-      extensions: config.goals?.extensions ?? [],
+      extensions: normalizeGoalExtensions(config.goals?.extensions),
     },
     performance: {
       ...defaults.performance,
@@ -292,17 +334,21 @@ export function validateCycleStagesConfig(config) {
     const scope = extension.scope
     const validDepartment =
       scope?.type === 'department' &&
-      Number.isInteger(scope.departmentId) &&
+      Number.isInteger(Number(scope.departmentId)) &&
+      String(scope.departmentId).trim() !== '' &&
       Boolean(scope.departmentName?.trim())
     const validTeam =
       scope?.type === 'team' &&
-      Number.isInteger(scope.teamId) &&
+      Number.isInteger(Number(scope.teamId)) &&
+      String(scope.teamId).trim() !== '' &&
       Boolean(scope.teamName?.trim())
     const validPeople =
       scope?.type === 'people' &&
       Array.isArray(scope.employeeIds) &&
       scope.employeeIds.length > 0 &&
-      scope.employeeIds.every(Number.isInteger)
+      scope.employeeIds.every(
+        (id) => Number.isInteger(Number(id)) && String(id).trim() !== '',
+      )
     if (!validDepartment && !validTeam && !validPeople) {
       throw validationError(
         'Each extension requires a valid team, department, or people selection.',

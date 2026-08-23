@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { History } from 'lucide-react'
+import { Button } from '@/components/ui'
 import { ActivityLog } from '@/components/activity/ActivityLog'
 import { ActivityLogFilters } from '@/components/activity/ActivityLogFilters'
 import { useActivityFeed } from '@/components/activity/useActivityFeed'
@@ -21,12 +22,12 @@ export function ActivitySettingsPanel() {
 
   return (
     <section
-      className="pd-settings-section"
+      className="pd-settings-section pd-activity-settings"
       aria-labelledby="activity-heading"
     >
       <div className="pd-settings-section__header">
-        <div className="pd-access__heading">
-          <span className="pd-access__heading-icon" aria-hidden>
+        <div className="pd-activity-settings__heading">
+          <span className="pd-activity-settings__heading-icon" aria-hidden>
             <History size={17} strokeWidth={2.25} />
           </span>
           <div>
@@ -43,7 +44,7 @@ export function ActivitySettingsPanel() {
 
       <ActivityLogFilters value={filters} onChange={setFilters} />
 
-      <div style={{ marginTop: '1rem' }}>
+      <div className="pd-activity-settings__feed">
         {isLoading ? <p className="pd-activity-log__empty">Loading…</p> : null}
         {error ? (
           <p className="pd-activity-log__empty">Could not load activity.</p>
@@ -52,14 +53,17 @@ export function ActivitySettingsPanel() {
           <>
             <ActivityLog events={events} />
             {hasNextPage ? (
-              <button
-                type="button"
-                className="pd-activity-link"
-                disabled={isFetchingNextPage}
-                onClick={() => void fetchNextPage()}
-              >
-                {isFetchingNextPage ? 'Loading…' : 'Load older activity'}
-              </button>
+              <div className="pd-activity-log__more">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={isFetchingNextPage}
+                  onClick={() => void fetchNextPage()}
+                >
+                  Load older activity
+                </Button>
+              </div>
             ) : null}
           </>
         ) : null}

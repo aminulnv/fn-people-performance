@@ -22,10 +22,20 @@ function measureNamesComplete(measurements) {
   return true
 }
 
+function isBlankGoalTitle(description) {
+  const trimmed = typeof description === 'string' ? description.trim() : ''
+  return !trimmed || /^untitled cascading goal from /i.test(trimmed)
+}
+
 function goalName(goal, index) {
-  const description =
-    typeof goal?.description === 'string' ? goal.description.trim() : ''
-  return description || `Untitled goal ${index + 1}`
+  if (!isBlankGoalTitle(goal?.description)) {
+    return String(goal.description).trim()
+  }
+  const linked =
+    typeof goal?.linkedGoalLabel === 'string' ? goal.linkedGoalLabel.trim() : ''
+  if (linked) return linked
+  if (goal?.cascadedFromGoalId) return 'This cascaded goal'
+  return `Untitled goal ${index + 1}`
 }
 
 /**
@@ -64,10 +74,7 @@ export function validateGoalSubmission(goals, policy) {
 
   goals.forEach((goal, index) => {
     const name = goalName(goal, index)
-    if (
-      typeof goal?.description !== 'string' ||
-      !goal.description.trim()
-    ) {
+    if (isBlankGoalTitle(goal?.description)) {
       errors.push(`${name} needs a title.`)
     }
 

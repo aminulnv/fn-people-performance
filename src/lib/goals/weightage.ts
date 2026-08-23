@@ -11,6 +11,32 @@ export function sumGoalWeights(goals: Goal[]): number {
   return goals.reduce((sum, g) => sum + (Number(g.weight) || 0), 0)
 }
 
+/** How much of the 100% set is still free. Negative when the set is over. */
+export function remainingGoalWeight(allocated: number): number {
+  return 100 - allocated
+}
+
+/** One caption for the table total: allocated and remaining of the same 100%. */
+export function allocatedWeightCaption(allocated: number): string {
+  const remaining = remainingGoalWeight(allocated)
+  if (remaining < 0) return `${allocated}% allocated · ${-remaining}% over`
+  if (remaining === 0) return `${allocated}% allocated`
+  return `${allocated}% allocated · ${remaining}% left`
+}
+
+/** Split 100% across goals. Leftover points go to the last goals. */
+export function distributeGoalWeights<T extends { weight: number }>(
+  goals: T[],
+): T[] {
+  if (goals.length === 0) return goals
+  const each = Math.floor(100 / goals.length)
+  const leftover = 100 - each * goals.length
+  return goals.map((goal, index) => ({
+    ...goal,
+    weight: each + (index >= goals.length - leftover ? 1 : 0),
+  }))
+}
+
 export function sumMeasurementWeights(measurements: Measurement[]): number {
   return sumPanelWeights(measurements)
 }
@@ -35,8 +61,31 @@ export function goalCountWarning(
   return null
 }
 
+const LEGACY_UNTITLED_CASCADE = /^untitled cascading goal from /i
+
+export function isBlankGoalTitle(
+  goal: Pick<Goal, 'description'>,
+): boolean {
+  const trimmed = goal.description.trim()
+  return !trimmed || LEGACY_UNTITLED_CASCADE.test(trimmed)
+}
+
+/** Shown in tables and blockers. Cascaded goals use the manager title, never "Untitled". */
+export function displayGoalTitle(goal: Goal, index: number): string {
+  if (!isBlankGoalTitle(goal)) return goal.description.trim()
+  const linked = goal.linkedGoalLabel?.trim()
+  if (linked) return linked
+  if (goal.cascadedFromGoalId) return 'This cascaded goal'
+  return `Untitled goal ${index + 1}`
+}
+
+/** Value for the name field — strip the old untitled cascade placeholder. */
+export function editorGoalTitle(goal: Pick<Goal, 'description'>): string {
+  return isBlankGoalTitle(goal) ? '' : goal.description
+}
+
 function goalName(goal: Goal, index: number): string {
-  return goal.description.trim() || `Untitled goal ${index + 1}`
+  return displayGoalTitle(goal, index)
 }
 
 function goalBlocker(
@@ -77,7 +126,7 @@ export function canSubmitGoals(
     blockers.push({ reason: 'Weights need to add up to 100%.' })
   }
   for (const [index, goal] of goals.entries()) {
-    if (!goal.description.trim()) {
+    if (isBlankGoalTitle(goal)) {
       blockers.push(goalBlocker(goal, index, ' needs a title.'))
       continue
     }

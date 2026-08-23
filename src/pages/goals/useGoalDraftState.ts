@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { mergePersistedGoals } from "@/lib/goals/draft";
 import type { Goal, SubmissionStatus } from "@/lib/goals/types";
 
 export type GoalDraftState = {
   /** Persisted goals plus any goal still being created locally. */
   goals: Goal[];
-  setGoals: (goals: Goal[]) => void;
+  setGoals: Dispatch<SetStateAction<Goal[]>>;
   /** Goals opened in create mode, so the panel knows to render the create form. */
   creatingIds: ReadonlySet<string>;
   startCreating: (goalId: string) => void;

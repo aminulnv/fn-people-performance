@@ -1,20 +1,30 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   Building2,
+  Plus,
   Search,
-  Trash2,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
-import { Avatar, Button } from '@/components/ui'
+import { Avatar, Button, SegmentedControl } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { useOrganisation } from '@/lib/employees/useEmployees'
 import type { OrgDepartment, OrgTeam } from '@/lib/organisation/types'
 
+type BrowseSection = 'People' | 'Departments' | 'Teams'
+
+type OtherGroup = {
+  name: string
+  memberIds: number[]
+}
+
 type GroupMembersEditorProps = {
   memberIds: number[]
   claimedIds?: number[]
+  otherGroups?: OtherGroup[]
   onChange: (memberIds: number[]) => void
   searchLabel?: string
   placeholder?: string
@@ -24,13 +34,24 @@ type GroupMembersEditorProps = {
 
 type MemberMatch = {
   key: string
-  section: 'People' | 'Departments' | 'Teams'
+  section: BrowseSection
   label: string
   description: string
   icon: LucideIcon
   ids: number[]
   person?: PlatformEmployee
 }
+
+const BROWSE_SECTIONS: { id: BrowseSection; label: string }[] = [
+  { id: 'People', label: 'By person' },
+  { id: 'Departments', label: 'By department' },
+  { id: 'Teams', label: 'By team' },
+]
+
+const PEOPLE_BROWSE_WITHOUT_QUERY = 24
+const VIRTUALIZE_AFTER = 24
+const MEMBER_ROW_HEIGHT = 44
+const TABLE_COLUMNS = 6
 
 function uniqueIds(matches: MemberMatch[]): number[] {
   const ids = new Set<number>()
@@ -69,34 +90,149 @@ function remainingMemberIds(
   return unit.memberIds.filter((id) => !selected.has(id))
 }
 
+function moveHint(
+  employeeId: number,
+  claimedElsewhere: Set<number>,
+  otherGroups: OtherGroup[],
+): string | null {
+  if (!claimedElsewhere.has(employeeId)) return null
+  const groupName = otherGroups.find((group) =>
+    group.memberIds.includes(employeeId),
+  )?.name
+  return groupName
+    ? `In ${groupName} · will move`
+    : 'Will move from another group'
+}
+
+function orgUnitDescription(
+  ids: number[],
+  claimedElsewhere: Set<number>,
+  extra?: string,
+): string {
+  const moving = ids.filter((id) => claimedElsewhere.has(id)).length
+  const count = peopleCountLabel(ids.length)
+  const withMove =
+    moving > 0 ? `${count} · ${moving === 1 ? '1 will move' : `${moving} will move`}` : count
+  return extra ? `${extra} · ${withMove}` : withMove
+}
+
+function PersonIdentity({
+  person,
+  linked = false,
+}: {
+  person: PlatformEmployee
+  linked?: boolean
+}) {
+  const name = linked ? (
+    <Link to={`/people/${person.employeeId}`} className="pd-people__person-link">
+      {person.fullName}
+    </Link>
+  ) : (
+    <span className="pd-people__person-name">{person.fullName}</span>
+  )
+
+  return (
+    <div
+      className={[
+        'pd-people__person',
+        person.email ? 'pd-people__person--stacked' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      <Avatar
+        name={person.fullName}
+        src={person.avatarUrl || undefined}
+        size="md"
+        className="pd-people__avatar"
+        style={avatarStyle(person.fullName)}
+      />
+      {person.email ? (
+        <span className="pd-people__person-identity">
+          {name}
+          <span className="pd-people__person-email">{person.email}</span>
+        </span>
+      ) : (
+        name
+      )}
+    </div>
+  )
+}
+
+function RowCheck({
+  checked,
+  label,
+  onChange,
+}: {
+  checked: boolean
+  label: string
+  onChange: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="pd-cycle-groups-members__check"
+      aria-pressed={checked}
+      aria-label={label}
+      onClick={onChange}
+    >
+      <span
+        className={[
+          'pd-cycle-extensions__search-check',
+          checked ? 'is-checked' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        aria-hidden
+      />
+    </button>
+  )
+}
+
 export function GroupMembersEditor({
   memberIds,
   claimedIds = [],
+  otherGroups = [],
   onChange,
   searchLabel = 'Add people to this group',
-  placeholder = 'Add people, a team, or a department…',
+  placeholder = 'Search people, a team, or a department…',
   peopleOnly = false,
 }: GroupMembersEditorProps) {
   const { employees, organisation } = useOrganisation()
-  const pickerId = useId()
-  const wrapRef = useRef<HTMLDivElement>(null)
-  const [query, setQuery] = useState('')
-  const [open, setOpen] = useState(false)
-  const [picked, setPicked] = useState<Set<number>>(() => new Set())
+  const addInputRef = useRef<HTMLInputElement>(null)
+  const tableScrollRef = useRef<HTMLDivElement>(null)
+  const [rosterQuery, setRosterQuery] = useState('')
+  const [adding, setAdding] = useState(() => memberIds.length === 0)
+  const [addQuery, setAddQuery] = useState('')
+  const [browse, setBrowse] = useState<BrowseSection>('People')
   const [listChecked, setListChecked] = useState<Set<number>>(() => new Set())
   const selected = useMemo(() => new Set(memberIds), [memberIds])
   const claimedElsewhere = useMemo(
     () => new Set(claimedIds.filter((id) => !selected.has(id))),
     [claimedIds, selected],
   )
+  const addButtonLabel = peopleOnly ? searchLabel : 'Add people'
 
   const members = useMemo(
-    () => employees.filter((employee) => selected.has(employee.employeeId)),
+    () =>
+      employees
+        .filter((employee) => selected.has(employee.employeeId))
+        .sort((left, right) => left.fullName.localeCompare(right.fullName)),
     [employees, selected],
   )
 
+  const rosterFilter = rosterQuery.trim().toLowerCase()
+  const visibleMembers = useMemo(
+    () =>
+      rosterFilter
+        ? members.filter((employee) => personMatchesQuery(employee, rosterFilter))
+        : members,
+    [members, rosterFilter],
+  )
+
   const matches = useMemo((): MemberMatch[] => {
-    const q = query.trim().toLowerCase()
+    const q = addQuery.trim().toLowerCase()
+    const searching = Boolean(q)
 
     const people = employees
       .filter(
@@ -109,28 +245,37 @@ export function GroupMembersEditor({
         key: `person:${employee.employeeId}`,
         section: 'People' as const,
         label: employee.fullName,
-        description: claimedElsewhere.has(employee.employeeId)
-          ? 'Will move from another group'
-          : [employee.jobTitle, employee.department].filter(Boolean).join(' · '),
+        description:
+          moveHint(employee.employeeId, claimedElsewhere, otherGroups) ??
+          [employee.jobTitle, employee.department].filter(Boolean).join(' · '),
         icon: UsersRound,
         ids: [employee.employeeId],
         person: employee,
       }))
 
-    if (!q || peopleOnly) return people
+    if (peopleOnly) {
+      if (!searching && people.length > PEOPLE_BROWSE_WITHOUT_QUERY) return []
+      return people
+    }
+    if (!searching && browse === 'People') {
+      return people.length > PEOPLE_BROWSE_WITHOUT_QUERY ? [] : people
+    }
 
     const departments = organisation.departments
       .filter(
         (department) =>
           isAssignedOrgLabel(department.name) &&
           department.headcount > 0 &&
-          department.name.toLowerCase().includes(q),
+          (!q || department.name.toLowerCase().includes(q)),
       )
       .map((department) => ({
         key: `dept:${department.id}`,
         section: 'Departments' as const,
         label: department.name,
-        description: peopleCountLabel(department.headcount),
+        description: orgUnitDescription(
+          remainingMemberIds(department, selected),
+          claimedElsewhere,
+        ),
         icon: Building2,
         ids: remainingMemberIds(department, selected),
       }))
@@ -141,25 +286,38 @@ export function GroupMembersEditor({
         (team) =>
           isAssignedOrgLabel(team.name) &&
           team.headcount > 0 &&
-          team.name.toLowerCase().includes(q),
+          (!q || team.name.toLowerCase().includes(q)),
       )
       .map((team) => ({
         key: `team:${team.id}`,
         section: 'Teams' as const,
         label: team.name,
-        description: team.departmentName
-          ? `${team.departmentName} · ${peopleCountLabel(team.headcount)}`
-          : peopleCountLabel(team.headcount),
+        description: orgUnitDescription(
+          remainingMemberIds(team, selected),
+          claimedElsewhere,
+          team.departmentName || undefined,
+        ),
         icon: UsersRound,
         ids: remainingMemberIds(team, selected),
       }))
       .filter((match) => match.ids.length > 0)
 
-    return [...people, ...departments, ...teams]
-  }, [claimedElsewhere, employees, organisation, peopleOnly, query, selected])
+    if (searching) return [...people, ...departments, ...teams]
+    if (browse === 'Departments') return departments
+    return teams
+  }, [
+    addQuery,
+    browse,
+    claimedElsewhere,
+    employees,
+    organisation,
+    otherGroups,
+    peopleOnly,
+    selected,
+  ])
 
   const groupedMatches = useMemo(() => {
-    const sections: MemberMatch['section'][] = ['People', 'Departments', 'Teams']
+    const sections: BrowseSection[] = ['People', 'Departments', 'Teams']
     return sections
       .map((section) => ({
         section,
@@ -168,19 +326,73 @@ export function GroupMembersEditor({
       .filter((group) => group.results.length > 0)
   }, [matches])
 
-  const visibleIds = useMemo(() => uniqueIds(matches), [matches])
-  const allVisiblePicked =
-    visibleIds.length > 0 && visibleIds.every((id) => picked.has(id))
-  const pickedCount = picked.size
+  const searching = Boolean(addQuery.trim())
+  const availablePeopleCount = useMemo(
+    () =>
+      employees.filter(
+        (employee) => employee.isActive && !selected.has(employee.employeeId),
+      ).length,
+    [employees, selected],
+  )
+  const addEmptyCopy = searching
+    ? 'No results found'
+    : availablePeopleCount === 0
+      ? employees.some((employee) => employee.isActive)
+        ? 'Everyone is already in this group'
+        : 'No people to add yet'
+      : peopleOnly
+        ? 'Type a name to find someone.'
+        : browse === 'People'
+          ? 'Type a name, or browse by team or department.'
+          : 'Everyone is already in this group'
+  const visiblePeopleIds = useMemo(
+    () => uniqueIds(matches.filter((match) => match.section === 'People')),
+    [matches],
+  )
   const listCheckedCount = listChecked.size
-  const allMembersChecked =
-    members.length > 0 && members.every((person) => listChecked.has(person.employeeId))
+  const allVisibleChecked =
+    visibleMembers.length > 0 &&
+    visibleMembers.every((person) => listChecked.has(person.employeeId))
+  const shouldVirtualize = visibleMembers.length >= VIRTUALIZE_AFTER
+  const memberVirtualizer = useVirtualizer({
+    count: shouldVirtualize ? visibleMembers.length : 0,
+    getScrollElement: () => tableScrollRef.current,
+    estimateSize: () => MEMBER_ROW_HEIGHT,
+    overscan: 8,
+  })
 
-  const closePicker = () => {
-    setOpen(false)
-    setQuery('')
-    setPicked(new Set())
+  useLayoutEffect(() => {
+    if (!shouldVirtualize) return
+    memberVirtualizer.measure()
+  }, [memberVirtualizer, shouldVirtualize, visibleMembers.length])
+
+  const virtualRows = shouldVirtualize ? memberVirtualizer.getVirtualItems() : null
+  const paddingTop = virtualRows?.[0]?.start ?? 0
+  const lastVirtualRow = virtualRows?.[virtualRows.length - 1]
+  const paddingBottom = virtualRows
+    ? memberVirtualizer.getTotalSize() - (lastVirtualRow?.end ?? 0)
+    : 0
+  const renderedMembers =
+    virtualRows && virtualRows.length > 0
+      ? virtualRows.map((row) => visibleMembers[row.index]).filter(Boolean)
+      : visibleMembers
+
+  const openAdd = () => {
+    setAdding(true)
+    setAddQuery('')
+    setBrowse('People')
   }
+
+  const closeAdd = () => {
+    setAdding(false)
+    setAddQuery('')
+    setBrowse('People')
+  }
+
+  useEffect(() => {
+    if (!adding) return
+    addInputRef.current?.focus()
+  }, [adding])
 
   useEffect(() => {
     setListChecked((prev) => {
@@ -195,29 +407,18 @@ export function GroupMembersEditor({
   }, [selected])
 
   useEffect(() => {
-    if (!open) return
-    const closeOnOutside = (event: MouseEvent) => {
-      if (
-        wrapRef.current &&
-        !wrapRef.current.contains(event.target as Node)
-      ) {
-        closePicker()
-      }
-    }
+    if (!adding) return
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       event.stopImmediatePropagation()
-      closePicker()
+      closeAdd()
     }
-    document.addEventListener('mousedown', closeOnOutside)
     document.addEventListener('keydown', closeOnEscape, true)
-    return () => {
-      document.removeEventListener('mousedown', closeOnOutside)
-      document.removeEventListener('keydown', closeOnEscape, true)
-    }
-  }, [open])
+    return () => document.removeEventListener('keydown', closeOnEscape, true)
+  }, [adding])
 
   const addIds = (ids: number[]) => {
+    if (ids.length === 0) return
     const next = new Set(memberIds)
     for (const id of ids) next.add(id)
     onChange([...next])
@@ -226,19 +427,6 @@ export function GroupMembersEditor({
   const removeIds = (ids: number[]) => {
     const dropping = new Set(ids)
     onChange(memberIds.filter((id) => !dropping.has(id)))
-  }
-
-  const togglePicked = (ids: number[]) => {
-    setPicked((prev) => {
-      const next = new Set(prev)
-      const allIn = ids.every((id) => next.has(id))
-      if (allIn) {
-        for (const id of ids) next.delete(id)
-      } else {
-        for (const id of ids) next.add(id)
-      }
-      return next
-    })
   }
 
   const toggleListChecked = (employeeId: number) => {
@@ -250,195 +438,205 @@ export function GroupMembersEditor({
     })
   }
 
-  const confirmPicked = () => {
-    if (pickedCount === 0) return
-    addIds([...picked])
-    closePicker()
+  const toggleVisibleMembers = () => {
+    if (allVisibleChecked) {
+      setListChecked((prev) => {
+        const next = new Set(prev)
+        for (const person of visibleMembers) next.delete(person.employeeId)
+        return next
+      })
+      return
+    }
+    setListChecked((prev) => {
+      const next = new Set(prev)
+      for (const person of visibleMembers) next.add(person.employeeId)
+      return next
+    })
   }
 
   return (
-    <div ref={wrapRef} className="pd-cycle-groups-members">
-      <div className="pd-cycle-extensions__search-wrap">
-        <label className="pd-cycle-extensions__search">
-          <Search
-            className="pd-cycle-extensions__search-icon"
-            size={16}
-            strokeWidth={1.75}
-            aria-hidden
-          />
-          <span className="pd-sr-only">{searchLabel}</span>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setOpen(true)
-            }}
-            onFocus={() => setOpen(true)}
-            placeholder={placeholder}
-            className="pd-cycle-extensions__search-input"
-            aria-expanded={open}
-            aria-controls={pickerId}
-            aria-autocomplete="list"
-            role="combobox"
-          />
-        </label>
-
-        {open ? (
-          <div
-            id={pickerId}
-            className="pd-cycle-extensions__search-panel"
-            role="listbox"
-            aria-label="People to add"
-            aria-multiselectable="true"
+    <div className="pd-cycle-groups-members">
+      <header className="pd-cycle-groups-members__bar">
+        {members.length > 0 ? (
+          <label className="pd-people__search">
+            <Search size={16} strokeWidth={1.75} aria-hidden />
+            <span className="pd-sr-only">Search people in this group</span>
+            <input
+              type="search"
+              value={rosterQuery}
+              onChange={(event) => setRosterQuery(event.target.value)}
+              placeholder="Search this group…"
+              className="pd-people__search-input"
+            />
+          </label>
+        ) : (
+          <p className="pd-cycle-groups-members__lede">
+            {peopleOnly
+              ? 'Search and click a person to add them.'
+              : 'Search a person, or browse a team or department.'}
+          </p>
+        )}
+        {adding ? (
+          <button
+            type="button"
+            className="pd-people__create-btn pd-people__create-btn--secondary"
+            onClick={closeAdd}
           >
-            <div className="pd-cycle-extensions__search-toolbar">
+            Done
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="pd-people__create-btn"
+            onClick={openAdd}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            {addButtonLabel}
+          </button>
+        )}
+      </header>
+
+      {adding ? (
+        <div
+          className="pd-cycle-groups-members__add"
+          role="region"
+          aria-label="People to add"
+        >
+          <label className="pd-people__search">
+            <Search size={16} strokeWidth={1.75} aria-hidden />
+            <span className="pd-sr-only">{searchLabel}</span>
+            <input
+              ref={addInputRef}
+              type="search"
+              value={addQuery}
+              onChange={(event) => setAddQuery(event.target.value)}
+              placeholder={placeholder}
+              className="pd-people__search-input"
+            />
+          </label>
+
+          {!peopleOnly && !searching ? (
+            <SegmentedControl
+              className="pd-cycle-groups-members__browse"
+              aria-label="Browse who to add"
+              options={BROWSE_SECTIONS}
+              value={browse}
+              onChange={setBrowse}
+            />
+          ) : null}
+
+          {searching && visiblePeopleIds.length > 1 ? (
+            <div className="pd-cycle-groups-members__add-tools">
               <button
                 type="button"
                 className="pd-reviews-edit-link"
-                onClick={() =>
-                  setPicked((prev) => new Set([...prev, ...visibleIds]))
-                }
-                disabled={allVisiblePicked || visibleIds.length === 0}
+                onClick={() => addIds(visiblePeopleIds)}
               >
-                Select All
-              </button>
-              <button
-                type="button"
-                className="pd-reviews-edit-link"
-                onClick={() => setPicked(new Set())}
-                disabled={pickedCount === 0}
-              >
-                Clear All
+                {`Add all ${visiblePeopleIds.length} matching people`}
               </button>
             </div>
-            <div className="pd-cycle-extensions__search-results">
-              {matches.length === 0 ? (
-                <div className="pd-cycle-extensions__search-empty">
-                  No results found
-                </div>
-              ) : (
-                groupedMatches.map((group) => (
-                  <div
-                    key={group.section}
-                    className="pd-cycle-extensions__search-section"
-                  >
-                    <div className="pd-cycle-extensions__search-section-label">
+          ) : null}
+
+          {matches.length === 0 ? (
+            <p className="pd-cycle-groups-members__add-empty">{addEmptyCopy}</p>
+          ) : (
+            <div className="pd-cycle-groups-members__add-results">
+              {groupedMatches.map((group) => (
+                <div
+                  key={group.section}
+                  className="pd-cycle-groups-members__add-section"
+                >
+                  {searching && !peopleOnly ? (
+                    <div className="pd-cycle-groups-members__add-label">
                       {group.section}
                     </div>
-                    <ul className="pd-cycle-extensions__search-list">
-                      {group.results.map((match) => {
-                        const Icon = match.icon
-                        const isPicked = match.ids.every((id) => picked.has(id))
-                        return (
-                          <li key={match.key}>
-                            <button
-                              type="button"
-                              role="option"
-                              aria-selected={isPicked}
-                              className={[
-                                'pd-cycle-extensions__search-result',
-                                isPicked
-                                  ? 'pd-cycle-extensions__search-result--selected'
-                                  : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' ')}
-                              onClick={() => togglePicked(match.ids)}
-                            >
-                              <span
-                                className={[
-                                  'pd-cycle-extensions__search-check',
-                                  isPicked ? 'is-checked' : '',
-                                ]
-                                  .filter(Boolean)
-                                  .join(' ')}
-                                aria-hidden
-                              />
-                              {match.person ? (
-                                <Avatar
-                                  name={match.person.fullName}
-                                  src={match.person.avatarUrl}
-                                  size="sm"
-                                  style={avatarStyle(match.person.fullName)}
-                                />
-                              ) : (
+                  ) : null}
+                  <ul className="pd-cycle-groups-members__add-list">
+                    {group.results.map((match) => {
+                      const Icon = match.icon
+                      const actionLabel = match.person
+                        ? `Add ${match.label}`
+                        : `Add ${match.label}`
+                      return (
+                        <li key={match.key}>
+                          <button
+                            type="button"
+                            className="pd-cycle-groups-members__add-row"
+                            onClick={() => addIds(match.ids)}
+                            aria-label={actionLabel}
+                          >
+                            {match.person ? (
+                              <PersonIdentity person={match.person} />
+                            ) : (
+                              <span className="pd-people__person">
                                 <span
-                                  className="pd-cycle-extensions__search-result-icon"
+                                  className="pd-cycle-groups-members__add-icon"
                                   aria-hidden
                                 >
-                                  <Icon size={14} strokeWidth={2} />
+                                  <Icon size={16} strokeWidth={1.75} />
                                 </span>
-                              )}
-                              <span className="pd-cycle-extensions__search-result-text">
-                                <span className="pd-cycle-extensions__search-result-label">
+                                <span className="pd-people__person-name">
                                   {match.label}
                                 </span>
-                                {match.description ? (
-                                  <span className="pd-cycle-extensions__search-result-description">
-                                    {match.description}
-                                  </span>
-                                ) : null}
                               </span>
-                            </button>
-                          </li>
-                        )
-                      })}
-                    </ul>
-                  </div>
-                ))
-              )}
+                            )}
+                            {match.description ? (
+                              <span className="pd-cycle-groups-members__add-meta">
+                                {match.description}
+                              </span>
+                            ) : null}
+                            <span className="pd-cycle-groups-members__add-action">
+                              Add
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              ))}
             </div>
-            <div className="pd-cycle-extensions__search-footer">
-              <span>
-                {pickedCount === 0
-                  ? 'Select people to add'
-                  : pickedCount === 1
-                    ? '1 person selected'
-                    : `${pickedCount} people selected`}
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                pill
-                disabled={pickedCount === 0}
-                onClick={confirmPicked}
-              >
-                Confirm
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      {members.length === 0 ? (
-        <div className="pd-cycle-groups-members__empty">
-          <p>Search to add people</p>
+          )}
         </div>
-      ) : (
-        <div className="pd-cycle-groups-members__roster">
-          <div className="pd-cycle-groups-members__toolbar">
-            <button
-              type="button"
-              className="pd-reviews-edit-link"
-              aria-label="Select all members"
-              onClick={() =>
-                setListChecked(new Set(members.map((person) => person.employeeId)))
-              }
-              disabled={allMembersChecked}
+      ) : null}
+
+      {members.length === 0 && !adding ? (
+        <div className="pd-cycle-groups-members__empty">
+          <p className="pd-cycle-groups-members__empty-title">
+            No one in this group yet
+          </p>
+          <p>Add people so this group’s goals and reviews apply to them.</p>
+          <button
+            type="button"
+            className="pd-people__create-btn"
+            onClick={openAdd}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            {addButtonLabel}
+          </button>
+        </div>
+      ) : null}
+
+      {members.length > 0 ? (
+        <>
+          {listCheckedCount > 0 ? (
+            <div
+              className="pd-cycle-groups-members__selection"
+              role="toolbar"
+              aria-label="Selected people"
             >
-              Select All
-            </button>
-            <button
-              type="button"
-              className="pd-reviews-edit-link"
-              aria-label="Clear member selection"
-              onClick={() => setListChecked(new Set())}
-              disabled={listCheckedCount === 0}
-            >
-              Clear All
-            </button>
-            {listCheckedCount > 0 ? (
+              <span>
+                {listCheckedCount === 1
+                  ? '1 selected'
+                  : `${listCheckedCount} selected`}
+              </span>
+              <button
+                type="button"
+                className="pd-reviews-edit-link"
+                onClick={() => setListChecked(new Set())}
+              >
+                Clear
+              </button>
               <Button
                 variant="danger"
                 size="sm"
@@ -449,63 +647,100 @@ export function GroupMembersEditor({
                   ? 'Remove 1 person'
                   : `Remove ${listCheckedCount} people`}
               </Button>
-            ) : null}
-          </div>
-          <ul className="pd-cycle-groups-members__list">
-            {members.map((employee) => {
-              const isChecked = listChecked.has(employee.employeeId)
-              return (
-                <li
-                  key={employee.employeeId}
-                  className={isChecked ? 'is-selected' : undefined}
-                >
-                  <button
-                    type="button"
-                    className="pd-cycle-groups-members__select"
-                    aria-pressed={isChecked}
-                    aria-label={`Select ${employee.fullName}`}
-                    onClick={() => toggleListChecked(employee.employeeId)}
-                  >
-                    <span
-                      className={[
-                        'pd-cycle-extensions__search-check',
-                        isChecked ? 'is-checked' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      aria-hidden
-                    />
-                    <Avatar
-                      name={employee.fullName}
-                      src={employee.avatarUrl}
-                      size="sm"
-                      style={avatarStyle(employee.fullName)}
-                    />
-                    <span className="pd-cycle-groups-members__person">
-                      <strong>{employee.fullName}</strong>
-                      <small>
-                        {claimedElsewhere.has(employee.employeeId)
-                          ? 'Will move from another group'
-                          : [employee.jobTitle, employee.department]
-                              .filter(Boolean)
-                              .join(' · ') || 'No role listed'}
-                      </small>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="pd-cycle-groups-members__remove"
-                    aria-label={`Remove ${employee.fullName}`}
-                    onClick={() => removeIds([employee.employeeId])}
-                  >
-                    <Trash2 size={15} aria-hidden />
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
+            </div>
+          ) : null}
+
+          {visibleMembers.length === 0 ? (
+            <p className="pd-people__empty">No one in this group matches.</p>
+          ) : (
+            <div
+              ref={tableScrollRef}
+              className="pd-people__table-wrap pd-cycle-groups-members__table-wrap"
+            >
+              <table className="pd-people__table">
+                <thead>
+                  <tr>
+                    <th className="pd-cycle-groups-members__check-col">
+                      <RowCheck
+                        checked={allVisibleChecked}
+                        label={
+                          allVisibleChecked
+                            ? 'Clear member selection'
+                            : 'Select all members'
+                        }
+                        onChange={toggleVisibleMembers}
+                      />
+                    </th>
+                    <th>
+                      <span className="pd-people__th">
+                        Person
+                        <span className="pd-people__th-count">
+                          {rosterFilter
+                            ? visibleMembers.length
+                            : members.length}
+                        </span>
+                      </span>
+                    </th>
+                    <th>Role</th>
+                    <th>Department</th>
+                    <th>Team</th>
+                    <th>
+                      <span className="pd-sr-only">Remove</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paddingTop > 0 ? (
+                    <tr className="pd-people__virtual-pad" aria-hidden>
+                      <td colSpan={TABLE_COLUMNS} style={{ height: paddingTop }} />
+                    </tr>
+                  ) : null}
+                  {renderedMembers.map((employee) => {
+                    const isChecked = listChecked.has(employee.employeeId)
+                    return (
+                      <tr
+                        key={employee.employeeId}
+                        className={isChecked ? 'is-selected' : undefined}
+                      >
+                        <td className="pd-cycle-groups-members__check-col">
+                          <RowCheck
+                            checked={isChecked}
+                            label={`Select ${employee.fullName}`}
+                            onChange={() =>
+                              toggleListChecked(employee.employeeId)
+                            }
+                          />
+                        </td>
+                        <td className="pd-people__name-cell">
+                          <PersonIdentity person={employee} linked />
+                        </td>
+                        <td>{employee.jobTitle || '—'}</td>
+                        <td>{employee.department || '—'}</td>
+                        <td>{employee.team || '—'}</td>
+                        <td className="pd-cycle-groups-members__action-col">
+                          <button
+                            type="button"
+                            className="pd-cycle-groups-members__remove"
+                            aria-label={`Remove ${employee.fullName}`}
+                            onClick={() => removeIds([employee.employeeId])}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {paddingBottom > 0 ? (
+                    <tr className="pd-people__virtual-pad" aria-hidden>
+                      <td colSpan={TABLE_COLUMNS} style={{ height: paddingBottom }} />
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      ) : null}
     </div>
   )
 }

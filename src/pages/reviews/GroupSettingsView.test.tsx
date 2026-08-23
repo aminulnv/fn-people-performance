@@ -282,7 +282,7 @@ describe('GroupSettingsView', () => {
 
     expect(screen.getByText('Senior leadership')).toBeInTheDocument()
     expect(
-      screen.getByRole('combobox', { name: 'Add senior leaders' }),
+      screen.getByRole('searchbox', { name: 'Add senior leaders' }),
     ).toBeInTheDocument()
   })
 

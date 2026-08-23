@@ -1,5 +1,6 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui'
+import { cx } from '@/lib/cx'
 import type { Metric } from '@/lib/goals/types'
 import { metricTipFromMetric } from './goalHelpers'
 
@@ -24,14 +25,17 @@ export function MetricProgressUpdate({
   metric,
   goalTitle,
   cycleLabel,
+  autoFocus = false,
+  compact = false,
   onCommit,
 }: {
   metric: Metric
   goalTitle?: string
   cycleLabel?: string
+  autoFocus?: boolean
+  compact?: boolean
   onCommit: (nextValue: number | undefined) => void
 }) {
-  const fieldId = useId()
   const [draft, setDraft] = useState('')
   const name = metric.title.trim() || goalTitle?.trim() || 'metric'
   const tip = metricTipFromMetric(metric)
@@ -49,17 +53,16 @@ export function MetricProgressUpdate({
   }
 
   return (
-    <div className="pd-goal-log-update">
-      <p className="pd-goal-log-update__label">Log update</p>
+    <div className={cx('pd-goal-log-update', compact && 'pd-goal-log-update--compact')}>
+      {compact ? null : (
+        <p className="pd-goal-log-update__label">Log update</p>
+      )}
       <div className="pd-goal-log-update__row">
-        <label className="pd-sr-only" htmlFor={fieldId}>
-          Current progress
-        </label>
         <input
-          id={fieldId}
           type="text"
           inputMode="decimal"
           autoComplete="off"
+          autoFocus={autoFocus}
           value={draft}
           placeholder="Current value"
           aria-label={`Current progress for ${name}`}
@@ -73,6 +76,7 @@ export function MetricProgressUpdate({
         <Button
           type="button"
           variant="secondary"
+          size={compact ? 'sm' : 'md'}
           pill
           aria-label={`Add update for ${name}`}
           disabled={parsedCurrent(draft) == null}

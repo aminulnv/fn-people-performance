@@ -959,10 +959,11 @@ a.pd-people__ghost-btn--outline:hover {
   --people-table-status-font: 0.75rem;
 }
 
-/* Columns auto-fit to content; one grow column absorbs leftover width. */
+/* Columns size to their content. A grow column may take leftover width. */
 .pd-people__table {
   table-layout: auto;
-  width: 100%;
+  width: max-content;
+  min-width: 0;
   border-collapse: collapse;
   font-size: var(--people-table-font);
   line-height: var(--people-table-line);
@@ -970,7 +971,16 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-people__table.pd-table-resize--measure {
   width: max-content;
-  min-width: 100%;
+  min-width: 0;
+  table-layout: auto;
+}
+
+.pd-people__table.pd-table-resize--measure th,
+.pd-people__table.pd-table-resize--measure td {
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .pd-people__table.pd-table-resize--laid-out,
@@ -981,6 +991,17 @@ a.pd-people__ghost-btn--outline:hover {
 .pd-people__table.pd-table-resize--overflow {
   width: max-content;
   min-width: 100%;
+}
+
+/* Plain tables (no resize handles): hug content, first column takes slack. */
+.pd-people__table:not(:has(.pd-table-resize__handle)) {
+  width: 100%;
+}
+
+.pd-people__table:not(:has(.pd-table-resize__handle)) th:not(:first-child),
+.pd-people__table:not(:has(.pd-table-resize__handle)) td:not(:first-child) {
+  width: 1%;
+  white-space: nowrap;
 }
 
 .pd-people__table th,
@@ -1219,6 +1240,11 @@ a.pd-people__ghost-btn--outline:hover {
   font-weight: 600;
   color: var(--color-text);
   line-height: var(--people-table-person-line);
+}
+
+.pd-people__name-cell .pd-people__person-name,
+.pd-people__name-cell .pd-people__person-link {
+  font-weight: 600;
 }
 
 .pd-people__person-link {
@@ -1521,6 +1547,7 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile--editing .pd-profile__detail-value>.pd-listbox,
 .pd-profile--editing .pd-profile__detail-value>.pd-profile__inline-input,
+.pd-profile--editing .pd-profile__detail-value>.pd-date-input,
 .pd-profile--editing .pd-profile__detail-value>.pd-profile__readonly {
   width: 100%;
 }
@@ -1582,6 +1609,13 @@ a.pd-people__ghost-btn--outline:hover {
   background: color-mix(in srgb, var(--color-text) 2.5%, var(--color-surface));
   border-color: color-mix(in srgb, var(--color-border) 40%, transparent);
   cursor: default;
+}
+
+.pd-profile--editing .pd-date-input__display {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  padding-right: 2.25rem;
 }
 
 .pd-profile--editing .pd-profile__detail-value .pd-listbox__trigger {

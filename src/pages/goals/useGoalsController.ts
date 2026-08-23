@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReviewCyclesHydrated } from "@/lib/reviews/useReviews";
+import { goalsCycleForPerson } from "@/lib/goals/cyclesFromReviews";
 import {
   approveGoals,
   cascadeGoalToReports,
@@ -13,7 +15,7 @@ import { isEligibleForCycle } from "@/lib/goals/demoData";
 import {
   buildOwnerOptions,
   duplicateGoal,
-  cascadeRecipients,
+  indexCascadeRecipients,
   lineManagerCascade,
   removeGoal,
   replaceGoal,
@@ -73,6 +75,9 @@ export type GoalsController = {
   actor: DemoPerson | null;
   subject: DemoPerson | null;
   subjectGoals: PersonGoals | null;
+  subjectCycle: GoalsSnapshot["cycle"] | null;
+  /** False until review groups are loaded — do not treat unknown as eligible. */
+  cycleMembershipReady: boolean;
   previousCycle: { id: string; label: string; goalCount: number } | null;
   /** Direct reports of `subject`, not of the signed-in actor. */
   reports: { person: DemoPerson; row: PersonGoals }[];
@@ -93,21 +98,29 @@ export type GoalsController = {
 export function useGoalsController({
   cycleId,
   subjectId,
+  syncActiveSelection = true,
 }: {
   cycleId?: string;
   subjectId: string;
+  /**
+   * Overlay drawers already have a hydrated snapshot. Retargeting the store
+   * here would refetch and delay edit actions on first paint.
+   */
+  syncActiveSelection?: boolean;
 }): GoalsController {
   const actor = useCurrentPerson();
   const snapshot = useSharedGoalsSnapshot();
+  const cycleMembershipReady = useReviewCyclesHydrated();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mutationQueueRef = useRef<Promise<unknown>>(Promise.resolve());
   const pendingMutationCountRef = useRef(0);
 
   useEffect(() => {
+    if (!syncActiveSelection) return;
     if (cycleId) setActiveCycle(cycleId);
     setActivePerson(subjectId);
-  }, [cycleId, subjectId]);
+  }, [cycleId, subjectId, syncActiveSelection]);
 
   const subject = useMemo(() => {
     if (!snapshot) return null;
@@ -116,6 +129,9 @@ export function useGoalsController({
 
   const subjectGoals = subject
     ? (snapshot?.byPerson[subject.id] ?? null)
+    : null;
+  const subjectCycle = snapshot
+    ? goalsCycleForPerson(snapshot.cycle, subjectId)
     : null;
   const previousCycle = useMemo(() => {
     if (!snapshot || !subject) return null;
@@ -165,9 +181,14 @@ export function useGoalsController({
     ? cascadeFromFor(subject.id)
     : { managerName: null, options: [] };
 
-  const cascadeRecipientsFor = useCallback(
-    (goalId: string) => cascadeRecipients(goalId, snapshot),
+  const recipientsBySource = useMemo(
+    () => indexCascadeRecipients(snapshot),
     [snapshot],
+  );
+
+  const cascadeRecipientsFor = useCallback(
+    (goalId: string) => recipientsBySource.get(goalId) ?? [],
+    [recipientsBySource],
   );
 
   const capabilitiesFor = useCallback(
@@ -178,15 +199,40 @@ export function useGoalsController({
       );
       const row = snapshot.byPerson[targetSubjectId];
       if (!target || !row) return null;
-      return deriveGoalCapabilities({
-        actor,
+      const actorFromSnapshot = snapshot.people.find(
+        (person) => person.id === actor.id || person.email === actor.email,
+      );
+      const actorForCaps = actorFromSnapshot
+        ? {
+            ...actor,
+            reportIds: Array.from(
+              new Set([...actor.reportIds, ...actorFromSnapshot.reportIds]),
+            ),
+            managerId: actor.managerId ?? actorFromSnapshot.managerId,
+          }
+        : actor;
+      const personCycle = goalsCycleForPerson(snapshot.cycle, targetSubjectId);
+      const capabilities = deriveGoalCapabilities({
+        actor: actorForCaps,
         subject: target,
         row,
-        cycle: snapshot.cycle,
+        cycle: personCycle,
         cycleStatus: snapshot.cycleStatus,
       });
+      if (!cycleMembershipReady) {
+        return {
+          ...capabilities,
+          canEditStructure: false,
+          canCreate: false,
+          canRemove: false,
+          canDuplicate: false,
+          canCascade: false,
+          canSubmit: false,
+        };
+      }
+      return capabilities;
     },
-    [snapshot, actor],
+    [actor, cycleMembershipReady, snapshot],
   );
 
   const capabilities = subject ? capabilitiesFor(subject.id) : null;
@@ -309,7 +355,8 @@ export function useGoalsController({
         if (!row) throw new Error("Unknown goals subject.");
         const source = row.goals.find((goal) => goal.id === goalId);
         if (!source) return null;
-        const sourceTitle = source.description.trim() || `Untitled goal`;
+        const sourceTitle =
+          source.description.trim() || source.linkedGoalLabel?.trim() || 'Goal';
         const copy = duplicateGoal(source, {
           ownerId: targetSubjectId,
           sourceTitle,
@@ -367,6 +414,8 @@ export function useGoalsController({
     actor,
     subject,
     subjectGoals,
+    subjectCycle,
+    cycleMembershipReady,
     previousCycle,
     reports,
     ownerOptions,
@@ -388,5 +437,5 @@ export function subjectIsEligible(
   snapshot: GoalsSnapshot | null,
 ): boolean {
   if (!subject || !snapshot) return false;
-  return isEligibleForCycle(subject, snapshot.cycle);
+  return isEligibleForCycle(subject, goalsCycleForPerson(snapshot.cycle, subject.id));
 }

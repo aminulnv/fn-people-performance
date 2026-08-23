@@ -129,6 +129,44 @@ describe('GoalProgressEditor', () => {
     expect(screen.getByRole('button', { name: 'Add task list' })).toBeInTheDocument()
   })
 
+  it('locks the only measure weight at 100%', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(100)],
+    })
+
+    expect(screen.queryByLabelText('Weight for CSAT')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('100 percent')).toBeInTheDocument()
+  })
+
+  it('splits weight evenly when a second measure is added', () => {
+    const onChange = vi.fn()
+    render(
+      <GoalProgressEditor
+        goal={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [milestoneMeasure(100)],
+        }}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add number measure' }))
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measurements: [
+          expect.objectContaining({ kind: 'milestone', weight: 50 }),
+          expect.objectContaining({ kind: 'metric', weight: 50 }),
+        ],
+      }),
+    )
+  })
+
   it('lets you log a current value on a number measure', () => {
     const onChange = vi.fn()
     render(

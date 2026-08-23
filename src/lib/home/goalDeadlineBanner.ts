@@ -39,19 +39,76 @@ export function buildGoalDeadlineHeadline(cycleLabel: string): string {
   return `Set your ${cycleQuarterLabel(cycleLabel)} Goals`
 }
 
+export type GoalDeadlineTiming = 'upcoming' | 'due_today' | 'overdue'
+
+export function signedDaysUntil(todayKey: string, deadline: string): number {
+  return Math.ceil(
+    (parseDate(deadline).getTime() - parseDate(todayKey).getTime()) / 86_400_000,
+  )
+}
+
+export function resolveGoalDeadlineTiming(
+  signedDays: number,
+): GoalDeadlineTiming {
+  if (signedDays < 0) return 'overdue'
+  if (signedDays === 0) return 'due_today'
+  return 'upcoming'
+}
+
 export function formatDaysRemainingLabel(daysRemaining: number): string {
-  if (daysRemaining === 1) return '1 Day'
-  return `${daysRemaining} Days`
+  const remaining = Math.max(0, daysRemaining)
+  if (remaining === 1) return '1 Day'
+  return `${remaining} Days`
+}
+
+export function deadlineSublinePrefix(timing: GoalDeadlineTiming): string {
+  if (timing === 'overdue') return 'Was due '
+  if (timing === 'due_today') return 'Due today'
+  return 'Due by '
+}
+
+export function deadlineSublineEmphasis(
+  timing: GoalDeadlineTiming,
+  deadlineLabel: string,
+): string | undefined {
+  return timing === 'due_today' ? undefined : deadlineLabel
+}
+
+export function deadlineCountdownCopy(signedDays: number): {
+  primary: string
+  secondary: string
+} {
+  const timing = resolveGoalDeadlineTiming(signedDays)
+  if (timing === 'overdue') return { primary: 'Overdue', secondary: '' }
+  if (timing === 'due_today') return { primary: 'Due', secondary: 'Today' }
+  return {
+    primary: formatDaysRemainingLabel(signedDays),
+    secondary: 'Remaining',
+  }
+}
+
+export function deadlineAriaSuffix(
+  signedDays: number,
+  deadlineLabel: string,
+): string {
+  const timing = resolveGoalDeadlineTiming(signedDays)
+  if (timing === 'overdue') return `Overdue, was due ${deadlineLabel}.`
+  if (timing === 'due_today') return 'Due today.'
+  return `${formatDaysRemainingLabel(signedDays)} remaining, due by ${deadlineLabel}.`
+}
+
+export function buildClosedGoalHeadline(cycleLabel: string): string {
+  return `${cycleQuarterLabel(cycleLabel)} Goal submission is closed`
 }
 
 export type GoalDeadlineUrgency = 'default' | 'warning' | 'critical'
 
-/** Yellow at ≤5 days, red at <3 days (red wins when both apply). */
+/** Yellow at ≤5 days, red at <3 days — including due today and overdue. */
 export function resolveGoalDeadlineUrgency(
-  daysRemaining: number,
+  signedDays: number,
 ): GoalDeadlineUrgency {
-  if (daysRemaining < 3) return 'critical'
-  if (daysRemaining <= 5) return 'warning'
+  if (signedDays < 3) return 'critical'
+  if (signedDays <= 5) return 'warning'
   return 'default'
 }
 

@@ -71,7 +71,7 @@ describe('stagesConfigForGoalPolicy', () => {
     assert.deepEqual(stagesConfigForGoalPolicy({ stages_config: stagesConfig }), stagesConfig)
   })
 
-  it('drops cycle extensions when the person is in a group', () => {
+  it('keeps group extensions when the person is in a group', () => {
     const stagesConfig = {
       goals: {
         employee: { startDate: '2026-06-01', endDate: '2026-07-15' },
@@ -80,12 +80,7 @@ describe('stagesConfigForGoalPolicy', () => {
     }
     assert.deepEqual(
       stagesConfigForGoalPolicy({ stages_config: stagesConfig, group_id: 'group-1' }),
-      {
-        goals: {
-          employee: { startDate: '2026-06-01', endDate: '2026-07-15' },
-          extensions: [],
-        },
-      },
+      stagesConfig,
     )
   })
 })

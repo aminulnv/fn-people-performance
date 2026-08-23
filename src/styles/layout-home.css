@@ -56,6 +56,10 @@
   font-size: clamp(1.125rem, 2.4vw, 1.875rem);
 }
 
+.pd-page--home-multiple .pd-home-banner--status .pd-home-banner__aside-primary {
+  font-size: clamp(1rem, 2.1vw, 1.625rem);
+}
+
 .pd-home-banner {
   display: block;
   color: inherit;
@@ -210,6 +214,11 @@
 
 .pd-home-banner--update_progress .pd-home-banner__aside-primary {
   font-size: clamp(2.25rem, 4.8vw, 3.75rem);
+}
+
+.pd-home-banner--status .pd-home-banner__aside-primary {
+  font-size: clamp(2rem, 4.2vw, 3.25rem);
+  line-height: 0.95;
 }
 
 @media (max-width: 760px) {

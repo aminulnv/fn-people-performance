@@ -195,6 +195,9 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   display: flex;
   flex-direction: column;
   background: var(--color-bg);
+  /* Shell uses on-sidebar ink for dark chrome. Reset here so page copy
+     and currentColor icons stay readable on the raised surface. */
+  color: var(--color-text);
   box-shadow: var(--shadow-low);
   border-radius: 0.75rem;
 }

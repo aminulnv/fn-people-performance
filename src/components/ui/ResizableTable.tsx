@@ -71,9 +71,9 @@ function sumWidths(columns: ResizableColumn[], widths: ColumnWidths): number {
   )
 }
 
-/** Widths saved before auto-fit shipped used a different scheme, so start fresh. */
+/** Widths saved before content-fit shipped used a different scheme, so start fresh. */
 function storageKeyFor(storageKey: string): string {
-  return `${storageKey}:v3`
+  return `${storageKey}:v4`
 }
 
 function readStoredWidths(storageKey: string): ColumnWidths {
@@ -97,23 +97,68 @@ function readStoredWidths(storageKey: string): ColumnWidths {
   }
 }
 
+/**
+ * Map each visual column to its cells, honoring rowspan/colspan. Spacer rows
+ * that span the whole table are skipped so they cannot inflate the first column.
+ */
+export function collectCellsByColumn(
+  table: HTMLTableElement,
+  columnCount: number,
+): HTMLTableCellElement[][] {
+  const grouped: HTMLTableCellElement[][] = Array.from(
+    { length: columnCount },
+    () => [],
+  )
+  const occupied: boolean[][] = []
+
+  for (let rowIndex = 0; rowIndex < table.rows.length; rowIndex += 1) {
+    const row = table.rows[rowIndex]
+    if (row.classList.contains('pd-people__virtual-pad')) continue
+
+    occupied[rowIndex] ??= []
+    let visualColumn = 0
+
+    for (let cellIndex = 0; cellIndex < row.cells.length; cellIndex += 1) {
+      while (occupied[rowIndex][visualColumn]) visualColumn += 1
+
+      const cell = row.cells[cellIndex]
+      const colspan = Math.max(1, cell.colSpan)
+      const rowspan = Math.max(1, cell.rowSpan)
+
+      if (colspan === 1 && visualColumn < columnCount) {
+        grouped[visualColumn].push(cell)
+      }
+
+      for (let rowOffset = 0; rowOffset < rowspan; rowOffset += 1) {
+        occupied[rowIndex + rowOffset] ??= []
+        for (let colOffset = 0; colOffset < colspan; colOffset += 1) {
+          occupied[rowIndex + rowOffset][visualColumn + colOffset] = true
+        }
+      }
+      visualColumn += colspan
+    }
+  }
+
+  return grouped
+}
+
+function measureCellWidth(cell: HTMLTableCellElement): number {
+  return Math.max(cell.scrollWidth, cell.offsetWidth)
+}
+
 function measureNaturalColumnWidths(
   table: HTMLTableElement,
   columns: ResizableColumn[],
 ): ColumnWidths {
   const widths: ColumnWidths = {}
-  const rowCount = table.rows.length
-  if (rowCount === 0) return widths
-
-  const sampleCount = Math.min(rowCount, MEASURE_ROW_CAP)
+  const grouped = collectCellsByColumn(table, columns.length)
 
   columns.forEach((column, columnIndex) => {
     let max = minWidthOf(column)
-    for (let rowIndex = 0; rowIndex < sampleCount; rowIndex += 1) {
-      const row = table.rows[rowIndex]
-      const cell = row?.cells[columnIndex]
-      if (!cell) continue
-      max = Math.max(max, cell.offsetWidth)
+    const cells = grouped[columnIndex] ?? []
+    const sampleCount = Math.min(cells.length, MEASURE_ROW_CAP)
+    for (let index = 0; index < sampleCount; index += 1) {
+      max = Math.max(max, measureCellWidth(cells[index]))
     }
     widths[column.id] = max
   })
@@ -121,19 +166,19 @@ function measureNaturalColumnWidths(
   return widths
 }
 
-function distributeAutoWidths(
+export function distributeAutoWidths(
   columns: ResizableColumn[],
   natural: ColumnWidths,
   availableWidth: number,
 ): AutoLayout {
   const fitted = { ...natural }
   const total = sumWidths(columns, fitted)
-  const growColumn = columns.find((column) => column.grow) ?? columns[0]
+  const growColumn = columns.find((column) => column.grow)
 
   if (!growColumn || total >= availableWidth) {
     return {
       widths: fitted,
-      tableWidth: Math.max(total, availableWidth),
+      tableWidth: total,
       overflows: total > availableWidth,
     }
   }
@@ -149,9 +194,18 @@ function distributeAutoWidths(
   }
 }
 
+function columnSignature(columns: ResizableColumn[]): string {
+  return columns
+    .map(
+      (column) =>
+        `${column.id}:${column.minWidth ?? ''}:${column.grow ? '1' : '0'}`,
+    )
+    .join('|')
+}
+
 /**
- * Columns auto-fit to their content and fill the table width without wasting
- * space. One column may grow to absorb leftover width; manual drags still stick.
+ * Columns auto-fit to their content. One optional grow column absorbs leftover
+ * width so short columns stay tight; manual drags still stick.
  */
 export function ResizableTable({
   storageKey,
@@ -173,6 +227,9 @@ export function ResizableTable({
   const resizeStartRef = useRef<ResizeStart | null>(null)
   const refitRef = useRef<RefitRequest | null>(null)
   const naturalWidthsRef = useRef<ColumnWidths>({})
+  const columnsRef = useRef(columns)
+  columnsRef.current = columns
+  const columnsKey = columnSignature(columns)
 
   const activeWidths = hasManualLayout ? manualWidths : (autoLayout?.widths ?? {})
   const isAutoLaidOut = !hasManualLayout && autoLayout != null
@@ -218,13 +275,27 @@ export function ResizableTable({
 
     const table = tableRef.current
     const wrap = table?.parentElement
+    const activeColumns = columnsRef.current
     if (!table || !wrap || table.rows.length === 0) return
 
-    const natural = measureNaturalColumnWidths(table, columns)
+    const natural = measureNaturalColumnWidths(table, activeColumns)
     naturalWidthsRef.current = natural
     const available = Math.max(wrap.clientWidth, 1)
-    setAutoLayout(distributeAutoWidths(columns, natural, available))
-  }, [columns, fitKey, fitPass, hasManualLayout])
+    const next = distributeAutoWidths(activeColumns, natural, available)
+    setAutoLayout((current) => {
+      if (
+        current &&
+        current.tableWidth === next.tableWidth &&
+        current.overflows === next.overflows &&
+        activeColumns.every(
+          (column) => current.widths[column.id] === next.widths[column.id],
+        )
+      ) {
+        return current
+      }
+      return next
+    })
+  }, [columnsKey, fitKey, fitPass, hasManualLayout])
 
   useEffect(() => {
     if (hasManualLayout) return
@@ -243,12 +314,16 @@ export function ResizableTable({
         return
       }
       setAutoLayout(
-        distributeAutoWidths(columns, natural, Math.max(nextWidth, 1)),
+        distributeAutoWidths(
+          columnsRef.current,
+          natural,
+          Math.max(nextWidth, 1),
+        ),
       )
     })
     observer.observe(wrap)
     return () => observer.disconnect()
-  }, [columns, hasManualLayout])
+  }, [columnsKey, hasManualLayout])
 
   useLayoutEffect(() => {
     const refit = refitRef.current
@@ -335,9 +410,10 @@ export function ResizableTable({
   const tableStyle = hasManualLayout
     ? { width: manualFixedWidth, minWidth: '100%' }
     : isAutoLaidOut && autoLayout
-      ? autoLayout.overflows
-        ? { width: autoLayout.tableWidth, minWidth: '100%' }
-        : { width: '100%' }
+      ? {
+          width: autoLayout.tableWidth,
+          minWidth: autoLayout.overflows ? '100%' : autoLayout.tableWidth,
+        }
       : undefined
 
   return (

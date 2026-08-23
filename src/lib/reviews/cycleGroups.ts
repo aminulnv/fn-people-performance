@@ -1,3 +1,4 @@
+import { toIntegerId } from '@/lib/integerId'
 import { normalizeCycleSettings } from './demoData'
 import type {
   CycleGroup,
@@ -87,7 +88,13 @@ export function cloneCycleSettingsIntoGroup(
     name: input.name.trim() || 'Untitled group',
     memberIds: [...new Set((input.memberIds ?? []).map(Number).filter(Number.isInteger))],
     settings: structuredClone(normalizeCycleSettings(cycle.settings)),
-    stagesConfig: structuredClone(cycle.stagesConfig),
+    stagesConfig: {
+      ...structuredClone(cycle.stagesConfig),
+      goals: {
+        ...structuredClone(cycle.stagesConfig.goals),
+        extensions: [],
+      },
+    },
     calibration: structuredClone(cycle.calibration),
     createdAt: new Date().toISOString(),
     version: 1,
@@ -116,7 +123,7 @@ export function employeeIdsForScope(
     return active
       .filter(
         (employee) =>
-          employee.departmentId === scope.departmentId ||
+          toIntegerId(employee.departmentId) === toIntegerId(scope.departmentId) ||
           employee.department === scope.departmentName,
       )
       .map((employee) => employee.employeeId)
@@ -124,7 +131,8 @@ export function employeeIdsForScope(
   return active
     .filter(
       (employee) =>
-        employee.teamId === scope.teamId || employee.team === scope.teamName,
+        toIntegerId(employee.teamId) === toIntegerId(scope.teamId) ||
+        employee.team === scope.teamName,
     )
     .map((employee) => employee.employeeId)
 }

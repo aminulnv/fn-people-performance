@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { blankGoal } from './measurements'
 import type { Goal } from './types'
-import { canSubmitGoals, goalCountWarning } from './weightage'
+import {
+  allocatedWeightCaption,
+  canSubmitGoals,
+  distributeGoalWeights,
+  goalCountWarning,
+} from './weightage'
 
 const POLICY = {
   minimumRequired: 2,
@@ -32,6 +37,34 @@ function readyGoal(
     ...partial,
   }
 }
+
+describe('allocatedWeightCaption', () => {
+  it('pairs allocated weight with what is still left', () => {
+    expect(allocatedWeightCaption(75)).toBe('75% allocated · 25% left')
+  })
+
+  it('drops the leftover when the set is full', () => {
+    expect(allocatedWeightCaption(100)).toBe('100% allocated')
+  })
+
+  it('pairs allocated weight with how far the set is over', () => {
+    expect(allocatedWeightCaption(110)).toBe('110% allocated · 10% over')
+  })
+})
+
+describe('distributeGoalWeights', () => {
+  it('splits 100% evenly and parks leftover points on the last goals', () => {
+    expect(distributeGoalWeights([{ weight: 40 }, { weight: 35 }])).toEqual([
+      { weight: 50 },
+      { weight: 50 },
+    ])
+    expect(
+      distributeGoalWeights([{ weight: 40 }, { weight: 35 }, { weight: 0 }]),
+    ).toEqual([{ weight: 33 }, { weight: 33 }, { weight: 34 }])
+    expect(distributeGoalWeights([{ weight: 40 }])).toEqual([{ weight: 100 }])
+    expect(distributeGoalWeights([])).toEqual([])
+  })
+})
 
 describe('canSubmitGoals', () => {
   it('accepts two complete goals that total 100%', () => {
@@ -96,8 +129,9 @@ describe('canSubmitGoals', () => {
         readyGoal({ description: 'Ship roadmap', weight: 40 }),
         {
           ...blankGoal({ withDefaultMetric: false }),
-          description: 'Untitled Cascading Goal from Ada',
+          description: '',
           cascadedFromGoalId: 'mgr-1',
+          linkedGoalLabel: 'Ada’s quality goal',
           weight: 0,
         },
       ],
@@ -105,8 +139,8 @@ describe('canSubmitGoals', () => {
     )
     expect(check.ok).toBe(false)
     expect(check.blockers[0]).toMatchObject({
-      goalTitle: 'Untitled Cascading Goal from Ada',
-      suffix: ' still needs a measure — or remove it.',
+      goalTitle: 'Ada’s quality goal',
+      suffix: ' needs a title.',
     })
     expect(check.blockers[0]?.goalId).toBeTruthy()
   })

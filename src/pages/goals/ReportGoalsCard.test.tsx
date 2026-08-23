@@ -27,7 +27,8 @@ describe('ReportGoalsCard', () => {
     )
 
     const card = screen.getByRole('region', { name: 'Saif Ivna Alam goals' })
-    expect(card).toHaveTextContent('3 goals awaiting your approval')
+    const awaiting = screen.getByText('3 goals awaiting your approval')
+    expect(awaiting.nextElementSibling).toHaveTextContent('Approve')
     expect(card).toHaveTextContent('Improve delivery quality')
     expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Send Back' })).toBeInTheDocument()
@@ -82,8 +83,8 @@ describe('ReportGoalsCard', () => {
       screen.getByText('Late submission · your approval is final'),
     ).toBeInTheDocument()
     expect(
-      screen.getByText('3 goals awaiting your approval'),
-    ).toBeInTheDocument()
+      screen.getByText('3 goals awaiting your approval').nextElementSibling,
+    ).toHaveTextContent('Approve')
   })
 
   it('tells the line manager who still owes final approval after they signed off', () => {
@@ -161,5 +162,60 @@ describe('ReportGoalsCard', () => {
     expect(
       screen.getByText(/Late submission/).closest('.pd-goals-approval__late'),
     ).toHaveTextContent('will approve after you')
+  })
+
+  it('shows the owner submit actions and who will approve after they submit', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="draft"
+          goalCount={3}
+          perspective="owner"
+          lineManager={{ id: '7', name: 'Api Singha' }}
+          actions={
+            <>
+              <button type="button">Submit All</button>
+              <button type="button">Add Goal</button>
+            </>
+          }
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    const card = screen.getByRole('region', { name: 'Saif Ivna Alam goals' })
+    expect(card).not.toHaveTextContent('3 goals · Draft')
+    expect(card).toHaveTextContent('Api Singha will approve after you submit')
+    expect(screen.getByRole('button', { name: 'Submit All' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add Goal' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Approve' })).not.toBeInTheDocument()
+  })
+
+  it('names both approvers on a late owner submission', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="submitted"
+          postWindowApprovalStage="manager"
+          goalCount={3}
+          perspective="owner"
+          lineManager={{ id: '7', name: 'Api Singha' }}
+          skipLevelManager={{ id: '42', name: 'Nafis' }}
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByText('3 goals awaiting approval')).not.toBeInTheDocument()
+    const note = screen
+      .getByText(/Late submission/)
+      .closest('.pd-goals-approval__late')
+    expect(note).toHaveTextContent('Api Singha')
+    expect(note).toHaveTextContent('Nafis')
+    expect(note).toHaveTextContent('gives final approval')
   })
 })

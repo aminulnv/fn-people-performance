@@ -1,5 +1,5 @@
 import { blankGoal } from './measurements'
-import { newId } from './weightage'
+import { displayGoalTitle, newId } from './weightage'
 import type { DemoPerson, Goal, GoalsSnapshot, Measurement } from './types'
 
 export type GoalOwnerOption = {
@@ -49,7 +49,7 @@ export type LineManagerCascade = {
 const EMPTY_CASCADE: LineManagerCascade = { managerName: null, options: [] }
 
 function cascadeGoalTitle(goal: Goal, index: number): string {
-  return goal.description.trim() || `Untitled goal ${index + 1}`
+  return displayGoalTitle(goal, index)
 }
 
 /** Goals of the subject's line manager only — one level up the tree. */
@@ -121,27 +121,37 @@ export type CascadeRecipient = {
 }
 
 /** Child goals already cascaded from this one — live title + owner. */
+export function indexCascadeRecipients(
+  snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
+): Map<string, CascadeRecipient[]> {
+  const bySource = new Map<string, CascadeRecipient[]>()
+  if (!snapshot) return bySource
+  for (const person of snapshot.people) {
+    const row = snapshot.byPerson[person.id]
+    if (!row) continue
+    row.goals.forEach((goal, index) => {
+      const sourceId = goal.cascadedFromGoalId
+      if (!sourceId) return
+      const current = bySource.get(sourceId) ?? []
+      current.push({
+        goalId: goal.id,
+        goalTitle: cascadeGoalTitle(goal, index),
+        personId: person.id,
+        personName: person.name,
+        avatarUrl: person.avatarUrl,
+      })
+      bySource.set(sourceId, current)
+    })
+  }
+  return bySource
+}
+
 export function cascadeRecipients(
   sourceGoalId: string,
   snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
 ): CascadeRecipient[] {
-  if (!snapshot || !sourceGoalId) return []
-  return snapshot.people.flatMap((person) => {
-    const row = snapshot.byPerson[person.id]
-    if (!row) return []
-    return row.goals.flatMap((goal, index) => {
-      if (goal.cascadedFromGoalId !== sourceGoalId) return []
-      return [
-        {
-          goalId: goal.id,
-          goalTitle: cascadeGoalTitle(goal, index),
-          personId: person.id,
-          personName: person.name,
-          avatarUrl: person.avatarUrl,
-        },
-      ]
-    })
-  })
+  if (!sourceGoalId) return []
+  return indexCascadeRecipients(snapshot).get(sourceGoalId) ?? []
 }
 
 /** Prefer the goal's ownerId; fall back to the subject's bucket owner. */
@@ -251,7 +261,7 @@ export function cascadeGoal(
 ): Goal {
   return {
     ...blankGoal({ ownerId: targetPersonId }),
-    description: `Untitled Cascading Goal from ${options.sourcePersonName}`,
+    description: '',
     cascadedFromGoalId: source.id,
     linkedGoalLabel: options.sourceTitle,
     comments: [],

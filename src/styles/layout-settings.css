@@ -208,6 +208,7 @@
   border: 1px solid var(--color-border);
   border-radius: 0.75rem;
   background: var(--color-surface-raised, var(--color-bg));
+  color: var(--color-text);
 }
 
 .pd-settings-section__header {

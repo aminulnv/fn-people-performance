@@ -88,6 +88,22 @@ describe('cloneCycleSettingsIntoGroup', () => {
     expect(created.memberIds).toEqual([9])
     expect(groupDiffersFromCycle(host, created)).toBe(false)
   })
+
+  it('does not copy cycle deadline extensions onto a new group', () => {
+    const host = cycle()
+    host.stagesConfig.goals.extensions = [
+      {
+        id: 'cycle-ext',
+        endDate: '2026-08-01',
+        scope: { type: 'people', employeeIds: [9] },
+      },
+    ]
+    const created = cloneCycleSettingsIntoGroup(host, {
+      id: 'group-new',
+      name: 'Senior leadership',
+    })
+    expect(created.stagesConfig.goals.extensions).toEqual([])
+  })
 })
 
 describe('findCycleGroupForPerson', () => {

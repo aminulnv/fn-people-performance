@@ -1,3 +1,4 @@
+import { toIntegerId } from "@/lib/integerId";
 import { buildPeriod } from "./periods";
 import { inferPurpose, inferYearKey } from "./purpose";
 import { defaultReviewPolicy, normalizeReviewPolicy } from "./reviewPolicy";
@@ -14,6 +15,7 @@ import type {
   CycleSettings,
   CycleStagesConfig,
   DateTimeValue,
+  GoalCycleExtension,
   ReviewCycle,
   ReviewsSnapshot,
 } from "./types";
@@ -105,6 +107,41 @@ export function normalizeCalibration(
 }
 
 /** Strip legacy department/team goal windows and fill any missing fields. */
+function normalizeGoalExtensions(
+  extensions: GoalCycleExtension[] | undefined,
+): GoalCycleExtension[] {
+  return (extensions ?? []).map((extension) => {
+    const scope = extension.scope;
+    if (scope.type === "department") {
+      return {
+        ...extension,
+        scope: {
+          ...scope,
+          departmentId: toIntegerId(scope.departmentId) ?? scope.departmentId,
+        },
+      };
+    }
+    if (scope.type === "team") {
+      return {
+        ...extension,
+        scope: {
+          ...scope,
+          teamId: toIntegerId(scope.teamId) ?? scope.teamId,
+        },
+      };
+    }
+    return {
+      ...extension,
+      scope: {
+        ...scope,
+        employeeIds: scope.employeeIds
+          .map((id) => toIntegerId(id))
+          .filter((id): id is number => id != null),
+      },
+    };
+  });
+}
+
 export function normalizeStagesConfig(
   config?: Partial<CycleStagesConfig>,
   quarter?: { startDate: string; endDate: string; purpose?: CyclePurpose },
@@ -120,7 +157,7 @@ export function normalizeStagesConfig(
     processMode: "schedule",
     goals: {
       employee: config.goals?.employee ?? defaults.goals.employee,
-      extensions: config.goals?.extensions ?? [],
+      extensions: normalizeGoalExtensions(config.goals?.extensions),
     },
     performance: {
       ...defaults.performance,

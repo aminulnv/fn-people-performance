@@ -1,5 +1,6 @@
+import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Avatar } from '@/components/ui'
+import { Avatar, ResizableTable, type ResizableColumn } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 
@@ -13,28 +14,44 @@ export function OrgMembersTable({
   /** Show team column on department pages, department on team pages. */
   extraColumn?: Column
 }) {
+  const columns = useMemo<ResizableColumn[]>(() => {
+    const next: ResizableColumn[] = [
+      {
+        id: 'person',
+        label: (
+          <span className="pd-people__th">
+            Person
+            <span className="pd-people__th-count">{members.length}</span>
+          </span>
+        ),
+        name: 'Person',
+        grow: true,
+      },
+      { id: 'role', label: 'Role' },
+    ]
+    if (extraColumn === 'team') next.push({ id: 'team', label: 'Team' })
+    if (extraColumn === 'department') {
+      next.push({ id: 'department', label: 'Department' })
+    }
+    next.push({ id: 'manager', label: 'Line manager' }, { id: 'email', label: 'Email' })
+    return next
+  }, [extraColumn, members.length])
+
   if (members.length === 0) {
     return <p className="pd-people__empty">No members in this unit yet.</p>
   }
 
   return (
     <div className="pd-people__table-wrap">
-      <table className="pd-people__table">
-        <thead>
-          <tr>
-            <th>
-              <span className="pd-people__th">
-                Person
-                <span className="pd-people__th-count">{members.length}</span>
-              </span>
-            </th>
-            <th>Role</th>
-            {extraColumn === 'team' ? <th>Team</th> : null}
-            {extraColumn === 'department' ? <th>Department</th> : null}
-            <th>Line manager</th>
-            <th>Email</th>
-          </tr>
-        </thead>
+      <ResizableTable
+        className="pd-people__table"
+        storageKey={
+          extraColumn
+            ? `organisation-members-${extraColumn}-column-widths`
+            : 'organisation-members-column-widths'
+        }
+        columns={columns}
+      >
         <tbody>
           {members.map((member) => (
             <tr key={member.employeeId}>
@@ -83,7 +100,7 @@ export function OrgMembersTable({
             </tr>
           ))}
         </tbody>
-      </table>
+      </ResizableTable>
     </div>
   )
 }

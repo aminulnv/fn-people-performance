@@ -1,12 +1,25 @@
-import { ChevronRight, Circle, CircleCheck } from 'lucide-react'
-import { Tooltip } from '@/components/ui'
+import { ChevronRight, Circle, CircleCheck, History } from 'lucide-react'
+import { CountBadge, Tooltip } from '@/components/ui'
+import { cx } from '@/lib/cx'
 import type { ProgressLogEntry } from '@/lib/goals/types'
 import {
   formatProgressTimestamp,
   isMilestoneProgressLog,
+  numericProgressSummary,
   progressLogStatusLabel,
   progressLogSummary,
 } from '@/lib/goals/progressLog'
+
+export type ProgressLogKind = 'metric' | 'milestone'
+
+function showsMilestoneStatus(
+  entry: ProgressLogEntry,
+  kind?: ProgressLogKind,
+) {
+  if (kind === 'metric') return false
+  if (kind === 'milestone') return true
+  return isMilestoneProgressLog(entry)
+}
 
 function ProgressLogStatusIcon({ entry }: { entry: ProgressLogEntry }) {
   const label = progressLogStatusLabel(entry)
@@ -30,20 +43,90 @@ function ProgressLogStatusIcon({ entry }: { entry: ProgressLogEntry }) {
   )
 }
 
-export function GoalProgressLog({
-  entries,
-}: {
-  entries: ProgressLogEntry[]
-}) {
-  if (entries.length === 0) return null
-  const newestFirst = [...entries].sort((left, right) =>
+function keepRowClickFromOpening(event: { stopPropagation(): void }) {
+  event.stopPropagation()
+}
+
+function newestFirst(entries: ProgressLogEntry[]) {
+  return [...entries].sort((left, right) =>
     left.recordedAt < right.recordedAt ? 1 : -1,
   )
-  const countLabel =
-    newestFirst.length === 1 ? '1 update' : `${newestFirst.length} updates`
+}
+
+function ProgressLogTable({
+  entries,
+  kind,
+}: {
+  entries: ProgressLogEntry[]
+  kind?: ProgressLogKind
+}) {
+  return (
+    <table className="pd-goal-progress-log__table">
+      <thead className="pd-sr-only">
+        <tr>
+          <th scope="col">Date</th>
+          <th scope="col">Change</th>
+          <th scope="col">Note</th>
+        </tr>
+      </thead>
+      <tbody>
+        {entries.map((entry) => (
+          <tr key={entry.id} className="pd-goal-progress-log__row">
+            <td className="pd-goal-progress-log__when">
+              <time dateTime={entry.recordedAt}>
+                {formatProgressTimestamp(entry.recordedAt)}
+              </time>
+            </td>
+            <td className="pd-goal-progress-log__value">
+              {showsMilestoneStatus(entry, kind) ? (
+                <ProgressLogStatusIcon entry={entry} />
+              ) : (
+                entry.to
+              )}
+            </td>
+            <td className="pd-goal-progress-log__note">
+              {showsMilestoneStatus(entry, kind)
+                ? entry.label || progressLogSummary(entry)
+                : numericProgressSummary(entry)}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+export function GoalProgressLog({
+  entries,
+  kind,
+  label = 'Progress logs',
+  className,
+  variant = 'fold',
+}: {
+  entries: ProgressLogEntry[]
+  kind?: ProgressLogKind
+  label?: string
+  className?: string
+  variant?: 'fold' | 'list'
+}) {
+  if (entries.length === 0) return null
+  const sorted = newestFirst(entries)
+
+  if (variant === 'list') {
+    return (
+      <div className={cx('pd-goal-progress-log', className)} aria-label={label}>
+        <ProgressLogTable entries={sorted} kind={kind} />
+      </div>
+    )
+  }
 
   return (
-    <details className="pd-goal-progress-log" aria-label="Progress logs">
+    <details
+      className={cx('pd-goal-progress-log', className)}
+      aria-label={label}
+      onClick={keepRowClickFromOpening}
+      onKeyDown={keepRowClickFromOpening}
+    >
       <summary className="pd-goal-progress-log__toggle">
         <ChevronRight
           size={13}
@@ -51,42 +134,18 @@ export function GoalProgressLog({
           className="pd-goal-progress-log__chevron"
           aria-hidden
         />
-        <span className="pd-goal-progress-log__heading">Progress logs</span>
-        <span className="pd-goal-progress-log__count">{countLabel}</span>
+        <span className="pd-goals-table__log-add">
+          <History size={11} strokeWidth={2} aria-hidden />
+          Log
+          <CountBadge
+            count={sorted.length}
+            tone="muted"
+            className="pd-goals-table__log-add-count"
+          />
+        </span>
       </summary>
       <div className="pd-goal-progress-log__body">
-      <table className="pd-goal-progress-log__table">
-        <thead className="pd-sr-only">
-          <tr>
-            <th scope="col">Date</th>
-            <th scope="col">Change</th>
-            <th scope="col">Note</th>
-          </tr>
-        </thead>
-        <tbody>
-          {newestFirst.map((entry) => (
-            <tr key={entry.id} className="pd-goal-progress-log__row">
-              <td className="pd-goal-progress-log__when">
-                <time dateTime={entry.recordedAt}>
-                  {formatProgressTimestamp(entry.recordedAt)}
-                </time>
-              </td>
-              <td className="pd-goal-progress-log__value">
-                {isMilestoneProgressLog(entry) ? (
-                  <ProgressLogStatusIcon entry={entry} />
-                ) : (
-                  entry.to
-                )}
-              </td>
-              <td className="pd-goal-progress-log__note">
-                {isMilestoneProgressLog(entry)
-                  ? entry.label || progressLogSummary(entry)
-                  : progressLogSummary(entry)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+        <ProgressLogTable entries={sorted} kind={kind} />
       </div>
     </details>
   )

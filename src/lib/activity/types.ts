@@ -111,3 +111,16 @@ export const ACTIVITY_EVENT_LABELS: Record<string, string> = {
 export function activityEventLabel(eventKey: string): string {
   return ACTIVITY_EVENT_LABELS[eventKey] ?? eventKey.replace(/\./g, ' ')
 }
+
+const ENTITY_LABELS: Record<string, string> = {
+  goal: 'Goal',
+  goal_submission: 'Submission',
+  review_cycle: 'Cycle',
+  employee: 'Employee',
+  department: 'Department',
+  access: 'Access',
+}
+
+export function activityEntityLabel(entityType: string): string {
+  return ENTITY_LABELS[entityType] ?? entityType.replace(/_/g, ' ')
+}

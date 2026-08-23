@@ -616,7 +616,7 @@ def render_measurement(
                       {sql_str(measurement_id)},
                       {employee_id},
                       'Owner',
-                      {sql_str(measurement['title'])},
+                      NULL,
                       {sql_num(start)},
                       {sql_num(midpoint)},
                       now() - interval '{14 - goal_index} days'
@@ -633,7 +633,7 @@ def render_measurement(
                       {sql_str(measurement_id)},
                       {employee_id},
                       'Owner',
-                      {sql_str(measurement['title'])},
+                      NULL,
                       {sql_num(midpoint)},
                       {sql_num(current)},
                       now() - interval '{7 - goal_index} days'

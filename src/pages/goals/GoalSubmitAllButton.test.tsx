@@ -26,6 +26,7 @@ describe('GoalSubmitAllButton', () => {
     )
 
     const button = screen.getByRole('button', { name: 'Resubmit All' })
+    expect(button).toHaveClass('pd-people__ghost-btn--success')
     expect(button).toBeEnabled()
     fireEvent.click(button)
     expect(onSubmit).toHaveBeenCalledTimes(1)

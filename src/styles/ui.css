@@ -236,6 +236,72 @@ a.pd-btn--secondary:visited {
   background: var(--color-bg-muted);
 }
 
+.pd-date-input {
+  position: relative;
+  display: grid;
+  width: 100%;
+  min-width: 0;
+}
+
+.pd-date-input__native,
+.pd-date-input__display {
+  grid-area: 1 / 1;
+}
+
+.pd-date-input__native,
+.pd-date-input__native.pd-field__control,
+.pd-date-input__native.pd-profile__inline-input {
+  color: transparent !important;
+  caret-color: transparent !important;
+}
+
+.pd-date-input__native::-webkit-datetime-edit,
+.pd-date-input__native::-webkit-datetime-edit-fields-wrapper,
+.pd-date-input__native::-webkit-datetime-edit-text,
+.pd-date-input__native::-webkit-datetime-edit-month-field,
+.pd-date-input__native::-webkit-datetime-edit-day-field,
+.pd-date-input__native::-webkit-datetime-edit-year-field {
+  color: transparent !important;
+}
+
+.pd-date-input__native::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+  width: 1rem;
+  height: 1rem;
+  opacity: 1;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M3 10h18'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1rem 1rem;
+}
+
+.dark .pd-date-input__native::-webkit-calendar-picker-indicator {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa3ab' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 2v4'/%3E%3Cpath d='M16 2v4'/%3E%3Crect width='18' height='18' x='3' y='4' rx='2'/%3E%3Cpath d='M3 10h18'/%3E%3C/svg%3E");
+}
+
+.pd-date-input__display {
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text);
+  padding-right: 2.25rem;
+  text-transform: none;
+}
+
+.pd-date-input__display[data-empty] {
+  color: var(--color-text-muted);
+}
+
+.pd-date-input:has(.pd-date-input__native:disabled) .pd-date-input__display {
+  opacity: 0.55;
+}
+
 .pd-field__control--select {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
@@ -487,9 +553,12 @@ a.pd-btn--secondary:visited {
   border-radius: 0.875rem;
   box-shadow: var(--shadow-deep);
   padding: 1.25rem 1.5rem;
+  /* Cap on width itself. Parent rules such as `.pd-goals-drawer__body > *`
+     override max-width to 100%, and `width: calc(100% - 2rem)` then fills
+     the viewport because a top-layer dialog's percentage is the screen. */
   min-width: min(18rem, calc(100vw - 2rem));
-  max-width: 24rem;
-  width: calc(100% - 2rem);
+  max-width: min(24rem, calc(100vw - 2rem));
+  width: min(24rem, calc(100vw - 2rem));
   color: inherit;
 }
 
@@ -1051,6 +1120,11 @@ a.pd-btn--secondary:visited {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+.pd-count-badge--theme {
+  background: var(--color-theme);
+  color: var(--color-on-theme);
 }
 
 .pd-count-badge--muted {

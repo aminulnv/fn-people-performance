@@ -3,7 +3,10 @@ import {
   canViewPersonGoals,
   formatRefreshAge,
   goalSectionLabels,
+  cascadeTableLabel,
+  cascadeToTableLabel,
   goalTitle,
+  isCascadedGoal,
   goalsMyReportsPath,
   goalsMyGoalsPath,
   hashForManagerTab,
@@ -33,6 +36,83 @@ describe('goalTitle', () => {
 
   it('falls back to an indexed untitled label', () => {
     expect(goalTitle(untitled, 2)).toBe('Untitled goal 3')
+  })
+
+  it('uses the manager goal name for a blank or untitled cascaded goal', () => {
+    expect(
+      goalTitle(
+        {
+          ...untitled,
+          description: '',
+          cascadedFromGoalId: 'mgr-1',
+          linkedGoalLabel: 'Raise quality bar',
+        },
+        0,
+      ),
+    ).toBe('Raise quality bar')
+    expect(
+      goalTitle(
+        {
+          ...untitled,
+          description: 'Untitled Cascading Goal from Ada',
+          cascadedFromGoalId: 'mgr-1',
+          linkedGoalLabel: 'Raise quality bar',
+        },
+        0,
+      ),
+    ).toBe('Raise quality bar')
+  })
+})
+
+describe('isCascadedGoal', () => {
+  it('is true when the goal is linked to a manager goal', () => {
+    expect(
+      isCascadedGoal({ cascadedFromGoalId: 'mgr-1', linkedGoalLabel: '' }),
+    ).toBe(true)
+    expect(
+      isCascadedGoal({ linkedGoalLabel: 'Raise quality bar' }),
+    ).toBe(true)
+  })
+
+  it('is false for an ordinary goal', () => {
+    expect(isCascadedGoal({})).toBe(false)
+    expect(isCascadedGoal({ linkedGoalLabel: '  ' })).toBe(false)
+  })
+})
+
+describe('cascadeTableLabel', () => {
+  it('names the source goal when the snapshot title is present', () => {
+    expect(cascadeTableLabel({ linkedGoalLabel: 'Raise quality bar' })).toBe(
+      'Cascaded from Raise quality bar',
+    )
+  })
+
+  it('falls back when the source title is missing', () => {
+    expect(cascadeTableLabel({})).toBe('Cascaded from a manager goal')
+  })
+})
+
+describe('cascadeToTableLabel', () => {
+  it('names one recipient', () => {
+    expect(cascadeToTableLabel([{ personName: 'Saif Ivna Alam' }])).toBe(
+      'Cascaded to Saif Ivna Alam',
+    )
+  })
+
+  it('names two recipients, then summarises more', () => {
+    expect(
+      cascadeToTableLabel([
+        { personName: 'Saif' },
+        { personName: 'Ada' },
+      ]),
+    ).toBe('Cascaded to Saif and Ada')
+    expect(
+      cascadeToTableLabel([
+        { personName: 'Saif' },
+        { personName: 'Ada' },
+        { personName: 'Ben' },
+      ]),
+    ).toBe('Cascaded to Saif and 2 others')
   })
 })
 

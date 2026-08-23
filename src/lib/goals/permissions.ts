@@ -41,7 +41,12 @@ export function isDirectManager(
   actor: DemoPerson,
   subject: DemoPerson,
 ): boolean {
-  return subject.managerId === actor.id || actor.reportIds.includes(subject.id);
+  const actorId = String(actor.id)
+  const subjectId = String(subject.id)
+  return (
+    (subject.managerId != null && String(subject.managerId) === actorId) ||
+    actor.reportIds.some((id) => String(id) === subjectId)
+  )
 }
 
 export function isManagerManager(

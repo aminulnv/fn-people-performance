@@ -38,7 +38,7 @@ export type ProgressLogEntry = {
   authorName: string;
   from?: number;
   to: number;
-  /** Milestone title at write time, so the log still reads after a rename. */
+  /** Milestone task title at write time. Metric logs leave this unset. */
   label?: string;
 };
 

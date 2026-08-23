@@ -98,6 +98,43 @@ describe('goalRows', () => {
       '1',
     ])
   })
+
+  it('carries cascade source onto rows that came from a manager goal', () => {
+    const people = [person('1')]
+    const snapshot = snapshotOf(people, [submission('1', 'draft', 1)])
+    snapshot.byPerson['1'].goals[0] = {
+      ...snapshot.byPerson['1'].goals[0],
+      cascadedFromGoalId: 'mgr-1',
+      linkedGoalLabel: 'Raise quality bar',
+    }
+
+    expect(goalRows(snapshot, people)[0]).toMatchObject({
+      cascadedFromGoalId: 'mgr-1',
+      linkedGoalLabel: 'Raise quality bar',
+      cascadedTo: [],
+    })
+  })
+
+  it('lists who already received a copy of a source goal', () => {
+    const people = [person('1'), person('2')]
+    const snapshot = snapshotOf(people, [
+      submission('1', 'approved', 1),
+      submission('2', 'draft', 1),
+    ])
+    snapshot.byPerson['2'].goals[0] = {
+      ...snapshot.byPerson['2'].goals[0],
+      cascadedFromGoalId: snapshot.byPerson['1'].goals[0].id,
+      linkedGoalLabel: 'Goal 0',
+    }
+
+    expect(goalRows(snapshot, people)[0].cascadedTo).toEqual([
+      expect.objectContaining({
+        personName: 'Person 2',
+        personId: '2',
+        goalId: '2-goal-0',
+      }),
+    ])
+  })
 })
 
 describe('statusCounts', () => {

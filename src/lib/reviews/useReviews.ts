@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import {
+  areReviewCyclesHydrated,
   getReviewsSnapshot,
   subscribeReviewsStore,
 } from './store'
@@ -10,5 +11,13 @@ export function useReviewsSnapshot(): ReviewsSnapshot {
     subscribeReviewsStore,
     getReviewsSnapshot,
     getReviewsSnapshot,
+  )
+}
+
+export function useReviewCyclesHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeReviewsStore,
+    areReviewCyclesHydrated,
+    areReviewCyclesHydrated,
   )
 }

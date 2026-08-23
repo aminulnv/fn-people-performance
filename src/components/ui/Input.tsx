@@ -1,5 +1,6 @@
 import { useId, type InputHTMLAttributes } from 'react'
 import { cx } from '@/lib/cx'
+import { DateInputControl } from './DateInputControl'
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string
@@ -14,6 +15,7 @@ export function Input({
   id,
   className,
   disabled,
+  type,
   ...props
 }: InputProps) {
   const autoId = useId()
@@ -21,6 +23,14 @@ export function Input({
   const hintId = hint ? `${inputId}-hint` : undefined
   const errorId = error ? `${inputId}-error` : undefined
   const describedBy = [errorId, hintId].filter(Boolean).join(' ') || undefined
+  const controlProps = {
+    id: inputId,
+    className: 'pd-field__control',
+    disabled,
+    'aria-invalid': error ? true : undefined,
+    'aria-describedby': describedBy,
+    ...props,
+  }
 
   return (
     <div className={cx('pd-field', error && 'pd-field--error', className)}>
@@ -29,14 +39,11 @@ export function Input({
           {label}
         </label>
       ) : null}
-      <input
-        id={inputId}
-        className="pd-field__control"
-        disabled={disabled}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={describedBy}
-        {...props}
-      />
+      {type === 'date' ? (
+        <DateInputControl {...controlProps} />
+      ) : (
+        <input type={type} {...controlProps} />
+      )}
       {error ? (
         <p id={errorId} className="pd-field__error" role="alert">
           {error}

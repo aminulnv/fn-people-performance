@@ -4,6 +4,7 @@ import {
   type MeasurementPanel,
 } from '@/lib/goals/measurements'
 import { latestProgressLogAt } from '@/lib/goals/progressLog'
+import type { ProgressLogEntry } from '@/lib/goals/types'
 import { measurementProgress } from '@/lib/goals/weightage'
 import { formatMetricNumber } from '@/pages/goals/goalHelpers'
 
@@ -46,6 +47,13 @@ export function measurePanelMetricLine(panel: MeasurementPanel): string {
     formatMetricNumber(metric.currentValue),
     formatMetricNumber(metric.targetValue),
   ].join(' → ')
+}
+
+export function measurePanelProgressLog(
+  panel: MeasurementPanel,
+): ProgressLogEntry[] {
+  if (panel.kind === 'metric') return panel.metric.progressLog ?? []
+  return todoMeasureItems(panel).flatMap((todo) => todo.progressLog ?? [])
 }
 
 export function measurePanelLatestProgressAt(

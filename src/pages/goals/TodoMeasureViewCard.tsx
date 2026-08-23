@@ -13,12 +13,14 @@ import {
   formatWeightReadout,
 } from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
+import { MeasureKindIcon } from './MeasureKindIcon'
 
 type TodoMeasurePanel = Extract<MeasurementPanel, { kind: 'todo_measure' }>
 
 export function TodoMeasureViewCard({
   panel,
   renderTodoItem,
+  highlighted = false,
   cardClassName = 'pd-goal-view__fold pd-goal-measure-card',
   headClassName = 'pd-goal-view__fold-head',
   titleClassName = 'pd-goal-view__fold-title',
@@ -28,6 +30,7 @@ export function TodoMeasureViewCard({
 }: {
   panel: TodoMeasurePanel
   renderTodoItem: (todo: Milestone) => ReactNode
+  highlighted?: boolean
   cardClassName?: string
   headClassName?: string
   titleClassName?: string
@@ -43,7 +46,10 @@ export function TodoMeasureViewCard({
 
   return (
     <details
-      className={cardClassName}
+      className={[cardClassName, highlighted ? 'is-highlighted' : '']
+        .filter(Boolean)
+        .join(' ')}
+      data-measure-panel={panel.key}
       aria-label={name || 'Measure'}
       open
     >
@@ -54,6 +60,7 @@ export function TodoMeasureViewCard({
           className="pd-goal-view__fold-chevron"
           aria-hidden
         />
+        <MeasureKindIcon kind="milestone" />
         <div className={titleClassName}>
           {name ? (
             <h2>
@@ -91,7 +98,7 @@ export function TodoMeasureViewCard({
         })}
       </div>
 
-      <GoalProgressLog entries={progressEntries} />
+      <GoalProgressLog kind="milestone" entries={progressEntries} />
     </details>
   )
 }

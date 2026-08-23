@@ -57,6 +57,7 @@ export function ScorecardGoalsCard({
   gradeLocked?: boolean
 }) {
   const [openGoalId, setOpenGoalId] = useState<string | null>(null)
+  const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(null)
   const showGradeEditor = Boolean(editing && onGoalsGradeChange)
   const openIndex = goals.findIndex((goal) => goal.id === openGoalId)
   const openGoal = openIndex >= 0 ? goals[openIndex] : undefined
@@ -140,7 +141,11 @@ export function ScorecardGoalsCard({
             goal,
             title: goalTitle(goal, index),
           }))}
-          onOpen={setOpenGoalId}
+          openGoalId={openGoalId}
+          onOpen={(id, measureKey) => {
+            setOpenGoalId(id)
+            setOpenMeasureKey(measureKey ?? null)
+          }}
         />
       )}
 
@@ -148,11 +153,15 @@ export function ScorecardGoalsCard({
         <GoalCreateDrawer
           label={`View ${goalTitle(openGoal, openIndex)}`}
           closeLabel="Close goal"
-          onClose={() => setOpenGoalId(null)}
+          onClose={() => {
+            setOpenGoalId(null)
+            setOpenMeasureKey(null)
+          }}
         >
           <div className="pd-goals-review">
             <GoalDetailView
               goal={openGoal}
+              highlightMeasureKey={openMeasureKey}
               index={openIndex}
               owner={
                 owner ?? {

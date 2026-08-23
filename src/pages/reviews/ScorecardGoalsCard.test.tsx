@@ -93,7 +93,7 @@ describe('ScorecardGoalsCard', () => {
 
     expect(screen.getByRole('table', { name: 'Goals for Q1 2026' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Goals' })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: 'Weight' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: 'Weight 100%' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Progress' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Metrics' })).toBeTruthy()
     expect(screen.queryByRole('columnheader', { name: 'Metric' })).toBeNull()

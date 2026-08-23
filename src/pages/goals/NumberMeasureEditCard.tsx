@@ -6,6 +6,7 @@ import type { Metric, MetricUnit } from '@/lib/goals/types'
 import {
   GoalMetricReadout,
   GoalWeightInput,
+  GoalWeightReadout,
 } from '@/pages/goals/GoalMeasurementReadout'
 import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
 import { MeasureTitleField } from '@/pages/goals/MeasureTitleField'
@@ -15,6 +16,7 @@ import { NumberTargetEditor } from '@/pages/goals/NumberTargetEditor'
 
 export function NumberMeasureEditCard({
   metric,
+  canEditWeight = true,
   onChange,
   onRemove,
   onLogProgress,
@@ -27,6 +29,7 @@ export function NumberMeasureEditCard({
   metricsClassName = 'pd-goal-view__card-metrics',
 }: {
   metric: Metric
+  canEditWeight?: boolean
   onChange: (next: Metric) => void
   onRemove?: () => void
   onLogProgress?: (nextValue: number | undefined) => void
@@ -54,11 +57,15 @@ export function NumberMeasureEditCard({
         </div>
         <div className={metricsClassName}>
           <GoalMetricReadout metric={metric} showWeight={false} />
-          <GoalWeightInput
-            weight={metric.weight}
-            ariaLabel={weightLabel}
-            onChange={(weight) => onChange({ ...metric, weight })}
-          />
+          {canEditWeight ? (
+            <GoalWeightInput
+              weight={metric.weight}
+              ariaLabel={weightLabel}
+              onChange={(weight) => onChange({ ...metric, weight })}
+            />
+          ) : (
+            <GoalWeightReadout weight={metric.weight} />
+          )}
           {onRemove ? (
             <button
               type="button"
@@ -110,7 +117,7 @@ export function NumberMeasureEditCard({
               cycleLabel={cycleLabel}
               onCommit={onLogProgress}
             />
-            <GoalProgressLog entries={metric.progressLog ?? []} />
+            <GoalProgressLog kind="metric" entries={metric.progressLog ?? []} />
           </div>
         ) : null}
       </div>

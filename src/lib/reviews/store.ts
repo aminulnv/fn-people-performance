@@ -1,3 +1,4 @@
+import { isIntegerId } from "@/lib/integerId";
 import {
   buildDefaultStagesConfig,
   createInitialReviewsSnapshot,
@@ -177,6 +178,11 @@ export function subscribeReviewsStore(listener: () => void): () => void {
   return () => {
     listeners.delete(listener);
   };
+}
+
+/** Local mode is ready immediately; remote waits for the first API hydrate. */
+export function areReviewCyclesHydrated(): boolean {
+  return useLocalReviews() || remoteHydrated;
 }
 
 /** Test helper — clears in-memory + session state. */
@@ -987,14 +993,14 @@ function validateGoalExtensions(
     const scope = extension.scope;
     const hasValidScope =
       (scope.type === "department" &&
-        Number.isInteger(scope.departmentId) &&
+        isIntegerId(scope.departmentId) &&
         Boolean(scope.departmentName.trim())) ||
       (scope.type === "team" &&
-        Number.isInteger(scope.teamId) &&
+        isIntegerId(scope.teamId) &&
         Boolean(scope.teamName.trim())) ||
       (scope.type === "people" &&
         scope.employeeIds.length > 0 &&
-        scope.employeeIds.every(Number.isInteger));
+        scope.employeeIds.every(isIntegerId));
     if (!hasValidScope) {
       throw new Error("Each extension requires a valid team, department, or people selection.");
     }

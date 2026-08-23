@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { DEFAULT_CYCLE_SETTINGS } from '@/lib/reviews/demoData'
 import type { DemoPerson, GoalsCycle, PersonGoals } from '@/lib/goals/types'
+import {
+  resetReviewsStoreForTests,
+  setReviewsLocalModeForTests,
+} from '@/lib/reviews/store'
 import {
   countGoalTodosForPerson,
   countOwnGoalTodos,
@@ -74,7 +78,25 @@ describe('countOwnGoalTodos', () => {
   })
 })
 
+function snapshotCycle(
+  assignedGroupId?: string | null,
+): GoalsCycle {
+  return {
+    id: 'c1',
+    label: 'Q3 2026',
+    day1: '2026-07-01',
+    phase: 'window_open',
+    goalCountPolicy: cycle.goalCountPolicy,
+    postWindowGoalPolicy: DEFAULT_CYCLE_SETTINGS.postWindowGoalPolicy,
+    assignedGroupId,
+  }
+}
+
 describe('countGoalTodosForPerson', () => {
+  afterEach(() => {
+    resetReviewsStoreForTests()
+  })
+
   it('adds own warnings to reports awaiting approval', () => {
     const manager = person({ id: 'm1', name: 'Manager', reportIds: ['e1'] })
     const report = person({ id: 'e1', name: 'Report', managerId: 'm1' })
@@ -100,6 +122,33 @@ describe('countGoalTodosForPerson', () => {
 
     expect(counts).toEqual({ own: 2, reports: 1 })
     expect(totalGoalTodos(counts)).toBe(3)
+  })
+
+  it('does not count own action required when the person is outside the cycle', () => {
+    const subject = person({ id: '1', name: 'Aminul' })
+    const counts = countGoalTodosForPerson(subject, {
+      cycle: snapshotCycle(null),
+      people: [subject],
+      byPerson: {
+        '1': row({ personId: '1', status: 'draft' }),
+      },
+    })
+
+    expect(counts.own).toBe(0)
+  })
+
+  it('does not count own action required while review membership is unknown', () => {
+    setReviewsLocalModeForTests(false)
+    const subject = person({ id: '1', name: 'Aminul' })
+    const counts = countGoalTodosForPerson(subject, {
+      cycle: snapshotCycle(),
+      people: [subject],
+      byPerson: {
+        '1': row({ personId: '1', status: 'draft' }),
+      },
+    })
+
+    expect(counts.own).toBe(0)
   })
 })
 

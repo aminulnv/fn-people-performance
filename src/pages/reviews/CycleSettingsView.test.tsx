@@ -162,7 +162,9 @@ describe('CycleSettingsView', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('combobox')).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Add people to this group' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
   })
 

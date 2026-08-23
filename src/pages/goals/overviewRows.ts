@@ -3,6 +3,7 @@ import type {
   GoalsSnapshot,
   PersonGoals,
 } from '@/lib/goals/types'
+import { indexCascadeRecipients } from '@/lib/goals/operations'
 import { goalLastUpdatedAt } from '@/lib/goals/progressLog'
 import { goalCompletion } from '@/lib/goals/weightage'
 import {
@@ -21,6 +22,9 @@ export type GoalRow = {
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
   title: string
   goalId: string
+  cascadedFromGoalId?: string
+  linkedGoalLabel?: string
+  cascadedTo: { personName: string }[]
   weight: number
   completion: number
   lastUpdatedAt?: string
@@ -81,6 +85,7 @@ export function goalRows(
   snapshot: GoalsSnapshot,
   people: DemoPerson[],
 ): GoalRow[] {
+  const recipientsBySource = indexCascadeRecipients(snapshot)
   return people.flatMap((person): GoalRow[] => {
     const submission = snapshot.byPerson[person.id]
     const status = submission?.status ?? 'draft'
@@ -91,6 +96,9 @@ export function goalRows(
       postWindowApprovalStage: submission?.postWindowApprovalStage,
       title: goalTitle(goal, index),
       goalId: goal.id,
+      cascadedFromGoalId: goal.cascadedFromGoalId,
+      linkedGoalLabel: goal.linkedGoalLabel,
+      cascadedTo: recipientsBySource.get(goal.id) ?? [],
       weight: goal.weight,
       completion: Math.round(goalCompletion(goal)),
       lastUpdatedAt: goalLastUpdatedAt(goal),

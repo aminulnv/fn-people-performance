@@ -11,10 +11,9 @@ describe('GoalSubmitBlockNotice', () => {
       <GoalSubmitBlockNotice
         blockers={[
           {
-            reason:
-              'Untitled Cascading Goal from Ada still needs a measure — or remove it.',
+            reason: 'Ada’s quality goal still needs a measure — or remove it.',
             goalId: 'goal-cascade',
-            goalTitle: 'Untitled Cascading Goal from Ada',
+            goalTitle: 'Ada’s quality goal',
             suffix: ' still needs a measure — or remove it.',
           },
         ]}
@@ -25,7 +24,7 @@ describe('GoalSubmitBlockNotice', () => {
     const card = screen.getByRole('alert')
     expect(card).toHaveTextContent('Action required')
     fireEvent.click(
-      screen.getByRole('button', { name: 'Untitled Cascading Goal from Ada' }),
+      screen.getByRole('button', { name: 'Ada’s quality goal' }),
     )
     expect(onOpenGoal).toHaveBeenCalledWith('goal-cascade')
   })

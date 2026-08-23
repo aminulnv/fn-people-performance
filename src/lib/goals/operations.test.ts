@@ -174,13 +174,13 @@ describe('duplicateGoal / cascadeGoal', () => {
     expect(copy.comments).toEqual([])
   })
 
-  it('creates a child goal linked to the parent without copying the title', () => {
+  it('creates a child goal linked to the parent with a blank title', () => {
     const child = cascadeGoal(source, 'p2', {
       sourceTitle: 'Ship quality',
       sourcePersonName: 'Ada',
     })
     expect(child.ownerId).toBe('p2')
-    expect(child.description).toBe('Untitled Cascading Goal from Ada')
+    expect(child.description).toBe('')
     expect(child.details).toBeUndefined()
     expect(child.cascadedFromGoalId).toBe('g1')
     expect(child.linkedGoalLabel).toBe('Ship quality')
@@ -268,7 +268,7 @@ describe('lineManagerCascade', () => {
     ).toEqual([
       {
         goalId: copy.id,
-        goalTitle: 'Untitled Cascading Goal from Ben',
+        goalTitle: 'Ship quality',
         personId: 'p1',
         personName: 'Ada',
         avatarUrl: undefined,

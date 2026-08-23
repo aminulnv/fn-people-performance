@@ -37,7 +37,7 @@ export function GoalSubmitAllButton({
     <>
       <button
         type="button"
-        className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+        className="pd-people__ghost-btn pd-people__ghost-btn--success"
         disabled={busy || Boolean(blocked)}
         title={blocked}
         onClick={requestSubmit}

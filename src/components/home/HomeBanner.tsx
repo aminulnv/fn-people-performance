@@ -28,7 +28,7 @@ export function HomeBanner({ content }: HomeBannerProps) {
   return (
     <Link
       to={content.href}
-      className={`pd-home-banner pd-home-banner--${content.variant}${urgencyClass}${hasIcon ? '' : ' pd-home-banner--no-icon'}`}
+      className={`pd-home-banner pd-home-banner--${content.variant} pd-home-banner--${content.aside.kind}${urgencyClass}${hasIcon ? '' : ' pd-home-banner--no-icon'}`}
       aria-label={content.ariaLabel}
       style={
         {
@@ -103,9 +103,11 @@ export function HomeBanner({ content }: HomeBannerProps) {
             <span className="pd-home-banner__aside-primary">
               {content.aside.primary}
             </span>
-            <span className="pd-home-banner__aside-secondary">
-              {content.aside.secondary}
-            </span>
+            {content.aside.secondary ? (
+              <span className="pd-home-banner__aside-secondary">
+                {content.aside.secondary}
+              </span>
+            ) : null}
           </div>
         </div>
       </div>

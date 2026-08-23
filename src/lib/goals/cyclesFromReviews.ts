@@ -56,9 +56,9 @@ export function reviewCycleToGoalsCycle(
     goalCountPolicy: policy.settings.goalCountPolicy,
     postWindowGoalPolicy: policy.settings.postWindowGoalPolicy,
     goalWindow: { ...policy.stagesConfig.goals.employee },
-    goalExtensions: policy.groupId
-      ? []
-      : structuredClone(policy.stagesConfig.goals.extensions ?? []),
+    goalExtensions: structuredClone(
+      policy.stagesConfig.goals.extensions ?? [],
+    ),
     assignedGroupId:
       employeeId == null ? undefined : policy.groupId,
   };
@@ -108,6 +108,22 @@ export function resolveGoalsCycle(
   const review = getReviewCycle(cycleId);
   if (!review) return null;
   return reviewCycleToGoalsCycle(review, manualPhase, today, employeeId);
+}
+
+/** Membership for this person, not whoever the goals store last targeted. */
+export function goalsCycleForPerson(
+  cycle: GoalsCycle,
+  personId: string,
+  today = new Date(),
+): GoalsCycle {
+  return (
+    resolveGoalsCycle(
+      cycle.id,
+      cycle.phase,
+      today,
+      parseGoalsEmployeeId(personId),
+    ) ?? cycle
+  );
 }
 
 export function resolveGoalsCycleStatus(

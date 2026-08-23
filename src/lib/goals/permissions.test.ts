@@ -50,6 +50,16 @@ describe("isDirectManager", () => {
     expect(isDirectManager(manager, report)).toBe(true);
     expect(isDirectManager(manager, peer)).toBe(false);
   });
+
+  it("treats numeric and string ids as the same person", () => {
+    const manager = person({ id: "2", name: "Manager", reportIds: ["1"] });
+    const report = person({
+      id: "1",
+      name: "Report",
+      managerId: 2 as unknown as string,
+    });
+    expect(isDirectManager(manager, report)).toBe(true);
+  });
 });
 
 describe("deriveGoalCapabilities", () => {

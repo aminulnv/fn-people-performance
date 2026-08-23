@@ -13,6 +13,7 @@ import type {
 import { CountStepperField } from "./CountStepperField";
 import { CycleModuleField, ModuleSettingsLock } from "./CycleModulesFields";
 import { EditPageShell } from "./EditPageShell";
+import { GoalCycleExtensionsEditor } from "./GoalCycleExtensionsEditor";
 import { StageWindowFields } from "./StageDateTable";
 
 type GoalsSettingsEditPageProps = {
@@ -53,7 +54,10 @@ export function GoalsSettingsEditPage({
     try {
       const stagesConfig = {
         ...source.stagesConfig,
-        goals: { ...goals, extensions: [] },
+        goals: {
+          ...goals,
+          extensions: goals.extensions ?? [],
+        },
       };
       const pending = updateCycleGroup(cycle.id, group.id, {
         settings,
@@ -107,6 +111,18 @@ export function GoalsSettingsEditPage({
               endValue={goals.employee.endDate}
               onStartChange={(startDate) => setGoalRange({ startDate })}
               onEndChange={(endDate) => setGoalRange({ endDate })}
+            />
+          </section>
+          <section className="pd-reviews-edit-card">
+            <GoalCycleExtensionsEditor
+              extensions={goals.extensions ?? []}
+              baseEndDate={goals.employee.endDate}
+              performanceStartDate={
+                source.stagesConfig.performance.employeeStart.date
+              }
+              onChange={(extensions) =>
+                setGoals((current) => ({ ...current, extensions }))
+              }
             />
           </section>
         </div>

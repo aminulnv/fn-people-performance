@@ -4,6 +4,9 @@ export type { ButtonProps, ButtonVariant, ButtonSize } from './Button'
 export { Input } from './Input'
 export type { InputProps } from './Input'
 
+export { DateInputControl } from './DateInputControl'
+export type { DateInputControlProps } from './DateInputControl'
+
 export { Textarea } from './Textarea'
 export type { TextareaProps } from './Textarea'
 

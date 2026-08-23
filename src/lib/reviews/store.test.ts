@@ -258,6 +258,37 @@ describe("reviews store", () => {
     expect(updated.settings.postWindowGoalPolicy).toBe("hard_stop");
   });
 
+  it("coerces string population ids when saving deadline extensions", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    const stages = structuredClone(cycle.stagesConfig);
+    stages.goals.extensions = [
+      {
+        id: "product-extension",
+        endDate: "2026-08-01",
+        scope: {
+          type: "department",
+          departmentId: "16" as unknown as number,
+          departmentName: "Product",
+        },
+      },
+    ];
+
+    const updated = await updateCycleStagesConfig(cycle.id, stages);
+
+    expect(updated.stagesConfig.goals.extensions).toEqual([
+      {
+        id: "product-extension",
+        endDate: "2026-08-01",
+        scope: {
+          type: "department",
+          departmentId: 16,
+          departmentName: "Product",
+        },
+      },
+    ]);
+  });
+
   it("saves population-specific goal deadline extensions", async () => {
     const cycle = createInitialReviewsSnapshot().cycles[0];
     if (!cycle) throw new Error("Expected seeded cycle");

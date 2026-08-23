@@ -1,6 +1,6 @@
 import type { LineManagerCascade } from "@/lib/goals/operations";
 import type { PersonGoals, SubmissionStatus } from "@/lib/goals/types";
-import { statusLabel } from "./statusLabels";
+import { statusLabel, submissionStatusLabel } from "./statusLabels";
 
 export type ApprovalPerson = {
   name: string;
@@ -87,4 +87,20 @@ export function resolveApprovalPerson({
     name: cascadeFrom.managerName,
     avatarUrl: cascadeFrom.managerAvatarUrl,
   };
+}
+
+export function goalCountLabel(goalCount: number): string {
+  return `${goalCount} goal${goalCount === 1 ? "" : "s"}`;
+}
+
+/** Chip label for a person's goal batch — status only, no count. */
+export function batchStatusLabel(
+  status: SubmissionStatus,
+  goalCount: number,
+  postWindowApprovalStage?: PersonGoals["postWindowApprovalStage"],
+): string {
+  if (status === "submitted" && postWindowApprovalStage === "manager_manager") {
+    return "Pending final approval";
+  }
+  return submissionStatusLabel(status, goalCount);
 }

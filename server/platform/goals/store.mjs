@@ -232,8 +232,11 @@ async function loadGoalsForSubmission(client, cycleId, employeeId) {
   const measurementsByGoal = new Map()
   for (const measurement of measurementRows) {
     const mapped = mapMeasurement(measurement)
+    const rawLog = progressByMeasurement.get(measurement.measurement_id) ?? []
     mapped.progressLog =
-      progressByMeasurement.get(measurement.measurement_id) ?? []
+      mapped.kind === 'milestone'
+        ? rawLog
+        : rawLog.map(({ label: _label, ...entry }) => entry)
     const measurements = measurementsByGoal.get(measurement.goal_id) ?? []
     measurements.push(mapped)
     measurementsByGoal.set(measurement.goal_id, measurements)
@@ -489,7 +492,9 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
               measurementId,
               actor.actorEmployeeId ?? null,
               actor.actorName ?? '',
-              progress.label ?? measurement.title ?? null,
+              measurement.kind === 'milestone'
+                ? (progress.label ?? measurement.title ?? null)
+                : null,
               progress.from ?? null,
               progress.to,
             ],
@@ -1227,12 +1232,12 @@ export async function cascadeGoalToEmployees(
       }
       const childGoal = {
         id: newId('goal'),
-        description: `Untitled Cascading Goal from ${actor.actorName || 'manager'}`,
+        description: '',
         details: undefined,
         weight: 0,
         ownerId: String(recipientEmployeeId),
         cascadedFromGoalId: sourceGoalId,
-        linkedGoalLabel: sourceGoal.description || 'Untitled goal',
+        linkedGoalLabel: String(sourceGoal.description ?? '').trim(),
         measurements: [],
         comments: [],
       }

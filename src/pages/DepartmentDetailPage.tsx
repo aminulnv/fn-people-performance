@@ -6,7 +6,13 @@ import {
   Network,
   UsersRound,
 } from 'lucide-react'
-import { Avatar, PageStatus, PageStatusLink } from '@/components/ui'
+import {
+  Avatar,
+  PageStatus,
+  PageStatusLink,
+  ResizableTable,
+  type ResizableColumn,
+} from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee, listDepartments } from '@/lib/employees/store'
 import type { PlatformDepartment } from '@/lib/employees/types'
@@ -15,6 +21,12 @@ import { teamDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
+
+const DEPARTMENT_TEAM_COLUMNS: ResizableColumn[] = [
+  { id: 'team', label: 'Team', grow: true },
+  { id: 'owner', label: 'Owner' },
+  { id: 'headcount', label: 'Headcount' },
+]
 
 export default function DepartmentDetailPage() {
   const { departmentId: rawId = '' } = useParams()
@@ -168,14 +180,11 @@ export default function DepartmentDetailPage() {
           <p className="pd-people__empty">No teams in this department.</p>
         ) : (
           <div className="pd-people__table-wrap">
-            <table className="pd-people__table">
-              <thead>
-                <tr>
-                  <th>Team</th>
-                  <th>Owner</th>
-                  <th>Headcount</th>
-                </tr>
-              </thead>
+            <ResizableTable
+              className="pd-people__table"
+              storageKey="organisation-department-teams-column-widths"
+              columns={DEPARTMENT_TEAM_COLUMNS}
+            >
               <tbody>
                 {department.teams.map((team) => (
                   <tr key={team.id}>
@@ -218,7 +227,7 @@ export default function DepartmentDetailPage() {
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </ResizableTable>
           </div>
         )}
       </section>

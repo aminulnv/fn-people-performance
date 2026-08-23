@@ -1,3 +1,4 @@
+import { toIntegerId } from "@/lib/integerId";
 import type { DemoPerson, GoalsCycle } from "./types";
 
 function matchesPerson(
@@ -6,19 +7,23 @@ function matchesPerson(
 ): boolean {
   const scope = extension.scope;
   if (scope.type === "department") {
+    const departmentId = toIntegerId(person.departmentId);
     return (
-      person.departmentId === scope.departmentId ||
+      (departmentId != null && departmentId === toIntegerId(scope.departmentId)) ||
       person.department === scope.departmentName
     );
   }
   if (scope.type === "team") {
+    const teamId = toIntegerId(person.teamId);
     return (
-      person.teamId === scope.teamId ||
+      (teamId != null && teamId === toIntegerId(scope.teamId)) ||
       (person.team === scope.teamName &&
         person.department === scope.departmentName)
     );
   }
-  return scope.employeeIds.includes(Number(person.id));
+  return scope.employeeIds.some(
+    (employeeId) => toIntegerId(employeeId) === toIntegerId(person.id),
+  );
 }
 
 /** Latest matching deadline wins when a person is covered by multiple extensions. */

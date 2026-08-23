@@ -5,12 +5,17 @@ export function GoalEmptyActions({
   previousCycleLabel,
   onAdd,
   onCopyPrevious,
+  showAdd = true,
 }: {
   busy: boolean
   previousCycleLabel?: string
   onAdd: () => void
   onCopyPrevious: () => void
+  /** Hide when Add Goal already sits in the person card header. */
+  showAdd?: boolean
 }) {
+  if (!previousCycleLabel && !showAdd) return null
+
   return (
     <div className="pd-goals__empty-actions">
       {previousCycleLabel ? (
@@ -25,15 +30,17 @@ export function GoalEmptyActions({
           Copy Last Cycle
         </button>
       ) : null}
-      <button
-        type="button"
-        className="pd-people__create-btn"
-        disabled={busy}
-        onClick={onAdd}
-      >
-        <Plus size={18} strokeWidth={2} aria-hidden />
-        Add Goal
-      </button>
+      {showAdd ? (
+        <button
+          type="button"
+          className="pd-people__create-btn"
+          disabled={busy}
+          onClick={onAdd}
+        >
+          <Plus size={18} strokeWidth={2} aria-hidden />
+          Add Goal
+        </button>
+      ) : null}
     </div>
   )
 }

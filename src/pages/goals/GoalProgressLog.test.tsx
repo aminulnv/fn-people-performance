@@ -35,15 +35,38 @@ describe('GoalProgressLog', () => {
   it('shows a metric change as from → to, not a completion icon', () => {
     render(<GoalProgressLog entries={[metricEntry]} />)
 
-    fireEvent.click(screen.getByText('Progress logs'))
+    fireEvent.click(screen.getByText('Log'))
     expect(screen.getByText('0 → 2')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Marked Completed')).not.toBeInTheDocument()
+  })
+
+  it('keeps numeric history when a metric log was stored with the measure title', () => {
+    render(
+      <GoalProgressLog
+        kind="metric"
+        entries={[
+          {
+            ...metricEntry,
+            from: 40,
+            to: 60,
+            label: 'Operating metric versus baseline',
+          },
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByText('Log'))
+    expect(screen.getByText('40 → 60')).toBeInTheDocument()
+    expect(
+      screen.queryByText('Operating metric versus baseline'),
+    ).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Marked Completed')).not.toBeInTheDocument()
   })
 
   it('uses a completion icon instead of the status wording', async () => {
     render(<GoalProgressLog entries={[completed, incomplete]} />)
 
-    fireEvent.click(screen.getByText('Progress logs'))
+    fireEvent.click(screen.getByText('Log'))
     expect(screen.queryByText('Marked Completed')).not.toBeInTheDocument()
     expect(screen.queryByText('Marked Incomplete')).not.toBeInTheDocument()
     expect(screen.getByText('Task Item 001')).toBeInTheDocument()

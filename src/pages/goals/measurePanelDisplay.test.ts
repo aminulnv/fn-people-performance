@@ -3,6 +3,7 @@ import type { Metric, Milestone } from '@/lib/goals/types'
 import {
   measurePanelKindLabel,
   measurePanelLatestProgressAt,
+  measurePanelProgressLog,
 } from './measurePanelDisplay'
 
 const metric: Metric = {
@@ -64,6 +65,37 @@ describe('measurePanelKindLabel', () => {
         lists: [],
       }),
     ).toBe('Milestone')
+  })
+})
+
+describe('measurePanelProgressLog', () => {
+  it('returns the metric log', () => {
+    expect(
+      measurePanelProgressLog({
+        key: 'metric',
+        kind: 'metric',
+        metric,
+      }),
+    ).toEqual(metric.progressLog)
+  })
+
+  it('flattens todo logs on a milestone measure', () => {
+    expect(
+      measurePanelProgressLog({
+        key: 'todos',
+        kind: 'todo_measure',
+        measureGroupId: 'g1',
+        title: 'Quality process',
+        weight: 50,
+        lists: [
+          {
+            listKey: 'l1',
+            listTitle: 'Process',
+            todos: [todo],
+          },
+        ],
+      }),
+    ).toEqual(todo.progressLog)
   })
 })
 

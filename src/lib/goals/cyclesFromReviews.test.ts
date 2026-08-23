@@ -115,7 +115,7 @@ describe('resolveGoalPhase', () => {
     expect(mapped.phase).toBe('not_open')
   })
 
-  it('maps a grouped person to that group window and policy without extensions', () => {
+  it('maps a grouped person to that group window and policy without cycle extensions', () => {
     const host = cycle()
     host.stagesConfig.goals.extensions = [
       {
@@ -141,7 +141,7 @@ describe('resolveGoalPhase', () => {
         },
         stagesConfig: {
           ...host.stagesConfig,
-          goals: { employee: groupWindow, extensions: host.stagesConfig.goals.extensions },
+          goals: { employee: groupWindow, extensions: [] },
         },
         calibration: host.calibration,
         createdAt: host.createdAt,
@@ -168,6 +168,43 @@ describe('resolveGoalPhase', () => {
     )
     expect(ungrouped.assignedGroupId).toBeNull()
     expect(ungrouped.phase).toBe('not_open')
+  })
+
+  it('applies group deadline extensions to grouped people', () => {
+    const host = cycle()
+    const groupWindow = { startDate: '2026-06-01', endDate: '2026-07-01' }
+    const groupExtension = {
+      id: 'ext-product',
+      endDate: '2026-08-15',
+      scope: {
+        type: 'department' as const,
+        departmentId: 4,
+        departmentName: 'Product',
+      },
+    }
+    host.groups = [
+      {
+        id: 'group-everyone',
+        cycleId: host.id,
+        name: 'Everyone',
+        memberIds: [101],
+        settings: host.settings,
+        stagesConfig: {
+          ...host.stagesConfig,
+          goals: { employee: groupWindow, extensions: [groupExtension] },
+        },
+        calibration: host.calibration,
+        createdAt: host.createdAt,
+      },
+    ]
+
+    const mapped = reviewCycleToGoalsCycle(
+      host,
+      'window_open',
+      new Date('2026-07-15T12:00:00Z'),
+      101,
+    )
+    expect(mapped.goalExtensions).toEqual([groupExtension])
   })
 
   it('does not treat an ungrouped person as part of the cycle policy', () => {

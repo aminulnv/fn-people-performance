@@ -65,6 +65,12 @@ function isoTimestamp(value) {
   return new Date(value).toISOString()
 }
 
+function integerId(value) {
+  if (value == null || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isInteger(parsed) ? parsed : undefined
+}
+
 /** Map a joined row to the SPA PlatformEmployee shape. */
 export function mapEmployeeRow(row) {
   return {
@@ -74,9 +80,9 @@ export function mapEmployeeRow(row) {
     startDate: isoDate(row.joining_date),
     jobTitle: row.job_title ?? '',
     department: row.department_name ?? '',
-    departmentId: row.department_id ?? undefined,
+    departmentId: integerId(row.department_id),
     team: row.team_name ?? '',
-    teamId: row.team_id ?? undefined,
+    teamId: integerId(row.team_id),
     division: row.division_name ?? '',
     reportsToName: row.reports_to_name ?? '',
     departmentHeadName: row.department_head_name ?? '',
@@ -834,7 +840,7 @@ export async function listPlatformTeams(departmentId) {
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
-    departmentId: row.department_id,
+    departmentId: integerId(row.department_id) ?? row.department_id,
     departmentName: row.department_name,
     ownerEmployeeId: row.owner_employee_id,
     ownerName: row.owner_name,

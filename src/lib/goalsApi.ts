@@ -54,9 +54,12 @@ export { isEligibleForCycle }
 import { canSubmitGoals } from './goals/weightage'
 
 export {
+  allocatedWeightCaption,
   canSubmitGoals,
+  distributeGoalWeights,
   goalCompletion,
   overallCompletion,
+  remainingGoalWeight,
   sumGoalWeights,
   sumMeasurementWeights,
   newId,
@@ -218,7 +221,7 @@ export async function cascadeGoalToReports(
       const row = next.byPerson[reportId]
       if (!row) continue
       const child = buildCascadedGoal(source, reportId, {
-        sourceTitle: source.description || 'Untitled goal',
+        sourceTitle: source.description.trim() || source.linkedGoalLabel || '',
         sourcePersonName: actor.name,
       })
       next = savePersonGoals(

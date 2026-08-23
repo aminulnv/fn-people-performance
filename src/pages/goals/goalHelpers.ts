@@ -1,5 +1,6 @@
 import { hashMatches, normalizeUrlHash } from '@/lib/routing/urlHash'
 import type { DemoPerson, Goal, Metric } from '@/lib/goals/types'
+import { displayGoalTitle } from '@/lib/goals/weightage'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import {
   METRIC_UNITS,
@@ -72,8 +73,32 @@ export function goalsGoalPath(
 }
 
 export function goalTitle(goal: Goal, index: number): string {
-  const trimmed = goal.description.trim()
-  return trimmed || `Untitled goal ${index + 1}`
+  return displayGoalTitle(goal, index)
+}
+
+export function isCascadedGoal(
+  goal: Pick<Goal, 'cascadedFromGoalId' | 'linkedGoalLabel'>,
+): boolean {
+  return Boolean(goal.cascadedFromGoalId || goal.linkedGoalLabel?.trim())
+}
+
+export function cascadeTableLabel(
+  goal: Pick<Goal, 'linkedGoalLabel'>,
+): string {
+  const source = goal.linkedGoalLabel?.trim()
+  return source ? `Cascaded from ${source}` : 'Cascaded from a manager goal'
+}
+
+export function cascadeToTableLabel(
+  recipients: { personName: string }[],
+): string {
+  const names = recipients
+    .map((recipient) => recipient.personName.trim())
+    .filter(Boolean)
+  if (names.length === 0) return 'Cascaded to a report'
+  if (names.length === 1) return `Cascaded to ${names[0]}`
+  if (names.length === 2) return `Cascaded to ${names[0]} and ${names[1]}`
+  return `Cascaded to ${names[0]} and ${names.length - 1} others`
 }
 
 export function formatMetricNumber(value: number | undefined): string {

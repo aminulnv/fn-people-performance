@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  activityEntityLabel,
   activityEventLabel,
 } from './types'
 import {
@@ -20,6 +21,8 @@ describe('activity labels', () => {
     expect(activityEventLabel('access.profile_assigned')).toBe(
       'Assigned an access profile',
     )
+    expect(activityEntityLabel('goal_submission')).toBe('Submission')
+    expect(activityEntityLabel('review_cycle')).toBe('Cycle')
   })
 })
 

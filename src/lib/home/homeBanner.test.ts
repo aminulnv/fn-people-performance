@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DemoPerson, GoalsCycle, GoalsSnapshot, PersonGoals } from '@/lib/goals/types'
 
 const mockGetGoalsSnapshot = vi.fn<() => GoalsSnapshot>()
@@ -12,6 +12,7 @@ const mockResolveGoalsCycle = vi.fn<
   ) => GoalsCycle | null
 >()
 const mockGetReviewCycle = vi.fn()
+const mockAreReviewCyclesHydrated = vi.fn(() => true)
 
 vi.mock('@/lib/goals/store', () => ({
   getGoalsSnapshot: () => mockGetGoalsSnapshot(),
@@ -34,6 +35,7 @@ vi.mock('@/lib/goals/cyclesFromReviews', () => ({
 
 vi.mock('@/lib/reviews/store', () => ({
   getReviewCycle: (id: string) => mockGetReviewCycle(id),
+  areReviewCyclesHydrated: () => mockAreReviewCyclesHydrated(),
 }))
 
 import { resolveHomeBanners, hasCommittedGoalSubmission, needsOwnGoalSubmission } from './homeBanner'
@@ -94,6 +96,10 @@ function snapshot(overrides: Partial<GoalsSnapshot> = {}): GoalsSnapshot {
 }
 
 describe('resolveHomeBanners', () => {
+  beforeEach(() => {
+    mockAreReviewCyclesHydrated.mockReturnValue(true)
+  })
+
   it('shows the sent-back banner on its own', () => {
     mockGetGoalsSnapshot.mockReturnValue(
       snapshot({
@@ -334,5 +340,215 @@ describe('resolveHomeBanners', () => {
     )
 
     expect(resolveHomeBanners(person())).toEqual([])
+  })
+
+  it('returns no banners while review membership is still loading', () => {
+    mockAreReviewCyclesHydrated.mockReturnValue(false)
+    mockGetGoalsSnapshot.mockReturnValue(snapshot())
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(cycle())
+
+    expect(resolveHomeBanners(person())).toEqual([])
+  })
+
+  it('says due today instead of zero days remaining', () => {
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        byPerson: { '1': row({ personId: '1', status: 'draft' }) },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(cycle())
+
+    const banners = resolveHomeBanners(
+      person(),
+      new Date('2026-07-01T12:00:00.000Z'),
+    )
+    expect(banners[0]?.timing).toBe('due_today')
+    expect(banners[0]?.subline).toBe('Due today')
+    expect(banners[0]?.sublineEmphasis).toBeUndefined()
+    expect(banners[0]?.aside).toEqual({
+      kind: 'countdown',
+      primary: 'Due',
+      secondary: 'Today',
+    })
+    expect(banners[0]?.ariaLabel).toBe('Set your Q3 Goals. Due today.')
+  })
+
+  it('marks late two-tier goal setting as overdue, not zero days remaining', () => {
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        byPerson: { '1': row({ personId: '1', status: 'draft' }) },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({
+        phase: 'hard_lock',
+        postWindowGoalPolicy: 'two_tier_approval',
+      }),
+    )
+
+    const banners = resolveHomeBanners(
+      person(),
+      new Date('2026-08-23T12:00:00.000Z'),
+    )
+    expect(banners[0]?.headline).toBe('Set your Q3 Goals')
+    expect(banners[0]?.timing).toBe('overdue')
+    expect(banners[0]?.subline).toBe('Was due ')
+    expect(banners[0]?.sublineEmphasis).toBe('1st July 2026')
+    expect(banners[0]?.aside).toEqual({
+      kind: 'status',
+      primary: 'Overdue',
+      secondary: '',
+    })
+    expect(banners[0]?.ariaLabel).toBe(
+      'Set your Q3 Goals. Overdue, was due 1st July 2026.',
+    )
+  })
+
+  it('marks pending team approvals overdue after the deadline', () => {
+    const manager = person({ id: 'm1', reportIds: ['1'] })
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        people: [manager, person({ id: '1', managerId: 'm1' })],
+        byPerson: {
+          m1: row({
+            personId: 'm1',
+            status: 'approved',
+            goals: [{ id: 'g1', description: 'Grow', weight: 100, measurements: [] }],
+          }),
+          '1': row({
+            personId: '1',
+            status: 'submitted',
+            goals: [{ id: 'g2', description: 'Ship', weight: 100, measurements: [] }],
+          }),
+        },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({
+        phase: 'hard_lock',
+        postWindowGoalPolicy: 'two_tier_approval',
+      }),
+    )
+
+    const banners = resolveHomeBanners(
+      manager,
+      new Date('2026-08-23T12:00:00.000Z'),
+    )
+    expect(banners).toHaveLength(1)
+    expect(banners[0]?.variant).toBe('approve_team_goals')
+    expect(banners[0]?.headline).toBe("Approve your team's Q3 Goals")
+    expect(banners[0]?.subline).toBe('Was due ')
+    expect(banners[0]?.sublineEmphasis).toBe('1st July 2026')
+    expect(banners[0]?.aside).toEqual({
+      kind: 'status',
+      primary: 'Overdue',
+      secondary: '',
+    })
+  })
+
+  it('keeps team approval visible after a hard stop when reports are still waiting', () => {
+    const manager = person({ id: 'm1', reportIds: ['1'] })
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        people: [manager, person({ id: '1', managerId: 'm1' })],
+        byPerson: {
+          m1: row({
+            personId: 'm1',
+            status: 'approved',
+            goals: [{ id: 'g1', description: 'Grow', weight: 100, measurements: [] }],
+          }),
+          '1': row({
+            personId: '1',
+            status: 'submitted',
+            goals: [{ id: 'g2', description: 'Ship', weight: 100, measurements: [] }],
+          }),
+        },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({
+        phase: 'hard_lock',
+        postWindowGoalPolicy: 'hard_stop',
+      }),
+    )
+
+    const banners = resolveHomeBanners(
+      manager,
+      new Date('2026-08-23T12:00:00.000Z'),
+    )
+    expect(banners.map((banner) => banner.variant)).toEqual(['approve_team_goals'])
+    expect(banners[0]?.aside.primary).toBe('Overdue')
+  })
+
+  it('shows a closed banner when hard-stop submissions can no longer be filed', () => {
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        byPerson: { '1': row({ personId: '1', status: 'incomplete' }) },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({
+        phase: 'hard_lock',
+        postWindowGoalPolicy: 'hard_stop',
+      }),
+    )
+
+    const banners = resolveHomeBanners(
+      person(),
+      new Date('2026-08-23T12:00:00.000Z'),
+    )
+    expect(banners[0]?.headline).toBe('Q3 Goal submission is closed')
+    expect(banners[0]?.subline).toBe('Was due ')
+    expect(banners[0]?.sublineEmphasis).toBe('1st July 2026')
+    expect(banners[0]?.aside).toEqual({
+      kind: 'status',
+      primary: 'Closed',
+      secondary: '',
+    })
+    expect(banners[0]?.ariaLabel).toBe(
+      'Q3 Goal submission is closed. Was due 1st July 2026.',
+    )
+  })
+
+  it('marks progress updates overdue after the employee check-in deadline', () => {
+    mockGetGoalsSnapshot.mockReturnValue(
+      snapshot({
+        byPerson: {
+          '1': row({
+            status: 'approved',
+            goals: [{ id: 'g1', description: 'Ship', weight: 100, measurements: [] }],
+          }),
+        },
+      }),
+    )
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockReturnValue(cycle({ phase: 'check_in' }))
+    mockGetReviewCycle.mockReturnValue({
+      stagesConfig: {
+        performance: {
+          employeeEnd: { date: '2026-09-15', time: '14:00' },
+        },
+      },
+    })
+
+    const banners = resolveHomeBanners(
+      person(),
+      new Date('2026-09-20T12:00:00.000Z'),
+    )
+    expect(banners[0]?.variant).toBe('update_progress')
+    expect(banners[0]?.headline).toBe('Update Goal Progress')
+    expect(banners[0]?.timing).toBe('overdue')
+    expect(banners[0]?.subline).toBe('Was due ')
+    expect(banners[0]?.aside).toEqual({
+      kind: 'status',
+      primary: 'Overdue',
+      secondary: '',
+    })
   })
 })

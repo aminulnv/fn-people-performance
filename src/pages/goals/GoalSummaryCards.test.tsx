@@ -43,7 +43,7 @@ describe('GoalSummaryCards', () => {
       <GoalSummaryCards goal={goal} onWeightChange={onWeightChange} />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Increase goal weight' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Goal weight' }))
     expect(onWeightChange).toHaveBeenCalledWith(45)
   })
 })

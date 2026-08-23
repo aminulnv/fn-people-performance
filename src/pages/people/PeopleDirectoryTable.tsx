@@ -109,7 +109,7 @@ const DirectoryRow = memo(function DirectoryRow({
       }}
     >
       <td className="pd-people__id">{employee.employeeId}</td>
-      <td>
+      <td className="pd-people__name-cell">
         <PersonCell
           name={employee.fullName}
           email={employee.email || undefined}

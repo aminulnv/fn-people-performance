@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
 import { useOrganisation } from "@/lib/employees/useEmployees";
+import { toIntegerId } from "@/lib/integerId";
 import type { OrgDepartment, OrgTeam } from "@/lib/organisation/types";
 import type {
   GoalCycleExtension,
@@ -81,7 +82,9 @@ function buildDepartmentScope(
   return {
     type: "department",
     departmentId:
-      member?.departmentId ?? fallbackIds.get(department.id) ?? -1,
+      toIntegerId(member?.departmentId) ??
+      fallbackIds.get(department.id) ??
+      -1,
     departmentName: department.name,
   };
 }
@@ -96,7 +99,7 @@ function buildTeamScope(
   );
   return {
     type: "team",
-    teamId: member?.teamId ?? fallbackIds.get(team.id) ?? -1,
+    teamId: toIntegerId(member?.teamId) ?? fallbackIds.get(team.id) ?? -1,
     teamName: team.name,
     departmentName: team.departmentName,
   };
@@ -181,7 +184,7 @@ export function GoalCycleExtensionsEditor({
         icon: UserRound,
         scope: {
           type: "people" as const,
-          employeeIds: [employee.employeeId],
+          employeeIds: [toIntegerId(employee.employeeId) ?? employee.employeeId],
         },
       }));
 

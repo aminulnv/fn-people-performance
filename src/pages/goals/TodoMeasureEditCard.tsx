@@ -12,7 +12,11 @@ import { GoalTodoCheck } from './GoalTodoCheck'
 import { FocusSafeTextArea } from './FocusSafeTextField'
 import { TaskListNameField, MeasureTitleField } from './MeasureTitleField'
 import { MeasureTypeIcon } from './MeasureTypeSwitch'
-import { GoalTodoMeasureReadout, GoalWeightInput } from './GoalMeasurementReadout'
+import {
+  GoalTodoMeasureReadout,
+  GoalWeightInput,
+  GoalWeightReadout,
+} from './GoalMeasurementReadout'
 
 type TodoMeasurePanel = Extract<MeasurementPanel, { kind: 'todo_measure' }>
 
@@ -20,6 +24,7 @@ export function TodoMeasureEditCard({
   panel,
   measurements,
   measureTitle,
+  canEditWeight = true,
   onChangeMeasureTitle,
   onChangeWeight,
   onChangeListTitle,
@@ -46,6 +51,7 @@ export function TodoMeasureEditCard({
   panel: TodoMeasurePanel
   measurements: Measurement[]
   measureTitle: string
+  canEditWeight?: boolean
   onChangeMeasureTitle: (title: string) => void
   onChangeWeight: (weight: number) => void
   onRemove?: () => void
@@ -182,11 +188,15 @@ export function TodoMeasureEditCard({
         </div>
         <div className={metricsClassName}>
           <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
-          <GoalWeightInput
-            weight={panel.weight}
-            ariaLabel={weightLabel}
-            onChange={onChangeWeight}
-          />
+          {canEditWeight ? (
+            <GoalWeightInput
+              weight={panel.weight}
+              ariaLabel={weightLabel}
+              onChange={onChangeWeight}
+            />
+          ) : (
+            <GoalWeightReadout weight={panel.weight} />
+          )}
           {onRemove ? (
             <button
               type="button"

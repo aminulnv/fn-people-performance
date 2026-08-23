@@ -249,40 +249,43 @@ export function ScorecardsList() {
     setStatusFilter((current) => (current === next ? 'all' : next))
   }
 
-  const scorecardColumns: ResizableColumn[] = [
-    { id: 'employee', label: 'Employee', minWidth: 150 },
-    { id: 'role', label: 'Role' },
-    { id: 'seniority', label: 'Seniority' },
-    { id: 'team', label: 'Team' },
-    { id: 'department', label: 'Department' },
-    { id: 'reviewer', label: 'Reviewer' },
-    {
-      id: 'grade',
-      label: (
-        <span className="pd-people__th pd-reviews-scorecards__grade-th">
-          Grade
-          <button
-            type="button"
-            className="pd-reviews-scorecards__grade-toggle"
-            aria-label={
-              allGradesVisible ? 'Hide all grades' : 'Show all grades'
-            }
-            title={allGradesVisible ? 'Hide all grades' : 'Show all grades'}
-            aria-pressed={allGradesVisible}
-            onClick={toggleAllGrades}
-          >
-            {allGradesVisible ? (
-              <Eye size={14} strokeWidth={1.75} aria-hidden />
-            ) : (
-              <EyeOff size={14} strokeWidth={1.75} aria-hidden />
-            )}
-          </button>
-        </span>
-      ),
-      name: 'Grade',
-    },
-    { id: 'status', label: 'Status' },
-  ]
+  const scorecardColumns: ResizableColumn[] = useMemo(
+    () => [
+      { id: 'employee', label: 'Employee', grow: true },
+      { id: 'role', label: 'Role' },
+      { id: 'seniority', label: 'Seniority' },
+      { id: 'team', label: 'Team' },
+      { id: 'department', label: 'Department' },
+      { id: 'reviewer', label: 'Reviewer' },
+      {
+        id: 'grade',
+        label: (
+          <span className="pd-people__th pd-reviews-scorecards__grade-th">
+            Grade
+            <button
+              type="button"
+              className="pd-reviews-scorecards__grade-toggle"
+              aria-label={
+                allGradesVisible ? 'Hide all grades' : 'Show all grades'
+              }
+              title={allGradesVisible ? 'Hide all grades' : 'Show all grades'}
+              aria-pressed={allGradesVisible}
+              onClick={toggleAllGrades}
+            >
+              {allGradesVisible ? (
+                <Eye size={14} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <EyeOff size={14} strokeWidth={1.75} aria-hidden />
+              )}
+            </button>
+          </span>
+        ),
+        name: 'Grade',
+      },
+      { id: 'status', label: 'Status' },
+    ],
+    [allGradesVisible],
+  )
 
   const summaryItems: {
     id: StatusFilter

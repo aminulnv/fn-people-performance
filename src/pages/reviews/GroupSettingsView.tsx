@@ -187,6 +187,12 @@ export function GroupSettingsView({
         <GroupMembersEditor
           memberIds={group.memberIds}
           claimedIds={claimedIds}
+          otherGroups={(cycle.groups ?? [])
+            .filter((item) => item.id !== group.id)
+            .map((item) => ({
+              name: item.name,
+              memberIds: item.memberIds,
+            }))}
           onChange={(memberIds) => {
             void updateCycleGroup(cycle.id, group.id, { memberIds }).catch(
               () => {},

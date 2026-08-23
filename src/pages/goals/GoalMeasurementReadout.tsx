@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
+import { Circle, CircleCheck, CircleDot, Minus, Plus, Target } from 'lucide-react'
 import { useFocusSafeDraft } from './useFocusSafeDraft'
-import { Circle, CircleCheck, CircleDot, Target } from 'lucide-react'
 import { Tooltip } from '@/components/ui'
 import type { Goal, Metric } from '@/lib/goals/types'
 import type { MeasurementPanel } from '@/lib/goals/measurements'
@@ -44,10 +44,10 @@ export function weightInputDisplayValue(weight: number | undefined): string {
   return String(weight)
 }
 
-export function parseWeightInputValue(raw: string): number {
+export function parseWeightInputValue(raw: string, max = 100): number {
   const digits = raw.replace(/\D/g, '')
   if (digits === '') return 0
-  return Math.min(100, Number(digits))
+  return Math.min(Math.max(0, max), Number(digits))
 }
 
 export function formatWeightReadout(weight: number | undefined): string {
@@ -75,15 +75,82 @@ export function GoalWeightReadout({ weight }: { weight: number }) {
   )
 }
 
+const WEIGHT_STEP = 5
+
+function clampWeight(value: number, max = 100) {
+  return Math.min(max, Math.max(0, Math.round(value)))
+}
+
+export function WeightHoverField({
+  weight,
+  ariaLabel,
+  maxWeight = 100,
+  showSuffix = true,
+  onChange,
+}: {
+  weight: number
+  ariaLabel: string
+  maxWeight?: number
+  showSuffix?: boolean
+  onChange: (weight: number) => void
+}) {
+  const stepWeight = (delta: number) => {
+    const next = clampWeight(weight + delta, maxWeight)
+    if (next !== weight) onChange(next)
+  }
+
+  return (
+    <div
+      className="pd-goals-table__weight-edit"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="pd-goals-table__weight-step pd-goals-table__weight-step--minus"
+        aria-label={`Decrease ${ariaLabel}`}
+        disabled={weight <= 0}
+        tabIndex={-1}
+        onClick={() => stepWeight(-WEIGHT_STEP)}
+      >
+        <Minus size={12} strokeWidth={2.25} aria-hidden />
+      </button>
+      <BufferedWeightInput
+        weight={weight}
+        ariaLabel={ariaLabel}
+        maxWeight={maxWeight}
+        onChange={(next) => onChange(clampWeight(next, maxWeight))}
+      />
+      {showSuffix ? (
+        <span className="pd-goals-table__weight-suffix" aria-hidden>
+          %
+        </span>
+      ) : null}
+      <button
+        type="button"
+        className="pd-goals-table__weight-step pd-goals-table__weight-step--plus"
+        aria-label={`Increase ${ariaLabel}`}
+        disabled={weight >= maxWeight}
+        tabIndex={-1}
+        onClick={() => stepWeight(WEIGHT_STEP)}
+      >
+        <Plus size={12} strokeWidth={2.25} aria-hidden />
+      </button>
+    </div>
+  )
+}
+
 export function BufferedWeightInput({
   weight,
   ariaLabel,
   className = 'pd-goals-table__weight-input',
+  maxWeight = 100,
   onChange,
 }: {
   weight: number
   ariaLabel: string
   className?: string
+  maxWeight?: number
   onChange: (weight: number) => void
 }) {
   const draft = useFocusSafeDraft(weightInputDisplayValue(weight), ariaLabel)
@@ -102,7 +169,7 @@ export function BufferedWeightInput({
         draft.setText(event.target.value.replace(/\D/g, '').slice(0, 3))
       }}
       onBlur={() => {
-        const next = parseWeightInputValue(draft.text)
+        const next = parseWeightInputValue(draft.text, maxWeight)
         draft.markBlurred()
         draft.setText(weightInputDisplayValue(next))
         if (next !== weight) onChange(next)
@@ -124,17 +191,12 @@ export function GoalWeightInput({
     <span className="pd-goal-readout__stat pd-goal-measure-card__weight">
       <span className="pd-goal-measure-card__weight-field">
         <span className="pd-goal-readout__label">Weight %</span>
-        <span
-          className="pd-goals-table__weight-edit"
-          onClick={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        >
-          <BufferedWeightInput
-            weight={weight}
-            ariaLabel={ariaLabel}
-            onChange={onChange}
-          />
-        </span>
+        <WeightHoverField
+          weight={weight}
+          ariaLabel={ariaLabel}
+          showSuffix={false}
+          onChange={onChange}
+        />
       </span>
     </span>
   )

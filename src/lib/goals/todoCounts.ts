@@ -1,5 +1,7 @@
+import { goalsCycleForPerson } from '@/lib/goals/cyclesFromReviews'
 import { countPendingGoalApprovalsForManager } from '@/lib/goals/permissions'
 import { canSubmitGoals } from '@/lib/goals/weightage'
+import { areReviewCyclesHydrated } from '@/lib/reviews/store'
 import type { DemoPerson, GoalsCycle, GoalsSnapshot, PersonGoals } from '@/lib/goals/types'
 
 /**
@@ -63,14 +65,22 @@ export function countGoalTodosForPerson(
   snapshot: Pick<GoalsSnapshot, 'cycle' | 'people' | 'byPerson'>,
   options?: { canSubmitOwn?: boolean },
 ): GoalTodoCounts {
+  const reports = countPendingGoalApprovalsForManager(
+    person,
+    snapshot.people,
+    snapshot.byPerson,
+  )
+  if (!areReviewCyclesHydrated()) {
+    return { own: 0, reports }
+  }
+  const personCycle = goalsCycleForPerson(snapshot.cycle, person.id)
+  if (personCycle.assignedGroupId === null) {
+    return { own: 0, reports }
+  }
   return {
-    own: countOwnGoalTodos(snapshot.byPerson[person.id], snapshot.cycle, {
+    own: countOwnGoalTodos(snapshot.byPerson[person.id], personCycle, {
       canSubmit: options?.canSubmitOwn,
     }),
-    reports: countPendingGoalApprovalsForManager(
-      person,
-      snapshot.people,
-      snapshot.byPerson,
-    ),
+    reports,
   }
 }

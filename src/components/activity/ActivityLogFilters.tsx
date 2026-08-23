@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Input, Select } from '@/components/ui'
 import type { ActivityListFilters } from '@/lib/activity/types'
 
 const ENTITY_OPTIONS = [
@@ -9,11 +9,11 @@ const ENTITY_OPTIONS = [
   { value: 'employee', label: 'Employees' },
   { value: 'department', label: 'Departments' },
   { value: 'access', label: 'Access' },
-] as const
+]
 
 /**
- * Collapsed-by-default filters for Activity Log.
- * Only expand when the viewer needs to narrow a large feed.
+ * Filter bar for the organisation-wide Activity log.
+ * Kept visible — this page is a search surface, not a workflow CTA.
  */
 export function ActivityLogFilters({
   value,
@@ -26,76 +26,53 @@ export function ActivityLogFilters({
   showEntity?: boolean
   showDates?: boolean
 }) {
-  const [open, setOpen] = useState(false)
-
   return (
     <div className="pd-activity-filters">
-      <button
-        type="button"
-        className="pd-activity-link"
-        aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
-      >
-        {open ? 'Hide filters' : 'Show filters'}
-      </button>
-      {open ? (
-        <div className="pd-activity-filters__grid">
-          {showEntity ? (
-            <label>
-              Area
-              <select
-                value={value.entityType ?? ''}
-                onChange={(event) =>
-                  onChange({
-                    ...value,
-                    entityType: event.target.value || undefined,
-                  })
-                }
-              >
-                {ENTITY_OPTIONS.map((option) => (
-                  <option key={option.value || 'all'} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ) : null}
-          {showDates ? (
-            <>
-              <label>
-                From
-                <input
-                  type="date"
-                  value={(value.from ?? '').slice(0, 10)}
-                  onChange={(event) =>
-                    onChange({
-                      ...value,
-                      from: event.target.value
-                        ? `${event.target.value}T00:00:00.000Z`
-                        : undefined,
-                    })
-                  }
-                />
-              </label>
-              <label>
-                To
-                <input
-                  type="date"
-                  value={(value.to ?? '').slice(0, 10)}
-                  onChange={(event) =>
-                    onChange({
-                      ...value,
-                      to: event.target.value
-                        ? `${event.target.value}T23:59:59.999Z`
-                        : undefined,
-                    })
-                  }
-                />
-              </label>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="pd-activity-filters__grid">
+        {showEntity ? (
+          <Select
+            label="Area"
+            value={value.entityType ?? ''}
+            options={ENTITY_OPTIONS}
+            onChange={(event) =>
+              onChange({
+                ...value,
+                entityType: event.target.value || undefined,
+              })
+            }
+          />
+        ) : null}
+        {showDates ? (
+          <>
+            <Input
+              type="date"
+              label="From"
+              value={(value.from ?? '').slice(0, 10)}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  from: event.target.value
+                    ? `${event.target.value}T00:00:00.000Z`
+                    : undefined,
+                })
+              }
+            />
+            <Input
+              type="date"
+              label="To"
+              value={(value.to ?? '').slice(0, 10)}
+              onChange={(event) =>
+                onChange({
+                  ...value,
+                  to: event.target.value
+                    ? `${event.target.value}T23:59:59.999Z`
+                    : undefined,
+                })
+              }
+            />
+          </>
+        ) : null}
+      </div>
     </div>
   )
 }

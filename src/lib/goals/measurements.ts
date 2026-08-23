@@ -626,6 +626,40 @@ export function removeMilestoneFromList(
   return replaceMilestoneList(normalized, listKey, nextRun)
 }
 
+export function canEditMeasurementWeights(measurements: Measurement[]): boolean {
+  return measurementPanels(measurements).length > 1
+}
+
+/** A lone measure always owns the full 100%. */
+export function lockSoloMeasurementWeights(
+  measurements: Measurement[],
+): Measurement[] {
+  if (measurementPanels(measurements).length !== 1) return measurements
+  if (sumPanelWeights(measurements) === 100) return measurements
+  return rebalanceMeasurementWeights(measurements)
+}
+
+export function setMeasurementPanelWeight(
+  measurements: Measurement[],
+  panelKey: string,
+  nextWeight: number,
+): Measurement[] {
+  if (!canEditMeasurementWeights(measurements)) {
+    return lockSoloMeasurementWeights(measurements)
+  }
+  const panel = measurementPanels(measurements).find((entry) => entry.key === panelKey)
+  if (!panel) return measurements
+  const clamped = Math.max(0, Math.min(100, Math.round(nextWeight)))
+  if (panel.kind === 'metric') {
+    return measurements.map((item) =>
+      item.kind === 'metric' && item.id === panel.metric.id
+        ? { ...item, weight: clamped }
+        : item,
+    )
+  }
+  return redistributeTodoMeasureWeight(measurements, panel.measureGroupId, clamped)
+}
+
 export function redistributeTodoMeasureWeight(
   measurements: Measurement[],
   measureGroupId: string,

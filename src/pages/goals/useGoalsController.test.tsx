@@ -4,7 +4,17 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
-import { resetGoalsDemo, setSignedInPerson } from '@/lib/goals/store'
+import {
+  getGoalsSnapshot,
+  resetGoalsDemo,
+  setActivePerson,
+  setSignedInPerson,
+} from '@/lib/goals/store'
+import {
+  createCycleGroup,
+  getReviewCycle,
+  resetReviewsStoreForTests,
+} from '@/lib/reviews/store'
 import { useGoalsController } from './useGoalsController'
 
 const MANAGER_ID = '2'
@@ -82,11 +92,19 @@ function renderController(subjectId: string) {
 describe('useGoalsController reports', () => {
   beforeEach(async () => {
     localStorage.clear()
+    sessionStorage.clear()
     clearSession()
     clearEmployees()
+    resetReviewsStoreForTests()
     await seedDirectory()
     setSignedInPerson(MANAGER_ID)
     resetGoalsDemo()
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id)
+    if (!cycle) throw new Error('Expected the active cycle')
+    await createCycleGroup(cycle.id, {
+      name: 'Everyone',
+      memberIds: [1, 2, 3],
+    })
     signInManager()
   })
 
@@ -106,6 +124,24 @@ describe('useGoalsController reports', () => {
         [PEER_ID, REPORT_ID].sort(),
       )
     })
+  })
+
+  it('does not retarget the active person when used as an overlay', async () => {
+    setActivePerson(MANAGER_ID)
+    const { result } = renderHook(
+      () =>
+        useGoalsController({
+          subjectId: REPORT_ID,
+          syncActiveSelection: false,
+        }),
+      { wrapper },
+    )
+
+    await waitFor(() => {
+      expect(result.current.subject?.id).toBe(REPORT_ID)
+    })
+    expect(getGoalsSnapshot().activePersonId).toBe(MANAGER_ID)
+    expect(result.current.capabilities?.canEditStructure).toBe(true)
   })
 
   it('lists no reports on the profile of someone who manages nobody', async () => {

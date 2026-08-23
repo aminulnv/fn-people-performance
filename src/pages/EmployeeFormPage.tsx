@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useId, useMemo, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import {
   Award,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  DateInputControl,
   ListboxSelect,
   PageStatus,
   PageStatusLink,
@@ -123,22 +124,25 @@ function InlineInput({
   step?: number
 }) {
   const id = useId()
-  return (
-    <input
-      id={id}
-      className="pd-profile__inline-input"
-      type={type}
-      aria-label={label}
-      required={required}
-      readOnly={readOnly}
-      disabled={readOnly}
-      placeholder={placeholder}
-      value={value}
-      min={min}
-      step={step}
-      onChange={(e) => onChange?.(e.target.value)}
-    />
-  )
+  const sharedProps = {
+    id,
+    className: 'pd-profile__inline-input',
+    'aria-label': label,
+    required,
+    readOnly,
+    disabled: readOnly,
+    placeholder,
+    value,
+    min,
+    step,
+    onChange: (event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value),
+  }
+
+  if (type === 'date') {
+    return <DateInputControl {...sharedProps} />
+  }
+
+  return <input type={type} {...sharedProps} />
 }
 
 export default function EmployeeFormPage({ mode }: { mode: FormMode }) {

@@ -11,6 +11,9 @@ import {
   measurementPanels,
   normalizeMetricStrategy,
   rebalanceMeasurementWeights,
+  setMeasurementPanelWeight,
+  canEditMeasurementWeights,
+  lockSoloMeasurementWeights,
   removeMilestoneList,
   removeTodoMeasure,
   readMeasureGroupTitle,
@@ -109,6 +112,56 @@ describe('measurement factories', () => {
       blankMetric('decrease'),
     ])
     expect(balanced.map((m) => m.weight)).toEqual([33, 33, 34])
+  })
+
+  it('locks a single measure at 100% and ignores weight edits', () => {
+    const metricA = { ...blankMetric('increase', 40), id: 'm-a' }
+    expect(canEditMeasurementWeights([metricA])).toBe(false)
+    expect(lockSoloMeasurementWeights([metricA])).toEqual([
+      expect.objectContaining({ id: 'm-a', weight: 100 }),
+    ])
+    expect(setMeasurementPanelWeight([metricA], 'm-a', 25)).toEqual([
+      expect.objectContaining({ id: 'm-a', weight: 100 }),
+    ])
+  })
+
+  it('splits 100% when a second top-level measure is added', () => {
+    const first = { ...blankMetric('increase', 100), id: 'm-a' }
+    const next = appendMilestoneList([first])
+    expect(canEditMeasurementWeights(next)).toBe(true)
+    expect(sumPanelWeights(next)).toBe(100)
+    expect(
+      measurementPanels(next).map((panel) =>
+        panel.kind === 'metric' ? panel.metric.weight : panel.weight,
+      ),
+    ).toEqual([50, 50])
+  })
+
+  it('sets a metric panel weight without touching sibling measures', () => {
+    const metricA = { ...blankMetric('increase', 40), id: 'm-a' }
+    const metricB = { ...blankMetric('decrease', 60), id: 'm-b' }
+    const next = setMeasurementPanelWeight([metricA, metricB], 'm-a', 25)
+
+    expect(next).toEqual([
+      expect.objectContaining({ id: 'm-a', weight: 25 }),
+      expect.objectContaining({ id: 'm-b', weight: 60 }),
+    ])
+  })
+
+  it('sets a todo measure weight across its checklist items', () => {
+    const measurements = [
+      { ...blankMetric('increase', 40), id: 'm-a' },
+      { ...blankMilestone(30), id: 't1', measureGroupId: 'mg1', listId: 'l1' },
+      { ...blankMilestone(30), id: 't2', measureGroupId: 'mg1', listId: 'l1' },
+    ]
+    const next = setMeasurementPanelWeight(measurements, 'mg1', 50)
+
+    expect(next.find((item) => item.id === 'm-a')?.weight).toBe(40)
+    expect(
+      next
+        .filter((item) => item.kind === 'milestone')
+        .map((item) => item.weight),
+    ).toEqual([25, 25])
   })
 
   it('treats each top-level measure as one allocation bucket', () => {

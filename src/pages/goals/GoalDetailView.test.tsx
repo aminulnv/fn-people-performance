@@ -266,7 +266,7 @@ describe('GoalDetailView', () => {
         cascadedTo={[
           {
             goalId: 'c1',
-            goalTitle: 'Untitled Cascading Goal from Line Manager',
+            goalTitle: 'Raise quality bar',
             personId: 'r1',
             personName: 'Direct Report',
           },
@@ -286,7 +286,7 @@ describe('GoalDetailView', () => {
 
     showTab('Details')
     const to = screen.getByLabelText('Cascaded to')
-    expect(to).toHaveTextContent('Untitled Cascading Goal from Line Manager')
+    expect(to).toHaveTextContent('Raise quality bar')
     expect(to).toHaveTextContent('Direct Report')
     expect(to).toHaveTextContent('Cut defects')
     expect(to).toHaveTextContent('Second Report')
@@ -590,8 +590,12 @@ describe('GoalDetailView', () => {
 
     const updates = screen.getByLabelText('Progress logs')
     expect(updates).not.toHaveAttribute('open')
-    expect(updates).toHaveTextContent('1 update')
-    fireEvent.click(screen.getByText('Progress logs'))
+    expect(updates).toHaveTextContent('Log')
+    expect(updates.querySelector('.pd-count-badge')).toHaveTextContent('1')
+    expect(updates.querySelector('.pd-count-badge')).toHaveClass(
+      'pd-count-badge--muted',
+    )
+    fireEvent.click(screen.getByText('Log'))
     expect(updates).toHaveAttribute('open')
     expect(updates).toHaveTextContent('0 → 2')
     expect(updates).not.toHaveTextContent('Aminul')
@@ -712,6 +716,10 @@ describe('GoalDetailView', () => {
     expect(
       nps.compareDocumentPosition(milestones) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+    expect(nps).toContainElement(screen.getByRole('img', { name: 'Metric' }))
+    expect(milestones).toContainElement(
+      screen.getByRole('img', { name: 'Milestone' }),
+    )
   })
 
   it('hides the task list name in view when there is only one list', () => {
@@ -897,5 +905,51 @@ describe('GoalDetailView', () => {
     expect(
       screen.getByRole('button', { name: 'Add cascading from' }),
     ).toBeInTheDocument()
+  })
+
+  it('highlights the measure card that opened the window', () => {
+    render(
+      <GoalDetailView
+        goal={{
+          ...goal,
+          measurements: [
+            {
+              id: 'm1',
+              kind: 'metric',
+              title: 'NPS',
+              weight: 50,
+              unit: 'number',
+              direction: 'increase',
+              startValue: 0,
+              currentValue: 2,
+              targetValue: 6,
+            },
+            {
+              id: 'm2',
+              kind: 'metric',
+              title: 'Defects closed',
+              weight: 50,
+              unit: 'number',
+              direction: 'increase',
+              startValue: 0,
+              currentValue: 1,
+              targetValue: 10,
+            },
+          ],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        highlightMeasureKey="m1"
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByLabelText('NPS')).toHaveClass('is-highlighted')
+    expect(screen.getByLabelText('Defects closed')).not.toHaveClass(
+      'is-highlighted',
+    )
   })
 })

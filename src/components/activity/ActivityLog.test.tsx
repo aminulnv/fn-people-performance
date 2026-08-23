@@ -37,6 +37,8 @@ describe('ActivityLog', () => {
     render(<ActivityLog events={events} />)
     expect(screen.getByText('Submitted goals')).toBeInTheDocument()
     expect(screen.getByText('Api Singha')).toBeInTheDocument()
+    expect(screen.getByText('Submission')).toBeInTheDocument()
+    expect(screen.getByLabelText('Api Singha')).toBeInTheDocument()
   })
 })
 

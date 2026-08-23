@@ -1,6 +1,6 @@
 import type { Goal, Measurement } from './types'
 import { coalesceMeasureGroups, measurementPanels, hasMeasurePanelName } from './measurements'
-import { sumMeasurementWeights } from './weightage'
+import { isBlankGoalTitle, sumMeasurementWeights } from './weightage'
 
 function preferLocalText(
   local: string | undefined,
@@ -148,9 +148,7 @@ export type GoalDraftValidation = {
 }
 
 export function validateGoalDraft(goal: Goal): GoalDraftValidation {
-  const nameError = goal.description.trim()
-    ? undefined
-    : 'Goal name is required'
+  const nameError = isBlankGoalTitle(goal) ? 'Goal name is required' : undefined
   const measureWeight = sumMeasurementWeights(goal.measurements)
   const measurementNameError =
     goal.measurements.length === 0

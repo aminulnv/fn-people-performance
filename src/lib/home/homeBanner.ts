@@ -13,14 +13,21 @@ import {
   parseGoalsEmployeeId,
   resolveGoalsCycle,
 } from '@/lib/goals/cyclesFromReviews'
-import { getReviewCycle } from '@/lib/reviews/store'
+import { areReviewCyclesHydrated, getReviewCycle } from '@/lib/reviews/store'
 import { goalsMyGoalsPath, goalsMyReportsPath } from '@/pages/goals/goalHelpers'
 import {
+  buildClosedGoalHeadline,
   buildGoalDeadlineHeadline,
   cycleQuarterLabel,
-  formatDaysRemainingLabel,
+  deadlineAriaSuffix,
+  deadlineCountdownCopy,
+  deadlineSublineEmphasis,
+  deadlineSublinePrefix,
   formatGoalDeadlineLabel,
+  resolveGoalDeadlineTiming,
   resolveGoalDeadlineUrgency,
+  signedDaysUntil,
+  type GoalDeadlineTiming,
   type GoalDeadlineUrgency,
 } from './goalDeadlineBanner'
 
@@ -40,6 +47,7 @@ export type HomeBannerIcon =
 export type HomeBannerAside =
   | { kind: 'countdown'; primary: string; secondary: string }
   | { kind: 'action'; primary: string; secondary: string }
+  | { kind: 'status'; primary: string; secondary: string }
 
 export type HomeBannerContent = {
   id: string
@@ -55,6 +63,8 @@ export type HomeBannerContent = {
   ariaLabel: string
   /** Goal-setting countdown urgency — drives yellow/red gradients. */
   urgency?: GoalDeadlineUrgency
+  /** Calendar state of the deadline — due later, due today, or already past. */
+  timing?: GoalDeadlineTiming
 }
 
 export const HOME_BANNER_GRADIENTS: Record<
@@ -67,21 +77,43 @@ export const HOME_BANNER_GRADIENTS: Record<
   approve_team_goals: { start: '#2F2508', end: '#E4A60A', accent: '#E4A60A' },
 }
 
-function parseDate(value: string): Date {
-  return new Date(`${value}T12:00:00.000Z`)
-}
-
 function dateKey(value: Date): string {
   return value.toISOString().slice(0, 10)
 }
 
-function daysBetween(from: string, to: string): number {
-  return Math.max(
-    0,
-    Math.ceil(
-      (parseDate(to).getTime() - parseDate(from).getTime()) / 86_400_000,
+function deadlineAside(signedDays: number): HomeBannerAside {
+  const copy = deadlineCountdownCopy(signedDays)
+  return {
+    kind: resolveGoalDeadlineTiming(signedDays) === 'overdue' ? 'status' : 'countdown',
+    ...copy,
+  }
+}
+
+function deadlineBannerCopy(
+  headline: string,
+  context: DeadlineContext,
+): Pick<
+  HomeBannerContent,
+  | 'headline'
+  | 'subline'
+  | 'sublineEmphasis'
+  | 'aside'
+  | 'urgency'
+  | 'timing'
+  | 'ariaLabel'
+> {
+  return {
+    headline,
+    subline: deadlineSublinePrefix(context.timing),
+    sublineEmphasis: deadlineSublineEmphasis(
+      context.timing,
+      context.deadlineLabel,
     ),
-  )
+    aside: deadlineAside(context.daysRemaining),
+    urgency: context.urgency,
+    timing: context.timing,
+    ariaLabel: `${headline}. ${deadlineAriaSuffix(context.daysRemaining, context.deadlineLabel)}`,
+  }
 }
 
 function goalsHref(cycleId: string, personId: string): string {
@@ -132,11 +164,22 @@ function buildApproveHeadline(cycleLabel: string): string {
   return `Approve your team's ${cycleQuarterLabel(cycleLabel)} Goals`
 }
 
-function buildCountdownAside(daysRemaining: number): HomeBannerAside {
+type DeadlineContext = {
+  deadline: string
+  deadlineLabel: string
+  daysRemaining: number
+  timing: GoalDeadlineTiming
+  urgency: GoalDeadlineUrgency
+}
+
+function toDeadlineContext(deadline: string, todayKey: string): DeadlineContext {
+  const daysRemaining = signedDaysUntil(todayKey, deadline)
   return {
-    kind: 'countdown',
-    primary: formatDaysRemainingLabel(daysRemaining),
-    secondary: 'Remaining',
+    deadline,
+    deadlineLabel: formatGoalDeadlineLabel(deadline),
+    daysRemaining,
+    timing: resolveGoalDeadlineTiming(daysRemaining),
+    urgency: resolveGoalDeadlineUrgency(daysRemaining),
   }
 }
 
@@ -144,28 +187,20 @@ function resolveDeadlineContext(
   cycle: GoalsCycle,
   person: DemoPerson,
   todayKey: string,
-) {
+): DeadlineContext | null {
   const deadline = resolveGoalDeadline(cycle, person)
   if (!deadline) return null
-  return {
-    deadline,
-    deadlineLabel: formatGoalDeadlineLabel(deadline),
-    daysRemaining: daysBetween(todayKey, deadline),
-  }
+  return toDeadlineContext(deadline, todayKey)
 }
 
 function resolveProgressDeadline(
   cycleId: string,
   todayKey: string,
-): { deadline: string; deadlineLabel: string; daysRemaining: number } | null {
+): DeadlineContext | null {
   const review = getReviewCycle(cycleId)
   const deadline = review?.stagesConfig.performance.employeeEnd.date
   if (!deadline) return null
-  return {
-    deadline,
-    deadlineLabel: formatGoalDeadlineLabel(deadline),
-    daysRemaining: daysBetween(todayKey, deadline),
-  }
+  return toDeadlineContext(deadline, todayKey)
 }
 
 /** All Home banners that apply to the signed-in person (stacked on Home). */
@@ -186,6 +221,7 @@ export function resolveHomeBanners(
     snapshot.availableCycles.find((option) => option.id === cycleId)?.status ??
     snapshot.cycleStatus
 
+  if (!areReviewCyclesHydrated()) return []
   if (cycle.assignedGroupId === null) return []
   if (!isActiveCycle(cycleStatus) || cycle.phase === 'closed') return []
 
@@ -219,72 +255,77 @@ export function resolveHomeBanners(
   if (shouldPromptOwnGoalSetting(cycle, row)) {
     const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
     if (deadlineContext) {
-      const headline = buildGoalDeadlineHeadline(cycle.label)
+      const submissionClosed = !isGoalInputPhase(cycle)
+      const headline = submissionClosed
+        ? buildClosedGoalHeadline(cycle.label)
+        : buildGoalDeadlineHeadline(cycle.label)
       banners.push({
         id: `${cycle.id}:set_goals`,
         variant: 'set_goals',
         cycleId: cycle.id,
         personId: person.id,
-        headline,
-        subline: 'Due by ',
-        sublineEmphasis: deadlineContext.deadlineLabel,
         href,
         icon: 'goals',
-        aside: buildCountdownAside(deadlineContext.daysRemaining),
-        urgency: resolveGoalDeadlineUrgency(deadlineContext.daysRemaining),
-        ariaLabel: `${headline}. ${formatDaysRemainingLabel(deadlineContext.daysRemaining)} remaining, due by ${deadlineContext.deadlineLabel}.`,
+        ...(submissionClosed
+          ? {
+              headline,
+              subline: 'Was due ',
+              sublineEmphasis: deadlineContext.deadlineLabel,
+              aside: { kind: 'status' as const, primary: 'Closed', secondary: '' },
+              urgency: 'critical' as const,
+              timing: 'overdue' as const,
+              ariaLabel: `${headline}. Was due ${deadlineContext.deadlineLabel}.`,
+            }
+          : deadlineBannerCopy(headline, deadlineContext)),
       })
     }
   }
 
-  if (isGoalInputPhase(cycle)) {
-    const pendingApprovals = countPendingGoalApprovalsForManager(
-      person,
-      snapshot.people,
-      snapshot.byPerson,
-    )
-
-    if (pendingApprovals > 0) {
-      const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
-      if (deadlineContext) {
-        const headline = buildApproveHeadline(cycle.label)
-        banners.push({
-          id: `${cycle.id}:approve_team_goals`,
-          variant: 'approve_team_goals',
-          cycleId: cycle.id,
-          personId: person.id,
-          headline,
-          subline: 'Due by ',
-          sublineEmphasis: deadlineContext.deadlineLabel,
-          href: goalsMyReportsPath(cycle.id, person.id),
-          icon: 'approve',
-          aside: buildCountdownAside(deadlineContext.daysRemaining),
-          urgency: resolveGoalDeadlineUrgency(deadlineContext.daysRemaining),
-          ariaLabel: `${headline}. ${formatDaysRemainingLabel(deadlineContext.daysRemaining)} remaining, due by ${deadlineContext.deadlineLabel}.`,
-        })
-      }
+  const pendingApprovals = countPendingGoalApprovalsForManager(
+    person,
+    snapshot.people,
+    snapshot.byPerson,
+  )
+  if (pendingApprovals > 0) {
+    const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
+    if (deadlineContext) {
+      const headline = buildApproveHeadline(cycle.label)
+      banners.push({
+        id: `${cycle.id}:approve_team_goals`,
+        variant: 'approve_team_goals',
+        cycleId: cycle.id,
+        personId: person.id,
+        href: goalsMyReportsPath(cycle.id, person.id),
+        icon: 'approve',
+        ...deadlineBannerCopy(headline, deadlineContext),
+      })
     }
   }
 
   if (cycle.phase === 'check_in' && row.status === 'approved') {
     const deadlineContext = resolveProgressDeadline(cycle.id, todayKey)
     if (deadlineContext) {
+      const upcoming = deadlineContext.timing === 'upcoming'
       banners.push({
         id: `${cycle.id}:update_progress`,
         variant: 'update_progress',
         cycleId: cycle.id,
         personId: person.id,
-        headline: 'Update Goal Progress',
-        subline: 'Due by ',
-        sublineEmphasis: deadlineContext.deadlineLabel,
         href,
         icon: 'progress',
-        aside: {
-          kind: 'action',
-          primary: 'Update',
-          secondary: 'Progress',
-        },
-        ariaLabel: `Update goal progress, due by ${deadlineContext.deadlineLabel}.`,
+        ...(upcoming
+          ? {
+              headline: 'Update Goal Progress',
+              subline: 'Due by ',
+              sublineEmphasis: deadlineContext.deadlineLabel,
+              aside: {
+                kind: 'action' as const,
+                primary: 'Update',
+                secondary: 'Progress',
+              },
+              ariaLabel: `Update goal progress, due by ${deadlineContext.deadlineLabel}.`,
+            }
+          : deadlineBannerCopy('Update Goal Progress', deadlineContext)),
       })
     }
   }
