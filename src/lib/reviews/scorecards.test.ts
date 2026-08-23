@@ -167,6 +167,37 @@ describe('buildScorecardsForCycle', () => {
       gradeHidden: false,
     })
   })
+
+  it('does not show unpublished official grades on the subject own row', async () => {
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('expected a seeded cycle')
+    await createCycleGroup(cycle.id, { name: 'Everyone', memberIds: [2] })
+    const subject = employee({
+      employeeId: 2,
+      fullName: 'Bea',
+      email: 'bea@example.com',
+    })
+
+    const rows = buildScorecardsForCycle(
+      cycle.id,
+      [subject],
+      'bea@example.com',
+      [
+        packet({
+          cycleId: cycle.id,
+          employeeId: 2,
+          status: 'manager_in_progress',
+          selfOverallGrade: 'performing',
+          managerOverallGrade: 'exceeding',
+        }),
+      ],
+    )
+
+    expect(rows[0]).toMatchObject({
+      grade: 'performing',
+      gradeHidden: true,
+    })
+  })
 })
 
 describe('packetFieldsForRole', () => {
@@ -352,6 +383,22 @@ describe('latestScorecardGrade', () => {
       ),
     ).toEqual({ grade: 'exceeding', source: 'published' })
   })
+
+  it('shows the subject only their self grade until publish', () => {
+    expect(
+      latestScorecardGrade(
+        packet({
+          employeeId: 4,
+          status: 'in_calibration',
+          selfOverallGrade: 'performing',
+          managerOverallGrade: 'developing',
+          calibratedOverallGrade: 'exceeding',
+          publishedOverallGrade: 'exceptional',
+        }),
+        4,
+      ),
+    ).toEqual({ grade: 'performing', source: 'self' })
+  })
 })
 
 describe('feedbackFromPacket', () => {
@@ -518,6 +565,63 @@ describe('buildScorecardDetail', () => {
       ],
     }))
     expect(graded?.goalsOverallBand).toBe('performing')
+  })
+
+  it('keeps unpublished manager grades off the subject scorecard', async () => {
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('expected a seeded cycle')
+    await createCycleGroup(cycle.id, { name: 'Everyone', memberIds: [4] })
+    const subject = employee({
+      employeeId: 4,
+      fullName: 'Sheikh Syed Ahmed',
+      email: 'sheikh@example.com',
+    })
+    const hidden = buildScorecardDetail(
+      cycle.id,
+      4,
+      [subject],
+      'sheikh@example.com',
+      packet({
+        cycleId: cycle.id,
+        employeeId: 4,
+        status: 'in_calibration',
+        selfOverallGrade: 'performing',
+        managerOverallGrade: 'exceeding',
+        calibratedOverallGrade: 'exceptional',
+        answers: [
+          {
+            questionId: 'delivered',
+            actorRole: 'self',
+            body: 'I closed my OKRs.',
+          },
+          {
+            questionId: 'delivered',
+            actorRole: 'manager',
+            body: 'Closed the quarter cleanly.',
+          },
+        ],
+        pillarScores: [
+          {
+            pillarId: 'goals',
+            actorRole: 'self',
+            grade: 'performing',
+            comment: '',
+          },
+          {
+            pillarId: 'goals',
+            actorRole: 'manager',
+            grade: 'exceeding',
+            comment: '',
+          },
+        ],
+      }),
+    )
+
+    expect(hidden).toMatchObject({
+      overallGrade: 'performing',
+      goalsOverallBand: 'performing',
+      feedback: { strengths: 'I closed my OKRs.', developments: '' },
+    })
   })
 })
 

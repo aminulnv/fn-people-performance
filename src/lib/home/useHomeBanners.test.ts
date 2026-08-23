@@ -10,6 +10,7 @@ const mockUseCurrentPerson = vi.fn()
 vi.mock('@/lib/goalsApi', () => ({
   fetchGoalsSnapshot: () => mockFetchGoalsSnapshot(),
   watchGoalsSnapshot: (onChange: () => void) => mockWatchGoalsSnapshot(onChange),
+  isGoalCycleHydrationPending: () => false,
 }))
 
 vi.mock('@/lib/useCurrentPerson', () => ({
@@ -106,12 +107,13 @@ describe('useHomeBanners', () => {
       expect(result.current).toEqual([{ id: 'set_goals' }])
     })
 
+    const fetchesAfterHydration = mockFetchGoalsSnapshot.mock.calls.length
     current = second
     storeListener?.()
 
     await waitFor(() => {
-      expect(result.current).toEqual([])
+      expect(mockResolveHomeBanners).toHaveBeenCalled()
     })
-    expect(mockFetchGoalsSnapshot.mock.calls.length).toBeGreaterThanOrEqual(2)
+    expect(mockFetchGoalsSnapshot.mock.calls.length).toBe(fetchesAfterHydration)
   })
 })

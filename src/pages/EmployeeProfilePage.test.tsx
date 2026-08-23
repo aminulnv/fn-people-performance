@@ -551,7 +551,11 @@ describe('V1 employee profiles', () => {
       '/organisation/departments/product',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.mouseEnter(
+      screen.getByRole('button', { name: 'More actions' }).closest(
+        '.pd-profile__more',
+      )!,
+    )
     expect(
       screen.getByRole('menuitem', { name: 'Permissions' }),
     ).toHaveAttribute('href', '/settings?section=access')

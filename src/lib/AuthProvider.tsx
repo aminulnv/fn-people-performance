@@ -13,6 +13,7 @@ import {
   signOut as apiSignOut,
 } from '@/lib/authApi'
 import { loadEmployees } from '@/lib/employees/store'
+import { fetchGoalsSnapshot } from '@/lib/goalsApi'
 import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
 import { ensureReviewCyclesLoaded } from '@/lib/reviews/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
@@ -32,6 +33,9 @@ async function hydratePlatformCaches() {
       /* reviews stay empty until retry; Goals falls back gracefully */
     }),
   ])
+  void fetchGoalsSnapshot().catch(() => {
+    /* Goals surfaces retry via useSharedGoalsSnapshot */
+  })
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

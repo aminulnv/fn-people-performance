@@ -88,6 +88,14 @@ describe('GroupSettingsView', () => {
     expect(
       screen.getByRole('switch', { name: 'Enable Manager review' }),
     ).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable Goals grade' }),
+    ).not.toBeChecked()
+    expect(
+      screen.getByRole('switch', { name: 'Enable Overall grade' }),
+    ).toBeChecked()
+    expect(screen.getByText('Goals grade')).toBeInTheDocument()
+    expect(screen.getByText('Overall grade')).toBeInTheDocument()
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Review form' }))

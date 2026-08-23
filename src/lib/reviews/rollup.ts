@@ -71,7 +71,6 @@ export function resolveQuarterGrade(
   link?: CycleSourceLink,
 ): GradeBandId | null {
   if (!isQuarterApplicable(outcome, link)) return null
-  if (link?.transitionGrade) return link.transitionGrade
   if (outcome.kind === 'zero') return 'unsatisfactory'
   return outcome.kind === 'grade' ? outcome.grade : null
 }

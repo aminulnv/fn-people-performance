@@ -9,7 +9,12 @@ import {
 } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewPacket } from '@/lib/reviews/types'
-import { createCycleGroup, listReviewCycles, resetReviewsStoreForTests } from '@/lib/reviews/store'
+import {
+  createCycleGroup,
+  listReviewCycles,
+  resetReviewsStoreForTests,
+  updateCycleGroup,
+} from '@/lib/reviews/store'
 import ScorecardDetailPage from '@/pages/ScorecardDetailPage'
 import { ReviewPacketView } from './ReviewPacketView'
 
@@ -213,13 +218,91 @@ describe('ScorecardDetailPage', () => {
     expect(toolbar.querySelector('.pd-review-packet__island')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Edit' })).toHaveAttribute(
       'href',
-      `/reviews/scorecards/${cycleId}/2?mode=edit`,
+      `/reviews/scorecards/${cycleId}/2?mode=edit&stage=manager_review`,
     )
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
   })
 })
 
 describe('ReviewPacketView', () => {
+  it('does not show a Goals grade on a quarterly check-in by default', async () => {
+    renderEdit()
+    await screen.findByRole('button', { name: 'Cancel' })
+    expect(screen.queryByRole('button', { name: /Goals \(/ })).toBeNull()
+    expect(screen.queryByLabelText('Goals grade')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Overall Grade' })).toBeTruthy()
+  })
+
+  it('hides the overall grade grid when the group turns it off', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group?.settings.reviewPolicy) {
+      throw new Error('expected a seeded quarterly group')
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...group.settings.reviewPolicy,
+          managerReview: {
+            ...group.settings.reviewPolicy.managerReview,
+            gradeOverall: false,
+          },
+        },
+      },
+    })
+
+    renderEdit()
+    await screen.findByRole('button', { name: 'Cancel' })
+    expect(screen.queryByRole('heading', { name: 'Overall Grade' })).toBeNull()
+  })
+
+  it('shows a Goals grade when the group turns it on', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group?.settings.reviewPolicy) {
+      throw new Error('expected a seeded quarterly group')
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...group.settings.reviewPolicy,
+          managerReview: {
+            ...group.settings.reviewPolicy.managerReview,
+            gradeGoals: true,
+          },
+        },
+      },
+    })
+
+    renderEdit()
+    expect(
+      await screen.findByRole('button', { name: /Goals \(/ }),
+    ).toBeTruthy()
+  })
+
+  it('does not offer calibration while the manager review is still open', async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    await screen.findByRole('button', { name: 'Cancel' })
+    expect(
+      screen.queryByRole('button', { name: 'Record calibration change' }),
+    ).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Calibration' })).toBeNull()
+  })
+
   it('keeps Cancel, Save draft, and Submit in one action row', async () => {
     renderEdit()
     const toolbar = await screen.findByRole('toolbar', { name: 'Review actions' })
@@ -261,20 +344,20 @@ describe('ReviewPacketView', () => {
     expect(screen.getByText('Scorecard view')).toBeInTheDocument()
   })
 
-  it('keeps the editor open after Save draft', async () => {
+  it('leaves edit mode after Save draft', async () => {
     renderEdit()
     const saveDraft = await screen.findByRole('button', { name: 'Save draft' })
     await waitFor(() => expect(saveDraft).toBeEnabled())
 
     fireEvent.click(saveDraft)
-    const notice = await screen.findByRole('status')
-    expect(notice).toHaveTextContent('Draft saved.')
-    expect(notice.className).toContain('pd-review-packet__banner--success')
+    await waitFor(() => {
+      expect(screen.getByText('Scorecard view')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('status')).toHaveTextContent('Draft saved.')
     expect(saveReviewPacket).toHaveBeenCalledWith(
       'pkt-1',
       expect.objectContaining({ submit: false }),
     )
-    expect(screen.queryByText('Scorecard view')).not.toBeInTheDocument()
   })
 
   it('leaves edit mode after Submit', async () => {

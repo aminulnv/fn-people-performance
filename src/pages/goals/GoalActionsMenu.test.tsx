@@ -43,8 +43,9 @@ describe('GoalActionsMenu', () => {
     renderMenu({ onDuplicate })
 
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole('button', { name: 'More actions for Ship quality' }),
+    fireEvent.mouseEnter(
+      screen.getByRole('button', { name: 'More actions for Ship quality' })
+        .closest('.pd-menu')!,
     )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }))
     expect(onDuplicate).toHaveBeenCalledTimes(1)

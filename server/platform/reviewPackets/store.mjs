@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
+import { calibrationIsEditable } from './visibility.mjs'
 
 function iso(value) {
   if (!value) return undefined
@@ -296,6 +297,12 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
     if (!row) throw new HttpError(404, 'Review not found')
     if (platformUser?.employeeId && Number(platformUser.employeeId) === Number(row.employee_id)) {
       throw new HttpError(403, 'You cannot calibrate your own packet.')
+    }
+    if (!calibrationIsEditable(row.status)) {
+      throw new HttpError(
+        409,
+        'Calibration cannot start until the manager review is submitted.',
+      )
     }
     if (!input.toGrade || !String(input.reason ?? '').trim()) {
       throw new HttpError(400, 'A new grade and a written reason are required.')

@@ -10,7 +10,7 @@ type UseHoverMenuOptions = {
 }
 
 /**
- * Shared open/close behavior for top-bar hover menus (profile, notifications).
+ * Shared open/close behavior for hover menus (3-dot actions, profile, notifications).
  * Desktop: open on hover; click pins open until click-outside / Escape / second click.
  * Mobile: click-to-toggle; no hover handlers.
  */

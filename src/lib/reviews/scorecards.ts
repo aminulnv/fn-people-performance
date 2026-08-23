@@ -4,6 +4,7 @@ import { getGoalsSnapshotForCycle } from '@/lib/goals/store'
 import type { Goal } from '@/lib/goals/types'
 import { goalCompletion } from '@/lib/goals/weightage'
 import { cycleMemberIds, findCycleGroupForPerson } from './cycleGroups'
+import { packetForViewer } from './packetVisibility'
 import { getReviewCycle, listReviewCycles } from './store'
 import type {
   GradeBandId,
@@ -170,9 +171,13 @@ export function gradeFromPacket(packet: Pick<
 }
 
 export function cycleLabelFromKey(cycleKey: string): string {
-  const match = /^q([1-4])-(\d{4})$/i.exec(cycleKey)
-  if (!match) return cycleKey
-  return `Q${match[1]} ${match[2]}`
+  const named = getReviewCycle(cycleKey)?.name?.trim()
+  if (named) return named
+  const quarter = /^q([1-4])-(\d{4})$/i.exec(cycleKey)
+  if (quarter) return `Q${quarter[1]} ${quarter[2]}`
+  const annual = /^annual-(\d{4})$/i.exec(cycleKey)
+  if (annual) return `Annual ${annual[1]}`
+  return cycleKey
 }
 
 /** Map a scorecard URL key (cycle id or period key) to the canonical review cycle id. */
@@ -329,17 +334,18 @@ function scorecardRowForPerson(
   me: PlatformEmployee | undefined,
   packet?: ReviewPacket,
 ): ScorecardRow {
+  const visiblePacket = packetForViewer(packet, me?.employeeId ?? null)
   const reviewer = resolveScorecardReviewer(
     employee,
     active,
     byEmail,
-    packet?.managerEmployeeId,
+    visiblePacket?.managerEmployeeId,
   )
-  const status = packet
-    ? scorecardStatusFromPacket(packet.status)
+  const status = visiblePacket
+    ? scorecardStatusFromPacket(visiblePacket.status)
     : 'not_started'
-  const { grade, gradeHidden } = packet
-    ? gradeFromPacket(packet)
+  const { grade, gradeHidden } = visiblePacket
+    ? gradeFromPacket(visiblePacket)
     : { grade: null, gradeHidden: false }
   const isMine = me ? isDirectReport(employee, me) : false
   return toScorecardRow(
@@ -561,11 +567,18 @@ export function buildScorecardDetail(
   currentUserEmail?: string | null,
   packet?: ReviewPacket | null,
 ): ScorecardDetail | null {
+  const viewerEmployeeId =
+    employees.find(
+      (person) =>
+        person.email.trim().toLowerCase() ===
+        (currentUserEmail?.trim().toLowerCase() ?? ''),
+    )?.employeeId ?? null
+  const visiblePacket = packetForViewer(packet, viewerEmployeeId)
   const rows = buildScorecardsForCycle(
     cycleKey,
     employees,
     currentUserEmail,
-    packet ? [packet] : [],
+    visiblePacket ? [visiblePacket] : [],
   )
   const row = rows.find((item) => item.employeeId === employeeId)
   if (!row) return null
@@ -585,7 +598,7 @@ export function buildScorecardDetail(
             0,
           ),
         )
-  const goalsOverallBand = goalsGradeFromPacket(packet)
+  const goalsOverallBand = goalsGradeFromPacket(visiblePacket)
   const overall = row.grade
 
   return {
@@ -597,7 +610,7 @@ export function buildScorecardDetail(
     organisationalGoals: [],
     contributionGrade: overall,
     overallGrade: overall,
-    feedback: feedbackFromPacket(packet, row.reviewerName),
+    feedback: feedbackFromPacket(visiblePacket, row.reviewerName),
   }
 }
 
@@ -620,22 +633,26 @@ export function formatReviewDate(value?: string): string {
   return formatPacketDate(value)
 }
 
-export function latestScorecardGrade(packet: ReviewPacket | null | undefined): {
+export function latestScorecardGrade(
+  packet: ReviewPacket | null | undefined,
+  viewerEmployeeId?: number | null,
+): {
   grade: GradeBandId | null
   source: 'published' | 'calibrated' | 'manager' | 'self' | null
 } {
-  if (!packet) return { grade: null, source: null }
-  if (packet.publishedOverallGrade) {
-    return { grade: packet.publishedOverallGrade, source: 'published' }
+  const visible = packetForViewer(packet, viewerEmployeeId)
+  if (!visible) return { grade: null, source: null }
+  if (visible.publishedOverallGrade) {
+    return { grade: visible.publishedOverallGrade, source: 'published' }
   }
-  if (packet.calibratedOverallGrade) {
-    return { grade: packet.calibratedOverallGrade, source: 'calibrated' }
+  if (visible.calibratedOverallGrade) {
+    return { grade: visible.calibratedOverallGrade, source: 'calibrated' }
   }
-  if (packet.managerOverallGrade) {
-    return { grade: packet.managerOverallGrade, source: 'manager' }
+  if (visible.managerOverallGrade) {
+    return { grade: visible.managerOverallGrade, source: 'manager' }
   }
-  if (packet.selfOverallGrade) {
-    return { grade: packet.selfOverallGrade, source: 'self' }
+  if (visible.selfOverallGrade) {
+    return { grade: visible.selfOverallGrade, source: 'self' }
   }
   return { grade: null, source: null }
 }

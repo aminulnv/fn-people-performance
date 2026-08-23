@@ -176,6 +176,10 @@ export type ReviewPolicy = {
   managerReview: {
     narrative: "off" | "overall" | "per_pillar";
     gapCommentTiers: number;
+    /** Show a Goals grade on the goals card. Independent of the overall grade. */
+    gradeGoals: boolean;
+    /** Show the overall grade grid. Independent of the Goals grade. */
+    gradeOverall: boolean;
     goalsScoreEdit: "read_only" | "override_with_reason";
     finalGradeEdit: "confirm_only" | "override_with_reason";
     gradeSuggestion: "none" | "completion_reference" | "weighted_suggest";
@@ -215,7 +219,6 @@ export type CycleSourceLink = {
   sourceCycleId: string;
   weightPercent: number;
   excluded: boolean;
-  transitionGrade?: GradeBandId | null;
 };
 
 export type CycleSettings = {

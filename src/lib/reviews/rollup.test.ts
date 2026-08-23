@@ -6,7 +6,7 @@ describe('rollupGoalsPillar', () => {
   it('averages applicable quarters with equal weight', () => {
     const result = rollupGoalsPillar({
       links: [
-        { sourceCycleId: 'q1', weightPercent: 25, excluded: false, transitionGrade: 'performing' },
+        { sourceCycleId: 'q1', weightPercent: 25, excluded: false },
         { sourceCycleId: 'q2', weightPercent: 25, excluded: false },
         { sourceCycleId: 'q3', weightPercent: 25, excluded: false },
         { sourceCycleId: 'q4', weightPercent: 25, excluded: false },
@@ -20,12 +20,12 @@ describe('rollupGoalsPillar', () => {
     })
 
     expect(result.applicable.map((row) => row.grade)).toEqual([
-      'performing',
+      'exceptional',
       'exceeding',
       'unsatisfactory',
       'exceeding',
     ])
-    expect(result.averageGrade).toBe('performing')
+    expect(result.averageGrade).toBe('exceeding')
   })
 
   it('excludes leave and inapplicable quarters', () => {

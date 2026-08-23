@@ -151,7 +151,7 @@ export function AddReviewCycleModal({
               modules,
               sourceLinks:
                 purpose === 'annual_appraisal'
-                  ? sourceLinksFromIds(sourceIds, cycles, yearKey)
+                  ? sourceLinksFromIds(sourceIds)
                   : undefined,
             })
       onCreated(cycle)

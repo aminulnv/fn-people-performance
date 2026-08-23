@@ -97,6 +97,8 @@ wanted = {
     "DB_SSL",
     "DB_SSL_CA_FILE",
     "DB_SSL_REJECT_UNAUTHORIZED",
+    "PLATFORM_DB_USERNAME",
+    "PLATFORM_DB_PASS",
 }
 vals = {}
 for line in src.read_text().splitlines():
@@ -112,6 +114,13 @@ vals["PORT"] = api_port
 if not str(vals.get("APP_URL", "")).strip():
     vals["APP_URL"] = "https://performance.nextventures.io"
 
+platform_db_user = str(vals.get("PLATFORM_DB_USERNAME", "")).strip()
+platform_db_pass = str(vals.get("PLATFORM_DB_PASS", "")).strip()
+if platform_db_user and platform_db_pass:
+    vals["DB_USERNAME"] = platform_db_user
+    vals["DB_PASS"] = platform_db_pass
+    vals.pop("DATABASE_URL", None)
+
 has_database_url = bool(str(vals.get("DATABASE_URL", "")).strip())
 required = ["PLATFORM_GOOGLE_CLIENT_ID", "PLATFORM_GOOGLE_CLIENT_SECRET"]
 if not has_database_url:
@@ -120,7 +129,12 @@ missing = [k for k in required if not str(vals.get(k, "")).strip()]
 if missing:
     raise SystemExit(f"Missing required env keys in dashboard .env: {', '.join(missing)}")
 
-lines = [f"{k}={vals[k]}" for k in sorted(vals) if str(vals.get(k, "")) != ""]
+omit = {"PLATFORM_DB_USERNAME", "PLATFORM_DB_PASS"}
+lines = [
+    f"{k}={vals[k]}"
+    for k in sorted(vals)
+    if k not in omit and str(vals.get(k, "")) != ""
+]
 dst_path.write_text("\n".join(lines) + "\n")
 print(f"  wrote {dst_path} ({len(lines)} keys)")
 PY

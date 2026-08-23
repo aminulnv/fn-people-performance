@@ -190,6 +190,19 @@ describe("goal snapshot reads", () => {
     expect(getGoalsSnapshot().cycle.phase).toBe("hard_lock");
   });
 
+  it("can cache another cycle without switching the active cycle", () => {
+    const activeId = getGoalsSnapshot().cycle.id;
+    const otherId = activeId === "q1-2026" ? "q2-2026" : "q1-2026";
+
+    replaceCycleGoalsFromRemote(
+      otherId,
+      [{ personId: "1", status: "draft", goals: [], version: 1 }],
+      { activate: false },
+    );
+
+    expect(getGoalsSnapshot().cycle.id).toBe(activeId);
+  });
+
   it("notifies once when the API returns the goals it already holds", () => {
     const cycleId = getGoalsSnapshot().cycle.id;
     const submissions = [

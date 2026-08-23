@@ -425,12 +425,13 @@ function sameCycleRows(
  * Replace one cycle's goal rows from the authoritative API response.
  * Production path: memory cache only — never writes browser storage.
  *
- * Listeners refetch when the store changes, so an unchanged response must not
- * notify — otherwise fetch and notify feed each other in an endless loop.
+ * An unchanged response must not notify — otherwise every subscriber re-renders
+ * for a payload that did not change.
  */
 export function replaceCycleGoalsFromRemote(
   cycleId: string,
   submissions: PersonGoals[],
+  options?: { activate?: boolean },
 ): GoalsSnapshot {
   const state = getPersisted();
   const existingBucket = state.byCycle[cycleId] ?? {};
@@ -453,15 +454,12 @@ export function replaceCycleGoalsFromRemote(
       byPerson[personId] = row;
     }
   }
-  if (
-    state.activeCycleId === cycleId &&
-    sameCycleRows(state.byCycle[cycleId], byPerson)
-  ) {
+  if (sameCycleRows(state.byCycle[cycleId], byPerson)) {
     return cachedSnapshot(state);
   }
   return commit({
     ...state,
-    activeCycleId: cycleId,
+    ...(options?.activate === false ? {} : { activeCycleId: cycleId }),
     byCycle: {
       ...state.byCycle,
       [cycleId]: byPerson,
@@ -488,6 +486,10 @@ export function setSignedInPerson(personId: string): void {
   if (signedInPersonId === personId) return;
   signedInPersonId = personId;
   notify();
+}
+
+export function getSignedInPersonId(): string {
+  return signedInPersonId;
 }
 
 export function setActivePerson(personId: string): GoalsSnapshot {

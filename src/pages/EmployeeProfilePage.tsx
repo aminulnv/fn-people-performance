@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import {
   Award,
@@ -34,6 +34,7 @@ import {
   PageStatusRetry,
   SegmentedControl,
 } from '@/components/ui'
+import { useHoverMenu } from '@/layout/useHoverMenu'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
@@ -294,8 +295,13 @@ export function EmployeeProfileView({
     [goalTodos.total],
   )
   const [activityOpen, setActivityOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const moreMenuRef = useRef<HTMLDivElement>(null)
+  const {
+    open: moreOpen,
+    setOpen: setMoreOpen,
+    containerRef: moreMenuRef,
+    hoverHandlers: moreHoverHandlers,
+    toggle: toggleMore,
+  } = useHoverMenu({ closeOnEscape: true })
   const canEdit = hasSystemPermission(
     user?.permissions,
     'platform.write_all',
@@ -333,24 +339,6 @@ export function EmployeeProfileView({
     if (!embedded) return
     setLocalTab('profile')
   }, [embedded, employee.employeeId])
-
-  useEffect(() => {
-    if (!moreOpen) return
-    const onPointerDown = (event: MouseEvent) => {
-      if (!moreMenuRef.current?.contains(event.target as Node)) {
-        setMoreOpen(false)
-      }
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMoreOpen(false)
-    }
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [moreOpen])
 
   const copyEmail = async () => {
     if (!employee.email) return
@@ -421,14 +409,18 @@ export function EmployeeProfileView({
               {embedded ? null : 'Edit'}
             </Link>
           ) : null}
-          <div className="pd-profile__more" ref={moreMenuRef}>
+          <div
+            className="pd-profile__more"
+            ref={moreMenuRef}
+            {...moreHoverHandlers}
+          >
             <button
               type="button"
               className="pd-people__icon-btn"
               aria-label="More actions"
               aria-expanded={moreOpen}
               aria-haspopup="menu"
-              onClick={() => setMoreOpen((open) => !open)}
+              onClick={toggleMore}
             >
               <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
             </button>

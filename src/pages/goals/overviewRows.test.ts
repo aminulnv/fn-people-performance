@@ -109,6 +109,8 @@ describe('goalRows', () => {
     }
 
     expect(goalRows(snapshot, people)[0]).toMatchObject({
+      cycleId: 'q3-2026',
+      cycleLabel: 'Q3 2026',
       cascadedFromGoalId: 'mgr-1',
       linkedGoalLabel: 'Raise quality bar',
       cascadedTo: [],

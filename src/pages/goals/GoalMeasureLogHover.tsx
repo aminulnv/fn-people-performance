@@ -193,20 +193,15 @@ export function GoalMeasureLogHover({
   const isInsideHover = (node: Node | null) =>
     Boolean(node && (rootRef.current?.contains(node) || popRef.current?.contains(node)))
 
-  const countLabel =
-    entries.length === 1
-      ? `1 progress log for ${measureName}`
-      : `${entries.length} progress logs for ${measureName}`
   const logLabel = isChecklist
     ? `Update checklist for ${measureName}`
     : `Log progress for ${measureName}`
-  const triggerLabel = showLogButton
-    ? entries.length === 0
+  const triggerLabel =
+    entries.length === 0
       ? logLabel
       : `${logLabel}, ${
           entries.length === 1 ? '1 update' : `${entries.length} updates`
         }`
-    : countLabel
 
   const popover = open ? (
     <div

@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, MoreHorizontal, Undo2 } from 'lucide-react'
+import { useHoverMenu } from '@/layout/useHoverMenu'
 import {
   ActivityLogDrawer,
 } from '@/components/activity/ActivityLogDrawer'
@@ -121,7 +122,13 @@ export function ReportGoalsCard({
   activityFilters,
   children,
 }: ReportGoalsCardProps) {
-  const [menuOpen, setMenuOpen] = useState(false)
+  const {
+    open: menuOpen,
+    setOpen: setMenuOpen,
+    containerRef: menuRef,
+    hoverHandlers: menuHoverHandlers,
+    toggle: toggleMenu,
+  } = useHoverMenu({ closeOnEscape: true })
   const [activityOpen, setActivityOpen] = useState(false)
   const isOwner = perspective === 'owner'
   const countLabel = goalCountLabel(goalCount)
@@ -210,13 +217,17 @@ export function ReportGoalsCard({
             </Badge>
           ) : null}
           {canViewActivity ? (
-            <div className="pd-goal-view__menu">
+            <div
+              className="pd-goal-view__menu"
+              ref={menuRef}
+              {...menuHoverHandlers}
+            >
               <button
                 type="button"
                 className="pd-people__icon-btn"
                 aria-label={`More actions for ${person.name}`}
                 aria-expanded={menuOpen}
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={toggleMenu}
               >
                 <MoreHorizontal size={18} strokeWidth={1.75} aria-hidden />
               </button>

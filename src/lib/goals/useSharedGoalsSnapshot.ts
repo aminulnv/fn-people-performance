@@ -1,5 +1,16 @@
 import { useEffect, useState } from 'react'
-import { fetchGoalsSnapshot, watchGoalsSnapshot } from '@/lib/goalsApi'
+import {
+  fetchGoalsSnapshot,
+  isGoalCycleHydrationPending,
+  watchGoalsSnapshot,
+} from '@/lib/goalsApi'
+import {
+  getGoalsHydration,
+  markCycleGoalsHydrated,
+  resetGoalsHydrationForTests,
+  subscribeGoalsHydration,
+  type GoalsHydration,
+} from '@/lib/goals/hydration'
 import { getGoalsSnapshot } from '@/lib/goals/store'
 import type { GoalsSnapshot } from '@/lib/goals/types'
 
@@ -20,6 +31,7 @@ function refreshSharedSnapshot() {
   const id = ++requestId
   void fetchGoalsSnapshot().then((snapshot) => {
     if (id !== requestId) return
+    markCycleGoalsHydrated(snapshot.cycle.id)
     emit(snapshot)
   })
 }
@@ -30,6 +42,19 @@ function scheduleSharedRefresh() {
     refreshTimer = null
     refreshSharedSnapshot()
   }, 150)
+}
+
+function onStoreChange() {
+  const snapshot = getGoalsSnapshot()
+  emit(snapshot)
+  const cycleId = snapshot.cycle.id
+  if (
+    getGoalsHydration(cycleId).cycleReady ||
+    isGoalCycleHydrationPending(cycleId)
+  ) {
+    return
+  }
+  scheduleSharedRefresh()
 }
 
 function stopSharedWatch() {
@@ -49,8 +74,13 @@ export function watchSharedGoalsSnapshot(
   listeners.add(onChange)
   if (latest) onChange(latest)
   if (listeners.size === 1) {
-    refreshSharedSnapshot()
-    stopStoreWatch = watchGoalsSnapshot(scheduleSharedRefresh)
+    const cycleId = getGoalsSnapshot().cycle.id
+    if (getGoalsHydration(cycleId).cycleReady) {
+      emit(getGoalsSnapshot())
+    } else {
+      refreshSharedSnapshot()
+    }
+    stopStoreWatch = watchGoalsSnapshot(onStoreChange)
   }
   return () => {
     listeners.delete(onChange)
@@ -63,6 +93,7 @@ export function resetSharedGoalsSnapshotForTests() {
   listeners.clear()
   peekListeners.clear()
   stopSharedWatch()
+  resetGoalsHydrationForTests()
 }
 
 /** Subscribe to a snapshot that is already hydrated — does not start a fetch. */
@@ -93,4 +124,28 @@ export function useHydratedGoalsSnapshot(): GoalsSnapshot | null {
   const [snapshot, setSnapshot] = useState<GoalsSnapshot | null>(latest)
   useEffect(() => watchSharedGoalsSnapshot(setSnapshot), [])
   return snapshot
+}
+
+function hydrationForCycles(cycleIds: string[]): GoalsHydration {
+  if (cycleIds.length === 0) return { ownReady: false, cycleReady: false }
+  return {
+    ownReady: cycleIds.every((id) => getGoalsHydration(id).ownReady),
+    cycleReady: cycleIds.every((id) => getGoalsHydration(id).cycleReady),
+  }
+}
+
+/** Whether own / cycle goal payloads have landed for one or more cycles. */
+export function useGoalsHydration(cycleId?: string | string[]): GoalsHydration {
+  const cycleIds = Array.isArray(cycleId)
+    ? cycleId
+    : [cycleId ?? getGoalsSnapshot().cycle.id]
+  const idsKey = cycleIds.join('\0')
+  const [hydration, setHydration] = useState(() => hydrationForCycles(cycleIds))
+  useEffect(() => {
+    const ids = idsKey ? idsKey.split('\0') : []
+    const sync = () => setHydration(hydrationForCycles(ids))
+    sync()
+    return subscribeGoalsHydration(sync)
+  }, [idsKey])
+  return hydration
 }

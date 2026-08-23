@@ -41,7 +41,13 @@ describe('ReviewFormSheet', () => {
 
   it('summarizes the form without listing every question', () => {
     expect(reviewFormSummary(defaultReviewPolicy('annual_appraisal'))).toMatch(
-      /questions · .+ areas/,
+      /questions · .+ areas · goals grade \+ overall grade/,
+    )
+    expect(reviewFormSummary(defaultReviewPolicy('quarterly_checkin'))).toMatch(
+      /overall grade/,
+    )
+    expect(reviewFormSummary(defaultReviewPolicy('quarterly_checkin'))).not.toMatch(
+      /goals grade/,
     )
   })
 })

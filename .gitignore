@@ -20,6 +20,9 @@ dist
 # Local working docs (not for repo)
 conext_docs/
 
+# Local marketing creatives (not for repo)
+creatives/
+
 # Local HR source data / generated PII (never publish)
 *.csv
 db/migrations/*_seed*.sql

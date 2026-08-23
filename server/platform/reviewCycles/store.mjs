@@ -78,7 +78,7 @@ function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
 
 async function loadSourceLinks(client, cycleId) {
   const { rows } = await client.query(
-    `SELECT source_cycle_id, weight_percent, excluded, transition_grade
+    `SELECT source_cycle_id, weight_percent, excluded
      FROM platform.review_cycle_sources
      WHERE cycle_id = $1
      ORDER BY sort_order, source_cycle_id`,
@@ -88,7 +88,6 @@ async function loadSourceLinks(client, cycleId) {
     sourceCycleId: row.source_cycle_id,
     weightPercent: Number(row.weight_percent),
     excluded: Boolean(row.excluded),
-    transitionGrade: row.transition_grade,
   }))
 }
 
@@ -114,7 +113,7 @@ async function replaceSourceLinks(client, cycleId, links) {
         link.sourceCycleId,
         Number.isInteger(link.weightPercent) ? link.weightPercent : 25,
         Boolean(link.excluded),
-        link.transitionGrade ?? null,
+        null,
         index,
       ],
     )
@@ -239,7 +238,7 @@ export async function listReviewCycles() {
       exclusionsByCycle.set(row.cycle_id, list)
     }
     const { rows: sourceRows } = await client.query(
-      `SELECT cycle_id, source_cycle_id, weight_percent, excluded, transition_grade
+      `SELECT cycle_id, source_cycle_id, weight_percent, excluded
        FROM platform.review_cycle_sources
        WHERE cycle_id = ANY($1::text[])
        ORDER BY sort_order, source_cycle_id`,
@@ -252,7 +251,6 @@ export async function listReviewCycles() {
         sourceCycleId: row.source_cycle_id,
         weightPercent: Number(row.weight_percent),
         excluded: Boolean(row.excluded),
-        transitionGrade: row.transition_grade,
       })
       sourcesByCycle.set(row.cycle_id, list)
     }
@@ -312,12 +310,12 @@ export async function createReviewCycle(input, platformUser) {
     const { rows } = await client.query(
       `INSERT INTO platform.review_cycles (
          id, name, cycle_type, period_key, start_date, end_date, is_test,
-         source_cycle_id, stages_config, review_types, goal_count_policy,
+         stages_config, review_types, goal_count_policy,
          post_window_goal_policy, auto_scorecard_generation, calibration_config,
          purpose, year_key, review_policy,
          created_by_employee_id, updated_by_employee_id
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15,$16,$17::jsonb,$18,$18
+         $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14,$15,$16::jsonb,$17,$17
        )
        RETURNING *`,
       [
@@ -328,7 +326,6 @@ export async function createReviewCycle(input, platformUser) {
         input.startDate,
         input.endDate,
         Boolean(input.isTest),
-        input.sourceCycleId ?? null,
         JSON.stringify(stagesConfig),
         JSON.stringify(input.settings.reviewTypes),
         JSON.stringify(input.settings.goalCountPolicy),
@@ -687,11 +684,11 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
       const { rows } = await client.query(
         `INSERT INTO platform.review_cycles (
            id, name, cycle_type, period_key, start_date, end_date, is_test,
-           source_cycle_id, stages_config, review_types, goal_count_policy,
+           stages_config, review_types, goal_count_policy,
            post_window_goal_policy, auto_scorecard_generation, calibration_config,
            created_by_employee_id, updated_by_employee_id, created_at
          ) VALUES (
-           $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10::jsonb,$11::jsonb,$12,$13,$14::jsonb,$15,$15,$16
+           $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14,$14,$15
          )
          ON CONFLICT (id) DO NOTHING
          RETURNING *`,
@@ -703,7 +700,6 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
           cycle.startDate,
           cycle.endDate,
           Boolean(cycle.isTest),
-          null,
           JSON.stringify(stagesConfig),
           JSON.stringify(cycle.settings.reviewTypes),
           JSON.stringify(cycle.settings.goalCountPolicy),

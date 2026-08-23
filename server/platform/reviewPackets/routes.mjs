@@ -9,6 +9,11 @@ import {
   releaseReviewPackets,
   saveReviewDraft,
 } from './store.mjs'
+import { packetForViewer, packetsForViewer } from './visibility.mjs'
+
+function viewerEmployeeId(req) {
+  return req.platformUser?.employeeId ?? null
+}
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -24,7 +29,12 @@ export function registerReviewPacketRoutes(app) {
     '/api/platform/review-cycles/:cycleId/packets',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
-      res.json({ packets: await listReviewPackets(req.params.cycleId) })
+      res.json({
+        packets: packetsForViewer(
+          await listReviewPackets(req.params.cycleId),
+          viewerEmployeeId(req),
+        ),
+      })
     }),
   )
 
@@ -43,7 +53,7 @@ export function registerReviewPacketRoutes(app) {
       ) {
         await markPacketViewed(packet.id)
       }
-      res.json({ packet })
+      res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
     }),
   )
 
@@ -57,7 +67,7 @@ export function registerReviewPacketRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
-        res.json({ packet })
+        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
       }
@@ -75,7 +85,7 @@ export function registerReviewPacketRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
-        res.json({ packet })
+        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
       }
@@ -93,7 +103,7 @@ export function registerReviewPacketRoutes(app) {
           req.body?.target === 'employees' ? 'employees' : 'managers',
           req.platformUser,
         )
-        res.json({ packets })
+        res.json({ packets: packetsForViewer(packets, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
       }
@@ -110,7 +120,7 @@ export function registerReviewPacketRoutes(app) {
           req.body?.body,
           req.platformUser,
         )
-        res.json({ packet })
+        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
       }

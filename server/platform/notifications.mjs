@@ -23,7 +23,8 @@ function mapNotification(row) {
     channels: row.channels ?? ['in_app'],
     dedupeKey: row.dedupe_key,
     cycleId: row.cycle_id ?? undefined,
-    personId: row.person_id ?? undefined,
+    personId:
+      row.person_id == null ? undefined : String(row.person_id),
     goalId: row.goal_id ?? undefined,
     dueAt: isoTimestamp(row.due_at),
     createdAt: isoTimestamp(row.created_at),
@@ -32,6 +33,12 @@ function mapNotification(row) {
     completedAt: isoTimestamp(row.completed_at),
     metadata: row.metadata ?? {},
   }
+}
+
+function employeeIdOrNull(value) {
+  if (value == null || value === '') return null
+  const id = Number(value)
+  return Number.isInteger(id) && id > 0 ? id : null
 }
 
 function databaseId(notificationId) {
@@ -98,7 +105,7 @@ export async function createPlatformNotification(client, input) {
       input.destination ?? null,
       input.dedupeKey,
       input.cycleId ?? null,
-      input.personId ?? null,
+      employeeIdOrNull(input.personId),
       input.goalId ?? null,
       input.dueAt ?? null,
       JSON.stringify(input.metadata ?? {}),

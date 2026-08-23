@@ -27,12 +27,14 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
     selfReview: {
       ratePillars: isAnnual,
       rateOverall: isAnnual,
-      visibility: 'blinded',
+      visibility: 'visible_first',
       latePolicy: 'proceed',
     },
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
+      gradeGoals: isAnnual,
+      gradeOverall: true,
       goalsScoreEdit: 'read_only',
       finalGradeEdit: 'override_with_reason',
       gradeSuggestion: 'none',
@@ -77,6 +79,10 @@ export function normalizeReviewPolicy(
     managerReview: {
       ...defaults.managerReview,
       ...policy.managerReview,
+      gradeGoals:
+        policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals,
+      gradeOverall:
+        policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
       escalationRoles:
         policy.managerReview?.escalationRoles ?? defaults.managerReview.escalationRoles,
     },
@@ -105,6 +111,14 @@ export function normalizeReviewPolicy(
 
 export function enabledPillars(policy: ReviewPolicy): ScorecardPillar[] {
   return policy.scorecard.pillars.filter((pillar) => pillar.enabled)
+}
+
+export function gradesGoalsSeparately(policy: ReviewPolicy): boolean {
+  return Boolean(policy.managerReview.gradeGoals)
+}
+
+export function gradesOverall(policy: ReviewPolicy): boolean {
+  return Boolean(policy.managerReview.gradeOverall)
 }
 
 export function enabledQuestions(

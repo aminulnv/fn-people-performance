@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { createCycleGroup, resetReviewsStoreForTests } from '@/lib/reviews/store'
+import {
+  createCycleGroup,
+  createReviewCycle,
+  resetReviewsStoreForTests,
+} from '@/lib/reviews/store'
 import { ScorecardsList } from './ScorecardsList'
 
 const { employeesState, authState } = vi.hoisted(() => ({
@@ -135,6 +139,30 @@ describe('ScorecardsList', () => {
     expect(await screen.findByRole('link', { name: 'Casey Peer' })).toBeInTheDocument()
     expect(scorecardLink('Riley Report')).toBeInTheDocument()
     expect(scorecardLink('Alex Manager')).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: /^Cycle/ }),
+    ).toBeInTheDocument()
+  })
+
+  it('lists scorecards from every selected cycle', async () => {
+    const extra = await createReviewCycle({
+      type: 'regular',
+      periodKey: 'q2-2026',
+    })
+    await createCycleGroup(extra.id, {
+      name: 'Everyone',
+      memberIds: [1, 2, 3],
+    })
+
+    renderList('#everyone')
+
+    fireEvent.click(await screen.findByRole('button', { name: /Cycle:/ }))
+    fireEvent.click(screen.getByRole('option', { name: new RegExp(extra.name) }))
+
+    expect(
+      await screen.findByRole('button', { name: /and 1 more/ }),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText(extra.name).length).toBeGreaterThan(0)
   })
 })
 

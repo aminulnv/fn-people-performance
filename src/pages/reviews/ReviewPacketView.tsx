@@ -23,12 +23,16 @@ import {
   defaultReviewPolicy,
   enabledPillars,
   enabledQuestions,
+  gradesGoalsSeparately,
+  gradesOverall,
 } from '@/lib/reviews/reviewPolicy'
 import { describeEnabledFlow, getReviewStage } from '@/lib/reviews/reviewStages'
 import { getReviewCycle } from '@/lib/reviews/store'
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
+import { calibrationIsEditable } from '@/lib/reviews/scorecardStages'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
+import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ScorecardFeedbackCard } from '@/pages/reviews/ScorecardFeedbackCard'
 import {
@@ -41,6 +45,8 @@ import {
   ReviewSaveBanner,
   type ReviewSaveNotice,
 } from '@/pages/reviews/ReviewSaveBanner'
+import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
+import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
 
 type PacketDraft = {
   answers: Array<{ questionId: string; body: string }>
@@ -118,6 +124,13 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const viewerId = user?.employeeId ?? (Number(user?.personId) || null)
   const isSubject = viewerId === employeeId
   const isManager = Boolean(viewerId && viewerId !== employeeId)
+  const goalsPillar = enabledPillars(policy).find((pillar) => pillar.id === 'goals')
+  const linkedQuarters = useAnnualLinkedQuarters({
+    cycle,
+    employeeId,
+    goalsPillar,
+    goalsRevision,
+  })
 
   useEffect(() => {
     let cancelled = false
@@ -156,6 +169,11 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   }, [cycleId, employeeId])
 
   const stages = policyResolution?.stagesConfig.reviewStages
+  const stageView = useScorecardViewStage({
+    packet,
+    stages,
+    viewerEmployeeId: viewerId,
+  })
   const selfOn = Boolean(getReviewStage(stages, 'self_review')?.enabled)
   const managerOn = Boolean(getReviewStage(stages, 'manager_review')?.enabled)
   const feedbackRole = managerOn && isManager
@@ -212,7 +230,8 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const managerQuestions = enabledQuestions(policy, 'manager')
   const showSelfForm = selfOn && (isSubject || packet.status !== 'not_started')
   const showManagerForm = managerOn && isManager
-  const showCalibrationForm = calOn && isManager
+  const showCalibrationForm =
+    calOn && isManager && calibrationIsEditable(packet.status)
   const showAppealForm =
     appealOn && isSubject && packet.status === 'released_to_employees'
   const feedbackLocked =
@@ -229,8 +248,13 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     strengths,
     developments,
   )
-  const extraGrades = goalsGradeRole ? { goals: goalsGrade } : undefined
-  const goalsPillar = pillars.find((pillar) => pillar.id === 'goals')
+  const hideEmployeeGoalsGrade = linkedQuarters.enabled && isSubject
+  const gradeGoals = gradesGoalsSeparately(policy)
+  const gradeOverall = gradesOverall(policy)
+  const extraGrades =
+    gradeGoals && goalsGradeRole && !hideEmployeeGoalsGrade
+      ? { goals: goalsGrade }
+      : undefined
   const managerFormLocked =
     packet.status === 'released_to_employees' ||
     packet.status === 'released_to_managers'
@@ -243,10 +267,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const formLocked = showManagerForm ? managerFormLocked : selfFormLocked
   const formActorRole = showManagerForm ? 'manager' : 'self'
 
-  const viewHref = scorecardDetailPath(
+  const viewHref = `${scorecardDetailPath(
     detail?.cycleKey ?? cycleId,
     detail?.employeeId ?? employeeId,
-  )
+  )}?stage=${stageView.viewing}`
 
   const requestLeave = () => {
     if (isDirty) {
@@ -268,23 +292,15 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       })
       setPacket(next)
       setDirty(false)
-      if (submit) {
-        navigate(viewHref, {
-          state: {
-            reviewNotice: {
-              variant: 'success',
-              message: 'Review submitted.',
-              shownAt: Date.now(),
-            } satisfies ReviewSaveNotice,
-          },
-        })
-      } else {
-        setSaveNotice({
-          variant: 'success',
-          message: 'Draft saved.',
-          shownAt: Date.now(),
-        })
-      }
+      navigate(viewHref, {
+        state: {
+          reviewNotice: {
+            variant: 'success',
+            message: submit ? 'Review submitted.' : 'Draft saved.',
+            shownAt: Date.now(),
+          } satisfies ReviewSaveNotice,
+        },
+      })
     } catch (err: unknown) {
       setSaveNotice({
         variant: 'error',
@@ -304,6 +320,9 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           detail={detail}
           packet={packet}
           stages={stages}
+          viewerEmployeeId={viewerId}
+          viewingStage={stageView.viewing}
+          onViewStage={stageView.selectStage}
         />
       ) : null}
       <p className="pd-reviews-flow__hint">
@@ -313,7 +332,30 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         {describeEnabledFlow(stages)}
       </p>
 
-      {detail ? (
+      {detail && linkedQuarters.enabled ? (
+        <AnnualGoalsQuarters
+          rows={linkedQuarters.rows}
+          goalsByCycleId={linkedQuarters.goalsByCycleId}
+          q4Goals={linkedQuarters.q4Goals}
+          q4CycleId={linkedQuarters.progressRow?.sourceCycleId}
+          personId={String(employeeId)}
+          owner={{
+            id: String(detail.employeeId),
+            name: detail.employeeName,
+            avatarUrl: detail.employeeAvatarUrl || undefined,
+          }}
+          q4Grade={isManager && gradeGoals ? goalsGrade || null : null}
+          onQ4GradeChange={
+            isManager && goalsGradeRole && gradeGoals
+              ? (next) => {
+                  setGoalsGrade(next)
+                  setDirty(true)
+                }
+              : undefined
+          }
+          q4GradeLocked={goalsGradeLocked}
+        />
+      ) : detail ? (
         <ScorecardGoalsCard
           cycleId={cycleId}
           personId={String(employeeId)}
@@ -329,19 +371,21 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           }
           overallPercent={detail.goalsOverallPercent}
           overallBand={
-            showManagerForm
-              ? packet.pillarScores.find(
-                  (score) =>
-                    score.pillarId === 'goals' && score.actorRole === 'manager',
-                )?.grade ?? null
-              : detail.goalsOverallBand
+            gradeGoals
+              ? showManagerForm
+                ? packet.pillarScores.find(
+                    (score) =>
+                      score.pillarId === 'goals' && score.actorRole === 'manager',
+                  )?.grade ?? null
+                : detail.goalsOverallBand
+              : null
           }
           goalsHref={goalsDetailPath(cycleId, String(employeeId))}
-          editing
+          editing={gradeGoals}
           goalsWeight={goalsPillar?.weight}
-          goalsGrade={goalsGrade || null}
+          goalsGrade={gradeGoals ? goalsGrade || null : null}
           onGoalsGradeChange={
-            goalsGradeRole && goalsPillar
+            gradeGoals && goalsGradeRole && goalsPillar
               ? (next) => {
                   setGoalsGrade(next)
                   setDirty(true)
@@ -352,7 +396,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {showSelfForm ? (
+      {showSelfForm && stageView.viewing === 'self_review' ? (
         <PacketForm
           title="Self-review"
           locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted'}
@@ -362,14 +406,23 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           actorRole="self"
           overall={packet.selfOverallGrade}
           extraAnswers={feedbackRole === 'self' ? feedbackAnswers : undefined}
-          extraGrades={goalsGradeRole === 'self' ? extraGrades : undefined}
-          hidePillarIds={goalsGradeRole === 'self' ? ['goals'] : []}
+          extraGrades={
+            gradeGoals && goalsGradeRole === 'self' && !hideEmployeeGoalsGrade
+              ? extraGrades
+              : undefined
+          }
+          hidePillarIds={
+            !gradeGoals || goalsGradeRole === 'self' || hideEmployeeGoalsGrade
+              ? ['goals']
+              : []
+          }
+          showOverall={gradeOverall}
           onDraftChange={setPacketDraft}
           onUserEdit={() => setDirty(true)}
         />
       ) : null}
 
-      {showManagerForm ? (
+      {showManagerForm && stageView.viewing === 'manager_review' ? (
         <PacketForm
           title="Manager review"
           locked={
@@ -382,8 +435,13 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           actorRole="manager"
           overall={packet.managerOverallGrade}
           extraAnswers={feedbackRole === 'manager' ? feedbackAnswers : undefined}
-          extraGrades={goalsGradeRole === 'manager' ? extraGrades : undefined}
-          hidePillarIds={goalsGradeRole === 'manager' ? ['goals'] : []}
+          extraGrades={
+            gradeGoals && goalsGradeRole === 'manager' ? extraGrades : undefined
+          }
+          hidePillarIds={
+            !gradeGoals || goalsGradeRole === 'manager' ? ['goals'] : []
+          }
+          showOverall={gradeOverall}
           showSelf={
             policy.selfReview.visibility !== 'blinded' ||
             packet.status === 'self_submitted' ||
@@ -394,29 +452,32 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      <ScorecardFeedbackCard
-        feedback={
-          detail?.feedback ?? {
-            authorName: '',
-            authorRole: '',
-            dateLabel: '',
-            strengths: '',
-            developments: '',
+      {stageView.viewing === 'self_review' ||
+      stageView.viewing === 'manager_review' ? (
+        <ScorecardFeedbackCard
+          feedback={
+            detail?.feedback ?? {
+              authorName: '',
+              authorRole: '',
+              dateLabel: '',
+              strengths: '',
+              developments: '',
+            }
           }
-        }
-        editing
-        locked={feedbackRole == null || feedbackLocked}
-        strengths={strengths}
-        developments={developments}
-        onStrengthsChange={(next) => {
-          setStrengths(next)
-          setDirty(true)
-        }}
-        onDevelopmentsChange={(next) => {
-          setDevelopments(next)
-          setDirty(true)
-        }}
-      />
+          editing
+          locked={feedbackRole == null || feedbackLocked}
+          strengths={strengths}
+          developments={developments}
+          onStrengthsChange={(next) => {
+            setStrengths(next)
+            setDirty(true)
+          }}
+          onDevelopmentsChange={(next) => {
+            setDevelopments(next)
+            setDirty(true)
+          }}
+        />
+      ) : null}
 
       <ReviewSaveBanner
         notice={saveNotice}
@@ -428,7 +489,9 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             <Button variant="secondary" pill disabled={saving} onClick={requestLeave}>
               Cancel
             </Button>
-            {!formLocked && (showSelfForm || showManagerForm) ? (
+            {!formLocked &&
+            ((showSelfForm && stageView.viewing === 'self_review') ||
+              (showManagerForm && stageView.viewing === 'manager_review')) ? (
               <>
                 <Button
                   variant="secondary"
@@ -466,7 +529,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         confirmVariant="danger"
       />
 
-      {showCalibrationForm ? (
+      {showCalibrationForm && stageView.viewing === 'calibration_hod_hrbp' ? (
         <CalibrationBlock
           packet={packet}
           onSave={async (toGrade, reason) => {
@@ -480,7 +543,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {showAppealForm ? (
+      {showAppealForm && stageView.viewing === 'appeal' ? (
         <AppealBlock
           packet={packet}
           onSave={async (body) => {
@@ -503,6 +566,7 @@ function PacketForm({
   extraAnswers,
   extraGrades,
   hidePillarIds = [],
+  showOverall = true,
   showSelf,
   onDraftChange,
   onUserEdit,
@@ -517,6 +581,7 @@ function PacketForm({
   extraAnswers?: Array<{ questionId: string; body: string }>
   extraGrades?: Record<string, GradeBandId | ''>
   hidePillarIds?: string[]
+  showOverall?: boolean
   showSelf?: boolean
   onDraftChange: (draft: PacketDraft) => void
   onUserEdit: () => void
@@ -582,7 +647,7 @@ function PacketForm({
 
   return (
     <section className="pd-reviews-edit-card" aria-label={title}>
-      {showSelf && packet.selfOverallGrade ? (
+      {showOverall && showSelf && packet.selfOverallGrade ? (
         <p className="pd-reviews-flow__hint">
           Self-review overall: {packet.selfOverallGrade}
         </p>
@@ -621,15 +686,17 @@ function PacketForm({
           }}
         />
       ))}
-      <OverallGradePicker
-        name={`packet-grade-${actorRole}-overall`}
-        value={overallGrade}
-        disabled={locked}
-        onChange={(next) => {
-          setOverallGrade(next)
-          onUserEdit()
-        }}
-      />
+      {showOverall ? (
+        <OverallGradePicker
+          name={`packet-grade-${actorRole}-overall`}
+          value={overallGrade}
+          disabled={locked}
+          onChange={(next) => {
+            setOverallGrade(next)
+            onUserEdit()
+          }}
+        />
+      ) : null}
     </section>
   )
 }

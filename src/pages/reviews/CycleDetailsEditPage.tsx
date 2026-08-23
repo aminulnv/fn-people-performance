@@ -59,7 +59,7 @@ export function CycleDetailsEditPage({
         yearKey: yearKey || undefined,
         startDate,
         endDate,
-        sourceLinks: sourceLinksFromIds(sourceIds, cycles, yearKey || undefined),
+        sourceLinks: sourceLinksFromIds(sourceIds),
         ...(nextModules
           ? {
               stagesConfig: applyCycleModules(

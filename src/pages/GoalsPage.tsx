@@ -21,12 +21,15 @@ import {
   PageHeader,
   Progress,
   ResizableTable,
+  sanitizeCycleSelection,
   SegmentedControl,
   type ResizableColumn,
 } from "@/components/ui";
 import {
   canSubmitGoals,
   overallCompletion,
+  ensureGoalCycleHydrated,
+  selectGoalCycle,
   sumGoalWeights,
   type DemoPhase,
   type Goal,
@@ -65,8 +68,10 @@ import { hasSystemPermission } from "@/lib/accessControl/types";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
-import { setActiveCycle } from "@/lib/goals/store";
-import { useSharedGoalsSnapshot } from "@/lib/goals/useSharedGoalsSnapshot";
+import {
+  useGoalsHydration,
+  useSharedGoalsSnapshot,
+} from "@/lib/goals/useSharedGoalsSnapshot";
 import { DEMO_PHASES } from "@/lib/goals/phases";
 import {
   GoalCascadeIndicator,
@@ -115,7 +120,9 @@ import {
 } from "./goals/goalHelpers";
 import { locationWithHash, useUrlHashTab } from "@/lib/routing/urlHash";
 import {
+  combineStatusCounts,
   describeEmptyGoalsList,
+  EMPTY_STATUS_COUNTS,
   goalRows,
   matchesStatusFilter,
   peopleInScope,
@@ -131,6 +138,7 @@ import {
   statusLabel,
   submissionStatusLabel,
 } from "./goals/statusLabels";
+import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
 import { cycleIneligibilityReason } from "@/lib/goals/demoData";
 import { goalsCycleForPerson } from "@/lib/goals/cyclesFromReviews";
 import { cyclesListPath } from "@/lib/reviews/paths";
@@ -218,6 +226,7 @@ const OVERVIEW_SCOPES: {
 
 const GOALS_COLUMNS: ResizableColumn[] = [
   { id: "owner", label: "Owner" },
+  { id: "cycle", label: "Cycle" },
   { id: "goals", label: "Goals", grow: true },
   { id: "weight", label: "Weight" },
   { id: "progress", label: "Progress" },
@@ -260,6 +269,7 @@ export default function GoalsPage() {
 }
 
 type OverviewPanelSelection = {
+  cycleId: string;
   personId: string;
   goalId: string;
 };
@@ -454,6 +464,32 @@ function GoalsOverview() {
   const snapshot = useSharedGoalsSnapshot();
   const cycleMembershipReady = useReviewCyclesHydrated();
   const [query, setQuery] = useState("");
+  const [selectedCycleIds, setSelectedCycleIds] = useState<string[]>(() => [
+    snapshot.cycle.id,
+  ]);
+  const hydration = useGoalsHydration(selectedCycleIds);
+
+  useEffect(() => {
+    const availableIds = snapshot.availableCycles.map((cycle) => cycle.id);
+    const next = sanitizeCycleSelection(
+      selectedCycleIds,
+      availableIds,
+      snapshot.cycle.id,
+    );
+    if (
+      next.length === selectedCycleIds.length &&
+      next.every((id, index) => id === selectedCycleIds[index])
+    ) {
+      return;
+    }
+    setSelectedCycleIds(next);
+  }, [selectedCycleIds, snapshot.availableCycles, snapshot.cycle.id]);
+
+  useEffect(() => {
+    for (const cycleId of selectedCycleIds) {
+      void ensureGoalCycleHydrated(cycleId);
+    }
+  }, [selectedCycleIds]);
   const [scope, setScope] = useUrlHashTab<
     Extract<GoalsDirectoryScope, "mine" | "reports" | "all">
   >({
@@ -465,9 +501,10 @@ function GoalsOverview() {
   const panelSelection = useMemo<OverviewPanelSelection | null>(() => {
     const personId = searchParams.get("person");
     const goalId = searchParams.get("goal");
+    const cycleId = searchParams.get("cycle") ?? snapshot.cycle.id;
     if (!personId || !goalId) return null;
-    return { personId, goalId };
-  }, [searchParams]);
+    return { cycleId, personId, goalId };
+  }, [searchParams, snapshot.cycle.id]);
   const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
 
   function setPanelSelection(next: OverviewPanelSelection | null) {
@@ -475,9 +512,11 @@ function GoalsOverview() {
     if (next) {
       params.set("person", next.personId);
       params.set("goal", next.goalId);
+      params.set("cycle", next.cycleId);
     } else {
       params.delete("person");
       params.delete("goal");
+      params.delete("cycle");
     }
     const search = params.toString();
     navigate(
@@ -528,41 +567,69 @@ function GoalsOverview() {
   const visibleScope = overviewScopes.some((item) => item.id === scope)
     ? scope
     : "mine";
-  const scopedPeople = useMemo(
-    () => peopleInScope(snapshot, viewer, visibleScope),
-    [snapshot, viewer, visibleScope],
+  const cycleSnapshots = useMemo(
+    () =>
+      selectedCycleIds.map((cycleId) => getGoalsSnapshotForCycle(cycleId)),
+    [selectedCycleIds, snapshot],
   );
+  const scopedPeople = useMemo(() => {
+    const byId = new Map<string, (typeof snapshot.people)[number]>();
+    for (const cycleSnapshot of cycleSnapshots) {
+      for (const person of peopleInScope(cycleSnapshot, viewer, visibleScope)) {
+        byId.set(person.id, person);
+      }
+    }
+    return [...byId.values()];
+  }, [cycleSnapshots, viewer, visibleScope]);
   const viewerIneligibility = useMemo(() => {
     if (!me || !cycleMembershipReady) return null;
-    return cycleIneligibilityReason(
-      me,
-      goalsCycleForPerson(snapshot.cycle, me.id),
-      snapshot.byPerson[me.id]?.status,
-    );
-  }, [cycleMembershipReady, me, snapshot]);
+    for (const cycleSnapshot of cycleSnapshots) {
+      const reason = cycleIneligibilityReason(
+        me,
+        goalsCycleForPerson(cycleSnapshot.cycle, me.id),
+        cycleSnapshot.byPerson[me.id]?.status,
+      );
+      if (reason) return reason;
+    }
+    return null;
+  }, [cycleMembershipReady, cycleSnapshots, me]);
   const ownCycleEmpty =
     me && viewerIneligibility
       ? cycleIneligibilityEmptyState(me.name, viewerIneligibility)
       : null;
-  const ownGoalCount = me ? (snapshot.byPerson[me.id]?.goals.length ?? 0) : 0;
+  const ownGoalCount = me
+    ? cycleSnapshots.reduce(
+        (total, cycleSnapshot) =>
+          total + (cycleSnapshot.byPerson[me.id]?.goals.length ?? 0),
+        0,
+      )
+    : 0;
   const scopedRows = useMemo(
-    () => (snapshot ? goalRows(snapshot, scopedPeople) : []),
-    [scopedPeople, snapshot],
+    () =>
+      cycleSnapshots.flatMap((cycleSnapshot) =>
+        goalRows(
+          cycleSnapshot,
+          peopleInScope(cycleSnapshot, viewer, visibleScope),
+        ),
+      ),
+    [cycleSnapshots, viewer, visibleScope],
   );
 
+  const countsReady =
+    visibleScope === "mine" ? hydration.ownReady : hydration.cycleReady;
   const counts = useMemo(
     () =>
-      snapshot
-        ? statusCounts(snapshot, scopedPeople)
-        : {
-          goals: 0,
-          draft: 0,
-          sentBack: 0,
-          submitted: 0,
-          approved: 0,
-          incomplete: 0,
-        },
-    [scopedPeople, snapshot],
+      snapshot && countsReady
+        ? combineStatusCounts(
+            cycleSnapshots.map((cycleSnapshot) =>
+              statusCounts(
+                cycleSnapshot,
+                peopleInScope(cycleSnapshot, viewer, visibleScope),
+              ),
+            ),
+          )
+        : EMPTY_STATUS_COUNTS,
+    [countsReady, cycleSnapshots, snapshot, viewer, visibleScope],
   );
 
   const filtered = useMemo(() => {
@@ -576,6 +643,7 @@ function GoalsOverview() {
           row.person.name,
           row.person.title,
           row.person.department,
+          row.cycleLabel,
           statusLabel(row.status),
         ]
           .filter(Boolean)
@@ -597,6 +665,10 @@ function GoalsOverview() {
           sensitivity: "base",
         });
         if (byName !== 0) return byName;
+        const byCycle = a.cycleLabel.localeCompare(b.cycleLabel, undefined, {
+          sensitivity: "base",
+        });
+        if (byCycle !== 0) return byCycle;
         return a.title.localeCompare(b.title, undefined, {
           sensitivity: "base",
         });
@@ -627,18 +699,37 @@ function GoalsOverview() {
         scope: visibleScope,
         peopleInScope: scopedPeople.length,
         waitingPeople: snapshot
-          ? peopleWithoutGoals(snapshot, scopedPeople, statusFilter).length
+          ? scopedPeople.filter((person) =>
+              cycleSnapshots.every(
+                (cycleSnapshot) =>
+                  peopleWithoutGoals(
+                    cycleSnapshot,
+                    [person],
+                    statusFilter,
+                  ).length > 0,
+              ),
+            ).length
           : 0,
         hasQuery: query.trim().length > 0,
         statusFilter,
         canAddOwnGoals,
       }),
-    [canAddOwnGoals, query, scopedPeople, snapshot, statusFilter, visibleScope],
+    [
+      canAddOwnGoals,
+      cycleSnapshots,
+      query,
+      scopedPeople,
+      snapshot,
+      statusFilter,
+      visibleScope,
+    ],
   );
 
   useEffect(() => {
     if (!panelSelection) return;
-    const row = snapshot.byPerson[panelSelection.personId];
+    const row = getGoalsSnapshotForCycle(panelSelection.cycleId).byPerson[
+      panelSelection.personId
+    ];
     if (!row?.goals.some((goal) => goal.id === panelSelection.goalId)) {
       setPanelSelection(null);
     }
@@ -678,6 +769,11 @@ function GoalsOverview() {
       },
     ];
 
+  const isGoalsListPending =
+    visibleScope === "mine"
+      ? (!hydration.ownReady || !cycleMembershipReady) && ownGoalCount === 0
+      : !hydration.cycleReady && filtered.length === 0;
+
   return (
     <div
       className="pd-page pd-page--pane pd-goals pd-goals-overview"
@@ -687,6 +783,7 @@ function GoalsOverview() {
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
         aria-label="Goal submission totals"
+        aria-busy={countsReady ? undefined : true}
       >
         {summaryItems.map((item) => {
           const Icon = item.icon;
@@ -716,8 +813,10 @@ function GoalsOverview() {
       <div className="pd-people__header pd-people__header--bar">
         <div className="pd-people__bar-start">
           <GoalsCycleSelect
+            multiple
             cycles={snapshot.availableCycles}
-            activeCycleId={snapshot.cycle.id}
+            selectedCycleIds={selectedCycleIds}
+            onSelectMany={setSelectedCycleIds}
           />
           {me ? (
             <SegmentedControl
@@ -757,11 +856,11 @@ function GoalsOverview() {
               ? "My Reports' goals"
               : "Everyone's goals"}
         </h2>
-        {visibleScope === "mine" && !cycleMembershipReady && ownGoalCount === 0 ? (
+        {isGoalsListPending ? (
           <div
             className="pd-people__empty-state"
             aria-busy="true"
-            aria-label="Checking cycle membership"
+            aria-label="Loading goals"
           />
         ) : visibleScope === "mine" && ownCycleEmpty && ownGoalCount === 0 ? (
           <div className="pd-people__empty-state">
@@ -813,6 +912,7 @@ function GoalsOverview() {
               <tbody>
                 {tableRows.map((row) => {
                   const isSelected =
+                    panelSelection?.cycleId === row.cycleId &&
                     panelSelection?.personId === row.person.id &&
                     panelSelection?.goalId === row.goalId;
                   const isOwnerActive =
@@ -837,6 +937,7 @@ function GoalsOverview() {
                         const target = event.target as HTMLElement;
                         if (target.closest("a, button")) return;
                         setPanelSelection({
+                          cycleId: row.cycleId,
                           personId: row.person.id,
                           goalId: row.goalId,
                         });
@@ -845,6 +946,7 @@ function GoalsOverview() {
                         if (event.key !== "Enter" && event.key !== " ") return;
                         event.preventDefault();
                         setPanelSelection({
+                          cycleId: row.cycleId,
                           personId: row.person.id,
                           goalId: row.goalId,
                         });
@@ -864,7 +966,7 @@ function GoalsOverview() {
                           <div className="pd-goals-overview__owner">
                             <Link
                               to={goalsDetailPath(
-                                snapshot.cycle.id,
+                                row.cycleId,
                                 row.person.id,
                               )}
                               className="pd-goals-overview__owner-link"
@@ -897,6 +999,12 @@ function GoalsOverview() {
                           </div>
                         </td>
                       ) : null}
+                      <td
+                        data-col="cycle"
+                        className="pd-goals-overview__cycle"
+                      >
+                        {row.cycleLabel}
+                      </td>
                       <td data-col="goals">
                         <span
                           className="pd-goals-overview__goal"
@@ -952,12 +1060,13 @@ function GoalsOverview() {
       </section>
       {panelSelection ? (
         <GoalsOverviewGoalPanel
-          cycleId={snapshot.cycle.id}
+          cycleId={panelSelection.cycleId}
           personId={panelSelection.personId}
           goalId={panelSelection.goalId}
           onClose={() => setPanelSelection(null)}
           onGoalChange={(nextGoalId) =>
             setPanelSelection({
+              cycleId: panelSelection.cycleId,
               personId: panelSelection.personId,
               goalId: nextGoalId,
             })
@@ -1006,6 +1115,10 @@ export function GoalsPersonDetail({
     error,
     actions,
   } = useGoalsController({ cycleId, subjectId: personId });
+  const hydration = useGoalsHydration(snapshot?.cycle.id);
+  const goalsReady =
+    hydration.cycleReady ||
+    (actor?.id === personId && hydration.ownReady);
   const [sendBackReason, setSendBackReason] = useState("");
   const [embeddedManagerTab, setEmbeddedManagerTab] =
     useState<ManagerTab>("mine");
@@ -1073,7 +1186,7 @@ export function GoalsPersonDetail({
         cycles={snapshot.availableCycles}
         activeCycleId={snapshot.cycle.id}
         onSelect={(nextCycleId) => {
-          setActiveCycle(nextCycleId);
+          void selectGoalCycle(nextCycleId);
           if (embedded) {
             setEmbeddedGoalId(null);
             return;
@@ -1212,7 +1325,7 @@ export function GoalsPersonDetail({
     : reports;
 
   const selectCycle = (nextCycleId: string) => {
-    setActiveCycle(nextCycleId);
+    void selectGoalCycle(nextCycleId);
     if (embedded) {
       setEmbeddedGoalId(null);
       return;
@@ -1321,7 +1434,10 @@ export function GoalsPersonDetail({
       }
       isCurrentCycle={isCurrentCycle}
       row={activeGoals}
-      membershipPending={!cycleMembershipReady}
+      membershipPending={
+        (activeGoals?.goals.length ?? 0) === 0 &&
+        (!cycleMembershipReady || !goalsReady)
+      }
       ineligibility={ineligibility}
       canEditDraft={canEditDraft}
       canUpdateProgress={Boolean(capabilities?.canUpdateProgress)}
@@ -1921,7 +2037,7 @@ function EmployeePanel({
         <div
           className="pd-goals__empty"
           aria-busy="true"
-          aria-label="Checking cycle membership"
+          aria-label="Loading goals"
         />
       </>
     );

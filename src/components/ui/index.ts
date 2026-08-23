@@ -74,7 +74,11 @@ export type { ResizableColumn } from './ResizableTable'
 export { Tabs } from './Tabs'
 export type { TabsProps, TabItem } from './Tabs'
 
-export { CycleSelect } from './CycleSelect'
+export {
+  CycleSelect,
+  sanitizeCycleSelection,
+  toggleCycleSelection,
+} from './CycleSelect'
 export type {
   CycleSelectProps,
   CycleSelectOption,

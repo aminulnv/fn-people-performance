@@ -259,12 +259,14 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
     selfReview: {
       ratePillars: isAnnual,
       rateOverall: isAnnual,
-      visibility: 'blinded',
+      visibility: 'visible_first',
       latePolicy: 'proceed',
     },
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
+      gradeGoals: isAnnual,
+      gradeOverall: true,
       goalsScoreEdit: 'read_only',
       finalGradeEdit: 'override_with_reason',
       gradeSuggestion: 'none',
@@ -350,6 +352,10 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin') {
     managerReview: {
       ...defaults.managerReview,
       ...policy.managerReview,
+      gradeGoals:
+        policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals,
+      gradeOverall:
+        policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
       escalationRoles:
         policy.managerReview?.escalationRoles ?? defaults.managerReview.escalationRoles,
     },

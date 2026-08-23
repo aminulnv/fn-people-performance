@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ReportGoalsCard } from './ReportGoalsCard'
@@ -217,5 +217,34 @@ describe('ReportGoalsCard', () => {
     expect(note).toHaveTextContent('Api Singha')
     expect(note).toHaveTextContent('Nafis')
     expect(note).toHaveTextContent('gives final approval')
+  })
+
+  it('shows the activity overflow on hover', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="submitted"
+          goalCount={3}
+          canApprove
+          canSendBack
+          activityFilters={{ cycleId: 'q3', subjectEmployeeId: 1 }}
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    const trigger = screen.getByRole('button', {
+      name: 'More actions for Saif Ivna Alam',
+    })
+    expect(
+      screen.queryByRole('menuitem', { name: 'View submission activity' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.mouseEnter(trigger.closest('.pd-goal-view__menu')!)
+    expect(
+      screen.getByRole('menuitem', { name: 'View submission activity' }),
+    ).toBeInTheDocument()
   })
 })

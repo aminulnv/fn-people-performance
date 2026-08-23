@@ -50,15 +50,19 @@ describe('listLinkableSourceCycles', () => {
 
 describe('sourceLinksFromIds', () => {
   it('splits weight evenly across the selected cycles', () => {
-    const cycles = [
-      cycle({ id: 'q1-2026', name: 'Q1 2026', purpose: 'quarterly_checkin', periodKey: 'q1-2026' }),
-      cycle({ id: 'adhoc-1', name: 'Custom', purpose: 'custom' }),
-    ]
-    const links = sourceLinksFromIds(['q1-2026', 'adhoc-1'], cycles, '2026')
+    const links = sourceLinksFromIds(['q1-2026', 'adhoc-1'])
     expect(links).toHaveLength(2)
     expect(links.every((link) => link.weightPercent === 50)).toBe(true)
-    expect(links[0]?.transitionGrade).toBe('performing')
-    expect(links[1]?.transitionGrade).toBeNull()
+    expect(links[0]).toEqual({
+      sourceCycleId: 'q1-2026',
+      weightPercent: 50,
+      excluded: false,
+    })
+    expect(links[1]).toEqual({
+      sourceCycleId: 'adhoc-1',
+      weightPercent: 50,
+      excluded: false,
+    })
   })
 })
 

@@ -12,7 +12,12 @@ export function reviewFormSummary(policy: ReviewPolicy): string {
   const questionLabel =
     questions.length === 1 ? '1 question' : `${questions.length} questions`
   const areaLabel = pillars.length === 1 ? '1 area' : `${pillars.length} areas`
-  return `${questionLabel} · ${areaLabel}`
+  const gradeBits = [
+    policy.managerReview.gradeGoals ? 'goals grade' : null,
+    policy.managerReview.gradeOverall ? 'overall grade' : null,
+  ].filter(Boolean)
+  const gradeLabel = gradeBits.length > 0 ? gradeBits.join(' + ') : 'no grades'
+  return `${questionLabel} · ${areaLabel} · ${gradeLabel}`
 }
 
 export function reviewFormSideSheet(

@@ -176,55 +176,21 @@ function mapMeasurement(row) {
   }
 }
 
-async function loadGoalsForSubmission(client, cycleId, employeeId) {
-  const { rows: goalRows } = await client.query(
-    `SELECT * FROM platform.goals
-     WHERE cycle_id = $1 AND employee_id = $2
-     ORDER BY position, created_at`,
-    [cycleId, employeeId],
-  )
-  if (goalRows.length === 0) return []
-
-  const goalIds = goalRows.map((goal) => goal.goal_id)
-  const [
-    { rows: measurementRows },
-    { rows: commentRows },
-    { rows: progressRows },
-  ] = await Promise.all([
-    client.query(
-      `SELECT * FROM platform.goal_measurements
-       WHERE goal_id = ANY($1::text[])
-       ORDER BY goal_id, position, created_at`,
-      [goalIds],
-    ),
-    client.query(
-      `SELECT * FROM platform.goal_comments
-       WHERE goal_id = ANY($1::text[])
-       ORDER BY goal_id, created_at`,
-      [goalIds],
-    ),
-    client.query(
-      `SELECT * FROM platform.goal_progress_entries
-       WHERE goal_id = ANY($1::text[])
-       ORDER BY goal_id, measurement_id, recorded_at`,
-      [goalIds],
-    ),
-  ])
-
+function assembleGoalsFromRows(goalRows, measurementRows, commentRows, progressRows) {
   const progressByMeasurement = new Map()
   for (const entry of progressRows) {
     const entries = progressByMeasurement.get(entry.measurement_id) ?? []
     entries.push({
-        id: entry.entry_id,
-        recordedAt: isoTimestamp(entry.recorded_at),
-        authorId:
-          entry.actor_employee_id == null
-            ? undefined
-            : String(entry.actor_employee_id),
-        authorName: entry.actor_name,
-        from: entry.from_value == null ? undefined : Number(entry.from_value),
-        to: Number(entry.to_value),
-        label: entry.measurement_label ?? undefined,
+      id: entry.entry_id,
+      recordedAt: isoTimestamp(entry.recorded_at),
+      authorId:
+        entry.actor_employee_id == null
+          ? undefined
+          : String(entry.actor_employee_id),
+      authorName: entry.actor_name,
+      from: entry.from_value == null ? undefined : Number(entry.from_value),
+      to: Number(entry.to_value),
+      label: entry.measurement_label ?? undefined,
     })
     progressByMeasurement.set(entry.measurement_id, entries)
   }
@@ -263,6 +229,8 @@ async function loadGoalsForSubmission(client, cycleId, employeeId) {
   }
 
   return goalRows.map((goal) => ({
+    employeeId: Number(goal.employee_id),
+    goal: {
       id: goal.goal_id,
       description: goal.description,
       details: goal.details ?? undefined,
@@ -276,7 +244,88 @@ async function loadGoalsForSubmission(client, cycleId, employeeId) {
       measurements: measurementsByGoal.get(goal.goal_id) ?? [],
       comments: commentsByGoal.get(goal.goal_id) ?? [],
       updatedAt: isoTimestamp(goal.updated_at),
+    },
   }))
+}
+
+async function loadGoalDetails(client, goalRows) {
+  if (goalRows.length === 0) return []
+  const goalIds = goalRows.map((goal) => goal.goal_id)
+  const [
+    { rows: measurementRows },
+    { rows: commentRows },
+    { rows: progressRows },
+  ] = await Promise.all([
+    client.query(
+      `SELECT * FROM platform.goal_measurements
+       WHERE goal_id = ANY($1::text[])
+       ORDER BY goal_id, position, created_at`,
+      [goalIds],
+    ),
+    client.query(
+      `SELECT * FROM platform.goal_comments
+       WHERE goal_id = ANY($1::text[])
+       ORDER BY goal_id, created_at`,
+      [goalIds],
+    ),
+    client.query(
+      `SELECT * FROM platform.goal_progress_entries
+       WHERE goal_id = ANY($1::text[])
+       ORDER BY goal_id, measurement_id, recorded_at`,
+      [goalIds],
+    ),
+  ])
+  return assembleGoalsFromRows(
+    goalRows,
+    measurementRows,
+    commentRows,
+    progressRows,
+  )
+}
+
+async function loadGoalsForEmployees(client, cycleId, employeeIds) {
+  const ids = [
+    ...new Set(employeeIds.map((id) => Number(id)).filter(Number.isInteger)),
+  ]
+  const byEmployee = new Map(ids.map((id) => [id, []]))
+  if (ids.length === 0) return byEmployee
+
+  const { rows: goalRows } = await client.query(
+    `SELECT * FROM platform.goals
+     WHERE cycle_id = $1 AND employee_id = ANY($2::int[])
+     ORDER BY employee_id, position, created_at`,
+    [cycleId, ids],
+  )
+  if (goalRows.length === 0) return byEmployee
+
+  for (const { employeeId, goal } of await loadGoalDetails(client, goalRows)) {
+    const goals = byEmployee.get(employeeId) ?? []
+    goals.push(goal)
+    byEmployee.set(employeeId, goals)
+  }
+  return byEmployee
+}
+
+async function loadRatingsForEmployees(client, cycleId, employeeIds) {
+  const ids = [
+    ...new Set(employeeIds.map((id) => Number(id)).filter(Number.isInteger)),
+  ]
+  const byEmployee = new Map()
+  if (ids.length === 0) return byEmployee
+  const { rows } = await client.query(
+    `SELECT * FROM platform.goal_ratings
+     WHERE cycle_id = $1 AND employee_id = ANY($2::int[])`,
+    [cycleId, ids],
+  )
+  for (const row of rows) {
+    byEmployee.set(Number(row.employee_id), row)
+  }
+  return byEmployee
+}
+
+async function loadGoalsForSubmission(client, cycleId, employeeId) {
+  const byEmployee = await loadGoalsForEmployees(client, cycleId, [employeeId])
+  return byEmployee.get(Number(employeeId)) ?? []
 }
 
 async function ensureSubmission(client, cycleId, employeeId) {
@@ -774,21 +823,18 @@ export async function listCycleGoalSubmissions(cycleId, subjectEmployeeIds = nul
        ORDER BY gs.employee_id`,
       [cycleId, subjectEmployeeIds],
     )
-    const submissions = []
-    for (const row of rows) {
-      const goals = await loadGoalsForSubmission(
-        client,
-        cycleId,
-        row.employee_id,
-      )
-      const { rows: ratingRows } = await client.query(
-        `SELECT * FROM platform.goal_ratings
-         WHERE cycle_id = $1 AND employee_id = $2`,
-        [cycleId, row.employee_id],
-      )
-      submissions.push(mapSubmission(row, goals, ratingRows[0]))
-    }
-    return submissions
+    const employeeIds = rows.map((row) => row.employee_id)
+    const [goalsByEmployee, ratingsByEmployee] = await Promise.all([
+      loadGoalsForEmployees(client, cycleId, employeeIds),
+      loadRatingsForEmployees(client, cycleId, employeeIds),
+    ])
+    return rows.map((row) =>
+      mapSubmission(
+        row,
+        goalsByEmployee.get(Number(row.employee_id)) ?? [],
+        ratingsByEmployee.get(Number(row.employee_id)),
+      ),
+    )
   } finally {
     client.release()
   }

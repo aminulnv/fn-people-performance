@@ -1,10 +1,16 @@
 import { ApiError } from '@/lib/apiClient'
 import { isEligibleForCycle } from './goals/demoData'
 import {
+  getGoalsHydration,
+  markCycleGoalsHydrated,
+  markOwnGoalsHydrated,
+} from './goals/hydration'
+import {
   approvePersonGoalsRemote,
   cascadeGoalRemote,
   copyPreviousCycleGoalsRemote,
   fetchCycleGoalSubmissionsRemote,
+  fetchPersonGoalsRemote,
   savePersonGoalsDraftRemote,
   sendBackPersonGoalsRemote,
   submitPersonGoalsRemote,
@@ -14,6 +20,8 @@ import {
   applyHardLockIncompletes,
   copyPreviousCycleGoals,
   getGoalsSnapshot,
+  getGoalsSnapshotForCycle,
+  getSignedInPersonId,
   mergeRemotePersonGoals,
   replaceCycleGoalsFromRemote,
   resetGoalsDemo,
@@ -88,26 +96,66 @@ export function watchGoalsSnapshot(onChange: () => void): () => void {
 /** Every mounted goals view refreshes on the same store change — share one request. */
 const hydrationInFlight = new Map<string, Promise<GoalsSnapshot>>()
 
-async function hydrateGoalsFromApi(cycleId?: string): Promise<GoalsSnapshot> {
+export function isGoalCycleHydrationPending(cycleId: string): boolean {
+  return hydrationInFlight.has(cycleId)
+}
+
+async function hydrateOwnGoalsFirst(
+  cycleId: string,
+): Promise<GoalsSnapshot | null> {
+  const personId = getSignedInPersonId()
+  if (!personId || personId === 'local') return null
+  try {
+    const mine = await fetchPersonGoalsRemote(cycleId, personId)
+    markOwnGoalsHydrated(cycleId)
+    return mergeRemotePersonGoals(cycleId, personId, mine)
+  } catch {
+    return null
+  }
+}
+
+async function hydrateGoalsFromApi(
+  cycleId?: string,
+  options?: { force?: boolean; activate?: boolean },
+): Promise<GoalsSnapshot> {
   await ensureReviewCyclesLoaded()
   const snapshot = getGoalsSnapshot()
   const activeCycleId = cycleId ?? snapshot.cycle.id
   if (!activeCycleId) return snapshot
+  const shouldActivate = options?.activate !== false
   const pending = hydrationInFlight.get(activeCycleId)
-  if (pending) return pending
-  const request = fetchCycleGoalSubmissionsRemote(activeCycleId)
-    .then((submissions) =>
-      replaceCycleGoalsFromRemote(activeCycleId, submissions),
-    )
-    .finally(() => {
-      hydrationInFlight.delete(activeCycleId)
+  if (pending && !options?.force) return pending
+  if (!options?.force && getGoalsHydration(activeCycleId).cycleReady) {
+    if (snapshot.cycle.id === activeCycleId) return snapshot
+    return shouldActivate
+      ? setActiveCycle(activeCycleId)
+      : getGoalsSnapshotForCycle(activeCycleId)
+  }
+  const request = (async () => {
+    const ownGoals = hydrateOwnGoalsFirst(activeCycleId)
+    const cycleGoals = fetchCycleGoalSubmissionsRemote(activeCycleId)
+    await ownGoals
+    const submissions = await cycleGoals
+    const next = replaceCycleGoalsFromRemote(activeCycleId, submissions, {
+      activate: shouldActivate,
     })
+    markCycleGoalsHydrated(activeCycleId)
+    return next
+  })().finally(() => {
+    if (hydrationInFlight.get(activeCycleId) === request) {
+      hydrationInFlight.delete(activeCycleId)
+    }
+  })
   hydrationInFlight.set(activeCycleId, request)
   return request
 }
 
 export async function fetchGoalsSnapshot(): Promise<GoalsSnapshot> {
-  if (useLocalGoals()) return getGoalsSnapshot()
+  if (useLocalGoals()) {
+    const snapshot = getGoalsSnapshot()
+    markCycleGoalsHydrated(snapshot.cycle.id)
+    return snapshot
+  }
   return hydrateGoalsFromApi()
 }
 
@@ -127,8 +175,21 @@ export function listGoalCycles() {
 
 export async function selectGoalCycle(cycleId: string): Promise<GoalsSnapshot> {
   if (useLocalGoals()) return delay(setActiveCycle(cycleId))
-  setActiveCycle(cycleId)
-  return hydrateGoalsFromApi(cycleId)
+  await hydrateGoalsFromApi(cycleId)
+  return getGoalsSnapshot().cycle.id === cycleId
+    ? getGoalsSnapshot()
+    : setActiveCycle(cycleId)
+}
+
+/** Load a cycle's goals without making it the active store cycle. */
+export async function ensureGoalCycleHydrated(
+  cycleId: string,
+): Promise<GoalsSnapshot> {
+  if (useLocalGoals()) {
+    markCycleGoalsHydrated(cycleId)
+    return getGoalsSnapshotForCycle(cycleId)
+  }
+  return hydrateGoalsFromApi(cycleId, { activate: false })
 }
 
 /** @deprecated Prefer listGoalCycles / selectGoalCycle */
@@ -173,7 +234,7 @@ async function saveGoalsDraftWithRetry(
     )
   } catch (error) {
     if (!isStaleGoalsConflict(error)) throw error
-    await hydrateGoalsFromApi(context.cycleId)
+    await hydrateGoalsFromApi(context.cycleId, { force: true })
     return savePersonGoalsDraftRemote(
       context.cycleId,
       context.subjectId,

@@ -53,8 +53,6 @@ export function suggestedSourceLinks(
       .map((key) => cycles.find((cycle) => cycle.periodKey === key || cycle.id === key))
       .filter((cycle): cycle is ReviewCycle => Boolean(cycle))
       .map((cycle) => cycle.id),
-    cycles,
-    yearKey,
   )
 }
 
@@ -93,23 +91,14 @@ export function listLinkableSourceCycles(
 
 export function sourceLinksFromIds(
   sourceIds: string[],
-  cycles: ReviewCycle[],
-  yearKey?: string,
 ): NonNullable<ReviewCycle['sourceLinks']> {
   const unique = [...new Set(sourceIds.filter(Boolean))]
   const weightPercent = Math.round(100 / Math.max(unique.length, 1))
-  return unique.map((sourceCycleId) => {
-    const source = cycles.find((cycle) => cycle.id === sourceCycleId)
-    return {
-      sourceCycleId,
-      weightPercent,
-      excluded: false,
-      transitionGrade:
-        source?.periodKey && yearKey && source.periodKey === `q1-${yearKey}`
-          ? ('performing' as const)
-          : null,
-    }
-  })
+  return unique.map((sourceCycleId) => ({
+    sourceCycleId,
+    weightPercent,
+    excluded: false,
+  }))
 }
 
 export function quarterLabelForCycle(cycle: Pick<ReviewCycle, 'periodKey' | 'name'>): string {

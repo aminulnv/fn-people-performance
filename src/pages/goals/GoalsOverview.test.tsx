@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
@@ -12,6 +12,7 @@ import {
 import { resetSharedGoalsSnapshotForTests } from '@/lib/goals/useSharedGoalsSnapshot'
 import {
   createCycleGroup,
+  createReviewCycle,
   getReviewCycle,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
@@ -140,7 +141,36 @@ describe('Goals overview cycle eligibility', () => {
       expect(screen.getByText(ownGoal.description)).toBeInTheDocument()
     })
     expect(
+      screen.getByRole('columnheader', { name: /^Cycle/ }),
+    ).toBeInTheDocument()
+    expect(
       screen.queryByRole('status', { name: /Not in this cycle/ }),
     ).not.toBeInTheDocument()
+  })
+
+  it('lets the viewer select more than one cycle', async () => {
+    await putPeopleInGroup([1, 2])
+    const extra = await createReviewCycle({
+      type: 'regular',
+      periodKey: 'q2-2026',
+    })
+    await createCycleGroup(extra.id, {
+      name: 'Everyone',
+      memberIds: [1, 2],
+    })
+
+    renderOverview()
+
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Goal cycle:/ }),
+    )
+    fireEvent.click(screen.getByRole('option', { name: new RegExp(extra.name) }))
+
+    expect(
+      await screen.findByRole('button', { name: /and 1 more/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: /^Cycle/ }),
+    ).toBeInTheDocument()
   })
 })

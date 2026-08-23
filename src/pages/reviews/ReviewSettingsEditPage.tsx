@@ -269,6 +269,56 @@ export function ReviewSettingsEditPage({
           <section className="pd-reviews-group-form__block">
             <h3 className="pd-field__label">Form people fill in</h3>
             <p className="pd-reviews-flow__hint">{reviewFormSummary(policy)}</p>
+            <ul className="pd-reviews-stage-list">
+              <li className="pd-reviews-stage-list__item">
+                <div className="pd-reviews-stage-list__row">
+                  <Switch
+                    label="Enable Goals grade"
+                    className="pd-reviews-type-list__switch"
+                    checked={policy.managerReview.gradeGoals}
+                    onChange={(event) =>
+                      patchPolicy({
+                        managerReview: {
+                          ...policy.managerReview,
+                          gradeGoals: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <div className="pd-reviews-stage-list__copy">
+                    <p className="pd-reviews-stage-list__title">Goals grade</p>
+                    <p className="pd-reviews-stage-list__hint">
+                      Managers pick a Goals grade on the goals card. Off keeps
+                      goals as progress only.
+                    </p>
+                  </div>
+                </div>
+              </li>
+              <li className="pd-reviews-stage-list__item">
+                <div className="pd-reviews-stage-list__row">
+                  <Switch
+                    label="Enable Overall grade"
+                    className="pd-reviews-type-list__switch"
+                    checked={policy.managerReview.gradeOverall}
+                    onChange={(event) =>
+                      patchPolicy({
+                        managerReview: {
+                          ...policy.managerReview,
+                          gradeOverall: event.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  <div className="pd-reviews-stage-list__copy">
+                    <p className="pd-reviews-stage-list__title">Overall grade</p>
+                    <p className="pd-reviews-stage-list__hint">
+                      Show the overall grade grid on the scorecard. Off hides
+                      it.
+                    </p>
+                  </div>
+                </div>
+              </li>
+            </ul>
           </section>
 
           <details className="pd-cycle-setup__more">
@@ -287,9 +337,9 @@ export function ReviewSettingsEditPage({
                   })
                 }
                 options={[
-                  { value: 'blinded', label: 'Blinded until the manager submits' },
                   { value: 'visible_first', label: 'Manager sees self-review first' },
                   { value: 'sequential', label: 'Self-review must finish first' },
+                  { value: 'blinded', label: 'Blinded until the manager submits' },
                 ]}
               />
               <Select

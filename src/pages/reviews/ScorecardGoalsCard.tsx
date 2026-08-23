@@ -41,6 +41,9 @@ export function ScorecardGoalsCard({
   goalsGrade = null,
   onGoalsGradeChange,
   gradeLocked = false,
+  title = 'Goals',
+  embedded = false,
+  hideTitle = false,
 }: {
   cycleId?: string
   personId?: string
@@ -55,6 +58,9 @@ export function ScorecardGoalsCard({
   goalsGrade?: GradeBandId | null
   onGoalsGradeChange?: (grade: GradeBandId | '') => void
   gradeLocked?: boolean
+  title?: string
+  embedded?: boolean
+  hideTitle?: boolean
 }) {
   const [openGoalId, setOpenGoalId] = useState<string | null>(null)
   const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(null)
@@ -67,22 +73,31 @@ export function ScorecardGoalsCard({
   const heading = (
     <>
       <Target size={18} strokeWidth={1.75} aria-hidden />
-      Goals
+      {title}
     </>
   )
   return (
-    <section className="pd-reviews-scorecard__card" aria-label="Goals">
+    <section
+      className={
+        embedded
+          ? 'pd-reviews-quarters__goals'
+          : 'pd-reviews-scorecard__card'
+      }
+      aria-label={title}
+    >
       <header className="pd-reviews-scorecard__card-head">
         <div className="pd-reviews-scorecard__card-title">
-          <h2 className="pd-reviews-scorecard__section-title">
-            {goalsHref ? (
-              <Link to={goalsHref} className="pd-reviews-scorecard__section-link">
-                {heading}
-              </Link>
-            ) : (
-              heading
-            )}
-          </h2>
+          {hideTitle ? null : (
+            <h2 className="pd-reviews-scorecard__section-title">
+              {goalsHref ? (
+                <Link to={goalsHref} className="pd-reviews-scorecard__section-link">
+                  {heading}
+                </Link>
+              ) : (
+                heading
+              )}
+            </h2>
+          )}
           {showGradeEditor ? (
             <ListboxSelect
               className={gradeSelectClass(goalsGrade)}

@@ -1,146 +1,50 @@
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
+import type { ScorecardDetail } from '@/lib/reviews/scorecards'
 import {
-  latestScorecardGrade,
-  type ScorecardDetail,
-} from '@/lib/reviews/scorecards'
-import { REVIEW_STAGE_LABEL, getReviewStage } from '@/lib/reviews/reviewStages'
+  currentScorecardStepIndex,
+  flowStepState,
+  gradeForViewStage,
+  gradeLabelForViewStage,
+  resolveScorecardViewStage,
+  scorecardStageIsOpen,
+  scorecardStepLabel,
+  visibleScorecardSteps,
+  type ScorecardViewStage,
+} from '@/lib/reviews/scorecardStages'
 import type {
   ReviewPacket,
-  ReviewPacketStatus,
   ReviewStageConfig,
-  ReviewStageId,
 } from '@/lib/reviews/types'
 import { GradeChip } from '@/pages/reviews/GradeChip'
-
-const FLOW_STEPS: Array<{
-  id: ReviewStageId
-  until: ReviewPacketStatus[]
-}> = [
-  {
-    id: 'self_review',
-    until: ['not_started', 'self_in_progress'],
-  },
-  {
-    id: 'manager_review',
-    until: ['self_submitted', 'manager_in_progress'],
-  },
-  {
-    id: 'calibration_hod_hrbp',
-    until: ['manager_submitted', 'in_calibration'],
-  },
-  {
-    id: 'publish_employees',
-    until: ['calibrated', 'released_to_managers', 'released_to_employees'],
-  },
-  {
-    id: 'appeal',
-    until: ['appealed'],
-  },
-]
-
-const PACKET_STATUS_ORDER: ReviewPacketStatus[] = [
-  'not_started',
-  'self_in_progress',
-  'self_submitted',
-  'manager_in_progress',
-  'manager_submitted',
-  'in_calibration',
-  'calibrated',
-  'released_to_managers',
-  'released_to_employees',
-  'appealed',
-]
-
-function statusRank(status: ReviewPacketStatus) {
-  return PACKET_STATUS_ORDER.indexOf(status)
-}
-
-function stepIsCurrent(
-  step: (typeof FLOW_STEPS)[number],
-  status: ReviewPacketStatus,
-) {
-  return step.until.includes(status)
-}
-
-function stepIsPassed(
-  step: (typeof FLOW_STEPS)[number],
-  status: ReviewPacketStatus,
-) {
-  return statusRank(status) > Math.max(...step.until.map(statusRank))
-}
-
-function currentScorecardStepIndex(
-  steps: Array<(typeof FLOW_STEPS)[number]>,
-  status: ReviewPacketStatus,
-) {
-  const current = steps.findIndex((step) => stepIsCurrent(step, status))
-  if (current >= 0) return current
-  const next = steps.findIndex((step) => !stepIsPassed(step, status))
-  return next === -1 ? Math.max(0, steps.length - 1) : next
-}
-
-function flowStepState(
-  step: (typeof FLOW_STEPS)[number],
-  stepIndex: number,
-  currentIndex: number,
-  status: ReviewPacketStatus,
-): 'done' | 'active' | 'upcoming' {
-  if (stepIndex < currentIndex) return 'done'
-  if (stepIndex > currentIndex) return 'upcoming'
-  if (
-    (step.id === 'publish_employees' && status === 'released_to_employees') ||
-    (step.id === 'appeal' && status === 'appealed')
-  ) {
-    return 'done'
-  }
-  return 'active'
-}
-
-function visibleScorecardSteps(
-  stages: ReviewStageConfig[] | undefined,
-  packet: ReviewPacket | null,
-) {
-  return FLOW_STEPS.filter((step) => {
-    if (step.id === 'calibration_hod_hrbp') {
-      return Boolean(
-        getReviewStage(stages, 'calibration_hod_hrbp')?.enabled ||
-          getReviewStage(stages, 'calibration_slt')?.enabled ||
-          packet?.calibratedOverallGrade ||
-          (packet?.calibrationEvents.length ?? 0) > 0,
-      )
-    }
-    if (step.id === 'appeal') {
-      return Boolean(
-        getReviewStage(stages, 'appeal')?.enabled ||
-          (packet?.appeals.length ?? 0) > 0 ||
-          packet?.status === 'appealed',
-      )
-    }
-    if (step.id === 'self_review') {
-      return Boolean(
-        getReviewStage(stages, 'self_review')?.enabled || packet?.selfOverallGrade,
-      )
-    }
-    return true
-  })
-}
 
 export function ScorecardHero({
   detail,
   packet,
   stages,
+  viewerEmployeeId,
+  viewingStage,
+  onViewStage,
 }: {
   detail: ScorecardDetail
   packet: ReviewPacket | null
   stages?: ReviewStageConfig[]
+  viewerEmployeeId?: number | null
+  viewingStage?: ScorecardViewStage
+  onViewStage?: (stage: ScorecardViewStage) => void
 }) {
-  const latest = latestScorecardGrade(packet)
   const visibleSteps = visibleScorecardSteps(stages, packet)
   const currentStepIndex = packet
     ? currentScorecardStepIndex(visibleSteps, packet.status)
     : 0
+  const viewing = resolveScorecardViewStage({
+    requested: viewingStage ?? null,
+    steps: visibleSteps,
+    packet,
+    viewerEmployeeId,
+  })
+  const viewingGrade = gradeForViewStage(packet, viewing, viewerEmployeeId)
 
   return (
     <header className="pd-reviews-scorecard__hero">
@@ -183,9 +87,11 @@ export function ScorecardHero({
         <div className="pd-reviews-scorecard__hero-aside">
           <div className="pd-reviews-scorecard__latest">
             <span className="pd-reviews-scorecard__latest-label">
-              {latest.grade ? 'Overall grade' : 'No grade yet'}
+              {viewingGrade
+                ? gradeLabelForViewStage(viewing)
+                : 'No grade yet'}
             </span>
-            <GradeChip grade={latest.grade} />
+            <GradeChip grade={viewingGrade} />
           </div>
         </div>
       </div>
@@ -193,22 +99,48 @@ export function ScorecardHero({
       {visibleSteps.length > 1 ? (
         <ol className="pd-reviews-scorecard__steps" aria-label="Review stages">
           {visibleSteps.map((step, index) => {
-            const state = packet
-              ? flowStepState(step, index, currentStepIndex, packet.status)
-              : flowStepState(step, index, currentStepIndex, 'not_started')
+            const state = flowStepState(
+              step,
+              index,
+              currentStepIndex,
+              packet?.status ?? 'not_started',
+            )
+            const open = scorecardStageIsOpen(
+              step,
+              index,
+              currentStepIndex,
+              packet,
+              viewerEmployeeId,
+            )
+            const isViewing = step.id === viewing
+            const label = scorecardStepLabel(step.id)
             return (
               <li
                 key={step.id}
-                className={`pd-reviews-scorecard__step is-${state}`}
+                className={[
+                  'pd-reviews-scorecard__step',
+                  `is-${state}`,
+                  isViewing ? 'is-viewing' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
               >
-                <span className="pd-reviews-scorecard__step-dot" aria-hidden />
-                <span>
-                  {step.id === 'calibration_hod_hrbp'
-                    ? 'Calibration'
-                    : step.id === 'publish_employees'
-                      ? 'Published'
-                      : REVIEW_STAGE_LABEL[step.id]}
-                </span>
+                {open ? (
+                  <button
+                    type="button"
+                    className="pd-reviews-scorecard__step-button"
+                    aria-current={isViewing ? 'step' : undefined}
+                    onClick={() => onViewStage?.(step.id)}
+                  >
+                    <span className="pd-reviews-scorecard__step-dot" aria-hidden />
+                    <span>{label}</span>
+                  </button>
+                ) : (
+                  <>
+                    <span className="pd-reviews-scorecard__step-dot" aria-hidden />
+                    <span>{label}</span>
+                  </>
+                )}
               </li>
             )
           })}

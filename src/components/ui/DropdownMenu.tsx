@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react'
 import { cx } from '@/lib/cx'
+import { useHoverMenu } from '@/layout/useHoverMenu'
 
 export type DropdownMenuItem = {
   id: string
@@ -35,36 +36,13 @@ export function DropdownMenu({
   triggerProps,
 }: DropdownMenuProps) {
   const menuId = useId()
-  const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
-  const containerRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
+    closeOnEscape: true,
+  })
 
   const enabledItems = items.filter((item) => !item.disabled)
-
-  useEffect(() => {
-    if (!open) return
-
-    const onPointerDown = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setOpen(false)
-      }
-    }
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false)
-    }
-
-    document.addEventListener('mousedown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -86,7 +64,11 @@ export function DropdownMenu({
   }
 
   return (
-    <div ref={containerRef} className={cx('pd-menu', className)}>
+    <div
+      ref={containerRef}
+      className={cx('pd-menu', className)}
+      {...hoverHandlers}
+    >
       <button
         type="button"
         className={cx('pd-menu__trigger', triggerProps?.className)}
@@ -96,7 +78,7 @@ export function DropdownMenu({
         {...triggerProps}
         onClick={(event) => {
           triggerProps?.onClick?.(event)
-          setOpen((value) => !value)
+          toggle()
         }}
       >
         {trigger ?? label}

@@ -1,4 +1,5 @@
 import { cycleGroupsOf } from './cycleGroups'
+import { calibrationIsEditable } from './scorecardStages'
 import { getReviewCycle } from './store'
 import type {
   ReviewActorRole,
@@ -113,6 +114,9 @@ export function calibrateLocalPacket(
 ): ReviewPacket {
   const current = [...packets.values()].find((packet) => packet.id === packetId)
   if (!current) throw new Error('Review not found')
+  if (!calibrationIsEditable(current.status)) {
+    throw new Error('Calibration cannot start until the manager review is submitted.')
+  }
   const next: ReviewPacket = {
     ...current,
     calibratedOverallGrade: input.toGrade,

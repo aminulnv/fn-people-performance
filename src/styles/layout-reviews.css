@@ -326,6 +326,40 @@
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cta, var(--color-theme)) 22%, transparent);
 }
 
+.pd-reviews-scorecard__step-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.pd-reviews-scorecard__step-button:focus-visible {
+  outline: 2px solid var(--color-cta, var(--color-theme));
+  outline-offset: 0.2rem;
+  border-radius: var(--radius-sm, 0.25rem);
+}
+
+.pd-reviews-scorecard__step.is-viewing {
+  color: var(--color-text);
+}
+
+.pd-reviews-scorecard__step.is-viewing span:last-child {
+  box-shadow: inset 0 -0.125rem 0 currentColor;
+}
+
+.pd-reviews-scorecard__events {
+  display: grid;
+  gap: var(--spacing-2, 0.5rem);
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
 .pd-reviews-scorecard__scope {
   width: fit-content;
   max-width: 100%;
@@ -423,6 +457,51 @@
   font-size: 0.875rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+}
+
+.pd-reviews-quarters__heading {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-3, 0.65rem);
+}
+
+.pd-reviews-quarters__nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1, 0.2rem);
+}
+
+.pd-reviews-quarters__step.pd-btn {
+  min-width: 1.75rem;
+  min-height: 1.75rem;
+  padding: 0;
+}
+
+.pd-reviews-quarters__cycle .pd-cycle-select__trigger {
+  min-height: auto;
+  padding: 0.1rem 0.2rem;
+  border: 0;
+  border-radius: var(--radius-sm, 0.25rem);
+  background: transparent;
+  font-size: 0.95rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--color-text);
+}
+
+.pd-reviews-quarters__cycle .pd-cycle-select__trigger:hover {
+  border-color: transparent;
+  background: var(--color-neutral-hover, var(--color-muted-bg));
+}
+
+.pd-reviews-quarters__cycle .pd-cycle-select__chevron {
+  color: var(--color-text-secondary);
+}
+
+.pd-reviews-quarters__goals {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .pd-reviews-scorecard__goals-grade {

@@ -17,6 +17,8 @@ import {
 /** One row per goal — a person with three goals appears on three rows. */
 export type GoalRow = {
   key: string
+  cycleId: string
+  cycleLabel: string
   person: DemoPerson
   status: PersonGoals['status']
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
@@ -90,7 +92,9 @@ export function goalRows(
     const submission = snapshot.byPerson[person.id]
     const status = submission?.status ?? 'draft'
     return (submission?.goals ?? []).map((goal, index) => ({
-      key: `${person.id}:${goal.id}`,
+      key: `${snapshot.cycle.id}:${person.id}:${goal.id}`,
+      cycleId: snapshot.cycle.id,
+      cycleLabel: snapshot.cycle.label,
       person,
       status,
       postWindowApprovalStage: submission?.postWindowApprovalStage,
@@ -150,18 +154,33 @@ export function matchesStatusFilter(
  * Goals are counted per goal; every other tile counts people, because approval
  * state belongs to a person's submission rather than to individual goals.
  */
+export const EMPTY_STATUS_COUNTS: StatusCounts = {
+  goals: 0,
+  draft: 0,
+  sentBack: 0,
+  submitted: 0,
+  approved: 0,
+  incomplete: 0,
+}
+
+export function combineStatusCounts(parts: StatusCounts[]): StatusCounts {
+  const counts = { ...EMPTY_STATUS_COUNTS }
+  for (const part of parts) {
+    counts.goals += part.goals
+    counts.draft += part.draft
+    counts.sentBack += part.sentBack
+    counts.submitted += part.submitted
+    counts.approved += part.approved
+    counts.incomplete += part.incomplete
+  }
+  return counts
+}
+
 export function statusCounts(
   snapshot: GoalsSnapshot,
   people: DemoPerson[],
 ): StatusCounts {
-  const counts: StatusCounts = {
-    goals: 0,
-    draft: 0,
-    sentBack: 0,
-    submitted: 0,
-    approved: 0,
-    incomplete: 0,
-  }
+  const counts: StatusCounts = { ...EMPTY_STATUS_COUNTS }
   for (const person of people) {
     const submission = snapshot.byPerson[person.id]
     counts.goals += submission?.goals.length ?? 0

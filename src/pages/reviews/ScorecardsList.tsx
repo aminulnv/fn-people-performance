@@ -14,6 +14,7 @@ import {
   CycleSelect,
   EmptyState,
   ResizableTable,
+  sanitizeCycleSelection,
   SegmentedControl,
   type CycleSelectOption,
   type ResizableColumn,
@@ -140,20 +141,31 @@ export function ScorecardsList() {
       : [{ id: 'q3-2026', label: 'Q3 2026' }]
   }, [cycles])
 
-  const [cycleKey, setCycleKey] = useState('q3-2026')
+  const [cycleKeys, setCycleKeys] = useState<string[]>(['q3-2026'])
   const [packets, setPackets] = useState<ReviewPacket[]>([])
 
   useEffect(() => {
-    if (cycleOptions.some((option) => option.id === cycleKey)) return
-    setCycleKey(cycleOptions[0]?.id ?? 'q3-2026')
-  }, [cycleKey, cycleOptions])
+    const availableIds = cycleOptions.map((option) => option.id)
+    const next = sanitizeCycleSelection(
+      cycleKeys,
+      availableIds,
+      cycleOptions[0]?.id ?? 'q3-2026',
+    )
+    if (
+      next.length === cycleKeys.length &&
+      next.every((id, index) => id === cycleKeys[index])
+    ) {
+      return
+    }
+    setCycleKeys(next)
+  }, [cycleKeys, cycleOptions])
 
   useEffect(() => {
     let cancelled = false
     setPackets([])
-    void fetchReviewPackets(cycleKey)
-      .then((next) => {
-        if (!cancelled) setPackets(next)
+    void Promise.all(cycleKeys.map((cycleKey) => fetchReviewPackets(cycleKey)))
+      .then((groups) => {
+        if (!cancelled) setPackets(groups.flat())
       })
       .catch(() => {
         if (!cancelled) setPackets([])
@@ -161,11 +173,19 @@ export function ScorecardsList() {
     return () => {
       cancelled = true
     }
-  }, [cycleKey])
+  }, [cycleKeys])
 
   const rows = useMemo(
-    () => buildScorecardsForCycle(cycleKey, employees, user?.email, packets),
-    [cycleKey, employees, packets, user?.email],
+    () =>
+      cycleKeys.flatMap((cycleKey) =>
+        buildScorecardsForCycle(
+          cycleKey,
+          employees,
+          user?.email,
+          packets.filter((packet) => packet.cycleId === cycleKey),
+        ),
+      ),
+    [cycleKeys, employees, packets, user?.email],
   )
 
   const queueRows = useMemo(
@@ -206,6 +226,7 @@ export function ScorecardsList() {
         row.team,
         row.department,
         SCORECARD_STATUS_LIST_LABEL[row.status],
+        row.cycleLabel,
       ]
         .join(' ')
         .toLowerCase()
@@ -222,7 +243,7 @@ export function ScorecardsList() {
     setGradesRevealed(false)
     setGradeOverrides({})
     setStatusFilter('all')
-  }, [cycleKey])
+  }, [cycleKeys])
 
   const isGradeRevealed = (row: ScorecardRow) => {
     if (!row.gradeHidden) return true
@@ -252,6 +273,7 @@ export function ScorecardsList() {
   const scorecardColumns: ResizableColumn[] = useMemo(
     () => [
       { id: 'employee', label: 'Employee', grow: true },
+      { id: 'cycle', label: 'Cycle' },
       { id: 'role', label: 'Role' },
       { id: 'seniority', label: 'Seniority' },
       { id: 'team', label: 'Team' },
@@ -362,9 +384,10 @@ export function ScorecardsList() {
 
           <CycleSelect
             label="Cycle"
+            multiple
             options={cycleOptions}
-            value={cycleKey}
-            onChange={setCycleKey}
+            value={cycleKeys}
+            onChange={setCycleKeys}
           />
 
           {overviewScopes.length > 1 ? (
@@ -407,12 +430,20 @@ export function ScorecardsList() {
               description={
                 queueRows.length === 0
                   ? visibleScope === 'mine'
-                    ? 'You do not have a performance review in this cycle yet.'
+                    ? cycleKeys.length > 1
+                    ? 'You do not have a performance review in the selected cycles yet.'
+                    : 'You do not have a performance review in this cycle yet.'
                     : visibleScope === 'reports'
                       ? hasDirectReports
-                        ? 'No direct reports match this cycle.'
-                        : 'You have no direct reports to review for this cycle.'
-                      : 'Add people to a group on the cycle settings page to open reviews for this cycle.'
+                        ? cycleKeys.length > 1
+                          ? 'No direct reports match the selected cycles.'
+                          : 'No direct reports match this cycle.'
+                        : cycleKeys.length > 1
+                          ? 'You have no direct reports to review for the selected cycles.'
+                          : 'You have no direct reports to review for this cycle.'
+                      : cycleKeys.length > 1
+                        ? 'Add people to a group on the cycle settings page to open reviews for the selected cycles.'
+                        : 'Add people to a group on the cycle settings page to open reviews for this cycle.'
                   : statusFilter !== 'all'
                     ? 'No performance reviews match this status. Try another filter or clear it.'
                     : 'Try a different search or cycle.'
@@ -480,6 +511,7 @@ function ScorecardTableRow({
           to={to}
         />
       </td>
+      <td className="pd-reviews-scorecards__muted">{row.cycleLabel}</td>
       <td className="pd-reviews-scorecards__muted">{row.role}</td>
       <td>
         <span className="pd-reviews-seniority">{row.seniority}</span>

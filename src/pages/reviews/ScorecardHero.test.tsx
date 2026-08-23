@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ScorecardDetail } from '@/lib/reviews/scorecards'
 import type { ReviewPacket } from '@/lib/reviews/types'
@@ -110,6 +110,65 @@ describe('ScorecardHero', () => {
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Export PDF' })).toBeNull()
+  })
+
+  it('hides unpublished official grades from the subject', () => {
+    render(
+      <MemoryRouter>
+        <ScorecardHero
+          detail={detail({ overallGrade: 'performing' })}
+          packet={packet({
+            employeeId: 871,
+            status: 'in_calibration',
+            selfOverallGrade: 'performing',
+            managerOverallGrade: 'exceeding',
+            calibratedOverallGrade: 'exceptional',
+            publishedOverallGrade: 'exceptional',
+          })}
+          stages={[
+            { id: 'self_review', enabled: true },
+            { id: 'manager_review', enabled: true },
+            { id: 'calibration_hod_hrbp', enabled: true },
+          ]}
+          viewerEmployeeId={871}
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Self-review grade')).toBeTruthy()
+    expect(screen.getByText('Performing')).toBeTruthy()
+    expect(screen.queryByText('Exceeding')).toBeNull()
+    expect(screen.queryByText('Exceptional')).toBeNull()
+  })
+
+  it('lets the viewer open a finished stage', () => {
+    const onViewStage = vi.fn()
+    render(
+      <MemoryRouter>
+        <ScorecardHero
+          detail={detail()}
+          packet={packet({
+            status: 'in_calibration',
+            selfOverallGrade: 'performing',
+            managerOverallGrade: 'exceeding',
+          })}
+          stages={[
+            { id: 'self_review', enabled: true },
+            { id: 'manager_review', enabled: true },
+            { id: 'calibration_hod_hrbp', enabled: true },
+          ]}
+          viewerEmployeeId={1}
+          onViewStage={onViewStage}
+        />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Self-review' }))
+    expect(onViewStage).toHaveBeenCalledWith('self_review')
+    expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    )
   })
 
   it('lets the stage row carry status instead of repeating manager-review chips', () => {

@@ -65,7 +65,8 @@
   white-space: nowrap;
 }
 
-.pd-cycle-select__badge {
+.pd-cycle-select__badge,
+.pd-cycle-select__count {
   flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 500;
@@ -165,12 +166,31 @@
   background: var(--color-neutral-hover, var(--color-muted-bg));
 }
 
+.pd-cycle-select__option--multi {
+  justify-content: flex-start;
+}
+
+.pd-cycle-select__check {
+  display: inline-flex;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.pd-cycle-select__option--multi .pd-check__box {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
 .pd-cycle-select__option-main {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 0.15rem;
   min-width: 0;
+}
+
+.pd-cycle-select__option--multi .pd-cycle-select__option-main {
+  flex: 1;
 }
 
 .pd-cycle-select__option-label {

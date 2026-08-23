@@ -7,6 +7,7 @@ import {
   copyPreviousGoals as copyPreviousGoalsFromCycle,
   saveGoals,
   saveProgress,
+  selectGoalCycle,
   sendBackGoals,
   submitGoals,
   type GoalMutationContext,
@@ -34,7 +35,6 @@ import {
 } from "@/lib/goals/permissions";
 import {
   getGoalsSnapshotForCycle,
-  setActiveCycle,
   setActivePerson,
 } from "@/lib/goals/store";
 import type {
@@ -118,7 +118,7 @@ export function useGoalsController({
 
   useEffect(() => {
     if (!syncActiveSelection) return;
-    if (cycleId) setActiveCycle(cycleId);
+    if (cycleId) void selectGoalCycle(cycleId);
     setActivePerson(subjectId);
   }, [cycleId, subjectId, syncActiveSelection]);
 
