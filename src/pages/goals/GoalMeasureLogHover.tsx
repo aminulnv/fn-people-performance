@@ -122,8 +122,7 @@ export function GoalMeasureLogHover({
   const isChecklist = Boolean(lists)
   const canAddMetric = Boolean(canLog && metric && onRecord)
   const canToggle = Boolean(canLog && lists && onToggleTodo)
-  const showLogButton = canAddMetric || canToggle
-  const showCountButton = !showLogButton && entries.length > 0
+  const showLogButton = canAddMetric || canToggle || entries.length > 0
   const headingId = useId()
   const [open, setOpen] = useState(false)
   const [focusField, setFocusField] = useState(false)
@@ -175,7 +174,7 @@ export function GoalMeasureLogHover({
     }
   }, [open, isChecklist, entries.length, todos.length, doneCount])
 
-  if (!showLogButton && !showCountButton) return null
+  if (!showLogButton) return null
 
   const show = (focus = false) => {
     window.clearTimeout(hideTimer.current)
@@ -283,36 +282,22 @@ export function GoalMeasureLogHover({
       onClick={keepRowClickFromOpening}
       onKeyDown={keepRowClickFromOpening}
     >
-      {showCountButton ? (
-        <button
-          type="button"
-          className="pd-goals-table__log-count"
-          aria-label={triggerLabel}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          onClick={() => show()}
-        >
-          {entries.length}
-        </button>
-      ) : null}
-      {showLogButton ? (
-        <button
-          type="button"
-          className="pd-goals-table__log-add"
-          aria-label={triggerLabel}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          onClick={() => show(true)}
-        >
-          <History size={11} strokeWidth={2} aria-hidden />
-          Log
-          <CountBadge
-            count={entries.length}
-            tone="muted"
-            className="pd-goals-table__log-add-count"
-          />
-        </button>
-      ) : null}
+      <button
+        type="button"
+        className="pd-goals-table__log-add"
+        aria-label={triggerLabel}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        onClick={() => show(canAddMetric)}
+      >
+        <History size={11} strokeWidth={2} aria-hidden />
+        Log
+        <CountBadge
+          count={entries.length}
+          tone="muted"
+          className="pd-goals-table__log-add-count"
+        />
+      </button>
       {popover && typeof document !== 'undefined'
         ? createPortal(popover, document.body)
         : null}
