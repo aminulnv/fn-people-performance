@@ -5,11 +5,15 @@ import {
   cascadeRecipients,
   copyGoalToNewCycle,
   duplicateGoal,
+  cascadeApprovers,
   lineManagerCascade,
   removeGoal,
   replaceGoal,
   resetGoalProgress,
   resolveGoalOwner,
+  applyCascadeToLink,
+  clearCascadeLink,
+  reportCascadeOptions,
   selectedCascadeOption,
 } from './operations'
 import type { DemoPerson, Goal } from './types'
@@ -214,8 +218,17 @@ describe('lineManagerCascade', () => {
         managerName: 'Ben',
         managerId: 'p2',
         managerAvatarUrl: undefined,
+        measurements: source.measurements,
       },
     ])
+  })
+
+  it('exposes named approvers for the UI', () => {
+    const result = lineManagerCascade(people[0], snapshot)
+    expect(cascadeApprovers(result)).toEqual({
+      lineManager: { id: 'p2', name: 'Ben' },
+      skipLevelManager: null,
+    })
   })
 
   it('resolves the skip-level manager when the line manager has one', () => {
@@ -243,6 +256,10 @@ describe('lineManagerCascade', () => {
     const result = lineManagerCascade(people[0], withSkipLevel)
     expect(result.skipLevelManagerId).toBe('p0')
     expect(result.skipLevelManagerName).toBe('Senior')
+    expect(cascadeApprovers(result).skipLevelManager).toEqual({
+      id: 'p0',
+      name: 'Senior',
+    })
   })
 
   it('is empty at the top of the tree', () => {
@@ -272,6 +289,7 @@ describe('lineManagerCascade', () => {
         personId: 'p1',
         personName: 'Ada',
         avatarUrl: undefined,
+        measurements: copy.measurements,
       },
     ])
   })
@@ -299,6 +317,7 @@ describe('lineManagerCascade', () => {
         personId: 'p1',
         personName: 'Ada',
         avatarUrl: undefined,
+        measurements: copy.measurements,
       },
     ])
   })
@@ -311,5 +330,43 @@ describe('lineManagerCascade', () => {
     expect(
       selectedCascadeOption({ linkedGoalLabel: 'Ship quality' }, options)?.id,
     ).toBe('g1')
+  })
+
+  it('lists existing report goals that are not already linked', () => {
+    const child = { ...source, id: 'g-child', description: 'Cut defects' }
+    const already = cascadeGoal(source, 'p1', {
+      sourceTitle: 'Ship quality',
+      sourcePersonName: 'Ben',
+    })
+    expect(
+      reportCascadeOptions(people[1], {
+        people,
+        byPerson: {
+          p1: { personId: 'p1', status: 'draft', goals: [child, already] },
+          p2: { personId: 'p2', status: 'approved', goals: [source] },
+        },
+      }, 'g1'),
+    ).toEqual([
+      {
+        id: 'g-child',
+        title: 'Cut defects',
+        personId: 'p1',
+        personName: 'Ada',
+        personAvatarUrl: undefined,
+      },
+    ])
+  })
+
+  it('links and unlinks an existing child without creating a new goal', () => {
+    const child = { ...source, id: 'g-child', description: 'Cut defects' }
+    const linked = applyCascadeToLink(child, source)
+    expect(linked.id).toBe('g-child')
+    expect(linked.cascadedFromGoalId).toBe('g1')
+    expect(linked.linkedGoalLabel).toBe('Ship quality')
+    expect(clearCascadeLink(linked)).toMatchObject({
+      id: 'g-child',
+      cascadedFromGoalId: undefined,
+      linkedGoalLabel: undefined,
+    })
   })
 })

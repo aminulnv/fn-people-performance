@@ -50,7 +50,7 @@ describe('GoalProgressEditor', () => {
     const milestone = screen.getByLabelText('Prepare Product Requirement Doc')
     const number = screen.getByLabelText('CSAT')
     expect(within(milestone).getByRole('img', { name: 'Milestone' })).toBeInTheDocument()
-    expect(within(number).getByRole('img', { name: 'Number' })).toBeInTheDocument()
+    expect(within(number).getByRole('img', { name: 'Metric' })).toBeInTheDocument()
     expect(milestone).not.toHaveTextContent('Milestone')
     expect(
       screen.getByRole('button', {
@@ -59,9 +59,49 @@ describe('GoalProgressEditor', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove CSAT' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /metric 1/i })).toBeNull()
+    const values = within(number).getByLabelText('Current — of target 5')
+    expect(values.closest('.pd-goal-view__fold-title')).toBeTruthy()
+    expect(values.closest('.pd-goal-view__fold-meta')).toBeNull()
+    expect(number).toHaveAttribute('open')
   })
 
-  it('adds measures with quiet actions instead of radio cards', () => {
+  it('collapses an edit measure like view mode', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(100)],
+    })
+
+    const number = screen.getByLabelText('CSAT')
+    expect(number).toHaveAttribute('open')
+    expect(within(number).getByText('Set target')).toBeInTheDocument()
+
+    fireEvent.click(number.querySelector('.pd-goal-view__fold-chevron')!)
+    expect(number).not.toHaveAttribute('open')
+    expect(
+      within(number).getByRole('button', { name: 'Edit metric name' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(within(number).getByRole('button', { name: 'Edit metric name' }))
+    expect(number).not.toHaveAttribute('open')
+  })
+
+  it('keeps the edit measure open when the title is clicked', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(100)],
+    })
+
+    const number = screen.getByLabelText('CSAT')
+    fireEvent.click(within(number).getByRole('button', { name: 'Edit metric name' }))
+    expect(number).toHaveAttribute('open')
+    expect(within(number).getByText('Set target')).toBeInTheDocument()
+  })
+
+  it('offers milestone and number actions when the goal has no measures', () => {
     renderEditor({
       id: 'g1',
       description: 'Ship quality',
@@ -69,15 +109,49 @@ describe('GoalProgressEditor', () => {
       measurements: [],
     })
 
-    expect(
-      screen.getByRole('button', { name: 'Add milestone measure' }),
-    ).toHaveTextContent('Milestone')
-    expect(
-      screen.getByRole('button', { name: 'Add number measure' }),
-    ).toHaveTextContent('Number')
-    expect(screen.queryByText('Track completion')).toBeNull()
-    expect(screen.queryByText('Track a value')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'No metrics yet' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add milestones' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add number' })).toBeInTheDocument()
+    expect(screen.queryByText('How will you measure this goal?')).toBeNull()
+    expect(screen.queryByText('Add at least one measurement')).toBeNull()
     expect(screen.queryByText(/Weights total/)).toBeNull()
+  })
+
+  it('adds a milestone from the empty state', () => {
+    const onChange = vi.fn()
+    render(
+      <GoalProgressEditor
+        goal={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [],
+        }}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add milestones' }))
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measurements: expect.arrayContaining([
+          expect.objectContaining({ kind: 'milestone' }),
+        ]),
+      }),
+    )
+  })
+
+  it('keeps add buttons after a metric exists, without the empty prompt', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(100)],
+    })
+
+    expect(screen.queryByRole('heading', { name: 'No metrics yet' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Add milestones' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add number' })).toBeInTheDocument()
   })
 
   it('hides the weight footer when measures already split 100% evenly', () => {
@@ -155,7 +229,7 @@ describe('GoalProgressEditor', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add number measure' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add number' }))
 
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({

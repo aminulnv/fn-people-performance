@@ -1,25 +1,25 @@
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   CircleCheck,
   Clock3,
   History,
+  Layers,
   Plus,
   Search,
 } from 'lucide-react'
-import {
-  tableDensityWrapClass,
-  TableDensityToggle,
-} from '@/components/TableDensityToggle'
 import {
   EmptyState,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
+import { nestCyclesForList } from '@/lib/reviews/cycleList'
 import { formatDateRange } from '@/lib/reviews/periods'
-import { PURPOSE_LABEL } from '@/lib/reviews/purpose'
+import { cyclePurposeOf, PURPOSE_LABEL } from '@/lib/reviews/purpose'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import { sortCyclesForList } from '@/lib/reviews/store'
 import {
@@ -28,11 +28,6 @@ import {
 } from '@/lib/reviews/status'
 import type { ReviewCycle, ReviewCycleStatus } from '@/lib/reviews/types'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
-import {
-  readTableDensity,
-  writeTableDensity,
-  type TableDensity,
-} from '@/pages/people/prefs'
 import { AddReviewCycleModal } from './AddReviewCycleModal'
 
 type CycleStatusFilter = 'all' | ReviewCycleStatus
@@ -45,13 +40,7 @@ export function CyclesList() {
   const [statusFilter, setStatusFilter] = useState<CycleStatusFilter | null>(
     null,
   )
-  const [tableDensity, setTableDensityState] =
-    useState<TableDensity>(readTableDensity)
-
-  function setTableDensity(next: TableDensity) {
-    setTableDensityState(next)
-    writeTableDensity(next)
-  }
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
   function toggleStatusFilter(next: CycleStatusFilter) {
     setStatusFilter((current) => (current === next ? null : next))
@@ -106,16 +95,23 @@ export function CyclesList() {
     })
   }, [query, sorted, statusFilter])
 
+  const tree = useMemo(() => nestCyclesForList(filtered), [filtered])
+  const searchOpen = query.trim().length > 0
+
+  function toggleCollapsed(cycleId: string) {
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (next.has(cycleId)) next.delete(cycleId)
+      else next.add(cycleId)
+      return next
+    })
+  }
+
   const cycleColumns = useMemo<ResizableColumn[]>(
     () => [
       {
         id: 'cycle-name',
-        label: (
-          <span className="pd-people__th">
-            Cycle name
-            <span className="pd-people__th-count">{filtered.length}</span>
-          </span>
-        ),
+        label: 'Cycle name',
         name: 'Cycle name',
         grow: true,
       },
@@ -124,7 +120,7 @@ export function CyclesList() {
       { id: 'timeframe', label: 'Timeframe' },
       { id: 'status', label: 'Status' },
     ],
-    [filtered.length],
+    [],
   )
 
   return (
@@ -242,12 +238,6 @@ export function CyclesList() {
           ) : null}
 
           <div className="pd-people__toolbar">
-            <TableDensityToggle
-              className="pd-people__density"
-              buttonClassName="pd-people__density-btn"
-              value={tableDensity}
-              onChange={setTableDensity}
-            />
             <button
               type="button"
               className="pd-people__create-btn"
@@ -309,16 +299,41 @@ export function CyclesList() {
             />
           </div>
         ) : (
-          <div className={tableDensityWrapClass(tableDensity)}>
+          <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-cycles__table"
               storageKey="reviews-cycles-column-widths"
               columns={cycleColumns}
             >
               <tbody>
-                {filtered.map((cycle) => (
-                  <CycleRow key={cycle.id} cycle={cycle} />
-                ))}
+                {tree.map((node) => {
+                  const isOpen =
+                    searchOpen || !collapsed.has(node.cycle.id)
+                  return (
+                    <Fragment key={node.cycle.id}>
+                      <CycleRow
+                        cycle={node.cycle}
+                        childCount={node.children.length}
+                        isOpen={isOpen}
+                        onToggle={
+                          node.children.length > 0
+                            ? () => toggleCollapsed(node.cycle.id)
+                            : undefined
+                        }
+                      />
+                      {isOpen
+                        ? node.children.map((child, index) => (
+                            <CycleRow
+                              key={child.id}
+                              cycle={child}
+                              nested
+                              isLastChild={index === node.children.length - 1}
+                            />
+                          ))
+                        : null}
+                    </Fragment>
+                  )
+                })}
               </tbody>
             </ResizableTable>
           </div>
@@ -339,16 +354,48 @@ export function CyclesList() {
   )
 }
 
-function CycleRow({ cycle }: { cycle: ReviewCycle }) {
+function iconForCycle(cycle: ReviewCycle) {
+  const purpose = cyclePurposeOf(cycle)
+  if (purpose === 'annual_appraisal') return Layers
+  if (purpose === 'custom') return Building2
+  return CalendarDays
+}
+
+function CycleRow({
+  cycle,
+  nested = false,
+  isLastChild = false,
+  childCount = 0,
+  isOpen = false,
+  onToggle,
+}: {
+  cycle: ReviewCycle
+  nested?: boolean
+  isLastChild?: boolean
+  childCount?: number
+  isOpen?: boolean
+  onToggle?: () => void
+}) {
   const navigate = useNavigate()
   const status = resolveCycleStatus(cycle)
-  const Icon = cycle.type === 'ad-hoc' ? Building2 : CalendarDays
+  const purpose = cyclePurposeOf(cycle)
+  const Icon = iconForCycle(cycle)
   const to = cycleDetailPath(cycle.id, 'settings')
 
   return (
     <tr
-      className="pd-people__row-link"
+      className={[
+        'pd-people__row-link',
+        nested ? 'pd-reviews-cycles__row--child' : '',
+        nested && isLastChild ? 'pd-reviews-cycles__row--child-last' : '',
+        !nested && childCount > 0 && isOpen
+          ? 'pd-reviews-cycles__row--open'
+          : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       tabIndex={0}
+      aria-level={nested ? 2 : 1}
       onClick={(event) => {
         const target = event.target as HTMLElement
         if (target.closest('a, button')) return
@@ -361,12 +408,44 @@ function CycleRow({ cycle }: { cycle: ReviewCycle }) {
       }}
     >
       <td>
-        <Link to={to} className="pd-reviews-cycle-link">
-          <span className="pd-reviews-cycle-link__icon" aria-hidden>
-            <Icon size={16} strokeWidth={1.75} />
-          </span>
-          <span className="pd-reviews-cycle-link__name">{cycle.name}</span>
-        </Link>
+        <span className="pd-reviews-cycles__name-cell">
+          {onToggle ? (
+            <button
+              type="button"
+              className="pd-reviews-cycles__expand"
+              aria-expanded={isOpen}
+              aria-label={
+                isOpen
+                  ? `Collapse ${cycle.name}`
+                  : `Expand ${cycle.name}`
+              }
+              onClick={onToggle}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {isOpen ? (
+                <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              )}
+            </button>
+          ) : nested ? (
+            <span className="pd-reviews-cycles__branch" aria-hidden />
+          ) : (
+            <span className="pd-reviews-cycles__expand-spacer" aria-hidden />
+          )}
+          <Link to={to} className="pd-reviews-cycle-link">
+            <span
+              className={`pd-reviews-cycle-link__icon pd-reviews-cycle-link__icon--${purpose}`}
+              aria-hidden
+            >
+              <Icon size={16} strokeWidth={1.75} />
+            </span>
+            <span className="pd-reviews-cycle-link__name">{cycle.name}</span>
+            {childCount > 0 ? (
+              <span className="pd-people__th-count">{childCount}</span>
+            ) : null}
+          </Link>
+        </span>
       </td>
       <td className="pd-reviews-cycles__muted">
         {PURPOSE_LABEL[cycle.purpose ?? 'quarterly_checkin']}

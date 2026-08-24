@@ -51,14 +51,18 @@ export function DateCell({
   label,
   value,
   onChange,
+  labelPlacement = "above",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  labelPlacement?: "above" | "notch";
 }) {
   return (
     <Input
       type="date"
+      label={labelPlacement === "notch" ? label : undefined}
+      labelPlacement={labelPlacement}
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -73,6 +77,7 @@ export function StageWindowFields({
   endValue,
   onStartChange,
   onEndChange,
+  labelPlacement = "above",
 }: {
   startLabel: string;
   endLabel: string;
@@ -80,15 +85,24 @@ export function StageWindowFields({
   endValue: string;
   onStartChange: (value: string) => void;
   onEndChange: (value: string) => void;
+  labelPlacement?: "above" | "notch";
 }) {
+  const notched = labelPlacement === "notch";
   return (
-    <div className="pd-reviews-window">
+    <div
+      className={
+        notched ? "pd-reviews-window pd-reviews-window--notch" : "pd-reviews-window"
+      }
+    >
       <div className="pd-reviews-window__date">
-        <span className="pd-reviews-window__label">{startLabel}</span>
+        {notched ? null : (
+          <span className="pd-reviews-window__label">{startLabel}</span>
+        )}
         <DateCell
           label={startLabel}
           value={startValue}
           onChange={onStartChange}
+          labelPlacement={labelPlacement}
         />
       </div>
       <div className="pd-reviews-window__track" aria-hidden>
@@ -97,11 +111,14 @@ export function StageWindowFields({
         <span className="pd-reviews-window__line" />
       </div>
       <div className="pd-reviews-window__date pd-reviews-window__date--end">
-        <span className="pd-reviews-window__label">{endLabel}</span>
+        {notched ? null : (
+          <span className="pd-reviews-window__label">{endLabel}</span>
+        )}
         <DateCell
           label={endLabel}
           value={endValue}
           onChange={onEndChange}
+          labelPlacement={labelPlacement}
         />
       </div>
     </div>

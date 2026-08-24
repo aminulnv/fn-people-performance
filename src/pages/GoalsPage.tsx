@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
   CircleAlert,
   CircleCheck,
   Clock3,
@@ -26,10 +28,17 @@ import {
   type ResizableColumn,
 } from "@/components/ui";
 import {
+  appendGoalWithWeight,
   canSubmitGoals,
+  collectGoalSubmitBlockers,
   overallCompletion,
   ensureGoalCycleHydrated,
+  removeGoalKeepingWeights,
   selectGoalCycle,
+  submitBlockersForGoal,
+  isMeasureGoalIssue,
+  submitIssueForGoal,
+  submitSetBlockers,
   sumGoalWeights,
   type DemoPhase,
   type Goal,
@@ -41,10 +50,12 @@ import {
   isBlankGoalDraft,
   isGoalDraftDirty,
 } from "@/lib/goals/draft";
-import { blankGoal } from "@/lib/goals/measurements";
+import { blankGoal, measurementPanels } from "@/lib/goals/measurements";
 import {
+  cascadeApprovers,
   indexCascadeRecipients,
   type CascadeRecipient,
+  type CascadeToOption,
   type GoalOwnerOption,
   type LineManagerCascade,
 } from "@/lib/goals/operations";
@@ -57,7 +68,10 @@ import {
   countOwnGoalTodos,
   goalTodoBadgeLabel,
 } from "@/lib/goals/todoCounts";
-import { describeGoalEditLock } from "@/lib/goals/editWindow";
+import {
+  goalEditLockSegments,
+  speakGoalEditLockSegments,
+} from "@/lib/goals/editWindow";
 import {
   recordMetricProgress,
   recordMilestoneProgress,
@@ -65,6 +79,11 @@ import {
 import { isGoalWindowOpenForPerson } from "@/lib/goals/goalExtensions";
 import { useAuth } from "@/lib/auth";
 import { hasSystemPermission } from "@/lib/accessControl/types";
+import {
+  hydrateManagerDelegations,
+  listActiveDelegatedManagerIds,
+  subscribeManagerDelegations,
+} from "@/lib/delegations/store";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
@@ -75,10 +94,24 @@ import {
 import { DEMO_PHASES } from "@/lib/goals/phases";
 import {
   GoalCascadeIndicator,
+  GoalIssueIcon,
   GoalProgressAge,
   GoalsTable,
+  MeasureNameCell,
   MetricsCountBadge,
 } from "./goals/GoalsTable";
+import { GoalMeasureLogHover } from "./goals/GoalMeasureLogHover";
+import {
+  GoalMeasureReadout,
+  formatWeightReadout,
+} from "./goals/GoalMeasurementReadout";
+import {
+  measurePanelLatestProgressAt,
+  measurePanelName,
+  measurePanelProgress,
+  measurePanelProgressLog,
+  measurePanelTableWeight,
+} from "./goals/measurePanelDisplay";
 import { GoalSendBackNotice } from "./goals/GoalSendBackNotice";
 import { GoalSubmitBlockNotice } from "./goals/GoalSubmitBlockNotice";
 import { GoalCountNotice } from "./goals/GoalCountNotice";
@@ -92,6 +125,7 @@ import { GoalUnsavedCloseDialog } from "./goals/GoalUnsavedCloseDialog";
 import { useGoalDraftState } from "./goals/useGoalDraftState";
 import { useDebouncedGoalSave } from "./goals/useDebouncedGoalSave";
 import { useGoalEditGuard } from "./goals/useGoalEditGuard";
+import { GoalLockSegments } from "./goals/PersonMention";
 import { useGoalUnsavedClose } from "./goals/useGoalUnsavedClose";
 import { GoalCreateDrawer } from "./goals/GoalCreateDrawer";
 import {
@@ -101,7 +135,7 @@ import {
 } from "./goals/GoalOkrReferenceSheet";
 import { GoalDetailView } from "./goals/GoalDetailView";
 import type { CascadeTarget } from "./goals/GoalCascadeTargetDialog";
-import { ReportGoalsCard } from "./goals/ReportGoalsCard";
+import { ReportGoalsCard, ReportGoalsEmpty } from "./goals/ReportGoalsCard";
 import { GoalsCycleSelect } from "./goals/GoalsCycleSelect";
 import { useGoalsController } from "./goals/useGoalsController";
 import {
@@ -123,6 +157,7 @@ import {
   combineStatusCounts,
   describeEmptyGoalsList,
   EMPTY_STATUS_COUNTS,
+  goalExpandKey,
   goalRows,
   matchesStatusFilter,
   peopleInScope,
@@ -134,9 +169,8 @@ import {
 import { GoalApprovalStatus } from "./goals/GoalApprovalStatus";
 import {
   cycleIneligibilityEmptyState,
-  cycleIneligibilityStatusLabel,
+  ownGoalsEmptyCopy,
   statusLabel,
-  submissionStatusLabel,
 } from "./goals/statusLabels";
 import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
 import { cycleIneligibilityReason } from "@/lib/goals/demoData";
@@ -149,9 +183,9 @@ import "@/styles/layout-goals.css";
 function phaseLabel(phase: DemoPhase): string {
   return DEMO_PHASES.find((p) => p.id === phase)?.label ?? phase;
 }
-/** Designation and department — stacked under the owner name in the goals table. */
-function personOwnerMetaParts(person: GoalsSnapshot["people"][number]): string[] {
-  return [person.title, person.department].filter(Boolean);
+/** Designation and department — one line under the owner name in the goals table. */
+function personOwnerMeta(person: GoalsSnapshot["people"][number]): string {
+  return [person.title, person.department].filter(Boolean).join(", ");
 }
 
 /** Single-line role summary — mirrors the employee profile hero. */
@@ -219,10 +253,10 @@ const OVERVIEW_SCOPES: {
   id: Extract<GoalsDirectoryScope, "mine" | "all" | "reports">;
   label: string;
 }[] = [
-  { id: "mine", label: "My Goals" },
-  { id: "reports", label: "My Reports" },
-  { id: "all", label: "Everyone" },
-];
+    { id: "mine", label: "My Goals" },
+    { id: "reports", label: "My Reports" },
+    { id: "all", label: "Everyone" },
+  ];
 
 const GOALS_COLUMNS: ResizableColumn[] = [
   { id: "owner", label: "Owner" },
@@ -272,6 +306,7 @@ type OverviewPanelSelection = {
   cycleId: string;
   personId: string;
   goalId: string;
+  measureKey?: string | null;
 };
 
 function GoalsOverviewGoalPanel({
@@ -299,6 +334,7 @@ function GoalsOverviewGoalPanel({
     capabilities,
     cascadeFrom,
     cascadeRecipientsFor,
+    cascadeToOptionsFor,
     resolveOwner,
     actions,
   } = useGoalsController({
@@ -312,17 +348,20 @@ function GoalsOverviewGoalPanel({
     cycleMembershipReady && subject && personCycle
       ? cycleIneligibilityReason(subject, personCycle, subjectGoals?.status)
       : null;
+  const drawerApprovers = cascadeApprovers(cascadeFrom);
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
     personId,
     actorId: actor?.id,
     status: subjectGoals?.status ?? "draft",
     deadlinePassed: Boolean(
       personCycle &&
-        subject &&
-        personCycle.phase === "hard_lock" &&
-        !isGoalWindowOpenForPerson(personCycle, subject) &&
-        personCycle.postWindowGoalPolicy === "two_tier_approval",
+      subject &&
+      personCycle.phase === "hard_lock" &&
+      !isGoalWindowOpenForPerson(personCycle, subject) &&
+      personCycle.postWindowGoalPolicy === "two_tier_approval",
     ),
+    lineManager: drawerApprovers.lineManager,
+    skipLevelManager: drawerApprovers.skipLevelManager,
   });
 
   if (!snapshot || !subject || !subjectGoals) return null;
@@ -337,15 +376,33 @@ function GoalsOverviewGoalPanel({
   const canDuplicate = Boolean(capabilities?.canDuplicate);
   const canCascade = Boolean(capabilities?.canCascade);
   const isCurrentCycle = snapshot.cycleStatus === "current";
-  const editLock = describeGoalEditLock({
+  const editLockArgs = {
     cycle: personCycle ?? snapshot.cycle,
     cycleStatus: snapshot.cycleStatus,
     canUpdateProgress,
     status: subjectGoals.status,
     postWindowApprovalStage: subjectGoals.postWindowApprovalStage,
     subject,
-  });
+    lineManagerName: drawerApprovers.lineManager?.name,
+    skipLevelManagerName: drawerApprovers.skipLevelManager?.name ?? null,
+  };
+  const editLockSegments = goalEditLockSegments(editLockArgs);
+  const editLock = editLockSegments
+    ? speakGoalEditLockSegments(editLockSegments, editLockArgs)
+    : null;
   const lockMessage = ineligibility || canEditDraft ? null : editLock;
+  const lockContent =
+    ineligibility || canEditDraft
+      ? null
+      : editLockSegments
+        ? (
+          <GoalLockSegments
+            segments={editLockSegments}
+            lineManager={drawerApprovers.lineManager}
+            skipLevelManager={drawerApprovers.skipLevelManager}
+          />
+        )
+        : editLock;
   const owner = resolveOwner(selectedGoal, subject.id) ?? {
     id: subject.id,
     name: subject.name,
@@ -365,6 +422,13 @@ function GoalsOverviewGoalPanel({
       goals.map((goal) => (goal.id === next.id ? next : goal)),
     );
   };
+  const canSubmitBatch =
+    Boolean(capabilities?.canSubmit) &&
+    (subjectGoals.status === "draft" || subjectGoals.status === "sent_back");
+  const submitCheck = canSubmitGoals(
+    goals,
+    (personCycle ?? snapshot.cycle).goalCountPolicy,
+  );
 
   return (
     <GoalCreateDrawer
@@ -372,6 +436,16 @@ function GoalsOverviewGoalPanel({
       closeLabel="Close goal"
       sideSheet={okrSideSheetFor(personId)}
       onClose={onClose}
+      ribbon={
+        canSubmitBatch ? (
+          <GoalSubmitBlockNotice
+            layout="ribbon"
+            nameTheGoal={false}
+            blockers={submitBlockersForGoal(selectedGoal.id, submitCheck.blockers)}
+            onOpenGoal={onGoalChange}
+          />
+        ) : null
+      }
     >
       {goalEditGuard}
       {ineligibility ? (
@@ -379,8 +453,8 @@ function GoalsOverviewGoalPanel({
           personName={subject.name}
           reason={ineligibility}
         />
-      ) : lockMessage ? (
-        <GoalEditLockNotice message={lockMessage} />
+      ) : lockContent && lockMessage ? (
+        <GoalEditLockNotice message={lockContent} spoken={lockMessage} />
       ) : null}
       <div className="pd-goals-review">
         <GoalDetailView
@@ -393,6 +467,7 @@ function GoalsOverviewGoalPanel({
           fullViewHref={goalsGoalPath(cycleId, personId, goalId)}
           cascadeFrom={cascadeFrom}
           cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+          cascadeToOptions={cascadeToOptionsFor(selectedGoal.id)}
           cascadeHref={(pid, gid) =>
             goalsGoalPath(snapshot.cycle.id, pid, gid)
           }
@@ -400,16 +475,12 @@ function GoalsOverviewGoalPanel({
           isCurrentCycle={isCurrentCycle}
           status={subjectGoals.status}
           postWindowApprovalStage={subjectGoals.postWindowApprovalStage}
-          sendBackReason={subjectGoals.sendBackReason}
-          sendBackBy={subjectGoals.sendBackBy}
-          approvedBy={subjectGoals.approvedBy}
           commentAuthorName={actor?.name ?? subject.name}
           commentAuthorId={actor?.id ?? subject.id}
           commentAuthors={snapshot.people}
           canEdit={canEditDraft}
           canUpdateProgress={canUpdateProgress}
           canRemove={canEditDraft}
-          canCascade={canCascade}
           cascadeTargets={cascadeTargetsFor(subject.reportIds, snapshot.people)}
           onRequestEdit={requestGoalEdit}
           onChange={saveProgressGoal}
@@ -437,13 +508,34 @@ function GoalsOverviewGoalPanel({
               }
               : undefined
           }
+          onLinkCascadeTo={
+            canCascade
+              ? (option) => {
+                requestGoalEdit(() => {
+                  void actions.linkCascadeTo(personId, selectedGoal.id, option);
+                });
+              }
+              : undefined
+          }
+          onUnlinkCascadeTo={
+            canCascade
+              ? (recipient) => {
+                requestGoalEdit(() => {
+                  void actions.unlinkCascadeTo(personId, selectedGoal.id, {
+                    personId: recipient.personId,
+                    goalId: recipient.goalId,
+                  });
+                });
+              }
+              : undefined
+          }
           onRemove={
             canEditDraft
               ? () => {
                 requestGoalEdit(() => {
                   void actions.saveGoals(
                     personId,
-                    goals.filter((goal) => goal.id !== selectedGoal.id),
+                    removeGoalKeepingWeights(goals, selectedGoal.id),
                   );
                   onClose();
                 });
@@ -468,6 +560,12 @@ function GoalsOverview() {
     snapshot.cycle.id,
   ]);
   const hydration = useGoalsHydration(selectedCycleIds);
+
+  useEffect(() => {
+    void hydrateManagerDelegations().catch(() => {
+      /* Delegation list stays empty until the viewer can load it. */
+    });
+  }, []);
 
   useEffect(() => {
     const availableIds = snapshot.availableCycles.map((cycle) => cycle.id);
@@ -502,10 +600,12 @@ function GoalsOverview() {
     const personId = searchParams.get("person");
     const goalId = searchParams.get("goal");
     const cycleId = searchParams.get("cycle") ?? snapshot.cycle.id;
+    const measureKey = searchParams.get("measure");
     if (!personId || !goalId) return null;
-    return { cycleId, personId, goalId };
+    return { cycleId, personId, goalId, measureKey };
   }, [searchParams, snapshot.cycle.id]);
   const [hoveredPersonId, setHoveredPersonId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
   function setPanelSelection(next: OverviewPanelSelection | null) {
     const params = new URLSearchParams(searchParams);
@@ -513,10 +613,13 @@ function GoalsOverview() {
       params.set("person", next.personId);
       params.set("goal", next.goalId);
       params.set("cycle", next.cycleId);
+      if (next.measureKey) params.set("measure", next.measureKey);
+      else params.delete("measure");
     } else {
       params.delete("person");
       params.delete("goal");
       params.delete("cycle");
+      params.delete("measure");
     }
     const search = params.toString();
     navigate(
@@ -552,8 +655,22 @@ function GoalsOverview() {
     () => (me ? { ...me, permissions: user?.permissions } : null),
     [me, user?.permissions],
   );
+  const coverVersion = useSyncExternalStore(
+    subscribeManagerDelegations,
+    () =>
+      me
+        ? listActiveDelegatedManagerIds(me.id).join(",")
+        : "",
+    () => "",
+  );
+  const coveredManagerIds = useMemo(
+    () => (me ? listActiveDelegatedManagerIds(me.id) : []),
+    [coverVersion, me],
+  );
   const overviewScopes = OVERVIEW_SCOPES.filter((item) => {
-    if (item.id === "reports") return Boolean(me?.reportIds.length);
+    if (item.id === "reports") {
+      return Boolean(me?.reportIds.length || coveredManagerIds.length);
+    }
     if (item.id === "all") {
       if (!me || !viewer) return false;
       return snapshot.people.some(
@@ -599,10 +716,10 @@ function GoalsOverview() {
       : null;
   const ownGoalCount = me
     ? cycleSnapshots.reduce(
-        (total, cycleSnapshot) =>
-          total + (cycleSnapshot.byPerson[me.id]?.goals.length ?? 0),
-        0,
-      )
+      (total, cycleSnapshot) =>
+        total + (cycleSnapshot.byPerson[me.id]?.goals.length ?? 0),
+      0,
+    )
     : 0;
   const scopedRows = useMemo(
     () =>
@@ -621,13 +738,13 @@ function GoalsOverview() {
     () =>
       snapshot && countsReady
         ? combineStatusCounts(
-            cycleSnapshots.map((cycleSnapshot) =>
-              statusCounts(
-                cycleSnapshot,
-                peopleInScope(cycleSnapshot, viewer, visibleScope),
-              ),
+          cycleSnapshots.map((cycleSnapshot) =>
+            statusCounts(
+              cycleSnapshot,
+              peopleInScope(cycleSnapshot, viewer, visibleScope),
             ),
-          )
+          ),
+        )
         : EMPTY_STATUS_COUNTS,
     [countsReady, cycleSnapshots, snapshot, viewer, visibleScope],
   );
@@ -645,6 +762,9 @@ function GoalsOverview() {
           row.person.department,
           row.cycleLabel,
           statusLabel(row.status),
+          ...measurementPanels(row.measurements).map(
+            (panel) => measurePanelName(panel),
+          ),
         ]
           .filter(Boolean)
           .join(" ")
@@ -676,8 +796,8 @@ function GoalsOverview() {
   }, [query, scopedRows, statusFilter]);
 
   const tableRows = useMemo(
-    () => withOwnerRowSpans(filtered),
-    [filtered],
+    () => withOwnerRowSpans(filtered, expandedIds),
+    [expandedIds, filtered],
   );
 
   const canAddOwnGoals = useMemo(() => {
@@ -700,15 +820,15 @@ function GoalsOverview() {
         peopleInScope: scopedPeople.length,
         waitingPeople: snapshot
           ? scopedPeople.filter((person) =>
-              cycleSnapshots.every(
-                (cycleSnapshot) =>
-                  peopleWithoutGoals(
-                    cycleSnapshot,
-                    [person],
-                    statusFilter,
-                  ).length > 0,
-              ),
-            ).length
+            cycleSnapshots.every(
+              (cycleSnapshot) =>
+                peopleWithoutGoals(
+                  cycleSnapshot,
+                  [person],
+                  statusFilter,
+                ).length > 0,
+            ),
+          ).length
           : 0,
         hasQuery: query.trim().length > 0,
         statusFilter,
@@ -734,6 +854,15 @@ function GoalsOverview() {
       setPanelSelection(null);
     }
   }, [panelSelection, snapshot]);
+
+  useEffect(() => {
+    if (!panelSelection?.measureKey) return;
+    const key = `${panelSelection.cycleId}:${panelSelection.goalId}`;
+    setExpandedIds((current) => {
+      if (current.has(key)) return current;
+      return new Set(current).add(key);
+    });
+  }, [panelSelection]);
 
   const summaryItems: {
     id: GoalsListFilter;
@@ -881,6 +1010,7 @@ function GoalsOverview() {
               action={
                 emptyList.offerAdd && me ? (
                   <Button
+                    pill
                     onClick={() =>
                       navigate(
                         goalsDetailPath(snapshot.cycle.id, me.id),
@@ -911,146 +1041,337 @@ function GoalsOverview() {
             >
               <tbody>
                 {tableRows.map((row) => {
-                  const isSelected =
+                  const expandKey = goalExpandKey(row);
+                  const panels = measurementPanels(row.measurements);
+                  const metricsIssue =
+                    row.issue && isMeasureGoalIssue(row.issue)
+                      ? row.issue
+                      : undefined;
+                  const titleIssue =
+                    row.issue && !metricsIssue ? row.issue : undefined;
+                  const isOpen = expandedIds.has(expandKey);
+                  const isGoalSelected =
                     panelSelection?.cycleId === row.cycleId &&
                     panelSelection?.personId === row.person.id &&
-                    panelSelection?.goalId === row.goalId;
+                    panelSelection?.goalId === row.goalId &&
+                    !panelSelection.measureKey;
                   const isOwnerActive =
                     hoveredPersonId === row.person.id ||
                     panelSelection?.personId === row.person.id;
-                  const ownerMetaLines = personOwnerMetaParts(row.person);
+                  const ownerMeta = personOwnerMeta(row.person);
+                  const openGoal = () =>
+                    setPanelSelection({
+                      cycleId: row.cycleId,
+                      personId: row.person.id,
+                      goalId: row.goalId,
+                    });
+                  const hoverPerson = {
+                    onMouseEnter: () => setHoveredPersonId(row.person.id),
+                    onMouseLeave: () => setHoveredPersonId(null),
+                  };
                   return (
-                    <tr
-                      key={row.key}
-                      className={[
-                        "pd-goals-overview__row",
-                        isSelected ? "is-selected" : "",
-                        row.isPersonEnd ? "pd-goals-overview__row--person-end" : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ")}
-                      tabIndex={0}
-                      aria-selected={isSelected}
-                      onMouseEnter={() => setHoveredPersonId(row.person.id)}
-                      onMouseLeave={() => setHoveredPersonId(null)}
-                      onClick={(event) => {
-                        const target = event.target as HTMLElement;
-                        if (target.closest("a, button")) return;
-                        setPanelSelection({
-                          cycleId: row.cycleId,
-                          personId: row.person.id,
-                          goalId: row.goalId,
-                        });
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        event.preventDefault();
-                        setPanelSelection({
-                          cycleId: row.cycleId,
-                          personId: row.person.id,
-                          goalId: row.goalId,
-                        });
-                      }}
-                    >
-                      {row.ownerRowSpan > 0 ? (
-                        <td
-                          rowSpan={row.ownerRowSpan}
-                          data-col="owner"
-                          className={[
-                            "pd-goals-overview__owner-cell",
-                            isOwnerActive ? "is-active" : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" ")}
-                        >
-                          <div className="pd-goals-overview__owner">
-                            <Link
-                              to={goalsDetailPath(
-                                row.cycleId,
-                                row.person.id,
-                              )}
-                              className="pd-goals-overview__owner-link"
-                            >
-                              <Avatar
-                                name={row.person.name}
-                                src={row.person.avatarUrl}
-                                size="sm"
-                                className="pd-people__avatar"
-                                style={avatarStyle(row.person.name)}
-                              />
-                              <div className="pd-goals-overview__owner-text">
-                                <span className="pd-people__person-name">
-                                  {row.person.name}
-                                </span>
-                                {ownerMetaLines.length > 0 ? (
-                                  <span className="pd-goals-overview__owner-meta">
-                                    {ownerMetaLines.map((line, index) => (
-                                      <span
-                                        key={`${index}-${line}`}
-                                        className="pd-goals-overview__owner-meta-line"
-                                      >
-                                        {line}
-                                      </span>
-                                    ))}
-                                  </span>
-                                ) : null}
-                              </div>
-                            </Link>
-                          </div>
-                        </td>
-                      ) : null}
-                      <td
-                        data-col="cycle"
-                        className="pd-goals-overview__cycle"
+                    <Fragment key={row.key}>
+                      <tr
+                        className={[
+                          "pd-goals-overview__row",
+                          isGoalSelected ? "is-selected" : "",
+                          row.isPersonEnd && !isOpen
+                            ? "pd-goals-overview__row--person-end"
+                            : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        tabIndex={0}
+                        aria-selected={isGoalSelected}
+                        {...hoverPerson}
+                        onClick={(event) => {
+                          const target = event.target as HTMLElement;
+                          if (target.closest("a, button")) return;
+                          openGoal();
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          openGoal();
+                        }}
                       >
-                        {row.cycleLabel}
-                      </td>
-                      <td data-col="goals">
-                        <span
-                          className="pd-goals-overview__goal"
-                          title={row.title}
+                        {row.ownerRowSpan > 0 ? (
+                          <td
+                            rowSpan={row.ownerRowSpan}
+                            data-col="owner"
+                            className={[
+                              "pd-goals-overview__owner-cell",
+                              isOwnerActive ? "is-active" : "",
+                            ]
+                              .filter(Boolean)
+                              .join(" ")}
+                          >
+                            <div className="pd-goals-overview__owner">
+                              <Link
+                                to={goalsDetailPath(
+                                  row.cycleId,
+                                  row.person.id,
+                                )}
+                                className="pd-goals-overview__owner-link"
+                              >
+                                <Avatar
+                                  name={row.person.name}
+                                  src={row.person.avatarUrl}
+                                  size="sm"
+                                  className="pd-people__avatar"
+                                  style={avatarStyle(row.person.name)}
+                                />
+                                <div className="pd-goals-overview__owner-text">
+                                  <span className="pd-people__person-name">
+                                    {row.person.name}
+                                  </span>
+                                  {ownerMeta ? (
+                                    <span className="pd-goals-overview__owner-meta">
+                                      {ownerMeta}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </Link>
+                            </div>
+                          </td>
+                        ) : null}
+                        <td
+                          data-col="cycle"
+                          className="pd-goals-overview__cycle"
                         >
-                          <GoalCascadeIndicator
-                            goal={row}
-                            cascadedTo={row.cascadedTo}
-                            place="before"
-                          />
-                          <span className="pd-goals-overview__goal-text">
-                            {row.title}
-                          </span>
-                          <GoalCascadeIndicator
-                            goal={row}
-                            cascadedTo={row.cascadedTo}
-                            place="after"
-                          />
-                        </span>
-                      </td>
-                      <td data-col="weight">
-                        <span className="pd-goals-overview__weight">
-                          {row.weight}%
-                        </span>
-                      </td>
-                      <td data-col="progress">
-                        <div className="pd-goals-overview__progress">
-                          <div className="pd-goals-overview__progress-meta">
-                            <GoalProgressAge at={row.lastUpdatedAt} />
-                            <span className="pd-goals-overview__progress-label">
-                              {row.completion}%
+                          {row.cycleLabel}
+                        </td>
+                        <td data-col="goals">
+                          <div className="pd-goals-table__name-cell">
+                            {panels.length > 0 ? (
+                              <button
+                                type="button"
+                                className="pd-goals-table__expand"
+                                aria-expanded={isOpen}
+                                aria-label={
+                                  isOpen
+                                    ? `Collapse ${row.title}`
+                                    : `Expand ${row.title}`
+                                }
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setExpandedIds((current) => {
+                                    const next = new Set(current);
+                                    if (next.has(expandKey)) next.delete(expandKey);
+                                    else next.add(expandKey);
+                                    return next;
+                                  });
+                                }}
+                                onKeyDown={(event) => event.stopPropagation()}
+                              >
+                                {isOpen ? (
+                                  <ChevronDown
+                                    size={16}
+                                    strokeWidth={1.75}
+                                    aria-hidden
+                                  />
+                                ) : (
+                                  <ChevronRight
+                                    size={16}
+                                    strokeWidth={1.75}
+                                    aria-hidden
+                                  />
+                                )}
+                              </button>
+                            ) : (
+                              <span
+                                className="pd-goals-table__expand-spacer"
+                                aria-hidden
+                              />
+                            )}
+                            <span
+                              className="pd-goals-overview__goal"
+                              title={row.title}
+                            >
+                              <GoalCascadeIndicator
+                                goal={row}
+                                cascadeFrom={row.cascadeFrom}
+                                cascadedTo={row.cascadedTo}
+                                place="before"
+                              />
+                              <span
+                                className={
+                                  titleIssue
+                                    ? "pd-goals-overview__goal-text pd-goals-overview__goal-text--error"
+                                    : "pd-goals-overview__goal-text"
+                                }
+                              >
+                                {row.title}
+                              </span>
+                              <GoalCascadeIndicator
+                                goal={row}
+                                cascadeFrom={row.cascadeFrom}
+                                cascadedTo={row.cascadedTo}
+                                place="after"
+                              />
+                              {titleIssue ? (
+                                <GoalIssueIcon issue={titleIssue} />
+                              ) : null}
                             </span>
                           </div>
-                          <Progress value={row.completion} />
-                        </div>
-                      </td>
-                      <td data-col="metric">
-                        <MetricsCountBadge count={row.metricCount} />
-                      </td>
-                      <td data-col="approval">
-                        <GoalApprovalStatus
-                          status={row.status}
-                          postWindowApprovalStage={row.postWindowApprovalStage}
-                        />
-                      </td>
-                    </tr>
+                        </td>
+                        <td data-col="weight">
+                          <span className="pd-goals-overview__weight">
+                            {row.weight}%
+                          </span>
+                        </td>
+                        <td data-col="progress">
+                          <div className="pd-goals-overview__progress">
+                            <div className="pd-goals-overview__progress-meta">
+                              <GoalProgressAge at={row.lastUpdatedAt} />
+                              <span className="pd-goals-overview__progress-label">
+                                {row.completion}%
+                              </span>
+                            </div>
+                            <Progress value={row.completion} />
+                          </div>
+                        </td>
+                        <td
+                          data-col="metric"
+                          className={
+                            metricsIssue
+                              ? "pd-goals-overview__metric pd-goals-overview__metric--error"
+                              : "pd-goals-overview__metric"
+                          }
+                        >
+                          {metricsIssue ? (
+                            <GoalIssueIcon issue={metricsIssue} />
+                          ) : null}
+                          {row.metricCount > 0 ? (
+                            <MetricsCountBadge count={row.metricCount} />
+                          ) : null}
+                        </td>
+                        <td data-col="approval">
+                          <GoalApprovalStatus
+                            status={row.status}
+                            postWindowApprovalStage={row.postWindowApprovalStage}
+                          />
+                        </td>
+                      </tr>
+                      {isOpen
+                        ? panels.map((panel, index) => {
+                          const measureName =
+                            measurePanelName(panel) || "Metric";
+                          const measureProgress = measurePanelProgress(panel);
+                          const measureWeight = measurePanelTableWeight(
+                            panel,
+                            panels.length,
+                          );
+                          const isLastMeasure = index === panels.length - 1;
+                          const isMeasureSelected = Boolean(
+                            panelSelection?.cycleId === row.cycleId &&
+                            panelSelection.personId === row.person.id &&
+                            panelSelection.goalId === row.goalId &&
+                            panelSelection.measureKey === panel.key,
+                          );
+                          return (
+                            <tr
+                              key={`${row.key}:${panel.key}`}
+                              className={[
+                                "pd-goals-overview__row",
+                                "pd-goals-overview__row--measure",
+                                "pd-goals-table__row--measure",
+                                isMeasureSelected ? "is-selected" : "",
+                                isLastMeasure
+                                  ? "pd-goals-overview__row--measure-last"
+                                  : "",
+                                row.isPersonEnd && isLastMeasure
+                                  ? "pd-goals-overview__row--person-end"
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" ")}
+                              tabIndex={0}
+                              aria-selected={isMeasureSelected}
+                              {...hoverPerson}
+                              onClick={(event) => {
+                                const target = event.target as HTMLElement;
+                                if (target.closest("a, button")) return;
+                                setPanelSelection({
+                                  cycleId: row.cycleId,
+                                  personId: row.person.id,
+                                  goalId: row.goalId,
+                                  measureKey: panel.key,
+                                });
+                              }}
+                              onKeyDown={(event) => {
+                                if (
+                                  event.key !== "Enter" &&
+                                  event.key !== " "
+                                ) {
+                                  return;
+                                }
+                                event.preventDefault();
+                                setPanelSelection({
+                                  cycleId: row.cycleId,
+                                  personId: row.person.id,
+                                  goalId: row.goalId,
+                                  measureKey: panel.key,
+                                });
+                              }}
+                            >
+                              <td
+                                data-col="cycle"
+                                className="pd-goals-overview__cycle"
+                              />
+                              <td data-col="goals">
+                                <MeasureNameCell
+                                  name={measureName}
+                                  panel={panel}
+                                  logAction={
+                                    <GoalMeasureLogHover
+                                      measureName={measureName}
+                                      entries={measurePanelProgressLog(panel)}
+                                      metric={
+                                        panel.kind === "metric"
+                                          ? panel.metric
+                                          : undefined
+                                      }
+                                      lists={
+                                        panel.kind === "todo_measure"
+                                          ? panel.lists
+                                          : undefined
+                                      }
+                                    />
+                                  }
+                                />
+                              </td>
+                              <td data-col="weight">
+                                <span className="pd-goals-table__weight-pill">
+                                  {formatWeightReadout(measureWeight)}
+                                </span>
+                              </td>
+                              <td data-col="progress">
+                                <div className="pd-goals-table__progress">
+                                  <div className="pd-goals-table__progress-meta">
+                                    <GoalProgressAge
+                                      at={measurePanelLatestProgressAt(panel)}
+                                    />
+                                    <span className="pd-goals-table__progress-label">
+                                      {measureProgress}%
+                                    </span>
+                                  </div>
+                                  <Progress value={measureProgress} />
+                                </div>
+                              </td>
+                              <td data-col="metric">
+                                <div className="pd-goals-table__metric">
+                                  <div className="pd-goals-table__metric-line">
+                                    <GoalMeasureReadout panel={panel} />
+                                  </div>
+                                </div>
+                              </td>
+                              <td data-col="approval" />
+                            </tr>
+                          );
+                        })
+                        : null}
+                    </Fragment>
                   );
                 })}
               </tbody>
@@ -1063,6 +1384,7 @@ function GoalsOverview() {
           cycleId={panelSelection.cycleId}
           personId={panelSelection.personId}
           goalId={panelSelection.goalId}
+          highlightMeasureKey={panelSelection.measureKey}
           onClose={() => setPanelSelection(null)}
           onGoalChange={(nextGoalId) =>
             setPanelSelection({
@@ -1108,6 +1430,7 @@ export function GoalsPersonDetail({
     cascadeFrom,
     cascadeFromFor,
     cascadeRecipientsFor,
+    cascadeToOptionsFor,
     capabilities,
     capabilitiesFor,
     resolveOwner,
@@ -1172,7 +1495,18 @@ export function GoalsPersonDetail({
   };
 
   /** The Reports section belongs to the profile owner, so it follows them. */
-  const hasReports = Boolean(active && active.reportIds.length > 0);
+  const coverVersion = useSyncExternalStore(
+    subscribeManagerDelegations,
+    () =>
+      active
+        ? listActiveDelegatedManagerIds(active.id).join(",")
+        : "",
+    () => "",
+  );
+  const coveredManagerIds = coverVersion ? coverVersion.split(",") : [];
+  const hasReports = Boolean(
+    active && (active.reportIds.length > 0 || coveredManagerIds.length > 0),
+  );
 
   if (!snapshot) {
     return (
@@ -1309,8 +1643,8 @@ export function GoalsPersonDetail({
     !cycleMembershipReady || ineligibility
       ? 0
       : countOwnGoalTodos(activeGoals, personCycle, {
-          canSubmit: Boolean(capabilities?.canSubmit),
-        });
+        canSubmit: Boolean(capabilities?.canSubmit),
+      });
 
   const isCurrentCycle = snapshot.cycleStatus === "current";
   const activeGoalId = embedded ? (embeddedGoalId ?? undefined) : goalId;
@@ -1406,6 +1740,36 @@ export function GoalsPersonDetail({
       onSelect={selectCycle}
     />
   );
+  const sectionToolbar = (
+    <GoalsToolbar
+      start={
+        <div className="pd-goals-toolbar__start">
+          {cycleSelect}
+          {hasReports ? managerTabs : null}
+        </div>
+      }
+    />
+  );
+
+  const myGoalsApprovers = cascadeApprovers(cascadeFrom);
+  const myGoalsLockArgs = {
+    cycle: personCycle,
+    cycleStatus: snapshot.cycleStatus,
+    canUpdateProgress: Boolean(capabilities?.canUpdateProgress),
+    status: activeGoals.status,
+    postWindowApprovalStage: activeGoals.postWindowApprovalStage,
+    subject: active,
+    lineManagerName: myGoalsApprovers.lineManager?.name,
+    skipLevelManagerName: myGoalsApprovers.skipLevelManager?.name ?? null,
+  };
+  const myGoalsLockSegments = ineligibility
+    ? null
+    : goalEditLockSegments(myGoalsLockArgs);
+  const myGoalsLockSpoken = ineligibility
+    ? cycleIneligibilityEmptyState(active.name, ineligibility).description
+    : myGoalsLockSegments
+      ? speakGoalEditLockSegments(myGoalsLockSegments, myGoalsLockArgs)
+      : null;
 
   const myGoalsPanel = (
     <EmployeePanel
@@ -1420,17 +1784,17 @@ export function GoalsPersonDetail({
         !isGoalWindowOpenForPerson(personCycle, active) &&
         personCycle.postWindowGoalPolicy === "two_tier_approval"
       }
-      editLock={
-        ineligibility
-          ? cycleIneligibilityEmptyState(active.name, ineligibility).description
-          : describeGoalEditLock({
-              cycle: personCycle,
-              cycleStatus: snapshot.cycleStatus,
-              canUpdateProgress: Boolean(capabilities?.canUpdateProgress),
-              status: activeGoals.status,
-              postWindowApprovalStage: activeGoals.postWindowApprovalStage,
-              subject: active,
-            })
+      editLock={myGoalsLockSpoken}
+      editLockContent={
+        ineligibility || !myGoalsLockSegments
+          ? null
+          : (
+            <GoalLockSegments
+              segments={myGoalsLockSegments}
+              lineManager={myGoalsApprovers.lineManager}
+              skipLevelManager={myGoalsApprovers.skipLevelManager}
+            />
+          )
       }
       isCurrentCycle={isCurrentCycle}
       row={activeGoals}
@@ -1449,17 +1813,12 @@ export function GoalsPersonDetail({
       openGoalId={activeGoalId}
       commentAuthorName={actor?.name ?? active.name}
       commentAuthorId={actor?.id ?? active.id}
-      toolbarStart={
-        <div className="pd-goals-toolbar__start">
-          {cycleSelect}
-          {hasReports ? managerTabs : null}
-        </div>
-      }
       toolbarOnly={showsReports || showsSubjectReview}
       ownerOptions={ownerOptions.filter((option) => option.id === active.id)}
       commentAuthors={ownerOptions}
       cascadeFrom={cascadeFrom}
       cascadeRecipientsFor={cascadeRecipientsFor}
+      cascadeToOptionsFor={cascadeToOptionsFor}
       cascadeHref={(pid, gid) => goalsGoalPath(snapshot.cycle.id, pid, gid)}
       resolveOwner={(goal) =>
         resolveOwner(goal, active.id) ?? {
@@ -1488,6 +1847,12 @@ export function GoalsPersonDetail({
       }))}
       onCascadeGoal={(goalId, reportIds) =>
         actions.cascadeGoal(active.id, goalId, reportIds)
+      }
+      onLinkCascadeTo={(goalId, option) =>
+        actions.linkCascadeTo(active.id, goalId, option)
+      }
+      onUnlinkCascadeTo={(goalId, child) =>
+        actions.unlinkCascadeTo(active.id, goalId, child)
       }
       onSubmit={(goals) => void actions.saveAndSubmit(active.id, goals)}
     />
@@ -1527,40 +1892,32 @@ export function GoalsPersonDetail({
             </section>
           </>
         ) : null}
-        <div
-          className="pd-people__summary pd-goals-detail-header__summary"
-          role="group"
-          aria-label={`${active.name} goal totals`}
-        >
-          <div className="pd-people__summary-card">
-            <span className="pd-people__summary-label">Status</span>
-            <span className="pd-people__summary-value">
-              {!cycleMembershipReady
-                ? "—"
-                : ineligibility
-                  ? cycleIneligibilityStatusLabel(ineligibility)
-                  : submissionStatusLabel(
-                      activeGoals.status,
-                      activeGoals.goals.length,
-                    )}
-            </span>
+        {sectionToolbar}
+        {!embedded && !showsReports ? (
+          <div
+            className="pd-people__summary pd-goals-detail-header__summary"
+            role="group"
+            aria-label={`${active.name} goal totals`}
+          >
+            <div className="pd-people__summary-card">
+              <span className="pd-people__summary-label">Goals</span>
+              <span className="pd-people__summary-value">
+                {!cycleMembershipReady ? 0 : activeGoals.goals.length}
+              </span>
+            </div>
+            <div className="pd-people__summary-card">
+              <span className="pd-people__summary-label">Total weight</span>
+              <span className="pd-people__summary-value">{weightTotal}%</span>
+            </div>
+            <div className="pd-people__summary-card">
+              <span className="pd-people__summary-label">Completion</span>
+              <span className="pd-people__summary-value">{completion}%</span>
+            </div>
           </div>
-          <div className="pd-people__summary-card">
-            <span className="pd-people__summary-label">Goals</span>
-            <span className="pd-people__summary-value">
-              {!cycleMembershipReady ? 0 : activeGoals.goals.length}
-            </span>
-          </div>
-          <div className="pd-people__summary-card">
-            <span className="pd-people__summary-label">Total weight</span>
-            <span className="pd-people__summary-value">{weightTotal}%</span>
-          </div>
-          <div className="pd-people__summary-card">
-            <span className="pd-people__summary-label">Completion</span>
-            <span className="pd-people__summary-value">{completion}%</span>
-          </div>
-        </div>
-        <Divider className="pd-goals-detail-header__divider" />
+        ) : null}
+        {!embedded ? (
+          <Divider className="pd-goals-detail-header__divider" />
+        ) : null}
       </header>
 
       {error ? <Notice tone="danger">{error}</Notice> : null}
@@ -1597,29 +1954,36 @@ function ManagerReportGoalsTable({
   person,
   row,
   canEditStructure,
+  cascadeFromFor,
   cascadeRecipientsFor,
   actorId,
   deadlinePassed,
   openGoalId,
   onOpen,
   onSaveGoals,
+  busy = false,
 }: {
   cycleId: string;
   person: GoalsSnapshot["people"][number];
   row: PersonGoals;
   canEditStructure: boolean;
+  cascadeFromFor: (subjectId: string) => LineManagerCascade;
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[];
   actorId?: string;
   deadlinePassed: boolean;
   openGoalId: string | null;
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
+  busy?: boolean;
 }) {
+  const reportApprovers = cascadeApprovers(cascadeFromFor(person.id));
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
     personId: person.id,
     actorId,
     status: row.status,
     deadlinePassed,
+    lineManager: reportApprovers.lineManager,
+    skipLevelManager: reportApprovers.skipLevelManager,
   });
   const { goals, setGoals } = useGoalDraftState({
     personId: person.id,
@@ -1635,6 +1999,34 @@ function ManagerReportGoalsTable({
     setGoals(next);
     onSaveGoals(person.id, next);
   };
+  const goalIssues =
+    row.status === "draft" || row.status === "sent_back"
+      ? collectGoalSubmitBlockers(goals)
+      : [];
+
+  if (goals.length === 0) {
+    return (
+      <>
+        {goalEditGuard}
+        <ReportGoalsEmpty
+          personName={person.name}
+          canAdd={canEditStructure}
+          busy={busy}
+          onAdd={
+            canEditStructure
+              ? () => {
+                requestGoalEdit(() => {
+                  const next = blankGoal({ ownerId: person.id });
+                  persistNow([next]);
+                  onOpen(next.id);
+                });
+              }
+              : undefined
+          }
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -1645,10 +2037,12 @@ function ManagerReportGoalsTable({
         subjectId={person.id}
         status={row.status}
         postWindowApprovalStage={row.postWindowApprovalStage}
+        cascadeFrom={cascadeFromFor(person.id)}
         cascadeRecipientsFor={cascadeRecipientsFor}
         rows={goals.map((goal, index) => ({
           goal,
           title: goalTitle(goal, index),
+          issue: submitIssueForGoal(goal.id, goalIssues),
         }))}
         openGoalId={openGoalId}
         onOpen={onOpen}
@@ -1657,48 +2051,48 @@ function ManagerReportGoalsTable({
         onWeightChange={
           canEditStructure
             ? (goalId, weight) => {
-                requestGoalEdit(() => {
-                  setGoals((current) => {
-                    const next = current.map((goal) =>
-                      goal.id === goalId ? { ...goal, weight } : goal,
-                    );
-                    schedulePersist(next);
-                    return next;
-                  });
+              requestGoalEdit(() => {
+                setGoals((current) => {
+                  const next = current.map((goal) =>
+                    goal.id === goalId ? { ...goal, weight } : goal,
+                  );
+                  schedulePersist(next);
+                  return next;
                 });
-              }
+              });
+            }
             : undefined
         }
         onMeasureWeightChange={
           canEditStructure
             ? (goalId, measurements) => {
-                requestGoalEdit(() => {
-                  setGoals((current) => {
-                    const next = current.map((goal) =>
-                      goal.id === goalId ? { ...goal, measurements } : goal,
-                    );
-                    schedulePersist(next);
-                    return next;
-                  });
+              requestGoalEdit(() => {
+                setGoals((current) => {
+                  const next = current.map((goal) =>
+                    goal.id === goalId ? { ...goal, measurements } : goal,
+                  );
+                  schedulePersist(next);
+                  return next;
                 });
-              }
+              });
+            }
             : undefined
         }
         onDistributeWeights={
           canEditStructure
             ? (next) => {
-                requestGoalEdit(() => persistNow(next));
-              }
+              requestGoalEdit(() => persistNow(next));
+            }
             : undefined
         }
         onRemove={
           canEditStructure
             ? (goalId) => {
-                requestGoalEdit(() => {
-                  persistNow(goals.filter((goal) => goal.id !== goalId));
-                  if (openGoalId === goalId) onOpen(null);
-                });
-              }
+              requestGoalEdit(() => {
+                persistNow(removeGoalKeepingWeights(goals, goalId));
+                if (openGoalId === goalId) onOpen(null);
+              });
+            }
             : undefined
         }
       />
@@ -1778,17 +2172,10 @@ function ManagerPanel({
           <ReportGoalsCard
             key={person.id}
             person={person}
+            cycleId={snapshot.cycle.id}
             status={row.status}
             postWindowApprovalStage={row.postWindowApprovalStage}
-            skipLevelManager={
-              skipLevel.skipLevelManagerId && skipLevel.skipLevelManagerName
-                ? {
-                  id: skipLevel.skipLevelManagerId,
-                  name: skipLevel.skipLevelManagerName,
-                  avatarUrl: skipLevel.skipLevelManagerAvatarUrl,
-                }
-                : null
-            }
+            skipLevelManager={cascadeApprovers(skipLevel).skipLevelManager}
             goalCount={row.goals.length}
             canApprove={Boolean(reportCaps?.canApprove)}
             canSendBack={Boolean(reportCaps?.canSendBack)}
@@ -1809,28 +2196,24 @@ function ManagerPanel({
               subjectEmployeeId: Number(person.id),
             }}
           >
-            {row.goals.length > 0 ? (
-              <ManagerReportGoalsTable
-                cycleId={snapshot.cycle.id}
-                person={person}
-                row={row}
-                canEditStructure={Boolean(reportCaps?.canEditStructure)}
-                cascadeRecipientsFor={cascadeRecipientsFor}
-                actorId={commentAuthorId}
-                deadlinePassed={
-                  snapshot.cycle.phase === "hard_lock" &&
-                  !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
-                  snapshot.cycle.postWindowGoalPolicy === "two_tier_approval"
-                }
-                openGoalId={openGoalId}
-                onOpen={setOpenGoalId}
-                onSaveGoals={onSaveGoals}
-              />
-            ) : (
-              <p className="pd-goals-approval__empty">
-                No goals added for this cycle yet.
-              </p>
-            )}
+            <ManagerReportGoalsTable
+              cycleId={snapshot.cycle.id}
+              person={person}
+              row={row}
+              canEditStructure={Boolean(reportCaps?.canEditStructure)}
+              cascadeFromFor={cascadeFromFor}
+              cascadeRecipientsFor={cascadeRecipientsFor}
+              actorId={commentAuthorId}
+              deadlinePassed={
+                snapshot.cycle.phase === "hard_lock" &&
+                !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
+                snapshot.cycle.postWindowGoalPolicy === "two_tier_approval"
+              }
+              openGoalId={openGoalId}
+              onOpen={setOpenGoalId}
+              onSaveGoals={onSaveGoals}
+              busy={busy}
+            />
           </ReportGoalsCard>
         );
       })}
@@ -1863,6 +2246,7 @@ function EmployeePanel({
   goalCountPolicy,
   allowLateSubmissions,
   editLock,
+  editLockContent,
   isCurrentCycle,
   row,
   membershipPending = false,
@@ -1884,6 +2268,7 @@ function EmployeePanel({
   ownerOptions,
   cascadeFrom,
   cascadeRecipientsFor,
+  cascadeToOptionsFor,
   cascadeHref,
   resolveOwner,
   highlightMeasureKey,
@@ -1895,6 +2280,8 @@ function EmployeePanel({
   onCopyPreviousGoals,
   onDuplicateGoal,
   onCascadeGoal,
+  onLinkCascadeTo,
+  onUnlinkCascadeTo,
   onSubmit,
 }: {
   personName: string;
@@ -1906,6 +2293,7 @@ function EmployeePanel({
   allowLateSubmissions: boolean;
   /** Explains why goal editing is unavailable in this cycle. */
   editLock: string | null;
+  editLockContent?: ReactNode;
   isCurrentCycle: boolean;
   row: PersonGoals;
   membershipPending?: boolean;
@@ -1931,6 +2319,7 @@ function EmployeePanel({
   ownerOptions: GoalOwnerOption[];
   cascadeFrom: LineManagerCascade;
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[];
+  cascadeToOptionsFor: (goalId: string) => CascadeToOption[];
   cascadeHref: (personId: string, goalId: string) => string;
   resolveOwner: (goal: Goal) => {
     id: string;
@@ -1954,6 +2343,11 @@ function EmployeePanel({
     avatarUrl?: string;
   }[];
   onCascadeGoal: (goalId: string, reportIds: string[]) => Promise<void>;
+  onLinkCascadeTo: (goalId: string, option: CascadeToOption) => Promise<void>;
+  onUnlinkCascadeTo: (
+    goalId: string,
+    child: { personId: string; goalId: string },
+  ) => Promise<void>;
   onSubmit: (goals: Goal[]) => void;
 }) {
   const { goals, setGoals, creatingIds, startCreating, stopCreating } =
@@ -1962,11 +2356,14 @@ function EmployeePanel({
       status: row.status,
       persistedGoals: row.goals,
     });
+  const ownerApprovers = cascadeApprovers(cascadeFrom);
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
     personId,
     actorId: commentAuthorId,
     status: row.status,
     deadlinePassed: allowLateSubmissions,
+    lineManager: ownerApprovers.lineManager,
+    skipLevelManager: ownerApprovers.skipLevelManager,
   });
   const { schedule: schedulePersist, flush: flushPersist } = useDebouncedGoalSave(
     (next) => {
@@ -1994,6 +2391,8 @@ function EmployeePanel({
   });
 
   const submitCheck = canSubmitGoals(goals, goalCountPolicy);
+  const canSubmitBatch =
+    canSubmit && (row.status === "draft" || row.status === "sent_back");
   const creatingGoalId = [...creatingIds][0] ?? null;
   const selectedGoalId = openGoalId ?? creatingGoalId;
   const selectedIndex = selectedGoalId
@@ -2005,9 +2404,9 @@ function EmployeePanel({
     : undefined;
   const selectedHasUnsavedChanges = Boolean(
     selectedGoal &&
-      (selectedPersisted
-        ? isGoalDraftDirty(selectedPersisted, selectedGoal)
-        : !isBlankGoalDraft(selectedGoal)),
+    (selectedPersisted
+      ? isGoalDraftDirty(selectedPersisted, selectedGoal)
+      : !isBlankGoalDraft(selectedGoal)),
   );
 
   const setAndPersist = (next: Goal[]) => {
@@ -2018,7 +2417,7 @@ function EmployeePanel({
   const addGoal = () => {
     const next = blankGoal({ ownerId: personId });
     startCreating(next.id);
-    setGoals([...goals, next]);
+    setGoals(appendGoalWithWeight(goals, next));
   };
 
   const copyPreviousGoals = async () => {
@@ -2067,7 +2466,7 @@ function EmployeePanel({
         creatingIds.has(selectedGoal.id) &&
         isBlankGoalDraft(selectedGoal)
       ) {
-        setGoals(goals.filter((goal) => goal.id !== selectedGoal.id));
+        setGoals(removeGoalKeepingWeights(goals, selectedGoal.id));
       }
       stopCreating(selectedGoal.id);
       onOpenGoal(null);
@@ -2078,7 +2477,7 @@ function EmployeePanel({
     };
 
     const discardNewGoal = () => {
-      setGoals(goals.filter((goal) => goal.id !== selectedGoal.id));
+      setGoals(removeGoalKeepingWeights(goals, selectedGoal.id));
       stopCreating(selectedGoal.id);
       onOpenGoal(null);
     };
@@ -2089,9 +2488,25 @@ function EmployeePanel({
         closeLabel="Close goal"
         sideSheet={okrSideSheetFor(personId)}
         onClose={requestCloseGoal}
+        ribbon={
+          canSubmitBatch ? (
+            <GoalSubmitBlockNotice
+              layout="ribbon"
+              nameTheGoal={false}
+              blockers={submitBlockersForGoal(
+                selectedGoal.id,
+                submitCheck.blockers,
+              )}
+              onOpenGoal={onOpenGoal}
+            />
+          ) : null
+        }
       >
         {!isNew && editLock && !canEditDraft ? (
-          <GoalEditLockNotice message={editLock} />
+          <GoalEditLockNotice
+            message={editLockContent ?? editLock}
+            spoken={editLock}
+          />
         ) : null}
         <GoalDetailView
           isNew={isNew}
@@ -2103,6 +2518,7 @@ function EmployeePanel({
           subjectId={personId}
           cascadeFrom={cascadeFrom}
           cascadedTo={cascadeRecipientsFor(selectedGoal.id)}
+          cascadeToOptions={cascadeToOptionsFor(selectedGoal.id)}
           cascadeHref={cascadeHref}
           cycleLabel={cycleLabel}
           isCurrentCycle={isCurrentCycle}
@@ -2110,16 +2526,12 @@ function EmployeePanel({
           postWindowApprovalStage={
             isNew ? undefined : row.postWindowApprovalStage
           }
-          sendBackReason={isNew ? undefined : row.sendBackReason}
-          sendBackBy={isNew ? undefined : row.sendBackBy}
-          approvedBy={isNew ? undefined : row.approvedBy}
           commentAuthorName={commentAuthorName}
           commentAuthorId={commentAuthorId}
           commentAuthors={commentAuthors ?? ownerOptions}
           canEdit={canEditDraft}
           canUpdateProgress={canUpdateProgress}
           canRemove={canEditDraft}
-          canCascade={isNew ? false : canCascade}
           cascadeTargets={isNew ? [] : cascadeTargets}
           onRequestEdit={requestGoalEdit}
           manualSave={isNew || canManualSave}
@@ -2133,21 +2545,42 @@ function EmployeePanel({
             isNew || !canDuplicate
               ? undefined
               : () => {
-                  requestGoalEdit(() => {
-                    void onDuplicateGoal(selectedGoal.id).then((copy) => {
-                      if (copy) onOpenGoal(copy.id);
-                    });
+                requestGoalEdit(() => {
+                  void onDuplicateGoal(selectedGoal.id).then((copy) => {
+                    if (copy) onOpenGoal(copy.id);
                   });
-                }
+                });
+              }
           }
           onCascade={
             isNew || !canCascade
               ? undefined
               : (reportIds) => {
-                  requestGoalEdit(() => {
-                    void onCascadeGoal(selectedGoal.id, reportIds);
+                requestGoalEdit(() => {
+                  void onCascadeGoal(selectedGoal.id, reportIds);
+                });
+              }
+          }
+          onLinkCascadeTo={
+            isNew || !canCascade
+              ? undefined
+              : (option) => {
+                requestGoalEdit(() => {
+                  void onLinkCascadeTo(selectedGoal.id, option);
+                });
+              }
+          }
+          onUnlinkCascadeTo={
+            isNew || !canCascade
+              ? undefined
+              : (recipient) => {
+                requestGoalEdit(() => {
+                  void onUnlinkCascadeTo(selectedGoal.id, {
+                    personId: recipient.personId,
+                    goalId: recipient.goalId,
                   });
-                }
+                });
+              }
           }
           onChange={(next) => {
             const updated = goals.map((goal) =>
@@ -2176,14 +2609,15 @@ function EmployeePanel({
               ? isNew
                 ? discardNewGoal
                 : () => {
-                    requestGoalEdit(() => {
-                      const updated = goals.filter(
-                        (goal) => goal.id !== selectedGoal.id,
-                      );
-                      setAndPersist(updated);
-                      closeGoal();
-                    });
-                  }
+                  requestGoalEdit(() => {
+                    const updated = removeGoalKeepingWeights(
+                      goals,
+                      selectedGoal.id,
+                    );
+                    setAndPersist(updated);
+                    closeGoal();
+                  });
+                }
               : undefined
           }
         />
@@ -2194,8 +2628,6 @@ function EmployeePanel({
   const showsGoals = !toolbarOnly;
   const sendBackReason =
     showsGoals && row.status === "sent_back" ? row.sendBackReason : undefined;
-  const canSubmitBatch =
-    canSubmit && (row.status === "draft" || row.status === "sent_back");
   const ownerActions =
     showsGoals && (canSubmitBatch || canEditDraft) ? (
       <div
@@ -2212,7 +2644,7 @@ function EmployeePanel({
             onSubmit={() => onSubmit(goals)}
           />
         ) : null}
-        {canEditDraft ? (
+        {canEditDraft && goals.length > 0 ? (
           <button
             type="button"
             className="pd-people__create-btn"
@@ -2228,6 +2660,20 @@ function EmployeePanel({
       </div>
     ) : undefined;
 
+  const submitBlockNotice =
+    canSubmitBatch && !submitCheck.ok ? (
+      <GoalSubmitBlockNotice
+        layout="ribbon"
+        blockers={submitSetBlockers(submitCheck.blockers)}
+        onOpenGoal={onOpenGoal}
+        onAddGoal={
+          canEditDraft
+            ? () => requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
+            : undefined
+        }
+        addGoalLabel={goals.length > 0 ? 'Add another goal' : 'Add a goal'}
+      />
+    ) : null;
   const ownerNotices = showsGoals ? (
     <div className="pd-goals__notices">
       {sendBackReason ? (
@@ -2237,34 +2683,25 @@ function EmployeePanel({
             row.sendBackBy ??
             (cascadeFrom.managerId && cascadeFrom.managerName
               ? {
-                  id: cascadeFrom.managerId,
-                  name: cascadeFrom.managerName,
-                  avatarUrl: cascadeFrom.managerAvatarUrl,
-                }
+                id: cascadeFrom.managerId,
+                name: cascadeFrom.managerName,
+                avatarUrl: cascadeFrom.managerAvatarUrl,
+              }
               : undefined)
           }
         />
       ) : null}
-      {canSubmitBatch && !submitCheck.ok ? (
-        <GoalSubmitBlockNotice
-          blockers={submitCheck.blockers}
-          onOpenGoal={onOpenGoal}
-        />
-      ) : null}
-      {canEditDraft &&
-      canSubmitBatch &&
-      goals.length > 0 &&
-      submitCheck.ok &&
-      submitCheck.warning ? (
-        <GoalCountNotice message={submitCheck.warning} />
-      ) : null}
+      {goals.length === 0 ? submitBlockNotice : null}
       {ineligibility ? (
         <CycleIneligibilityNotice
           personName={personName}
           reason={ineligibility}
         />
       ) : editLock && !canEditDraft ? (
-        <GoalEditLockNotice message={editLock} />
+        <GoalEditLockNotice
+          message={editLockContent ?? editLock}
+          spoken={editLock}
+        />
       ) : null}
       {row.status === "incomplete" ? (
         <Notice tone="danger">
@@ -2274,23 +2711,29 @@ function EmployeePanel({
     </div>
   ) : null;
 
+  const countNotice =
+    showsGoals &&
+      canEditDraft &&
+      canSubmitBatch &&
+      goals.length > 0 &&
+      submitCheck.ok &&
+      submitCheck.warning ? (
+      <GoalCountNotice message={submitCheck.warning} />
+    ) : null;
+
+  const emptyGoals = ownGoalsEmptyCopy(canEditDraft, editLock)
   const goalsBody =
     !showsGoals ? null : goals.length === 0 ? (
       <EmptyState
         className="pd-goals__empty"
         icon={Target}
-        title="No goals yet"
-        description={
-          canEditDraft
-            ? "Add a goal to get started. Each needs measurements, and weights must total 100%."
-            : (editLock ?? "Goals cannot be added for this cycle right now.")
-        }
+        title={emptyGoals.title}
+        description={emptyGoals.description}
         action={
           canEditDraft ? (
             <GoalEmptyActions
               busy={busy}
               previousCycleLabel={previousCycleLabel}
-              showAdd={false}
               onAdd={() =>
                 requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
               }
@@ -2301,15 +2744,20 @@ function EmployeePanel({
       />
     ) : (
       <GoalsTable
+        banner={submitBlockNotice}
         rows={goals.map((goal, index) => ({
           goal,
           title: goalTitle(goal, index),
+          issue: canSubmitBatch
+            ? submitIssueForGoal(goal.id, submitCheck.blockers)
+            : undefined,
         }))}
         openGoalId={openGoalId}
         status={row.status}
         postWindowApprovalStage={row.postWindowApprovalStage}
         cycleId={cycleId}
         subjectId={personId}
+        cascadeFrom={cascadeFrom}
         cascadeRecipientsFor={cascadeRecipientsFor}
         onOpen={(id, measureKey) => {
           unsavedClose.requestLeave(() => onOpenGoal(id, measureKey));
@@ -2321,30 +2769,30 @@ function EmployeePanel({
         onDuplicate={
           canDuplicate
             ? (goalId) => {
-                requestGoalEdit(() => {
-                  void onDuplicateGoal(goalId);
-                });
-              }
+              requestGoalEdit(() => {
+                void onDuplicateGoal(goalId);
+              });
+            }
             : undefined
         }
         onCascade={
           canCascade
             ? (goalId, reportIds) => {
-                requestGoalEdit(() => {
-                  void onCascadeGoal(goalId, reportIds);
-                });
-              }
+              requestGoalEdit(() => {
+                void onCascadeGoal(goalId, reportIds);
+              });
+            }
             : undefined
         }
         onRemove={
           canEditDraft
             ? (goalId) => {
-                requestGoalEdit(() => {
-                  const updated = goals.filter((goal) => goal.id !== goalId);
-                  setAndPersist(updated);
-                  if (openGoalId === goalId) onOpenGoal(null);
-                });
-              }
+              requestGoalEdit(() => {
+                const updated = removeGoalKeepingWeights(goals, goalId);
+                setAndPersist(updated);
+                if (openGoalId === goalId) onOpenGoal(null);
+              });
+            }
             : undefined
         }
         onWeightChange={(goalId, weight) => {
@@ -2372,64 +2820,64 @@ function EmployeePanel({
         onDistributeWeights={
           canEditDraft
             ? (next) => {
-                requestGoalEdit(() => {
-                  setGoals(next);
-                  void onPersistGoals(next);
-                });
-              }
+              requestGoalEdit(() => {
+                setGoals(next);
+                void onPersistGoals(next);
+              });
+            }
             : undefined
         }
         canLogProgress={canUpdateProgress || canEditDraft}
         onRecordMetricProgress={
           canUpdateProgress || canEditDraft
             ? (goalId, metricId, nextValue) => {
-                const author = {
-                  id: commentAuthorId,
-                  name: commentAuthorName,
-                };
-                setGoals((current) => {
-                  const next = current.map((goal) => {
-                    if (goal.id !== goalId) return goal;
-                    return {
-                      ...goal,
-                      measurements: goal.measurements.map((item) =>
-                        item.kind === "metric" && item.id === metricId
-                          ? recordMetricProgress(item, nextValue, author)
-                          : item,
-                      ),
-                    };
-                  });
-                  if (canManualSave) schedulePersist(next);
-                  else onPersistProgress(next);
-                  return next;
+              const author = {
+                id: commentAuthorId,
+                name: commentAuthorName,
+              };
+              setGoals((current) => {
+                const next = current.map((goal) => {
+                  if (goal.id !== goalId) return goal;
+                  return {
+                    ...goal,
+                    measurements: goal.measurements.map((item) =>
+                      item.kind === "metric" && item.id === metricId
+                        ? recordMetricProgress(item, nextValue, author)
+                        : item,
+                    ),
+                  };
                 });
-              }
+                if (canManualSave) schedulePersist(next);
+                else onPersistProgress(next);
+                return next;
+              });
+            }
             : undefined
         }
         onToggleMilestone={
           canUpdateProgress || canEditDraft
             ? (goalId, milestoneId, complete) => {
-                const author = {
-                  id: commentAuthorId,
-                  name: commentAuthorName,
-                };
-                setGoals((current) => {
-                  const next = current.map((goal) => {
-                    if (goal.id !== goalId) return goal;
-                    return {
-                      ...goal,
-                      measurements: goal.measurements.map((item) =>
-                        item.kind === "milestone" && item.id === milestoneId
-                          ? recordMilestoneProgress(item, complete, author)
-                          : item,
-                      ),
-                    };
-                  });
-                  if (canManualSave) schedulePersist(next);
-                  else onPersistProgress(next);
-                  return next;
+              const author = {
+                id: commentAuthorId,
+                name: commentAuthorName,
+              };
+              setGoals((current) => {
+                const next = current.map((goal) => {
+                  if (goal.id !== goalId) return goal;
+                  return {
+                    ...goal,
+                    measurements: goal.measurements.map((item) =>
+                      item.kind === "milestone" && item.id === milestoneId
+                        ? recordMilestoneProgress(item, complete, author)
+                        : item,
+                    ),
+                  };
                 });
-              }
+                if (canManualSave) schedulePersist(next);
+                else onPersistProgress(next);
+                return next;
+              });
+            }
             : undefined
         }
       />
@@ -2460,24 +2908,8 @@ function EmployeePanel({
           postWindowApprovalStage={row.postWindowApprovalStage}
           perspective="owner"
           allowLateSubmissions={allowLateSubmissions}
-          lineManager={
-            cascadeFrom.managerId && cascadeFrom.managerName
-              ? {
-                  id: cascadeFrom.managerId,
-                  name: cascadeFrom.managerName,
-                  avatarUrl: cascadeFrom.managerAvatarUrl,
-                }
-              : null
-          }
-          skipLevelManager={
-            cascadeFrom.skipLevelManagerId && cascadeFrom.skipLevelManagerName
-              ? {
-                  id: cascadeFrom.skipLevelManagerId,
-                  name: cascadeFrom.skipLevelManagerName,
-                  avatarUrl: cascadeFrom.skipLevelManagerAvatarUrl,
-                }
-              : null
-          }
+          lineManager={cascadeApprovers(cascadeFrom).lineManager}
+          skipLevelManager={cascadeApprovers(cascadeFrom).skipLevelManager}
           goalCount={goals.length}
           actions={ownerActions}
           activityFilters={{
@@ -2487,6 +2919,7 @@ function EmployeePanel({
         >
           {ownerNotices}
           {goalsBody}
+          {countNotice}
         </ReportGoalsCard>
       ) : null}
       {goalDrawer}

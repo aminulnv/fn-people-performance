@@ -148,6 +148,14 @@ describe('shared draft helpers (V1/V2 contract)', () => {
         measurements: [],
       }),
     ).toBe(true)
+    expect(
+      isBlankGoalDraft({
+        id: 'new',
+        description: '',
+        weight: 100,
+        measurements: [],
+      }),
+    ).toBe(true)
     expect(isBlankGoalDraft({ ...goal, description: '' })).toBe(false)
   })
 
@@ -161,6 +169,38 @@ describe('shared draft helpers (V1/V2 contract)', () => {
     expect(hasPromptableUnsavedGoalDraft([blank], [])).toBe(false)
     expect(
       hasPromptableUnsavedGoalDraft([{ ...blank, description: 'Ship it' }], []),
+    ).toBe(true)
+  })
+
+  it('does not prompt for auto-filled weights on a blank new goal', () => {
+    const existing = { ...goal, weight: 100 }
+    const blank = {
+      id: 'new',
+      description: '',
+      weight: 50,
+      measurements: [],
+    }
+    expect(
+      hasPromptableUnsavedGoalDraft(
+        [{ ...existing, weight: 50 }, blank],
+        [existing],
+      ),
+    ).toBe(false)
+  })
+
+  it('prompts when weights were customized away from an even split', () => {
+    const existing = { ...goal, weight: 100 }
+    const blank = {
+      id: 'new',
+      description: '',
+      weight: 30,
+      measurements: [],
+    }
+    expect(
+      hasPromptableUnsavedGoalDraft(
+        [{ ...existing, weight: 70 }, blank],
+        [existing],
+      ),
     ).toBe(true)
   })
 

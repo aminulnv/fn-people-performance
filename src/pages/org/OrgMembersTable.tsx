@@ -14,6 +14,16 @@ export function OrgMembersTable({
   /** Show team column on department pages, department on team pages. */
   extraColumn?: Column
 }) {
+  const managersById = useMemo(() => {
+    const next = new Map<number, PlatformEmployee>()
+    for (const member of members) next.set(member.employeeId, member)
+    return next
+  }, [members])
+  const managersByName = useMemo(() => {
+    const next = new Map<string, PlatformEmployee>()
+    for (const member of members) next.set(member.fullName, member)
+    return next
+  }, [members])
   const columns = useMemo<ResizableColumn[]>(() => {
     const next: ResizableColumn[] = [
       {
@@ -81,8 +91,31 @@ export function OrgMembersTable({
               ) : null}
               <td>
                 {member.reportsToName ? (
-                  <span className="pd-people__person-name">
-                    {member.reportsToName}
+                  <span className="pd-people__person">
+                    <Avatar
+                      name={member.reportsToName}
+                      src={
+                        (member.reportsToId
+                          ? managersById.get(member.reportsToId)
+                          : managersByName.get(member.reportsToName)
+                        )?.avatarUrl || undefined
+                      }
+                      size="sm"
+                      className="pd-people__avatar"
+                      style={avatarStyle(member.reportsToName)}
+                    />
+                    {member.reportsToId ? (
+                      <Link
+                        to={`/people/${member.reportsToId}`}
+                        className="pd-people__person-link"
+                      >
+                        {member.reportsToName}
+                      </Link>
+                    ) : (
+                      <span className="pd-people__person-name">
+                        {member.reportsToName}
+                      </span>
+                    )}
                   </span>
                 ) : (
                   '—'

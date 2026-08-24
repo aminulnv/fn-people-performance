@@ -1,3 +1,4 @@
+import { managerLineRecipientIds } from '@/lib/delegations/roles'
 import type {
   DemoPerson,
   Goal,
@@ -7,6 +8,7 @@ import type {
 import { resolveGoalDeadline } from '@/lib/goals/goalExtensions'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { NOTIFICATION_EVENTS } from './catalogue'
+import type { NotificationTemplateInput } from './types'
 import {
   completeNotificationAction,
   emitNotification,
@@ -34,6 +36,34 @@ function specificGoalDestination(
 function personById(snapshot: GoalsSnapshot, id?: string): DemoPerson | null {
   if (!id) return null
   return snapshot.people.find((person) => person.id === id) ?? null
+}
+
+function emitToManagerLine(
+  managerId: string | undefined,
+  input: Omit<NotificationTemplateInput, 'recipientId'>,
+  options?: Parameters<typeof emitNotification>[1],
+): void {
+  for (const recipientId of managerLineRecipientIds(managerId)) {
+    emitNotification({ ...input, recipientId }, options)
+  }
+}
+
+function supersedeManagerLine(
+  managerId: string | undefined,
+  dedupeKey: string,
+): void {
+  for (const recipientId of managerLineRecipientIds(managerId)) {
+    supersedeNotification(recipientId, dedupeKey)
+  }
+}
+
+function completeApprovalLine(
+  managerId: string | undefined,
+  actorId: string,
+  dedupeKey: string,
+): void {
+  const ids = new Set([actorId, ...managerLineRecipientIds(managerId)])
+  for (const id of ids) completeNotificationAction(id, dedupeKey)
 }
 
 function approvalTaskKey(
@@ -69,10 +99,10 @@ export function notifyGoalSubmitted({
       ? NOTIFICATION_EVENTS.GOAL_RESUBMITTED
       : NOTIFICATION_EVENTS.GOAL_SUBMITTED
 
-  emitNotification(
+  emitToManagerLine(
+    manager.id,
     {
       eventKey,
-      recipientId: manager.id,
       actorId: actor.id,
       dedupeKey: approvalTaskKey(snapshot.cycle.id, subject.id, 'manager'),
       destination: goalDestination(snapshot.cycle.id, subject.id),
@@ -99,10 +129,10 @@ export function notifyGoalChangesRequireApproval({
 }: GoalEventContext & { row: PersonGoals }): void {
   const manager = personById(snapshot, subject.managerId)
   if (!manager) return
-  emitNotification(
+  emitToManagerLine(
+    manager.id,
     {
       eventKey: NOTIFICATION_EVENTS.GOAL_CHANGES_REQUIRE_APPROVAL,
-      recipientId: manager.id,
       actorId: actor.id,
       dedupeKey: approvalTaskKey(snapshot.cycle.id, subject.id, 'manager'),
       destination: goalDestination(snapshot.cycle.id, subject.id),
@@ -128,13 +158,13 @@ export function withdrawGoalApprovalRequests({
 }: Pick<GoalEventContext, 'snapshot' | 'subject'>): void {
   const manager = personById(snapshot, subject.managerId)
   if (manager) {
-    supersedeNotification(
+    supersedeManagerLine(
       manager.id,
       approvalTaskKey(snapshot.cycle.id, subject.id, 'manager'),
     )
     const skipLevelManager = personById(snapshot, manager.managerId)
     if (skipLevelManager) {
-      supersedeNotification(
+      supersedeManagerLine(
         skipLevelManager.id,
         approvalTaskKey(snapshot.cycle.id, subject.id, 'manager_manager'),
       )
@@ -180,7 +210,8 @@ export function notifyGoalApproved({
   const previousStage = previousRow.postWindowApprovalStage
   const actorStage =
     previousStage === 'manager_manager' ? 'manager_manager' : 'manager'
-  completeNotificationAction(
+  completeApprovalLine(
+    manager?.id,
     actor.id,
     approvalTaskKey(snapshot.cycle.id, subject.id, actorStage),
   )
@@ -188,9 +219,8 @@ export function notifyGoalApproved({
   if (previousStage === 'manager') {
     const skipLevelManager = personById(snapshot, manager?.managerId)
     if (!skipLevelManager) return
-    emitNotification({
+    emitToManagerLine(skipLevelManager.id, {
       eventKey: NOTIFICATION_EVENTS.GOAL_FINAL_APPROVAL_REQUESTED,
-      recipientId: skipLevelManager.id,
       actorId: actor.id,
       dedupeKey: approvalTaskKey(
         snapshot.cycle.id,
@@ -248,9 +278,8 @@ export function notifyGoalApproved({
   })
 
   if (isFinalApproval && manager && manager.id !== actor.id) {
-    emitNotification({
+    emitToManagerLine(manager.id, {
       eventKey: NOTIFICATION_EVENTS.GOAL_FINAL_APPROVED_MANAGER,
-      recipientId: manager.id,
       actorId: actor.id,
       dedupeKey: `goal-final-approved-manager:${snapshot.cycle.id}:${subject.id}`,
       destination: goalDestination(snapshot.cycle.id, subject.id),
@@ -283,7 +312,9 @@ export function notifyGoalSentBack({
     )
   }
   const actorStage = isFinal ? 'manager_manager' : 'manager'
-  completeNotificationAction(
+  const manager = personById(snapshot, subject.managerId)
+  completeApprovalLine(
+    isFinal ? manager?.managerId : manager?.id,
     actor.id,
     approvalTaskKey(snapshot.cycle.id, subject.id, actorStage),
   )
@@ -306,11 +337,9 @@ export function notifyGoalSentBack({
     },
   })
 
-  const manager = personById(snapshot, subject.managerId)
   if (isFinal && manager && manager.id !== actor.id) {
-    emitNotification({
+    emitToManagerLine(manager.id, {
       eventKey: NOTIFICATION_EVENTS.GOAL_FINAL_SENT_BACK_MANAGER,
-      recipientId: manager.id,
       actorId: actor.id,
       dedupeKey: `goal-final-sent-back-manager:${snapshot.cycle.id}:${subject.id}`,
       destination: goalDestination(snapshot.cycle.id, subject.id),

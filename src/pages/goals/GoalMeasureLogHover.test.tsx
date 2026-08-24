@@ -26,12 +26,16 @@ const entry: ProgressLogEntry = {
 }
 
 describe('GoalMeasureLogHover', () => {
-  it('hides when there are no logs and logging is closed', () => {
-    const { container } = render(
+  it('shows Log when there are no logs and logging is closed', () => {
+    render(
       <GoalMeasureLogHover measureName="Primary outcome completion" entries={[]} />,
     )
 
-    expect(container).toBeEmptyDOMElement()
+    const log = screen.getByRole('button', {
+      name: 'Log progress for Primary outcome completion',
+    })
+    expect(log).toHaveTextContent('Log')
+    expect(log.querySelector('.pd-count-badge')).toBeNull()
   })
 
   it('shows Log without a count when logging is allowed with no history', () => {
@@ -80,7 +84,13 @@ describe('GoalMeasureLogHover', () => {
     expect(
       screen.getByRole('dialog', { name: 'Progress logs 1 update' }),
     ).toBeInTheDocument()
-    expect(screen.getByText('0 → 60')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (_, node) =>
+          node?.classList.contains('pd-goal-progress-log__change') === true &&
+          node.textContent === '0 → 60',
+      ),
+    ).toBeInTheDocument()
     expect(
       screen.queryByLabelText(
         'Current progress for Primary outcome completion',
@@ -137,6 +147,7 @@ describe('GoalMeasureLogHover', () => {
       screen.getByRole('heading', { name: 'Progress logs 1 update' }),
     ).toBeInTheDocument()
 
+    const heading = screen.getByRole('heading', { name: 'Progress logs 1 update' })
     const dialog = screen.getByRole('dialog', { name: 'Progress logs 1 update' })
     const field = screen.getByLabelText(
       'Current progress for Primary outcome completion',
@@ -145,7 +156,10 @@ describe('GoalMeasureLogHover', () => {
       'Progress history for Primary outcome completion',
     )
     expect(
-      field.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
+      field.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      heading.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(dialog).toContainElement(field)
     expect(dialog).toContainElement(history)
@@ -185,17 +199,62 @@ describe('GoalMeasureLogHover', () => {
       }),
     )
 
+    const heading = screen.getByRole('heading', { name: 'Progress logs None yet' })
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'Mark Triage incoming defects complete',
+    })
     expect(
-      screen.getByRole('heading', { name: 'Checklist 0 of 1 done' }),
-    ).toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole('checkbox', {
-        name: 'Mark Triage incoming defects complete',
-      }),
-    )
+      checkbox.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    fireEvent.click(checkbox)
     expect(onToggleTodo).toHaveBeenCalledWith('t1', true)
     expect(
-      screen.getByRole('dialog', { name: 'Checklist 0 of 1 done' }).parentElement,
+      screen.getByRole('dialog', { name: 'Progress logs None yet' }).parentElement,
     ).toBe(document.body)
+  })
+
+  it('puts the checklist heading between the tasks and the history', () => {
+    const todo: Milestone = {
+      id: 't1',
+      kind: 'milestone',
+      title: 'Triage incoming defects',
+      weight: 0,
+      complete: true,
+    }
+
+    render(
+      <GoalMeasureLogHover
+        measureName="Quality process"
+        entries={[
+          {
+            id: 'log-done',
+            recordedAt: '2026-08-14T20:47:00.000Z',
+            authorName: 'Ada',
+            from: 0,
+            to: 1,
+            label: 'Triage incoming defects',
+          },
+        ]}
+        lists={[{ listKey: 'l1', listTitle: 'Process', todos: [todo] }]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Update checklist for Quality process, 1 update',
+      }),
+    )
+
+    const heading = screen.getByRole('heading', { name: 'Progress logs 1 update' })
+    const checkbox = screen.getByRole('checkbox', {
+      name: 'Mark Triage incoming defects incomplete',
+    })
+    const history = screen.getByLabelText('Progress history for Quality process')
+    expect(
+      checkbox.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      heading.compareDocumentPosition(history) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
   })
 })

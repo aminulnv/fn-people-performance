@@ -1,6 +1,12 @@
 import { isEligibleForCycle } from "./demoData";
 import { isGoalWindowOpenForPerson } from "./goalExtensions";
 import { hasSystemPermission } from "@/lib/accessControl/types";
+import {
+  delegationActingAs,
+  effectiveReportIds,
+  isDelegatingForEmployee,
+} from "@/lib/delegations/roles";
+import { listActiveDelegatedManagerIds } from "@/lib/delegations/store";
 import type {
   DemoPerson,
   GoalsCycle,
@@ -15,6 +21,9 @@ export type GoalActionContext = {
   row: PersonGoals;
   cycle: GoalsCycle;
   cycleStatus: GoalsCycleStatus;
+  people?: DemoPerson[];
+  delegationAsDirectManager?: boolean;
+  delegationAsSkipLevel?: boolean;
 };
 
 export type GoalCapabilities = {
@@ -85,10 +94,20 @@ export function deriveGoalCapabilities(
     cycle.phase === "hard_lock" &&
     cycle.postWindowGoalPolicy === "two_tier_approval";
   const goalInputOpen = windowOpen || postWindowInputOpen;
-  const selfOrManager = isSelfOrManager(actor, subject);
+  const delegationRole =
+    context.delegationAsDirectManager != null ||
+    context.delegationAsSkipLevel != null
+      ? {
+          asDirectManager: Boolean(context.delegationAsDirectManager),
+          asSkipLevel: Boolean(context.delegationAsSkipLevel),
+        }
+      : delegationActingAs(actor.id, subject, context.people ?? [], listActiveDelegatedManagerIds(actor.id));
+  const selfOrManager =
+    isSelfOrManager(actor, subject) || delegationRole.asDirectManager;
   const isSelf = actor.id === subject.id;
-  const manager = isDirectManager(actor, subject);
-  const managerManager = isManagerManager(actor, subject);
+  const manager = isDirectManager(actor, subject) || delegationRole.asDirectManager;
+  const managerManager =
+    isManagerManager(actor, subject) || delegationRole.asSkipLevel;
   const isPostWindowManagerApproval = row.postWindowApprovalStage === "manager";
   const isPostWindowManagerManagerApproval =
     row.postWindowApprovalStage === "manager_manager";
@@ -99,6 +118,11 @@ export function deriveGoalCapabilities(
   const canWriteAll = hasSystemPermission(
     actor.permissions,
     "platform.write_all",
+  );
+  const delegatingForSubject = isDelegatingForEmployee(actor.id, subject.id);
+  const actorReportIds = effectiveReportIds(
+    actor,
+    context.people ?? [],
   );
   const canStructure =
     eligible &&
@@ -118,7 +142,8 @@ export function deriveGoalCapabilities(
     canDuplicate: canStructure,
     canCascade:
       canStructure &&
-      ((isSelf && actor.reportIds.length > 0) ||
+      ((isSelf && actorReportIds.length > 0) ||
+        (delegatingForSubject && subject.reportIds.length > 0) ||
         (canWriteAll && subject.reportIds.length > 0)),
     canSubmit:
       (isSelf || canWriteAll) &&
@@ -135,7 +160,8 @@ export function deriveGoalCapabilities(
       (canWriteAll ||
         (isPostWindowManagerManagerApproval ? managerManager : manager)) &&
       (row.status === "submitted" || row.status === "approved"),
-    canViewAsManager: manager || canReadAll || canWriteAll,
+    canViewAsManager:
+      manager || delegationRole.asSkipLevel || canReadAll || canWriteAll,
   };
 }
 
@@ -156,6 +182,32 @@ export function selectManagerReports(
       return { person, row };
     })
     .filter(Boolean) as { person: DemoPerson; row: PersonGoals }[];
+}
+
+/** Merge this manager's queue with teams they are actively delegated for. */
+export function selectActorApprovalQueue(
+  actor: DemoPerson,
+  people: DemoPerson[],
+  byPerson: Record<string, PersonGoals>,
+  coveredManagerIds = listActiveDelegatedManagerIds(actor.id),
+): { person: DemoPerson; row: PersonGoals }[] {
+  const queues = [
+    selectManagerApprovalQueue(actor, people, byPerson),
+    ...coveredManagerIds.flatMap((managerId) => {
+      const manager = people.find((person) => person.id === managerId);
+      return manager
+        ? selectManagerApprovalQueue(manager, people, byPerson)
+        : [];
+    }),
+  ];
+  const seen = new Set<string>();
+  const merged: { person: DemoPerson; row: PersonGoals }[] = [];
+  for (const item of queues.flat()) {
+    if (seen.has(item.person.id)) continue;
+    seen.add(item.person.id);
+    merged.push(item);
+  }
+  return merged;
 }
 
 /** Direct reports plus only skip-level late submissions awaiting this approver. */
@@ -194,7 +246,7 @@ export function countPendingGoalApprovalsForManager(
   byPerson: Record<string, PersonGoals>,
 ): number {
   return countPendingGoalApprovals(
-    selectManagerApprovalQueue(manager, people, byPerson),
+    selectActorApprovalQueue(manager, people, byPerson),
   );
 }
 

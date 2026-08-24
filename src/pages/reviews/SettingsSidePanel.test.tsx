@@ -147,6 +147,35 @@ describe('SettingsSidePanel', () => {
     ).toHaveTextContent('Preset questions')
   })
 
+  it('keeps the review form tab expanded after a hover-then-click, then shrinks on the next hover', () => {
+    render(
+      <SettingsSidePanel
+        label="Everyone"
+        closeLabel="Close group settings"
+        sideSheet={reviewFormSheet}
+        onClose={() => undefined}
+      >
+        <p>Review windows</p>
+      </SettingsSidePanel>,
+    )
+    const tab = screen.getByRole('button', { name: 'Review form' })
+
+    expect(tab).toHaveAttribute('data-expanded', 'false')
+
+    fireEvent.pointerEnter(tab)
+    expect(tab).toHaveAttribute('data-expanded', 'true')
+
+    fireEvent.click(tab)
+    expect(
+      screen.getByRole('region', { name: 'Review form templates' }),
+    ).toBeInTheDocument()
+    expect(tab).toHaveAttribute('data-expanded', 'true')
+
+    fireEvent.pointerLeave(tab)
+    fireEvent.pointerEnter(tab)
+    expect(tab).toHaveAttribute('data-expanded', 'false')
+  })
+
   it('closes the side sheet before the panel when Escape is pressed', () => {
     const onClose = vi.fn()
     render(

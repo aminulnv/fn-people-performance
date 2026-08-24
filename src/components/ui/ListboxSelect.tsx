@@ -35,6 +35,8 @@ export type ListboxSelectProps = {
   searchable?: boolean
   searchPlaceholder?: string
   noResultsText?: string
+  /** Show the selected option’s description beside the label in the closed trigger. */
+  showDescriptionInTrigger?: boolean
   'aria-label'?: string
 }
 
@@ -52,6 +54,7 @@ export function ListboxSelect({
   searchable = false,
   searchPlaceholder = 'Search…',
   noResultsText = 'No options found',
+  showDescriptionInTrigger = false,
   'aria-label': ariaLabel,
 }: ListboxSelectProps) {
   const autoId = useId()
@@ -114,15 +117,9 @@ export function ListboxSelect({
   }, [open, filteredItems, value])
 
   useEffect(() => {
-    if (!open) return
-    if (searchable && document.activeElement === searchRef.current) return
+    if (!open || searchable) return
     optionRefs.current[activeIndex]?.focus()
   }, [open, activeIndex, searchable])
-
-  useEffect(() => {
-    if (!open || !searchable) return
-    searchRef.current?.focus()
-  }, [open, searchable])
 
   const enabledIndexes = filteredItems
     .map((item, index) => (item.disabled ? -1 : index))
@@ -161,6 +158,32 @@ export function ListboxSelect({
     }
   }
 
+  const onComboboxKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault()
+      if (!open) setOpen(true)
+      else moveActive(1)
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault()
+      if (!open) setOpen(true)
+      else moveActive(-1)
+    } else if (event.key === 'Home' && open) {
+      event.preventDefault()
+      if (enabledIndexes[0] != null) setActiveIndex(enabledIndexes[0])
+    } else if (event.key === 'End' && open) {
+      event.preventDefault()
+      const last = enabledIndexes[enabledIndexes.length - 1]
+      if (last != null) setActiveIndex(last)
+    } else if (event.key === 'Enter' && open) {
+      event.preventDefault()
+      const active = filteredItems[activeIndex]
+      if (active && !active.disabled) choose(active.value)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      close()
+    }
+  }
+
   const onOptionKeyDown = (
     event: KeyboardEvent<HTMLButtonElement>,
     itemValue: string,
@@ -187,16 +210,10 @@ export function ListboxSelect({
     }
   }
 
-  const onSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown' && enabledIndexes[0] != null) {
-      event.preventDefault()
-      setActiveIndex(enabledIndexes[0])
-      optionRefs.current[enabledIndexes[0]]?.focus()
-    } else if (event.key === 'Escape') {
-      event.preventDefault()
-      close()
-    }
-  }
+  const activeOptionId =
+    open && filteredItems[activeIndex]
+      ? `${listboxId}-opt-${activeIndex}`
+      : undefined
 
   return (
     <div
@@ -206,56 +223,90 @@ export function ListboxSelect({
       {name ? (
         <input type="hidden" name={name} value={value} readOnly />
       ) : null}
-      <button
-        type="button"
-        id={listboxId}
-        className={cx(
-          'pd-listbox__trigger',
-          showPlaceholder && 'pd-listbox__trigger--placeholder',
-        )}
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={`${listboxId}-list`}
-        aria-label={ariaLabel}
-        onClick={() => {
-          if (disabled) return
-          if (open) setQuery('')
-          setOpen((previousOpen) => !previousOpen)
-        }}
-        onKeyDown={onTriggerKeyDown}
-      >
-        <span className="pd-listbox__value">
-          {!showPlaceholder && selected?.leading ? selected.leading : null}
-          <span className="pd-listbox__value-text">
-            {showPlaceholder ? placeholder : displayLabel}
-          </span>
-        </span>
-        <ChevronDown
-          size={16}
-          strokeWidth={2}
-          className={cx('pd-listbox__chevron', open && 'is-open')}
-          aria-hidden
-        />
-      </button>
-      {open ? (
+      {searchable ? (
         <div
-          className="pd-listbox__panel"
+          className={cx(
+            'pd-listbox__trigger',
+            'pd-listbox__trigger--combobox',
+            showPlaceholder && !open && 'pd-listbox__trigger--placeholder',
+          )}
         >
-          {searchable ? (
-            <label className="pd-listbox__search">
-              <Search size={14} strokeWidth={1.8} aria-hidden />
-              <input
-                ref={searchRef}
-                type="search"
-                value={query}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={onSearchKeyDown}
-              />
-            </label>
-          ) : null}
+          <Search
+            size={16}
+            strokeWidth={1.8}
+            className="pd-listbox__search-icon"
+            aria-hidden
+          />
+          {!open && selected?.leading ? selected.leading : null}
+          <input
+            ref={searchRef}
+            id={listboxId}
+            type="search"
+            role="combobox"
+            className="pd-listbox__trigger-input"
+            disabled={disabled}
+            placeholder={searchPlaceholder || placeholder}
+            value={open ? query : displayLabel}
+            aria-label={ariaLabel}
+            aria-expanded={open}
+            aria-controls={`${listboxId}-list`}
+            aria-autocomplete="list"
+            aria-activedescendant={activeOptionId}
+            onFocus={() => {
+              if (disabled) return
+              setOpen(true)
+            }}
+            onChange={(event) => {
+              setQuery(event.target.value)
+              setOpen(true)
+            }}
+            onKeyDown={onComboboxKeyDown}
+          />
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            className={cx('pd-listbox__chevron', open && 'is-open')}
+            aria-hidden
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          id={listboxId}
+          className={cx(
+            'pd-listbox__trigger',
+            showPlaceholder && 'pd-listbox__trigger--placeholder',
+          )}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-controls={`${listboxId}-list`}
+          aria-label={ariaLabel}
+          onClick={() => {
+            if (disabled) return
+            setOpen((previousOpen) => !previousOpen)
+          }}
+          onKeyDown={onTriggerKeyDown}
+        >
+          <span className="pd-listbox__value">
+            {!showPlaceholder && selected?.leading ? selected.leading : null}
+            <span className="pd-listbox__value-text">
+              {showPlaceholder ? placeholder : displayLabel}
+            </span>
+            {showDescriptionInTrigger && !showPlaceholder && selected?.description ? (
+              <span className="pd-listbox__value-hint">{selected.description}</span>
+            ) : null}
+          </span>
+          <ChevronDown
+            size={16}
+            strokeWidth={2}
+            className={cx('pd-listbox__chevron', open && 'is-open')}
+            aria-hidden
+          />
+        </button>
+      )}
+      {open ? (
+        <div className="pd-listbox__panel">
           <div
             id={`${listboxId}-list`}
             role="listbox"
@@ -267,6 +318,7 @@ export function ListboxSelect({
               return (
                 <button
                   key={`${item.value || '__empty'}-${index}`}
+                  id={`${listboxId}-opt-${index}`}
                   ref={(node) => {
                     optionRefs.current[index] = node
                   }}
@@ -274,7 +326,7 @@ export function ListboxSelect({
                   role="option"
                   aria-selected={isSelected}
                   disabled={item.disabled}
-                  tabIndex={isActive ? 0 : -1}
+                  tabIndex={-1}
                   className={cx(
                     'pd-listbox__option',
                     item.className,

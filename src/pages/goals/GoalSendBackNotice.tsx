@@ -11,15 +11,20 @@ export function GoalSendBackNotice({
   author?: SendBackAuthor
 }) {
   return (
-    <aside className="pd-goals-sendback" role="status">
+    <aside
+      className="pd-goals-sendback pd-goals-sendback--compact pd-goals-sendback--sentence"
+      role="status"
+    >
       <span className="pd-goals-sendback__icon" aria-hidden>
         <Undo2 size={13} strokeWidth={2.25} />
       </span>
-      <div className="pd-goals-sendback__copy">
-        <div className="pd-goals-sendback__head">
-          <p className="pd-goals-sendback__title">Sent back for changes</p>
-          {author ? (
-            <div className="pd-goals-sendback__author">
+      <p className="pd-goals-sendback__copy">
+        <span className="pd-goals-sendback__title">Sent back for changes</span>
+        {author ? (
+          <>
+            {' '}
+            by{' '}
+            <span className="pd-goals-sendback__author">
               <Avatar
                 name={author.name}
                 src={author.avatarUrl}
@@ -28,11 +33,12 @@ export function GoalSendBackNotice({
                 style={avatarStyle(author.name)}
               />
               <span className="pd-goals-sendback__author-name">{author.name}</span>
-            </div>
-          ) : null}
-        </div>
-        <p className="pd-goals-sendback__reason">{reason}</p>
-      </div>
+            </span>
+          </>
+        ) : null}
+        {': '}
+        <span className="pd-goals-sendback__reason">{reason}</span>
+      </p>
     </aside>
   )
 }

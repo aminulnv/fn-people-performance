@@ -56,6 +56,8 @@ type GoalCreateDrawerProps = {
   label?: string
   closeLabel?: string
   sideSheet?: GoalDrawerSideSheet
+  /** Full-width strip above the padded body — e.g. Action required. */
+  ribbon?: ReactNode
   onClose: () => void
 }
 
@@ -64,6 +66,7 @@ export function GoalCreateDrawer({
   label = 'Add goal',
   closeLabel = 'Cancel adding goal',
   sideSheet,
+  ribbon,
   onClose,
 }: GoalCreateDrawerProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -80,10 +83,13 @@ export function GoalCreateDrawer({
     sheetWidthWithinRail(DEFAULT_SHEET_WIDTH, DEFAULT_DRAWER_WIDTH),
   )
   const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
+  const [isTabHovered, setIsTabHovered] = useState(false)
   const isSideSheetOpenRef = useRef(isSideSheetOpen)
   const hasToggledSideSheetRef = useRef(false)
+  const holdTabHoverRef = useRef(false)
   onCloseRef.current = onClose
   isSideSheetOpenRef.current = isSideSheetOpen
+  const isTabExpanded = isSideSheetOpen !== isTabHovered
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
@@ -123,7 +129,21 @@ export function GoalCreateDrawer({
 
   const toggleSideSheet = () => {
     hasToggledSideSheetRef.current = true
+    // Keep the size that the click promised until the pointer leaves. Otherwise
+    // the lingering hover immediately applies the opposite preview.
+    holdTabHoverRef.current = true
+    setIsTabHovered(false)
     setIsSideSheetOpen((open) => !open)
+  }
+
+  const revealTabHover = () => {
+    if (holdTabHoverRef.current) return
+    setIsTabHovered(true)
+  }
+
+  const clearTabHover = () => {
+    holdTabHoverRef.current = false
+    setIsTabHovered(false)
   }
 
   const applyDrawerWidth = (width: number) => {
@@ -198,11 +218,14 @@ export function GoalCreateDrawer({
               ref={tabRef}
               type="button"
               className="pd-goals-drawer__tab"
+              data-expanded={isTabExpanded ? 'true' : 'false'}
               aria-expanded={isSideSheetOpen}
               aria-controls={
                 isSideSheetOpen ? 'pd-goals-drawer-side-sheet' : undefined
               }
               onClick={toggleSideSheet}
+              onPointerEnter={revealTabHover}
+              onPointerLeave={clearTabHover}
             >
               <span className="pd-goals-drawer__tab-label">
                 {sideSheet.tabLabel}
@@ -295,6 +318,9 @@ export function GoalCreateDrawer({
             resizeStartRef.current = null
           }}
         />
+        {ribbon ? (
+          <div className="pd-goals-drawer__ribbon">{ribbon}</div>
+        ) : null}
         <div className="pd-goals-drawer__body">{children}</div>
       </aside>
     </div>,

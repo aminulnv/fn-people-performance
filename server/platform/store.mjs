@@ -190,7 +190,14 @@ export async function getPlatformEmployeeProfile(employeeId) {
   }
 }
 
-async function ensureDepartment(client, name) {
+function dateOnly(value) {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10)
+  return date.toISOString().slice(0, 10)
+}
+
+async function ensureDepartment(client, name, actor) {
   const trimmed = name.trim()
   if (!trimmed) return null
   const existing = await client.query(
@@ -202,10 +209,20 @@ async function ensureDepartment(client, name) {
     `INSERT INTO platform.departments (name) VALUES ($1) RETURNING id`,
     [trimmed],
   )
+  if (actor) {
+    await appendActivityEvent(client, {
+      eventKey: 'department.created',
+      entityType: 'department',
+      entityId: String(inserted.rows[0].id),
+      ...actor,
+      summary: `Created department ${trimmed}`,
+      source: 'api',
+    })
+  }
   return inserted.rows[0].id
 }
 
-async function ensureTeam(client, departmentId, name) {
+async function ensureTeam(client, departmentId, name, actor) {
   const trimmed = name.trim()
   if (!departmentId || !trimmed) return null
   const existing = await client.query(
@@ -219,6 +236,17 @@ async function ensureTeam(client, departmentId, name) {
     `INSERT INTO platform.teams (department_id, name) VALUES ($1, $2) RETURNING id`,
     [departmentId, trimmed],
   )
+  if (actor) {
+    await appendActivityEvent(client, {
+      eventKey: 'team.created',
+      entityType: 'team',
+      entityId: String(inserted.rows[0].id),
+      ...actor,
+      summary: `Created team ${trimmed}`,
+      metadata: { departmentId },
+      source: 'api',
+    })
+  }
   return inserted.rows[0].id
 }
 
@@ -350,8 +378,17 @@ export async function upsertPlatformEmployee(input, options = {}) {
       }
     }
 
-    const departmentId = await ensureDepartment(client, input.department ?? '')
-    const teamId = await ensureTeam(client, departmentId, input.team ?? '')
+    const departmentId = await ensureDepartment(
+      client,
+      input.department ?? '',
+      actor,
+    )
+    const teamId = await ensureTeam(
+      client,
+      departmentId,
+      input.team ?? '',
+      actor,
+    )
     const divisionName = String(input.division ?? '').trim()
     const divisionId = await resolveDivisionId(client, divisionName)
     if (divisionName && divisionId == null) {
@@ -611,6 +648,52 @@ export async function upsertPlatformEmployee(input, options = {}) {
               ? [{ field: 'email', from: previous.email, to: email }]
               : []),
           )
+        }
+        const nextJobTitle = String(input.jobTitle ?? '').trim()
+        const nextJobGrade = String(input.jobGrade ?? '').trim()
+        const nextSite = String(input.site ?? '').trim()
+        const nextStart = dateOnly(startDate)
+        const previousStart = dateOnly(previous.joining_date)
+        const jobChanges = []
+        if (String(previous.job_title ?? '') !== nextJobTitle) {
+          jobChanges.push({
+            field: 'jobTitle',
+            from: previous.job_title ?? null,
+            to: nextJobTitle || null,
+          })
+        }
+        if (String(previous.job_grade ?? '') !== nextJobGrade) {
+          jobChanges.push({
+            field: 'jobGrade',
+            from: previous.job_grade ?? null,
+            to: nextJobGrade || null,
+          })
+        }
+        if (String(previous.site ?? '') !== nextSite) {
+          jobChanges.push({
+            field: 'site',
+            from: previous.site ?? null,
+            to: nextSite || null,
+          })
+        }
+        if (previousStart !== nextStart) {
+          jobChanges.push({
+            field: 'joiningDate',
+            from: previousStart || null,
+            to: nextStart || null,
+          })
+        }
+        if (jobChanges.length > 0) {
+          await appendActivityEvent(client, {
+            eventKey: 'employee.job_details_updated',
+            entityType: 'employee',
+            entityId: String(employeeId),
+            ...actor,
+            subjectEmployeeId: employeeId,
+            summary: `Updated job details for ${fullName}`,
+            changes: jobChanges,
+            source: 'api',
+          })
         }
       }
       if (changes.length > 0) {

@@ -2,6 +2,7 @@ import { hashMatches, normalizeUrlHash } from '@/lib/routing/urlHash'
 import type { DemoPerson, Goal, Metric } from '@/lib/goals/types'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { hasSystemPermission } from '@/lib/accessControl/types'
+import { listActiveDelegatedManagerIds } from '@/lib/delegations/store'
 import {
   METRIC_UNITS,
   measurementPanels,
@@ -189,7 +190,13 @@ export function personMatchesScope(
 ): boolean {
   if (!viewer || scope === 'all') return true
   if (scope === 'mine') return person.id === viewer.id
-  if (scope === 'reports') return person.managerId === viewer.id
+  if (scope === 'reports') {
+    if (person.managerId === viewer.id) return true
+    return (
+      person.managerId != null &&
+      listActiveDelegatedManagerIds(viewer.id).includes(person.managerId)
+    )
+  }
   const department = viewer.department.trim()
   if (!department) return false
   return person.department.trim() === department
@@ -215,9 +222,19 @@ export function canViewPersonGoals(
   }
   if (person.managerId === viewer.id) return true
 
+  const coveredManagerIds = listActiveDelegatedManagerIds(viewer.id)
+  if (person.managerId && coveredManagerIds.includes(person.managerId)) {
+    return true
+  }
+
   const directManagerIds = new Set(
     people
-      .filter((candidate) => candidate.managerId === viewer.id)
+      .filter(
+        (candidate) =>
+          candidate.managerId === viewer.id ||
+          (candidate.managerId != null &&
+            coveredManagerIds.includes(candidate.managerId)),
+      )
       .map((candidate) => candidate.id),
   )
   if (person.managerId && directManagerIds.has(person.managerId)) return true

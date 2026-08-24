@@ -100,10 +100,10 @@ describe('progressLogSummary / timestamps', () => {
     ).toBe('10 → 13')
   })
 
-  it('formats a date without the time of day', () => {
-    expect(formatProgressTimestamp('2026-08-16T09:10:00.000Z')).toBe(
-      '16 Aug 2026',
-    )
+  it('formats a date with AM/PM time and no comma', () => {
+    const formatted = formatProgressTimestamp('2026-08-16T09:10:00.000Z')
+    expect(formatted).toMatch(/Aug 2026 \d{1,2}:\d{2} [AP]M/)
+    expect(formatted).not.toContain(',')
   })
 })
 

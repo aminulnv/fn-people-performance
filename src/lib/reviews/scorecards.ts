@@ -1,5 +1,5 @@
+import { isEffectiveDirectReport } from '@/lib/delegations/roles'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { isDirectReport } from '@/lib/employees/relationships'
 import { getGoalsSnapshotForCycle } from '@/lib/goals/store'
 import type { Goal } from '@/lib/goals/types'
 import { goalCompletion } from '@/lib/goals/weightage'
@@ -347,7 +347,9 @@ function scorecardRowForPerson(
   const { grade, gradeHidden } = visiblePacket
     ? gradeFromPacket(visiblePacket)
     : { grade: null, gradeHidden: false }
-  const isMine = me ? isDirectReport(employee, me) : false
+  const isMine = me
+    ? isEffectiveDirectReport(employee, me, active)
+    : false
   return toScorecardRow(
     cycleKey,
     employee,

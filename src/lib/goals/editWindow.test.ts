@@ -60,7 +60,7 @@ describe("describeGoalEditLock", () => {
     });
 
     expect(lock).toContain(
-      "Late submissions require direct manager and skip-level manager approval",
+      "Late submissions require approval from the direct manager and the skip-level manager",
     );
     expect(lock).not.toContain("You");
   });
@@ -78,7 +78,9 @@ describe("describeGoalEditLock", () => {
         canUpdateProgress: true,
         status: "approved",
       }),
-    ).toContain("Changes to approved goals require renewed");
+    ).toContain(
+      "Changes to approved goals require renewed approval from the direct manager and the skip-level manager",
+    );
     expect(
       describeGoalEditLock({
         cycle: lateCycle,
@@ -88,6 +90,54 @@ describe("describeGoalEditLock", () => {
         postWindowApprovalStage: "manager_manager",
       }),
     ).toContain("awaiting final approval from the skip-level manager");
+  });
+
+  it("names the people who must approve a late change", () => {
+    const lateCycle = {
+      ...cycle("hard_lock"),
+      postWindowGoalPolicy: "two_tier_approval" as const,
+    };
+
+    expect(
+      describeGoalEditLock({
+        cycle: lateCycle,
+        cycleStatus: "current",
+        canUpdateProgress: true,
+        status: "approved",
+        lineManagerName: "Api Singha",
+        skipLevelManagerName: "Angie Ng Yun Ni",
+      }),
+    ).toContain(
+      "require renewed approval from Api Singha and Angie Ng Yun Ni",
+    );
+  });
+
+  it("omits skip-level wording when the person has no skip-level manager", () => {
+    const lateCycle = {
+      ...cycle("hard_lock"),
+      postWindowGoalPolicy: "two_tier_approval" as const,
+    };
+
+    expect(
+      describeGoalEditLock({
+        cycle: lateCycle,
+        cycleStatus: "current",
+        canUpdateProgress: true,
+        lineManagerName: "Api Singha",
+        skipLevelManagerName: null,
+      }),
+    ).toBe(
+      "The goal deadline passed 1 Apr 2027. Late submissions require approval from Api Singha.",
+    );
+    expect(
+      describeGoalEditLock({
+        cycle: lateCycle,
+        cycleStatus: "current",
+        canUpdateProgress: true,
+        lineManagerName: "Api Singha",
+        skipLevelManagerName: null,
+      }),
+    ).not.toContain("skip-level");
   });
 
   it("reports no lock while the window is open", () => {

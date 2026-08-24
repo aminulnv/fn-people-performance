@@ -1,17 +1,19 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, Plus, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { Measurement, Milestone } from '@/lib/goals/types'
-import type { MeasurementPanel, TodoListPanel } from '@/lib/goals/measurements'
 import {
   numberedTaskListTitle,
   readMilestoneListTitle,
   readMilestoneTitle,
   uniqueMilestonesById,
+  type MeasurementPanel,
+  type TodoListPanel,
 } from '@/lib/goals/measurements'
+import { ignoreInteractiveSummaryClick } from './measureFold'
 import { GoalTodoCheck } from './GoalTodoCheck'
 import { FocusSafeTextArea } from './FocusSafeTextField'
 import { TaskListNameField, MeasureTitleField } from './MeasureTitleField'
-import { MeasureTypeIcon } from './MeasureTypeSwitch'
+import { MeasureKindIcon } from './MeasureKindIcon'
 import {
   GoalTodoMeasureReadout,
   GoalWeightInput,
@@ -39,14 +41,14 @@ export function TodoMeasureEditCard({
   focusMilestoneId,
   onFocusMilestone,
   meta,
-  cardClassName = 'pd-goal-view__card pd-goal-measure-card pd-goal-measure-card--edit',
-  headClassName = 'pd-goal-view__card-head',
-  titleClassName = 'pd-goal-view__card-title',
-  metricsClassName = 'pd-goal-view__card-metrics',
+  cardClassName = 'pd-goal-view__fold pd-goal-measure-card pd-goal-measure-card--edit',
+  headClassName = 'pd-goal-view__fold-head',
+  titleClassName = 'pd-goal-view__fold-title',
+  metricsClassName = 'pd-goal-view__fold-meta',
   todoListClassName = 'pd-goal-view__todos',
   todoItemClassName = 'pd-goal-view__todo',
-  addTodoClassName = 'pd-people__ghost-btn pd-goal-measure-card__add-todo',
-  addListClassName = 'pd-people__ghost-btn pd-goal-measure-card__add-list',
+  addTodoClassName = 'pd-goal-measure-card__add-todo',
+  addListClassName = 'pd-goal-measure-card__add-list',
 }: {
   panel: TodoMeasurePanel
   measurements: Measurement[]
@@ -164,7 +166,7 @@ export function TodoMeasureEditCard({
             className={addTodoClassName}
             onClick={() => onAddItem(list.listKey)}
           >
-            <Plus size={15} strokeWidth={2} aria-hidden />
+            <Plus size={12} strokeWidth={2} aria-hidden />
             Add task
           </button>
         </div>
@@ -173,10 +175,20 @@ export function TodoMeasureEditCard({
   }
 
   return (
-    <section className={cardClassName} aria-label={measureTitle.trim() || 'Measure'}>
-      <div className={headClassName}>
+    <details
+      className={cardClassName}
+      aria-label={measureTitle.trim() || 'Metric'}
+      open
+    >
+      <summary className={headClassName} onClick={ignoreInteractiveSummaryClick}>
+        <ChevronRight
+          size={14}
+          strokeWidth={2.25}
+          className="pd-goal-view__fold-chevron"
+          aria-hidden
+        />
+        <MeasureKindIcon kind="milestone" />
         <div className={titleClassName}>
-          <MeasureTypeIcon kind="todo" />
           <MeasureTitleField
             inputKey={panel.measureGroupId}
             value={measureTitle}
@@ -185,9 +197,9 @@ export function TodoMeasureEditCard({
             editLabel="Edit milestone name"
             inputLabel="Milestone name"
           />
+          <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
         </div>
         <div className={metricsClassName}>
-          <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
           {canEditWeight ? (
             <GoalWeightInput
               weight={panel.weight}
@@ -208,17 +220,17 @@ export function TodoMeasureEditCard({
             </button>
           ) : null}
         </div>
-      </div>
+      </summary>
 
       {meta ? <div className="pd-goal-measure-card__meta">{meta}</div> : null}
 
       <div className="pd-goal-measure-card__body">
         {panel.lists.map((list, index) => renderTodoList(list, index))}
         <button type="button" className={addListClassName} onClick={onAddTodoList}>
-          <Plus size={15} strokeWidth={2} aria-hidden />
+          <Plus size={12} strokeWidth={2} aria-hidden />
           Add task list
         </button>
       </div>
-    </section>
+    </details>
   )
 }

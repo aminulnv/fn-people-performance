@@ -10,7 +10,7 @@ import {
 import { measurePanelName } from '@/pages/goals/measurePanelDisplay'
 import {
   GoalTodoMeasureReadout,
-  formatWeightReadout,
+  GoalWeightReadout,
 } from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
 import { MeasureKindIcon } from './MeasureKindIcon'
@@ -24,7 +24,6 @@ export function TodoMeasureViewCard({
   cardClassName = 'pd-goal-view__fold pd-goal-measure-card',
   headClassName = 'pd-goal-view__fold-head',
   titleClassName = 'pd-goal-view__fold-title',
-  metricsClassName = 'pd-goal-view__fold-meta',
   todoListClassName = 'pd-goal-view__todos',
   todoItemClassName = 'pd-goal-view__todo',
 }: {
@@ -34,12 +33,10 @@ export function TodoMeasureViewCard({
   cardClassName?: string
   headClassName?: string
   titleClassName?: string
-  metricsClassName?: string
   todoListClassName?: string
   todoItemClassName?: string
 }) {
   const name = measurePanelName(panel)
-  const weightLabel = formatWeightReadout(panel.weight)
   const progressEntries = todoMeasureItems(panel).flatMap(
     (todo) => todo.progressLog ?? [],
   )
@@ -50,7 +47,7 @@ export function TodoMeasureViewCard({
         .filter(Boolean)
         .join(' ')}
       data-measure-panel={panel.key}
-      aria-label={name || 'Measure'}
+      aria-label={name || 'Metric'}
       open
     >
       <summary className={headClassName}>
@@ -62,15 +59,11 @@ export function TodoMeasureViewCard({
         />
         <MeasureKindIcon kind="milestone" />
         <div className={titleClassName}>
-          {name ? (
-            <h2>
-              {name}
-              {weightLabel ? ` · ${weightLabel}` : ''}
-            </h2>
-          ) : null}
-        </div>
-        <div className={metricsClassName}>
+          {name ? <h2>{name}</h2> : null}
           <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
+        </div>
+        <div className="pd-goal-view__fold-meta">
+          <GoalWeightReadout weight={panel.weight} />
         </div>
       </summary>
 

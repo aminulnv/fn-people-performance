@@ -83,10 +83,10 @@ describe('validateGoalSubmission', () => {
     )
 
     assert.ok(
-      errors.includes('Deliver the agreed outcome still needs a measure.'),
+      errors.includes('Deliver the agreed outcome still needs a metric.'),
     )
     assert.ok(
-      errors.includes('Improve quality measures need to add up to 100%.'),
+      errors.includes('Improve quality metrics need to add up to 100%.'),
     )
   })
 

@@ -82,11 +82,11 @@ export function validateGoalSubmission(goals, policy) {
       ? goal.measurements
       : []
     if (measurements.length === 0) {
-      errors.push(`${name} still needs a measure.`)
+      errors.push(`${name} still needs a metric.`)
     } else if (!measureNamesComplete(measurements)) {
-      errors.push(`${name} still needs a name on each measure.`)
+      errors.push(`${name} still needs a name on each metric.`)
     } else if (sumWeights(measurements) !== 100) {
-      errors.push(`${name} measures need to add up to 100%.`)
+      errors.push(`${name} metrics need to add up to 100%.`)
     }
   })
 

@@ -1,6 +1,10 @@
 import type { Goal, Measurement } from './types'
 import { coalesceMeasureGroups, measurementPanels, hasMeasurePanelName } from './measurements'
-import { isBlankGoalTitle, sumMeasurementWeights } from './weightage'
+import {
+  isBlankGoalTitle,
+  isEvenGoalSplit,
+  sumMeasurementWeights,
+} from './weightage'
 
 function preferLocalText(
   local: string | undefined,
@@ -154,14 +158,14 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
     goal.measurements.length === 0
       ? undefined
       : measurementPanels(goal.measurements).some((panel) => !hasMeasurePanelName(panel))
-        ? 'Each measure needs a name'
+        ? 'Each metric needs a name'
         : undefined
   const measurementWeightError =
     goal.measurements.length === 0
-      ? 'Add at least one measurement'
+      ? 'Add at least one metric'
       : measureWeight === 100
         ? undefined
-        : 'Measurement weights must total 100%'
+        : 'Metric weights must total 100%'
 
   return {
     ok: !nameError && !measurementNameError && !measurementWeightError,
@@ -186,8 +190,14 @@ export function isBlankGoalDraft(goal: Goal): boolean {
     !(goal.details ?? '').trim() &&
     !goal.cascadedFromGoalId &&
     !goal.linkedGoalLabel &&
-    goal.measurements.length === 0 &&
-    !goal.weight
+    goal.measurements.length === 0
+  )
+}
+
+function isWeightOnlyDirty(baseline: Goal, draft: Goal): boolean {
+  return (
+    isGoalDraftDirty(baseline, draft) &&
+    !isGoalDraftDirty({ ...baseline, weight: draft.weight }, draft)
   )
 }
 
@@ -202,10 +212,17 @@ export function hasPromptableUnsavedGoalDraft(
   const persistedById = new Map(persistedGoals.map((goal) => [goal.id, goal]))
   const localById = new Map(goals.map((goal) => [goal.id, goal]))
 
+  const hasBlankCreate = goals.some(
+    (goal) => !persistedById.has(goal.id) && isBlankGoalDraft(goal),
+  )
+  const autoSplitWhileCreating = hasBlankCreate && isEvenGoalSplit(goals)
+
   for (const persisted of persistedGoals) {
     const local = localById.get(persisted.id)
     if (!local) return true
-    if (isGoalDraftDirty(persisted, local)) return true
+    if (!isGoalDraftDirty(persisted, local)) continue
+    if (autoSplitWhileCreating && isWeightOnlyDirty(persisted, local)) continue
+    return true
   }
 
   return goals.some(

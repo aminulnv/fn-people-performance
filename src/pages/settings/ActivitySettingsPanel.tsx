@@ -35,8 +35,8 @@ export function ActivitySettingsPanel() {
               Activity log
             </h2>
             <p className="pd-settings-section__hint">
-              Organisation-wide history for tracing changes. This is reference
-              material, not a workflow action.
+              Organisation-wide history of goals, reviews, people, and access
+              changes. This is a record, not a workflow action.
             </p>
           </div>
         </div>

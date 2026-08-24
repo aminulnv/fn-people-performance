@@ -4,8 +4,16 @@ import type { Goal } from './types'
 import {
   allocatedWeightCaption,
   canSubmitGoals,
+  appendGoalWithWeight,
   distributeGoalWeights,
   goalCountWarning,
+  isEvenGoalSplit,
+  removeGoalKeepingWeights,
+  submitBlockersForGoal,
+  isMeasureGoalIssue,
+  measureIssueLabel,
+  submitIssueForGoal,
+  submitSetBlockers,
 } from './weightage'
 
 const POLICY = {
@@ -63,6 +71,65 @@ describe('distributeGoalWeights', () => {
     ).toEqual([{ weight: 33 }, { weight: 33 }, { weight: 34 }])
     expect(distributeGoalWeights([{ weight: 40 }])).toEqual([{ weight: 100 }])
     expect(distributeGoalWeights([])).toEqual([])
+  })
+})
+
+describe('appendGoalWithWeight', () => {
+  it('fills the first goal at 100%', () => {
+    expect(appendGoalWithWeight([], { weight: 0 })).toEqual([{ weight: 100 }])
+  })
+
+  it('re-splits an even set when another goal is added', () => {
+    expect(
+      appendGoalWithWeight([{ weight: 100 }], { weight: 0 }),
+    ).toEqual([{ weight: 50 }, { weight: 50 }])
+    expect(
+      appendGoalWithWeight([{ weight: 50 }, { weight: 50 }], { weight: 0 }),
+    ).toEqual([{ weight: 33 }, { weight: 33 }, { weight: 34 }])
+  })
+
+  it('leaves a manual split alone and gives the new goal the leftover', () => {
+    expect(
+      appendGoalWithWeight([{ weight: 70 }, { weight: 30 }], { weight: 0 }),
+    ).toEqual([{ weight: 70 }, { weight: 30 }, { weight: 0 }])
+    expect(
+      appendGoalWithWeight([{ weight: 60 }, { weight: 20 }], { weight: 0 }),
+    ).toEqual([{ weight: 60 }, { weight: 20 }, { weight: 20 }])
+  })
+})
+
+describe('removeGoalKeepingWeights', () => {
+  it('re-splits an even set when a goal is removed', () => {
+    expect(
+      removeGoalKeepingWeights(
+        [
+          { id: 'a', weight: 50 },
+          { id: 'b', weight: 50 },
+        ],
+        'b',
+      ),
+    ).toEqual([{ id: 'a', weight: 100 }])
+  })
+
+  it('keeps a manual split after a goal is removed', () => {
+    expect(
+      removeGoalKeepingWeights(
+        [
+          { id: 'a', weight: 70 },
+          { id: 'b', weight: 30 },
+        ],
+        'b',
+      ),
+    ).toEqual([{ id: 'a', weight: 70 }])
+  })
+})
+
+describe('isEvenGoalSplit', () => {
+  it('treats unset weights as still automatic', () => {
+    expect(isEvenGoalSplit([])).toBe(true)
+    expect(isEvenGoalSplit([{ weight: 0 }, { weight: 0 }])).toBe(true)
+    expect(isEvenGoalSplit([{ weight: 100 }])).toBe(true)
+    expect(isEvenGoalSplit([{ weight: 70 }, { weight: 30 }])).toBe(false)
   })
 })
 
@@ -157,6 +224,69 @@ describe('canSubmitGoals', () => {
     expect(check.blockers.map((blocker) => blocker.suffix)).toEqual([
       ' needs a title.',
       ' needs a title.',
+    ])
+  })
+
+  it('returns the named issue for one goal from the submit blockers', () => {
+    const check = canSubmitGoals(
+      [
+        readyGoal({ description: 'Ship quality', weight: 60 }),
+        { ...blankGoal({ withDefaultMetric: false }), description: 'test', weight: 40 },
+      ],
+      POLICY,
+    )
+
+    expect(submitIssueForGoal('missing', check.blockers)).toBeUndefined()
+    const incomplete = check.blockers.find((blocker) => blocker.goalTitle === 'test')
+    expect(incomplete?.reason).toBe('test still needs a metric.')
+    expect(submitIssueForGoal(incomplete!.goalId!, check.blockers)).toBe(
+      'test still needs a metric.',
+    )
+    expect(isMeasureGoalIssue('test still needs a metric.')).toBe(true)
+    expect(isMeasureGoalIssue('Untitled goal 1 needs a title.')).toBe(false)
+    expect(measureIssueLabel('test still needs a metric.')).toBe(
+      'Still needs a metric.',
+    )
+    expect(
+      measureIssueLabel(
+        'Ada’s quality goal still needs a metric — or remove it.',
+      ),
+    ).toBe('Still needs a metric — or remove it.')
+    expect(measureIssueLabel('test still needs a name on each metric.')).toBe(
+      'Still needs a name on each metric.',
+    )
+    expect(measureIssueLabel('test metrics need to add up to 100%.')).toBe(
+      'Metrics need to add up to 100%.',
+    )
+  })
+
+  it('keeps set-level blockers off a single goal', () => {
+    const incomplete = blankGoal({ withDefaultMetric: false })
+    incomplete.description = 'test'
+    incomplete.weight = 50
+    const check = canSubmitGoals([incomplete], POLICY)
+
+    expect(check.blockers.some((blocker) => !blocker.goalId)).toBe(true)
+    expect(submitBlockersForGoal(incomplete.id, check.blockers)).toEqual([
+      expect.objectContaining({
+        goalId: incomplete.id,
+        suffix: ' still needs a metric.',
+      }),
+    ])
+    expect(submitSetBlockers(check.blockers).map((blocker) => blocker.reason)).toEqual(
+      [
+        'Add at least 2 goals.',
+        'Weights need to add up to 100%.',
+      ],
+    )
+    expect(submitSetBlockers(check.blockers)[0]?.action).toBe('add_goal')
+  })
+
+  it('does not ask for weights when there are no goals yet', () => {
+    const check = canSubmitGoals([], POLICY)
+
+    expect(check.blockers.map((blocker) => blocker.reason)).toEqual([
+      'Add at least 2 goals.',
     ])
   })
 })

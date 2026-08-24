@@ -6,7 +6,7 @@ import { GoalCreateDrawer } from './GoalCreateDrawer'
 const okrSideSheet = {
   tabLabel: 'View OKRs',
   tabIcon: Target,
-  label: 'Department and wing OKRs',
+  label: 'Company, department, and wing OKRs',
   content: <p>Improve customer outcomes</p>,
 }
 
@@ -26,6 +26,24 @@ describe('GoalCreateDrawer', () => {
     expect(screen.getByRole('dialog', { name: 'Add goal' })).toHaveTextContent(
       'Goal fields',
     )
+  })
+
+  it('sits a ribbon above the padded goal body', () => {
+    render(
+      <GoalCreateDrawer
+        ribbon={<p role="status">Action required</p>}
+        onClose={() => undefined}
+      >
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+
+    const dialog = screen.getByRole('dialog', { name: 'Add goal' })
+    const ribbon = dialog.querySelector('.pd-goals-drawer__ribbon')
+    const body = dialog.querySelector('.pd-goals-drawer__body')
+    expect(ribbon).toHaveTextContent('Action required')
+    expect(body).toHaveTextContent('Goal fields')
+    expect(body).not.toHaveTextContent('Action required')
   })
 
   it('closes when Escape is pressed', () => {
@@ -118,7 +136,7 @@ describe('GoalCreateDrawer', () => {
       </GoalCreateDrawer>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
-    const sheet = screen.getByRole('region', { name: 'Department and wing OKRs' })
+    const sheet = screen.getByRole('region', { name: 'Company, department, and wing OKRs' })
 
     fireEvent.keyDown(
       screen.getByRole('separator', { name: 'Resize OKR reference panel' }),
@@ -139,8 +157,32 @@ describe('GoalCreateDrawer', () => {
     fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
 
     expect(
-      screen.getByRole('region', { name: 'Department and wing OKRs' }),
+      screen.getByRole('region', { name: 'Company, department, and wing OKRs' }),
     ).toHaveTextContent('Improve customer outcomes')
+  })
+
+  it('keeps the OKR tab expanded after a hover-then-click, then shrinks on the next hover', () => {
+    render(
+      <GoalCreateDrawer sideSheet={okrSideSheet} onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+    const tab = screen.getByRole('button', { name: 'View OKRs' })
+
+    expect(tab).toHaveAttribute('data-expanded', 'false')
+
+    fireEvent.pointerEnter(tab)
+    expect(tab).toHaveAttribute('data-expanded', 'true')
+
+    fireEvent.click(tab)
+    expect(
+      screen.getByRole('region', { name: 'Company, department, and wing OKRs' }),
+    ).toBeInTheDocument()
+    expect(tab).toHaveAttribute('data-expanded', 'true')
+
+    fireEvent.pointerLeave(tab)
+    fireEvent.pointerEnter(tab)
+    expect(tab).toHaveAttribute('data-expanded', 'false')
   })
 
   it('closes the side sheet when its tab is clicked again', () => {
@@ -151,13 +193,13 @@ describe('GoalCreateDrawer', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
     expect(
-      screen.getByRole('region', { name: 'Department and wing OKRs' }),
+      screen.getByRole('region', { name: 'Company, department, and wing OKRs' }),
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'View OKRs' }))
 
     expect(
-      screen.queryByRole('region', { name: 'Department and wing OKRs' }),
+      screen.queryByRole('region', { name: 'Company, department, and wing OKRs' }),
     ).toBeNull()
   })
 

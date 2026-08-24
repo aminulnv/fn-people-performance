@@ -173,8 +173,6 @@ export default function CycleDetailPage() {
         onClose={() => setActivityOpen(false)}
         title={`${cycle.name} activity`}
         filters={{
-          entityType: 'review_cycle',
-          entityId: cycle.id,
           cycleId: cycle.id,
         }}
       />

@@ -20,8 +20,12 @@ import {
   type ResizableColumn,
 } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
+import {
+  useHydrateManagerDelegations,
+  useManagerDelegationsRevision,
+} from '@/lib/delegations/useManagerDelegations'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { isDirectReport } from '@/lib/employees/relationships'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
 import {
@@ -96,6 +100,9 @@ export function ScorecardsList() {
   const [query, setQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
+  const coversRevision = useManagerDelegationsRevision()
+  useHydrateManagerDelegations(user?.employeeId ?? undefined)
+
   const me = useMemo(() => {
     const email = user?.email?.trim().toLowerCase()
     if (!email) return null
@@ -107,9 +114,8 @@ export function ScorecardsList() {
   }, [employees, user?.email])
 
   const hasDirectReports = useMemo(
-    () =>
-      me ? employees.some((employee) => isDirectReport(employee, me)) : false,
-    [employees, me],
+    () => (me ? viewerHasEffectiveReports(me, employees) : false),
+    [coversRevision, employees, me],
   )
   const defaultScope = defaultScorecardScope(hasDirectReports)
   const [scope, setScope] = useUrlHashTab({
@@ -185,7 +191,7 @@ export function ScorecardsList() {
           packets.filter((packet) => packet.cycleId === cycleKey),
         ),
       ),
-    [cycleKeys, employees, packets, user?.email],
+    [coversRevision, cycleKeys, employees, packets, user?.email],
   )
 
   const queueRows = useMemo(

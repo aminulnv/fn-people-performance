@@ -65,6 +65,15 @@ export function measurePanelLatestProgressAt(
   return latestProgressLogAt(todoMeasureItems(panel))
 }
 
+/** Nested table rows lock a solo measure at 100%; otherwise use the panel weight. */
+export function measurePanelTableWeight(
+  panel: MeasurementPanel,
+  panelCount: number,
+): number {
+  if (panelCount === 1) return 100
+  return panel.kind === 'metric' ? panel.metric.weight : panel.weight
+}
+
 export function measurePanelProgress(panel: MeasurementPanel): number {
   if (panel.kind === 'metric') {
     return Math.round(measurementProgress(panel.metric))

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { Button, type ButtonVariant } from './Button'
 import { Modal } from './Modal'
 
@@ -7,7 +7,7 @@ export type ConfirmDialogProps = {
   onClose: () => void
   onConfirm: () => void
   title: string
-  description?: string
+  description?: ReactNode
   confirmLabel?: string
   cancelLabel?: string
   /** Confirm button style. Use danger for destructive actions. */

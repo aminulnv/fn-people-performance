@@ -32,8 +32,6 @@ export type SegmentedControlProps<T extends string = string> = Omit<
 type IndicatorStyle = {
   left: number
   width: number
-  height: number
-  top: number
 }
 
 /**
@@ -70,8 +68,6 @@ export function SegmentedControl<T extends string>({
     setIndicator({
       left: button.offsetLeft,
       width: button.offsetWidth,
-      height: button.offsetHeight,
-      top: button.offsetTop,
     })
     setIndicatorReady(true)
   }, [])
@@ -116,9 +112,7 @@ export function SegmentedControl<T extends string>({
           className="pd-segmented__thumb"
           aria-hidden
           style={{
-            top: indicator.top,
             width: indicator.width,
-            height: indicator.height,
             opacity: indicatorReady ? 1 : 0,
             transform: `translate3d(${indicator.left}px, 0, 0)`,
           }}

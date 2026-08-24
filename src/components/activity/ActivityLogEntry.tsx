@@ -1,6 +1,7 @@
 import {
   Building2,
   CalendarRange,
+  ClipboardCheck,
   History,
   Send,
   ShieldCheck,
@@ -11,18 +12,31 @@ import {
 import { Avatar } from '@/components/ui'
 import {
   activityEntityLabel,
-  activityEventLabel,
   type ActivityEvent,
 } from '@/lib/activity/types'
+import {
+  activityHeadline,
+  formatActivityChanges,
+} from '@/lib/activity/formatChanges'
+import {
+  DelegatingOnBehalfHover,
+  delegatingFromActivityMetadata,
+} from '@/lib/delegations/DelegatingOnBehalfTip'
 
 const ENTITY_ICONS: Record<string, LucideIcon> = {
   goal: Target,
   goal_submission: Send,
   review_cycle: CalendarRange,
+  review_packet: ClipboardCheck,
   employee: User,
   department: Building2,
+  team: Building2,
   access: ShieldCheck,
+  manager_delegation: ShieldCheck,
+  manager_cover: ShieldCheck,
 }
+
+const INLINE_CHANGE_LIMIT = 4
 
 function formatWhen(iso?: string): string {
   if (!iso) return ''
@@ -34,10 +48,40 @@ function formatWhen(iso?: string): string {
   })
 }
 
-export function ActivityLogEntry({ event }: { event: ActivityEvent }) {
-  const hasChanges = event.changes.length > 0
+function ChangeList({
+  rows,
+}: {
+  rows: ReturnType<typeof formatActivityChanges>
+}) {
+  return (
+    <ul className="pd-activity-entry__diff">
+      {rows.map((change) => (
+        <li key={`${change.field}-${change.from}-${change.to}`}>
+          <span className="pd-activity-entry__diff-field">{change.field}</span>
+          <span className="pd-activity-entry__diff-value">{change.from}</span>
+          <span aria-hidden className="pd-activity-entry__diff-arrow">
+            →
+          </span>
+          <span className="pd-activity-entry__diff-value">{change.to}</span>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function ActivityLogEntry({
+  event,
+  actorAvatarUrl,
+}: {
+  event: ActivityEvent
+  actorAvatarUrl?: string
+}) {
+  const changes = formatActivityChanges(event.changes)
   const Icon = ENTITY_ICONS[event.entityType] ?? History
   const actorName = event.actorName || 'System'
+  const covering = delegatingFromActivityMetadata(event.metadata)
+  const showInline = changes.length > 0 && changes.length <= INLINE_CHANGE_LIMIT
+  const photoUrl = actorAvatarUrl || event.actorAvatarUrl
 
   return (
     <article className="pd-activity-entry">
@@ -46,13 +90,18 @@ export function ActivityLogEntry({ event }: { event: ActivityEvent }) {
       </span>
       <div className="pd-activity-entry__body">
         <header className="pd-activity-entry__head">
-          <div className="pd-activity-entry__who">
-            <Avatar name={actorName} size="sm" />
-            <div className="pd-activity-entry__who-copy">
-              <strong>{actorName}</strong>
-              <span>{activityEventLabel(event.eventKey)}</span>
-            </div>
-          </div>
+          <DelegatingOnBehalfHover
+            name={covering?.name}
+            avatarUrl={covering?.avatarUrl}
+          >
+            <span className="pd-activity-entry__who">
+              <Avatar name={actorName} src={photoUrl} size="sm" />
+              <span className="pd-activity-entry__who-copy">
+                <strong>{actorName}</strong>
+                <span>{activityHeadline(event)}</span>
+              </span>
+            </span>
+          </DelegatingOnBehalfHover>
           <div className="pd-activity-entry__meta">
             <span className="pd-activity-entry__area">
               {activityEntityLabel(event.entityType)}
@@ -63,36 +112,14 @@ export function ActivityLogEntry({ event }: { event: ActivityEvent }) {
         {event.summary ? (
           <p className="pd-activity-entry__summary">{event.summary}</p>
         ) : null}
-        {hasChanges ? (
+        {showInline ? <ChangeList rows={changes} /> : null}
+        {changes.length > INLINE_CHANGE_LIMIT ? (
           <details className="pd-activity-entry__changes">
-            <summary>Show changes</summary>
-            <ul>
-              {event.changes.map((change) => (
-                <li key={`${event.id}-${change.field}`}>
-                  <span>{change.field}</span>
-                  <code>{formatValue(change.from)}</code>
-                  <span aria-hidden>→</span>
-                  <code>{formatValue(change.to)}</code>
-                </li>
-              ))}
-            </ul>
+            <summary>Show {changes.length} changes</summary>
+            <ChangeList rows={changes} />
           </details>
         ) : null}
       </div>
     </article>
   )
-}
-
-function formatValue(value: unknown): string {
-  if (value == null || value === '') return '—'
-  if (typeof value === 'string') return value
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value)
-  }
-  try {
-    const text = JSON.stringify(value)
-    return text.length > 96 ? `${text.slice(0, 93)}…` : text
-  } catch {
-    return String(value)
-  }
 }

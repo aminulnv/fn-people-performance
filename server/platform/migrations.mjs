@@ -11,6 +11,8 @@ const REQUIRED_MIGRATIONS = [
   '00023_review_appraisal.sql',
   '00024_query_and_ledger_hardening.sql',
   '00025_relation_hardening.sql',
+  '00026_manager_covers.sql',
+  '00027_manager_delegations.sql',
 ]
 
 export async function assertPlatformMigrations() {

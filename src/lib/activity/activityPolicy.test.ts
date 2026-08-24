@@ -47,7 +47,10 @@ function canViewActivityRow(
     (event.eventKey.includes('final_approved') ||
       event.eventKey.includes('manager_manager') ||
       event.eventKey.includes('submitted') ||
-      event.eventKey.includes('sent_back'))
+      event.eventKey.includes('sent_back') ||
+      event.eventKey.includes('calibrat') ||
+      event.eventKey.includes('released') ||
+      event.eventKey.includes('appeal'))
   ) {
     return true
   }
@@ -93,6 +96,23 @@ describe('canViewActivityRow policy', () => {
       canViewActivityRow(viewer({ reportIds: new Set([12]) }), {
         eventKey: 'goal_submission.approved',
         entityType: 'goal_submission',
+        subjectEmployeeId: 12,
+      }),
+    ).toBe(true)
+  })
+
+  it('lets skip-level managers see calibration and release', () => {
+    expect(
+      canViewActivityRow(viewer({ skipLevelIds: new Set([12]) }), {
+        eventKey: 'review_packet.calibrated',
+        entityType: 'review_packet',
+        subjectEmployeeId: 12,
+      }),
+    ).toBe(true)
+    expect(
+      canViewActivityRow(viewer({ skipLevelIds: new Set([12]) }), {
+        eventKey: 'review_packet.released_to_employee',
+        entityType: 'review_packet',
         subjectEmployeeId: 12,
       }),
     ).toBe(true)

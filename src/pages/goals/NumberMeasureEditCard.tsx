@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Trash2 } from 'lucide-react'
+import { ChevronRight, Trash2 } from 'lucide-react'
 import { ListboxSelect } from '@/components/ui'
 import { METRIC_UNITS } from '@/lib/goals/measurements'
 import type { Metric, MetricUnit } from '@/lib/goals/types'
@@ -9,8 +9,9 @@ import {
   GoalWeightReadout,
 } from '@/pages/goals/GoalMeasurementReadout'
 import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
+import { MeasureKindIcon } from '@/pages/goals/MeasureKindIcon'
 import { MeasureTitleField } from '@/pages/goals/MeasureTitleField'
-import { MeasureTypeIcon } from '@/pages/goals/MeasureTypeSwitch'
+import { ignoreInteractiveSummaryClick } from '@/pages/goals/measureFold'
 import { MetricProgressUpdate } from '@/pages/goals/MetricProgressUpdate'
 import { NumberTargetEditor } from '@/pages/goals/NumberTargetEditor'
 
@@ -23,10 +24,10 @@ export function NumberMeasureEditCard({
   cycleLabel,
   goalTitle,
   meta,
-  cardClassName = 'pd-goal-view__card pd-goal-measure-card pd-goal-measure-card--edit',
-  headClassName = 'pd-goal-view__card-head',
-  titleClassName = 'pd-goal-view__card-title',
-  metricsClassName = 'pd-goal-view__card-metrics',
+  cardClassName = 'pd-goal-view__fold pd-goal-measure-card pd-goal-measure-card--edit',
+  headClassName = 'pd-goal-view__fold-head',
+  titleClassName = 'pd-goal-view__fold-title',
+  metricsClassName = 'pd-goal-view__fold-meta',
 }: {
   metric: Metric
   canEditWeight?: boolean
@@ -45,18 +46,28 @@ export function NumberMeasureEditCard({
   const weightLabel = trimmedTitle ? `Weight for ${trimmedTitle}` : 'Weight'
 
   return (
-    <section className={cardClassName} aria-label={trimmedTitle || 'Measure'}>
-      <div className={headClassName}>
+    <details
+      className={cardClassName}
+      aria-label={trimmedTitle || 'Metric'}
+      open
+    >
+      <summary className={headClassName} onClick={ignoreInteractiveSummaryClick}>
+        <ChevronRight
+          size={14}
+          strokeWidth={2.25}
+          className="pd-goal-view__fold-chevron"
+          aria-hidden
+        />
+        <MeasureKindIcon kind="metric" />
         <div className={titleClassName}>
-          <MeasureTypeIcon kind="number" />
           <MeasureTitleField
             inputKey={metric.id}
             value={metric.title}
             onChange={(title) => onChange({ ...metric, title })}
           />
+          <GoalMetricReadout metric={metric} showWeight={false} />
         </div>
         <div className={metricsClassName}>
-          <GoalMetricReadout metric={metric} showWeight={false} />
           {canEditWeight ? (
             <GoalWeightInput
               weight={metric.weight}
@@ -70,14 +81,14 @@ export function NumberMeasureEditCard({
             <button
               type="button"
               className="pd-goal-create__icon-btn pd-goal-create__icon-btn--danger"
-              aria-label={`Remove ${trimmedTitle || 'number measure'}`}
+              aria-label={`Remove ${trimmedTitle || 'number metric'}`}
               onClick={onRemove}
             >
               <Trash2 size={15} strokeWidth={1.75} aria-hidden />
             </button>
           ) : null}
         </div>
-      </div>
+      </summary>
 
       {meta ? <div className="pd-goal-measure-card__meta">{meta}</div> : null}
 
@@ -121,6 +132,6 @@ export function NumberMeasureEditCard({
           </div>
         ) : null}
       </div>
-    </section>
+    </details>
   )
 }

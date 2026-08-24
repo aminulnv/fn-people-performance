@@ -1,3 +1,4 @@
+import { managerLineRecipientIds } from '@/lib/delegations/roles'
 import {
   getGoalsSnapshot,
   getGoalsSnapshotForCycle,
@@ -222,24 +223,29 @@ function evaluateManagerSummary(
     const status = snapshot.byPerson[id]?.status
     return status === 'draft' || status === 'sent_back' || status === 'incomplete'
   })
+  const recipients = managerLineRecipientIds(managerId)
   const dedupeKey = `goal-team-pending:${cycle.id}:${managerId}`
   if (pending.length === 0) {
-    supersedeNotification(managerId, dedupeKey)
+    for (const recipientId of recipients) {
+      supersedeNotification(recipientId, dedupeKey)
+    }
     return
   }
-  emitNotification(
-    {
-      eventKey: NOTIFICATION_EVENTS.GOAL_TEAM_PENDING_SUMMARY,
-      recipientId: managerId,
-      dedupeKey,
-      destination: goalDestination(cycle.id, managerId),
-      cycleId: cycle.id,
-      personId: managerId,
-      variables: { count: pending.length, cycle: cycle.label },
-      metadata: { pendingCount: pending.length },
-    },
-    { duplicate: 'refresh' },
-  )
+  for (const recipientId of recipients) {
+    emitNotification(
+      {
+        eventKey: NOTIFICATION_EVENTS.GOAL_TEAM_PENDING_SUMMARY,
+        recipientId,
+        dedupeKey,
+        destination: goalDestination(cycle.id, managerId),
+        cycleId: cycle.id,
+        personId: managerId,
+        variables: { count: pending.length, cycle: cycle.label },
+        metadata: { pendingCount: pending.length },
+      },
+      { duplicate: 'refresh' },
+    )
+  }
 }
 
 /**

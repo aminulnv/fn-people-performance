@@ -5,13 +5,18 @@ import {
   type ReactNode,
   type HTMLAttributes,
 } from 'react'
+import { CircleHelp } from 'lucide-react'
 import { cx } from '@/lib/cx'
+import { Tooltip } from './Tooltip'
 
 export type ModalProps = {
   open: boolean
   onClose: () => void
   title: string
-  description?: string
+  description?: ReactNode
+  /** Question-mark hint beside the title. Prefer this over a body explanation. */
+  titleHint?: string
+  titleHintLabel?: string
   children?: ReactNode
   /** Footer actions (buttons). */
   actions?: ReactNode
@@ -29,6 +34,8 @@ export function Modal({
   onClose,
   title,
   description,
+  titleHint,
+  titleHintLabel = 'More information',
   children,
   actions,
   className,
@@ -102,9 +109,22 @@ export function Modal({
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
     >
-      <h3 id={titleId} className="pd-modal__title">
-        {title}
-      </h3>
+      <span className="pd-modal__title-row">
+        <h3 id={titleId} className="pd-modal__title">
+          {title}
+        </h3>
+        {titleHint ? (
+          <Tooltip content={titleHint} side="top" portal delayMs={80}>
+            <button
+              type="button"
+              className="pd-help-icon"
+              aria-label={titleHintLabel}
+            >
+              <CircleHelp size={16} strokeWidth={2} aria-hidden />
+            </button>
+          </Tooltip>
+        ) : null}
+      </span>
       {description ? (
         <p id={descriptionId} className="pd-modal__message">
           {description}

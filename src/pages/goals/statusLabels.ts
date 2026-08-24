@@ -40,6 +40,28 @@ export function cycleIneligibilityStatusLabel(
   return reason === 'not_in_cycle' ? 'Not in this cycle' : statusLabel('not_eligible')
 }
 
+export function ownGoalsEmptyCopy(
+  canAdd: boolean,
+  lockMessage?: string | null,
+): { title: string; description: string } {
+  return {
+    title: 'No goals yet',
+    description: canAdd
+      ? 'Add your first goal for this cycle.'
+      : (lockMessage ?? 'Goals cannot be added for this cycle right now.'),
+  }
+}
+
+export function reportGoalsEmptyDescription(
+  personName: string,
+  canAdd: boolean,
+): string {
+  const name = personName.trim().split(/\s+/)[0] || personName
+  return canAdd
+    ? `Add one for ${name}, or wait for them to start.`
+    : `${name} has not added goals for this cycle.`
+}
+
 export function cycleIneligibilityEmptyState(
   personName: string,
   reason: CycleEligibilityReason,
@@ -58,12 +80,13 @@ export function cycleIneligibilityEmptyState(
 
 export function statusVariant(status: SubmissionStatus): BadgeVariant {
   switch (status) {
+    case 'draft':
+      return 'draft'
     case 'approved':
       return 'completed'
     case 'submitted':
-      return 'pending'
     case 'sent_back':
-      return 'in-progress'
+      return 'pending'
     case 'incomplete':
     case 'not_eligible':
       return 'danger'

@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+  assignManagerDelegationLocal,
+  resetManagerDelegationsForTests,
+} from '@/lib/delegations/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   buildEmployeeScorecardHistory,
@@ -68,6 +72,11 @@ function packet(
 
 beforeEach(() => {
   resetReviewsStoreForTests()
+  resetManagerDelegationsForTests()
+})
+
+afterEach(() => {
+  resetManagerDelegationsForTests()
 })
 
 describe('scorecardStatusFromPacket', () => {
@@ -196,6 +205,49 @@ describe('buildScorecardsForCycle', () => {
     expect(rows[0]).toMatchObject({
       grade: 'performing',
       gradeHidden: true,
+    })
+  })
+
+  it('marks delegated managers\' reports as the delegate\'s reviews', async () => {
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('expected a seeded cycle')
+    await createCycleGroup(cycle.id, { name: 'Everyone', memberIds: [1] })
+    const manager = employee({
+      employeeId: 2,
+      fullName: 'Line Manager',
+      email: 'manager@example.com',
+    })
+    const report = employee({
+      employeeId: 1,
+      fullName: 'Report',
+      reportsToId: 2,
+    })
+    const cover = employee({
+      employeeId: 4,
+      fullName: 'Peer Cover',
+      email: 'cover@example.com',
+    })
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: '2020-01-01',
+      endsOn: '2030-01-01',
+      absentName: manager.fullName,
+      delegateName: cover.fullName,
+      assignedByEmployeeId: 9,
+      assignedByName: 'Admin',
+    })
+
+    const rows = buildScorecardsForCycle(
+      cycle.id,
+      [manager, report, cover],
+      'cover@example.com',
+      [packet({ cycleId: cycle.id, employeeId: 1 })],
+    )
+
+    expect(rows[0]).toMatchObject({
+      employeeId: 1,
+      isMine: true,
     })
   })
 })

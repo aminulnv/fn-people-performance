@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assignManagerDelegationLocal,
+  resetManagerDelegationsForTests,
+} from '@/lib/delegations/store'
+import {
   canViewPersonGoals,
   formatRefreshAge,
   goalSectionLabels,
@@ -355,6 +359,32 @@ describe('canViewPersonGoals', () => {
         people,
       ),
     ).toBe(false)
+  })
+
+  it('lets a delegate see the absent manager’s reports', () => {
+    resetManagerDelegationsForTests()
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: '2020-01-01',
+      endsOn: '2030-01-01',
+      absentName: 'Manager',
+      delegateName: 'Cover',
+      assignedByEmployeeId: 9,
+      assignedByName: 'Admin',
+    })
+    expect(
+      canViewPersonGoals(
+        { id: '1', department: 'Engineering', managerId: '2' },
+        { id: '4', department: 'Engineering', reportIds: [] },
+        [
+          { id: '4' },
+          { id: '2', managerId: '9' },
+          { id: '1', managerId: '2' },
+        ],
+      ),
+    ).toBe(true)
+    resetManagerDelegationsForTests()
   })
 
   it('allows an all-read admin to view everyone', () => {

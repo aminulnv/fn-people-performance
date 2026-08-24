@@ -7,6 +7,7 @@ import { clearEmployees, createEmployee } from '@/lib/employees/store'
 import {
   getGoalsSnapshot,
   resetGoalsDemo,
+  savePersonGoals,
   setActivePerson,
   setSignedInPerson,
 } from '@/lib/goals/store'
@@ -162,6 +163,32 @@ describe('GoalsPersonDetail manager review', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('hides the person goal totals on an embedded profile', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('group', { name: 'Goal sections' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('group', { name: /goal totals/i }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /My Reports/i }))
+
+    expect(
+      screen.queryByRole('group', { name: /goal totals/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Direct Report goals' }),
+    ).toBeInTheDocument()
+  })
+
   it('keeps edit actions when a report goal is opened from an embedded profile', async () => {
     render(
       <MemoryRouter>
@@ -210,6 +237,12 @@ describe('GoalsPersonDetail manager review', () => {
         name: /need approval again|goal deadline has passed/i,
       }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Line Manager' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: 'Line Manager' }).querySelector('.pd-avatar'),
+    ).not.toBeNull()
+    expect(screen.queryByText(/direct manager/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/skip-level/i)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }))
 
@@ -327,7 +360,9 @@ describe('GoalsPersonDetail submission status', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Goals Draft' }),
     ).toBeInTheDocument()
-    expect(card).toHaveTextContent(/will approve after you/)
+    const trail = screen.getByRole('list', { name: /You/ })
+    expect(card).not.toContainElement(trail)
+    expect(trail).toHaveTextContent('You')
     expect(screen.getByRole('button', { name: 'Submit All' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add Goal' })).toBeInTheDocument()
     expect(
@@ -335,7 +370,25 @@ describe('GoalsPersonDetail submission status', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('keeps draft status in the summary instead of a banner', async () => {
+  it('shows Action required on the card and a measure error in Metrics', async () => {
+    const snapshot = getGoalsSnapshot()
+    savePersonGoals(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: REPORT_ID,
+        subjectId: REPORT_ID,
+      },
+      [
+        {
+          id: 'goal-test',
+          ownerId: REPORT_ID,
+          description: 'test',
+          weight: 50,
+          measurements: [],
+        },
+      ],
+    )
+
     render(
       <MemoryRouter>
         <AuthProvider>
@@ -344,13 +397,43 @@ describe('GoalsPersonDetail submission status', () => {
       </MemoryRouter>,
     )
 
-    await waitFor(() => {
-      expect(
-        screen.getByRole('group', { name: /goal totals/i }),
-      ).toHaveTextContent('Draft')
-    })
-    const totals = screen.getByRole('group', { name: /goal totals/i })
-    expect(totals.nextElementSibling).toHaveClass('pd-divider')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent('Action required')
+    expect(alert).toHaveTextContent('Add at least 2 goals')
+    expect(alert).toHaveTextContent('Weights need to add up to 100%')
+    expect(alert).not.toHaveTextContent('still needs a metric')
+    expect(
+      screen.getByRole('button', { name: 'Add another goal' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'Still needs a metric.' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTitle('test'))
+    const drawer = await screen.findByRole('dialog', { name: 'View test' })
+    const ribbon = drawer.querySelector('[role="alert"]')
+    expect(ribbon).toHaveTextContent('Action required')
+    expect(ribbon).toHaveTextContent('Still needs a metric.')
+    expect(ribbon).not.toHaveTextContent('test')
+    expect(drawer).not.toHaveTextContent('Add at least 2 goals')
+    expect(drawer).not.toHaveTextContent('Weights need to add up to 100%')
+  })
+
+  it('does not show a draft banner above the goals', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('button', { name: /goal cycle/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('group', { name: /goal totals/i }),
+    ).not.toBeInTheDocument()
     expect(document.querySelector('.pd-goal-view__approval')).toBeNull()
     expect(screen.queryByText('Not submitted yet')).not.toBeInTheDocument()
     expect(
@@ -426,14 +509,11 @@ describe('GoalsPersonDetail cycle eligibility', () => {
     expect(screen.queryByText('Action required')).not.toBeInTheDocument()
     expect(screen.queryByText('Not started')).not.toBeInTheDocument()
     expect(
-      screen.getByRole('group', { name: /goal totals/i }),
-    ).toHaveTextContent('Not in this cycle')
+      screen.queryByRole('group', { name: /goal totals/i }),
+    ).not.toBeInTheDocument()
     const leftoverRow = getGoalsSnapshot().byPerson[REPORT_ID]
     const leftover = leftoverRow?.goals[0]
     expect(leftover).toBeTruthy()
-    expect(
-      screen.getByRole('group', { name: /goal totals/i }),
-    ).toHaveTextContent(`Goals${leftoverRow.goals.length}`)
     expect(screen.getByText(leftover.description)).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /add goal/i }),
@@ -459,8 +539,8 @@ describe('GoalsPersonDetail cycle eligibility', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText(/joined after Day 1/)).not.toBeInTheDocument()
     expect(
-      screen.getByRole('group', { name: /goal totals/i }),
-    ).toHaveTextContent('Not in this cycle')
+      screen.queryByRole('group', { name: /goal totals/i }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps the Day 1 message for a grouped late joiner', async () => {

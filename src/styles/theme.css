@@ -74,6 +74,10 @@
   --color-status-completed-surface: color-mix(in srgb,
       var(--color-status-completed) 12%,
       white);
+  --color-status-draft: var(--color-theme);
+  --color-status-draft-surface: color-mix(in srgb,
+      var(--color-theme) 12%,
+      white);
   --color-status-on-hold: #6b7585;
   --color-status-on-hold-surface: color-mix(in srgb,
       var(--color-status-on-hold) 10%,
@@ -160,6 +164,9 @@
   --color-red-light: color-mix(in srgb, var(--color-red) 22%, #1e2429);
   --color-status-completed-surface: color-mix(in srgb,
       var(--color-status-completed) 22%,
+      #1e2429);
+  --color-status-draft-surface: color-mix(in srgb,
+      var(--color-theme) 22%,
       #1e2429);
   --color-status-on-hold-surface: color-mix(in srgb,
       var(--color-status-on-hold) 18%,

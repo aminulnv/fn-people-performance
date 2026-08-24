@@ -265,10 +265,10 @@ TEAM_GOAL_SETS: dict[str, list[dict]] = {
 DEFAULT_TEAM = "People Experience"
 
 SEND_BACK_REASONS = [
-    "Please tighten measurement targets and rebalance weightage to 100%.",
+    "Please tighten metric targets and rebalance weightage to 100%.",
     "Goal descriptions need more specificity — add measurable outcomes.",
     "One goal reads like a task list. Reframe it as a measurable result.",
-    "Measurement weights within a goal must total 100%. Please fix before resubmitting.",
+    "Metric weights within a goal must total 100%. Please fix before resubmitting.",
     "The goal weight mix looks off — adjust to reflect your real focus areas this quarter.",
     "Add proof links or clearer milestones for the output goals before resubmitting.",
 ]

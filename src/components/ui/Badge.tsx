@@ -3,6 +3,7 @@ import { cx } from '@/lib/cx'
 
 export type BadgeVariant =
   | 'neutral'
+  | 'draft'
   | 'completed'
   | 'pending'
   | 'in-progress'

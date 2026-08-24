@@ -76,9 +76,10 @@ export function Tooltip({
   const tipId = useId()
   const [open, setOpen] = useState(false)
   const [coords, setCoords] = useState<CSSProperties>()
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null)
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const triggerRef = useRef<HTMLSpanElement>(null)
-  const usesPortal = portal ?? PORTAL_SIDES.includes(side)
+  const prefersPortal = portal ?? PORTAL_SIDES.includes(side)
 
   const clearShowTimer = () => {
     if (showTimer.current) {
@@ -102,15 +103,20 @@ export function Tooltip({
   }
 
   useLayoutEffect(() => {
-    if (!open || !usesPortal) {
+    if (!open) {
       setCoords(undefined)
+      setPortalRoot(null)
       return
     }
 
     const update = () => {
       const el = triggerRef.current
       if (!el) return
-      setCoords(coordsForSide(el.getBoundingClientRect(), side))
+      const dialog = el.closest('dialog')
+      const root = dialog ?? (prefersPortal ? document.body : null)
+      setPortalRoot(root)
+      if (root) setCoords(coordsForSide(el.getBoundingClientRect(), side))
+      else setCoords(undefined)
     }
 
     update()
@@ -120,8 +126,9 @@ export function Tooltip({
       window.removeEventListener('scroll', update, true)
       window.removeEventListener('resize', update)
     }
-  }, [open, side, usesPortal])
+  }, [open, prefersPortal, side])
 
+  const positionsFixed = Boolean(portalRoot)
   const tip = open ? (
     <span
       id={tipId}
@@ -129,9 +136,9 @@ export function Tooltip({
       className={cx(
         'pd-tooltip__content',
         `pd-tooltip__content--${side}`,
-        usesPortal && 'pd-tooltip__content--portal',
+        positionsFixed && 'pd-tooltip__content--portal',
       )}
-      style={usesPortal ? coords : undefined}
+      style={positionsFixed ? coords : undefined}
     >
       {content}
     </span>
@@ -152,9 +159,9 @@ export function Tooltip({
       >
         {children}
       </span>
-      {usesPortal
-        ? tip && coords && typeof document !== 'undefined'
-          ? createPortal(tip, document.body)
+      {portalRoot
+        ? tip && coords
+          ? createPortal(tip, portalRoot)
           : null
         : tip}
     </span>

@@ -171,7 +171,7 @@ export function buildDemoPersonGoals(
       status === 'approved' ? 'Approved for performance review' : undefined,
     sendBackReason:
       status === 'sent_back'
-        ? 'Please tighten measurement targets and rebalance weightage to 100%.'
+        ? 'Please tighten metric targets and rebalance weightage to 100%.'
         : undefined,
     sendBackBy: status === 'sent_back' ? sendBackBy : undefined,
   }

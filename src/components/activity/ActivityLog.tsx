@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { ActivityEvent } from '@/lib/activity/types'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import { ActivityLogEntry } from './ActivityLogEntry'
 
 function dayKey(iso?: string): string {
@@ -26,6 +27,15 @@ export function ActivityLog({
   events: ActivityEvent[]
   emptyLabel?: string
 }) {
+  const { employees } = useEmployees({ load: false })
+  const avatarByEmployeeId = useMemo(() => {
+    const map = new Map<number, string>()
+    for (const employee of employees) {
+      if (employee.avatarUrl) map.set(employee.employeeId, employee.avatarUrl)
+    }
+    return map
+  }, [employees])
+
   const groups = useMemo(() => {
     const map = new Map<string, ActivityEvent[]>()
     for (const event of events) {
@@ -48,7 +58,16 @@ export function ActivityLog({
           <h3>{dayLabel(key)}</h3>
           <div className="pd-activity-log__list">
             {items.map((event) => (
-              <ActivityLogEntry key={event.id} event={event} />
+              <ActivityLogEntry
+                key={event.id}
+                event={event}
+                actorAvatarUrl={
+                  event.actorAvatarUrl ||
+                  (event.actorEmployeeId != null
+                    ? avatarByEmployeeId.get(event.actorEmployeeId)
+                    : undefined)
+                }
+              />
             ))}
           </div>
         </section>

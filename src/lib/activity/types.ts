@@ -23,6 +23,7 @@ export type ActivityEvent = {
   actorEmployeeId?: number
   actorEmail?: string
   actorName?: string
+  actorAvatarUrl?: string
   actorType: ActivityActorType
   subjectEmployeeId?: number
   cycleId?: string
@@ -80,7 +81,9 @@ export const ACTIVITY_EVENT_LABELS: Record<string, string> = {
   'goal.metric_progress_updated': 'Updated metric progress',
   'goal.milestone_completed': 'Completed a milestone',
   'goal.milestone_reopened': 'Reopened a milestone',
-  'goal.comment_added': 'Added a comment',
+  'goal.comment_added': 'Commented on a goal',
+  'goal.proof_added': 'Added proof',
+  'goal.proof_updated': 'Updated proof',
   'goal.check_in_rating_submitted': 'Submitted a performance review rating',
   'goal_reminder.sent': 'Sent a goal reminder',
   'review_cycle.created': 'Created a cycle',
@@ -90,8 +93,20 @@ export const ACTIVITY_EVENT_LABELS: Record<string, string> = {
   'review_cycle.calibration_updated': 'Updated calibration settings',
   'review_cycle.deleted': 'Deleted a cycle',
   'review_cycle.imported': 'Imported a cycle',
+  'review_cycle.group_created': 'Created a cycle group',
+  'review_cycle.group_updated': 'Updated a cycle group',
+  'review_cycle.group_deleted': 'Deleted a cycle group',
+  'review_cycle.released_to_managers': 'Released grades to managers',
+  'review_cycle.released_to_employees': 'Released grades to employees',
+  'review_packet.self_submitted': 'Submitted a self-review',
+  'review_packet.manager_submitted': 'Submitted a manager review',
+  'review_packet.calibrated': 'Calibrated a grade',
+  'review_packet.released_to_manager': 'Released a grade to the manager',
+  'review_packet.released_to_employee': 'Released a grade to the employee',
+  'review_packet.appeal_submitted': 'Submitted an appeal',
   'employee.created': 'Created an employee',
   'employee.profile_updated': 'Updated an employee profile',
+  'employee.job_details_updated': 'Updated job details',
   'employee.activated': 'Activated an employee',
   'employee.deactivated': 'Deactivated an employee',
   'employee.identifier_changed': 'Changed an employee ID',
@@ -102,9 +117,14 @@ export const ACTIVITY_EVENT_LABELS: Record<string, string> = {
   'department.created': 'Created a department',
   'department.owner_assigned': 'Assigned a department owner',
   'department.hrbp_assigned': 'Assigned a department HRBP',
+  'team.created': 'Created a team',
   'access.profile_assigned': 'Assigned an access profile',
   'access.profile_changed': 'Changed an access profile',
   'access.profile_removed': 'Removed an access profile',
+  'manager_delegation.assigned': 'Assigned a responsibility delegation',
+  'manager_delegation.revoked': 'Revoked a responsibility delegation',
+  'manager_cover.assigned': 'Assigned a responsibility delegation',
+  'manager_cover.revoked': 'Revoked a responsibility delegation',
   'goals.imported': 'Imported goals from browser storage',
 }
 
@@ -114,11 +134,15 @@ export function activityEventLabel(eventKey: string): string {
 
 const ENTITY_LABELS: Record<string, string> = {
   goal: 'Goal',
-  goal_submission: 'Submission',
+  goal_submission: 'Goals',
   review_cycle: 'Cycle',
-  employee: 'Employee',
-  department: 'Department',
+  review_packet: 'Review',
+  employee: 'People',
+  department: 'Organisation',
+  team: 'Organisation',
   access: 'Access',
+  manager_delegation: 'Delegation',
+  manager_cover: 'Delegation',
 }
 
 export function activityEntityLabel(entityType: string): string {

@@ -10,15 +10,13 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { OrgChartLink } from '@/components/OrgChartLink'
-import { TableDensityToggle } from '@/components/TableDensityToggle'
 import { EmptyState, SegmentedControl } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
-import { useEmployees } from '@/lib/employees/useEmployees'
 import {
-  readTableDensity,
-  writeTableDensity,
-  type TableDensity,
-} from '@/pages/people/prefs'
+  useHydrateManagerDelegations,
+  useManagerDelegationsRevision,
+} from '@/lib/delegations/useManagerDelegations'
+import { useEmployees } from '@/lib/employees/useEmployees'
 import {
   hashForPeopleScope,
   peopleScopeFromHash,
@@ -79,13 +77,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
     hashFromTab: hashForPeopleScope,
   })
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
-  const [tableDensity, setTableDensityState] =
-    useState<TableDensity>(readTableDensity)
-
-  function setTableDensity(next: TableDensity) {
-    setTableDensityState(next)
-    writeTableDensity(next)
-  }
 
   const isV3 = variant === 'v3'
   const employeesById = useMemo(
@@ -119,6 +110,9 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
 
   const stats = useMemo(() => directoryStats(employees), [employees])
 
+  const coversRevision = useManagerDelegationsRevision()
+  useHydrateManagerDelegations(user?.employeeId ?? undefined)
+
   const me = useMemo(() => {
     const email = user?.email?.trim().toLowerCase()
     if (!email) return null
@@ -138,7 +132,15 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         me,
         haystacks: searchHaystacks,
       }),
-    [deferredQuery, employees, me, scope, searchHaystacks, statusFilter],
+    [
+      coversRevision,
+      deferredQuery,
+      employees,
+      me,
+      scope,
+      searchHaystacks,
+      statusFilter,
+    ],
   )
 
   return (
@@ -264,12 +266,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             role="toolbar"
             aria-label="People actions"
           >
-            <TableDensityToggle
-              className="pd-people__density"
-              buttonClassName="pd-people__density-btn"
-              value={tableDensity}
-              onChange={setTableDensity}
-            />
             <OrgChartLink />
             <Link to="/people/new" className="pd-people__create-btn">
               <Plus size={18} strokeWidth={2} aria-hidden />
@@ -339,7 +335,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             employees={filtered}
             employeesById={employeesById}
             employeesByName={employeesByName}
-            tableDensity={tableDensity}
             selectedEmployeeId={selectedEmployeeId}
             onSelectEmployee={setSelectedEmployeeId}
           />

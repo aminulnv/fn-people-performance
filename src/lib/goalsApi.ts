@@ -36,7 +36,11 @@ import {
   type GoalMutationContext,
 } from './goals/store'
 import { ensureReviewCyclesLoaded } from './reviews/store'
-import { cascadeGoal as buildCascadedGoal } from './goals/operations'
+import {
+  applyCascadeToLink,
+  cascadeGoal as buildCascadedGoal,
+  clearCascadeLink,
+} from './goals/operations'
 import type {
   DemoPhase,
   Goal,
@@ -63,11 +67,20 @@ import { canSubmitGoals } from './goals/weightage'
 
 export {
   allocatedWeightCaption,
+  appendGoalWithWeight,
   canSubmitGoals,
+  collectGoalSubmitBlockers,
   distributeGoalWeights,
   goalCompletion,
+  isEvenGoalSplit,
   overallCompletion,
   remainingGoalWeight,
+  removeGoalKeepingWeights,
+  submitBlockersForGoal,
+  isMeasureGoalIssue,
+  measureIssueLabel,
+  submitIssueForGoal,
+  submitSetBlockers,
   sumGoalWeights,
   sumMeasurementWeights,
   newId,
@@ -315,6 +328,45 @@ export async function cascadeGoalToReports(
     )
   }
   return next
+}
+
+export async function linkExistingGoalAsCascade(
+  context: GoalMutationContext,
+  sourceGoalId: string,
+  child: { personId: string; goalId: string },
+): Promise<GoalsSnapshot> {
+  const snapshot = getGoalsSnapshot()
+  const source = snapshot.byPerson[context.subjectId]?.goals.find(
+    (goal) => goal.id === sourceGoalId,
+  )
+  const row = snapshot.byPerson[child.personId]
+  const current = row?.goals.find((goal) => goal.id === child.goalId)
+  if (!source || !row || !current) throw new Error('Goal not found.')
+  return saveGoals(
+    { ...context, subjectId: child.personId },
+    row.goals.map((goal) =>
+      goal.id === child.goalId ? applyCascadeToLink(goal, source) : goal,
+    ),
+  )
+}
+
+export async function unlinkCascadedGoal(
+  context: GoalMutationContext,
+  sourceGoalId: string,
+  child: { personId: string; goalId: string },
+): Promise<GoalsSnapshot> {
+  const snapshot = getGoalsSnapshot()
+  const row = snapshot.byPerson[child.personId]
+  const current = row?.goals.find((goal) => goal.id === child.goalId)
+  if (!row || !current || current.cascadedFromGoalId !== sourceGoalId) {
+    throw new Error('Cascade link not found.')
+  }
+  return saveGoals(
+    { ...context, subjectId: child.personId },
+    row.goals.map((goal) =>
+      goal.id === child.goalId ? clearCascadeLink(goal) : goal,
+    ),
+  )
 }
 
 export async function submitGoals(

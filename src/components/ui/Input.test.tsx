@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
 import { Input } from './Input'
+
+afterEach(() => {
+  cleanup()
+})
 
 describe('Input date fields', () => {
   it('shows a committed date as DD-MMM-YYYY', () => {
@@ -15,5 +19,19 @@ describe('Input date fields', () => {
 
     expect(screen.getByLabelText('Ends')).toHaveValue('')
     expect(screen.getByText('DD-MMM-YYYY')).toBeInTheDocument()
+  })
+
+  it('keeps a notched label associated with the date field', () => {
+    render(
+      <Input
+        label="Starts"
+        type="date"
+        labelPlacement="notch"
+        value="2026-08-24"
+        onChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByLabelText('Starts')).toHaveValue('2026-08-24')
   })
 })

@@ -148,6 +148,17 @@ describe('Goals overview cycle eligibility', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('puts owner title and department on one comma-separated line', async () => {
+    await putPeopleInGroup([1, 2])
+
+    renderOverview()
+
+    expect(await screen.findByText('Executive, People')).toBeInTheDocument()
+    expect(
+      document.querySelector('.pd-goals-overview__owner-meta'),
+    ).toHaveTextContent('Executive, People')
+  })
+
   it('lets the viewer select more than one cycle', async () => {
     await putPeopleInGroup([1, 2])
     const extra = await createReviewCycle({
@@ -172,5 +183,67 @@ describe('Goals overview cycle eligibility', () => {
     expect(
       screen.getByRole('columnheader', { name: /^Cycle/ }),
     ).toBeInTheDocument()
+  })
+
+  it('expands nested measures from the goal row arrow', async () => {
+    await putPeopleInGroup([1, 2])
+    const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(ownGoal).toBeTruthy()
+
+    renderOverview()
+
+    const expand = await screen.findByRole('button', {
+      name: `Expand ${ownGoal.description}`,
+    })
+    expect(expand).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Defects closed')).not.toBeInTheDocument()
+    expect(screen.queryByText('Quality process')).not.toBeInTheDocument()
+
+    fireEvent.click(expand)
+
+    expect(
+      screen.getByRole('button', {
+        name: `Collapse ${ownGoal.description}`,
+      }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByText('Defects closed')).toBeInTheDocument()
+    expect(screen.getByText('Quality process')).toBeInTheDocument()
+    expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(2)
+    expect(screen.getByRole('img', { name: 'Metric' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Milestone' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'Log progress for Defects closed, 2 updates',
+      }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: 'Update checklist for Quality process',
+      }),
+    ).toBeInTheDocument()
+  })
+
+  it('opens the goal panel from a nested measure row', async () => {
+    await putPeopleInGroup([1, 2])
+    const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(ownGoal).toBeTruthy()
+
+    renderOverview()
+
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: `Expand ${ownGoal.description}`,
+      }),
+    )
+    fireEvent.click(screen.getByText('Defects closed'))
+
+    expect(
+      await screen.findByRole('dialog', {
+        name: `View ${ownGoal.description}`,
+      }),
+    ).toBeInTheDocument()
+    expect(
+      document.querySelector('.pd-goals-table__measure-name')?.closest('tr'),
+    ).toHaveClass('is-selected')
   })
 })

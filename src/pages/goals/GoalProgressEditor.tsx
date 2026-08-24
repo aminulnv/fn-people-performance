@@ -21,6 +21,7 @@ import {
   withMilestoneTitle,
 } from '@/lib/goals/measurements'
 import { recordMetricProgress, type ProgressLogAuthor } from '@/lib/goals/progressLog'
+import { GoalEmptyMeasures } from '@/pages/goals/GoalEmptyMeasures'
 import { MeasureTypeAddButtons } from '@/pages/goals/MeasureTypeSwitch'
 import { NumberMeasureEditCard } from '@/pages/goals/NumberMeasureEditCard'
 import { TodoMeasureEditCard } from '@/pages/goals/TodoMeasureEditCard'
@@ -130,7 +131,7 @@ export function GoalProgressEditor({
   return (
     <section
       className="pd-goal-create__progress"
-      aria-label="Progress measurement"
+      aria-label="Progress metrics"
     >
       <div className="pd-goal-create__progress-head">
         <h2>
@@ -176,8 +177,8 @@ export function GoalProgressEditor({
               canEditWeight={canEditMeasureWeight}
               measureTitle={readMeasureGroupTitle(measurements, panel.measureGroupId)}
               canRemoveList={panel.lists.length > 1}
-              addListClassName="pd-people__ghost-btn pd-goal-create__add-todo-list pd-goal-measure-card__add-list"
-              addTodoClassName="pd-people__ghost-btn pd-goal-measure-card__add-todo"
+              addListClassName="pd-goal-measure-card__add-list"
+              addTodoClassName="pd-goal-measure-card__add-todo"
               onRemove={() =>
                 setMeasurements(
                   removeTodoMeasure(currentMeasurements(), panel.measureGroupId),
@@ -262,10 +263,18 @@ export function GoalProgressEditor({
         ) : null,
       )}
 
-      <MeasureTypeAddButtons
-        onAddMilestone={addMilestoneMeasure}
-        onAddNumber={addMetric}
-      />
+      {panelCount === 0 ? (
+        <GoalEmptyMeasures
+          canAdd
+          onAddMilestones={addMilestoneMeasure}
+          onAddNumber={addMetric}
+        />
+      ) : (
+        <MeasureTypeAddButtons
+          onAddMilestone={addMilestoneMeasure}
+          onAddNumber={addMetric}
+        />
+      )}
 
       {measureNameError ? (
         <p className="pd-goal-create__title-error" role="alert">
@@ -273,7 +282,7 @@ export function GoalProgressEditor({
         </p>
       ) : null}
 
-      {measurementWeightError ? (
+      {measurementWeightError && panelCount > 0 ? (
         <p className="pd-goal-create__title-error" role="alert">
           {measurementWeightError}
         </p>

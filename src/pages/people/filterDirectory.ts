@@ -1,4 +1,4 @@
-import { isDirectReport } from '@/lib/employees/relationships'
+import { isEffectiveDirectReport } from '@/lib/delegations/roles'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { DirectoryScope } from './directoryHashes'
 
@@ -86,7 +86,9 @@ export function filterDirectory(
     if (options.statusFilter === 'active' && !employee.isActive) return false
     if (options.statusFilter === 'inactive' && employee.isActive) return false
     if (options.me && options.scope === 'reports') {
-      if (!isDirectReport(employee, options.me)) return false
+      if (!isEffectiveDirectReport(employee, options.me, employees)) {
+        return false
+      }
     }
     if (options.me && options.scope === 'department') {
       if (!myDepartment || employee.department.trim() !== myDepartment) {

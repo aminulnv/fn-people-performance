@@ -5,9 +5,11 @@ const ENTITY_OPTIONS = [
   { value: '', label: 'All areas' },
   { value: 'goal', label: 'Goals' },
   { value: 'goal_submission', label: 'Goal submissions' },
+  { value: 'review_packet', label: 'Reviews' },
   { value: 'review_cycle', label: 'Cycles' },
-  { value: 'employee', label: 'Employees' },
-  { value: 'department', label: 'Departments' },
+  { value: 'employee', label: 'People' },
+  { value: 'department', label: 'Organisation' },
+  { value: 'manager_delegation', label: 'Delegations' },
   { value: 'access', label: 'Access' },
 ]
 

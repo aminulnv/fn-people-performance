@@ -11,10 +11,6 @@ import {
 } from 'lucide-react'
 import { OrgChartLink } from '@/components/OrgChartLink'
 import {
-  tableDensityWrapClass,
-  TableDensityToggle,
-} from '@/components/TableDensityToggle'
-import {
   Avatar,
   ResizableTable,
   type ResizableColumn,
@@ -32,11 +28,6 @@ import {
   teamDetailPath,
 } from '@/lib/organisation/paths'
 import type { OrgDepartment, OrgPersonRef, OrgTeam } from '@/lib/organisation/types'
-import {
-  readTableDensity,
-  writeTableDensity,
-  type TableDensity,
-} from '@/pages/people/prefs'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -172,13 +163,6 @@ export default function OrganisationPage() {
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
-  const [tableDensity, setTableDensityState] =
-    useState<TableDensity>(readTableDensity)
-
-  function setTableDensity(next: TableDensity) {
-    setTableDensityState(next)
-    writeTableDensity(next)
-  }
 
   function toggleStructureView(next: StructureView) {
     setStructureView((current) => (current === next ? null : next))
@@ -254,14 +238,7 @@ export default function OrganisationPage() {
     () => [
       {
         id: 'department',
-        label: (
-          <span className="pd-people__th">
-            Department
-            <span className="pd-people__th-count">
-              {filteredDepartments.length}
-            </span>
-          </span>
-        ),
+        label: 'Department',
         name: 'Department',
         grow: true,
       },
@@ -269,18 +246,13 @@ export default function OrganisationPage() {
       { id: 'teams', label: 'Teams' },
       { id: 'headcount', label: 'Headcount' },
     ],
-    [filteredDepartments.length],
+    [],
   )
   const teamColumns = useMemo<ResizableColumn[]>(
     () => [
       {
         id: 'team',
-        label: (
-          <span className="pd-people__th">
-            Team
-            <span className="pd-people__th-count">{filteredTeams.length}</span>
-          </span>
-        ),
+        label: 'Team',
         name: 'Team',
         grow: true,
       },
@@ -288,7 +260,7 @@ export default function OrganisationPage() {
       { id: 'owner', label: 'Owner' },
       { id: 'headcount', label: 'Headcount' },
     ],
-    [filteredTeams.length],
+    [],
   )
 
   return (
@@ -381,12 +353,6 @@ export default function OrganisationPage() {
         </div>
 
         <div className="pd-people__toolbar">
-          <TableDensityToggle
-            className="pd-people__density"
-            buttonClassName="pd-people__density-btn"
-            value={tableDensity}
-            onChange={setTableDensity}
-          />
           <OrgChartLink />
           <Link
             to="/organisation/departments/new"
@@ -435,7 +401,7 @@ export default function OrganisationPage() {
               No departments match your filters.
             </p>
           ) : (
-            <div className={tableDensityWrapClass(tableDensity)}>
+            <div className="pd-people__table-wrap">
               <ResizableTable
                 className="pd-people__table"
                 storageKey="organisation-departments-column-widths"
@@ -550,7 +516,7 @@ export default function OrganisationPage() {
         ) : filteredTeams.length === 0 ? (
           <p className="pd-people__empty">No teams match your filters.</p>
         ) : (
-          <div className={tableDensityWrapClass(tableDensity)}>
+          <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table"
               storageKey="organisation-teams-column-widths"

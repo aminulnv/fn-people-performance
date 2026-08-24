@@ -33,6 +33,7 @@ export type CascadeGoalOption = {
   managerName: string
   managerId?: string
   managerAvatarUrl?: string
+  measurements?: Measurement[]
 }
 
 export type LineManagerCascade = {
@@ -44,6 +45,44 @@ export type LineManagerCascade = {
   skipLevelManagerName?: string | null
   skipLevelManagerAvatarUrl?: string
   options: CascadeGoalOption[]
+}
+
+export type CascadeApprover = {
+  id?: string
+  name: string
+  avatarUrl?: string
+}
+
+export function cascadeApprover(
+  id?: string | null,
+  name?: string | null,
+  avatarUrl?: string,
+): CascadeApprover | null {
+  const trimmed = name?.trim()
+  if (!trimmed) return null
+  return {
+    ...(id ? { id } : {}),
+    name: trimmed,
+    ...(avatarUrl ? { avatarUrl } : {}),
+  }
+}
+
+export function cascadeApprovers(cascade: LineManagerCascade): {
+  lineManager: CascadeApprover | null
+  skipLevelManager: CascadeApprover | null
+} {
+  return {
+    lineManager: cascadeApprover(
+      cascade.managerId,
+      cascade.managerName,
+      cascade.managerAvatarUrl,
+    ),
+    skipLevelManager: cascadeApprover(
+      cascade.skipLevelManagerId,
+      cascade.skipLevelManagerName,
+      cascade.skipLevelManagerAvatarUrl,
+    ),
+  }
 }
 
 const EMPTY_CASCADE: LineManagerCascade = { managerName: null, options: [] }
@@ -77,6 +116,7 @@ export function lineManagerCascade(
       managerName: manager.name,
       managerId: manager.id,
       managerAvatarUrl: manager.avatarUrl,
+      measurements: goal.measurements,
     })),
   }
 }
@@ -118,6 +158,7 @@ export type CascadeRecipient = {
   personId: string
   personName: string
   avatarUrl?: string
+  measurements?: Measurement[]
 }
 
 /** Child goals already cascaded from this one — live title + owner. */
@@ -139,6 +180,7 @@ export function indexCascadeRecipients(
         personId: person.id,
         personName: person.name,
         avatarUrl: person.avatarUrl,
+        measurements: goal.measurements,
       })
       bySource.set(sourceId, current)
     })
@@ -152,6 +194,66 @@ export function cascadeRecipients(
 ): CascadeRecipient[] {
   if (!sourceGoalId) return []
   return indexCascadeRecipients(snapshot).get(sourceGoalId) ?? []
+}
+
+export type CascadeToOption = {
+  id: string
+  title: string
+  personId: string
+  personName: string
+  personAvatarUrl?: string
+}
+
+/** Existing report goals that can be linked under this one. */
+export function reportCascadeOptions(
+  subject: Pick<DemoPerson, 'reportIds'> | null,
+  snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
+  sourceGoalId: string,
+): CascadeToOption[] {
+  if (!subject?.reportIds.length || !snapshot || !sourceGoalId) return []
+  const options: CascadeToOption[] = []
+  for (const reportId of subject.reportIds) {
+    const person = snapshot.people.find((entry) => entry.id === reportId)
+    if (!person) continue
+    const goals = snapshot.byPerson[reportId]?.goals ?? []
+    goals.forEach((goal, index) => {
+      if (goal.id === sourceGoalId) return
+      if (goal.cascadedFromGoalId === sourceGoalId) return
+      options.push({
+        id: goal.id,
+        title: cascadeGoalTitle(goal, index),
+        personId: person.id,
+        personName: person.name,
+        personAvatarUrl: person.avatarUrl,
+      })
+    })
+  }
+  return options.sort(
+    (left, right) =>
+      left.personName.localeCompare(right.personName) ||
+      left.title.localeCompare(right.title),
+  )
+}
+
+export function applyCascadeToLink(
+  child: Goal,
+  source: Pick<Goal, 'id' | 'description' | 'linkedGoalLabel'>,
+): Goal {
+  return {
+    ...child,
+    cascadedFromGoalId: source.id,
+    linkedGoalLabel: source.description.trim() || source.linkedGoalLabel,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function clearCascadeLink(child: Goal): Goal {
+  return {
+    ...child,
+    cascadedFromGoalId: undefined,
+    linkedGoalLabel: undefined,
+    updatedAt: new Date().toISOString(),
+  }
 }
 
 /** Prefer the goal's ownerId; fall back to the subject's bucket owner. */

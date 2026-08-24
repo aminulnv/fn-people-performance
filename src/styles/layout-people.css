@@ -472,20 +472,6 @@ a.pd-people__ghost-btn--outline:hover {
   --segmented-radius: var(--people-radius);
 }
 
-.pd-people__density {
-  --segmented-pad: 3px;
-  --segmented-radius: var(--people-radius);
-  flex-shrink: 0;
-}
-
-.pd-people__density-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.25rem;
-  padding-inline: 0;
-}
-
 .pd-people__empty-state {
   display: grid;
   gap: 1rem;
@@ -937,26 +923,6 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-people__table-wrap::-webkit-scrollbar-track {
   background: transparent;
-}
-
-.pd-people__table-wrap--condensed {
-  --people-table-font: 0.8125rem;
-  --people-table-line: 1.25;
-  --people-table-cell-y: 0.4rem;
-  --people-table-cell-x: 0.65rem;
-  --people-table-person-gap: 0.375rem;
-  --people-table-person-line: 1.25;
-  --people-table-person-stack-line: 1.05;
-  --people-table-email-font: 0.5rem;
-  --people-table-email-line: 1.05;
-  --people-table-avatar-md: 1.375rem;
-  --people-table-avatar-md-font: 0.5rem;
-  --people-table-avatar-sm: 1.25rem;
-  --people-table-avatar-sm-font: 0.46875rem;
-  --people-table-status-min-h: 1.25rem;
-  --people-table-status-pad-y: 0.1rem;
-  --people-table-status-pad-x: 0.45rem;
-  --people-table-status-font: 0.75rem;
 }
 
 /* Columns size to their content. A grow column may take leftover width. */
@@ -1702,9 +1668,187 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile__card-title {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 0.95rem;
   font-weight: 650;
   color: var(--color-text);
+}
+
+.pd-profile__cover,
+.pd-profile__cover-note {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.pd-profile__cover-note {
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--color-surface);
+}
+
+.pd-profile__cover-person {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pd-profile__cover-line {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--color-text);
+}
+
+.pd-profile__cover-line .pd-help-icon,
+.pd-profile__cover-line .pd-tooltip,
+.pd-profile__cover-line .pd-tooltip__trigger {
+  display: inline-flex;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+}
+
+.pd-profile__cover-range {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+}
+
+.pd-profile__cover-error {
+  margin: 0;
+  color: var(--color-danger, #b42318);
+  font-size: 0.82rem;
+}
+
+.pd-profile__cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.pd-modal.pd-profile__cover-modal {
+  overflow: visible;
+  max-width: min(32rem, calc(100vw - 2rem));
+  width: min(32rem, calc(100vw - 2rem));
+}
+
+.pd-profile__cover-modal .pd-modal__body {
+  display: grid;
+  gap: 1rem;
+}
+
+.pd-profile__cover-modal .pd-listbox.is-open {
+  z-index: 60;
+}
+
+.pd-profile__cover-modal .pd-listbox__trigger,
+.pd-profile__cover-modal .pd-field--notch {
+  border-radius: 999px;
+  padding-inline: 0.85rem;
+}
+
+.pd-profile__cover-modal .pd-listbox__panel {
+  padding: 0.25rem 0;
+  border-radius: 0.75rem;
+}
+
+.pd-profile__cover-modal .pd-listbox__option {
+  border-radius: 0;
+  padding-inline: 0.75rem;
+}
+
+.pd-profile__cover-modal .pd-listbox__option:hover,
+.pd-profile__cover-modal .pd-listbox__option.is-active {
+  background: var(--color-neutral-hover);
+}
+
+.pd-profile__cover-modal .pd-reviews-window {
+  display: grid;
+  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
+  align-items: end;
+  gap: 0.75rem 0.55rem;
+  max-width: none;
+}
+
+.pd-profile__cover-modal .pd-reviews-window--notch {
+  align-items: center;
+}
+
+.pd-profile__cover-modal .pd-reviews-window--notch .pd-reviews-window__track {
+  padding-bottom: 0;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__date {
+  display: grid;
+  gap: 0.4rem;
+  min-width: max-content;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__date--end {
+  text-align: right;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__label {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__track {
+  display: grid;
+  grid-template-columns: minmax(0.75rem, 1fr) auto minmax(0.75rem, 1fr);
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 1.5rem;
+  padding-bottom: 1.05rem;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__line {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-theme) 8%, var(--color-divider)),
+    color-mix(in srgb, var(--color-theme) 42%, var(--color-divider))
+  );
+}
+
+.pd-profile__cover-modal .pd-reviews-window__track .pd-reviews-window__line:last-child {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-theme) 42%, var(--color-divider)),
+    color-mix(in srgb, var(--color-theme) 8%, var(--color-divider))
+  );
+}
+
+.pd-profile__cover-modal .pd-reviews-window__dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-theme) 55%, var(--color-divider));
+}
+
+.pd-profile__cover-modal .pd-reviews-window .pd-field__control {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .pd-profile__cover-modal .pd-reviews-window {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pd-profile__cover-modal .pd-reviews-window__track {
+    display: none;
+  }
+
+  .pd-profile__cover-modal .pd-reviews-window__date--end {
+    text-align: left;
+  }
 }
 
 .pd-profile__details {
@@ -1967,6 +2111,7 @@ a.pd-people__ghost-btn--outline:hover {
   top: calc(100% + 0.35rem);
   right: 0;
   z-index: 20;
+  width: max-content;
   min-width: 10.5rem;
   padding: 0.35rem;
   border: 1px solid var(--color-border);
@@ -1990,6 +2135,7 @@ a.pd-people__ghost-btn--outline:hover {
   font-size: 0.8125rem;
   font-weight: 600;
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
   text-decoration: none;
 }

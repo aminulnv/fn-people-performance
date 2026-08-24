@@ -1,10 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { Building2, ChevronDown, Network, Search } from "lucide-react";
+import { useContext, useEffect, useMemo, useState } from "react";
+import { Building2, ChevronDown, Landmark, Network, Search } from "lucide-react";
+import { AuthContext } from "@/lib/authContext";
+import { getEmployee } from "@/lib/employees/store";
 import {
-  listOkrReferences,
+  COMPANY_OKR_NAME,
+  listVisibleOkrReferences,
+  type OkrKeyResult,
   type OkrReference,
+  type OkrReferenceLevel,
   type OkrReferenceScope,
+  type OkrReferenceViewer,
 } from "@/lib/okr/reference";
+
+const RACI_COLUMNS = [
+  { key: "responsible", letter: "R", label: "Responsible" },
+  { key: "accountable", letter: "A", label: "Accountable" },
+  { key: "consulted", letter: "C", label: "Consulted" },
+  { key: "informed", letter: "I", label: "Informed" },
+] as const;
 
 function matchesQuery(reference: OkrReference, query: string): boolean {
   const needle = query.trim().toLowerCase();
@@ -13,11 +26,80 @@ function matchesQuery(reference: OkrReference, query: string): boolean {
     reference.title,
     reference.description,
     reference.ownerLabel,
-    ...reference.keyResults,
+    ...reference.keyResults.flatMap((result) => [
+      result.text,
+      ...result.raci.responsible,
+      ...result.raci.accountable,
+      ...result.raci.consulted,
+      ...result.raci.informed,
+    ]),
   ]
     .join(" ")
     .toLowerCase()
     .includes(needle);
+}
+
+function useOkrViewer(): OkrReferenceViewer | undefined {
+  const auth = useContext(AuthContext);
+  const user = auth?.user;
+  const employeeId =
+    typeof user?.employeeId === "number"
+      ? user.employeeId
+      : Number.parseInt(user?.personId ?? "", 10);
+  const permissionKey = user?.permissions?.join(",") ?? "";
+
+  return useMemo(() => {
+    if (!user) return undefined;
+    const employee = Number.isInteger(employeeId)
+      ? getEmployee(employeeId)
+      : null;
+    return {
+      department: employee?.department ?? "",
+      wing: employee?.team ?? "",
+      permissions: user.permissions,
+    };
+  }, [employeeId, permissionKey, user]);
+}
+
+function namesFor(
+  result: OkrKeyResult,
+  key: (typeof RACI_COLUMNS)[number]["key"],
+): string {
+  return result.raci[key].join(", ");
+}
+
+function OkrRaciMatrix({ results }: { results: OkrKeyResult[] }) {
+  if (results.length === 0) return null;
+  return (
+    <table className="pd-okr-ref__raci">
+      <caption>RACI</caption>
+      <thead>
+        <tr>
+          <th scope="col">Key result</th>
+          {RACI_COLUMNS.map((column) => (
+            <th key={column.key} scope="col" title={column.label}>
+              <abbr title={column.label}>{column.letter}</abbr>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {results.map((result) => (
+          <tr key={result.id}>
+            <th scope="row">{result.text}</th>
+            {RACI_COLUMNS.map((column) => {
+              const names = namesFor(result, column.key);
+              return (
+                <td key={column.key} title={names || undefined}>
+                  {names || "—"}
+                </td>
+              );
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 function ReferenceGroup({
@@ -26,11 +108,12 @@ function ReferenceGroup({
   references,
 }: {
   title: string;
-  icon: "department" | "wing";
+  icon: OkrReferenceLevel;
   references: OkrReference[];
 }) {
   if (references.length === 0) return null;
-  const Icon = icon === "department" ? Building2 : Network;
+  const Icon =
+    icon === "company" ? Landmark : icon === "department" ? Building2 : Network;
 
   return (
     <section className="pd-okr-ref__group" aria-labelledby={`okr-${icon}`}>
@@ -56,12 +139,7 @@ function ReferenceGroup({
             </summary>
             <div className="pd-okr-ref__item-body">
               <p>{reference.description}</p>
-              <p className="pd-okr-ref__kr-label">Key results</p>
-              <ul>
-                {reference.keyResults.map((result) => (
-                  <li key={result}>{result}</li>
-                ))}
-              </ul>
+              <OkrRaciMatrix results={reference.keyResults} />
             </div>
           </details>
         ))}
@@ -70,10 +148,14 @@ function ReferenceGroup({
   );
 }
 
-/** Searchable, read-only department and wing OKRs for one employee. */
+/** Searchable, read-only company, department, and wing OKRs for one employee. */
 export function GoalOkrReferenceList({ scope }: { scope: OkrReferenceScope }) {
   const [query, setQuery] = useState("");
-  const references = useMemo(() => listOkrReferences(scope), [scope]);
+  const viewer = useOkrViewer();
+  const references = useMemo(
+    () => listVisibleOkrReferences(scope, viewer),
+    [scope, viewer],
+  );
   const filtered = useMemo(
     () => references.filter((reference) => matchesQuery(reference, query)),
     [query, references],
@@ -99,12 +181,21 @@ export function GoalOkrReferenceList({ scope }: { scope: OkrReferenceScope }) {
       {filtered.length > 0 ? (
         <>
           <ReferenceGroup
-            title={`${scope.department} department`}
-            icon="department"
+            title={`${COMPANY_OKR_NAME} company`}
+            icon="company"
             references={filtered.filter(
-              (reference) => reference.level === "department",
+              (reference) => reference.level === "company",
             )}
           />
+          {scope.department.trim() ? (
+            <ReferenceGroup
+              title={`${scope.department} department`}
+              icon="department"
+              references={filtered.filter(
+                (reference) => reference.level === "department",
+              )}
+            />
+          ) : null}
           {scope.wing.trim() ? (
             <ReferenceGroup
               title={`${scope.wing} wing`}

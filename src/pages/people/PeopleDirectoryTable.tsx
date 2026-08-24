@@ -3,9 +3,6 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Avatar, ResizableTable, type ResizableColumn } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { tableDensityWrapClass } from '@/components/TableDensityToggle'
-import type { TableDensity } from '@/pages/people/prefs'
-
 const PEOPLE_COLUMNS: ResizableColumn[] = [
   { id: 'employee-id', label: 'ID' },
   { id: 'name', label: 'Name', grow: true },
@@ -176,20 +173,18 @@ export function PeopleDirectoryTable({
   employees,
   employeesById,
   employeesByName,
-  tableDensity,
   selectedEmployeeId,
   onSelectEmployee,
 }: {
   employees: PlatformEmployee[]
   employeesById: ReadonlyMap<number, PlatformEmployee>
   employeesByName: ReadonlyMap<string, PlatformEmployee>
-  tableDensity: TableDensity
   selectedEmployeeId?: number | null
   onSelectEmployee: (employeeId: number) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const shouldVirtualize = employees.length >= VIRTUALIZE_AFTER
-  const estimateSize = tableDensity === 'condensed' ? 36 : 40
+  const estimateSize = 40
 
   const virtualizer = useVirtualizer({
     count: shouldVirtualize ? employees.length : 0,
@@ -219,7 +214,7 @@ export function PeopleDirectoryTable({
       )
 
   return (
-    <div ref={scrollRef} className={tableDensityWrapClass(tableDensity)}>
+    <div ref={scrollRef} className="pd-people__table-wrap">
       <ResizableTable
         className="pd-people__table"
         storageKey="people-directory-column-widths"

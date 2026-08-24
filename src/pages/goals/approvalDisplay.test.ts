@@ -9,7 +9,7 @@ describe("approvalCopy", () => {
   it("names the skip-level wait state for late final approval", () => {
     expect(approvalCopy("submitted", "manager_manager")).toMatchObject({
       title: "Pending final approval",
-      sub: "Waiting on skip-level manager",
+      sub: "Waiting on final approver",
     });
     expect(approvalCopy("submitted", "manager")).toMatchObject({
       title: "Pending approval",

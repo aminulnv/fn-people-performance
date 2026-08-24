@@ -1,16 +1,23 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { GitFork } from 'lucide-react'
-import { Avatar, ListboxSelect } from '@/components/ui'
+import { CornerDownRight, CornerLeftDown } from 'lucide-react'
+import { Avatar, ListboxSelect, Tooltip } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   applyCascadeSelection,
   selectedCascadeOption,
   type CascadeGoalOption,
   type CascadeRecipient,
+  type CascadeToOption,
   type LineManagerCascade,
 } from '@/lib/goals/operations'
 import type { Goal } from '@/lib/goals/types'
+import {
+  GoalCascadeTargetDialog,
+  type CascadeTarget,
+} from './GoalCascadeTargetDialog'
+
+const CREATE_CASCADE_VALUE = '__create_cascade__'
 
 export type CascadeGoalHref = (
   personId: string,
@@ -20,15 +27,40 @@ export type CascadeGoalHref = (
 export function CascadeLabel({
   children,
   as: Tag = 'span',
-  className = 'pd-goal-view__description-label',
+  className,
+  direction,
+  iconOnly = false,
 }: {
   children: ReactNode
   as?: 'span' | 'p'
   className?: string
+  direction: 'from' | 'to'
+  iconOnly?: boolean
 }) {
+  const Icon = direction === 'from' ? CornerLeftDown : CornerDownRight
+  const tip =
+    typeof children === 'string'
+      ? children
+      : direction === 'from'
+        ? 'Cascading from'
+        : 'Cascaded to'
+  const classNames = `pd-goal-cascade__heading${
+    iconOnly ? ' pd-goal-cascade__heading--icon' : ''
+  }${className ? ` ${className}` : ''}`
+
+  if (iconOnly) {
+    return (
+      <Tooltip content={tip} side="top" portal delayMs={80}>
+        <span className={classNames} role="img" aria-label={tip} tabIndex={0}>
+          <Icon size={13} strokeWidth={2.25} aria-hidden />
+        </span>
+      </Tooltip>
+    )
+  }
+
   return (
-    <Tag className={`pd-goal-cascade__heading ${className}`.trim()}>
-      <GitFork size={12} strokeWidth={2} aria-hidden />
+    <Tag className={classNames}>
+      <Icon size={13} strokeWidth={2.25} aria-hidden />
       {children}
     </Tag>
   )
@@ -73,44 +105,72 @@ export function selectedCascadePerson(
   }
 }
 
-export function CascadeGoalChip({
+export function CascadeGoalTip({
+  title,
+  ownerName,
+  ownerAvatarUrl,
+}: {
+  title: string
+  ownerName?: string
+  ownerAvatarUrl?: string
+}) {
+  return (
+    <section className="pd-goal-cascade-tip">
+      <p className="pd-goal-cascade-tip__title">{title}</p>
+      {ownerName ? (
+        <p className="pd-goal-cascade-tip__owner">
+          <Avatar
+            name={ownerName}
+            src={ownerAvatarUrl}
+            size="sm"
+            style={avatarStyle(ownerName)}
+          />
+          <span>{ownerName}</span>
+        </p>
+      ) : null}
+    </section>
+  )
+}
+
+function CascadeGoalRef({
   href,
   title,
   personName,
-  avatarUrl,
+  personAvatarUrl,
 }: {
   href?: string
   title: string
-  personName: string
-  avatarUrl?: string
+  personName?: string
+  personAvatarUrl?: string
 }) {
-  const body = (
-    <>
-      <Avatar
-        name={personName}
-        src={avatarUrl}
-        size="sm"
-        style={avatarStyle(personName)}
-      />
-      <span className="pd-goal-cascade__chip-copy">
-        <span className="pd-goal-cascade__chip-title">{title}</span>
-        {personName ? (
-          <span className="pd-goal-cascade__chip-name">{personName}</span>
-        ) : null}
-      </span>
-    </>
+  const className = href
+    ? 'pd-goal-cascade__ref pd-goal-cascade__ref--link'
+    : 'pd-goal-cascade__ref'
+  const label = personName ? `${title} · ${personName}` : title
+  const body = href ? (
+    <Link to={href} className={className} aria-label={label}>
+      <span className="pd-goal-cascade__goal">{title}</span>
+    </Link>
+  ) : (
+    <span className={className} aria-label={label}>
+      <span className="pd-goal-cascade__goal">{title}</span>
+    </span>
   )
-  if (!href) {
-    return <div className="pd-goal-cascade__chip">{body}</div>
-  }
   return (
-    <Link
-      to={href}
-      className="pd-goal-cascade__chip pd-goal-cascade__chip--link"
-      aria-label={`${title} · ${personName}`}
+    <Tooltip
+      content={
+        <CascadeGoalTip
+          title={title}
+          ownerName={personName}
+          ownerAvatarUrl={personAvatarUrl}
+        />
+      }
+      side="bottom"
+      portal
+      delayMs={80}
     >
       {body}
-    </Link>
+    </Tooltip>
   )
 }
 
@@ -130,12 +190,124 @@ export function GoalCascadeFromReadout({
       ? hrefFor?.(selected.managerId, selected.id)
       : undefined
   return (
-    <CascadeGoalChip
-      href={href}
-      title={selected.title}
-      personName={selected.managerName}
-      avatarUrl={selected.managerAvatarUrl}
-    />
+    <div className="pd-goal-cascade">
+      <CascadeLabel iconOnly direction="from">
+        Cascading from
+      </CascadeLabel>
+      <CascadeGoalRef
+        href={href}
+        title={selected.title}
+        personName={selected.managerName}
+        personAvatarUrl={selected.managerAvatarUrl}
+      />
+    </div>
+  )
+}
+
+export type { CascadeToOption }
+
+export function GoalCascadeToField({
+  recipients,
+  options,
+  targets = [],
+  hrefFor,
+  onLink,
+  onUnlink,
+  onCreate,
+}: {
+  recipients: CascadeRecipient[]
+  options: CascadeToOption[]
+  targets?: CascadeTarget[]
+  hrefFor?: CascadeGoalHref
+  onLink?: (option: CascadeToOption) => void
+  onUnlink?: (recipient: CascadeRecipient) => void
+  onCreate?: (reportIds: string[]) => void
+}) {
+  const [createOpen, setCreateOpen] = useState(false)
+  const canCreate = Boolean(onCreate && targets.length > 0)
+  const pickerOptions = [
+    ...options.map((option) => ({
+      value: option.id,
+      label: option.title,
+      description: option.personName,
+    })),
+    ...(canCreate
+      ? [
+          {
+            value: CREATE_CASCADE_VALUE,
+            label: 'Create new cascading goal',
+            description: 'Blank child for selected reports',
+            className: 'pd-listbox__option--action',
+          },
+        ]
+      : []),
+  ]
+
+  return (
+    <div className="pd-goal-cascade pd-goal-cascade--to">
+      <CascadeLabel as="p" direction="to">
+        Cascaded to
+      </CascadeLabel>
+      {recipients.length > 0 ? (
+        <ul className="pd-goal-cascade__people">
+          {recipients.map((item) => (
+            <li key={item.goalId} className="pd-goal-cascade__to-item">
+              <CascadeGoalRef
+                href={hrefFor?.(item.personId, item.goalId)}
+                title={item.goalTitle}
+                personName={item.personName}
+                personAvatarUrl={item.avatarUrl}
+              />
+              {onUnlink ? (
+                <button
+                  type="button"
+                  className="pd-goal-cascade__unlink"
+                  onClick={() => onUnlink(item)}
+                >
+                  Unlink
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {pickerOptions.length > 0 ? (
+        <ListboxSelect
+          value=""
+          allowEmpty
+          emptyLabel="None"
+          placeholder="Select a report’s goal"
+          searchable={options.length > 5}
+          searchPlaceholder="Search report goals"
+          aria-label="Cascaded to"
+          showDescriptionInTrigger
+          options={pickerOptions}
+          onValueChange={(next) => {
+            if (next === CREATE_CASCADE_VALUE) {
+              setCreateOpen(true)
+              return
+            }
+            const option = options.find((item) => item.id === next)
+            if (option) onLink?.(option)
+          }}
+        />
+      ) : recipients.length === 0 ? (
+        <p className="pd-goal-cascade__empty">
+          Reports have no goals in this cycle.
+        </p>
+      ) : null}
+      {canCreate ? (
+        <GoalCascadeTargetDialog
+          open={createOpen}
+          targets={targets}
+          onClose={() => setCreateOpen(false)}
+          onConfirm={(reportIds) => {
+            onCreate?.(reportIds)
+            setCreateOpen(false)
+          }}
+        />
+      ) : null}
+    </div>
   )
 }
 
@@ -148,16 +320,18 @@ export function GoalCascadedTo({
 }) {
   if (recipients.length === 0) return null
   return (
-    <div className="pd-goal-cascade">
-      <CascadeLabel as="p">Cascaded to</CascadeLabel>
+    <div className="pd-goal-cascade pd-goal-cascade--to">
+      <CascadeLabel iconOnly direction="to">
+        Cascaded to
+      </CascadeLabel>
       <ul className="pd-goal-cascade__people">
         {recipients.map((item) => (
           <li key={item.goalId}>
-            <CascadeGoalChip
+            <CascadeGoalRef
               href={hrefFor?.(item.personId, item.goalId)}
               title={item.goalTitle}
               personName={item.personName}
-              avatarUrl={item.avatarUrl}
+              personAvatarUrl={item.avatarUrl}
             />
           </li>
         ))}
@@ -196,11 +370,13 @@ export function GoalCascadeField({
   if (cascadeFrom.options.length === 0 && !selected) {
     return (
       <div className="pd-goal-cascade">
-        <CascadeLabel as="p">Cascading from</CascadeLabel>
+        <CascadeLabel as="p" direction="from">
+          Cascading from
+        </CascadeLabel>
         <p className="pd-goal-cascade__empty">
           {cascadeFrom.managerName
             ? `${cascadeFrom.managerName} has no goals in this cycle.`
-            : 'No line manager to cascade from.'}
+            : 'No manager to cascade from.'}
         </p>
       </div>
     )
@@ -208,15 +384,22 @@ export function GoalCascadeField({
 
   return (
     <div className="pd-goal-cascade">
-      <CascadeLabel as="p">Cascading from</CascadeLabel>
+      <CascadeLabel as="p" direction="from">
+        Cascading from
+      </CascadeLabel>
       <ListboxSelect
         value={value}
         allowEmpty
         emptyLabel="None"
-        placeholder="Select a line manager goal"
+        placeholder={
+          cascadeFrom.managerName
+            ? `Select a goal from ${cascadeFrom.managerName}`
+            : 'Select a manager goal'
+        }
         searchable={cascadeFrom.options.length > 5}
         searchPlaceholder="Search manager goals"
         aria-label="Cascading from"
+        showDescriptionInTrigger
         options={options}
         onValueChange={(next) => {
           const option =

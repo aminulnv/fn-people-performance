@@ -193,9 +193,6 @@ export function ScorecardGoalsCard({
               cycleLabel={cycleLabel}
               status={personGoals?.status ?? 'draft'}
               postWindowApprovalStage={personGoals?.postWindowApprovalStage}
-              sendBackReason={personGoals?.sendBackReason}
-              sendBackBy={personGoals?.sendBackBy}
-              approvedBy={personGoals?.approvedBy}
               commentAuthorName={owner?.name ?? 'Reviewer'}
               onChange={() => undefined}
             />

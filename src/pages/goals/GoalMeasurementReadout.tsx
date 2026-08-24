@@ -364,7 +364,7 @@ export function GoalMetricReadout({
   showWeight?: boolean
   showCaptions?: boolean
 }) {
-  const name = metric.title.trim() || 'Measure'
+  const name = metric.title.trim() || 'Metric'
   const current = formatMetricNumber(metric.currentValue)
   const target = formatMetricNumber(metric.targetValue)
   const tip = metricTipFromMetric(metric)

@@ -29,6 +29,12 @@ import { listActivityEvents } from './activity.mjs'
 import { registerReviewCycleRoutes } from './reviewCycles/routes.mjs'
 import { registerReviewPacketRoutes } from './reviewPackets/routes.mjs'
 import { registerGoalRoutes } from './goals/routes.mjs'
+import {
+  assignManagerDelegation,
+  canViewManagerDelegations,
+  listManagerDelegations,
+  revokeManagerDelegation,
+} from './delegations.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -138,6 +144,59 @@ export function registerPlatformRoutes(app) {
         req.platformUser,
       )
       res.json({ assignment })
+    }),
+  )
+
+  app.get(
+    '/api/platform/manager-delegations',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const employeeId = req.query.employeeId
+        ? Number(req.query.employeeId)
+        : undefined
+      if (Number.isInteger(employeeId)) {
+        if (!(await canViewManagerDelegations(req.platformUser, employeeId))) {
+          throw new HttpError(403, 'Insufficient access to view delegations')
+        }
+        res.json({
+          delegations: await listManagerDelegations({ employeeId }),
+        })
+        return
+      }
+      const delegateEmployeeId = Number(req.platformUser.employeeId)
+      if (!Number.isInteger(delegateEmployeeId)) {
+        res.json({ delegations: [] })
+        return
+      }
+      res.json({
+        delegations: await listManagerDelegations({ delegateEmployeeId }),
+      })
+    }),
+  )
+
+  app.post(
+    '/api/platform/manager-delegations',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const delegation = await assignManagerDelegation(
+        req.body ?? {},
+        req.platformUser,
+      )
+      res.status(201).json({ delegation })
+    }),
+  )
+
+  app.post(
+    '/api/platform/manager-delegations/:delegationId/revoke',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const delegation = await revokeManagerDelegation(
+        req.params.delegationId,
+        req.platformUser,
+      )
+      res.json({ delegation })
     }),
   )
 

@@ -118,6 +118,12 @@ export type SendBackAuthor = {
   id: string;
   name: string;
   avatarUrl?: string;
+  /** Set when the actor approved while delegated for this person's manager. */
+  delegatingForName?: string;
+  delegatingForAvatarUrl?: string;
+  /** Historical API alias for delegatingForName. */
+  coveringForName?: string;
+  coveringForAvatarUrl?: string;
 };
 
 export type PersonGoals = {

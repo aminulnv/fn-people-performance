@@ -1,21 +1,69 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, MoreHorizontal, Undo2 } from 'lucide-react'
+import { Check, ChevronRight, MoreHorizontal, Plus, Target, Undo2 } from 'lucide-react'
 import { useHoverMenu } from '@/layout/useHoverMenu'
 import {
   ActivityLogDrawer,
 } from '@/components/activity/ActivityLogDrawer'
-import { Avatar, Badge, Textarea } from '@/components/ui'
+import { Avatar, Button, EmptyState, Textarea } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { cx } from '@/lib/cx'
 import type { PersonGoals } from '@/lib/goals/types'
 import '@/styles/layout-activity.css'
 import { goalCountLabel } from './approvalDisplay'
-import { statusVariant, submissionStatusLabel } from './statusLabels'
+import {
+  buildApprovalTrail,
+  type ApprovalTrailModel,
+  type ApprovalTrailPerson,
+} from './approvalTrail'
+import { GoalStatusBadge } from './GoalStatusBadge'
+import { goalsDetailPath } from './goalHelpers'
+import {
+  reportGoalsEmptyDescription,
+  submissionStatusLabel,
+} from './statusLabels'
+
+export function ReportGoalsEmpty({
+  personName,
+  canAdd = false,
+  busy = false,
+  onAdd,
+}: {
+  personName: string
+  canAdd?: boolean
+  busy?: boolean
+  onAdd?: () => void
+}) {
+  return (
+    <EmptyState
+      className="pd-goals__empty"
+      icon={Target}
+      title="No goals yet"
+      description={reportGoalsEmptyDescription(personName, canAdd)}
+      action={
+        canAdd && onAdd ? (
+          <Button
+            variant="primary"
+            size="sm"
+            pill
+            disabled={busy}
+            onClick={onAdd}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden />
+            Add Goal
+          </Button>
+        ) : undefined
+      }
+    />
+  )
+}
 
 export type GoalsCardPerson = { id?: string | null; name: string; avatarUrl?: string }
 
 type ReportGoalsCardProps = {
-  person: { name: string; avatarUrl?: string }
+  person: GoalsCardPerson
+  /** Lets the name open that person's goals. */
+  cycleId?: string
   status: PersonGoals['status']
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
   /** Named when a late submission still needs skip-level sign-off after this manager. */
@@ -47,7 +95,13 @@ type ReportGoalsCardProps = {
   children: ReactNode
 }
 
-function ApproverChip({ person }: { person: GoalsCardPerson }) {
+function ApproverChip({
+  person,
+  muted,
+}: {
+  person: ApprovalTrailPerson
+  muted?: boolean
+}) {
   const inner = (
     <>
       <Avatar
@@ -61,15 +115,19 @@ function ApproverChip({ person }: { person: GoalsCardPerson }) {
       <span className="pd-goals-approval__late-name">{person.name}</span>
     </>
   )
+  const className = cx(
+    'pd-goals-approval__late-person',
+    muted && 'pd-goals-approval__late-person--muted',
+  )
 
   if (!person.id) {
-    return <span className="pd-goals-approval__late-person">{inner}</span>
+    return <span className={className}>{inner}</span>
   }
 
   return (
     <Link
       to={`/people/${person.id}`}
-      className="pd-goals-approval__late-person"
+      className={className}
       onClick={(event) => event.stopPropagation()}
     >
       {inner}
@@ -77,20 +135,47 @@ function ApproverChip({ person }: { person: GoalsCardPerson }) {
   )
 }
 
-function StepLine({
-  late,
-  children,
-}: {
-  late?: boolean
-  children: ReactNode
-}) {
+function ApprovalTrail({ model }: { model: ApprovalTrailModel }) {
   return (
-    <span
-      className={
-        late ? 'pd-goals-approval__late' : 'pd-goals-approval__step'
-      }
-    >
-      {children}
+    <span className="pd-goals-approval__path">
+      {model.late ? (
+        <span className="pd-goals-approval__late-flag" aria-hidden>
+          Late submission
+        </span>
+      ) : null}
+      {model.late ? (
+        <span className="pd-goals-approval__path-dot" aria-hidden>
+          ·
+        </span>
+      ) : null}
+      <ol className="pd-goals-approval__trail" aria-label={model.spoken}>
+        {model.stages.map((stage, index) => {
+          const current = index === model.currentIndex
+          return (
+            <Fragment key={stage.key}>
+              {index > 0 ? (
+                <li className="pd-goals-approval__trail-sep" aria-hidden>
+                  <ChevronRight size={12} strokeWidth={2.25} />
+                </li>
+              ) : null}
+              <li
+                className={cx(
+                  'pd-goals-approval__trail-step',
+                  current
+                    ? 'pd-goals-approval__trail-step--current'
+                    : 'pd-goals-approval__trail-step--upcoming',
+                )}
+              >
+                {stage.person ? (
+                  <ApproverChip person={stage.person} muted={!current} />
+                ) : (
+                  <span>{stage.label}</span>
+                )}
+              </li>
+            </Fragment>
+          )
+        })}
+      </ol>
     </span>
   )
 }
@@ -102,6 +187,7 @@ function StepLine({
  */
 export function ReportGoalsCard({
   person,
+  cycleId,
   status,
   postWindowApprovalStage,
   skipLevelManager,
@@ -133,10 +219,6 @@ export function ReportGoalsCard({
   const isOwner = perspective === 'owner'
   const countLabel = goalCountLabel(goalCount)
   const awaitsApproval = status === 'submitted'
-  const showFirstStageLate =
-    status === 'submitted' && postWindowApprovalStage === 'manager'
-  const showFinalStageLate =
-    status === 'submitted' && postWindowApprovalStage === 'manager_manager'
   const canViewActivity = Boolean(activityFilters)
   const showReviewActions = !isOwner && (canApprove || canSendBack)
   const showStatusBadge = !actions && !showReviewActions
@@ -149,10 +231,33 @@ export function ReportGoalsCard({
     ? null
     : awaitsApproval && postWindowApprovalStage === 'manager_manager'
       ? `${countLabel} · Pending final approval`
-      : `${countLabel} · ${submissionStatusLabel(status, goalCount)}`
+      : showStatusBadge
+        ? goalCount === 0
+          ? null
+          : countLabel
+        : `${countLabel} · ${submissionStatusLabel(status, goalCount)}`
+  const personHref =
+    person.id && cycleId ? goalsDetailPath(cycleId, person.id) : null
+  const trail = buildApprovalTrail({
+    perspective: isOwner ? 'owner' : 'reviewer',
+    status,
+    postWindowApprovalStage,
+    allowLateSubmissions,
+    canApprove,
+    lineManager,
+    skipLevelManager,
+  })
 
   return (
-    <section className="pd-goals-approval" aria-label={`${person.name} goals`}>
+    <div className="pd-goals-approval-wrap">
+      {trail ? <ApprovalTrail model={trail} /> : null}
+      <section
+        className={cx(
+          'pd-goals-approval',
+          goalCount === 0 && 'pd-goals-approval--empty',
+        )}
+        aria-label={`${person.name} goals`}
+      >
       <div className="pd-goals-approval__head">
         <div className="pd-goals-approval__who">
           <Avatar
@@ -161,26 +266,20 @@ export function ReportGoalsCard({
             size="sm"
           />
           <div className="pd-goals-approval__text">
-            <span className="pd-goals-approval__name">{person.name}</span>
+            {personHref ? (
+              <Link
+                to={personHref}
+                className="pd-goals-approval__name"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {person.name}
+              </Link>
+            ) : (
+              <span className="pd-goals-approval__name">{person.name}</span>
+            )}
             {subtitle ? (
               <span className="pd-goals-approval__sub">{subtitle}</span>
             ) : null}
-            {isOwner ? (
-              <OwnerApprovalSteps
-                status={status}
-                postWindowApprovalStage={postWindowApprovalStage}
-                allowLateSubmissions={allowLateSubmissions}
-                lineManager={lineManager}
-                skipLevelManager={skipLevelManager}
-              />
-            ) : (
-              <ReviewerApprovalSteps
-                showFirstStageLate={showFirstStageLate}
-                showFinalStageLate={showFinalStageLate}
-                canApprove={canApprove}
-                skipLevelManager={skipLevelManager}
-              />
-            )}
           </div>
         </div>
         <div className="pd-goals__footer-actions">
@@ -212,9 +311,9 @@ export function ReportGoalsCard({
             </button>
           ) : null}
           {showStatusBadge ? (
-            <Badge variant={statusVariant(status)}>
+            <GoalStatusBadge status={status}>
               {submissionStatusLabel(status, goalCount)}
-            </Badge>
+            </GoalStatusBadge>
           ) : null}
           {canViewActivity ? (
             <div
@@ -242,7 +341,7 @@ export function ReportGoalsCard({
                       setActivityOpen(true)
                     }}
                   >
-                    View submission activity
+                    View activity
                   </button>
                 </div>
               ) : null}
@@ -254,11 +353,8 @@ export function ReportGoalsCard({
         <ActivityLogDrawer
           open={activityOpen}
           onClose={() => setActivityOpen(false)}
-          title="Submission activity"
-          filters={{
-            entityType: 'goal_submission',
-            ...activityFilters,
-          }}
+          title="Activity"
+          filters={activityFilters}
         />
       ) : null}
       {sendBackOpen ? (
@@ -284,169 +380,6 @@ export function ReportGoalsCard({
       ) : null}
       <div className="pd-goals-approval__goals">{children}</div>
     </section>
+    </div>
   )
-}
-
-function ReviewerApprovalSteps({
-  showFirstStageLate,
-  showFinalStageLate,
-  canApprove,
-  skipLevelManager,
-}: {
-  showFirstStageLate: boolean
-  showFinalStageLate: boolean
-  canApprove: boolean
-  skipLevelManager?: GoalsCardPerson | null
-}) {
-  return (
-    <>
-      {showFirstStageLate ? (
-        <StepLine late>
-          Late submission
-          {canApprove && skipLevelManager ? (
-            <>
-              {' · '}
-              <ApproverChip person={skipLevelManager} />
-              {' will approve after you'}
-            </>
-          ) : canApprove ? (
-            ' · skip-level manager will approve after you'
-          ) : skipLevelManager ? (
-            <>
-              {' · awaiting direct manager approval, then '}
-              <ApproverChip person={skipLevelManager} />
-              {' gives final approval'}
-            </>
-          ) : (
-            ' · awaiting direct manager, then skip-level approval'
-          )}
-        </StepLine>
-      ) : null}
-      {showFinalStageLate ? (
-        <StepLine late>
-          Late submission
-          {canApprove ? (
-            ' · your approval is final'
-          ) : skipLevelManager ? (
-            <>
-              {' · awaiting '}
-              <ApproverChip person={skipLevelManager} />
-              {"'s final approval"}
-            </>
-          ) : (
-            ' · awaiting skip-level final approval'
-          )}
-        </StepLine>
-      ) : null}
-    </>
-  )
-}
-
-function OwnerApprovalSteps({
-  status,
-  postWindowApprovalStage,
-  allowLateSubmissions,
-  lineManager,
-  skipLevelManager,
-}: {
-  status: PersonGoals['status']
-  postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
-  allowLateSubmissions: boolean
-  lineManager?: GoalsCardPerson | null
-  skipLevelManager?: GoalsCardPerson | null
-}) {
-  const managerChip = lineManager ? <ApproverChip person={lineManager} /> : null
-  const skipChip = skipLevelManager ? (
-    <ApproverChip person={skipLevelManager} />
-  ) : null
-  const twoTier = allowLateSubmissions || Boolean(postWindowApprovalStage)
-  const drafting = status === 'draft' || status === 'sent_back'
-
-  if (status === 'submitted' && postWindowApprovalStage === 'manager_manager') {
-    return (
-      <StepLine late>
-        Late submission
-        {skipChip ? (
-          <>
-            {' · awaiting '}
-            {skipChip}
-            {"'s final approval"}
-          </>
-        ) : (
-          ' · awaiting skip-level final approval'
-        )}
-      </StepLine>
-    )
-  }
-
-  if (status === 'submitted' && postWindowApprovalStage === 'manager') {
-    return (
-      <StepLine late>
-        Late submission
-        {managerChip && skipChip ? (
-          <>
-            {' · awaiting '}
-            {managerChip}
-            {' approval, then '}
-            {skipChip}
-            {' gives final approval'}
-          </>
-        ) : skipChip ? (
-          <>
-            {' · awaiting direct manager approval, then '}
-            {skipChip}
-            {' gives final approval'}
-          </>
-        ) : (
-          ' · awaiting direct manager, then skip-level approval'
-        )}
-      </StepLine>
-    )
-  }
-
-  if (status === 'submitted') {
-    return managerChip ? (
-      <StepLine>
-        Awaiting {managerChip} approval
-      </StepLine>
-    ) : (
-      <StepLine>Awaiting manager approval</StepLine>
-    )
-  }
-
-  if (drafting && twoTier) {
-    return (
-      <StepLine late>
-        Late submission
-        {managerChip && skipChip ? (
-          <>
-            {' · '}
-            {managerChip}
-            {' will approve after you, then '}
-            {skipChip}
-            {' gives final approval'}
-          </>
-        ) : managerChip ? (
-          <>
-            {' · '}
-            {managerChip}
-            {' will approve after you, then skip-level gives final approval'}
-          </>
-        ) : (
-          ' · your manager will approve after you, then skip-level gives final approval'
-        )}
-      </StepLine>
-    )
-  }
-
-  if (drafting && managerChip) {
-    return (
-      <StepLine>
-        {managerChip}
-        {' will approve after you submit'}
-      </StepLine>
-    )
-  }
-
-  return null
 }

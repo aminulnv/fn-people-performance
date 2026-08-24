@@ -1061,6 +1061,107 @@
   white-space: nowrap;
 }
 
+.pd-reviews-cycles__table {
+  --pd-reviews-tree-gutter: 1.5rem;
+  --pd-reviews-tree-gap: 0.35rem;
+  --pd-reviews-tree-icon: var(--people-table-avatar-md, 1.75rem);
+  --pd-reviews-tree-x: calc(
+    var(--people-table-cell-x, 0.85rem) + var(--pd-reviews-tree-gutter) +
+      var(--pd-reviews-tree-gap) + (var(--pd-reviews-tree-icon) * 0.5)
+  );
+  --pd-reviews-tree-branch: calc(
+    var(--pd-reviews-tree-gutter) + var(--pd-reviews-tree-gap) +
+      var(--pd-reviews-tree-icon) + 0.5rem
+  );
+  --pd-reviews-tree-stub: calc((var(--pd-reviews-tree-icon) * 0.5) + 0.85rem);
+  --pd-reviews-tree-line: color-mix(
+    in srgb,
+    var(--color-text) 22%,
+    var(--color-divider)
+  );
+}
+
+.pd-reviews-cycles__name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pd-reviews-tree-gap, 0.35rem);
+  min-width: 0;
+}
+
+.pd-reviews-cycles__expand {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.pd-reviews-cycles__expand:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  color: var(--color-text);
+}
+
+.pd-reviews-cycles__expand-spacer {
+  width: var(--pd-reviews-tree-gutter, 1.5rem);
+  flex: 0 0 auto;
+}
+
+.pd-reviews-cycles__branch {
+  width: var(--pd-reviews-tree-branch);
+  flex: 0 0 auto;
+}
+
+.pd-reviews-cycles__row--child > td:first-child,
+.pd-reviews-cycles__row--open > td:first-child {
+  position: relative;
+}
+
+.pd-reviews-cycles__branch::before,
+.pd-reviews-cycles__branch::after,
+.pd-reviews-cycles__row--open > td:first-child::after {
+  content: '';
+  position: absolute;
+  background: var(--pd-reviews-tree-line);
+  pointer-events: none;
+}
+
+.pd-reviews-cycles__row--open > td:first-child::after {
+  left: var(--pd-reviews-tree-x);
+  top: calc(50% + (var(--pd-reviews-tree-icon) / 2));
+  bottom: 0;
+  width: 1px;
+}
+
+.pd-reviews-cycles__branch::before {
+  left: var(--pd-reviews-tree-x);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.pd-reviews-cycles__row--child-last .pd-reviews-cycles__branch::before {
+  bottom: 50%;
+}
+
+.pd-reviews-cycles__branch::after {
+  left: var(--pd-reviews-tree-x);
+  top: 50%;
+  width: var(--pd-reviews-tree-stub);
+  height: 1px;
+}
+
+.pd-reviews-cycles__row--child .pd-reviews-cycle-link__name {
+  font-weight: 500;
+}
+
 .pd-reviews-cycle-link {
   display: inline-flex;
   align-items: center;
@@ -1085,6 +1186,16 @@
   border-radius: 0.5rem;
   background: var(--color-muted-bg);
   color: var(--color-text-secondary);
+}
+
+.pd-reviews-cycle-link__icon--annual_appraisal {
+  background: color-mix(in srgb, var(--color-brand) 16%, var(--color-muted-bg));
+  color: var(--color-brand);
+}
+
+.pd-reviews-cycle-link__icon--custom {
+  background: color-mix(in srgb, var(--color-blue) 16%, var(--color-muted-bg));
+  color: var(--color-blue);
 }
 
 .pd-reviews-cycle-link__name {
@@ -4011,19 +4122,17 @@
   transform: rotate(180deg);
 }
 
-.pd-settings-panel__tab:hover {
+.pd-settings-panel__tab[data-expanded="true"] {
   padding-right: 1.15rem;
+}
+
+.pd-settings-panel__tab:hover {
   filter: brightness(1.08);
 }
 
 .pd-settings-panel__sheet-stack--open .pd-settings-panel__tab {
   border-radius: 0.85rem 0 0 0.85rem;
   box-shadow: none;
-}
-
-.pd-settings-panel__sheet-stack--open .pd-settings-panel__tab:hover {
-  padding-right: 0.7rem;
-  padding-left: 1.15rem;
 }
 
 .pd-settings-panel__tab:focus-visible {
@@ -4186,7 +4295,7 @@
     box-shadow: 10px 0 24px -14px color-mix(in srgb, black 70%, transparent);
   }
 
-  .pd-settings-panel__tab:hover {
+  .pd-settings-panel__tab[data-expanded="true"] {
     padding-left: 1.15rem;
     padding-right: 0.7rem;
   }
@@ -5252,6 +5361,11 @@
   color: var(--color-text);
   font-size: var(--font-size-md);
   font-weight: 600;
+}
+
+.pd-review-packet > .pd-activity-link {
+  align-self: start;
+  margin-top: 0.15rem;
 }
 
 .pd-reviews-stage-list,

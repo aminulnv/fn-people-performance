@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, Eye } from "lucide-react";
-import type { OkrReferenceScope } from "@/lib/okr/reference";
+import { COMPANY_OKR_NAME, type OkrReferenceScope } from "@/lib/okr/reference";
 import { GoalOkrReferenceList } from "./GoalOkrReferenceList";
 
 /** Inline reference card for layouts that keep a permanent side column. */
@@ -31,7 +31,7 @@ export function GoalOkrReferencePanel({
           Read-only reference
         </span>
         <span className="pd-okr-ref__title-row">
-          <strong>Department &amp; wing OKRs</strong>
+          <strong>Company, department &amp; wing OKRs</strong>
           {collapsible ? (
             <ChevronDown
               className="pd-okr-ref__panel-chevron"
@@ -42,8 +42,9 @@ export function GoalOkrReferencePanel({
           ) : null}
         </span>
         <span className="pd-okr-ref__scope">
-          {scope.department}
-          {scope.wing.trim() ? ` / ${scope.wing}` : ""}
+          {[COMPANY_OKR_NAME, scope.department.trim(), scope.wing.trim()]
+            .filter(Boolean)
+            .join(" / ")}
         </span>
       </button>
 

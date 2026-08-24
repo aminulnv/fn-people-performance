@@ -83,6 +83,43 @@ describe('withOwnerRowSpans', () => {
       [1, true],
     ])
   })
+
+  it('grows the owner span to cover expanded measure rows', () => {
+    const people = [person('1')]
+    const snapshot = snapshotOf(people, [submission('1', 'approved', 2)])
+    snapshot.byPerson['1'].goals[0].measurements = [
+      {
+        id: 'm1',
+        kind: 'metric',
+        title: 'Defects closed',
+        weight: 100,
+        unit: 'number',
+        direction: 'increase',
+        startValue: 0,
+        currentValue: 10,
+        targetValue: 80,
+      },
+    ]
+    snapshot.byPerson['1'].goals[1].measurements = [
+      {
+        id: 'm2',
+        kind: 'metric',
+        title: 'Milestones',
+        weight: 100,
+        unit: 'number',
+        direction: 'increase',
+        startValue: 0,
+        currentValue: 4,
+        targetValue: 10,
+      },
+    ]
+    const rows = goalRows(snapshot, people)
+    const expanded = new Set([`${snapshot.cycle.id}:${rows[0].goalId}`])
+
+    expect(
+      withOwnerRowSpans(rows, expanded).map((row) => row.ownerRowSpan),
+    ).toEqual([3, 0])
+  })
 })
 
 describe('goalRows', () => {
@@ -137,6 +174,27 @@ describe('goalRows', () => {
       }),
     ])
   })
+
+  it('flags a draft goal that still needs a measure', () => {
+    const people = [person('1')]
+    const snapshot = snapshotOf(people, [submission('1', 'draft', 1)])
+    snapshot.byPerson['1'].goals[0] = {
+      ...snapshot.byPerson['1'].goals[0],
+      description: 'test',
+      measurements: [],
+    }
+
+    expect(goalRows(snapshot, people)[0].issue).toBe(
+      'test still needs a metric.',
+    )
+  })
+
+  it('does not flag approved goals even when a measure is missing', () => {
+    const people = [person('1')]
+    const snapshot = snapshotOf(people, [submission('1', 'approved', 1)])
+
+    expect(goalRows(snapshot, people)[0].issue).toBeUndefined()
+  })
 })
 
 describe('statusCounts', () => {
@@ -186,6 +244,7 @@ describe('describeEmptyGoalsList', () => {
     })
 
     expect(result.title).toBe('No goals yet')
+    expect(result.description).toBe('Add your first goal for this cycle.')
     expect(result.offerAdd).toBe(true)
   })
 

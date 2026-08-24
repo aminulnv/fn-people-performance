@@ -37,6 +37,45 @@ export function distributeGoalWeights<T extends { weight: number }>(
   }))
 }
 
+function goalWeightTotal<T extends { weight: number }>(goals: T[]): number {
+  return goals.reduce((sum, goal) => sum + (Number(goal.weight) || 0), 0)
+}
+
+/** True when weights still match an even 100% split (or have never been set). */
+export function isEvenGoalSplit<T extends { weight: number }>(goals: T[]): boolean {
+  if (goals.length === 0) return true
+  if (goals.every((goal) => !(Number(goal.weight) || 0))) return true
+  const even = distributeGoalWeights(goals)
+  return goals.every((goal, index) => goal.weight === even[index]?.weight)
+}
+
+/**
+ * Add a goal and fill its weight. Even sets are re-split; a manual split keeps
+ * its numbers and the new goal takes whatever is left of 100%.
+ */
+export function appendGoalWithWeight<T extends { weight: number }>(
+  goals: T[],
+  next: T,
+): T[] {
+  if (goals.length === 0) return [{ ...next, weight: 100 }]
+  if (isEvenGoalSplit(goals)) return distributeGoalWeights([...goals, next])
+  return [
+    ...goals,
+    { ...next, weight: Math.max(0, remainingGoalWeight(goalWeightTotal(goals))) },
+  ]
+}
+
+/** Drop a goal. Even sets re-split; a manual split is left as the user typed it. */
+export function removeGoalKeepingWeights<T extends { id: string; weight: number }>(
+  goals: T[],
+  goalId: string,
+): T[] {
+  const remaining = goals.filter((goal) => goal.id !== goalId)
+  if (remaining.length === 0) return remaining
+  if (isEvenGoalSplit(goals)) return distributeGoalWeights(remaining)
+  return remaining
+}
+
 export function sumMeasurementWeights(measurements: Measurement[]): number {
   return sumPanelWeights(measurements)
 }
@@ -46,6 +85,8 @@ export type SubmitGoalBlocker = {
   goalId?: string
   goalTitle?: string
   suffix?: string
+  /** Solution the owner can take from the notice. */
+  action?: 'add_goal'
 }
 
 export function goalCountWarning(
@@ -102,6 +143,93 @@ function goalBlocker(
   }
 }
 
+/** Per-goal submit problems — used for the table icon and named banner links. */
+export function collectGoalSubmitBlockers(goals: Goal[]): SubmitGoalBlocker[] {
+  const blockers: SubmitGoalBlocker[] = []
+  for (const [index, goal] of goals.entries()) {
+    if (isBlankGoalTitle(goal)) {
+      blockers.push(goalBlocker(goal, index, ' needs a title.'))
+      continue
+    }
+    if (goal.measurements.length < 1) {
+      blockers.push(
+        goalBlocker(
+          goal,
+          index,
+          goal.cascadedFromGoalId
+            ? ' still needs a metric — or remove it.'
+            : ' still needs a metric.',
+        ),
+      )
+      continue
+    }
+    if (
+      measurementPanels(goal.measurements).some((panel) => !hasMeasurePanelName(panel))
+    ) {
+      blockers.push(goalBlocker(goal, index, ' still needs a name on each metric.'))
+      continue
+    }
+    if (sumMeasurementWeights(goal.measurements) !== 100) {
+      blockers.push(
+        goalBlocker(goal, index, ' metrics need to add up to 100%.'),
+      )
+    }
+  }
+  return blockers
+}
+
+export function submitBlockersForGoal(
+  goalId: string,
+  blockers: SubmitGoalBlocker[],
+): SubmitGoalBlocker[] {
+  return blockers.filter((blocker) => blocker.goalId === goalId)
+}
+
+/** Count and weight problems — not named-goal issues. */
+export function submitSetBlockers(
+  blockers: SubmitGoalBlocker[],
+): SubmitGoalBlocker[] {
+  return blockers.filter((blocker) => !blocker.goalId)
+}
+
+export function submitIssueForGoal(
+  goalId: string,
+  blockers: SubmitGoalBlocker[],
+): string | undefined {
+  return submitBlockersForGoal(goalId, blockers)[0]?.reason
+}
+
+/** Metric problems belong in the Metrics cell, not on the goal title. */
+export function isMeasureGoalIssue(issue: string): boolean {
+  return /needs a (measure|metric)|name on each (measure|metric)|(measures|metrics) need to add up/i.test(
+    issue,
+  )
+}
+
+/** Standalone sentence from a blocker suffix — no goal name. */
+export function sentenceFromSuffix(suffix: string): string {
+  const trimmed = suffix.trim()
+  if (!trimmed) return trimmed
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1)
+}
+
+const MEASURE_ISSUE_TAILS = [
+  /still needs a (?:measure|metric) — or remove it\.?$/i,
+  /still needs a name on each (?:measure|metric)\.?$/i,
+  /still needs a (?:measure|metric)\.?$/i,
+  /(?:measures|metrics) need to add up to \d+%\.$/i,
+  /(?:measures|metrics) need to add up\.?$/i,
+]
+
+/** Metrics-cell tooltip — the goal name is already on the row. */
+export function measureIssueLabel(issue: string): string {
+  for (const pattern of MEASURE_ISSUE_TAILS) {
+    const match = issue.match(pattern)
+    if (match) return sentenceFromSuffix(match[0])
+  }
+  return issue
+}
+
 export function canSubmitGoals(
   goals: Goal[],
   policy: GoalCountPolicy,
@@ -115,6 +243,7 @@ export function canSubmitGoals(
   if (goals.length < policy.minimumRequired) {
     blockers.push({
       reason: `Add at least ${policy.minimumRequired} ${policy.minimumRequired === 1 ? 'goal' : 'goals'}.`,
+      action: 'add_goal',
     })
   }
   if (policy.maximumAllowed !== null && goals.length > policy.maximumAllowed) {
@@ -122,38 +251,10 @@ export function canSubmitGoals(
       reason: `This cycle allows no more than ${policy.maximumAllowed} goals.`,
     })
   }
-  if (sumGoalWeights(goals) !== 100) {
+  if (goals.length > 0 && sumGoalWeights(goals) !== 100) {
     blockers.push({ reason: 'Weights need to add up to 100%.' })
   }
-  for (const [index, goal] of goals.entries()) {
-    if (isBlankGoalTitle(goal)) {
-      blockers.push(goalBlocker(goal, index, ' needs a title.'))
-      continue
-    }
-    if (goal.measurements.length < 1) {
-      blockers.push(
-        goalBlocker(
-          goal,
-          index,
-          goal.cascadedFromGoalId
-            ? ' still needs a measure — or remove it.'
-            : ' still needs a measure.',
-        ),
-      )
-      continue
-    }
-    if (
-      measurementPanels(goal.measurements).some((panel) => !hasMeasurePanelName(panel))
-    ) {
-      blockers.push(goalBlocker(goal, index, ' still needs a name on each measure.'))
-      continue
-    }
-    if (sumMeasurementWeights(goal.measurements) !== 100) {
-      blockers.push(
-        goalBlocker(goal, index, ' measures need to add up to 100%.'),
-      )
-    }
-  }
+  blockers.push(...collectGoalSubmitBlockers(goals))
   return {
     ok: blockers.length === 0,
     reasons: blockers.map((blocker) => blocker.reason),

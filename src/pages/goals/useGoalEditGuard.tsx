@@ -1,19 +1,75 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { PersonGoals } from "@/lib/goals/types";
+import { ApproverPair, type MentionPerson } from "./PersonMention";
 
 export type RequestGoalEdit = (startEditing: () => void) => void;
+
+export function goalEditGuardDescription({
+  deadlinePassed,
+  isSelf,
+  lineManager,
+  skipLevelManager,
+}: {
+  deadlinePassed: boolean;
+  isSelf: boolean;
+  lineManager?: MentionPerson | null;
+  skipLevelManager?: MentionPerson | null;
+}): ReactNode {
+  const approvers = (
+    <ApproverPair
+      lineManager={lineManager}
+      skipLevelManager={skipLevelManager}
+    />
+  );
+
+  if (deadlinePassed) {
+    return isSelf ? (
+      <>
+        These changes will return the goal set to draft. Submit it again for
+        approval from {approvers} when ready.
+      </>
+    ) : (
+      <>
+        Changing this approved or submitted goal set will require approval from{" "}
+        {approvers} again.
+      </>
+    );
+  }
+
+  if (lineManager || skipLevelManager) {
+    return isSelf ? (
+      <>
+        These changes will return the goal set to draft. Submit it again for
+        approval from {approvers} when ready.
+      </>
+    ) : (
+      <>
+        Changing this approved or submitted goal set will require approval from{" "}
+        {approvers} again.
+      </>
+    );
+  }
+
+  return isSelf
+    ? "These changes will return the goal set to draft. Submit it again for approval when ready."
+    : "Changing this approved or submitted goal set will require approval again.";
+}
 
 export function useGoalEditGuard({
   personId,
   actorId,
   status,
   deadlinePassed,
+  lineManager,
+  skipLevelManager,
 }: {
   personId: string;
   actorId?: string;
   status: PersonGoals["status"];
   deadlinePassed: boolean;
+  lineManager?: MentionPerson | null;
+  skipLevelManager?: MentionPerson | null;
 }): {
   requestGoalEdit: RequestGoalEdit;
   goalEditGuard: ReactNode;
@@ -23,7 +79,7 @@ export function useGoalEditGuard({
   const pendingEditRef = useRef<(() => void) | null>(null);
   const isSelf = actorId === personId;
   const needsReapproval =
-    (status === "submitted" || status === "approved");
+    status === "submitted" || status === "approved";
 
   useEffect(() => {
     setIsOpen(false);
@@ -65,15 +121,12 @@ export function useGoalEditGuard({
             ? "The goal deadline has passed"
             : "These goals need approval again"
         }
-        description={
-          deadlinePassed
-            ? isSelf
-              ? "These changes will return the goal set to draft. Submit it again for direct manager and skip-level manager approval when ready."
-              : "Changing this approved or submitted goal set will require direct manager and skip-level manager approval again."
-            : isSelf
-              ? "These changes will return the goal set to draft. Submit it again for approval when ready."
-              : "Changing this approved or submitted goal set will require approval again."
-        }
+        description={goalEditGuardDescription({
+          deadlinePassed,
+          isSelf,
+          lineManager,
+          skipLevelManager,
+        })}
         confirmLabel="Continue editing"
         cancelLabel="Keep current goals"
       />

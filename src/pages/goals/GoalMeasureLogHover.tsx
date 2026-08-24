@@ -9,7 +9,11 @@ import {
   type TodoListPanel,
 } from '@/lib/goals/measurements'
 import type { Metric, Milestone, ProgressLogEntry } from '@/lib/goals/types'
-import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
+import {
+  GoalProgressLog,
+  ProgressLogHeading,
+  progressLogCountLabel,
+} from '@/pages/goals/GoalProgressLog'
 import { GoalTodoCheck } from '@/pages/goals/GoalTodoCheck'
 import { MetricProgressUpdate } from '@/pages/goals/MetricProgressUpdate'
 import {
@@ -122,7 +126,6 @@ export function GoalMeasureLogHover({
   const isChecklist = Boolean(lists)
   const canAddMetric = Boolean(canLog && metric && onRecord)
   const canToggle = Boolean(canLog && lists && onToggleTodo)
-  const showLogButton = canAddMetric || canToggle || entries.length > 0
   const headingId = useId()
   const [open, setOpen] = useState(false)
   const [focusField, setFocusField] = useState(false)
@@ -174,8 +177,6 @@ export function GoalMeasureLogHover({
     }
   }, [open, isChecklist, entries.length, todos.length, doneCount])
 
-  if (!showLogButton) return null
-
   const show = (focus = false) => {
     window.clearTimeout(hideTimer.current)
     setOpen(true)
@@ -199,9 +200,7 @@ export function GoalMeasureLogHover({
   const triggerLabel =
     entries.length === 0
       ? logLabel
-      : `${logLabel}, ${
-          entries.length === 1 ? '1 update' : `${entries.length} updates`
-        }`
+      : `${logLabel}, ${progressLogCountLabel(entries.length)}`
 
   const popover = open ? (
     <div
@@ -223,27 +222,6 @@ export function GoalMeasureLogHover({
       onClick={keepRowClickFromOpening}
       onKeyDown={keepRowClickFromOpening}
     >
-      <h3 className="pd-goals-table__log-pop-title" id={headingId}>
-        {isChecklist ? 'Checklist' : 'Progress logs'}{' '}
-        <span className="pd-goals-table__log-pop-count">
-          {isChecklist
-            ? todos.length === 0
-              ? 'None yet'
-              : `${doneCount} of ${todos.length} done`
-            : entries.length === 0
-              ? 'None yet'
-              : entries.length === 1
-                ? '1 update'
-                : `${entries.length} updates`}
-        </span>
-      </h3>
-      {lists ? (
-        <ChecklistUpdate
-          lists={lists}
-          canToggle={canToggle}
-          onToggle={onToggleTodo}
-        />
-      ) : null}
       {canAddMetric && metric && onRecord ? (
         <MetricProgressUpdate
           metric={metric}
@@ -253,6 +231,14 @@ export function GoalMeasureLogHover({
           onCommit={onRecord}
         />
       ) : null}
+      {lists ? (
+        <ChecklistUpdate
+          lists={lists}
+          canToggle={canToggle}
+          onToggle={onToggleTodo}
+        />
+      ) : null}
+      <ProgressLogHeading count={entries.length} headingId={headingId} />
       {entries.length > 0 ? (
         <GoalProgressLog
           variant="list"

@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { effectiveReportIds, isDelegatingForEmployee } from "@/lib/delegations/roles";
+import { hydrateManagerDelegations } from "@/lib/delegations/store";
 import { useReviewCyclesHydrated } from "@/lib/reviews/useReviews";
 import { goalsCycleForPerson } from "@/lib/goals/cyclesFromReviews";
 import {
   approveGoals,
   cascadeGoalToReports,
+  linkExistingGoalAsCascade,
+  unlinkCascadedGoal,
   copyPreviousGoals as copyPreviousGoalsFromCycle,
   saveGoals,
   saveProgress,
@@ -18,18 +22,20 @@ import {
   duplicateGoal,
   indexCascadeRecipients,
   lineManagerCascade,
+  reportCascadeOptions,
   removeGoal,
   replaceGoal,
   resolveGoalOwner,
   type GoalOwnerOption,
   type CascadeRecipient,
+  type CascadeToOption,
   type LineManagerCascade,
   type ResolvedGoalOwner,
 } from "@/lib/goals/operations";
 import {
   deriveGoalCapabilities,
   orderManagerReports,
-  selectManagerApprovalQueue,
+  selectActorApprovalQueue,
   selectManagerReports,
   type GoalCapabilities,
 } from "@/lib/goals/permissions";
@@ -65,6 +71,16 @@ export type GoalsControllerActions = {
     goalId: string,
     reportIds: string[],
   ) => Promise<void>;
+  linkCascadeTo: (
+    subjectId: string,
+    goalId: string,
+    child: CascadeToOption,
+  ) => Promise<void>;
+  unlinkCascadeTo: (
+    subjectId: string,
+    goalId: string,
+    child: { personId: string; goalId: string },
+  ) => Promise<void>;
   saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<void>;
   approve: (subjectId: string, goals?: Goal[]) => Promise<void>;
   sendBack: (subjectId: string, reason: string) => Promise<void>;
@@ -86,6 +102,7 @@ export type GoalsController = {
   cascadeFrom: LineManagerCascade;
   cascadeFromFor: (subjectId: string) => LineManagerCascade;
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[];
+  cascadeToOptionsFor: (goalId: string) => CascadeToOption[];
   capabilities: GoalCapabilities | null;
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null;
   resolveOwner: (goal: Goal, subjectId: string) => ResolvedGoalOwner | null;
@@ -122,6 +139,12 @@ export function useGoalsController({
     setActivePerson(subjectId);
   }, [cycleId, subjectId, syncActiveSelection]);
 
+  useEffect(() => {
+    void hydrateManagerDelegations().catch(() => {
+      /* Delegation list stays empty until the viewer can load it. */
+    });
+  }, []);
+
   const subject = useMemo(() => {
     if (!snapshot) return null;
     return snapshot.people.find((person) => person.id === subjectId) ?? null;
@@ -152,7 +175,7 @@ export function useGoalsController({
     if (!snapshot || !subject) return [];
     const visibleReports =
       actor?.id === subject.id
-        ? selectManagerApprovalQueue(
+        ? selectActorApprovalQueue(
             subject,
             snapshot.people,
             snapshot.byPerson,
@@ -191,6 +214,11 @@ export function useGoalsController({
     [recipientsBySource],
   );
 
+  const cascadeToOptionsFor = useCallback(
+    (goalId: string) => reportCascadeOptions(subject, snapshot, goalId),
+    [snapshot, subject],
+  );
+
   const capabilitiesFor = useCallback(
     (targetSubjectId: string): GoalCapabilities | null => {
       if (!snapshot || !actor) return null;
@@ -218,6 +246,7 @@ export function useGoalsController({
         row,
         cycle: personCycle,
         cycleStatus: snapshot.cycleStatus,
+        people: snapshot.people,
       });
       if (!cycleMembershipReady) {
         return {
@@ -376,7 +405,9 @@ export function useGoalsController({
           "platform.write_all",
         )
           ? (subject?.reportIds ?? [])
-          : actor.reportIds;
+          : isDelegatingForEmployee(actor.id, targetSubjectId)
+            ? (subject?.reportIds ?? [])
+            : effectiveReportIds(actor, snapshot.people);
         const chosenIds = [...new Set(reportIds)].filter((reportId) =>
           allowedReportIds.includes(reportId),
         );
@@ -391,6 +422,36 @@ export function useGoalsController({
             goalId,
             chosenIds,
           ),
+        );
+      },
+      async linkCascadeTo(targetSubjectId, goalId, child) {
+        if (!actor || !snapshot) throw new Error("Goals are still loading.");
+        const subjectPerson = snapshot.people.find(
+          (person) => person.id === targetSubjectId,
+        );
+        const allowedReportIds = hasSystemPermission(
+          actor.permissions,
+          "platform.write_all",
+        )
+          ? (subjectPerson?.reportIds ?? [])
+          : isDelegatingForEmployee(actor.id, targetSubjectId)
+            ? (subjectPerson?.reportIds ?? [])
+            : effectiveReportIds(actor, snapshot.people);
+        if (!allowedReportIds.includes(child.personId)) {
+          throw new Error("Select a report’s existing goal to cascade to.");
+        }
+        await run(() =>
+          linkExistingGoalAsCascade(
+            mutationContext(targetSubjectId),
+            goalId,
+            { personId: child.personId, goalId: child.id },
+          ),
+        );
+      },
+      async unlinkCascadeTo(targetSubjectId, goalId, child) {
+        if (!actor || !snapshot) throw new Error("Goals are still loading.");
+        await run(() =>
+          unlinkCascadedGoal(mutationContext(targetSubjectId), goalId, child),
         );
       },
       async saveAndSubmit(targetSubjectId, goals) {
@@ -422,6 +483,7 @@ export function useGoalsController({
     cascadeFrom,
     cascadeFromFor,
     cascadeRecipientsFor,
+    cascadeToOptionsFor,
     capabilities,
     capabilitiesFor,
     resolveOwner,

@@ -6,6 +6,7 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
+import { classifyGoalUpdate } from '../activityDiff.mjs'
 import {
   resolveEffectiveGoalDeadline,
   stagesConfigForGoalPolicy,
@@ -614,7 +615,48 @@ function approvalActorFromRow(prefix, row) {
   }
   const avatarUrl = String(row[`${prefix}_avatar_url`] ?? '').trim()
   if (avatarUrl) actor.avatarUrl = avatarUrl
+  const delegatingForName = String(
+    row[`${prefix}_delegating_for_name`] ??
+      row[`${prefix}_covering_for_name`] ??
+      '',
+  ).trim()
+  if (delegatingForName) {
+    actor.delegatingForName = delegatingForName
+    actor.coveringForName = delegatingForName
+  }
+  const delegatingForAvatarUrl = String(
+    row[`${prefix}_delegating_for_avatar_url`] ??
+      row[`${prefix}_covering_for_avatar_url`] ??
+      '',
+  ).trim()
+  if (delegatingForAvatarUrl) {
+    actor.delegatingForAvatarUrl = delegatingForAvatarUrl
+    actor.coveringForAvatarUrl = delegatingForAvatarUrl
+  }
   return actor
+}
+
+async function delegatingForAtApproval(client, row) {
+  if (!row?.approved_by_employee_id || !row?.employee_id) return null
+  const { rows } = await client.query(
+    `SELECT manager.full_name, manager.avatar_url
+     FROM platform.employees subject
+     JOIN platform.employees manager
+       ON manager.employee_id = subject.reports_to_employee_id
+     JOIN platform.manager_delegations delegation
+       ON delegation.absent_employee_id = subject.reports_to_employee_id
+      AND delegation.delegate_employee_id = $2
+      AND delegation.starts_at <= COALESCE($3::timestamptz, now())
+      AND delegation.ends_at >= COALESCE($3::timestamptz, now())
+      AND (
+        delegation.revoked_at IS NULL
+        OR delegation.revoked_at > COALESCE($3::timestamptz, now())
+      )
+     WHERE subject.employee_id = $1
+     LIMIT 1`,
+    [row.employee_id, row.approved_by_employee_id, row.approved_at],
+  )
+  return rows[0] ?? null
 }
 
 async function enrichSubmissionRow(client, row) {
@@ -633,6 +675,7 @@ async function enrichSubmissionRow(client, row) {
   const avatars = new Map(
     rows.map((entry) => [entry.employee_id, entry.avatar_url ?? '']),
   )
+  const delegating = await delegatingForAtApproval(client, row)
   return {
     ...row,
     approved_by_avatar_url: row.approved_by_employee_id
@@ -641,6 +684,10 @@ async function enrichSubmissionRow(client, row) {
     send_back_by_avatar_url: row.send_back_by_employee_id
       ? avatars.get(row.send_back_by_employee_id) ?? null
       : null,
+    approved_by_delegating_for_name: delegating?.full_name ?? null,
+    approved_by_delegating_for_avatar_url: delegating?.avatar_url ?? null,
+    approved_by_covering_for_name: delegating?.full_name ?? null,
+    approved_by_covering_for_avatar_url: delegating?.avatar_url ?? null,
   }
 }
 
@@ -684,10 +731,15 @@ function activityGoalShape(goal) {
     weight: Number(goal.weight ?? 0),
     ownerId: goal.ownerId ?? null,
     cascadedFromGoalId: goal.cascadedFromGoalId ?? null,
+    comments: (goal.comments ?? []).map((comment) => ({
+      id: comment.id,
+      text: comment.text ?? '',
+    })),
     measurements: (goal.measurements ?? []).map((measurement) => ({
       id: measurement.id,
       kind: measurement.kind,
       title: measurement.title ?? '',
+      measureTitle: measurement.measureTitle ?? '',
       weight: Number(measurement.weight ?? 0),
       unit: measurement.unit ?? null,
       direction: measurement.direction ?? null,
@@ -701,6 +753,11 @@ function activityGoalShape(goal) {
           ? Boolean(measurement.complete)
           : null,
       proofUrl: measurement.proofUrl ?? null,
+      progressLog: (measurement.progressLog ?? []).map((entry) => ({
+        id: entry.id,
+        from: entry.from ?? null,
+        to: entry.to,
+      })),
     })),
   }
 }
@@ -737,11 +794,13 @@ async function appendGoalDiffActivity(
       })
       continue
     }
-    const from = activityGoalShape(previous)
-    const to = activityGoalShape(goal)
-    if (JSON.stringify(from) === JSON.stringify(to)) continue
+    const classified = classifyGoalUpdate(
+      activityGoalShape(previous),
+      activityGoalShape(goal),
+    )
+    if (!classified) continue
     await appendActivityEvent(client, {
-      eventKey: 'goal.updated',
+      eventKey: classified.eventKey,
       entityType: 'goal',
       entityId: goal.id,
       ...actor,
@@ -749,8 +808,9 @@ async function appendGoalDiffActivity(
       cycleId,
       goalId: goal.id,
       correlationId,
-      summary: `Updated goal “${goal.description || 'Untitled goal'}”`,
-      changes: [{ field: 'goal', from, to }],
+      summary: classified.summary,
+      changes: classified.changes,
+      metadata: classified.metadata,
       source: 'api',
     })
   }
@@ -1070,8 +1130,11 @@ export async function submitPersonGoals(
       summary:
         previousStatus === 'sent_back'
           ? 'Resubmitted goals for approval'
-          : 'Submitted goals for approval',
+          : isLate
+            ? 'Submitted goals after the deadline'
+            : 'Submitted goals for approval',
       metadata: { late: isLate },
+      changes: isLate ? [{ field: 'late', from: false, to: true }] : [],
       source: 'api',
     })
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
@@ -1542,7 +1605,16 @@ export async function sendBackPersonGoals(
       subjectEmployeeId: employeeId,
       cycleId,
       summary: 'Sent goals back for revision',
-      metadata: { hasReason: Boolean(reason?.trim()) },
+      changes: [
+        { field: 'status', from: locked[0].status, to: 'sent_back' },
+        ...(reason?.trim()
+          ? [{ field: 'reason', from: null, to: String(reason).trim() }]
+          : []),
+      ],
+      metadata: {
+        hasReason: Boolean(reason?.trim()),
+        reason: reason?.trim() ? String(reason).trim().slice(0, 500) : undefined,
+      },
       source: 'api',
     })
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)

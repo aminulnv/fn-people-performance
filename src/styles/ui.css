@@ -200,6 +200,76 @@ a.pd-btn--secondary:visited {
   color: var(--color-text);
 }
 
+.pd-field--notch {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0;
+  min-inline-size: 0;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--color-border) 88%, var(--color-text));
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--color-bg) 55%, var(--color-surface));
+}
+
+.pd-field--notch > .pd-field__label {
+  position: absolute;
+  top: 0;
+  left: 0.55rem;
+  z-index: 1;
+  transform: translateY(-50%);
+  width: auto;
+  max-width: calc(100% - 1.1rem);
+  margin: 0;
+  padding: 0 0.28rem;
+  line-height: 1;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-theme);
+  background: var(--color-surface-raised, var(--color-bg));
+}
+
+.pd-field--notch .pd-date-input {
+  flex: 1;
+  width: 100%;
+  min-height: 2.5rem;
+  align-items: center;
+}
+
+.pd-field--notch .pd-field__control,
+.pd-field--notch .pd-date-input__native.pd-field__control,
+.pd-field--notch .pd-date-input__display.pd-field__control {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  min-height: 2.5rem;
+  padding-block: 0;
+  padding-inline: 0;
+}
+
+.pd-field--notch .pd-date-input__display.pd-field__control {
+  display: flex;
+  align-items: center;
+  padding-right: 2.25rem;
+}
+
+.pd-field--notch:hover {
+  border-color: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
+}
+
+.pd-field--notch:focus-within {
+  border-color: var(--color-primary);
+}
+
+.pd-field--notch.pd-field--error {
+  border-color: var(--color-red);
+}
+
 .pd-field__control {
   width: 100%;
   min-height: 2.25rem;
@@ -292,6 +362,7 @@ a.pd-btn--secondary:visited {
   color: var(--color-text);
   padding-right: 2.25rem;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .pd-date-input__display[data-empty] {
@@ -470,6 +541,11 @@ a.pd-btn--secondary:visited {
   color: var(--color-text-sec);
 }
 
+.pd-badge--draft {
+  background: var(--color-status-draft-surface);
+  color: var(--color-status-draft);
+}
+
 .pd-badge--completed {
   background: var(--color-status-completed-surface);
   color: var(--color-status-completed);
@@ -560,6 +636,7 @@ a.pd-btn--secondary:visited {
   max-width: min(24rem, calc(100vw - 2rem));
   width: min(24rem, calc(100vw - 2rem));
   color: inherit;
+  overflow: visible;
 }
 
 .pd-modal::backdrop {
@@ -567,8 +644,16 @@ a.pd-btn--secondary:visited {
   backdrop-filter: blur(2px);
 }
 
+.pd-modal__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2, 0.4rem);
+}
+
 .pd-modal__title {
   margin: 0;
+  flex: 1;
+  min-width: 0;
   font-family: var(--font-heading);
   font-size: 1rem;
   font-weight: 800;
@@ -576,11 +661,32 @@ a.pd-btn--secondary:visited {
   letter-spacing: -0.02em;
 }
 
+.pd-help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-secondary);
+  cursor: help;
+}
+
+.pd-help-icon:hover,
+.pd-help-icon:focus-visible {
+  color: var(--color-text);
+}
+
 .pd-modal__message {
   margin: 0.5rem 0 0;
   font-size: 0.875rem;
   color: var(--color-text-secondary);
   line-height: 1.5;
+}
+
+.pd-modal__message .pd-goals-late__person {
+  color: var(--color-text);
 }
 
 .pd-modal__body {
@@ -1051,7 +1157,10 @@ a.pd-btn--secondary:visited {
 
 .pd-segmented__thumb {
   position: absolute;
+  top: var(--segmented-pad);
+  bottom: var(--segmented-pad);
   left: 0;
+  box-sizing: border-box;
   border-radius: max(0px,
       calc(var(--segmented-radius) - var(--segmented-pad)));
   background: var(--color-cta);
@@ -1254,6 +1363,25 @@ a.pd-btn--secondary:visited {
   z-index: 200;
 }
 
+.pd-tooltip__content:has(.pd-covering-tip) {
+  max-width: none;
+  text-align: start;
+}
+
+.pd-covering-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2, 0.5rem);
+  white-space: nowrap;
+}
+
+.pd-covering-tip .pd-avatar {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.55rem;
+  flex: 0 0 auto;
+}
+
 /* ── Skeleton ─────────────────────────────────────────────────────── */
 
 .pd-skeleton {
@@ -1446,6 +1574,7 @@ a.pd-btn--secondary:visited {
   position: absolute;
   top: calc(100% + 0.35rem);
   z-index: 60;
+  width: max-content;
   min-width: 11rem;
   padding: 0.25rem;
   border-radius: 0.75rem;
@@ -1477,6 +1606,7 @@ a.pd-btn--secondary:visited {
   font-weight: 600;
   color: var(--color-text);
   text-align: left;
+  white-space: nowrap;
   cursor: pointer;
   box-sizing: border-box;
 }
@@ -1570,10 +1700,35 @@ a.pd-btn--secondary:visited {
   border-color: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
 }
 
-.pd-listbox__trigger:focus-visible {
+.pd-listbox__trigger:focus-visible,
+.pd-listbox__trigger--combobox:focus-within {
   outline: none;
   border-color: var(--color-primary);
   background: var(--color-surface);
+}
+
+.pd-listbox__trigger--combobox {
+  cursor: text;
+}
+
+.pd-listbox__search-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.pd-listbox__trigger-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.pd-listbox__trigger-input::-webkit-search-cancel-button {
+  appearance: none;
 }
 
 .pd-listbox.is-open .pd-listbox__trigger {
@@ -1604,6 +1759,15 @@ a.pd-btn--secondary:visited {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pd-listbox__value-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  font-weight: 500;
 }
 
 .pd-listbox__chevron {
@@ -1691,6 +1855,11 @@ a.pd-btn--secondary:visited {
 .pd-listbox__option--empty {
   color: var(--color-text-secondary);
   font-weight: 500;
+}
+
+.pd-listbox__option--action {
+  margin-top: 0.2rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .pd-listbox__option:disabled {

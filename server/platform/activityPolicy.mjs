@@ -21,10 +21,20 @@ export async function loadActivityViewerContext(platformUser) {
 
   if (Number.isInteger(employeeId)) {
     const { rows } = await getPool().query(
-      `WITH direct AS (
+      `WITH managers AS (
+         SELECT $1::int AS manager_id
+         UNION
+         SELECT absent_employee_id
+         FROM platform.manager_delegations
+         WHERE delegate_employee_id = $1
+           AND revoked_at IS NULL
+           AND starts_at <= now()
+           AND ends_at >= now()
+       ),
+       direct AS (
          SELECT employee_id
          FROM platform.employees
-         WHERE reports_to_employee_id = $1
+         WHERE reports_to_employee_id IN (SELECT manager_id FROM managers)
        ),
        skip AS (
          SELECT e.employee_id
@@ -84,7 +94,10 @@ export function canViewActivityRow(viewer, event) {
     (event.eventKey.includes('final_approved') ||
       event.eventKey.includes('manager_manager') ||
       event.eventKey.includes('submitted') ||
-      event.eventKey.includes('sent_back'))
+      event.eventKey.includes('sent_back') ||
+      event.eventKey.includes('calibrat') ||
+      event.eventKey.includes('released') ||
+      event.eventKey.includes('appeal'))
   ) {
     return true
   }

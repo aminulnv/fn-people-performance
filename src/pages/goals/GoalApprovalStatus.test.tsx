@@ -8,6 +8,7 @@ describe("GoalApprovalStatus", () => {
   it("shows Sent back instead of a blank dash", () => {
     render(<GoalApprovalStatus status="sent_back" />);
     expect(screen.getByText("Sent back")).toBeInTheDocument();
+    expect(screen.getByText("Sent back").closest(".pd-badge")?.querySelector("svg")).toBeTruthy();
     expect(screen.queryByText("—")).not.toBeInTheDocument();
   });
 

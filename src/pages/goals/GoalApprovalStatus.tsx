@@ -1,7 +1,8 @@
 import { Check } from "lucide-react";
 import { Badge } from "@/components/ui";
 import type { SubmissionStatus } from "@/lib/goals/types";
-import { statusLabel, statusVariant } from "./statusLabels";
+import { GoalStatusBadge } from "./GoalStatusBadge";
+import { statusLabel } from "./statusLabels";
 
 export function GoalApprovalStatus({
   status,
@@ -30,5 +31,5 @@ export function GoalApprovalStatus({
     }
     return <Badge variant="pending">{label}</Badge>;
   }
-  return <Badge variant={statusVariant(status)}>{statusLabel(status)}</Badge>;
+  return <GoalStatusBadge status={status}>{statusLabel(status)}</GoalStatusBadge>;
 }

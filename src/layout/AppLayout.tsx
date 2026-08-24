@@ -11,6 +11,7 @@ import {
   buildBreadcrumbs,
   resolveTopBarIcon,
 } from './buildBreadcrumbs'
+import { GlobalSearchProvider } from './GlobalSearchProvider'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
@@ -212,15 +213,16 @@ export function AppLayout({
   const titleIcon = resolveTopBarIcon(pathname, visibleNavItems)
 
   return (
-    <div
-      className={[
-        'pd-app-shell',
-        isMobile ? 'pd-app-shell--mobile' : '',
-        isMobile && isMobileOpen ? 'pd-app-shell--mobile-nav-open' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-    >
+    <GlobalSearchProvider>
+      <div
+        className={[
+          'pd-app-shell',
+          isMobile ? 'pd-app-shell--mobile' : '',
+          isMobile && isMobileOpen ? 'pd-app-shell--mobile-nav-open' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
       <div className="pd-app-shell__main">
         <Sidebar
           navItems={visibleNavItems}
@@ -260,7 +262,8 @@ export function AppLayout({
           </div>
         </div>
       </div>
-      {assistantEnabled ? <WritingAssistant /> : null}
-    </div>
+        {assistantEnabled ? <WritingAssistant /> : null}
+      </div>
+    </GlobalSearchProvider>
   )
 }

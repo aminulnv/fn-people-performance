@@ -1,6 +1,7 @@
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { permissionsForPlatformUser } from '../auth.mjs'
+import { listActiveDelegatedManagerIds } from '../delegations.mjs'
 
 function employeeIdFor(user) {
   const employeeId = Number(user?.employeeId)
@@ -31,14 +32,26 @@ async function loadGoalAccessContext(user, cycleId, subjectEmployeeId) {
   )
   if (!rows[0]) throw new HttpError(404, 'Goal subject not found')
   const row = rows[0]
+  const coveredManagerIds = await listActiveDelegatedManagerIds(actorEmployeeId)
+  const covered = new Set(coveredManagerIds)
+  const reportsToId =
+    row.reports_to_employee_id == null
+      ? null
+      : Number(row.reports_to_employee_id)
+  const skipLevelId =
+    row.skip_level_employee_id == null
+      ? null
+      : Number(row.skip_level_employee_id)
   return {
     actorEmployeeId,
     permissions,
     isSelf: actorEmployeeId === Number(row.employee_id),
     isDirectManager:
-      actorEmployeeId === Number(row.reports_to_employee_id),
+      actorEmployeeId === reportsToId ||
+      (reportsToId != null && covered.has(reportsToId)),
     isSkipLevelManager:
-      actorEmployeeId === Number(row.skip_level_employee_id),
+      actorEmployeeId === skipLevelId ||
+      (skipLevelId != null && covered.has(skipLevelId)),
     approvalStage: row.post_window_approval_stage ?? null,
   }
 }
@@ -105,20 +118,22 @@ export async function listVisibleGoalSubjectIds(user) {
   const permissions = new Set(await permissionsForPlatformUser(user))
   if (permissions.has('platform.read_all')) return null
 
+  const coveredManagerIds = await listActiveDelegatedManagerIds(actorEmployeeId)
+  const managerIds = [actorEmployeeId, ...coveredManagerIds]
   const { rows } = await getPool().query(
     `SELECT employee_id
      FROM platform.employees
      WHERE status = 'active'
        AND (
-         employee_id = $1
-         OR reports_to_employee_id = $1
+         employee_id = ANY($1::int[])
+         OR reports_to_employee_id = ANY($1::int[])
          OR reports_to_employee_id IN (
            SELECT employee_id
            FROM platform.employees
-           WHERE reports_to_employee_id = $1
+           WHERE reports_to_employee_id = ANY($1::int[])
          )
        )`,
-    [actorEmployeeId],
+    [managerIds],
   )
   return rows.map((row) => Number(row.employee_id))
 }

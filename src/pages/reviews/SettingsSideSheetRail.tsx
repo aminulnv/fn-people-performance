@@ -64,6 +64,9 @@ export function SettingsSideSheetRail({
     sheetWidthWithinRail(DEFAULT_SHEET_WIDTH, reservedWidth),
   )
   const hasToggledRef = useRef(false)
+  const holdTabHoverRef = useRef(false)
+  const [isTabHovered, setIsTabHovered] = useState(false)
+  const isTabExpanded = isOpen !== isTabHovered
 
   useEffect(() => {
     setSheetWidth((width) => sheetWidthWithinRail(width, reservedWidth))
@@ -76,7 +79,19 @@ export function SettingsSideSheetRail({
 
   const toggle = () => {
     hasToggledRef.current = true
+    holdTabHoverRef.current = true
+    setIsTabHovered(false)
     onOpenChange(!isOpen)
+  }
+
+  const revealTabHover = () => {
+    if (holdTabHoverRef.current) return
+    setIsTabHovered(true)
+  }
+
+  const clearTabHover = () => {
+    holdTabHoverRef.current = false
+    setIsTabHovered(false)
   }
 
   const applySheetWidth = (width: number) => {
@@ -115,9 +130,12 @@ export function SettingsSideSheetRail({
           ref={tabRef}
           type="button"
           className="pd-settings-panel__tab"
+          data-expanded={isTabExpanded ? 'true' : 'false'}
           aria-expanded={isOpen}
           aria-controls={isOpen ? 'pd-settings-side-sheet' : undefined}
           onClick={toggle}
+          onPointerEnter={revealTabHover}
+          onPointerLeave={clearTabHover}
         >
           <span className="pd-settings-panel__tab-label">
             {sideSheet.tabLabel}

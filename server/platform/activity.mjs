@@ -29,6 +29,7 @@ function mapActivityEvent(row) {
       row.actor_employee_id == null ? undefined : Number(row.actor_employee_id),
     actorEmail: row.actor_email || undefined,
     actorName: row.actor_name || undefined,
+    actorAvatarUrl: row.actor_avatar_url || undefined,
     actorType: row.actor_type,
     subjectEmployeeId:
       row.subject_employee_id == null
@@ -170,65 +171,68 @@ export async function listActivityEvents(platformUser, filters = {}) {
 
   if (filters.eventKey) {
     params.push(String(filters.eventKey))
-    where.push(`event_key = $${params.length}`)
+    where.push(`event.event_key = $${params.length}`)
   }
   if (filters.entityType) {
     params.push(String(filters.entityType))
-    where.push(`entity_type = $${params.length}`)
+    where.push(`event.entity_type = $${params.length}`)
   }
   if (filters.entityId) {
     params.push(String(filters.entityId))
-    where.push(`entity_id = $${params.length}`)
+    where.push(`event.entity_id = $${params.length}`)
   }
   if (filters.actorEmployeeId != null) {
     params.push(Number(filters.actorEmployeeId))
-    where.push(`actor_employee_id = $${params.length}`)
+    where.push(`event.actor_employee_id = $${params.length}`)
   }
   if (filters.subjectEmployeeId != null) {
     params.push(Number(filters.subjectEmployeeId))
-    where.push(`subject_employee_id = $${params.length}`)
+    where.push(`event.subject_employee_id = $${params.length}`)
   }
   if (filters.cycleId) {
     params.push(String(filters.cycleId))
-    where.push(`cycle_id = $${params.length}`)
+    where.push(`event.cycle_id = $${params.length}`)
   }
   if (filters.goalId) {
     params.push(String(filters.goalId))
-    where.push(`goal_id = $${params.length}`)
+    where.push(`event.goal_id = $${params.length}`)
   }
   if (filters.from) {
     params.push(String(filters.from))
-    where.push(`occurred_at >= $${params.length}::timestamptz`)
+    where.push(`event.occurred_at >= $${params.length}::timestamptz`)
   }
   if (filters.to) {
     params.push(String(filters.to))
-    where.push(`occurred_at <= $${params.length}::timestamptz`)
+    where.push(`event.occurred_at <= $${params.length}::timestamptz`)
   }
   if (cursor) {
     params.push(cursor.occurredAt, cursor.id)
     where.push(
-      `(occurred_at, id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`,
+      `(event.occurred_at, event.id) < ($${params.length - 1}::timestamptz, $${params.length}::bigint)`,
     )
   }
 
   // Over-fetch so post-authorization filtering can still fill a page.
   params.push(limit * 4)
   const { rows } = await getPool().query(
-    `SELECT *
-     FROM platform.activity_events
+    `SELECT event.*, actor.avatar_url AS actor_avatar_url
+     FROM platform.activity_events event
+     LEFT JOIN platform.employees actor
+       ON actor.employee_id = event.actor_employee_id
      WHERE ${where.join(' AND ')}
-     ORDER BY occurred_at DESC, id DESC
+     ORDER BY event.occurred_at DESC, event.id DESC
      LIMIT $${params.length}`,
     params,
   )
 
-  const items = []
+  const visible = []
   for (const row of rows) {
     const mapped = mapActivityEvent(row)
     if (!canViewActivityRow(viewer, mapped)) continue
-    items.push(mapped)
-    if (items.length >= limit) break
+    visible.push(mapped)
+    if (visible.length >= limit) break
   }
+  const items = await withDelegatingMetadata(visible)
 
   const last = items[items.length - 1]
   return {
@@ -238,6 +242,59 @@ export async function listActivityEvents(platformUser, filters = {}) {
         ? encodeCursor(last.occurredAt, Number(last.id))
         : null,
   }
+}
+
+async function withDelegatingMetadata(events) {
+  const pending = events.filter(
+    (event) =>
+      event.actorEmployeeId != null &&
+      event.subjectEmployeeId != null &&
+      event.actorEmployeeId !== event.subjectEmployeeId &&
+      !event.metadata?.delegatingForName &&
+      !event.metadata?.coveringForName,
+  )
+  if (pending.length === 0) return events
+  const { rows } = await getPool().query(
+    `SELECT
+       event.id,
+       manager.full_name,
+       manager.avatar_url
+     FROM platform.activity_events event
+     JOIN platform.employees subject
+       ON subject.employee_id = event.subject_employee_id
+     JOIN platform.employees manager
+       ON manager.employee_id = subject.reports_to_employee_id
+     JOIN platform.manager_delegations delegation
+       ON delegation.absent_employee_id = subject.reports_to_employee_id
+      AND delegation.delegate_employee_id = event.actor_employee_id
+      AND delegation.starts_at <= event.occurred_at
+      AND delegation.ends_at >= event.occurred_at
+      AND (
+        delegation.revoked_at IS NULL
+        OR delegation.revoked_at > event.occurred_at
+      )
+     WHERE event.id = ANY($1::bigint[])`,
+    [pending.map((event) => Number(event.id))],
+  )
+  const byId = new Map(
+    rows.map((row) => [
+      String(row.id),
+      {
+        delegatingForName: row.full_name,
+        delegatingForAvatarUrl: row.avatar_url || '',
+        coveringForName: row.full_name,
+        coveringForAvatarUrl: row.avatar_url || '',
+      },
+    ]),
+  )
+  return events.map((event) => {
+    const delegating = byId.get(String(event.id))
+    if (!delegating) return event
+    return {
+      ...event,
+      metadata: { ...event.metadata, ...delegating },
+    }
+  })
 }
 
 export { mapActivityEvent }

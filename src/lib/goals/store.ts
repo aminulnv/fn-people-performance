@@ -29,6 +29,7 @@ import {
   mergePeopleIntoGoalsState,
 } from "./peopleFromEmployees";
 import { copyGoalToNewCycle } from "./operations";
+import { delegationActingAs } from "@/lib/delegations/roles";
 import { deriveGoalCapabilities, isDirectManager } from "./permissions";
 import type {
   DemoPerson,
@@ -45,12 +46,49 @@ function enrichApprovalActor(
   actor: SendBackAuthor | undefined,
   people: DemoPerson[],
 ): SendBackAuthor | undefined {
-  if (!actor?.id || actor.avatarUrl?.trim()) return actor;
-  const avatarUrl = people
-    .find((person) => person.id === actor.id)
-    ?.avatarUrl?.trim();
-  if (!avatarUrl) return actor;
-  return { ...actor, avatarUrl };
+  if (!actor?.id) return actor;
+  let next = actor;
+  if (!actor.avatarUrl?.trim()) {
+    const avatarUrl = people
+      .find((person) => person.id === actor.id)
+      ?.avatarUrl?.trim();
+    if (avatarUrl) next = { ...next, avatarUrl };
+  }
+  const delegatedForName = actor.delegatingForName ?? actor.coveringForName;
+  const delegatedForAvatar =
+    actor.delegatingForAvatarUrl ?? actor.coveringForAvatarUrl;
+  if (delegatedForName && !delegatedForAvatar?.trim()) {
+    const delegatedAvatarUrl = people
+      .find((person) => person.name === delegatedForName)
+      ?.avatarUrl?.trim();
+    if (delegatedAvatarUrl) {
+      next = {
+        ...next,
+        delegatingForAvatarUrl: delegatedAvatarUrl,
+        coveringForAvatarUrl: delegatedAvatarUrl,
+      };
+    }
+  }
+  return next;
+}
+
+function approvedByForActor(
+  actor: DemoPerson,
+  subject: DemoPerson,
+  people: DemoPerson[],
+): SendBackAuthor {
+  const manager = delegationActingAs(actor.id, subject, people).asDirectManager
+    ? people.find((person) => person.id === subject.managerId)
+    : undefined;
+  return {
+    id: actor.id,
+    name: actor.name,
+    avatarUrl: actor.avatarUrl,
+    delegatingForName: manager?.name,
+    delegatingForAvatarUrl: manager?.avatarUrl,
+    coveringForName: manager?.name,
+    coveringForAvatarUrl: manager?.avatarUrl,
+  };
 }
 
 function enrichPersonGoalsActors(
@@ -602,6 +640,7 @@ function capabilitiesFor(context: GoalMutationContext) {
       row,
       cycle,
       cycleStatus: snap.cycleStatus,
+      people: snap.people,
     }),
   };
 }
@@ -825,13 +864,19 @@ export function approveSubmission(
   context: GoalMutationContext,
   goals?: Goal[],
 ): GoalsSnapshot {
-  const { actor, subject, row, capabilities } = capabilitiesFor(context);
+  const { actor, subject, row, capabilities, snap } = capabilitiesFor(context);
   if (!capabilities.canApprove) {
     throw new Error("You do not have permission to approve these goals.");
   }
   const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
     if (current.status !== "submitted") return null;
     if (current.postWindowApprovalStage === "manager") {
+      const manager = snap.people.find(
+        (person) => person.id === subject.managerId,
+      );
+      const skipLevel = manager?.managerId
+        ? snap.people.find((person) => person.id === manager.managerId)
+        : undefined;
       return {
         ...current,
         postWindowApprovalStage: "manager_manager",
@@ -839,7 +884,9 @@ export function approveSubmission(
         sendBackReason: undefined,
         sendBackBy: undefined,
         approvedBy: undefined,
-        managerNote: "Direct manager approved · awaiting skip-level manager",
+        managerNote: skipLevel
+          ? `${actor.name} approved · awaiting ${skipLevel.name}`
+          : `${actor.name} approved`,
       };
     }
     return {
@@ -849,11 +896,7 @@ export function approveSubmission(
       goals: clone(goals ?? current.goals),
       sendBackReason: undefined,
       sendBackBy: undefined,
-      approvedBy: {
-        id: actor.id,
-        name: actor.name,
-        avatarUrl: actor.avatarUrl,
-      },
+      approvedBy: approvedByForActor(actor, subject, snap.people),
       managerNote: "Approved",
     };
   });
@@ -954,7 +997,10 @@ export function assertIsDirectManager(
   const actor = snap.people.find((person) => person.id === actorId);
   const subject = snap.people.find((person) => person.id === subjectId);
   if (!actor || !subject) return false;
-  return isDirectManager(actor, subject);
+  return (
+    isDirectManager(actor, subject) ||
+    delegationActingAs(actorId, subject, snap.people).asDirectManager
+  );
 }
 
 /** Re-export for callers that still build an empty shell. */

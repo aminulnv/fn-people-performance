@@ -2,9 +2,21 @@ import { describe, expect, it } from 'vitest'
 import {
   cycleIneligibilityEmptyState,
   cycleIneligibilityStatusLabel,
+  ownGoalsEmptyCopy,
+  reportGoalsEmptyDescription,
   statusLabel,
+  statusVariant,
   submissionStatusLabel,
 } from './statusLabels'
+
+describe('statusVariant', () => {
+  it('gives draft its own tone so it does not read as muted chrome', () => {
+    expect(statusVariant('draft')).toBe('draft')
+    expect(statusVariant('submitted')).toBe('pending')
+    expect(statusVariant('sent_back')).toBe('pending')
+    expect(statusVariant('approved')).toBe('completed')
+  })
+})
 
 describe('submissionStatusLabel', () => {
   it('reads Not started when the person has no goals yet', () => {
@@ -44,5 +56,29 @@ describe('cycleIneligibilityEmptyState', () => {
       description:
         'Aminul Islam Borhan joined after Day 1, so goal setting starts next quarter.',
     })
+  })
+})
+
+describe('ownGoalsEmptyCopy', () => {
+  it('invites a first goal without dumping weight rules', () => {
+    expect(ownGoalsEmptyCopy(true)).toEqual({
+      title: 'No goals yet',
+      description: 'Add your first goal for this cycle.',
+    })
+  })
+
+  it('uses the lock message when goals cannot be added', () => {
+    expect(ownGoalsEmptyCopy(false, 'The window is closed.')).toEqual({
+      title: 'No goals yet',
+      description: 'The window is closed.',
+    })
+  })
+})
+
+describe('reportGoalsEmptyDescription', () => {
+  it('names the person and offers to start when the reviewer can add', () => {
+    expect(reportGoalsEmptyDescription('Saif Ivna Alam', true)).toBe(
+      'Add one for Saif, or wait for them to start.',
+    )
   })
 })

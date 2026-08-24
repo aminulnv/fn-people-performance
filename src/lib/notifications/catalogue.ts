@@ -230,7 +230,7 @@ const entries: NotificationCatalogueEntry[] = [
     icon: 'target',
     channels: [...inApp],
     title: 'Your goal progress was adjusted',
-    body: '{{manager}} updated progress on {{count}} goal measurements.',
+    body: '{{manager}} updated progress on {{count}} goal metrics.',
   }),
   entry(NOTIFICATION_EVENTS.GOAL_CHECK_IN_COMPLETED, {
     kind: 'info',
@@ -244,7 +244,7 @@ const entries: NotificationCatalogueEntry[] = [
     icon: 'target',
     channels: [...inApp],
     title: '{{manager}} cascaded a goal to you',
-    body: 'Review “{{goal}}” and add measurements before submitting your {{cycle}} goals.',
+    body: 'Review “{{goal}}” and add metrics before submitting your {{cycle}} goals.',
   }),
 
   entry(NOTIFICATION_EVENTS.REVIEW_SELF_OPENED, {

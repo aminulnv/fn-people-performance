@@ -1,11 +1,22 @@
+import { measurementPanels } from '@/lib/goals/measurements'
+import {
+  indexCascadeRecipients,
+  lineManagerCascade,
+  type CascadeRecipient,
+  type LineManagerCascade,
+} from '@/lib/goals/operations'
+import { goalLastUpdatedAt } from '@/lib/goals/progressLog'
 import type {
   DemoPerson,
   GoalsSnapshot,
+  Measurement,
   PersonGoals,
 } from '@/lib/goals/types'
-import { indexCascadeRecipients } from '@/lib/goals/operations'
-import { goalLastUpdatedAt } from '@/lib/goals/progressLog'
-import { goalCompletion } from '@/lib/goals/weightage'
+import {
+  canSubmitGoals,
+  goalCompletion,
+  submitIssueForGoal,
+} from '@/lib/goals/weightage'
 import {
   canViewPersonGoals,
   goalTitle,
@@ -13,6 +24,7 @@ import {
   personMatchesScope,
   type GoalsDirectoryScope,
 } from './goalHelpers'
+import { ownGoalsEmptyCopy } from './statusLabels'
 
 /** One row per goal — a person with three goals appears on three rows. */
 export type GoalRow = {
@@ -26,11 +38,29 @@ export type GoalRow = {
   goalId: string
   cascadedFromGoalId?: string
   linkedGoalLabel?: string
-  cascadedTo: { personName: string }[]
+  cascadeFrom: LineManagerCascade
+  cascadedTo: CascadeRecipient[]
   weight: number
   completion: number
   lastUpdatedAt?: string
   metricCount: number
+  measurements: Measurement[]
+  /** Named submit problem for this goal, when the set is still a draft. */
+  issue?: string
+}
+
+export function goalExpandKey(
+  row: Pick<GoalRow, 'cycleId' | 'goalId'>,
+): string {
+  return `${row.cycleId}:${row.goalId}`
+}
+
+export function expandedMeasureCount(
+  row: GoalRow,
+  expandedIds: ReadonlySet<string>,
+): number {
+  if (!expandedIds.has(goalExpandKey(row))) return 0
+  return measurementPanels(row.measurements).length
 }
 
 /** First row for a person carries the rowspan; later rows use 0 and skip the owner cell. */
@@ -91,6 +121,14 @@ export function goalRows(
   return people.flatMap((person): GoalRow[] => {
     const submission = snapshot.byPerson[person.id]
     const status = submission?.status ?? 'draft'
+    const cascadeFrom = lineManagerCascade(person, snapshot)
+    const submitBlockers =
+      status === 'draft' || status === 'sent_back'
+        ? canSubmitGoals(
+            submission?.goals ?? [],
+            snapshot.cycle.goalCountPolicy,
+          ).blockers
+        : []
     return (submission?.goals ?? []).map((goal, index) => ({
       key: `${snapshot.cycle.id}:${person.id}:${goal.id}`,
       cycleId: snapshot.cycle.id,
@@ -102,11 +140,14 @@ export function goalRows(
       goalId: goal.id,
       cascadedFromGoalId: goal.cascadedFromGoalId,
       linkedGoalLabel: goal.linkedGoalLabel,
+      cascadeFrom,
       cascadedTo: recipientsBySource.get(goal.id) ?? [],
       weight: goal.weight,
       completion: Math.round(goalCompletion(goal)),
       lastUpdatedAt: goalLastUpdatedAt(goal),
       metricCount: metricCount(goal),
+      measurements: goal.measurements,
+      issue: submitIssueForGoal(goal.id, submitBlockers),
     }))
   })
 }
@@ -115,7 +156,10 @@ export function goalRows(
  * Annotate consecutive rows from the same person so the owner column can merge.
  * Callers must keep a person's goals adjacent (e.g. sort by department, then name).
  */
-export function withOwnerRowSpans(rows: GoalRow[]): GoalRowWithOwnerSpan[] {
+export function withOwnerRowSpans(
+  rows: GoalRow[],
+  expandedIds?: ReadonlySet<string>,
+): GoalRowWithOwnerSpan[] {
   const result: GoalRowWithOwnerSpan[] = []
   let index = 0
   while (index < rows.length) {
@@ -127,10 +171,18 @@ export function withOwnerRowSpans(rows: GoalRow[]): GoalRowWithOwnerSpan[] {
     ) {
       span += 1
     }
+    let visible = 0
+    for (let offset = 0; offset < span; offset += 1) {
+      visible +=
+        1 +
+        (expandedIds
+          ? expandedMeasureCount(rows[index + offset], expandedIds)
+          : 0)
+    }
     for (let offset = 0; offset < span; offset += 1) {
       result.push({
         ...rows[index + offset],
-        ownerRowSpan: offset === 0 ? span : 0,
+        ownerRowSpan: offset === 0 ? visible : 0,
         isPersonEnd: offset === span - 1,
       })
     }
@@ -262,10 +314,7 @@ export function describeEmptyGoalsList(input: {
 
   if (input.scope === 'mine') {
     return {
-      title: 'No goals yet',
-      description: input.canAddOwnGoals
-        ? 'Add a goal to get started. Each needs measurements, and weights must total 100%.'
-        : 'Goals cannot be added for this cycle right now.',
+      ...ownGoalsEmptyCopy(input.canAddOwnGoals),
       offerAdd: input.canAddOwnGoals,
     }
   }

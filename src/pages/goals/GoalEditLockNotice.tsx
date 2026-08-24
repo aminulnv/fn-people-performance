@@ -1,16 +1,20 @@
+import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
 import type { CycleEligibilityReason } from "@/lib/goals/demoData";
 import { cycleIneligibilityEmptyState } from "./statusLabels";
 
 export function GoalEditLockNotice({
   message,
+  spoken,
 }: {
-  message: string;
+  message: ReactNode;
+  spoken?: string;
 }) {
+  const label = spoken ?? (typeof message === "string" ? message : undefined);
   return (
-    <p className="pd-goals-lock" role="status" aria-label={message}>
+    <p className="pd-goals-lock" role="status" aria-label={label}>
       <Lock size={14} strokeWidth={2} aria-hidden />
-      {message}
+      <span className="pd-goals-lock__copy">{message}</span>
     </p>
   );
 }

@@ -22,7 +22,9 @@ import {
   Pencil,
   Star,
   Target,
+  Undo2,
   UserRound,
+  UserRoundCog,
   Users,
   type LucideIcon,
 } from 'lucide-react'
@@ -66,6 +68,11 @@ import {
 } from '@/components/activity/ActivityLogDrawer'
 import { EmployeeProfilePerformanceTab } from '@/pages/profile/EmployeeProfilePerformanceTab'
 import { EmployeeProfileTeamTab } from '@/pages/profile/EmployeeProfileTeamTab'
+import {
+  ManagerDelegationAssignModal,
+  ManagerDelegationStatusCard,
+  useManagerDelegationEditor,
+} from '@/pages/profile/ManagerDelegationCard'
 import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
 import { goalTodoBadgeLabel } from '@/lib/goals/todoCounts'
 import { useGoalTodoCounts } from '@/lib/goals/useGoalTodoCounts'
@@ -316,6 +323,15 @@ export function EmployeeProfileView({
   const hrbpName = hrbp?.fullName || employee.hrbpName
   const extras = getEmployeeProfileExtras(employee.employeeId)
   const directoryReady = loadState === 'ready'
+  const hasDirectReports =
+    (directoryReady
+      ? countDirectReports(employee)
+      : extras?.directReports.length ?? 0) > 0
+  const delegationEditor = useManagerDelegationEditor({
+    employee,
+    employees,
+    hasDirectReports,
+  })
   const teamOwnerSources = useMemo(
     () => ({
       orgTeams: buildOrganisationFromEmployees(
@@ -459,6 +475,35 @@ export function EmployeeProfileView({
                     Permissions
                   </Link>
                 ) : null}
+                {delegationEditor.canManage ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pd-profile__more-menu-item"
+                    onClick={() => {
+                      setMoreOpen(false)
+                      delegationEditor.openAssign()
+                    }}
+                  >
+                    <UserRoundCog size={15} strokeWidth={1.75} aria-hidden />
+                    {delegationEditor.assignLabel}
+                  </button>
+                ) : null}
+                {delegationEditor.canRevoke ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="pd-profile__more-menu-item"
+                    disabled={delegationEditor.saving}
+                    onClick={() => {
+                      setMoreOpen(false)
+                      void delegationEditor.onRevoke()
+                    }}
+                  >
+                    <Undo2 size={15} strokeWidth={1.75} aria-hidden />
+                    Revoke Delegation
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -575,6 +620,8 @@ export function EmployeeProfileView({
           </div>
 
           <aside className="pd-profile__col pd-profile__col--side">
+            <ManagerDelegationStatusCard editor={delegationEditor} />
+
             <ProfileOrgChart
               manager={
                 managerName
@@ -642,9 +689,10 @@ export function EmployeeProfileView({
         open={activityOpen}
         onClose={() => setActivityOpen(false)}
         title={`${employee.fullName} activity log`}
-        description="Main changes and events for this person."
+        description="Goals, reviews, and profile changes for this person."
         filters={{ subjectEmployeeId: employee.employeeId }}
       />
+      <ManagerDelegationAssignModal editor={delegationEditor} />
     </div>
   )
 }

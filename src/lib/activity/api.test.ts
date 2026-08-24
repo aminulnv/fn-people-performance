@@ -21,7 +21,11 @@ describe('activity labels', () => {
     expect(activityEventLabel('access.profile_assigned')).toBe(
       'Assigned an access profile',
     )
-    expect(activityEntityLabel('goal_submission')).toBe('Submission')
+    expect(activityEntityLabel('goal_submission')).toBe('Goals')
+    expect(activityEntityLabel('review_packet')).toBe('Review')
+    expect(activityEventLabel('review_packet.self_submitted')).toBe(
+      'Submitted a self-review',
+    )
     expect(activityEntityLabel('review_cycle')).toBe('Cycle')
   })
 })

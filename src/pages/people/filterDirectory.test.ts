@@ -1,4 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import {
+  assignManagerDelegationLocal,
+  resetManagerDelegationsForTests,
+} from '@/lib/delegations/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   compareDirectoryRows,
@@ -65,6 +69,10 @@ describe('directoryStats', () => {
   })
 })
 
+afterEach(() => {
+  resetManagerDelegationsForTests()
+})
+
 describe('filterDirectory', () => {
   const people = [otherDept, report, manager]
 
@@ -82,6 +90,33 @@ describe('filterDirectory', () => {
         me: manager,
       }).map((row) => row.employeeId),
     ).toEqual([3, 1, 2, 4])
+  })
+
+  it('includes delegated managers\' reports in my reports', () => {
+    const cover = person({
+      employeeId: 5,
+      fullName: 'Peer Cover',
+      department: 'Product',
+    })
+    assignManagerDelegationLocal({
+      absentEmployeeId: 1,
+      delegateEmployeeId: 5,
+      startsOn: '2020-01-01',
+      endsOn: '2030-01-01',
+      absentName: manager.fullName,
+      delegateName: cover.fullName,
+      assignedByEmployeeId: 9,
+      assignedByName: 'Admin',
+    })
+
+    expect(
+      filterDirectory([...people, cover], {
+        query: '',
+        scope: 'reports',
+        statusFilter: null,
+        me: cover,
+      }).map((row) => row.employeeId),
+    ).toEqual([2])
   })
 
   it('filters my reports and my department', () => {

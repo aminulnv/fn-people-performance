@@ -5,12 +5,36 @@ import type { ProgressLogEntry } from '@/lib/goals/types'
 import {
   formatProgressTimestamp,
   isMilestoneProgressLog,
-  numericProgressSummary,
   progressLogStatusLabel,
   progressLogSummary,
 } from '@/lib/goals/progressLog'
 
 export type ProgressLogKind = 'metric' | 'milestone'
+
+export function progressLogCountLabel(count: number) {
+  return count === 0
+    ? 'None yet'
+    : count === 1
+      ? '1 update'
+      : `${count} updates`
+}
+
+export function ProgressLogHeading({
+  count,
+  headingId,
+}: {
+  count: number
+  headingId?: string
+}) {
+  return (
+    <h3 className="pd-goal-progress-log__heading" id={headingId}>
+      Progress logs{' '}
+      <span className="pd-goal-progress-log__heading-count">
+        {progressLogCountLabel(count)}
+      </span>
+    </h3>
+  )
+}
 
 function showsMilestoneStatus(
   entry: ProgressLogEntry,
@@ -53,6 +77,17 @@ function newestFirst(entries: ProgressLogEntry[]) {
   )
 }
 
+function NumericChange({ entry }: { entry: ProgressLogEntry }) {
+  const from = entry.from == null ? '—' : String(entry.from)
+  return (
+    <span className="pd-goal-progress-log__change">
+      {from}
+      {' → '}
+      <strong>{entry.to}</strong>
+    </span>
+  )
+}
+
 function ProgressLogTable({
   entries,
   kind,
@@ -64,30 +99,27 @@ function ProgressLogTable({
     <table className="pd-goal-progress-log__table">
       <thead className="pd-sr-only">
         <tr>
-          <th scope="col">Date</th>
           <th scope="col">Change</th>
-          <th scope="col">Note</th>
+          <th scope="col">Date</th>
         </tr>
       </thead>
       <tbody>
         {entries.map((entry) => (
           <tr key={entry.id} className="pd-goal-progress-log__row">
+            <td className="pd-goal-progress-log__value">
+              {showsMilestoneStatus(entry, kind) ? (
+                <span className="pd-goal-progress-log__summary">
+                  <ProgressLogStatusIcon entry={entry} />
+                  {entry.label || progressLogSummary(entry)}
+                </span>
+              ) : (
+                <NumericChange entry={entry} />
+              )}
+            </td>
             <td className="pd-goal-progress-log__when">
               <time dateTime={entry.recordedAt}>
                 {formatProgressTimestamp(entry.recordedAt)}
               </time>
-            </td>
-            <td className="pd-goal-progress-log__value">
-              {showsMilestoneStatus(entry, kind) ? (
-                <ProgressLogStatusIcon entry={entry} />
-              ) : (
-                entry.to
-              )}
-            </td>
-            <td className="pd-goal-progress-log__note">
-              {showsMilestoneStatus(entry, kind)
-                ? entry.label || progressLogSummary(entry)
-                : numericProgressSummary(entry)}
             </td>
           </tr>
         ))}
@@ -145,6 +177,7 @@ export function GoalProgressLog({
         </span>
       </summary>
       <div className="pd-goal-progress-log__body">
+        <ProgressLogHeading count={sorted.length} />
         <ProgressLogTable entries={sorted} kind={kind} />
       </div>
     </details>

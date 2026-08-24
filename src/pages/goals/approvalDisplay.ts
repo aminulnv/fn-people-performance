@@ -32,7 +32,7 @@ export function approvalCopy(
           : "Pending approval",
       sub:
         postWindowApprovalStage === "manager_manager"
-          ? "Waiting on skip-level manager"
+          ? "Waiting on final approver"
           : "Waiting on manager",
       personPrefix: "by",
       tone: "pending",

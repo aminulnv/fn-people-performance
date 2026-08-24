@@ -193,6 +193,12 @@
   min-width: 0;
 }
 
+.pd-activity-entry__head .pd-tooltip,
+.pd-activity-entry__head .pd-tooltip__trigger {
+  display: flex;
+  min-width: 0;
+}
+
 .pd-activity-entry__who-copy {
   display: flex;
   flex-direction: column;
@@ -256,37 +262,47 @@
   display: none;
 }
 
-.pd-activity-entry__changes ul {
+.pd-activity-entry__diff {
   display: grid;
-  gap: 0.35rem;
-  margin: 0.45rem 0 0;
+  gap: 0.3rem;
+  margin: 0.5rem 0 0;
   padding: 0;
   list-style: none;
 }
 
-.pd-activity-entry__changes li {
+.pd-activity-entry__diff li {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto minmax(0, 1.2fr);
+  grid-template-columns: minmax(4.5rem, 0.9fr) minmax(0, 1.1fr) auto minmax(0, 1.1fr);
   gap: 0.35rem;
   align-items: center;
   color: var(--color-text-secondary);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
+  line-height: 1.35;
 }
 
 @media (max-width: 720px) {
-  .pd-activity-entry__changes li {
+  .pd-activity-entry__diff li {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.pd-activity-entry__changes code {
+.pd-activity-entry__diff-field {
+  color: var(--color-text-muted);
+  font-weight: 650;
+}
+
+.pd-activity-entry__diff-value {
   overflow: hidden;
-  padding: 0.15rem 0.3rem;
-  border-radius: 0.3rem;
+  min-width: 0;
+  padding: 0.12rem 0.35rem;
+  border-radius: var(--radius-sm, 0.3rem);
   background: color-mix(in srgb, var(--color-text) 5%, transparent);
-  font-size: 0.65rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pd-activity-entry__diff-arrow {
+  color: var(--color-text-muted);
 }
 
 .pd-activity-filters {

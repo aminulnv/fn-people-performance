@@ -1,10 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { assignManagerDelegationLocal, resetManagerDelegationsForTests } from "@/lib/delegations/store";
 import {
   deriveGoalCapabilities,
   isDirectManager,
   countPendingGoalApprovals,
   countPendingGoalApprovalsForManager,
   orderManagerReports,
+  selectActorApprovalQueue,
   selectManagerApprovalQueue,
   selectManagerReports,
 } from "./permissions";
@@ -60,6 +62,10 @@ describe("isDirectManager", () => {
     });
     expect(isDirectManager(manager, report)).toBe(true);
   });
+});
+
+afterEach(() => {
+  resetManagerDelegationsForTests();
 });
 
 describe("deriveGoalCapabilities", () => {
@@ -364,5 +370,89 @@ describe("countPendingGoalApprovals", () => {
         { row: row("c", "submitted") },
       ]),
     ).toBe(1);
+  });
+});
+
+describe("manager absence delegation", () => {
+  it("lets the delegate approve a report as the absent manager", () => {
+    const manager = person({ id: "2", name: "Line Manager", reportIds: ["1"] });
+    const report = person({ id: "1", name: "Report", managerId: "2" });
+    const cover = person({ id: "4", name: "Peer Manager" });
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: "2020-01-01",
+      endsOn: "2030-01-01",
+      absentName: manager.name,
+      delegateName: cover.name,
+      assignedByEmployeeId: 9,
+      assignedByName: "Admin",
+    });
+
+    const caps = deriveGoalCapabilities({
+      actor: cover,
+      subject: report,
+      row: row("1", "submitted"),
+      cycle,
+      cycleStatus: "current",
+      people: [manager, report, cover],
+    });
+    expect(caps.canApprove).toBe(true);
+    expect(caps.canSendBack).toBe(true);
+    expect(caps.canViewAsManager).toBe(true);
+  });
+
+  it("adds the absent manager's reports to the delegate's approval queue", () => {
+    const manager = person({ id: "2", name: "Line Manager", reportIds: ["1"] });
+    const report = person({ id: "1", name: "Report", managerId: "2" });
+    const cover = person({ id: "4", name: "Peer Manager", reportIds: [] });
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: "2020-01-01",
+      endsOn: "2030-01-01",
+      absentName: manager.name,
+      delegateName: cover.name,
+      assignedByEmployeeId: 9,
+      assignedByName: "Admin",
+    });
+
+    const queue = selectActorApprovalQueue(
+      cover,
+      [manager, report, cover],
+      { "1": row("1", "submitted") },
+    );
+    expect(queue.map((item) => item.person.id)).toEqual(["1"]);
+    expect(
+      countPendingGoalApprovalsForManager(cover, [manager, report, cover], {
+        "1": row("1", "submitted"),
+      }),
+    ).toBe(1);
+  });
+
+  it("lets a delegate cascade their own goals to the team they are delegated for", () => {
+    const manager = person({ id: "2", name: "Line Manager", reportIds: ["1"] });
+    const report = person({ id: "1", name: "Report", managerId: "2" });
+    const cover = person({ id: "4", name: "Peer Manager", reportIds: [] });
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: "2020-01-01",
+      endsOn: "2030-01-01",
+      absentName: manager.name,
+      delegateName: cover.name,
+      assignedByEmployeeId: 9,
+      assignedByName: "Admin",
+    });
+
+    const caps = deriveGoalCapabilities({
+      actor: cover,
+      subject: cover,
+      row: row("4", "draft"),
+      cycle,
+      cycleStatus: "current",
+      people: [manager, report, cover],
+    });
+    expect(caps.canCascade).toBe(true);
   });
 });

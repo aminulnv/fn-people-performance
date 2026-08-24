@@ -4,6 +4,7 @@ import {
   measurePanelKindLabel,
   measurePanelLatestProgressAt,
   measurePanelProgressLog,
+  measurePanelTableWeight,
 } from './measurePanelDisplay'
 
 const metric: Metric = {
@@ -96,6 +97,34 @@ describe('measurePanelProgressLog', () => {
         ],
       }),
     ).toEqual(todo.progressLog)
+  })
+})
+
+describe('measurePanelTableWeight', () => {
+  it('locks a solo measure at 100 percent', () => {
+    expect(
+      measurePanelTableWeight(
+        {
+          key: 'metric',
+          kind: 'metric',
+          metric: { ...metric, weight: 40 },
+        },
+        1,
+      ),
+    ).toBe(100)
+  })
+
+  it('keeps the panel weight when several measures share the goal', () => {
+    expect(
+      measurePanelTableWeight(
+        {
+          key: 'metric',
+          kind: 'metric',
+          metric: { ...metric, weight: 40 },
+        },
+        2,
+      ),
+    ).toBe(40)
   })
 })
 

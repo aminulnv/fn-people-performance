@@ -90,10 +90,20 @@ const progressDateFormat = new Intl.DateTimeFormat('en-GB', {
   year: 'numeric',
 })
 
+const progressTimeFormat = new Intl.DateTimeFormat('en-US', {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+})
+
 export function formatProgressTimestamp(iso: string): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return '—'
-  return progressDateFormat.format(date)
+  const time = progressTimeFormat
+    .format(date)
+    .replace(/\u202f/g, ' ')
+    .replace(/\b(am|pm)\b/i, (part) => part.toUpperCase())
+  return `${progressDateFormat.format(date)} ${time}`
 }
 
 export function latestProgressLogAt(

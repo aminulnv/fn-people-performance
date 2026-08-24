@@ -5,7 +5,7 @@ import { GoalOkrReferenceList } from "./GoalOkrReferenceList";
 afterEach(cleanup);
 
 describe("GoalOkrReferenceList", () => {
-  it("groups references by department and wing", () => {
+  it("groups references by company, department, and wing", () => {
     render(
       <GoalOkrReferenceList
         scope={{ department: "Engineering", wing: "Platform" }}
@@ -13,11 +13,29 @@ describe("GoalOkrReferenceList", () => {
     );
 
     expect(
+      screen.getByRole("heading", { name: "FundedNext company" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: "Engineering department" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Platform wing" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows the RACI matrix on a key result", () => {
+    render(
+      <GoalOkrReferenceList
+        scope={{ department: "Engineering", wing: "Platform" }}
+      />,
+    );
+
+    expect(screen.getAllByText("RACI").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("Keep dependencies and delivery risks visible"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Platform delivery")).toBeInTheDocument();
+    expect(screen.getAllByTitle("Responsible").length).toBeGreaterThan(0);
   });
 
   it("filters references by title and key result", () => {

@@ -1,8 +1,26 @@
 import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
+import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
 import { calibrationIsEditable } from './visibility.mjs'
+
+function actorFromUser(platformUser) {
+  return {
+    actorEmployeeId: platformUser?.employeeId ?? null,
+    actorEmail: platformUser?.email ?? '',
+    actorName: platformUser?.name ?? '',
+  }
+}
+
+function excerpt(value, max = 140) {
+  const text = String(value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+  if (!text) return ''
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1).trimEnd()}…`
+}
 
 function iso(value) {
   if (!value) return undefined
@@ -278,6 +296,43 @@ export async function saveReviewDraft(packetId, input, platformUser) {
         input.goalsComponent ? JSON.stringify(input.goalsComponent) : null,
       ],
     )
+    if (input.submit === true) {
+      const previousGrade =
+        actorRole === 'self'
+          ? row.self_overall_grade
+          : row.manager_overall_grade
+      const nextGrade = input.overallGrade ?? previousGrade
+      const changes = [
+        { field: 'status', from: row.status, to: nextStatus },
+      ]
+      if (nextGrade) {
+        changes.push({ field: 'grade', from: previousGrade, to: nextGrade })
+      }
+      if (actorRole === 'manager' && String(input.overrideReason ?? '').trim()) {
+        changes.push({
+          field: 'overrideReason',
+          from: row.manager_override_reason || null,
+          to: String(input.overrideReason).trim(),
+        })
+      }
+      await appendActivityEvent(client, {
+        eventKey:
+          actorRole === 'self'
+            ? 'review_packet.self_submitted'
+            : 'review_packet.manager_submitted',
+        entityType: 'review_packet',
+        entityId: packetId,
+        ...actorFromUser(platformUser),
+        subjectEmployeeId: Number(row.employee_id),
+        cycleId: row.cycle_id,
+        summary:
+          actorRole === 'self'
+            ? 'Submitted self-review'
+            : 'Submitted manager review',
+        changes,
+        source: 'api',
+      })
+    }
     await client.query('COMMIT')
     const children = await loadChildren(client, [packetId])
     return withChildren(rows[0], children)
@@ -331,6 +386,19 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
        RETURNING *`,
       [packetId, input.toGrade],
     )
+    const fromGrade = row.calibrated_overall_grade ?? row.manager_overall_grade
+    await appendActivityEvent(client, {
+      eventKey: 'review_packet.calibrated',
+      entityType: 'review_packet',
+      entityId: packetId,
+      ...actorFromUser(platformUser),
+      subjectEmployeeId: Number(row.employee_id),
+      cycleId: row.cycle_id,
+      summary: `Calibrated grade from ${fromGrade || 'unset'} to ${input.toGrade}`,
+      changes: [{ field: 'grade', from: fromGrade, to: input.toGrade }],
+      metadata: { reason: String(input.reason).trim().slice(0, 500) },
+      source: 'api',
+    })
     await client.query('COMMIT')
     const children = await loadChildren(client, [packetId])
     return withChildren(rows[0], children)
@@ -347,7 +415,7 @@ export async function releaseReviewPackets(cycleId, target, platformUser) {
   const client = await getPool().connect()
   try {
     await client.query('BEGIN')
-    await client.query(
+    const { rows } = await client.query(
       `UPDATE platform.review_packets
        SET published_overall_grade = COALESCE(calibrated_overall_grade, manager_overall_grade),
            status = $2,
@@ -356,13 +424,52 @@ export async function releaseReviewPackets(cycleId, target, platformUser) {
            version = version + 1,
            updated_at = now()
        WHERE cycle_id = $1
-         AND manager_overall_grade IS NOT NULL`,
+         AND manager_overall_grade IS NOT NULL
+       RETURNING id, employee_id, cycle_id, published_overall_grade`,
       [
         cycleId,
         toManagers ? 'released_to_managers' : 'released_to_employees',
         toManagers,
       ],
     )
+    const actor = actorFromUser(platformUser)
+    await appendActivityEvent(client, {
+      eventKey: toManagers
+        ? 'review_cycle.released_to_managers'
+        : 'review_cycle.released_to_employees',
+      entityType: 'review_cycle',
+      entityId: cycleId,
+      ...actor,
+      cycleId,
+      summary: toManagers
+        ? `Released grades to managers (${rows.length})`
+        : `Released grades to employees (${rows.length})`,
+      metadata: { packetCount: rows.length },
+      source: 'api',
+    })
+    for (const packet of rows) {
+      await appendActivityEvent(client, {
+        eventKey: toManagers
+          ? 'review_packet.released_to_manager'
+          : 'review_packet.released_to_employee',
+        entityType: 'review_packet',
+        entityId: packet.id,
+        ...actor,
+        subjectEmployeeId: Number(packet.employee_id),
+        cycleId,
+        summary: toManagers
+          ? 'Released grade to the manager'
+          : 'Released grade to the employee',
+        changes: [
+          {
+            field: 'grade',
+            from: null,
+            to: packet.published_overall_grade,
+          },
+        ],
+        source: 'api',
+      })
+    }
     await client.query('COMMIT')
     return listReviewPackets(cycleId)
   } catch (error) {
@@ -413,6 +520,20 @@ export async function createReviewAppeal(packetId, body, platformUser) {
        WHERE id = $1`,
       [packetId],
     )
+    const appealBody = excerpt(body)
+    await appendActivityEvent(client, {
+      eventKey: 'review_packet.appeal_submitted',
+      entityType: 'review_packet',
+      entityId: packetId,
+      ...actorFromUser(platformUser),
+      subjectEmployeeId: Number(row.employee_id),
+      cycleId: row.cycle_id,
+      summary: 'Submitted an appeal',
+      changes: appealBody
+        ? [{ field: 'appeal', from: null, to: appealBody }]
+        : [],
+      source: 'api',
+    })
     await client.query('COMMIT')
     const children = await loadChildren(client, [packetId])
     const latest = await getPacketRow(client, packetId)

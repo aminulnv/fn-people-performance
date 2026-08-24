@@ -38,7 +38,7 @@ describe('GoalSubmitAllButton', () => {
         status="sent_back"
         busy={false}
         reasons={[
-          'The goal cascaded from Ada still needs a measure — or remove it.',
+          'The goal cascaded from Ada still needs a metric — or remove it.',
         ]}
         onSubmit={vi.fn()}
       />,
@@ -48,7 +48,7 @@ describe('GoalSubmitAllButton', () => {
     expect(button).toBeDisabled()
     expect(button).toHaveAttribute(
       'title',
-      'The goal cascaded from Ada still needs a measure — or remove it.',
+      'The goal cascaded from Ada still needs a metric — or remove it.',
     )
   })
 

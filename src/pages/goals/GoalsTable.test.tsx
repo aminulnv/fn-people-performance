@@ -144,13 +144,19 @@ describe('GoalsTable nested measures', () => {
     expect(log.closest('.pd-goals-table__metric')).toBeNull()
     expect(screen.queryByText('Progress logs')).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', {
-        name: '0 progress logs for Quality process',
+      screen.getByRole('button', {
+        name: 'Update checklist for Quality process',
       }),
-    ).not.toBeInTheDocument()
+    ).toBeInTheDocument()
 
     fireEvent.mouseEnter(log.parentElement!)
-    expect(screen.getByText('0 → 60')).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (_, node) =>
+          node?.classList.contains('pd-goal-progress-log__change') === true &&
+          node.textContent === '0 → 60',
+      ),
+    ).toBeInTheDocument()
   })
 
   it('lets a metric Log button record progress from the hover menu', () => {
@@ -177,7 +183,7 @@ describe('GoalsTable nested measures', () => {
     expect(log.closest('.pd-goals-table__metric')).toBeNull()
     expect(
       measureName.compareDocumentPosition(log) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
     fireEvent.click(log)
@@ -217,7 +223,7 @@ describe('GoalsTable nested measures', () => {
 
     fireEvent.click(log)
     expect(
-      screen.getByRole('heading', { name: 'Checklist 0 of 1 done' }),
+      screen.getByRole('heading', { name: 'Progress logs None yet' }),
     ).toBeInTheDocument()
     fireEvent.click(
       screen.getByRole('checkbox', {
@@ -437,22 +443,82 @@ describe('GoalsTable nested measures', () => {
     expect(icon).not.toHaveAttribute('title')
     expect(
       icon.compareDocumentPosition(screen.getByText('Ship reviews')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
+      Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent(
-      'Cascaded from Raise quality bar',
-    )
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Raise quality bar')
+    expect(tip).not.toHaveTextContent('No metrics yet')
   })
 
-  it('marks a source goal with a sent-to icon after the name when it already has copies', () => {
+  it('shows the cascade owner and metrics in the table icon tooltip', async () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              cascadedFromGoalId: 'mgr-1',
+              linkedGoalLabel: 'Raise quality bar',
+            },
+            title: 'Ship reviews',
+          },
+        ]}
+        cascadeFrom={{
+          managerName: 'Line Manager',
+          managerAvatarUrl: 'https://cdn.example.com/manager.png',
+          options: [
+            {
+              id: 'mgr-1',
+              title: 'Raise quality bar',
+              managerName: 'Line Manager',
+              managerAvatarUrl: 'https://cdn.example.com/manager.png',
+              measurements: [
+                {
+                  id: 'm1',
+                  kind: 'metric',
+                  title: 'NPS',
+                  weight: 100,
+                  unit: 'number',
+                  direction: 'increase',
+                  startValue: 0,
+                  currentValue: 2,
+                  targetValue: 6,
+                },
+              ],
+            },
+          ],
+        }}
+      />,
+    )
+
+    fireEvent.mouseEnter(
+      screen.getByRole('img', { name: 'Cascaded from Raise quality bar' })
+        .closest('.pd-tooltip')!,
+    )
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Raise quality bar')
+    expect(tip).toHaveTextContent('Line Manager')
+    expect(tip).not.toHaveTextContent('NPS')
+  })
+
+  it('marks a source goal with a sent-to icon after the name when it already has copies', async () => {
     render(
       <GoalsTable
         rows={[
           { goal: goalWithMeasures, title: goalWithMeasures.description },
         ]}
         cascadeRecipientsFor={(goalId) =>
-          goalId === 'g1' ? [{ personName: 'Saif Ivna Alam' }] : []
+          goalId === 'g1'
+            ? [
+                {
+                  goalId: 'c1',
+                  goalTitle: 'Cut defects',
+                  personId: 'r1',
+                  personName: 'Saif Ivna Alam',
+                },
+              ]
+            : []
         }
       />,
     )
@@ -465,6 +531,89 @@ describe('GoalsTable nested measures', () => {
     expect(
       screen.queryByRole('img', { name: /Cascaded from/ }),
     ).not.toBeInTheDocument()
+    fireEvent.mouseEnter(toIcon.closest('.pd-tooltip')!)
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Cut defects')
+    expect(tip).toHaveTextContent('Saif Ivna Alam')
+  })
+
+  it('marks a missing measure in the Metrics cell, not on the title', () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: { ...goalWithMeasures, measurements: [] },
+            title: 'test',
+            issue: 'test still needs a metric.',
+          },
+        ]}
+      />,
+    )
+
+    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
+    const title = screen.getByText('test').closest('.pd-goals-table__title')
+    const metrics = icon.closest('.pd-goals-table__metric')
+    expect(title).not.toContainElement(icon)
+    expect(title).not.toHaveClass('pd-goals-table__title--error')
+    expect(metrics).toContainElement(icon)
+    expect(metrics).toHaveClass('pd-goals-table__metric--error')
+  })
+
+  it('shows only the metric error in the Metrics tooltip, not the goal name', async () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: { ...goalWithMeasures, measurements: [] },
+            title: 'testing testing testing',
+            issue: 'testing testing testing still needs a metric.',
+          },
+        ]}
+      />,
+    )
+
+    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
+    fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Still needs a metric.')
+    expect(tip).not.toHaveTextContent('testing testing testing')
+  })
+
+  it('keeps a missing title error on the goal name', () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: { ...goalWithMeasures, description: '', measurements: [] },
+            title: 'Untitled goal 1',
+            issue: 'Untitled goal 1 needs a title.',
+          },
+        ]}
+      />,
+    )
+
+    const icon = screen.getByRole('img', { name: 'Untitled goal 1 needs a title.' })
+    const title = screen.getByText('Untitled goal 1').closest('.pd-goals-table__title')
+    expect(title).toContainElement(icon)
+    expect(title).toHaveClass('pd-goals-table__title--error')
+    expect(icon.closest('.pd-goals-table__metric')).toBeNull()
+  })
+
+  it('sits an action ribbon in the first table row above the headers', () => {
+    render(
+      <GoalsTable
+        banner={<p role="alert">Action required Add at least 2 goals.</p>}
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    const table = screen.getByRole('table')
+    const banner = table.querySelector('.pd-goals-table__banner')
+    const head = table.querySelector('.pd-goals-table__head')
+    expect(banner).toHaveTextContent('Add at least 2 goals')
+    expect(head?.compareDocumentPosition(banner!)).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
+    )
   })
 
   it('places a status chip next to the Goals column header', () => {
@@ -481,5 +630,17 @@ describe('GoalsTable nested measures', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Goals Draft' }),
     ).toHaveTextContent('Draft')
+  })
+
+  it('shows the undo icon on the Sent back chip', () => {
+    render(
+      <GoalsTable
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+        status="sent_back"
+      />,
+    )
+
+    const chip = screen.getByText('Sent back').closest('.pd-badge')
+    expect(chip?.querySelector('svg')).toBeTruthy()
   })
 })

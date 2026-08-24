@@ -1,6 +1,6 @@
 import { Lightbulb } from 'lucide-react'
 
-/** Non-blocking goal-count guidance, shown while the list is still editable. */
+/** Non-blocking goal-count guidance, shown below the goals list. */
 export function GoalCountNotice({ message }: { message: string }) {
   return (
     <aside

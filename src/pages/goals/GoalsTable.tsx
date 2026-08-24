@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, CircleAlert, CornerDownRight, CornerRightDown, History, Scale } from 'lucide-react'
-import { Avatar, Badge, CountBadge, Progress, Tooltip } from '@/components/ui'
+import { Avatar, CountBadge, Progress, Tooltip } from '@/components/ui'
 import {
   distributeGoalWeights,
   goalCompletion,
   sumGoalWeights,
+  isMeasureGoalIssue,
+  measureIssueLabel,
   type Goal,
   type PersonGoals,
   type SubmissionStatus,
@@ -27,8 +29,16 @@ import {
   WeightHoverField,
   formatWeightReadout,
 } from '@/pages/goals/GoalMeasurementReadout'
+import {
+  CascadeGoalTip,
+  selectedCascadePerson,
+} from '@/pages/goals/GoalCascadeField'
 import type { CascadeTarget } from '@/pages/goals/GoalCascadeTargetDialog'
 import { batchStatusLabel } from '@/pages/goals/approvalDisplay'
+import type {
+  CascadeRecipient,
+  LineManagerCascade,
+} from '@/lib/goals/operations'
 import {
   cascadeTableLabel,
   cascadeToTableLabel,
@@ -36,12 +46,13 @@ import {
   isCascadedGoal,
   metricCountLabel,
 } from '@/pages/goals/goalHelpers'
-import { statusVariant } from '@/pages/goals/statusLabels'
+import { GoalStatusBadge } from '@/pages/goals/GoalStatusBadge'
 import {
   measurePanelLatestProgressAt,
   measurePanelName,
   measurePanelProgress,
   measurePanelProgressLog,
+  measurePanelTableWeight,
 } from '@/pages/goals/measurePanelDisplay'
 import '@/styles/layout-goals.css'
 
@@ -57,15 +68,17 @@ export function MetricsCountBadge({ count }: { count: number }) {
 
 function CascadeIconTip({
   label,
+  content,
   className,
   children,
 }: {
   label: string
+  content: ReactNode
   className: string
   children: ReactNode
 }) {
   return (
-    <Tooltip content={label} side="top" portal delayMs={80}>
+    <Tooltip content={content} side="top" portal delayMs={80}>
       <span
         className={className}
         role="img"
@@ -78,21 +91,57 @@ function CascadeIconTip({
   )
 }
 
+function cascadedToTip(recipients: CascadeRecipient[]) {
+  const tips = recipients.map((recipient) => (
+    <CascadeGoalTip
+      key={recipient.goalId}
+      title={recipient.goalTitle || recipient.personName}
+      ownerName={recipient.personName}
+      ownerAvatarUrl={recipient.avatarUrl}
+    />
+  ))
+  if (tips.length <= 1) return tips[0] ?? null
+  return <section className="pd-goal-cascade-tip-stack">{tips}</section>
+}
+
 export function GoalCascadeIndicator({
   goal,
+  cascadeFrom,
   cascadedTo = [],
   place = 'before',
 }: {
   goal: Pick<Goal, 'cascadedFromGoalId' | 'linkedGoalLabel'>
-  cascadedTo?: { personName: string }[]
+  cascadeFrom?: LineManagerCascade
+  cascadedTo?: CascadeRecipient[]
   /** From stays before the name; to sits after it. */
   place?: 'before' | 'after'
 }) {
   const fromLabel = isCascadedGoal(goal) ? cascadeTableLabel(goal) : null
   const toLabel = cascadedTo.length > 0 ? cascadeToTableLabel(cascadedTo) : null
   if (place === 'before' && fromLabel) {
+    const selected = cascadeFrom
+      ? selectedCascadePerson(goal, cascadeFrom)
+      : null
     return (
-      <CascadeIconTip label={fromLabel} className="pd-goals-table__cascade">
+      <CascadeIconTip
+        label={fromLabel}
+        className="pd-goals-table__cascade"
+        content={
+          <CascadeGoalTip
+            title={
+              selected?.title ||
+              goal.linkedGoalLabel?.trim() ||
+              'Manager goal'
+            }
+            ownerName={
+              selected?.managerName || cascadeFrom?.managerName || undefined
+            }
+            ownerAvatarUrl={
+              selected?.managerAvatarUrl || cascadeFrom?.managerAvatarUrl
+            }
+          />
+        }
+      >
         <CornerDownRight size={13} strokeWidth={2.25} aria-hidden />
       </CascadeIconTip>
     )
@@ -102,6 +151,7 @@ export function GoalCascadeIndicator({
       <CascadeIconTip
         label={toLabel}
         className="pd-goals-table__cascade pd-goals-table__cascade--to"
+        content={cascadedToTip(cascadedTo)}
       >
         <CornerRightDown size={13} strokeWidth={2.25} aria-hidden />
       </CascadeIconTip>
@@ -131,7 +181,7 @@ export function GoalProgressAge({ at }: { at?: string }) {
   )
 }
 
-function MeasureNameCell({
+export function MeasureNameCell({
   name,
   panel,
   logAction,
@@ -159,6 +209,24 @@ export type GoalsTableRow = {
   title: string
   /** Set only when the table spans several people, e.g. a manager's reports. */
   owner?: { id: string; name: string; avatarUrl?: string }
+  /** Submit blocker for this goal — title issues sit on the name, measure issues in Metrics. */
+  issue?: string
+}
+
+export function GoalIssueIcon({ issue }: { issue: string }) {
+  const label = isMeasureGoalIssue(issue) ? measureIssueLabel(issue) : issue
+  return (
+    <Tooltip content={label} side="top" portal delayMs={80}>
+      <span
+        className="pd-goals-table__goal-error-icon"
+        role="img"
+        aria-label={label}
+        tabIndex={0}
+      >
+        <CircleAlert size={13} strokeWidth={2.25} aria-hidden />
+      </span>
+    </Tooltip>
+  )
 }
 
 export function GoalsTable({
@@ -166,6 +234,7 @@ export function GoalsTable({
   onOpen,
   openGoalId,
   label = 'All goals',
+  banner,
   cycleId,
   subjectId,
   canEditWeight = false,
@@ -178,6 +247,7 @@ export function GoalsTable({
   onWeightChange,
   onMeasureWeightChange,
   onDistributeWeights,
+  cascadeFrom,
   cascadeRecipientsFor,
   status,
   postWindowApprovalStage,
@@ -189,6 +259,8 @@ export function GoalsTable({
   onOpen?: (id: string, measureKey?: string) => void
   /** Goal whose right-hand window is open. Highlights that row (or the measure that opened it). */
   openGoalId?: string | null
+  /** Flush ribbon above the column headers — set-level Action required. */
+  banner?: ReactNode
   label?: string
   cycleId?: string
   subjectId?: string
@@ -202,7 +274,8 @@ export function GoalsTable({
   onWeightChange?: (goalId: string, weight: number) => void
   onMeasureWeightChange?: (goalId: string, measurements: Measurement[]) => void
   onDistributeWeights?: (goals: Goal[]) => void
-  cascadeRecipientsFor?: (goalId: string) => { personName: string }[]
+  cascadeFrom?: LineManagerCascade
+  cascadeRecipientsFor?: (goalId: string) => CascadeRecipient[]
   status?: SubmissionStatus
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
   canLogProgress?: boolean
@@ -276,12 +349,18 @@ export function GoalsTable({
   }, [canEditWeight, measurementLockKey])
   return (
     <div
-      className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${
-        showActions ? ' pd-goals-table--with-actions' : ''
-      }${weightError ? ' pd-goals-table--weight-error' : ''}`}
+      className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${showActions ? ' pd-goals-table--with-actions' : ''
+        }${weightError ? ' pd-goals-table--weight-error' : ''}`}
       role="table"
       aria-label={label}
     >
+      {banner ? (
+        <div className="pd-goals-table__banner" role="row">
+          <div className="pd-goals-table__banner-cell" role="cell">
+            {banner}
+          </div>
+        </div>
+      ) : null}
       <div className="pd-goals-table__head" role="row">
         {showOwner ? <div role="columnheader">Owner</div> : null}
         <div
@@ -291,13 +370,12 @@ export function GoalsTable({
         >
           Goals
           {status && statusChip ? (
-            <Badge variant={statusVariant(status)}>{statusChip}</Badge>
+            <GoalStatusBadge status={status}>{statusChip}</GoalStatusBadge>
           ) : null}
         </div>
         <div
-          className={`pd-goals-table__weight-head${
-            weightError ? ' pd-goals-table__weight-head--error' : ''
-          }`}
+          className={`pd-goals-table__weight-head${weightError ? ' pd-goals-table__weight-head--error' : ''
+            }`}
           role="columnheader"
           aria-label={
             rows.length > 0
@@ -354,7 +432,9 @@ export function GoalsTable({
           </div>
         ) : null}
       </div>
-      {rows.map(({ goal, title, owner }) => {
+      {rows.map(({ goal, title, owner, issue }) => {
+        const metricsIssue = issue && isMeasureGoalIssue(issue) ? issue : undefined
+        const titleIssue = issue && !metricsIssue ? issue : undefined
         const completion = Math.round(goalCompletion(goal))
         const openGoal = () => {
           setSelectedMeasureKey(null)
@@ -370,15 +450,15 @@ export function GoalsTable({
         const isGoalSelected = Boolean(onOpen && openGoalId === goal.id && !selectedMeasureKey)
         const openRow = onOpen
           ? {
-              tabIndex: 0 as const,
-              onClick: openGoal,
-              onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  openGoal()
-                }
-              },
-            }
+            tabIndex: 0 as const,
+            onClick: openGoal,
+            onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                openGoal()
+              }
+            },
+          }
           : {}
         return (
           <div key={goal.id} className="pd-goals-table__group" role="rowgroup">
@@ -426,16 +506,26 @@ export function GoalsTable({
                   )}
                   <GoalCascadeIndicator
                     goal={goal}
+                    cascadeFrom={cascadeFrom}
                     cascadedTo={cascadeRecipientsFor?.(goal.id)}
                     place="before"
                   />
-                  <span className="pd-goals-table__title" title={title}>
+                  <span
+                    className={
+                      titleIssue
+                        ? 'pd-goals-table__title pd-goals-table__title--error'
+                        : 'pd-goals-table__title'
+                    }
+                    title={title}
+                  >
                     {title}
                     <GoalCascadeIndicator
                       goal={goal}
+                      cascadeFrom={cascadeFrom}
                       cascadedTo={cascadeRecipientsFor?.(goal.id)}
                       place="after"
                     />
+                    {titleIssue ? <GoalIssueIcon issue={titleIssue} /> : null}
                   </span>
                 </div>
               </div>
@@ -471,8 +561,18 @@ export function GoalsTable({
                 </div>
                 <Progress value={completion} />
               </div>
-              <div className="pd-goals-table__metric" role="cell">
-                <MetricsCountBadge count={panels.length} />
+              <div
+                className={
+                  metricsIssue
+                    ? 'pd-goals-table__metric pd-goals-table__metric--error'
+                    : 'pd-goals-table__metric'
+                }
+                role="cell"
+              >
+                {metricsIssue ? <GoalIssueIcon issue={metricsIssue} /> : null}
+                {panels.length > 0 ? (
+                  <MetricsCountBadge count={panels.length} />
+                ) : null}
               </div>
               {showActions ? (
                 <div
@@ -490,14 +590,14 @@ export function GoalsTable({
                     activityFilters={
                       cycleId
                         ? {
-                            goalId: goal.id,
-                            cycleId,
-                            subjectEmployeeId: subjectId
-                              ? Number(subjectId)
-                              : owner?.id
-                                ? Number(owner.id)
-                                : undefined,
-                          }
+                          goalId: goal.id,
+                          cycleId,
+                          subjectEmployeeId: subjectId
+                            ? Number(subjectId)
+                            : owner?.id
+                              ? Number(owner.id)
+                              : undefined,
+                        }
                         : undefined
                     }
                     onDuplicate={
@@ -515,135 +615,133 @@ export function GoalsTable({
             </div>
             {isOpen
               ? panels.map((panel) => {
-                  const measureName = measurePanelName(panel) || 'Measure'
-                  const measureProgress = measurePanelProgress(panel)
-                  const measureWeight =
-                    panels.length === 1
-                      ? 100
-                      : panel.kind === 'metric'
-                        ? panel.metric.weight
-                        : panel.weight
-                  const allocatedMeasureWeight = sumPanelWeights(
-                    goal.measurements,
-                  )
-                  const maxMeasureWeight = Math.max(
-                    0,
-                    100 - (allocatedMeasureWeight - measureWeight),
-                  )
-                  const canEditThisMeasure =
-                    canEditWeight &&
-                    Boolean(onMeasureWeightChange) &&
-                    canEditMeasurementWeights(goal.measurements)
-                  const logHover = {
-                    measureName,
-                    entries: measurePanelProgressLog(panel),
-                    metric:
-                      panel.kind === 'metric' ? panel.metric : undefined,
-                    lists:
-                      panel.kind === 'todo_measure' ? panel.lists : undefined,
-                    canLog:
-                      canLogProgress &&
-                      (panel.kind === 'metric'
-                        ? Boolean(onRecordMetricProgress)
-                        : Boolean(onToggleMilestone)),
-                    onRecord:
-                      panel.kind === 'metric' && onRecordMetricProgress
-                        ? (nextValue: number | undefined) =>
-                            onRecordMetricProgress(
-                              goal.id,
-                              panel.metric.id,
-                              nextValue,
-                            )
-                        : undefined,
-                    onToggleTodo:
-                      panel.kind === 'todo_measure' && onToggleMilestone
-                        ? (todoId: string, complete: boolean) =>
-                            onToggleMilestone(goal.id, todoId, complete)
-                        : undefined,
-                  }
-                  const isMeasureSelected = Boolean(
-                    onOpen && openGoalId === goal.id && selectedMeasureKey === panel.key,
-                  )
-                  const measureOpenRow = onOpen
-                    ? {
-                        tabIndex: 0 as const,
-                        onClick: () => openMeasure(panel.key),
-                        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault()
-                            openMeasure(panel.key)
-                          }
-                        },
+                const measureName = measurePanelName(panel) || 'Metric'
+                const measureProgress = measurePanelProgress(panel)
+                const measureWeight = measurePanelTableWeight(
+                  panel,
+                  panels.length,
+                )
+                const allocatedMeasureWeight = sumPanelWeights(
+                  goal.measurements,
+                )
+                const maxMeasureWeight = Math.max(
+                  0,
+                  100 - (allocatedMeasureWeight - measureWeight),
+                )
+                const canEditThisMeasure =
+                  canEditWeight &&
+                  Boolean(onMeasureWeightChange) &&
+                  canEditMeasurementWeights(goal.measurements)
+                const logHover = {
+                  measureName,
+                  entries: measurePanelProgressLog(panel),
+                  metric:
+                    panel.kind === 'metric' ? panel.metric : undefined,
+                  lists:
+                    panel.kind === 'todo_measure' ? panel.lists : undefined,
+                  canLog:
+                    canLogProgress &&
+                    (panel.kind === 'metric'
+                      ? Boolean(onRecordMetricProgress)
+                      : Boolean(onToggleMilestone)),
+                  onRecord:
+                    panel.kind === 'metric' && onRecordMetricProgress
+                      ? (nextValue: number | undefined) =>
+                        onRecordMetricProgress(
+                          goal.id,
+                          panel.metric.id,
+                          nextValue,
+                        )
+                      : undefined,
+                  onToggleTodo:
+                    panel.kind === 'todo_measure' && onToggleMilestone
+                      ? (todoId: string, complete: boolean) =>
+                        onToggleMilestone(goal.id, todoId, complete)
+                      : undefined,
+                }
+                const isMeasureSelected = Boolean(
+                  onOpen && openGoalId === goal.id && selectedMeasureKey === panel.key,
+                )
+                const measureOpenRow = onOpen
+                  ? {
+                    tabIndex: 0 as const,
+                    onClick: () => openMeasure(panel.key),
+                    onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        openMeasure(panel.key)
                       }
-                    : {}
-                  return (
-                    <div
-                      key={panel.key}
-                      className={[
-                        'pd-goals-table__row',
-                        'pd-goals-table__row--measure',
-                        isMeasureSelected ? 'is-selected' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      role="row"
-                      {...measureOpenRow}
-                    >
-                      {showOwner ? (
-                        <div className="pd-goals-table__owner" role="cell" />
-                      ) : null}
-                      <div className="pd-goals-table__goal" role="cell">
-                        <MeasureNameCell
-                          name={measureName}
-                          panel={panel}
-                          logAction={<GoalMeasureLogHover {...logHover} />}
-                        />
-                      </div>
-                      <div className="pd-goals-table__weight" role="cell">
-                        {canEditThisMeasure ? (
-                          <WeightHoverField
-                            weight={measureWeight}
-                            ariaLabel={`Weight for ${measureName}`}
-                            maxWeight={maxMeasureWeight}
-                            onChange={(weight) => {
-                              onMeasureWeightChange?.(
-                                goal.id,
-                                setMeasurementPanelWeight(
-                                  goal.measurements,
-                                  panel.key,
-                                  Math.min(weight, maxMeasureWeight),
-                                ),
-                              )
-                            }}
-                          />
-                        ) : (
-                          <span className="pd-goals-table__weight-pill">
-                            {formatWeightReadout(measureWeight)}
-                          </span>
-                        )}
-                      </div>
-                      <div className="pd-goals-table__progress" role="cell">
-                        <div className="pd-goals-table__progress-meta">
-                          <GoalProgressAge
-                            at={measurePanelLatestProgressAt(panel)}
-                          />
-                          <span className="pd-goals-table__progress-label">
-                            {measureProgress}%
-                          </span>
-                        </div>
-                        <Progress value={measureProgress} />
-                      </div>
-                      <div className="pd-goals-table__metric" role="cell">
-                        <div className="pd-goals-table__metric-line">
-                          <GoalMeasureReadout panel={panel} />
-                        </div>
-                      </div>
-                      {showActions ? (
-                        <div className="pd-goals-table__actions" role="cell" />
-                      ) : null}
+                    },
+                  }
+                  : {}
+                return (
+                  <div
+                    key={panel.key}
+                    className={[
+                      'pd-goals-table__row',
+                      'pd-goals-table__row--measure',
+                      isMeasureSelected ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    role="row"
+                    {...measureOpenRow}
+                  >
+                    {showOwner ? (
+                      <div className="pd-goals-table__owner" role="cell" />
+                    ) : null}
+                    <div className="pd-goals-table__goal" role="cell">
+                      <MeasureNameCell
+                        name={measureName}
+                        panel={panel}
+                        logAction={<GoalMeasureLogHover {...logHover} />}
+                      />
                     </div>
-                  )
-                })
+                    <div className="pd-goals-table__weight" role="cell">
+                      {canEditThisMeasure ? (
+                        <WeightHoverField
+                          weight={measureWeight}
+                          ariaLabel={`Weight for ${measureName}`}
+                          maxWeight={maxMeasureWeight}
+                          onChange={(weight) => {
+                            onMeasureWeightChange?.(
+                              goal.id,
+                              setMeasurementPanelWeight(
+                                goal.measurements,
+                                panel.key,
+                                Math.min(weight, maxMeasureWeight),
+                              ),
+                            )
+                          }}
+                        />
+                      ) : (
+                        <span className="pd-goals-table__weight-pill">
+                          {formatWeightReadout(measureWeight)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="pd-goals-table__progress" role="cell">
+                      <div className="pd-goals-table__progress-meta">
+                        <GoalProgressAge
+                          at={measurePanelLatestProgressAt(panel)}
+                        />
+                        <span className="pd-goals-table__progress-label">
+                          {measureProgress}%
+                        </span>
+                      </div>
+                      <Progress value={measureProgress} />
+                    </div>
+                    <div className="pd-goals-table__metric" role="cell">
+                      <div className="pd-goals-table__metric-line">
+                        <GoalMeasureReadout panel={panel} />
+                      </div>
+                    </div>
+                    {showActions ? (
+                      <div className="pd-goals-table__actions" role="cell" />
+                    ) : null}
+                  </div>
+                )
+              })
               : null}
           </div>
         )

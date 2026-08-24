@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import {
+  ActivityLogDrawer,
+  ActivityLogTrigger,
+} from '@/components/activity/ActivityLogDrawer'
 import { Button, ConfirmDialog, Field, ListboxSelect, PageStatus } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import { useHydrateManagerDelegations } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { selectGoalCycle } from '@/lib/goalsApi'
 import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store'
@@ -47,6 +52,7 @@ import {
 } from '@/pages/reviews/ReviewSaveBanner'
 import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
 import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
+import '@/styles/layout-activity.css'
 
 type PacketDraft = {
   answers: Array<{ questionId: string; body: string }>
@@ -102,6 +108,7 @@ type ReviewPacketViewProps = {
 export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps) {
   const navigate = useNavigate()
   const { user } = useAuth()
+  useHydrateManagerDelegations(user?.employeeId ?? undefined)
   const { employees, isLoading: employeesLoading } = useEmployees()
   const [packet, setPacket] = useState<ReviewPacket | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -114,6 +121,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const [isDirty, setDirty] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
+  const [activityOpen, setActivityOpen] = useState(false)
   const cycle = getReviewCycle(cycleId)
   const policyResolution = cycle
     ? resolveCyclePolicyForPerson(cycle, employeeId)
@@ -331,6 +339,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       <p className="pd-reviews-flow__path">
         {describeEnabledFlow(stages)}
       </p>
+      <ActivityLogTrigger
+        label="View review activity"
+        onClick={() => setActivityOpen(true)}
+      />
 
       {detail && linkedQuarters.enabled ? (
         <AnnualGoalsQuarters
@@ -551,6 +563,13 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           }}
         />
       ) : null}
+      <ActivityLogDrawer
+        open={activityOpen}
+        onClose={() => setActivityOpen(false)}
+        title="Review activity"
+        description="Self-review, manager review, calibration, and release for this person."
+        filters={{ cycleId, subjectEmployeeId: employeeId }}
+      />
     </div>
   )
 }

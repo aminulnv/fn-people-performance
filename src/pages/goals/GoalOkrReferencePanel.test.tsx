@@ -12,7 +12,9 @@ describe("GoalOkrReferencePanel", () => {
       />,
     );
 
-    expect(screen.getByText("Engineering / Platform")).toBeInTheDocument();
+    expect(
+      screen.getByText("FundedNext / Engineering / Platform"),
+    ).toBeInTheDocument();
     expect(screen.getByText("Read-only reference")).toBeInTheDocument();
   });
 

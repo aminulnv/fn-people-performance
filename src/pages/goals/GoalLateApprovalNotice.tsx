@@ -1,41 +1,9 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { Clock } from 'lucide-react'
-import { Avatar } from '@/components/ui'
-import { avatarStyle } from '@/lib/employees/avatar'
 import type { PersonGoals } from '@/lib/goals/types'
+import { PersonOrRole, type MentionPerson } from './PersonMention'
 
-export type LateApprovalPerson = {
-  id?: string | null
-  name: string
-  avatarUrl?: string
-}
-
-function PersonChip({ person }: { person: LateApprovalPerson }) {
-  const inner = (
-    <>
-      <Avatar
-        name={person.name}
-        src={person.avatarUrl}
-        size="sm"
-        className="pd-goals-late__avatar"
-        alt=""
-        style={avatarStyle(person.name)}
-      />
-      <span className="pd-goals-late__person-name">{person.name}</span>
-    </>
-  )
-
-  if (!person.id) {
-    return <span className="pd-goals-late__person">{inner}</span>
-  }
-
-  return (
-    <Link to={`/people/${person.id}`} className="pd-goals-late__person">
-      {inner}
-    </Link>
-  )
-}
+export type LateApprovalPerson = MentionPerson
 
 /**
  * Employee-facing status for a goal set submitted after the deadline, naming
@@ -51,15 +19,14 @@ export function GoalLateApprovalNotice({
   skipLevelManager?: LateApprovalPerson | null
 }) {
   const awaitingManager = stage === 'manager'
-  const managerLabel: ReactNode = manager ? (
-    <PersonChip person={manager} />
-  ) : (
-    'the direct manager'
+  const managerLabel: ReactNode = (
+    <PersonOrRole person={manager} fallback="the direct manager" />
   )
-  const skipLevelLabel: ReactNode = skipLevelManager ? (
-    <PersonChip person={skipLevelManager} />
-  ) : (
-    'the skip-level manager'
+  const skipLevelLabel: ReactNode = (
+    <PersonOrRole
+      person={skipLevelManager}
+      fallback="the skip-level manager"
+    />
   )
 
   return (
@@ -76,13 +43,11 @@ export function GoalLateApprovalNotice({
         <p className="pd-goals-late__body">
           {awaitingManager ? (
             <>
-              Awaiting {managerLabel} approval, then {skipLevelLabel} gives
-              final approval.
+              Awaiting {managerLabel}, then {skipLevelLabel}.
             </>
           ) : (
             <>
-              {managerLabel} approved · awaiting final approval from{' '}
-              {skipLevelLabel}.
+              Awaiting {skipLevelLabel}.
             </>
           )}
         </p>
