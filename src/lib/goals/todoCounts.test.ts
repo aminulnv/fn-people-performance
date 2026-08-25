@@ -8,6 +8,7 @@ import {
 import {
   countGoalTodosForPerson,
   countOwnGoalTodos,
+  countReportGoalTodos,
   goalTodoBadgeLabel,
   totalGoalTodos,
 } from './todoCounts'
@@ -124,6 +125,40 @@ describe('countGoalTodosForPerson', () => {
     expect(totalGoalTodos(counts)).toBe(3)
   })
 
+  it('counts action required on a report draft the same way as own goals', () => {
+    const manager = person({ id: 'm1', name: 'Manager', reportIds: ['e1'] })
+    const report = person({ id: 'e1', name: 'Report', managerId: 'm1' })
+    const counts = countGoalTodosForPerson(manager, {
+      cycle: snapshotCycle('group-1'),
+      people: [manager, report],
+      byPerson: {
+        m1: row({ personId: 'm1', status: 'approved' }),
+        e1: row({ personId: 'e1', status: 'draft' }),
+      },
+    })
+
+    expect(counts).toEqual({ own: 0, reports: 1 })
+  })
+
+  it('counts sent-back and blockers on a report the manager can see', () => {
+    const manager = person({ id: 'm1', name: 'Manager', reportIds: ['e1'] })
+    const report = person({ id: 'e1', name: 'Report', managerId: 'm1' })
+    const counts = countGoalTodosForPerson(manager, {
+      cycle: snapshotCycle('group-1'),
+      people: [manager, report],
+      byPerson: {
+        m1: row({ personId: 'm1', status: 'approved' }),
+        e1: row({
+          personId: 'e1',
+          status: 'sent_back',
+          sendBackReason: 'Fix the matrix',
+        }),
+      },
+    })
+
+    expect(counts).toEqual({ own: 0, reports: 2 })
+  })
+
   it('does not count own action required when the person is outside the cycle', () => {
     const subject = person({ id: '1', name: 'Aminul' })
     const counts = countGoalTodosForPerson(subject, {
@@ -152,9 +187,23 @@ describe('countGoalTodosForPerson', () => {
   })
 })
 
+describe('countReportGoalTodos', () => {
+  it('adds pending review to the same attention items as My Goals', () => {
+    expect(
+      countReportGoalTodos(
+        [
+          { row: row({ personId: 'e1', status: 'submitted' }) },
+          { row: row({ personId: 'e2', status: 'draft' }) },
+        ],
+        snapshotCycle('group-1'),
+      ),
+    ).toBe(2)
+  })
+})
+
 describe('goalTodoBadgeLabel', () => {
-  it('names report approvals separately from own attention items', () => {
-    expect(goalTodoBadgeLabel(1, 'reports')).toBe('1 awaiting review')
+  it('uses the same attention copy on My Goals and My Reports', () => {
+    expect(goalTodoBadgeLabel(1, 'reports')).toBe('1 item needs attention')
     expect(goalTodoBadgeLabel(1, 'own')).toBe('1 item needs attention')
     expect(goalTodoBadgeLabel(2, 'total')).toBe('2 items need attention')
     expect(goalTodoBadgeLabel(0, 'total')).toBeUndefined()

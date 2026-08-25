@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import {
   Link,
@@ -15,6 +15,7 @@ import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store
 import { useAuth } from '@/lib/auth'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { fetchReviewPacket } from '@/lib/reviews/packetsApi'
+import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { reviewsTabPath } from '@/lib/reviews/paths'
 import {
   buildScorecardDetail,
@@ -124,6 +125,21 @@ export default function ScorecardDetailPage() {
       cancelled = true
     }
   }, [employeeId, resolvedCycleId])
+
+  const refreshLivePacket = useCallback(
+    (event: { cycleId?: string; employeeId?: string }) => {
+      if (!Number.isInteger(employeeId) || employeeId <= 0) return
+      if (event.cycleId && event.cycleId !== resolvedCycleId) return
+      if (event.employeeId && event.employeeId !== String(employeeId)) return
+      void fetchReviewPacket(resolvedCycleId, employeeId)
+        .then(setPacket)
+        .catch(() => {
+          /* Keep the open packet until the next event or navigation. */
+        })
+    },
+    [employeeId, resolvedCycleId],
+  )
+  useLiveTopic('packets', refreshLivePacket)
 
   const detail = useMemo(() => {
     if (!Number.isInteger(employeeId) || employeeId <= 0) return null

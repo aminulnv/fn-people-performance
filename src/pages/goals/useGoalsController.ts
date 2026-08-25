@@ -81,7 +81,7 @@ export type GoalsControllerActions = {
     goalId: string,
     child: { personId: string; goalId: string },
   ) => Promise<void>;
-  saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<void>;
+  saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<boolean>;
   approve: (subjectId: string, goals?: Goal[]) => Promise<void>;
   sendBack: (subjectId: string, reason: string) => Promise<void>;
 };
@@ -455,9 +455,10 @@ export function useGoalsController({
         );
       },
       async saveAndSubmit(targetSubjectId, goals) {
-        await run(() =>
+        const result = await run(() =>
           submitGoals(mutationContext(targetSubjectId), goals),
         );
+        return result !== undefined;
       },
       async approve(targetSubjectId, goals) {
         await run(() => approveGoals(mutationContext(targetSubjectId), goals));

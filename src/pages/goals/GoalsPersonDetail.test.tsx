@@ -8,6 +8,7 @@ import {
   getGoalsSnapshot,
   resetGoalsDemo,
   savePersonGoals,
+  sendBackSubmission,
   setActivePerson,
   setSignedInPerson,
 } from '@/lib/goals/store'
@@ -21,6 +22,22 @@ import GoalsPage from '@/pages/GoalsPage'
 
 const MANAGER_ID = '2'
 const REPORT_ID = '1'
+
+function openGoalActions() {
+  fireEvent.mouseEnter(
+    screen.getByRole('button', { name: 'Goal actions' }).closest('.pd-menu')!,
+  )
+}
+
+function startEditingGoal() {
+  openGoalActions()
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+}
+
+function saveGoalDraft() {
+  openGoalActions()
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Save' }))
+}
 
 async function seedDirectory(reportStartDate = '2024-01-01') {
   const rows = [
@@ -207,9 +224,60 @@ describe('GoalsPersonDetail manager review', () => {
     fireEvent.click(await screen.findByText(goal.description))
 
     expect(getGoalsSnapshot().activePersonId).toBe(MANAGER_ID)
-    expect(screen.getByRole('button', { name: 'Edit goal' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument()
+    openGoalActions()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeInTheDocument()
+  })
+
+  it('keeps a sent-back report goal local until Save in the side sheet', async () => {
+    const snapshot = getGoalsSnapshot()
+    sendBackSubmission(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: MANAGER_ID,
+        subjectId: REPORT_ID,
+      },
+      'Please revise the targets.',
+    )
+    const goal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(goal).toBeTruthy()
+    const persistedTaskCount = goal.measurements.filter(
+      (item) => item.kind === 'milestone',
+    ).length
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+    fireEvent.click(await screen.findByText(goal.description))
+    startEditingGoal()
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
+
+    openGoalActions()
+    const save = screen.getByRole('menuitem', { name: 'Save' })
+    expect(save).toBeEnabled()
+    expect(
+      getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
+        (item) => item.kind === 'milestone',
+      ),
+    ).toHaveLength(persistedTaskCount)
+
+    fireEvent.click(save)
+    await waitFor(() => {
+      expect(
+        getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
+          (item) => item.kind === 'milestone',
+        ),
+      ).toHaveLength(persistedTaskCount + 1)
+    })
+    openGoalActions()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
   })
 
   it('lets a manager edit report weights from the table after confirming reapproval', async () => {
@@ -308,6 +376,73 @@ describe('GoalsPersonDetail manager review', () => {
       expect(screen.getAllByText(goal.description).length).toBeGreaterThan(0)
     })
   })
+
+  it('shows the same late and action-required notices the report would see', async () => {
+    const snapshot = getGoalsSnapshot()
+    savePersonGoals(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: REPORT_ID,
+        subjectId: REPORT_ID,
+      },
+      [
+        {
+          id: 'goal-test',
+          ownerId: REPORT_ID,
+          description: 'test',
+          weight: 50,
+          measurements: [],
+        },
+      ],
+    )
+
+    renderReportGoals()
+
+    const banner = await screen.findByLabelText('Late Submission')
+    expect(banner).toHaveTextContent('Approval Required')
+    expect(banner).toHaveTextContent('Line Manager')
+    expect(banner).not.toHaveTextContent('You')
+
+    const alert = screen.getByRole('alert')
+    expect(alert).toHaveTextContent('Action required')
+    expect(alert).toHaveTextContent('Add at least 2 goals')
+    expect(
+      screen.getByRole('button', { name: 'Add another goal' }),
+    ).toBeInTheDocument()
+  })
+
+  it('shows a send-back comment when the manager reviews that set', async () => {
+    const snapshot = getGoalsSnapshot()
+    sendBackSubmission(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: MANAGER_ID,
+        subjectId: REPORT_ID,
+      },
+      'Please revise the targets.',
+    )
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+
+    expect(
+      await screen.findByText(/Sent back for changes/),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Please revise the targets/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Late Submission')).toBeInTheDocument()
+    const notice = screen.getByRole('status')
+    const table = screen.getByRole('table', { name: 'Direct Report goals' })
+    expect(notice).toHaveClass('pd-goals-banner--sendback')
+    expect(table.parentElement).toHaveClass('pd-goals-table-wrap--sendback')
+    expect(table.parentElement).toContainElement(notice)
+    expect(table).not.toContainElement(notice)
+  })
 })
 
 function signInReport() {
@@ -360,13 +495,58 @@ describe('GoalsPersonDetail submission status', () => {
     expect(
       screen.getByRole('columnheader', { name: 'Goals Draft' }),
     ).toBeInTheDocument()
-    const trail = screen.getByRole('list', { name: /You/ })
+    const banner = screen.getByLabelText('Late Submission')
+    const trail = screen.getByRole('list', { name: /Line Manager/ })
+    expect(banner).toContainElement(trail)
+    expect(card).not.toContainElement(banner)
     expect(card).not.toContainElement(trail)
-    expect(trail).toHaveTextContent('You')
+    expect(trail).toHaveTextContent('Line Manager')
+    expect(trail).not.toHaveTextContent('You')
     expect(screen.getByRole('button', { name: 'Submit All' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add Goal' })).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Approve' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('shows a success toast after creating a goal', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add Goal' }))
+    fireEvent.change(await screen.findByPlaceholderText('Name this goal'), {
+      target: { value: 'Ship the launch' },
+    })
+    saveGoalDraft()
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Goal created.')
+    expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
+  })
+
+  it('shows a success message after submitting goals', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Submit All' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Goals submitted.')
+    expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Submit All' }),
     ).not.toBeInTheDocument()
   })
 
@@ -400,14 +580,21 @@ describe('GoalsPersonDetail submission status', () => {
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent('Action required')
     expect(alert).toHaveTextContent('Add at least 2 goals')
-    expect(alert).toHaveTextContent('Weights need to add up to 100%')
+    expect(alert).not.toHaveTextContent('Weights need to add up to 100%')
     expect(alert).not.toHaveTextContent('still needs a metric')
     expect(
       screen.getByRole('button', { name: 'Add another goal' }),
     ).toBeInTheDocument()
+    const metricIcons = screen.getAllByRole('img', {
+      name: 'Still needs a metric.',
+    })
+    expect(metricIcons.length).toBeGreaterThanOrEqual(2)
     expect(
-      screen.getByRole('img', { name: 'Still needs a metric.' }),
-    ).toBeInTheDocument()
+      metricIcons.some((icon) => icon.closest('.pd-goals-table__metric-head')),
+    ).toBe(true)
+    expect(
+      metricIcons.some((icon) => icon.closest('.pd-goals-table__metric')),
+    ).toBe(true)
 
     fireEvent.click(screen.getByTitle('test'))
     const drawer = await screen.findByRole('dialog', { name: 'View test' })
@@ -439,6 +626,49 @@ describe('GoalsPersonDetail submission status', () => {
     expect(
       screen.queryByRole('columnheader', { name: 'Approval' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('closes the goal window without a draft prompt after a progress log', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    const goal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(goal).toBeTruthy()
+    const metric = goal.measurements.find((item) => item.kind === 'metric')
+    expect(metric?.kind).toBe('metric')
+    if (metric?.kind !== 'metric') throw new Error('expected a metric')
+
+    fireEvent.click(await screen.findByText(goal.description))
+    const drawer = await screen.findByRole('dialog', {
+      name: `View ${goal.description}`,
+    })
+    fireEvent.change(
+      screen.getByLabelText(`Current progress for ${metric.title}`),
+      { target: { value: '42' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: `Add update for ${metric.title}` }),
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Save as draft' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close goal' }))
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Unsaved changes' }),
+    ).not.toBeInTheDocument()
+    expect(drawer).not.toBeInTheDocument()
+    await waitFor(() => {
+      const persisted = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+      const updated = persisted?.measurements.find((item) => item.id === metric.id)
+      expect(updated && updated.kind === 'metric' ? updated.currentValue : null).toBe(42)
+    })
   })
 
   it('expands nested measures from the goal row arrow', async () => {

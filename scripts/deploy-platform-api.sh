@@ -161,6 +161,12 @@ block = f"""    location /api/platform/ {{
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 24h;
+        proxy_send_timeout 24h;
+        add_header X-Accel-Buffering no;
     }}
 """
 needle = "    location / {"
@@ -174,6 +180,39 @@ PY
   echo "  nginx reloaded"
 else
   echo "  nginx /api/platform/ already configured"
+fi
+
+sudo python3 - "$NGINX_SITE" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text()
+marker = "location /api/platform/"
+start = text.find(marker)
+if start < 0:
+    raise SystemExit(0)
+brace = text.find("{", start)
+end = text.find("}", brace)
+block = text[brace : end + 1]
+needed = [
+    "proxy_set_header Connection '';",
+    "proxy_buffering off;",
+    "proxy_cache off;",
+    "proxy_read_timeout 24h;",
+    "proxy_send_timeout 24h;",
+    "add_header X-Accel-Buffering no;",
+]
+missing = [line for line in needed if line not in block]
+if not missing:
+    raise SystemExit(0)
+insert = "\n".join(f"        {line}" for line in missing) + "\n"
+updated = text[:end] + insert + text[end:]
+path.write_text(updated)
+print("  enabled SSE-friendly /api/platform/ proxy settings")
+PY
+if sudo nginx -t >/dev/null 2>&1; then
+  sudo systemctl reload nginx
 fi
 
 echo "[platform-api] Building + starting Docker service on :$API_PORT …"

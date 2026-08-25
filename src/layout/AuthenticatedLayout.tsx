@@ -5,6 +5,7 @@ import { AppLayout } from './AppLayout'
 import { useAuth } from '@/lib/auth'
 import { layoutConfig } from '@/config/layout'
 import { queryClient } from '@/lib/queryClient'
+import { PlatformRealtime } from '@/lib/realtime/usePlatformRealtime'
 import '@/styles/layout-shell.css'
 import '@/styles/layout-assistant.css'
 import '@/styles/layout-search.css'
@@ -33,6 +34,7 @@ export default function AuthenticatedLayout() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <PlatformRealtime />
       <AppLayout {...layoutConfig} onSignOut={handleSignOut} />
     </QueryClientProvider>
   )

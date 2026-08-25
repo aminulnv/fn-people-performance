@@ -27,6 +27,11 @@ export function markOwnGoalsHydrated(cycleId: string): void {
   emit()
 }
 
+/** Cycles already pulled from the API — live refresh only reloads these. */
+export function listHydratedGoalCycleIds(): string[] {
+  return [...cycleReadyCycles]
+}
+
 export function markCycleGoalsHydrated(cycleId: string): void {
   if (!cycleId) return
   const already = cycleReadyCycles.has(cycleId)

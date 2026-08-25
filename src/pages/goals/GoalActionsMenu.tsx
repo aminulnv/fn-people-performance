@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Copy, GitFork, History, Maximize2, MoreHorizontal, Trash2 } from 'lucide-react'
-import { ConfirmDialog, DropdownMenu } from '@/components/ui'
+import { ConfirmDialog, DropdownMenu, type DropdownMenuItem } from '@/components/ui'
 import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
@@ -16,6 +16,7 @@ export function hasGoalActions({
   canRemove = false,
   onViewActivity,
   fullViewHref,
+  extraItems,
 }: {
   onDuplicate?: unknown
   onCascade?: unknown
@@ -23,9 +24,11 @@ export function hasGoalActions({
   canRemove?: boolean
   onViewActivity?: unknown
   fullViewHref?: string
+  extraItems?: { length?: number }
 }) {
   return Boolean(
-    fullViewHref ||
+    extraItems?.length ||
+      fullViewHref ||
       onDuplicate ||
       onCascade ||
       (canRemove && onRemove) ||
@@ -72,6 +75,7 @@ export function GoalActionsMenu({
   cascadeTargets = [],
   activityFilters,
   fullViewHref,
+  extraItems = [],
   onDuplicate,
   onCascade,
   onRemove,
@@ -88,10 +92,12 @@ export function GoalActionsMenu({
   }
   /** Opens the unified goal detail page in the main window. */
   fullViewHref?: string
+  extraItems?: DropdownMenuItem[]
   onDuplicate?: () => void
   onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
 }) {
+  const navigate = useNavigate()
   const [cascadeOpen, setCascadeOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [removeOpen, setRemoveOpen] = useState(false)
@@ -105,6 +111,7 @@ export function GoalActionsMenu({
       canRemove,
       onViewActivity: canViewActivity,
       fullViewHref,
+      extraItems,
     })
   ) {
     return null
@@ -148,6 +155,7 @@ export function GoalActionsMenu({
 
   if (variant === 'menu') {
     const items = [
+      ...extraItems,
       onDuplicate
         ? {
             id: 'duplicate',
@@ -163,6 +171,16 @@ export function GoalActionsMenu({
             icon: <GitFork size={16} strokeWidth={1.75} />,
             disabled: !canCascade,
             onSelect: () => setCascadeOpen(true),
+          }
+        : null,
+      fullViewHref
+        ? {
+            id: 'full-view',
+            label: 'Full view',
+            icon: <Maximize2 size={16} strokeWidth={1.75} />,
+            onSelect: () => {
+              navigate(fullViewHref)
+            },
           }
         : null,
       canViewActivity

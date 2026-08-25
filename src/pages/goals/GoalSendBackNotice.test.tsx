@@ -30,4 +30,20 @@ describe('GoalSendBackNotice', () => {
     )
     expect(screen.getByRole('img', { name: 'Line Manager' })).toBeInTheDocument()
   })
+
+  it('renders a flush ribbon when asked', () => {
+    render(
+      <GoalSendBackNotice
+        layout="ribbon"
+        reason="Hey, work on the goal titles a bit!"
+      />,
+    )
+
+    const note = screen.getByRole('status')
+    expect(note).toHaveClass('pd-goals-sendback--ribbon')
+    expect(note).toHaveClass('pd-goals-banner--sendback')
+    expect(note).toHaveTextContent(
+      'Sent back for changes: Hey, work on the goal titles a bit!',
+    )
+  })
 })

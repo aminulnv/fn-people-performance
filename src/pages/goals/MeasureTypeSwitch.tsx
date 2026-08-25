@@ -35,9 +35,13 @@ export function MeasureTypeIcon({ kind }: { kind: MeasureMethod }) {
 export function MeasureTypeAddButtons({
   onAddMilestone,
   onAddNumber,
+  disabled = false,
+  disabledTitle = 'Name the metric first',
 }: {
   onAddMilestone: () => void
   onAddNumber: () => void
+  disabled?: boolean
+  disabledTitle?: string
 }) {
   return (
     <section
@@ -48,6 +52,8 @@ export function MeasureTypeAddButtons({
       <button
         type="button"
         className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+        disabled={disabled}
+        title={disabled ? disabledTitle : undefined}
         onClick={onAddMilestone}
       >
         <ListTodo size={16} strokeWidth={1.75} aria-hidden />
@@ -56,6 +62,8 @@ export function MeasureTypeAddButtons({
       <button
         type="button"
         className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+        disabled={disabled}
+        title={disabled ? disabledTitle : undefined}
         onClick={onAddNumber}
       >
         <Hash size={16} strokeWidth={1.75} aria-hidden />

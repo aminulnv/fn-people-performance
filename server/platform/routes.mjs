@@ -29,6 +29,8 @@ import { listActivityEvents } from './activity.mjs'
 import { registerReviewCycleRoutes } from './reviewCycles/routes.mjs'
 import { registerReviewPacketRoutes } from './reviewPackets/routes.mjs'
 import { registerGoalRoutes } from './goals/routes.mjs'
+import { registerRealtimeRoutes } from './realtime/routes.mjs'
+import { publishWrite } from './realtime/fromRequest.mjs'
 import {
   assignManagerDelegation,
   canViewManagerDelegations,
@@ -47,6 +49,7 @@ function toHttp(err) {
 
 export function registerPlatformRoutes(app) {
   registerPlatformAuthRoutes(app)
+  registerRealtimeRoutes(app)
 
   app.get(
     '/api/platform/health',
@@ -89,6 +92,7 @@ export function registerPlatformRoutes(app) {
         employeeId,
         String(req.params.notificationId),
       )
+      await publishWrite(req, ['notifications'], { employeeId })
       res.json({ ok: true })
     }),
   )
@@ -102,6 +106,7 @@ export function registerPlatformRoutes(app) {
         throw new HttpError(400, 'Signed-in employee is required')
       }
       await markAllPlatformNotificationsRead(employeeId)
+      await publishWrite(req, ['notifications'], { employeeId })
       res.json({ ok: true })
     }),
   )
@@ -143,6 +148,9 @@ export function registerPlatformRoutes(app) {
         req.platformUser.employeeId,
         req.platformUser,
       )
+      await publishWrite(req, ['access', 'employees', 'activity'], {
+        employeeId,
+      })
       res.json({ assignment })
     }),
   )
@@ -183,6 +191,7 @@ export function registerPlatformRoutes(app) {
         req.body ?? {},
         req.platformUser,
       )
+      await publishWrite(req, ['delegations', 'activity'])
       res.status(201).json({ delegation })
     }),
   )
@@ -196,6 +205,7 @@ export function registerPlatformRoutes(app) {
         req.params.delegationId,
         req.platformUser,
       )
+      await publishWrite(req, ['delegations', 'activity'])
       res.json({ delegation })
     }),
   )
@@ -232,6 +242,9 @@ export function registerPlatformRoutes(app) {
         const employee = await upsertPlatformEmployee(req.body ?? {}, {
           actor: req.platformUser,
         })
+        await publishWrite(req, ['employees', 'activity'], {
+          employeeId: employee?.employeeId ?? employee?.id,
+        })
         res.status(201).json({ employee })
       } catch (err) {
         throw toHttp(err)
@@ -255,6 +268,7 @@ export function registerPlatformRoutes(app) {
           replaceEmployeeId: employeeId,
           actor: req.platformUser,
         })
+        await publishWrite(req, ['employees', 'activity'], { employeeId })
         res.json({ employee })
       } catch (err) {
         throw toHttp(err)
@@ -281,6 +295,7 @@ export function registerPlatformRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['employees', 'activity'])
         res.status(201).json({ department })
       } catch (err) {
         throw toHttp(err)

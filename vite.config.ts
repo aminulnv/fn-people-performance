@@ -68,6 +68,8 @@ export default defineConfig(({ command }) => ({
           'https://performance.nextventures.io',
         changeOrigin: true,
         secure: false,
+        timeout: 0,
+        proxyTimeout: 0,
         configure(proxy) {
           proxy.on('proxyReq', (proxyReq) => {
             // Always advertise the Console-registered local origin, even if the

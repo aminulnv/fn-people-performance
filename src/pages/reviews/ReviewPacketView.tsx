@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ActivityLogDrawer,
@@ -36,6 +36,7 @@ import { getReviewCycle } from '@/lib/reviews/store'
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { calibrationIsEditable } from '@/lib/reviews/scorecardStages'
+import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
@@ -175,6 +176,21 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       cancelled = true
     }
   }, [cycleId, employeeId])
+
+  const refreshLivePacket = useCallback(
+    (event: { cycleId?: string; employeeId?: string }) => {
+      if (isDirty) return
+      if (event.cycleId && event.cycleId !== cycleId) return
+      if (event.employeeId && event.employeeId !== String(employeeId)) return
+      void fetchReviewPacket(cycleId, employeeId)
+        .then(setPacket)
+        .catch(() => {
+          /* Keep the open packet until the next event or navigation. */
+        })
+    },
+    [cycleId, employeeId, isDirty],
+  )
+  useLiveTopic('packets', refreshLivePacket)
 
   const stages = policyResolution?.stagesConfig.reviewStages
   const stageView = useScorecardViewStage({

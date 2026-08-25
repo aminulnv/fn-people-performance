@@ -19,6 +19,7 @@ import {
   assertGoalAccess,
   listVisibleGoalSubjectIds,
 } from './policy.mjs'
+import { publishWrite } from '../realtime/fromRequest.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -86,6 +87,10 @@ export function registerGoalRoutes(app) {
           req.platformUser,
           req.body?.expectedVersion,
         )
+        await publishWrite(req, ['goals', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -115,6 +120,10 @@ export function registerGoalRoutes(app) {
             expectedVersion: req.body?.expectedVersion,
           },
         )
+        await publishWrite(req, ['goals', 'notifications', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -139,6 +148,10 @@ export function registerGoalRoutes(app) {
           req.platformUser,
           req.body?.expectedVersion,
         )
+        await publishWrite(req, ['goals', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -177,6 +190,10 @@ export function registerGoalRoutes(app) {
           req.body?.expectedVersions ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['goals', 'notifications', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId: sourceEmployeeId,
+        })
         res.json({ submissions })
       } catch (err) {
         throw toHttp(err)
@@ -206,6 +223,10 @@ export function registerGoalRoutes(app) {
             expectedVersion: req.body?.expectedVersion,
           },
         )
+        await publishWrite(req, ['goals', 'notifications', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -231,6 +252,10 @@ export function registerGoalRoutes(app) {
           req.platformUser,
           req.body?.expectedVersion,
         )
+        await publishWrite(req, ['goals', 'notifications', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -256,6 +281,10 @@ export function registerGoalRoutes(app) {
           req.platformUser,
           req.body?.expectedVersion,
         )
+        await publishWrite(req, ['goals', 'activity'], {
+          cycleId: req.params.cycleId,
+          employeeId,
+        })
         res.json({ submission })
       } catch (err) {
         throw toHttp(err)
@@ -274,6 +303,7 @@ export function registerGoalRoutes(app) {
           req.platformUser,
           String(req.body?.fingerprint ?? ''),
         )
+        await publishWrite(req, ['goals', 'activity'])
         res.status(201).json({ imported })
       } catch (err) {
         throw toHttp(err)

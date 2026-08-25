@@ -1,12 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { CornerDownRight, CornerLeftDown, Pencil, Save, Send, Target } from "lucide-react";
-import {
-  Avatar,
-  Badge,
-  CountBadge,
-  SegmentedControl,
-} from "@/components/ui";
+import { ChevronRight, CornerDownRight, CornerLeftDown, Pencil, Save, Send, Target } from "lucide-react";
+import { Avatar, Badge, type DropdownMenuItem } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { newId } from "@/lib/goalsApi";
 import {
@@ -21,7 +16,7 @@ import type {
   PersonGoals,
 } from "@/lib/goals/types";
 import { validateGoalDraft } from "@/lib/goals/draft";
-import { editorGoalTitle } from "@/lib/goals/weightage";
+import { editorGoalTitle, isBlankGoalTitle } from "@/lib/goals/weightage";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
@@ -65,8 +60,6 @@ type CommentAuthor = {
   avatarUrl?: string;
 };
 
-type GoalViewTab = "goal" | "discuss";
-
 function commentAuthor(
   comment: { authorId?: string; authorName: string },
   authors: CommentAuthor[],
@@ -92,7 +85,7 @@ type GoalDetailViewProps = {
   commentAuthorName: string;
   commentAuthorId?: string;
   commentAuthors?: CommentAuthor[];
-  /** New unsaved goal — same form as edit, without discuss/approval chrome. */
+  /** New unsaved goal — same form as edit, without comments or approval chrome. */
   isNew?: boolean;
   canEdit?: boolean;
   canUpdateProgress?: boolean;
@@ -163,7 +156,6 @@ export function GoalDetailView({
   onRemove,
   highlightMeasureKey,
 }: GoalDetailViewProps) {
-  const [tab, setTab] = useState<GoalViewTab>("goal");
   const [flashingMeasureKey, setFlashingMeasureKey] = useState<string | null>(
     () => highlightMeasureKey ?? null,
   );
@@ -190,10 +182,9 @@ export function GoalDetailView({
   useEffect(() => {
     setCascadeFromOpen(false);
     setCascadeToOpen(false);
-    setNameTouched(false);
+    setNameTouched(isNew);
     setTitleDraft(editorGoalTitle(goal));
     setDetailsDraft(goal.details ?? "");
-    setTab("goal");
     setEditing(isNew);
     editSnapshotRef.current = null;
   }, [goal.id, isNew]);
@@ -203,7 +194,6 @@ export function GoalDetailView({
       setFlashingMeasureKey(null);
       return;
     }
-    setTab("goal");
     setFlashingMeasureKey(highlightMeasureKey);
     const timeout = window.setTimeout(() => setFlashingMeasureKey(null), 2800);
     return () => window.clearTimeout(timeout);
@@ -233,6 +223,7 @@ export function GoalDetailView({
   }, [isEditing, goal.id]);
 
   const title = goalTitle({ ...goal, description: titleDraft }, index);
+  const goalNamed = !isBlankGoalTitle({ description: titleDraft });
   const draftValidation = validateGoalDraft({
     ...goal,
     description: titleDraft,
@@ -240,7 +231,7 @@ export function GoalDetailView({
   });
   const textDraftDirty =
     titleDraft !== goal.description || detailsDraft !== (goal.details ?? "");
-  const saveEnabled = hasUnsavedChanges || textDraftDirty;
+  const saveEnabled = (hasUnsavedChanges || textDraftDirty) && goalNamed;
   const panels = measurementPanels(goal.measurements);
   const comments = goal.comments ?? [];
   const progressAuthor = {
@@ -329,7 +320,7 @@ export function GoalDetailView({
   };
 
   const cascadeFromControl =
-    isEditing && (cascadeFromOpen || cascadeFromSelected) ? (
+    isEditing && goalNamed && (cascadeFromOpen || cascadeFromSelected) ? (
       <section className="pd-goal-view__header-cascade" aria-label="Cascading from">
         <GoalCascadeField
           goal={goal}
@@ -352,6 +343,8 @@ export function GoalDetailView({
       <button
         type="button"
         className="pd-goal-create__add-field"
+        disabled={!goalNamed}
+        title={!goalNamed ? "Name the goal first" : undefined}
         onClick={() => setCascadeFromOpen(true)}
       >
         <CornerLeftDown size={11} strokeWidth={2.25} aria-hidden />
@@ -359,9 +352,10 @@ export function GoalDetailView({
       </button>
     ) : null;
 
-  const canEditCascadeTo = Boolean(
+  const canOfferCascadeTo = Boolean(
     isEditing && !isNew && (onLinkCascadeTo || onCascade),
   );
+  const canEditCascadeTo = Boolean(canOfferCascadeTo && goalNamed);
   const hasCascadeToChoices =
     cascadeToOptions.length > 0 ||
     Boolean(onCascade && cascadeTargets.length > 0);
@@ -392,10 +386,12 @@ export function GoalDetailView({
           }
         />
       </section>
-    ) : canEditCascadeTo && hasCascadeToChoices ? (
+    ) : canOfferCascadeTo && hasCascadeToChoices ? (
       <button
         type="button"
         className="pd-goal-create__add-field"
+        disabled={!goalNamed}
+        title={!goalNamed ? "Name the goal first" : undefined}
         onClick={() => setCascadeToOpen(true)}
       >
         <CornerDownRight size={11} strokeWidth={2.25} aria-hidden />
@@ -442,14 +438,63 @@ export function GoalDetailView({
     setComment("");
   };
 
-  const hasOverflowMenu = hasGoalActions({
+  const sessionActions: DropdownMenuItem[] = [];
+  if (canEdit && !isEditing) {
+    sessionActions.push({
+      id: "edit",
+      label: "Edit",
+      icon: <Pencil size={16} strokeWidth={1.75} />,
+      onSelect: () => onRequestEdit(startEditing),
+    });
+  }
+  if (isEditing && !isNew) {
+    sessionActions.push({
+      id: "cancel",
+      label: "Cancel",
+      onSelect: cancelEditing,
+    });
+  }
+  if (isEditing) {
+    sessionActions.push({
+      id: "save",
+      label: "Save",
+      icon: <Save size={16} strokeWidth={1.75} />,
+      disabled: !saveEnabled,
+      onSelect: () => onRequestEdit(saveDraft),
+    });
+  }
+  const showActions = hasGoalActions({
     onDuplicate,
     onRemove,
     canRemove,
     onViewActivity: Boolean(cycleId),
     fullViewHref,
+    extraItems: sessionActions,
   });
-  const showToolbar = hasOverflowMenu || canEdit;
+  const actionsMenu = showActions ? (
+    <GoalActionsMenu
+      variant="menu"
+      label="Goal actions"
+      canRemove={canRemove}
+      extraItems={sessionActions}
+      fullViewHref={fullViewHref}
+      activityFilters={
+        cycleId
+          ? {
+              goalId: goal.id,
+              cycleId,
+              subjectEmployeeId: subjectId
+                ? Number(subjectId)
+                : owner.id
+                  ? Number(owner.id)
+                  : undefined,
+            }
+          : undefined
+      }
+      onDuplicate={goalNamed ? onDuplicate : undefined}
+      onRemove={onRemove}
+    />
+  ) : null;
   const statusText =
     status === "submitted" && postWindowApprovalStage === "manager_manager"
       ? "Pending final approval"
@@ -471,14 +516,19 @@ export function GoalDetailView({
               {cycleLabel}
             </Badge>
           </p>
-          {isNew ? null : (
+          {isNew && !actionsMenu ? null : (
             <div className="pd-goal-view__window-meta">
-              <p className="pd-goal-view__updated">
-                {lastProgressAt
-                  ? `Updated ${formatRefreshAge(lastProgressAt)}`
-                  : "No updates yet"}
-              </p>
-              {statusBadge}
+              {isNew ? null : (
+                <>
+                  <p className="pd-goal-view__updated">
+                    {lastProgressAt
+                      ? `Updated ${formatRefreshAge(lastProgressAt)}`
+                      : "No updates yet"}
+                  </p>
+                  {statusBadge}
+                </>
+              )}
+              {actionsMenu}
             </div>
           )}
         </div>
@@ -520,7 +570,7 @@ export function GoalDetailView({
                   commitTitleDraft();
                 }}
               />
-              {nameTouched && draftValidation.nameError ? (
+              {(nameTouched || !goalNamed) && draftValidation.nameError ? (
                 <p className="pd-goal-create__title-error" role="alert">
                   {draftValidation.nameError}
                 </p>
@@ -566,42 +616,45 @@ export function GoalDetailView({
           <GoalSummaryCards
             goal={goal}
             onWeightChange={
-              isEditing ? (weight) => patchStructure({ weight }) : undefined
+              isEditing && goalNamed
+                ? (weight) => patchStructure({ weight })
+                : undefined
             }
           />
         </div>
-        {isNew ? null : (
-          <SegmentedControl
-            className="pd-goal-view__tabs"
-            aria-label="Goal sections"
-            value={tab}
-            onChange={setTab}
-            options={[
-              { id: "goal", label: "Goal" },
-              {
-                id: "discuss",
-                label: (
-                  <>
-                    Discuss
-                    <CountBadge count={comments.length} tone="danger" />
-                  </>
-                ),
-              },
-            ]}
-          />
-        )}
       </header>
 
-      {tab === "goal" ? (
-        <div className="pd-goal-view__panel">
+      <div className="pd-goal-view__panel">
           {goal.details?.trim() || isEditing ? (
-            <section className="pd-goal-view__note">
-              <label
-                className="pd-goal-view__note-label"
-                htmlFor={isEditing ? detailsFieldId : undefined}
+            <details
+              key={isEditing ? "edit" : "view"}
+              className="pd-goal-view__note"
+              open={isEditing || undefined}
+            >
+              <summary
+                className={
+                  isEditing
+                    ? "pd-goal-view__note-label is-static"
+                    : "pd-goal-view__note-label"
+                }
+                onClick={
+                  isEditing
+                    ? (event) => {
+                        event.preventDefault();
+                      }
+                    : undefined
+                }
               >
                 Description
-              </label>
+                {isEditing ? null : (
+                  <ChevronRight
+                    size={12}
+                    strokeWidth={2.25}
+                    className="pd-goal-view__note-chevron"
+                    aria-hidden
+                  />
+                )}
+              </summary>
               {isEditing ? (
                 <textarea
                   id={detailsFieldId}
@@ -609,6 +662,8 @@ export function GoalDetailView({
                   value={detailsDraft}
                   placeholder="Add a description (optional)"
                   rows={3}
+                  aria-label="Description"
+                  disabled={!goalNamed}
                   onFocus={() => {
                     detailsFocusedRef.current = true;
                   }}
@@ -623,7 +678,7 @@ export function GoalDetailView({
                   {goal.details?.trim()}
                 </p>
               )}
-            </section>
+            </details>
           ) : null}
 
           {isEditing ? (
@@ -632,10 +687,9 @@ export function GoalDetailView({
                 <GoalProgressEditor
                   goal={goal}
                   onChange={persistStructure}
-                  measureNameError={draftValidation.measurementNameError}
-                  measurementWeightError={draftValidation.measurementWeightError}
                   progressAuthor={progressAuthor}
                   cycleLabel={cycleLabel}
+                  locked={!goalNamed}
                 />
               </div>
             </div>
@@ -722,10 +776,9 @@ export function GoalDetailView({
               </div>
             </div>
           )}
-        </div>
-      ) : null}
+      </div>
 
-      {tab === "discuss" && !isNew ? (
+      {!isNew ? (
         <section className="pd-goal-view__comments" aria-label="Comments">
           {comments.length > 0 ? (
             <ul className="pd-goal-view__comment-list">
@@ -758,7 +811,7 @@ export function GoalDetailView({
               type="text"
               value={comment}
               placeholder="Add comment"
-              disabled={!canMutate}
+              disabled={!canMutate || (isEditing && !goalNamed)}
               onChange={(event) => setComment(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {
@@ -771,7 +824,7 @@ export function GoalDetailView({
               type="button"
               className="pd-goal-view__send"
               aria-label="Send comment"
-              disabled={!canMutate || !comment.trim()}
+              disabled={!canMutate || (isEditing && !goalNamed) || !comment.trim()}
               onClick={submitComment}
             >
               <Send size={16} strokeWidth={1.75} aria-hidden />
@@ -779,65 +832,6 @@ export function GoalDetailView({
           </label>
         </section>
       ) : null}
-
-      {showToolbar ? (
-        <footer className="pd-goal-view__toolbar">
-          {canEdit && !isEditing ? (
-            <button
-              type="button"
-              className="pd-people__ghost-btn"
-              aria-label="Edit goal"
-              onClick={() => onRequestEdit(startEditing)}
-            >
-              <Pencil size={16} strokeWidth={1.75} aria-hidden />
-              Edit
-            </button>
-          ) : null}
-          {isEditing && !isNew ? (
-            <button
-              type="button"
-              className="pd-people__ghost-btn"
-              onClick={cancelEditing}
-            >
-              Cancel
-            </button>
-          ) : null}
-          {isEditing ? (
-            <button
-              type="button"
-              className="pd-people__ghost-btn pd-people__ghost-btn--primary"
-              aria-label="Save as draft"
-              disabled={!saveEnabled}
-              onClick={() => onRequestEdit(saveDraft)}
-            >
-              <Save size={16} strokeWidth={1.75} aria-hidden />
-              Save
-            </button>
-          ) : null}
-          {hasOverflowMenu ? (
-            <GoalActionsMenu
-              canRemove={canRemove}
-              fullViewHref={fullViewHref}
-              activityFilters={
-                cycleId
-                  ? {
-                      goalId: goal.id,
-                      cycleId,
-                      subjectEmployeeId: subjectId
-                        ? Number(subjectId)
-                        : owner.id
-                          ? Number(owner.id)
-                          : undefined,
-                    }
-                  : undefined
-              }
-              onDuplicate={onDuplicate}
-              onRemove={onRemove}
-            />
-          ) : null}
-        </footer>
-      ) : null}
-
     </div>
   );
 }

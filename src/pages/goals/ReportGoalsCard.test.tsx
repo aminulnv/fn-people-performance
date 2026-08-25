@@ -108,29 +108,32 @@ describe('ReportGoalsCard', () => {
 
   it('marks a late submission awaiting final skip-level approval', () => {
     render(
-      <ReportGoalsCard
-        person={{ name: 'Aminul Islam' }}
-        status="submitted"
-        postWindowApprovalStage="manager_manager"
-        goalCount={3}
-        canApprove
-        canSendBack
-        busy={false}
-        sendBackOpen={false}
-        sendBackReason=""
-        onToggleSendBack={vi.fn()}
-        onSendBackReason={vi.fn()}
-        onApprove={vi.fn()}
-        onSendBack={vi.fn()}
-      >
-        <p>Improve delivery quality</p>
-      </ReportGoalsCard>,
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Aminul Islam' }}
+          status="submitted"
+          postWindowApprovalStage="manager_manager"
+          skipLevelManager={{ id: '42', name: 'Nafis' }}
+          goalCount={3}
+          canApprove
+          canSendBack
+          busy={false}
+          sendBackOpen={false}
+          sendBackReason=""
+          onToggleSendBack={vi.fn()}
+          onSendBackReason={vi.fn()}
+          onApprove={vi.fn()}
+          onSendBack={vi.fn()}
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
     )
 
-    expect(screen.getByText('Late submission')).toBeInTheDocument()
+    expect(screen.getByText('Late Submission')).toBeInTheDocument()
     expect(
-      screen.getByRole('list', { name: /Your approval is final/ }),
-    ).toHaveTextContent('You')
+      screen.getByRole('list', { name: /Awaiting Nafis/ }),
+    ).toHaveTextContent('Nafis')
     expect(
       screen.getByText('3 goals awaiting your approval').nextElementSibling,
     ).toHaveTextContent('Approve')
@@ -205,8 +208,36 @@ describe('ReportGoalsCard', () => {
     expect(personLink).toHaveAttribute('href', '/people/42')
     expect(personLink).toHaveTextContent('Nafis')
     expect(
-      screen.getByRole('list', { name: /You, then Nafis/ }),
+      screen.getByRole('list', { name: /Awaiting Manager, then Nafis/ }),
     ).toHaveTextContent('Nafis')
+  })
+
+  it('shows the same late banner on a draft the manager is reviewing', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="draft"
+          allowLateSubmissions
+          deadlineMissedAt="2026-07-01"
+          lineManager={{ id: '7', name: 'Api Singha' }}
+          skipLevelManager={{ id: '42', name: 'Angie Ng Yun Ni' }}
+          goalCount={1}
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    const banner = screen.getByLabelText('Late Submission')
+    const trail = screen.getByRole('list', {
+      name: 'Late submission. Api Singha, then Angie Ng Yun Ni',
+    })
+    expect(banner).toHaveTextContent('2 Level Approval Required')
+    expect(banner).toContainElement(trail)
+    expect(trail).toHaveTextContent('Api Singha')
+    expect(trail).toHaveTextContent('Angie Ng Yun Ni')
+    expect(trail).not.toHaveTextContent('You')
   })
 
   it('shows the owner submit actions and who will approve after they submit', () => {
@@ -269,10 +300,12 @@ describe('ReportGoalsCard', () => {
       name: 'Aminul Islam Borhan goals',
     })
     const trail = screen.getByRole('list', {
-      name: 'Late submission. Needs your changes, then Api Singha, then Angie Ng Yun Ni',
+      name: 'Late submission. Needs changes, then Api Singha, then Angie Ng Yun Ni',
     })
+    const banner = screen.getByLabelText('Late Submission')
+    expect(banner).toContainElement(trail)
+    expect(card).not.toContainElement(banner)
     expect(card).not.toContainElement(trail)
-    expect(trail).toHaveTextContent('Your changes')
     expect(trail).toHaveTextContent('Api Singha')
     expect(trail).toHaveTextContent('Angie Ng Yun Ni')
     expect(trail).not.toHaveTextContent('Awaiting')
@@ -297,10 +330,10 @@ describe('ReportGoalsCard', () => {
 
     const card = screen.getByRole('region', { name: 'Saif Ivna Alam goals' })
     const trail = screen.getByRole('list', {
-      name: 'Needs your changes, then Api Singha',
+      name: 'Needs changes, then Api Singha',
     })
     expect(card).not.toContainElement(trail)
-    expect(trail).toHaveTextContent('Your changes')
+    expect(trail).toHaveTextContent('Changes needed')
     expect(trail).toHaveTextContent('Api Singha')
     expect(card).not.toHaveTextContent('Awaiting')
   })

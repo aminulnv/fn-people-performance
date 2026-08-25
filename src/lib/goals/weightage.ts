@@ -7,8 +7,24 @@ import {
 import type { GoalCountPolicy } from '@/lib/reviews/types'
 import type { Goal, Measurement } from './types'
 
-export function sumGoalWeights(goals: Goal[]): number {
+export function sumGoalWeights(goals: { weight?: number }[]): number {
   return goals.reduce((sum, g) => sum + (Number(g.weight) || 0), 0)
+}
+
+/** True when at least one goal has no weight — 0 and empty both count. */
+export function hasUnassignedGoalWeight(
+  goals: { weight?: number }[],
+): boolean {
+  return goals.some((goal) => !(Number(goal.weight) || 0))
+}
+
+export function goalWeightIssue(
+  goals: { weight?: number }[],
+): string | null {
+  if (goals.length === 0) return null
+  if (hasUnassignedGoalWeight(goals)) return 'Every goal needs a weight.'
+  if (sumGoalWeights(goals) !== 100) return 'Weights need to add up to 100%.'
+  return null
 }
 
 /** How much of the 100% set is still free. Negative when the set is over. */
@@ -185,11 +201,18 @@ export function submitBlockersForGoal(
   return blockers.filter((blocker) => blocker.goalId === goalId)
 }
 
-/** Count and weight problems — not named-goal issues. */
+const WEIGHT_SET_REASONS = new Set([
+  'Every goal needs a weight.',
+  'Weights need to add up to 100%.',
+])
+
+/** Count problems for the set banner. Weight stays on the Weight column. */
 export function submitSetBlockers(
   blockers: SubmitGoalBlocker[],
 ): SubmitGoalBlocker[] {
-  return blockers.filter((blocker) => !blocker.goalId)
+  return blockers.filter(
+    (blocker) => !blocker.goalId && !WEIGHT_SET_REASONS.has(blocker.reason),
+  )
 }
 
 export function submitIssueForGoal(
@@ -250,6 +273,9 @@ export function canSubmitGoals(
     blockers.push({
       reason: `This cycle allows no more than ${policy.maximumAllowed} goals.`,
     })
+  }
+  if (hasUnassignedGoalWeight(goals)) {
+    blockers.push({ reason: 'Every goal needs a weight.' })
   }
   if (goals.length > 0 && sumGoalWeights(goals) !== 100) {
     blockers.push({ reason: 'Weights need to add up to 100%.' })

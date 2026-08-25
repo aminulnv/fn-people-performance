@@ -27,7 +27,6 @@ export type BuildApprovalTrailArgs = {
   allowLateSubmissions?: boolean
   lineManager?: ApprovalTrailPerson | null
   skipLevelManager?: ApprovalTrailPerson | null
-  canApprove?: boolean
 }
 
 function joinThen(parts: string[]): string {
@@ -69,6 +68,18 @@ function trail(
   return { late, stages, currentIndex, spoken: withLate(late, spoken) }
 }
 
+function approverStages(
+  manager: ApprovalTrailStage,
+  skip: ApprovalTrailStage | null,
+): ApprovalTrailStage[] {
+  return skip ? [manager, skip] : [manager]
+}
+
+/**
+ * Shared approval path for anyone looking at a goal set. Stages name people
+ * rather than “you”, so the same banner reads correctly for the owner, their
+ * manager, or anyone else with visibility.
+ */
 export function buildApprovalTrail(
   args: BuildApprovalTrailArgs,
 ): ApprovalTrailModel | null {
@@ -79,63 +90,53 @@ export function buildApprovalTrail(
     allowLateSubmissions = false,
     lineManager,
     skipLevelManager,
-    canApprove = false,
   } = args
 
   const twoTier = allowLateSubmissions || Boolean(postWindowApprovalStage)
   const manager = personStage('manager', lineManager, 'Manager')
-  const skip = personStage('skip', skipLevelManager, 'Skip-level')
+  const skip = skipLevelManager
+    ? personStage('skip', skipLevelManager, 'Skip-level')
+    : null
 
-  if (perspective === 'reviewer') {
-    if (status !== 'submitted') return null
+  if (status === 'submitted') {
+    if (postWindowApprovalStage === 'manager_manager') {
+      const finalApprover = skip ?? manager
+      return trail(true, [finalApprover], `Awaiting ${spokenOf(finalApprover)}`)
+    }
     if (postWindowApprovalStage === 'manager') {
-      const current = canApprove ? labelStage('you', 'You') : manager
+      const stages = approverStages(manager, skip)
       return trail(
         true,
-        [current, skip],
-        joinThen([spokenOf(current), spokenOf(skip)]),
+        stages,
+        `Awaiting ${joinThen(stages.map(spokenOf))}`,
       )
     }
-    if (postWindowApprovalStage === 'manager_manager') {
-      if (canApprove) {
-        return trail(true, [labelStage('you', 'You')], 'Your approval is final')
-      }
-      return trail(true, [skip], `Awaiting ${spokenOf(skip)}`)
+    if (perspective === 'owner') {
+      return trail(false, [manager], `Awaiting ${spokenOf(manager)}`)
     }
     return null
   }
 
-  if (status === 'submitted' && postWindowApprovalStage === 'manager_manager') {
-    return trail(true, [skip], `Awaiting ${spokenOf(skip)}`)
-  }
-
-  if (status === 'submitted' && postWindowApprovalStage === 'manager') {
-    return trail(
-      true,
-      [manager, skip],
-      `Awaiting ${joinThen([spokenOf(manager), spokenOf(skip)])}`,
-    )
-  }
-
-  if (status === 'submitted') {
-    return trail(false, [manager], `Awaiting ${spokenOf(manager)}`)
-  }
-
   if (status === 'sent_back') {
-    const you = labelStage('you', 'Your changes', 'Needs your changes')
+    const revise = labelStage('you', 'Changes needed', 'Needs changes')
     const stages = twoTier
-      ? [you, manager, skip]
+      ? [revise, ...approverStages(manager, skip)]
       : lineManager
-        ? [you, manager]
-        : [you]
+        ? [revise, manager]
+        : [revise]
     return trail(twoTier, stages, joinThen(stages.map(spokenOf)))
   }
 
   if (status === 'draft') {
-    if (!twoTier && !lineManager) return null
-    const you = labelStage('you', 'You')
-    const stages = twoTier ? [you, manager, skip] : [you, manager]
-    return trail(twoTier, stages, joinThen(stages.map(spokenOf)))
+    if (twoTier) {
+      const stages = approverStages(manager, skip)
+      return trail(true, stages, joinThen(stages.map(spokenOf)))
+    }
+    if (perspective === 'owner' && lineManager) {
+      const you = labelStage('you', 'You')
+      return trail(false, [you, manager], joinThen(['You', spokenOf(manager)]))
+    }
+    return null
   }
 
   return null

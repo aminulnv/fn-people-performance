@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MetricProgressUpdate, sanitizeMetricDraft } from './MetricProgressUpdate'
 import type { Metric } from '@/lib/goals/types'
@@ -56,5 +56,27 @@ describe('MetricProgressUpdate', () => {
     expect(screen.queryByText('Log update')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Current value')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add update for NPS' })).toBeInTheDocument()
+  })
+
+  it('shows a success message after logging an update', async () => {
+    vi.useFakeTimers()
+    const onCommit = vi.fn()
+    render(<MetricProgressUpdate metric={metric} onCommit={onCommit} />)
+
+    const field = screen.getByLabelText('Current progress for NPS')
+    fireEvent.change(field, { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+
+    expect(onCommit).toHaveBeenCalledWith(5)
+    const notice = screen.getByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Progress updated.')
+    expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
+
+    await act(async () => {
+      vi.advanceTimersByTime(4000)
+    })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    vi.useRealTimers()
   })
 })

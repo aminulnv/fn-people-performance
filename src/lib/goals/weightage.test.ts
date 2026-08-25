@@ -6,6 +6,8 @@ import {
   canSubmitGoals,
   appendGoalWithWeight,
   distributeGoalWeights,
+  goalWeightIssue,
+  hasUnassignedGoalWeight,
   goalCountWarning,
   isEvenGoalSplit,
   removeGoalKeepingWeights,
@@ -205,11 +207,15 @@ describe('canSubmitGoals', () => {
       POLICY,
     )
     expect(check.ok).toBe(false)
-    expect(check.blockers[0]).toMatchObject({
+    expect(check.reasons).toContain('Every goal needs a weight.')
+    const titleBlocker = check.blockers.find(
+      (blocker) => blocker.suffix === ' needs a title.',
+    )
+    expect(titleBlocker).toMatchObject({
       goalTitle: 'Ada’s quality goal',
       suffix: ' needs a title.',
     })
-    expect(check.blockers[0]?.goalId).toBeTruthy()
+    expect(titleBlocker?.goalId).toBeTruthy()
   })
 
   it('lists every broken goal instead of stopping at the first', () => {
@@ -274,12 +280,49 @@ describe('canSubmitGoals', () => {
       }),
     ])
     expect(submitSetBlockers(check.blockers).map((blocker) => blocker.reason)).toEqual(
-      [
-        'Add at least 2 goals.',
-        'Weights need to add up to 100%.',
-      ],
+      ['Add at least 2 goals.'],
     )
     expect(submitSetBlockers(check.blockers)[0]?.action).toBe('add_goal')
+  })
+
+  it('keeps weight-sum off the set banner because the Weight column already shows it', () => {
+    const check = canSubmitGoals(
+      [
+        readyGoal({ description: 'Quality', weight: 55 }),
+        readyGoal({ description: 'Delivery', weight: 20 }),
+      ],
+      POLICY,
+    )
+
+    expect(check.reasons).toContain('Weights need to add up to 100%.')
+    expect(submitSetBlockers(check.blockers)).toEqual([])
+  })
+
+  it('rejects a 100% total when a goal has no weight', () => {
+    const weights = [
+      { weight: 40 },
+      { weight: 35 },
+      { weight: 25 },
+      { weight: 0 },
+      { weight: 0 },
+    ]
+    expect(hasUnassignedGoalWeight(weights)).toBe(true)
+    expect(goalWeightIssue(weights)).toBe('Every goal needs a weight.')
+
+    const check = canSubmitGoals(
+      [
+        readyGoal({ description: 'Quality', weight: 40 }),
+        readyGoal({ description: 'Delivery', weight: 35 }),
+        readyGoal({ description: 'Collaboration', weight: 25 }),
+        readyGoal({ description: 'This is a test goal', weight: 0 }),
+        readyGoal({ description: 'test', weight: 0 }),
+      ],
+      POLICY,
+    )
+
+    expect(check.ok).toBe(false)
+    expect(check.reasons).toEqual(['Every goal needs a weight.'])
+    expect(check.reasons).not.toContain('Weights need to add up to 100%.')
   })
 
   it('does not ask for weights when there are no goals yet', () => {

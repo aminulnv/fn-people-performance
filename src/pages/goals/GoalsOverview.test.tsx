@@ -21,6 +21,17 @@ import GoalsPage from '@/pages/GoalsPage'
 const REPORT_ID = '1'
 const MANAGER_ID = '2'
 
+function openGoalActions() {
+  fireEvent.mouseEnter(
+    screen.getByRole('button', { name: 'Goal actions' }).closest('.pd-menu')!,
+  )
+}
+
+function startEditingGoal() {
+  openGoalActions()
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+}
+
 async function seedDirectory() {
   const rows = [
     {
@@ -223,6 +234,20 @@ describe('Goals overview cycle eligibility', () => {
     ).toBeInTheDocument()
   })
 
+  it('keeps metrics cells as table cells so row lines stay aligned', async () => {
+    await putPeopleInGroup([1, 2])
+
+    renderOverview()
+
+    const cell = await waitFor(() => {
+      const found = document.querySelector('td.pd-goals-overview__metric')
+      expect(found).toBeTruthy()
+      return found as HTMLTableCellElement
+    })
+    expect(cell.tagName).toBe('TD')
+    expect(getComputedStyle(cell).display).not.toBe('flex')
+  })
+
   it('opens the goal panel from a nested measure row', async () => {
     await putPeopleInGroup([1, 2])
     const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
@@ -245,5 +270,40 @@ describe('Goals overview cycle eligibility', () => {
     expect(
       document.querySelector('.pd-goals-table__measure-name')?.closest('tr'),
     ).toHaveClass('is-selected')
+  })
+
+  it('keeps overview panel edits local until Save on a draft', async () => {
+    await putPeopleInGroup([1, 2])
+    const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(ownGoal).toBeTruthy()
+    const persistedTaskCount = ownGoal.measurements.filter(
+      (item) => item.kind === 'milestone',
+    ).length
+
+    renderOverview()
+
+    fireEvent.click(await screen.findByText(ownGoal.description))
+    startEditingGoal()
+    fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
+
+    openGoalActions()
+    const save = screen.getByRole('menuitem', { name: 'Save' })
+    expect(save).toBeEnabled()
+    expect(
+      getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
+        (item) => item.kind === 'milestone',
+      ),
+    ).toHaveLength(persistedTaskCount)
+
+    fireEvent.click(save)
+    await waitFor(() => {
+      expect(
+        getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
+          (item) => item.kind === 'milestone',
+        ),
+      ).toHaveLength(persistedTaskCount + 1)
+    })
+    openGoalActions()
+    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
   })
 })

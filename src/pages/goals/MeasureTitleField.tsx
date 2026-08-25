@@ -7,6 +7,10 @@ export function MeasureTitleField({
   placeholder = 'Metric name',
   editLabel = 'Edit metric name',
   inputLabel = 'Metric name',
+  error,
+  requestFocus,
+  onEmptyBlur,
+  disabled,
 }: {
   value: string
   onChange: (value: string) => void
@@ -14,6 +18,10 @@ export function MeasureTitleField({
   placeholder?: string
   editLabel?: string
   inputLabel?: string
+  error?: string
+  requestFocus?: boolean
+  onEmptyBlur?: () => void
+  disabled?: boolean
 }) {
   return (
     <InlinePencilField
@@ -23,6 +31,11 @@ export function MeasureTitleField({
       placeholder={placeholder}
       editLabel={editLabel}
       inputLabel={inputLabel}
+      error={error}
+      requestFocus={requestFocus}
+      stayInEditWhenEmpty
+      onEmptyBlur={onEmptyBlur}
+      disabled={disabled}
       displayClassName="pd-goal-measure-card__title-display"
       inputClassName="pd-goal-measure-card__title-input"
     />
@@ -36,6 +49,7 @@ export function TaskListNameField({
   requestFocus,
   onFocusRequested,
   placeholder = 'Task list name',
+  disabled,
 }: {
   value: string
   onChange: (value: string) => void
@@ -43,6 +57,7 @@ export function TaskListNameField({
   requestFocus?: boolean
   onFocusRequested?: () => void
   placeholder?: string
+  disabled?: boolean
 }) {
   return (
     <InlinePencilField
@@ -54,6 +69,7 @@ export function TaskListNameField({
       inputLabel="Task list name"
       requestFocus={requestFocus}
       onFocusRequested={onFocusRequested}
+      disabled={disabled}
       displayClassName="pd-goal-measure-card__title-display"
       inputClassName="pd-goal-measure-card__title-input"
     />

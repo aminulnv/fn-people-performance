@@ -10,6 +10,7 @@ import {
   saveReviewDraft,
 } from './store.mjs'
 import { packetForViewer, packetsForViewer } from './visibility.mjs'
+import { publishWrite } from '../realtime/fromRequest.mjs'
 
 function viewerEmployeeId(req) {
   return req.platformUser?.employeeId ?? null
@@ -67,6 +68,10 @@ export function registerReviewPacketRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['packets', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
         res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
@@ -85,6 +90,10 @@ export function registerReviewPacketRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['packets', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
         res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
@@ -103,6 +112,9 @@ export function registerReviewPacketRoutes(app) {
           req.body?.target === 'employees' ? 'employees' : 'managers',
           req.platformUser,
         )
+        await publishWrite(req, ['packets', 'notifications', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ packets: packetsForViewer(packets, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)
@@ -120,6 +132,10 @@ export function registerReviewPacketRoutes(app) {
           req.body?.body,
           req.platformUser,
         )
+        await publishWrite(req, ['packets', 'notifications', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
         res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
       } catch (err) {
         throw toHttp(err)

@@ -28,6 +28,10 @@ export function NumberMeasureEditCard({
   headClassName = 'pd-goal-view__fold-head',
   titleClassName = 'pd-goal-view__fold-title',
   metricsClassName = 'pd-goal-view__fold-meta',
+  nameError,
+  requestNameFocus,
+  onNameAbandon,
+  locked = false,
 }: {
   metric: Metric
   canEditWeight?: boolean
@@ -41,8 +45,14 @@ export function NumberMeasureEditCard({
   headClassName?: string
   titleClassName?: string
   metricsClassName?: string
+  nameError?: string
+  requestNameFocus?: boolean
+  onNameAbandon?: () => void
+  locked?: boolean
 }) {
   const trimmedTitle = metric.title.trim()
+  const named = trimmedTitle !== ''
+  const bodyLocked = locked || !named
   const weightLabel = trimmedTitle ? `Weight for ${trimmedTitle}` : 'Weight'
 
   return (
@@ -63,12 +73,16 @@ export function NumberMeasureEditCard({
           <MeasureTitleField
             inputKey={metric.id}
             value={metric.title}
+            error={nameError}
+            requestFocus={requestNameFocus}
+            onEmptyBlur={onNameAbandon}
+            disabled={locked}
             onChange={(title) => onChange({ ...metric, title })}
           />
           <GoalMetricReadout metric={metric} showWeight={false} />
         </div>
         <div className={metricsClassName}>
-          {canEditWeight ? (
+          {!bodyLocked && canEditWeight ? (
             <GoalWeightInput
               weight={metric.weight}
               ariaLabel={weightLabel}
@@ -82,6 +96,7 @@ export function NumberMeasureEditCard({
               type="button"
               className="pd-goal-create__icon-btn pd-goal-create__icon-btn--danger"
               aria-label={`Remove ${trimmedTitle || 'number metric'}`}
+              disabled={locked}
               onClick={onRemove}
             >
               <Trash2 size={15} strokeWidth={1.75} aria-hidden />
@@ -102,6 +117,7 @@ export function NumberMeasureEditCard({
                 value={metric.unit}
                 aria-label="Metric unit"
                 allowEmpty={false}
+                disabled={bodyLocked}
                 options={METRIC_UNITS.map((unit) => ({
                   value: unit.value,
                   label: unit.label,
@@ -116,6 +132,7 @@ export function NumberMeasureEditCard({
             <NumberTargetEditor
               metric={metric}
               onChange={onChange}
+              disabled={bodyLocked}
               showHeading={false}
             />
           </div>
@@ -126,6 +143,7 @@ export function NumberMeasureEditCard({
               metric={metric}
               goalTitle={goalTitle}
               cycleLabel={cycleLabel}
+              disabled={bodyLocked}
               onCommit={onLogProgress}
             />
             <GoalProgressLog kind="metric" entries={metric.progressLog ?? []} />

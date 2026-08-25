@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Goal } from '@/lib/goals/types'
 import { GoalsTable } from './GoalsTable'
@@ -292,6 +293,56 @@ describe('GoalsTable nested measures', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('treats a 100% total as an error when a goal has no weight', () => {
+    const onDistributeWeights = vi.fn()
+    render(
+      <GoalsTable
+        rows={[
+          { goal: { ...goalWithMeasures, weight: 40 }, title: 'Quality' },
+          {
+            goal: { ...goalWithMeasures, id: 'g2', weight: 35 },
+            title: 'Delivery',
+          },
+          {
+            goal: { ...goalWithMeasures, id: 'g3', weight: 25 },
+            title: 'Collaboration',
+          },
+          {
+            goal: { ...goalWithMeasures, id: 'g4', weight: 0 },
+            title: 'This is a test goal',
+          },
+          {
+            goal: { ...goalWithMeasures, id: 'g5', weight: 0 },
+            title: 'test',
+          },
+        ]}
+        canEditWeight
+        onDistributeWeights={onDistributeWeights}
+      />,
+    )
+
+    expect(
+      screen.getByRole('columnheader', { name: 'Weight 100%' }),
+    ).toBeInTheDocument()
+    expect(document.querySelector('.pd-goals-table__weight-head-total')).toHaveClass(
+      'pd-goals-table__weight-head-total--short',
+    )
+    expect(
+      screen.getByRole('img', { name: 'Every goal needs a weight.' }),
+    ).toBeInTheDocument()
+    expect(document.querySelector('.pd-goals-table')).toHaveClass(
+      'pd-goals-table--weight-error',
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute evenly' }))
+    expect(onDistributeWeights).toHaveBeenCalledWith([
+      expect.objectContaining({ id: 'g1', weight: 20 }),
+      expect.objectContaining({ id: 'g2', weight: 20 }),
+      expect.objectContaining({ id: 'g3', weight: 20 }),
+      expect.objectContaining({ id: 'g4', weight: 20 }),
+      expect.objectContaining({ id: 'g5', weight: 20 }),
+    ])
+  })
+
   it('distributes leftover weight evenly when the owner asks', () => {
     const onDistributeWeights = vi.fn()
     render(
@@ -550,13 +601,36 @@ describe('GoalsTable nested measures', () => {
       />,
     )
 
-    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
+    const icons = screen.getAllByRole('img', { name: 'Still needs a metric.' })
+    const cellIcon = icons.find((icon) => icon.closest('.pd-goals-table__metric'))
+    expect(cellIcon).toBeTruthy()
     const title = screen.getByText('test').closest('.pd-goals-table__title')
-    const metrics = icon.closest('.pd-goals-table__metric')
-    expect(title).not.toContainElement(icon)
+    const metrics = cellIcon!.closest('.pd-goals-table__metric')
+    expect(title).not.toContainElement(cellIcon!)
     expect(title).not.toHaveClass('pd-goals-table__title--error')
-    expect(metrics).toContainElement(icon)
+    expect(metrics).toContainElement(cellIcon!)
     expect(metrics).toHaveClass('pd-goals-table__metric--error')
+  })
+
+  it('shows an error icon on the Metrics header when a row has a metric issue', () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: { ...goalWithMeasures, measurements: [] },
+            title: 'test',
+            issue: 'test still needs a metric.',
+          },
+        ]}
+      />,
+    )
+
+    const header = screen.getByRole('columnheader', { name: 'Metrics' })
+    const headerIcon = header.querySelector('[role="img"]')
+    expect(headerIcon).toHaveAttribute('aria-label', 'Still needs a metric.')
+    expect(document.querySelector('.pd-goals-table')).toHaveClass(
+      'pd-goals-table--metric-error',
+    )
   })
 
   it('shows only the metric error in the Metrics tooltip, not the goal name', async () => {
@@ -572,11 +646,27 @@ describe('GoalsTable nested measures', () => {
       />,
     )
 
-    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
-    fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
+    const cellIcon = screen
+      .getAllByRole('img', { name: 'Still needs a metric.' })
+      .find((icon) => icon.closest('.pd-goals-table__metric'))
+    fireEvent.mouseEnter(cellIcon!.closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Still needs a metric.')
     expect(tip).not.toHaveTextContent('testing testing testing')
+  })
+
+  it('explains the weight error in a tooltip on the header icon', async () => {
+    render(
+      <GoalsTable
+        rows={[{ goal: { ...goalWithMeasures, weight: 40 }, title: 'Quality' }]}
+      />,
+    )
+
+    const icon = screen.getByRole('img', { name: 'Weights need to add up to 100%.' })
+    fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
+    expect(await screen.findByRole('tooltip')).toHaveTextContent(
+      'Weights need to add up to 100%.',
+    )
   })
 
   it('keeps a missing title error on the goal name', () => {
@@ -599,7 +689,7 @@ describe('GoalsTable nested measures', () => {
     expect(icon.closest('.pd-goals-table__metric')).toBeNull()
   })
 
-  it('sits an action ribbon in the first table row above the headers', () => {
+  it('sits an action ribbon behind the table, peeking above the headers', () => {
     render(
       <GoalsTable
         banner={<p role="alert">Action required Add at least 2 goals.</p>}
@@ -608,10 +698,57 @@ describe('GoalsTable nested measures', () => {
     )
 
     const table = screen.getByRole('table')
-    const banner = table.querySelector('.pd-goals-table__banner')
-    const head = table.querySelector('.pd-goals-table__head')
+    const banner = screen.getByRole('alert')
+    const wrap = table.parentElement
+    expect(wrap).toHaveClass('pd-goals-table-wrap--action')
     expect(banner).toHaveTextContent('Add at least 2 goals')
-    expect(head?.compareDocumentPosition(banner!)).toBe(
+    expect(table).not.toContainElement(banner)
+    expect(wrap).toContainElement(banner)
+    expect(table.compareDocumentPosition(banner)).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
+    )
+  })
+
+  it('sits a send-back ribbon behind the table, peeking above the headers', () => {
+    render(
+      <GoalsTable
+        leadBanner={<p role="status">Sent back for changes: Tighten the titles.</p>}
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    const table = screen.getByRole('table')
+    const notice = screen.getByRole('status')
+    const wrap = table.parentElement
+    expect(wrap).toHaveClass('pd-goals-table-wrap--sendback')
+    expect(notice).toHaveTextContent('Tighten the titles')
+    expect(table).not.toContainElement(notice)
+    expect(wrap).toContainElement(notice)
+    expect(table.compareDocumentPosition(notice)).toBe(
+      Node.DOCUMENT_POSITION_PRECEDING,
+    )
+  })
+
+  it('stacks the send-back wrap behind and above the action wrap', () => {
+    render(
+      <GoalsTable
+        leadBanner={<p role="status">Sent back for changes: Tighten the titles.</p>}
+        banner={<p role="alert">Action required Add at least 2 goals.</p>}
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    const table = screen.getByRole('table')
+    const notice = screen.getByRole('status')
+    const banner = screen.getByRole('alert')
+    const actionWrap = table.parentElement
+    const sendBackWrap = actionWrap?.parentElement
+    expect(actionWrap).toHaveClass('pd-goals-table-wrap--action')
+    expect(sendBackWrap).toHaveClass('pd-goals-table-wrap--sendback')
+    expect(sendBackWrap).toContainElement(notice)
+    expect(actionWrap).toContainElement(banner)
+    expect(actionWrap).not.toContainElement(notice)
+    expect(banner.compareDocumentPosition(notice)).toBe(
       Node.DOCUMENT_POSITION_PRECEDING,
     )
   })
@@ -642,5 +779,29 @@ describe('GoalsTable nested measures', () => {
 
     const chip = screen.getByText('Sent back').closest('.pd-badge')
     expect(chip?.querySelector('svg')).toBeTruthy()
+  })
+
+  it('puts the row menu in a headerless column after Metrics', () => {
+    render(
+      <MemoryRouter>
+        <GoalsTable
+          rows={[{ goal: goalWithMeasures, title: 'Quality' }]}
+          onDuplicate={vi.fn()}
+        />
+      </MemoryRouter>,
+    )
+
+    const metricsHead = screen.getByRole('columnheader', { name: 'Metrics' })
+    const actionsHead = screen.getByRole('columnheader', { name: 'Actions' })
+    expect(metricsHead).not.toContainElement(actionsHead)
+    expect(actionsHead).toHaveClass('pd-goals-table__actions-head')
+    expect(actionsHead.querySelector('.pd-sr-only')).toHaveTextContent('Actions')
+    expect(actionsHead.textContent).toBe('Actions')
+
+    const menu = screen.getByRole('button', { name: 'More actions for Quality' })
+    expect(menu.closest('.pd-goals-table__actions')).toBeTruthy()
+    expect(menu.closest('.pd-goals-table__metric')).toBeNull()
+    expect(metricsHead.compareDocumentPosition(actionsHead) &
+      Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

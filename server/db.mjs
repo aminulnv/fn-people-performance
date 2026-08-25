@@ -50,7 +50,7 @@ function resolvePoolSsl(env = process.env) {
   return { rejectUnauthorized: true }
 }
 
-function poolConfig() {
+export function getPgConfig() {
   const ssl = resolvePoolSsl()
   if (process.env.DATABASE_URL?.trim()) {
     return { connectionString: process.env.DATABASE_URL.trim(), ssl }
@@ -71,6 +71,6 @@ export function getPool() {
       'Set DATABASE_URL or DB_HOST, DB_NAME, DB_USERNAME, and DB_PASS in .env',
     )
   }
-  if (!pool) pool = new Pool(poolConfig())
+  if (!pool) pool = new Pool(getPgConfig())
   return pool
 }

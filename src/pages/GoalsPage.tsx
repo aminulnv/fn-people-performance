@@ -30,7 +30,6 @@ import {
 import {
   appendGoalWithWeight,
   canSubmitGoals,
-  collectGoalSubmitBlockers,
   overallCompletion,
   ensureGoalCycleHydrated,
   removeGoalKeepingWeights,
@@ -49,6 +48,7 @@ import {
   hasPromptableUnsavedGoalDraft,
   isBlankGoalDraft,
   isGoalDraftDirty,
+  progressOnlyGoals,
 } from "@/lib/goals/draft";
 import { blankGoal, measurementPanels } from "@/lib/goals/measurements";
 import {
@@ -60,12 +60,12 @@ import {
   type LineManagerCascade,
 } from "@/lib/goals/operations";
 import {
-  countPendingGoalApprovals,
   deriveGoalCapabilities,
   type GoalCapabilities,
 } from "@/lib/goals/permissions";
 import {
   countOwnGoalTodos,
+  countReportGoalTodos,
   goalTodoBadgeLabel,
 } from "@/lib/goals/todoCounts";
 import {
@@ -76,7 +76,10 @@ import {
   recordMetricProgress,
   recordMilestoneProgress,
 } from "@/lib/goals/progressLog";
-import { isGoalWindowOpenForPerson } from "@/lib/goals/goalExtensions";
+import {
+  isGoalWindowOpenForPerson,
+  resolveGoalDeadline,
+} from "@/lib/goals/goalExtensions";
 import { useAuth } from "@/lib/auth";
 import { hasSystemPermission } from "@/lib/accessControl/types";
 import {
@@ -120,6 +123,10 @@ import {
   GoalEditLockNotice,
 } from "./goals/GoalEditLockNotice";
 import { GoalSubmitAllButton } from "./goals/GoalSubmitAllButton";
+import {
+  ReviewSaveBanner,
+  type ReviewSaveNotice,
+} from "./reviews/ReviewSaveBanner";
 import { GoalEmptyActions } from "./goals/GoalEmptyActions";
 import { GoalUnsavedCloseDialog } from "./goals/GoalUnsavedCloseDialog";
 import { useGoalDraftState } from "./goals/useGoalDraftState";
@@ -364,14 +371,39 @@ function GoalsOverviewGoalPanel({
     skipLevelManager: drawerApprovers.skipLevelManager,
   });
 
+  const persistedGoals = subjectGoals?.goals ?? [];
+  const { goals, setGoals } = useGoalDraftState({
+    personId,
+    status: subjectGoals?.status ?? "draft",
+    persistedGoals,
+  });
+  const canEditDraft = Boolean(capabilities?.canEditStructure);
+  const canManualSave =
+    canEditDraft &&
+    (subjectGoals?.status === "draft" || subjectGoals?.status === "sent_back");
+  const persistDraft = () => {
+    void actions.saveGoals(personId, goals);
+  };
+  const unsavedClose = useGoalUnsavedClose({
+    dirty: canManualSave && hasPromptableUnsavedGoalDraft(goals, persistedGoals),
+    onSaveDraft: persistDraft,
+    onDiscard: () => setGoals(persistedGoals),
+  });
+
   if (!snapshot || !subject || !subjectGoals) return null;
 
-  const goals = subjectGoals.goals;
   const selectedIndex = goals.findIndex((goal) => goal.id === goalId);
   const selectedGoal = selectedIndex >= 0 ? goals[selectedIndex] : null;
   if (!selectedGoal) return null;
 
-  const canEditDraft = Boolean(capabilities?.canEditStructure);
+  const selectedPersisted = persistedGoals.find(
+    (goal) => goal.id === selectedGoal.id,
+  );
+  const selectedHasUnsavedChanges = Boolean(
+    selectedPersisted
+      ? isGoalDraftDirty(selectedPersisted, selectedGoal)
+      : !isBlankGoalDraft(selectedGoal),
+  );
   const canUpdateProgress = Boolean(capabilities?.canUpdateProgress);
   const canDuplicate = Boolean(capabilities?.canDuplicate);
   const canCascade = Boolean(capabilities?.canCascade);
@@ -409,18 +441,12 @@ function GoalsOverviewGoalPanel({
     title: subject.title,
     avatarUrl: subject.avatarUrl,
   };
+  const replaceSelected = (next: Goal) =>
+    goals.map((goal) => (goal.id === next.id ? next : goal));
   const saveGoal = (next: Goal) => {
-    void actions.saveGoals(
-      personId,
-      goals.map((goal) => (goal.id === next.id ? next : goal)),
-    );
-  };
-
-  const saveProgressGoal = (next: Goal) => {
-    void actions.saveProgress(
-      personId,
-      goals.map((goal) => (goal.id === next.id ? next : goal)),
-    );
+    const updated = replaceSelected(next);
+    setGoals(updated);
+    void actions.saveGoals(personId, updated);
   };
   const canSubmitBatch =
     Boolean(capabilities?.canSubmit) &&
@@ -435,7 +461,7 @@ function GoalsOverviewGoalPanel({
       label={`View ${goalTitle(selectedGoal, selectedIndex)}`}
       closeLabel="Close goal"
       sideSheet={okrSideSheetFor(personId)}
-      onClose={onClose}
+      onClose={() => unsavedClose.requestLeave(onClose)}
       ribbon={
         canSubmitBatch ? (
           <GoalSubmitBlockNotice
@@ -448,6 +474,12 @@ function GoalsOverviewGoalPanel({
       }
     >
       {goalEditGuard}
+      <GoalUnsavedCloseDialog
+        open={unsavedClose.dialogOpen}
+        onStay={unsavedClose.stay}
+        onDiscard={unsavedClose.discard}
+        onSaveDraft={unsavedClose.saveDraft}
+      />
       {ineligibility ? (
         <CycleIneligibilityNotice
           personName={subject.name}
@@ -483,7 +515,14 @@ function GoalsOverviewGoalPanel({
           canRemove={canEditDraft}
           cascadeTargets={cascadeTargetsFor(subject.reportIds, snapshot.people)}
           onRequestEdit={requestGoalEdit}
-          onChange={saveProgressGoal}
+          manualSave={canManualSave}
+          hasUnsavedChanges={selectedHasUnsavedChanges}
+          onChange={(next) => {
+            const updated = replaceSelected(next);
+            setGoals(updated);
+            const progressGoals = progressOnlyGoals(persistedGoals, updated);
+            if (progressGoals) void actions.saveProgress(personId, progressGoals);
+          }}
           onAddComment={(text) => {
             void actions.addComment(personId, selectedGoal.id, text);
           }}
@@ -1239,12 +1278,14 @@ function GoalsOverview() {
                               : "pd-goals-overview__metric"
                           }
                         >
-                          {metricsIssue ? (
-                            <GoalIssueIcon issue={metricsIssue} />
-                          ) : null}
-                          {row.metricCount > 0 ? (
-                            <MetricsCountBadge count={row.metricCount} />
-                          ) : null}
+                          <span className="pd-goals-table__metric-cluster">
+                            {metricsIssue ? (
+                              <GoalIssueIcon issue={metricsIssue} />
+                            ) : null}
+                            {row.metricCount > 0 ? (
+                              <MetricsCountBadge count={row.metricCount} />
+                            ) : null}
+                          </span>
                         </td>
                         <td data-col="approval">
                           <GoalApprovalStatus
@@ -1638,7 +1679,9 @@ export function GoalsPersonDetail({
     ? 0
     : Math.round(overallCompletion(activeGoals.goals));
   const canEditDraft = Boolean(capabilities?.canEditStructure);
-  const pendingCount = countPendingGoalApprovals(reports);
+  const reportTodoCount = cycleMembershipReady
+    ? countReportGoalTodos(reports, snapshot.cycle)
+    : 0;
   const ownTodoCount =
     !cycleMembershipReady || ineligibility
       ? 0
@@ -1693,8 +1736,8 @@ export function GoalsPersonDetail({
             <>
               {sectionLabels.reports}
               <CountBadge
-                count={pendingCount}
-                aria-label={goalTodoBadgeLabel(pendingCount, "reports")}
+                count={reportTodoCount}
+                aria-label={goalTodoBadgeLabel(reportTodoCount, "reports")}
               />
             </>
           ),
@@ -1784,6 +1827,7 @@ export function GoalsPersonDetail({
         !isGoalWindowOpenForPerson(personCycle, active) &&
         personCycle.postWindowGoalPolicy === "two_tier_approval"
       }
+      deadlineMissedAt={resolveGoalDeadline(personCycle, active)}
       editLock={myGoalsLockSpoken}
       editLockContent={
         ineligibility || !myGoalsLockSegments
@@ -1854,7 +1898,7 @@ export function GoalsPersonDetail({
       onUnlinkCascadeTo={(goalId, child) =>
         actions.unlinkCascadeTo(active.id, goalId, child)
       }
-      onSubmit={(goals) => void actions.saveAndSubmit(active.id, goals)}
+      onSubmit={(goals) => actions.saveAndSubmit(active.id, goals)}
     />
   );
 
@@ -1958,6 +2002,7 @@ function ManagerReportGoalsTable({
   cascadeRecipientsFor,
   actorId,
   deadlinePassed,
+  goalCountPolicy,
   openGoalId,
   onOpen,
   onSaveGoals,
@@ -1971,6 +2016,7 @@ function ManagerReportGoalsTable({
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[];
   actorId?: string;
   deadlinePassed: boolean;
+  goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
   openGoalId: string | null;
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
@@ -1999,30 +2045,65 @@ function ManagerReportGoalsTable({
     setGoals(next);
     onSaveGoals(person.id, next);
   };
-  const goalIssues =
-    row.status === "draft" || row.status === "sent_back"
-      ? collectGoalSubmitBlockers(goals)
-      : [];
+  const addGoal = () => {
+    requestGoalEdit(() => {
+      const next = appendGoalWithWeight(goals, blankGoal({ ownerId: person.id }));
+      persistNow(next);
+      onOpen(next[next.length - 1]?.id ?? null);
+    });
+  };
+  const showSubmitIssues = row.status === "draft" || row.status === "sent_back";
+  const submitCheck = canSubmitGoals(goals, goalCountPolicy);
+  const submitBlockNotice =
+    showSubmitIssues && !submitCheck.ok ? (
+      <GoalSubmitBlockNotice
+        layout="ribbon"
+        blockers={submitSetBlockers(submitCheck.blockers)}
+        onOpenGoal={(goalId) => onOpen(goalId)}
+        onAddGoal={canEditStructure ? addGoal : undefined}
+        addGoalLabel={goals.length > 0 ? "Add another goal" : "Add a goal"}
+      />
+    ) : null;
+  const cascade = cascadeFromFor(person.id);
+  const sendBackNotice =
+    row.status === "sent_back" && row.sendBackReason ? (
+      <GoalSendBackNotice
+        layout={goals.length > 0 ? "ribbon" : "card"}
+        reason={row.sendBackReason}
+        author={
+          row.sendBackBy ??
+          (cascade.managerId && cascade.managerName
+            ? {
+              id: cascade.managerId,
+              name: cascade.managerName,
+              avatarUrl: cascade.managerAvatarUrl,
+            }
+            : undefined)
+        }
+      />
+    ) : null;
+  const viewerNotices = (
+    <div className="pd-goals__notices">
+      {goals.length === 0 ? sendBackNotice : null}
+      {goals.length === 0 ? submitBlockNotice : null}
+      {row.status === "incomplete" ? (
+        <Notice tone="danger">
+          No submission by Day 30 — flagged incomplete. Quarter score is 0.
+        </Notice>
+      ) : null}
+    </div>
+  );
 
   if (goals.length === 0) {
     return (
       <>
         {goalEditGuard}
+        {viewerNotices}
         <ReportGoalsEmpty
           personName={person.name}
           canAdd={canEditStructure}
           busy={busy}
-          onAdd={
-            canEditStructure
-              ? () => {
-                requestGoalEdit(() => {
-                  const next = blankGoal({ ownerId: person.id });
-                  persistNow([next]);
-                  onOpen(next.id);
-                });
-              }
-              : undefined
-          }
+          onAdd={canEditStructure ? addGoal : undefined}
         />
       </>
     );
@@ -2031,8 +2112,11 @@ function ManagerReportGoalsTable({
   return (
     <>
       {goalEditGuard}
+      {viewerNotices}
       <GoalsTable
         label={`${person.name} goals`}
+        leadBanner={sendBackNotice}
+        banner={submitBlockNotice}
         cycleId={cycleId}
         subjectId={person.id}
         status={row.status}
@@ -2042,7 +2126,9 @@ function ManagerReportGoalsTable({
         rows={goals.map((goal, index) => ({
           goal,
           title: goalTitle(goal, index),
-          issue: submitIssueForGoal(goal.id, goalIssues),
+          issue: showSubmitIssues
+            ? submitIssueForGoal(goal.id, submitCheck.blockers)
+            : undefined,
         }))}
         openGoalId={openGoalId}
         onOpen={onOpen}
@@ -2168,6 +2254,11 @@ function ManagerPanel({
       {orderedReports.map(({ person, row }) => {
         const reportCaps = capabilitiesFor(person.id);
         const skipLevel = cascadeFromFor(person.id);
+        const reportApprovers = cascadeApprovers(skipLevel);
+        const allowLateSubmissions =
+          snapshot.cycle.phase === "hard_lock" &&
+          !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
+          snapshot.cycle.postWindowGoalPolicy === "two_tier_approval";
         return (
           <ReportGoalsCard
             key={person.id}
@@ -2175,7 +2266,10 @@ function ManagerPanel({
             cycleId={snapshot.cycle.id}
             status={row.status}
             postWindowApprovalStage={row.postWindowApprovalStage}
-            skipLevelManager={cascadeApprovers(skipLevel).skipLevelManager}
+            allowLateSubmissions={allowLateSubmissions}
+            deadlineMissedAt={resolveGoalDeadline(snapshot.cycle, person)}
+            lineManager={reportApprovers.lineManager}
+            skipLevelManager={reportApprovers.skipLevelManager}
             goalCount={row.goals.length}
             canApprove={Boolean(reportCaps?.canApprove)}
             canSendBack={Boolean(reportCaps?.canSendBack)}
@@ -2204,11 +2298,8 @@ function ManagerPanel({
               cascadeFromFor={cascadeFromFor}
               cascadeRecipientsFor={cascadeRecipientsFor}
               actorId={commentAuthorId}
-              deadlinePassed={
-                snapshot.cycle.phase === "hard_lock" &&
-                !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
-                snapshot.cycle.postWindowGoalPolicy === "two_tier_approval"
-              }
+              deadlinePassed={allowLateSubmissions}
+              goalCountPolicy={snapshot.cycle.goalCountPolicy}
               openGoalId={openGoalId}
               onOpen={setOpenGoalId}
               onSaveGoals={onSaveGoals}
@@ -2245,6 +2336,7 @@ function EmployeePanel({
   cycleLabel,
   goalCountPolicy,
   allowLateSubmissions,
+  deadlineMissedAt,
   editLock,
   editLockContent,
   isCurrentCycle,
@@ -2291,6 +2383,7 @@ function EmployeePanel({
   cycleLabel: string;
   goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
   allowLateSubmissions: boolean;
+  deadlineMissedAt?: string;
   /** Explains why goal editing is unavailable in this cycle. */
   editLock: string | null;
   editLockContent?: ReactNode;
@@ -2348,7 +2441,7 @@ function EmployeePanel({
     goalId: string,
     child: { personId: string; goalId: string },
   ) => Promise<void>;
-  onSubmit: (goals: Goal[]) => void;
+  onSubmit: (goals: Goal[]) => Promise<boolean>;
 }) {
   const { goals, setGoals, creatingIds, startCreating, stopCreating } =
     useGoalDraftState({
@@ -2356,6 +2449,16 @@ function EmployeePanel({
       status: row.status,
       persistedGoals: row.goals,
     });
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(
+    null,
+  );
+  const showSuccessToast = (message: string) => {
+    setToastNotice({
+      variant: "success",
+      message,
+      shownAt: Date.now(),
+    });
+  };
   const ownerApprovers = cascadeApprovers(cascadeFrom);
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
     personId,
@@ -2377,7 +2480,11 @@ function EmployeePanel({
     canManualSave && hasPromptableUnsavedGoalDraft(goals, row.goals);
   const persistDraft = () => {
     flushPersist();
-    onPersistGoals(goals);
+    const wasCreating = creatingIds.size > 0;
+    void Promise.resolve(onPersistGoals(goals)).then((saved) => {
+      if (saved === false) return;
+      if (wasCreating) showSuccessToast("Goal created.");
+    });
     for (const goalId of creatingIds) stopCreating(goalId);
   };
   const discardDraft = () => {
@@ -2587,7 +2694,9 @@ function EmployeePanel({
               goal.id === selectedGoal.id ? next : goal,
             );
             setGoals(updated);
-            if (!isNew && !canManualSave) onPersistProgress(updated);
+            if (isNew) return;
+            const progressGoals = progressOnlyGoals(row.goals, updated);
+            if (progressGoals) onPersistProgress(progressGoals);
           }}
           onSave={(next) => {
             const updated = goals.map((goal) =>
@@ -2599,6 +2708,7 @@ function EmployeePanel({
                 setGoals(updated);
                 stopCreating(selectedGoal.id);
                 onOpenGoal(selectedGoal.id);
+                showSuccessToast("Goal created.");
               });
               return;
             }
@@ -2641,7 +2751,16 @@ function EmployeePanel({
             busy={busy}
             reasons={submitCheck.reasons}
             warning={submitCheck.warning}
-            onSubmit={() => onSubmit(goals)}
+            onSubmit={() => {
+              const message =
+                row.status === "sent_back"
+                  ? "Goals resubmitted."
+                  : "Goals submitted.";
+              void onSubmit(goals).then((ok) => {
+                if (!ok) return;
+                showSuccessToast(message);
+              });
+            }}
           />
         ) : null}
         {canEditDraft && goals.length > 0 ? (
@@ -2674,23 +2793,25 @@ function EmployeePanel({
         addGoalLabel={goals.length > 0 ? 'Add another goal' : 'Add a goal'}
       />
     ) : null;
+  const sendBackNotice = sendBackReason ? (
+    <GoalSendBackNotice
+      layout={goals.length > 0 ? 'ribbon' : 'card'}
+      reason={sendBackReason}
+      author={
+        row.sendBackBy ??
+        (cascadeFrom.managerId && cascadeFrom.managerName
+          ? {
+            id: cascadeFrom.managerId,
+            name: cascadeFrom.managerName,
+            avatarUrl: cascadeFrom.managerAvatarUrl,
+          }
+          : undefined)
+      }
+    />
+  ) : null;
   const ownerNotices = showsGoals ? (
     <div className="pd-goals__notices">
-      {sendBackReason ? (
-        <GoalSendBackNotice
-          reason={sendBackReason}
-          author={
-            row.sendBackBy ??
-            (cascadeFrom.managerId && cascadeFrom.managerName
-              ? {
-                id: cascadeFrom.managerId,
-                name: cascadeFrom.managerName,
-                avatarUrl: cascadeFrom.managerAvatarUrl,
-              }
-              : undefined)
-          }
-        />
-      ) : null}
+      {goals.length === 0 ? sendBackNotice : null}
       {goals.length === 0 ? submitBlockNotice : null}
       {ineligibility ? (
         <CycleIneligibilityNotice
@@ -2744,6 +2865,7 @@ function EmployeePanel({
       />
     ) : (
       <GoalsTable
+        leadBanner={sendBackNotice}
         banner={submitBlockNotice}
         rows={goals.map((goal, index) => ({
           goal,
@@ -2847,8 +2969,8 @@ function EmployeePanel({
                     ),
                   };
                 });
-                if (canManualSave) schedulePersist(next);
-                else onPersistProgress(next);
+                const progressGoals = progressOnlyGoals(row.goals, next);
+                if (progressGoals) onPersistProgress(progressGoals);
                 return next;
               });
             }
@@ -2873,8 +2995,8 @@ function EmployeePanel({
                     ),
                   };
                 });
-                if (canManualSave) schedulePersist(next);
-                else onPersistProgress(next);
+                const progressGoals = progressOnlyGoals(row.goals, next);
+                if (progressGoals) onPersistProgress(progressGoals);
                 return next;
               });
             }
@@ -2899,6 +3021,10 @@ function EmployeePanel({
         onDiscard={unsavedClose.discard}
         onSaveDraft={unsavedClose.saveDraft}
       />
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <GoalsToolbar start={toolbarStart} />
 
       {showsGoals ? (
@@ -2908,6 +3034,7 @@ function EmployeePanel({
           postWindowApprovalStage={row.postWindowApprovalStage}
           perspective="owner"
           allowLateSubmissions={allowLateSubmissions}
+          deadlineMissedAt={deadlineMissedAt}
           lineManager={cascadeApprovers(cascadeFrom).lineManager}
           skipLevelManager={cascadeApprovers(cascadeFrom).skipLevelManager}
           goalCount={goals.length}

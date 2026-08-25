@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
-import { BarChart3 } from 'lucide-react'
+import { BarChart3, Scale } from 'lucide-react'
 import {
   appendMilestoneList,
   appendMilestoneToList,
   appendTodoListToMeasure,
   blankMetric,
   canEditMeasurementWeights,
+  hasMeasurePanelName,
   lockSoloMeasurementWeights,
   measurementPanels,
   readMeasureGroupTitle,
@@ -47,17 +48,15 @@ function isEvenMeasurementSplit(measurements: Measurement[]): boolean {
 export function GoalProgressEditor({
   goal,
   onChange,
-  measureNameError,
-  measurementWeightError,
   progressAuthor,
   cycleLabel,
+  locked = false,
 }: {
   goal: Goal
   onChange: (goal: Goal) => void
-  measureNameError?: string
-  measurementWeightError?: string
   progressAuthor?: ProgressLogAuthor
   cycleLabel?: string
+  locked?: boolean
 }) {
   const measureWeight = sumMeasurementWeights(goal.measurements)
   const measurements = goal.measurements
@@ -67,6 +66,32 @@ export function GoalProgressEditor({
   goalRef.current = goal
   onChangeRef.current = onChange
   const [focusMilestoneId, setFocusMilestoneId] = useState<string | null>(null)
+  const [pendingNameKeys, setPendingNameKeys] = useState(
+    () =>
+      new Set(
+        measurementPanels(goal.measurements)
+          .filter((panel) => !hasMeasurePanelName(panel))
+          .map((panel) => panel.key),
+      ),
+  )
+
+  const markNamed = (key: string) => {
+    setPendingNameKeys((prev) => {
+      if (!prev.has(key)) return prev
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+  }
+
+  const abandonPendingName = (key: string, remove: () => void) => {
+    setPendingNameKeys((prev) => {
+      const next = new Set(prev)
+      next.delete(key)
+      return next
+    })
+    remove()
+  }
 
   const patch = (partial: Partial<Goal>) =>
     onChange({ ...goalRef.current, ...partial })
@@ -93,6 +118,16 @@ export function GoalProgressEditor({
     })
   }, [goal.id])
 
+  useEffect(() => {
+    setPendingNameKeys(
+      new Set(
+        measurementPanels(goalRef.current.measurements)
+          .filter((panel) => !hasMeasurePanelName(panel))
+          .map((panel) => panel.key),
+      ),
+    )
+  }, [goal.id])
+
   /**
    * Adding or removing a measurement re-splits evenly; per-measurement edits keep
    * whatever the user typed.
@@ -105,8 +140,11 @@ export function GoalProgressEditor({
   const distributeWeightsEvenly = () =>
     patch({ measurements: rebalanceMeasurementWeights(currentMeasurements()) })
 
-  const addMetric = () =>
-    setMeasurements([...currentMeasurements(), blankMetric('increase')])
+  const addMetric = () => {
+    const next = blankMetric('increase')
+    setPendingNameKeys((prev) => new Set(prev).add(next.id))
+    setMeasurements([...currentMeasurements(), next])
+  }
 
   const updateMeasurement = (next: Measurement) =>
     patch({
@@ -118,15 +156,27 @@ export function GoalProgressEditor({
   const removeMeasurement = (id: string) =>
     setMeasurements(currentMeasurements().filter((item) => item.id !== id))
 
-  const addMilestoneMeasure = () =>
-    setMeasurements(appendMilestoneList(currentMeasurements()))
+  const addMilestoneMeasure = () => {
+    const current = currentMeasurements()
+    const next = appendMilestoneList(current)
+    const before = new Set(measurementPanels(current).map((panel) => panel.key))
+    const added = measurementPanels(next).find((panel) => !before.has(panel.key))
+    if (added) {
+      setPendingNameKeys((prev) => new Set(prev).add(added.key))
+    }
+    setMeasurements(next)
+  }
 
   const panelCount = measurementPanels(measurements).length
   const canEditMeasureWeight = canEditMeasurementWeights(measurements)
   const canDistribute =
     panelCount > 1 && !isEvenMeasurementSplit(measurements)
-  const showWeightFooter =
-    panelCount > 0 && (measureWeight !== 100 || canDistribute)
+  const hasUnnamedPanel = panels.some((panel) => !hasMeasurePanelName(panel))
+  const weightError =
+    panelCount > 0 && !hasUnnamedPanel && measureWeight !== 100
+  const canShowWeightRibbon = !hasUnnamedPanel && (weightError || canDistribute)
+  const panelNameError = (named: boolean) =>
+    named ? undefined : 'Each metric needs a name'
 
   return (
     <section
@@ -138,6 +188,35 @@ export function GoalProgressEditor({
           <BarChart3 size={16} strokeWidth={2.25} aria-hidden />
           Metrics
         </h2>
+        {canShowWeightRibbon ? (
+          <div
+            className={
+              weightError
+                ? 'pd-goal-create__weight-ribbon pd-goal-create__weight-ribbon--error'
+                : 'pd-goal-create__weight-ribbon'
+            }
+          >
+            {weightError ? (
+              <p className="pd-goal-create__weight-ribbon-copy" role="alert">
+                <span className="pd-goal-create__weight-ribbon-total">
+                  {measureWeight}%
+                </span>
+                Metric weights must total 100%
+              </p>
+            ) : null}
+            {canDistribute ? (
+              <button
+                type="button"
+                className="pd-goal-create__distribute"
+                disabled={locked}
+                onClick={distributeWeightsEvenly}
+              >
+                <Scale size={14} strokeWidth={2} aria-hidden />
+                Distribute evenly
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {panels.map((panel) =>
@@ -145,8 +224,22 @@ export function GoalProgressEditor({
           <div key={panel.key} className="pd-goal-create__measure-block">
             <NumberMeasureEditCard
               metric={panel.metric}
+              locked={locked}
               canEditWeight={canEditMeasureWeight}
-              onChange={updateMeasurement}
+              nameError={panelNameError(hasMeasurePanelName(panel))}
+              requestNameFocus={pendingNameKeys.has(panel.key)}
+              onNameAbandon={
+                pendingNameKeys.has(panel.key)
+                  ? () =>
+                      abandonPendingName(panel.key, () =>
+                        removeMeasurement(panel.metric.id),
+                      )
+                  : undefined
+              }
+              onChange={(next) => {
+                if (next.title.trim()) markNamed(panel.key)
+                updateMeasurement(next)
+              }}
               onRemove={() => removeMeasurement(panel.metric.id)}
               cycleLabel={cycleLabel}
               goalTitle={goal.description}
@@ -174,7 +267,23 @@ export function GoalProgressEditor({
             <TodoMeasureEditCard
               panel={panel}
               measurements={measurements}
+              locked={locked}
               canEditWeight={canEditMeasureWeight}
+              nameError={panelNameError(hasMeasurePanelName(panel))}
+              requestNameFocus={pendingNameKeys.has(panel.key)}
+              onNameAbandon={
+                pendingNameKeys.has(panel.key)
+                  ? () =>
+                      abandonPendingName(panel.key, () =>
+                        setMeasurements(
+                          removeTodoMeasure(
+                            currentMeasurements(),
+                            panel.measureGroupId,
+                          ),
+                        ),
+                      )
+                  : undefined
+              }
               measureTitle={readMeasureGroupTitle(measurements, panel.measureGroupId)}
               canRemoveList={panel.lists.length > 1}
               addListClassName="pd-goal-measure-card__add-list"
@@ -184,7 +293,8 @@ export function GoalProgressEditor({
                   removeTodoMeasure(currentMeasurements(), panel.measureGroupId),
                 )
               }
-              onChangeMeasureTitle={(measureTitle) =>
+              onChangeMeasureTitle={(measureTitle) => {
+                if (measureTitle.trim()) markNamed(panel.key)
                 patch({
                   measurements: withMeasureTitle(
                     currentMeasurements(),
@@ -192,7 +302,7 @@ export function GoalProgressEditor({
                     measureTitle,
                   ),
                 })
-              }
+              }}
               onChangeWeight={(weight) =>
                 patch({
                   measurements: redistributeTodoMeasureWeight(
@@ -266,46 +376,22 @@ export function GoalProgressEditor({
       {panelCount === 0 ? (
         <GoalEmptyMeasures
           canAdd
+          disabled={locked}
+          disabledTitle="Name the goal first"
           onAddMilestones={addMilestoneMeasure}
           onAddNumber={addMetric}
         />
       ) : (
         <MeasureTypeAddButtons
+          disabled={locked || hasUnnamedPanel}
+          disabledTitle={
+            locked ? 'Name the goal first' : 'Name the metric first'
+          }
           onAddMilestone={addMilestoneMeasure}
           onAddNumber={addMetric}
         />
       )}
 
-      {measureNameError ? (
-        <p className="pd-goal-create__title-error" role="alert">
-          {measureNameError}
-        </p>
-      ) : null}
-
-      {measurementWeightError && panelCount > 0 ? (
-        <p className="pd-goal-create__title-error" role="alert">
-          {measurementWeightError}
-        </p>
-      ) : null}
-
-      {showWeightFooter ? (
-        <div className="pd-goal-create__weight-footer">
-          <p className="pd-goal-create__weight-hint" role="status">
-            {measureWeight !== 100
-              ? `Weights total ${measureWeight}% of 100%.`
-              : 'Weights do not split evenly.'}
-          </p>
-          {canDistribute ? (
-            <button
-              type="button"
-              className="pd-goal-create__text-btn"
-              onClick={distributeWeightsEvenly}
-            >
-              Distribute evenly
-            </button>
-          ) : null}
-        </div>
-      ) : null}
     </section>
   )
 }

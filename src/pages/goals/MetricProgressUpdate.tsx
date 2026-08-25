@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui'
 import { cx } from '@/lib/cx'
 import type { Metric } from '@/lib/goals/types'
+import {
+  ReviewSaveBanner,
+  type ReviewSaveNotice,
+} from '@/pages/reviews/ReviewSaveBanner'
 import { metricTipFromMetric } from './goalHelpers'
 
 export function sanitizeMetricDraft(raw: string): string {
@@ -27,6 +31,7 @@ export function MetricProgressUpdate({
   cycleLabel,
   autoFocus = false,
   compact = false,
+  disabled = false,
   onCommit,
 }: {
   metric: Metric
@@ -34,9 +39,11 @@ export function MetricProgressUpdate({
   cycleLabel?: string
   autoFocus?: boolean
   compact?: boolean
+  disabled?: boolean
   onCommit: (nextValue: number | undefined) => void
 }) {
   const [draft, setDraft] = useState('')
+  const [notice, setNotice] = useState<ReviewSaveNotice | null>(null)
   const name = metric.title.trim() || goalTitle?.trim() || 'metric'
   const tip = metricTipFromMetric(metric)
   const lastValue = `${tip.initial} → ${tip.current} → ${tip.target}`
@@ -45,11 +52,20 @@ export function MetricProgressUpdate({
     setDraft('')
   }, [metric.id, metric.currentValue])
 
+  useEffect(() => {
+    setNotice(null)
+  }, [metric.id])
+
   const save = () => {
     const next = parsedCurrent(draft)
     if (next == null) return
     onCommit(next)
     setDraft('')
+    setNotice({
+      variant: 'success',
+      message: 'Progress updated.',
+      shownAt: Date.now(),
+    })
   }
 
   return (
@@ -62,7 +78,8 @@ export function MetricProgressUpdate({
           type="text"
           inputMode="decimal"
           autoComplete="off"
-          autoFocus={autoFocus}
+          autoFocus={autoFocus && !disabled}
+          disabled={disabled}
           value={draft}
           placeholder="Current value"
           aria-label={`Current progress for ${name}`}
@@ -79,12 +96,13 @@ export function MetricProgressUpdate({
           size={compact ? 'sm' : 'md'}
           pill
           aria-label={`Add update for ${name}`}
-          disabled={parsedCurrent(draft) == null}
+          disabled={disabled || parsedCurrent(draft) == null}
           onClick={save}
         >
           Add
         </Button>
       </div>
+      <ReviewSaveBanner notice={notice} onDismiss={() => setNotice(null)} />
       <p className="pd-sr-only" aria-label={`Last value ${lastValue}`}>
         Last value: {lastValue}
         {cycleLabel ? ` · ${cycleLabel}` : ''}

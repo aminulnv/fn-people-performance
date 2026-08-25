@@ -294,6 +294,18 @@ export async function ensureReviewCyclesLoaded(): Promise<void> {
   listeners.forEach((listener) => listener());
 }
 
+/** Live refresh of every review cycle from the API. */
+export async function reloadReviewCycles(): Promise<void> {
+  if (useLocalReviews()) return;
+  const cycles = await fetchReviewCyclesRemote();
+  memory = {
+    cycles: cycles.map((cycle) => normalizeStoredCycle(cycle)),
+    mutationError: getState().mutationError,
+  };
+  remoteHydrated = true;
+  listeners.forEach((listener) => listener());
+}
+
 export type CreateReviewCycleInput = {
   type: ReviewCycleType;
   purpose?: CyclePurpose;

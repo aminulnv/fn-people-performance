@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Plus, ShieldCheck, Trash2 } from 'lucide-react'
 import { Avatar, Button, ListboxSelect } from '@/components/ui'
 import {
@@ -19,6 +19,7 @@ import {
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { notifyAccessChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
+import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import '@/styles/layout-activity.css'
 
 function errorMessage(error: unknown): string {
@@ -45,19 +46,24 @@ export function AccessControlPanel() {
     hasSystemPermission(user?.permissions, 'activity.read_all') ||
     hasSystemPermission(user?.permissions, 'platform.read_all')
 
-  useEffect(() => {
-    let isMounted = true
-    void fetchAccessControl()
+  const loadAccess = useCallback(() => {
+    return fetchAccessControl()
       .then((next) => {
-        if (isMounted) setSnapshot(next)
+        setSnapshot(next)
       })
       .catch((nextError) => {
-        if (isMounted) setError(errorMessage(nextError))
+        setError(errorMessage(nextError))
       })
-    return () => {
-      isMounted = false
-    }
   }, [])
+
+  useEffect(() => {
+    void loadAccess()
+  }, [loadAccess])
+
+  const refreshAccess = useCallback(() => {
+    void loadAccess()
+  }, [loadAccess])
+  useLiveTopic('access', refreshAccess)
 
   const assignments = useMemo(() => {
     if (!snapshot) return []

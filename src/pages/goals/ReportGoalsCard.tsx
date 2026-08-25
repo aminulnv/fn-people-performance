@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronRight, MoreHorizontal, Plus, Target, Undo2 } from 'lucide-react'
+import { Check, ChevronRight, History, MoreHorizontal, Plus, Target, Undo2 } from 'lucide-react'
 import { useHoverMenu } from '@/layout/useHoverMenu'
 import {
   ActivityLogDrawer,
@@ -17,7 +17,7 @@ import {
   type ApprovalTrailPerson,
 } from './approvalTrail'
 import { GoalStatusBadge } from './GoalStatusBadge'
-import { goalsDetailPath } from './goalHelpers'
+import { formatRefreshAge, goalsDetailPath } from './goalHelpers'
 import {
   reportGoalsEmptyDescription,
   submissionStatusLabel,
@@ -73,8 +73,10 @@ type ReportGoalsCardProps = {
   goalCount: number
   /** Reviewer sees Approve / Send Back. Owner sees Submit All / Add Goal. */
   perspective?: 'reviewer' | 'owner'
-  /** Owner drafting after the window closed — two-tier approval will apply. */
+  /** Drafting after the window closed — two-tier approval will apply. */
   allowLateSubmissions?: boolean
+  /** Goal-window end used for “Deadline Missed: 5d ago”. */
+  deadlineMissedAt?: string
   canApprove?: boolean
   canSendBack?: boolean
   busy?: boolean
@@ -135,48 +137,95 @@ function ApproverChip({
   )
 }
 
+function deadlineMissedCopy(deadline?: string): string | null {
+  if (!deadline) return null
+  const iso = deadline.includes('T') ? deadline : `${deadline}T12:00:00.000Z`
+  const age = formatRefreshAge(iso)
+  if (age === '—' || age === 'Just now') return 'Deadline missed'
+  return `Deadline Missed: ${age} ago`
+}
+
+function ApprovalTrailSteps({
+  model,
+  stages,
+}: {
+  model: ApprovalTrailModel
+  stages: ApprovalTrailModel['stages']
+}) {
+  return (
+    <ol className="pd-goals-approval__trail" aria-label={model.spoken}>
+      {stages.map((stage, index) => {
+        const current = model.stages.indexOf(stage) === model.currentIndex
+        return (
+          <Fragment key={stage.key}>
+            {index > 0 ? (
+              <li className="pd-goals-approval__trail-sep" aria-hidden>
+                <ChevronRight size={12} strokeWidth={2.25} />
+              </li>
+            ) : null}
+            <li
+              className={cx(
+                'pd-goals-approval__trail-step',
+                current
+                  ? 'pd-goals-approval__trail-step--current'
+                  : 'pd-goals-approval__trail-step--upcoming',
+              )}
+            >
+              {stage.person ? (
+                <ApproverChip person={stage.person} muted={!current} />
+              ) : (
+                <span>{stage.label}</span>
+              )}
+            </li>
+          </Fragment>
+        )
+      })}
+    </ol>
+  )
+}
+
 function ApprovalTrail({ model }: { model: ApprovalTrailModel }) {
   return (
     <span className="pd-goals-approval__path">
-      {model.late ? (
-        <span className="pd-goals-approval__late-flag" aria-hidden>
-          Late submission
-        </span>
-      ) : null}
-      {model.late ? (
-        <span className="pd-goals-approval__path-dot" aria-hidden>
-          ·
-        </span>
-      ) : null}
-      <ol className="pd-goals-approval__trail" aria-label={model.spoken}>
-        {model.stages.map((stage, index) => {
-          const current = index === model.currentIndex
-          return (
-            <Fragment key={stage.key}>
-              {index > 0 ? (
-                <li className="pd-goals-approval__trail-sep" aria-hidden>
-                  <ChevronRight size={12} strokeWidth={2.25} />
-                </li>
-              ) : null}
-              <li
-                className={cx(
-                  'pd-goals-approval__trail-step',
-                  current
-                    ? 'pd-goals-approval__trail-step--current'
-                    : 'pd-goals-approval__trail-step--upcoming',
-                )}
-              >
-                {stage.person ? (
-                  <ApproverChip person={stage.person} muted={!current} />
-                ) : (
-                  <span>{stage.label}</span>
-                )}
-              </li>
-            </Fragment>
-          )
-        })}
-      </ol>
+      <ApprovalTrailSteps model={model} stages={model.stages} />
     </span>
+  )
+}
+
+function LateSubmissionBanner({
+  model,
+  deadlineMissedAt,
+}: {
+  model: ApprovalTrailModel
+  deadlineMissedAt?: string
+}) {
+  const namedApprovers = model.stages.filter((stage) => stage.key !== 'you')
+  const approvers = namedApprovers.length > 0 ? namedApprovers : model.stages
+  const missed = deadlineMissedCopy(deadlineMissedAt)
+  const approvalLabel =
+    approvers.length > 1
+      ? `${approvers.length} Level Approval Required:`
+      : 'Approval Required:'
+
+  return (
+    <aside
+      className="pd-goals-banner pd-goals-banner--late"
+      aria-label="Late Submission"
+    >
+      <div className="pd-goals-banner__start">
+        <span className="pd-goals-banner__icon" aria-hidden>
+          <History size={13} strokeWidth={2.25} />
+        </span>
+        <p className="pd-goals-banner__title">Late Submission</p>
+        {missed ? <p className="pd-goals-banner__detail">{missed}</p> : null}
+      </div>
+      {approvers.length > 0 ? (
+        <div className="pd-goals-banner__end">
+          <p className="pd-goals-banner__detail">{approvalLabel}</p>
+          <ApprovalTrailSteps model={model} stages={approvers} />
+        </div>
+      ) : null}
+    </aside>
   )
 }
 
@@ -195,6 +244,7 @@ export function ReportGoalsCard({
   goalCount,
   perspective = 'reviewer',
   allowLateSubmissions = false,
+  deadlineMissedAt,
   canApprove = false,
   canSendBack = false,
   busy = false,
@@ -243,14 +293,24 @@ export function ReportGoalsCard({
     status,
     postWindowApprovalStage,
     allowLateSubmissions,
-    canApprove,
     lineManager,
     skipLevelManager,
   })
 
   return (
-    <div className="pd-goals-approval-wrap">
-      {trail ? <ApprovalTrail model={trail} /> : null}
+    <div
+      className={cx(
+        'pd-goals-approval-wrap',
+        trail?.late && 'pd-goals-approval-wrap--late',
+      )}
+    >
+      {trail?.late ? (
+        <LateSubmissionBanner
+          model={trail}
+          deadlineMissedAt={deadlineMissedAt}
+        />
+      ) : null}
+      {trail && !trail.late ? <ApprovalTrail model={trail} /> : null}
       <section
         className={cx(
           'pd-goals-approval',

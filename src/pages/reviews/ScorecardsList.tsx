@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Award,
@@ -28,6 +28,7 @@ import {
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
+import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import {
   defaultScorecardScope,
   hashForScorecardScope,
@@ -166,10 +167,14 @@ export function ScorecardsList() {
     setCycleKeys(next)
   }, [cycleKeys, cycleOptions])
 
+  const loadPackets = useCallback((keys: string[]) => {
+    return Promise.all(keys.map((cycleKey) => fetchReviewPackets(cycleKey)))
+  }, [])
+
   useEffect(() => {
     let cancelled = false
     setPackets([])
-    void Promise.all(cycleKeys.map((cycleKey) => fetchReviewPackets(cycleKey)))
+    void loadPackets(cycleKeys)
       .then((groups) => {
         if (!cancelled) setPackets(groups.flat())
       })
@@ -179,7 +184,30 @@ export function ScorecardsList() {
     return () => {
       cancelled = true
     }
-  }, [cycleKeys])
+  }, [cycleKeys, loadPackets])
+
+  const refreshLivePackets = useCallback(
+    (event: { cycleId?: string }) => {
+      const keys = event.cycleId ? [event.cycleId] : cycleKeys
+      if (keys.length === 0) return
+      void loadPackets(keys)
+        .then((groups) => {
+          const incoming = groups.flat()
+          setPackets((current) => {
+            if (!event.cycleId) return incoming
+            return [
+              ...current.filter((packet) => packet.cycleId !== event.cycleId),
+              ...incoming,
+            ]
+          })
+        })
+        .catch(() => {
+          /* Keep the current list until the next event. */
+        })
+    },
+    [cycleKeys, loadPackets],
+  )
+  useLiveTopic('packets', refreshLivePackets)
 
   const rows = useMemo(
     () =>

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Goal, Metric, Milestone } from '@/lib/goals/types'
@@ -36,6 +37,11 @@ function renderEditor(goal: Goal) {
   return render(
     <GoalProgressEditor goal={goal} onChange={vi.fn()} />,
   )
+}
+
+function StatefulEditor({ initial }: { initial: Goal }) {
+  const [goal, setGoal] = useState(initial)
+  return <GoalProgressEditor goal={goal} onChange={setGoal} />
 }
 
 describe('GoalProgressEditor', () => {
@@ -163,6 +169,7 @@ describe('GoalProgressEditor', () => {
     })
 
     expect(screen.queryByText(/Weights total/)).toBeNull()
+    expect(screen.queryByText('Metric weights must total 100%')).toBeNull()
     expect(
       screen.queryByRole('button', { name: 'Distribute evenly' }),
     ).toBeNull()
@@ -182,9 +189,45 @@ describe('GoalProgressEditor', () => {
       />,
     )
 
-    expect(screen.getByText('Weights do not split evenly.')).toBeInTheDocument()
+    expect(screen.queryByText('Weights do not split evenly.')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Distribute evenly' }))
     expect(onChange).toHaveBeenCalled()
+  })
+
+  it('puts a missing metric name on the field, not under the add buttons', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(50, ''), milestoneMeasure(45)],
+    })
+
+    const name = screen.getByLabelText('Metric name')
+    expect(name).toHaveAttribute('aria-invalid', 'true')
+    expect(name).toHaveClass('is-error')
+    expect(screen.getByText('Each metric needs a name')).toBeInTheDocument()
+    expect(name.parentElement).toHaveTextContent('Each metric needs a name')
+    expect(
+      screen.getByRole('group', { name: 'Add metrics' }),
+    ).not.toHaveTextContent('Each metric needs a name')
+  })
+
+  it('puts the weight total error in the metrics header with distribute', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [milestoneMeasure(50), numberMeasure(45)],
+    })
+
+    const heading = screen.getByRole('heading', { name: 'Metrics' })
+    const ribbon = heading.parentElement
+    expect(ribbon).toHaveTextContent('95%')
+    expect(ribbon).toHaveTextContent('Metric weights must total 100%')
+    expect(
+      ribbon?.querySelector('.pd-goal-create__distribute'),
+    ).toHaveTextContent('Distribute evenly')
+    expect(screen.queryByText(/Weights total/)).toBeNull()
   })
 
   it('hides the task-list chrome when there is only one list', () => {
@@ -267,5 +310,82 @@ describe('GoalProgressEditor', () => {
       currentValue: 3,
       progressLog: [expect.objectContaining({ from: undefined, to: 3 })],
     })
+  })
+
+  it('blocks the metric body and add actions until the metric is named', () => {
+    render(
+      <StatefulEditor
+        initial={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [],
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add number' }))
+
+    expect(screen.getByLabelText('Metric name')).toBeInTheDocument()
+    expect(screen.getByText('Set target')).toBeInTheDocument()
+    expect(screen.getByLabelText('Start value')).toBeDisabled()
+    expect(screen.getByLabelText('Target value')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add number' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add milestones' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Metric name'), {
+      target: { value: 'NPS' },
+    })
+    fireEvent.blur(screen.getByLabelText('Metric name'))
+
+    expect(screen.getByLabelText('Start value')).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Add number' })).toBeEnabled()
+  })
+
+  it('dissolves an unnamed metric when the name field is left empty', () => {
+    render(
+      <StatefulEditor
+        initial={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [],
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add number' }))
+    expect(screen.getByLabelText('Metric name')).toBeInTheDocument()
+
+    fireEvent.blur(screen.getByLabelText('Metric name'))
+
+    expect(screen.queryByLabelText('Metric name')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'No metrics yet' })).toBeInTheDocument()
+  })
+
+  it('blocks tasks on a milestone until it is named, then dissolves if left blank', () => {
+    render(
+      <StatefulEditor
+        initial={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [],
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add milestones' }))
+
+    expect(screen.getByLabelText('Milestone name')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add task' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add task list' })).toBeDisabled()
+    expect(screen.getByLabelText('Task')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add milestones' })).toBeDisabled()
+
+    fireEvent.blur(screen.getByLabelText('Milestone name'))
+
+    expect(screen.queryByLabelText('Milestone name')).toBeNull()
+    expect(screen.getByRole('heading', { name: 'No metrics yet' })).toBeInTheDocument()
   })
 })

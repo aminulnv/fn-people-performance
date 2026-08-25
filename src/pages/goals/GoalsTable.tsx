@@ -4,6 +4,8 @@ import { Avatar, CountBadge, Progress, Tooltip } from '@/components/ui'
 import {
   distributeGoalWeights,
   goalCompletion,
+  goalWeightIssue,
+  hasUnassignedGoalWeight,
   sumGoalWeights,
   isMeasureGoalIssue,
   measureIssueLabel,
@@ -213,10 +215,16 @@ export type GoalsTableRow = {
   issue?: string
 }
 
-export function GoalIssueIcon({ issue }: { issue: string }) {
+export function GoalIssueIcon({
+  issue,
+  className,
+}: {
+  issue: string
+  className?: string
+}) {
   const label = isMeasureGoalIssue(issue) ? measureIssueLabel(issue) : issue
   return (
-    <Tooltip content={label} side="top" portal delayMs={80}>
+    <Tooltip content={label} side="top" portal delayMs={80} className={className}>
       <span
         className="pd-goals-table__goal-error-icon"
         role="img"
@@ -229,12 +237,25 @@ export function GoalIssueIcon({ issue }: { issue: string }) {
   )
 }
 
+function metricsColumnIssue(rows: GoalsTableRow[]): string | null {
+  const labels = [
+    ...new Set(
+      rows.flatMap((row) => {
+        if (!row.issue || !isMeasureGoalIssue(row.issue)) return []
+        return [measureIssueLabel(row.issue)]
+      }),
+    ),
+  ]
+  return labels.length > 0 ? labels.join(' ') : null
+}
+
 export function GoalsTable({
   rows,
   onOpen,
   openGoalId,
   label = 'All goals',
   banner,
+  leadBanner,
   cycleId,
   subjectId,
   canEditWeight = false,
@@ -259,8 +280,10 @@ export function GoalsTable({
   onOpen?: (id: string, measureKey?: string) => void
   /** Goal whose right-hand window is open. Highlights that row (or the measure that opened it). */
   openGoalId?: string | null
-  /** Flush ribbon above the column headers — set-level Action required. */
+  /** Set-level Action required — sits behind the table, peeking above. */
   banner?: ReactNode
+  /** Sent back notice — wraps the action banner and table, peeking above both. */
+  leadBanner?: ReactNode
   label?: string
   cycleId?: string
   subjectId?: string
@@ -301,9 +324,17 @@ export function GoalsTable({
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
   const [selectedMeasureKey, setSelectedMeasureKey] = useState<string | null>(null)
   const allocatedWeight = sumGoalWeights(rows.map((row) => row.goal))
+  const unassignedWeight = hasUnassignedGoalWeight(rows.map((row) => row.goal))
+  const weightIssue = goalWeightIssue(rows.map((row) => row.goal))
   const weightBalance =
-    allocatedWeight === 100 ? 'complete' : allocatedWeight > 100 ? 'over' : 'short'
-  const weightError = weightBalance !== 'complete'
+    allocatedWeight === 100 && !unassignedWeight
+      ? 'complete'
+      : allocatedWeight > 100
+        ? 'over'
+        : 'short'
+  const weightError = Boolean(weightIssue)
+  const metricsHeadIssue = metricsColumnIssue(rows)
+  const metricsError = Boolean(metricsHeadIssue)
   const statusChip = status
     ? batchStatusLabel(status, rows.length, postWindowApprovalStage)
     : null
@@ -347,20 +378,14 @@ export function GoalsTable({
       }
     }
   }, [canEditWeight, measurementLockKey])
-  return (
+  const table = (
     <div
       className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${showActions ? ' pd-goals-table--with-actions' : ''
-        }${weightError ? ' pd-goals-table--weight-error' : ''}`}
+        }${weightError ? ' pd-goals-table--weight-error' : ''}${metricsError ? ' pd-goals-table--metric-error' : ''
+        }`}
       role="table"
       aria-label={label}
     >
-      {banner ? (
-        <div className="pd-goals-table__banner" role="row">
-          <div className="pd-goals-table__banner-cell" role="cell">
-            {banner}
-          </div>
-        </div>
-      ) : null}
       <div className="pd-goals-table__head" role="row">
         {showOwner ? <div role="columnheader">Owner</div> : null}
         <div
@@ -392,14 +417,11 @@ export function GoalsTable({
               {formatWeightReadout(allocatedWeight)}
             </span>
           ) : null}
-          {weightError ? (
-            <span
+          {weightIssue ? (
+            <GoalIssueIcon
+              issue={weightIssue}
               className="pd-goals-table__weight-error-icon"
-              role="img"
-              aria-label="Weights need to add up to 100%."
-            >
-              <CircleAlert size={13} strokeWidth={2.25} aria-hidden />
-            </span>
+            />
           ) : null}
           {canDistribute ? (
             <div className="pd-goals-table__distribute-pop">
@@ -423,11 +445,22 @@ export function GoalsTable({
         <div className="pd-goals-table__progress-head" role="columnheader">
           Progress
         </div>
-        <div className="pd-goals-table__metric-head" role="columnheader">
+        <div
+          className={`pd-goals-table__metric-head${metricsError ? ' pd-goals-table__metric-head--error' : ''
+            }`}
+          role="columnheader"
+          aria-label="Metrics"
+        >
           Metrics
+          {metricsHeadIssue ? (
+            <GoalIssueIcon
+              issue={metricsHeadIssue}
+              className="pd-goals-table__metric-error-icon"
+            />
+          ) : null}
         </div>
         {showActions ? (
-          <div role="columnheader">
+          <div className="pd-goals-table__actions-head" role="columnheader">
             <span className="pd-sr-only">Actions</span>
           </div>
         ) : null}
@@ -569,10 +602,12 @@ export function GoalsTable({
                 }
                 role="cell"
               >
-                {metricsIssue ? <GoalIssueIcon issue={metricsIssue} /> : null}
-                {panels.length > 0 ? (
-                  <MetricsCountBadge count={panels.length} />
-                ) : null}
+                <span className="pd-goals-table__metric-cluster">
+                  {metricsIssue ? <GoalIssueIcon issue={metricsIssue} /> : null}
+                  {panels.length > 0 ? (
+                    <MetricsCountBadge count={panels.length} />
+                  ) : null}
+                </span>
               </div>
               {showActions ? (
                 <div
@@ -746,6 +781,24 @@ export function GoalsTable({
           </div>
         )
       })}
+    </div>
+  )
+
+  const withAction = banner ? (
+    <div className="pd-goals-table-wrap pd-goals-table-wrap--action">
+      {banner}
+      {table}
+    </div>
+  ) : (
+    table
+  )
+
+  if (!leadBanner) return withAction
+
+  return (
+    <div className="pd-goals-table-wrap pd-goals-table-wrap--sendback">
+      {leadBanner}
+      {withAction}
     </div>
   )
 }

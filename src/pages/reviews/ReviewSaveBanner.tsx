@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Check } from 'lucide-react'
+import '@/styles/toast.css'
 
 export type ReviewSaveNotice = {
   variant: 'success' | 'error'

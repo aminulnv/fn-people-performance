@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { CircleAlert, Plus } from 'lucide-react'
 import {
   sentenceFromSuffix,
@@ -53,6 +54,63 @@ export function GoalSubmitBlockNotice({
   const canAddGoal =
     Boolean(onAddGoal) &&
     blockers.some((blocker) => blocker.action === 'add_goal')
+  const reasonLine = (
+    <p className="pd-goals-sendback__reason pd-goals-banner__detail">
+      {blockers.map((blocker, index) => (
+        <Fragment key={`${blocker.goalId ?? 'global'}-${index}`}>
+          {index > 0 ? ' ' : null}
+          <BlockerLine
+            blocker={blocker}
+            onOpenGoal={onOpenGoal}
+            nameTheGoal={nameTheGoal}
+          />
+        </Fragment>
+      ))}
+    </p>
+  )
+  const reasons =
+    layout === 'ribbon' || blockers.length === 1 ? (
+      reasonLine
+    ) : (
+      <ul className="pd-goals-sendback__reason pd-goals-banner__detail">
+        {blockers.map((blocker, index) => (
+          <li key={`${blocker.goalId ?? 'global'}-${index}`}>
+            <BlockerLine
+              blocker={blocker}
+              onOpenGoal={onOpenGoal}
+              nameTheGoal={nameTheGoal}
+            />
+          </li>
+        ))}
+      </ul>
+    )
+
+  if (layout === 'ribbon') {
+    return (
+      <aside
+        className="pd-goals-sendback pd-goals-sendback--danger pd-goals-sendback--ribbon pd-goals-banner pd-goals-banner--danger"
+        role="alert"
+      >
+        <div className="pd-goals-banner__start">
+          <span className="pd-goals-banner__icon" aria-hidden>
+            <CircleAlert size={13} strokeWidth={2.25} />
+          </span>
+          <p className="pd-goals-banner__title">Action required</p>
+          {reasons}
+        </div>
+        {canAddGoal ? (
+          <button
+            type="button"
+            className="pd-goals-sendback__action"
+            onClick={onAddGoal}
+          >
+            <Plus size={14} strokeWidth={2.25} aria-hidden />
+            {addGoalLabel}
+          </button>
+        ) : null}
+      </aside>
+    )
+  }
 
   return (
     <aside
@@ -60,7 +118,6 @@ export function GoalSubmitBlockNotice({
         'pd-goals-sendback',
         'pd-goals-sendback--danger',
         'pd-goals-sendback--compact',
-        layout === 'ribbon' ? 'pd-goals-sendback--ribbon' : '',
         canAddGoal ? 'pd-goals-sendback--with-action' : '',
       ]
         .filter(Boolean)
@@ -74,27 +131,7 @@ export function GoalSubmitBlockNotice({
         <div className="pd-goals-sendback__head">
           <p className="pd-goals-sendback__title">Action required</p>
         </div>
-        {blockers.length === 1 ? (
-          <p className="pd-goals-sendback__reason">
-            <BlockerLine
-              blocker={blockers[0]}
-              onOpenGoal={onOpenGoal}
-              nameTheGoal={nameTheGoal}
-            />
-          </p>
-        ) : (
-          <ul className="pd-goals-sendback__reason">
-            {blockers.map((blocker, index) => (
-              <li key={`${blocker.goalId ?? 'global'}-${index}`}>
-                <BlockerLine
-                  blocker={blocker}
-                  onOpenGoal={onOpenGoal}
-                  nameTheGoal={nameTheGoal}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        {reasons}
       </div>
       {canAddGoal ? (
         <button

@@ -31,6 +31,7 @@ function mergeMeasurement(
       startValue: localItem.startValue,
       targetValue: localItem.targetValue,
       currentValue: localItem.currentValue,
+      progressLog: localItem.progressLog ?? persisted.progressLog,
       rangeMin: localItem.rangeMin,
       rangeMax: localItem.rangeMax,
     }
@@ -49,6 +50,8 @@ function mergeMeasurement(
     listTitle: preferLocalText(localItem.listTitle, persisted.listTitle),
     title: preferLocalText(localItem.title, persisted.title) ?? '',
     weight: localItem.weight,
+    complete: localItem.complete,
+    progressLog: localItem.progressLog ?? persisted.progressLog,
   }
 }
 
@@ -120,7 +123,6 @@ export function goalDraftSnapshot(goal: Goal) {
           listId: item.listId,
           title: item.title,
           weight: item.weight,
-          complete: item.complete,
         }
       }
       return {
@@ -132,7 +134,6 @@ export function goalDraftSnapshot(goal: Goal) {
         direction: item.direction,
         startValue: item.startValue,
         targetValue: item.targetValue,
-        currentValue: item.currentValue,
         rangeMin: item.rangeMin,
         rangeMax: item.rangeMax,
       }
@@ -175,12 +176,83 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
   }
 }
 
-/** Compare editable goal fields — ignores comment-only / timestamp noise. */
+/** Compare editable goal fields — ignores progress logs, comments, and timestamps. */
 export function isGoalDraftDirty(baseline: Goal, draft: Goal): boolean {
   return (
     JSON.stringify(goalDraftSnapshot(baseline)) !==
     JSON.stringify(goalDraftSnapshot(draft))
   )
+}
+
+function goalProgressSnapshot(goal: Goal) {
+  return goal.measurements.map((item) =>
+    item.kind === 'milestone'
+      ? {
+          id: item.id,
+          complete: item.complete,
+          progressLog: item.progressLog,
+        }
+      : {
+          id: item.id,
+          currentValue: item.currentValue,
+          progressLog: item.progressLog,
+        },
+  )
+}
+
+export function hasGoalProgressChange(baseline: Goal[], draft: Goal[]): boolean {
+  const baselineById = new Map(baseline.map((goal) => [goal.id, goal]))
+  return draft.some((goal) => {
+    const persisted = baselineById.get(goal.id)
+    if (!persisted) return false
+    return (
+      JSON.stringify(goalProgressSnapshot(persisted)) !==
+      JSON.stringify(goalProgressSnapshot(goal))
+    )
+  })
+}
+
+/** Copy logged progress onto the persisted goals without taking structural edits. */
+export function applyProgressFrom(persisted: Goal[], local: Goal[]): Goal[] {
+  const localById = new Map(local.map((goal) => [goal.id, goal]))
+  return persisted.map((goal) => {
+    const draft = localById.get(goal.id)
+    if (!draft) return goal
+    return {
+      ...goal,
+      updatedAt: draft.updatedAt ?? goal.updatedAt,
+      measurements: goal.measurements.map((item) => {
+        const localItem = draft.measurements.find(
+          (candidate) => candidate.id === item.id,
+        )
+        if (!localItem) return item
+        if (item.kind === 'metric' && localItem.kind === 'metric') {
+          return {
+            ...item,
+            currentValue: localItem.currentValue,
+            progressLog: localItem.progressLog,
+          }
+        }
+        if (item.kind === 'milestone' && localItem.kind === 'milestone') {
+          return {
+            ...item,
+            complete: localItem.complete,
+            progressLog: localItem.progressLog,
+          }
+        }
+        return item
+      }),
+    }
+  })
+}
+
+/** Persisted goals with only in-flight progress applied, or null if nothing logged. */
+export function progressOnlyGoals(
+  persisted: Goal[],
+  local: Goal[],
+): Goal[] | null {
+  const next = applyProgressFrom(persisted, local)
+  return hasGoalProgressChange(persisted, next) ? next : null
 }
 
 /** A newly opened create form with no user-entered content yet. */

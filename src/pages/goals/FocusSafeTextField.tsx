@@ -82,6 +82,8 @@ export function FocusSafeTextArea({
   onFocusRequested,
   onBlurComplete,
   onKeyDown,
+  ariaInvalid,
+  disabled,
 }: {
   value: string
   onChange: (value: string) => void
@@ -91,18 +93,20 @@ export function FocusSafeTextArea({
   ariaLabel?: string
   requestFocus?: boolean
   onFocusRequested?: () => void
-  onBlurComplete?: () => void
+  onBlurComplete?: (next: string) => void
   onKeyDown?: (event: React.KeyboardEvent<HTMLTextAreaElement>) => void
+  ariaInvalid?: boolean
+  disabled?: boolean
 }) {
   const label = ariaLabel ?? placeholder ?? 'Text'
   const draft = useFocusSafeDraft(value, inputKey)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (!requestFocus) return
+    if (!requestFocus || disabled) return
     inputRef.current?.focus()
     onFocusRequested?.()
-  }, [requestFocus, inputKey, onFocusRequested])
+  }, [requestFocus, inputKey, onFocusRequested, disabled])
 
   return (
     <textarea
@@ -112,6 +116,8 @@ export function FocusSafeTextArea({
       value={draft.text}
       placeholder={placeholder}
       aria-label={label}
+      aria-invalid={ariaInvalid || undefined}
+      disabled={disabled}
       onFocus={() => {
         draft.markFocused()
       }}
@@ -120,7 +126,7 @@ export function FocusSafeTextArea({
         if (trimmed !== draft.text) draft.setText(trimmed)
         draft.markBlurred()
         onChange(trimmed)
-        onBlurComplete?.()
+        onBlurComplete?.(trimmed)
       }}
       onKeyDown={onKeyDown}
       onChange={(event) => {

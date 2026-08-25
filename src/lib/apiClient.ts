@@ -20,7 +20,8 @@ export type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   skipAuth?: boolean
 }
 
-function resolveUrl(path: string, baseUrl?: string): string {
+/** Resolve a platform API path against `VITE_API_BASE_URL` (empty = same origin). */
+export function resolveApiUrl(path: string, baseUrl?: string): string {
   if (/^https?:\/\//i.test(path)) return path
   const base =
     baseUrl ??
@@ -44,7 +45,7 @@ export async function apiFetch<T>(
   const { body, baseUrl, headers, skipAuth, credentials, ...rest } = options
   const token = skipAuth ? null : getAccessToken()
 
-  const response = await fetch(resolveUrl(path, baseUrl), {
+  const response = await fetch(resolveApiUrl(path, baseUrl), {
     credentials: credentials ?? 'include',
     ...rest,
     headers: {

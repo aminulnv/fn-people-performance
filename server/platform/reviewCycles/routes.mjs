@@ -20,6 +20,7 @@ import {
   deleteCycleGroup,
   updateCycleGroup,
 } from './groups.mjs'
+import { publishWrite } from '../realtime/fromRequest.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -59,6 +60,7 @@ export function registerReviewCycleRoutes(app) {
     asyncHandler(async (req, res) => {
       try {
         const cycle = await createReviewCycle(req.body ?? {}, req.platformUser)
+        await publishWrite(req, ['reviews', 'activity'], { cycleId: cycle?.id })
         res.status(201).json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -90,6 +92,7 @@ export function registerReviewCycleRoutes(app) {
           await copyCycleGroups(source.id, created.id, req.platformUser)
         }
         const cycle = (await getReviewCycle(created.id)) ?? created
+        await publishWrite(req, ['reviews', 'activity'], { cycleId: cycle.id })
         res.status(201).json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -108,6 +111,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -126,6 +132,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'goals', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -144,6 +153,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'packets', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -162,6 +174,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'packets', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ cycle })
       } catch (err) {
         throw toHttp(err)
@@ -185,6 +200,9 @@ export function registerReviewCycleRoutes(app) {
           req.platformUser,
           expectedVersion,
         )
+        await publishWrite(req, ['reviews', 'goals', 'packets', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ ok: true })
       } catch (err) {
         throw toHttp(err)
@@ -203,6 +221,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.status(201).json({ group })
       } catch (err) {
         throw toHttp(err)
@@ -222,6 +243,9 @@ export function registerReviewCycleRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ group })
       } catch (err) {
         throw toHttp(err)
@@ -240,6 +264,9 @@ export function registerReviewCycleRoutes(app) {
           req.params.groupId,
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'activity'], {
+          cycleId: req.params.cycleId,
+        })
         res.json({ ok: true })
       } catch (err) {
         throw toHttp(err)
@@ -260,6 +287,7 @@ export function registerReviewCycleRoutes(app) {
           req.platformUser,
           fingerprint,
         )
+        await publishWrite(req, ['reviews', 'activity'])
         res.status(201).json({ cycles: imported })
       } catch (err) {
         throw toHttp(err)

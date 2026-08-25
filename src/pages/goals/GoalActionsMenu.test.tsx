@@ -38,6 +38,26 @@ describe('GoalActionsMenu', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('puts extra window actions in the 3-dot menu', () => {
+    const onEdit = vi.fn()
+    renderMenu({
+      extraItems: [
+        {
+          id: 'edit',
+          label: 'Edit',
+          onSelect: onEdit,
+        },
+      ],
+    })
+
+    fireEvent.mouseEnter(
+      screen.getByRole('button', { name: 'More actions for Ship quality' })
+        .closest('.pd-menu')!,
+    )
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    expect(onEdit).toHaveBeenCalledTimes(1)
+  })
+
   it('hides table actions behind a 3-dot menu', () => {
     const onDuplicate = vi.fn()
     renderMenu({ onDuplicate })

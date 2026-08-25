@@ -4,10 +4,14 @@ import { MeasureTypeAddButtons } from '@/pages/goals/MeasureTypeSwitch'
 
 export function GoalEmptyMeasures({
   canAdd = false,
+  disabled = false,
+  disabledTitle,
   onAddMilestones,
   onAddNumber,
 }: {
   canAdd?: boolean
+  disabled?: boolean
+  disabledTitle?: string
   onAddMilestones?: () => void
   onAddNumber?: () => void
 }) {
@@ -20,6 +24,8 @@ export function GoalEmptyMeasures({
       action={
         canAdd && onAddMilestones && onAddNumber ? (
           <MeasureTypeAddButtons
+            disabled={disabled}
+            disabledTitle={disabledTitle}
             onAddMilestone={onAddMilestones}
             onAddNumber={onAddNumber}
           />

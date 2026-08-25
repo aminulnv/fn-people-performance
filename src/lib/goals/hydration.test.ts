@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getGoalsHydration,
+  listHydratedGoalCycleIds,
   markCycleGoalsHydrated,
   markOwnGoalsHydrated,
   resetGoalsHydrationForTests,
@@ -38,5 +39,6 @@ describe('goals hydration marks', () => {
       cycleReady: true,
     })
     expect(ticks).toBe(1)
+    expect(listHydratedGoalCycleIds()).toEqual(['q3-2026'])
   })
 })

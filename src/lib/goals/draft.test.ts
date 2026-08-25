@@ -4,6 +4,7 @@ import {
   isBlankGoalDraft,
   isGoalDraftDirty,
   mergePersistedGoals,
+  progressOnlyGoals,
   validateGoalDraft,
 } from '@/lib/goals/draft'
 import type { Goal } from '@/lib/goals/types'
@@ -60,6 +61,57 @@ describe('shared draft helpers (V1/V2 contract)', () => {
         ],
       }),
     ).toBe(false)
+  })
+
+  it('ignores progress logs when deciding if a draft is dirty', () => {
+    const metric = goal.measurements[0]
+    if (metric.kind !== 'metric') throw new Error('expected metric')
+    expect(
+      isGoalDraftDirty(goal, {
+        ...goal,
+        measurements: [{ ...metric, currentValue: 40 }],
+      }),
+    ).toBe(false)
+    expect(
+      hasPromptableUnsavedGoalDraft(
+        [{ ...goal, measurements: [{ ...metric, currentValue: 40 }] }],
+        [goal],
+      ),
+    ).toBe(false)
+  })
+
+  it('copies logged progress onto persisted goals without taking title edits', () => {
+    const metric = goal.measurements[0]
+    if (metric.kind !== 'metric') throw new Error('expected metric')
+    const local: Goal = {
+      ...goal,
+      description: 'Ship reviews now',
+      measurements: [
+        {
+          ...metric,
+          currentValue: 40,
+          progressLog: [
+            {
+              id: 'plog-1',
+              recordedAt: '2026-08-25T04:00:00.000Z',
+              authorName: 'Ada',
+              from: 10,
+              to: 40,
+            },
+          ],
+        },
+      ],
+    }
+
+    const progressGoals = progressOnlyGoals([goal], [local])
+    expect(progressGoals?.[0]).toMatchObject({
+      description: 'Ship reviews',
+      measurements: [{ id: 'm1', currentValue: 40 }],
+    })
+    expect(progressGoals?.[0]?.measurements[0]).toMatchObject({
+      progressLog: [{ id: 'plog-1', to: 40 }],
+    })
+    expect(progressOnlyGoals([goal], [goal])).toBeNull()
   })
 
   it('detects milestone measure title edits', () => {

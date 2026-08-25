@@ -2,6 +2,7 @@ import { ApiError } from '@/lib/apiClient'
 import { isEligibleForCycle } from './goals/demoData'
 import {
   getGoalsHydration,
+  listHydratedGoalCycleIds,
   markCycleGoalsHydrated,
   markOwnGoalsHydrated,
 } from './goals/hydration'
@@ -72,6 +73,8 @@ export {
   collectGoalSubmitBlockers,
   distributeGoalWeights,
   goalCompletion,
+  goalWeightIssue,
+  hasUnassignedGoalWeight,
   isEvenGoalSplit,
   overallCompletion,
   remainingGoalWeight,
@@ -170,6 +173,36 @@ export async function fetchGoalsSnapshot(): Promise<GoalsSnapshot> {
     return snapshot
   }
   return hydrateGoalsFromApi()
+}
+
+/** Live refresh — bypasses the first-hydrate cache so other sessions see writes. */
+export async function refreshRemoteGoals(options?: {
+  cycleId?: string
+  employeeId?: string | number
+}): Promise<GoalsSnapshot> {
+  if (useLocalGoals()) return getGoalsSnapshot()
+  const cycleId = options?.cycleId
+  const employeeId = options?.employeeId
+  if (cycleId && employeeId != null && String(employeeId) !== '') {
+    try {
+      const row = await fetchPersonGoalsRemote(cycleId, employeeId)
+      return mergeRemotePersonGoals(cycleId, String(employeeId), row)
+    } catch {
+      return hydrateGoalsFromApi(cycleId, { force: true, activate: false })
+    }
+  }
+  if (cycleId) {
+    return hydrateGoalsFromApi(cycleId, { force: true, activate: false })
+  }
+  const ready = listHydratedGoalCycleIds()
+  if (ready.length === 0) {
+    return hydrateGoalsFromApi(undefined, { force: true })
+  }
+  let snapshot = getGoalsSnapshot()
+  for (const id of ready) {
+    snapshot = await hydrateGoalsFromApi(id, { force: true, activate: false })
+  }
+  return snapshot
 }
 
 export async function selectDemoPerson(personId: string): Promise<GoalsSnapshot> {
