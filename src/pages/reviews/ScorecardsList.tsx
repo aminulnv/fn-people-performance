@@ -407,9 +407,9 @@ export function ScorecardsList() {
               type="button"
               className="pd-reviews-scorecards__grade-toggle"
               aria-label={
-                allGradesVisible ? 'Hide all grades' : 'Show all grades'
+                allGradesVisible ? 'Hide All Grades' : 'Show All Grades'
               }
-              title={allGradesVisible ? 'Hide all grades' : 'Show all grades'}
+              title={allGradesVisible ? 'Hide All Grades' : 'Show All Grades'}
               aria-pressed={allGradesVisible}
               onClick={toggleAllGrades}
             >
@@ -551,10 +551,10 @@ export function ScorecardsList() {
       >
         <h2 id="scorecards-heading" className="pd-sr-only">
           {visibleScope === 'mine'
-            ? 'My reviews'
+            ? 'My Reviews'
             : visibleScope === 'reports'
-              ? "My Reports' reviews"
-              : "Everyone's reviews"}
+              ? "My Reports' Reviews"
+              : "Everyone's Reviews"}
         </h2>
 
         {(loadState === 'loading' && employees.length === 0) ||
@@ -569,7 +569,7 @@ export function ScorecardsList() {
             <EmptyState
               className="pd-empty--inline"
               icon={Award}
-              title={queueRows.length === 0 ? 'No performance reviews yet' : 'No matches'}
+              title={queueRows.length === 0 ? 'No Performance Reviews Yet' : 'No Matches'}
               description={
                 queueRows.length === 0
                   ? visibleScope === 'mine'
@@ -680,8 +680,8 @@ function ScorecardTableRow({
               <button
                 type="button"
                 className="pd-reviews-scorecards__grade-toggle"
-                aria-label="Hide grade"
-                title="Hide grade"
+                aria-label="Hide Grade"
+                title="Hide Grade"
                 onClick={onToggleGrade}
               >
                 <Eye size={14} strokeWidth={1.75} aria-hidden />
@@ -692,8 +692,8 @@ function ScorecardTableRow({
           <button
             type="button"
             className="pd-reviews-scorecards__grade-toggle"
-            aria-label="Show grade"
-            title="Show grade"
+            aria-label="Show Grade"
+            title="Show Grade"
             onClick={onToggleGrade}
           >
             <EyeOff size={14} strokeWidth={1.75} aria-hidden />

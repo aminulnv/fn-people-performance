@@ -1,16 +1,18 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
-import { Select, Switch } from '@/components/ui'
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { ArrowRight, CalendarRange, LayoutGrid, Star, Target } from 'lucide-react'
+import { Switch } from '@/components/ui'
 import { parseDateTime } from '@/lib/dates/timestamp'
-import { toUtcIso } from '@/lib/dates/timezone'
 import { normalizeCycleSettings } from '@/lib/reviews/demoData'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
-  describeEnabledFlow,
+  enabledReviewStages,
+  isCalibrationStage,
   isPublishStage,
-  REVIEW_FLOW_STAGE_ORDER,
-  REVIEW_STAGE_HINT,
+  isRequiredReviewStage,
+  REVIEW_ONLY_STAGE_ORDER,
   REVIEW_STAGE_LABEL,
   syncLegacyStageWindows,
+  withRequiredReviewStages,
 } from '@/lib/reviews/reviewStages'
 import { pillarWeightTotal } from '@/lib/reviews/reviewPolicy'
 import { updateCycleGroup } from '@/lib/reviews/store'
@@ -23,9 +25,9 @@ import type {
 } from '@/lib/reviews/types'
 import { CycleModuleField, ModuleSettingsLock } from './CycleModulesFields'
 import { EditPageShell } from './EditPageShell'
-import { PublishStageControls } from './PublishStageControls'
+import { HintIcon } from './HintIcon'
 import { reviewFormSummary } from './ReviewFormSheet'
-import { StageWindowFields } from './StageDateTable'
+import { ReviewStageList, stageSectionId } from './ReviewStageList'
 
 type ReviewSettingsEditPageProps = {
   cycle: ReviewCycle
@@ -55,6 +57,7 @@ export type ReviewSettingsDraft = {
   replaceStagesConfig: (next: CycleStagesConfig) => void
   patchPolicy: (partial: Partial<ReviewPolicy>) => void
   save: () => boolean
+  saving: boolean
 }
 
 export function useReviewSettingsDraft(
@@ -67,9 +70,10 @@ export function useReviewSettingsDraft(
     normalizeCycleSettings(group.settings, cyclePurposeOf(cycle)),
   )
   const [stagesConfig, setStagesConfig] = useState<CycleStagesConfig>(() =>
-    structuredClone(group.stagesConfig),
+    withRequiredReviewStages(structuredClone(group.stagesConfig)),
   )
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const policy =
     settings.reviewPolicy ??
@@ -77,6 +81,7 @@ export function useReviewSettingsDraft(
       .reviewPolicy!
 
   const setStageEnabled = (id: ReviewStageId, enabled: boolean) => {
+    if (isRequiredReviewStage(id) && !enabled) return
     setStagesConfig((prev) =>
       syncLegacyStageWindows({
         ...prev,
@@ -124,6 +129,7 @@ export function useReviewSettingsDraft(
   }
 
   const save = () => {
+    if (saving) return false
     setError(null)
     const weight = pillarWeightTotal(policy)
     if (weight !== 100) {
@@ -133,6 +139,7 @@ export function useReviewSettingsDraft(
       return false
     }
     try {
+      setSaving(true)
       void updateCycleGroup(cycle.id, group.id, {
         settings: {
           reviewTypes: settings.reviewTypes,
@@ -141,10 +148,13 @@ export function useReviewSettingsDraft(
           reviewPolicy: policy,
         },
         stagesConfig,
-      }).catch(() => { })
+      })
+        .catch(() => { })
+        .finally(() => setSaving(false))
       if (!embedded) onClose()
       return true
     } catch (err) {
+      setSaving(false)
       setError(err instanceof Error ? err.message : 'Could not save settings.')
       return false
     }
@@ -161,6 +171,7 @@ export function useReviewSettingsDraft(
     replaceStagesConfig,
     patchPolicy,
     save,
+    saving,
   }
 }
 
@@ -184,29 +195,74 @@ export function ReviewSettingsEditPage({
     setStageDate,
     patchPolicy,
     save,
+    saving,
   } = editor
-  const flow = useMemo(
-    () => describeEnabledFlow(stagesConfig.reviewStages),
+  const [highlightedStageId, setHighlightedStageId] =
+    useState<ReviewStageId | null>(null)
+  const flowStages = useMemo(
+    () =>
+      enabledReviewStages(
+        stagesConfig.reviewStages?.filter(
+          (stage) => !isCalibrationStage(stage.id),
+        ),
+      ).filter((stage) => stage.id !== 'goals'),
     [stagesConfig.reviewStages],
   )
+
+  useEffect(() => {
+    if (!highlightedStageId) return
+    const timer = window.setTimeout(() => setHighlightedStageId(null), 1800)
+    return () => window.clearTimeout(timer)
+  }, [highlightedStageId])
+
+  const focusStage = (id: ReviewStageId) => {
+    setHighlightedStageId(id)
+    document.getElementById(stageSectionId(id))?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'center',
+    })
+  }
 
   return (
     <EditPageShell
       title={`${group.name} · Reviews`}
       description={
         enabled
-          ? 'When reviews happen, and extra rules. The form opens on the left.'
+          ? 'When reviews happen, and which grades appear on the scorecard. The form opens on the left.'
           : 'Turn on Reviews to set when they happen and the form.'
       }
       onBack={onClose}
       onSave={() => {
         if (save()) onSuccess?.('Settings saved.')
       }}
+      saving={saving}
       error={error}
       embedded={embedded}
       showActions={enabled}
-      actionsPlacement={embedded ? 'bottom' : 'top'}
+      actionsPlacement="top"
     >
+      {enabled && flowStages.length > 0 ? (
+        <ol className="pd-reviews-stage-preview" aria-label="Review path">
+          {flowStages.map((stage, index) => (
+            <li key={stage.id} className="pd-reviews-stage-preview__item">
+              <button
+                type="button"
+                className={`pd-reviews-stage-preview__stage${
+                  highlightedStageId === stage.id ? ' is-active' : ''
+                }`}
+                onClick={() => focusStage(stage.id)}
+              >
+                {REVIEW_STAGE_LABEL[stage.id]}
+              </button>
+              {index < flowStages.length - 1 ? (
+                <span className="pd-reviews-stage-preview__arrow" aria-hidden>
+                  <ArrowRight size={13} strokeWidth={1.75} />
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      ) : null}
       {onEnabledChange ? (
         <section className="pd-reviews-edit-card pd-reviews-module-enable">
           <CycleModuleField
@@ -217,279 +273,97 @@ export function ReviewSettingsEditPage({
         </section>
       ) : null}
       <ModuleSettingsLock locked={!enabled} label="Review settings">
-        <div className="pd-reviews-group-form">
-          <section className="pd-reviews-flow">
-            <p className="pd-reviews-flow__path">{flow}</p>
+        <div className="pd-reviews-settings-edit pd-reviews-settings-edit--stacked">
+          <section className="pd-reviews-edit-card">
+            <header className="pd-reviews-edit-card__head">
+              <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
+              <h3 className="pd-reviews-edit-card__title">When Reviews Happen</h3>
+            </header>
+            <ReviewStageList
+              cycle={cycle}
+              groupId={group.id}
+              stageIds={REVIEW_ONLY_STAGE_ORDER}
+              stagesConfig={stagesConfig}
+              moduleEnabled={enabled}
+              highlightedId={highlightedStageId}
+              setStageEnabled={setStageEnabled}
+              setStageDate={setStageDate}
+            />
           </section>
 
-          <section className="pd-reviews-group-form__block">
-            <h3 className="pd-field__label">When reviews happen</h3>
-            <ul className="pd-reviews-stage-list">
-              {REVIEW_FLOW_STAGE_ORDER.map((id) => {
-                const stage = (stagesConfig.reviewStages ?? []).find(
-                  (item) => item.id === id,
-                )
-                if (!stage) return null
-                return (
-                  <li key={id} className="pd-reviews-stage-list__item">
-                    <div className="pd-reviews-stage-list__row">
-                      <Switch
-                        label={`Enable ${REVIEW_STAGE_LABEL[id]}`}
-                        className="pd-reviews-type-list__switch"
-                        checked={stage.enabled}
-                        onChange={(event) =>
-                          setStageEnabled(id, event.target.checked)
-                        }
-                      />
-                      <div className="pd-reviews-stage-list__copy">
-                        <p className="pd-reviews-stage-list__title">
-                          {REVIEW_STAGE_LABEL[id]}
-                        </p>
-                        <p className="pd-reviews-stage-list__hint">
-                          {REVIEW_STAGE_HINT[id]}
-                        </p>
-                      </div>
-                    </div>
-                    {stage.enabled || !enabled ? (
-                      <div className="pd-reviews-stage-list__window">
-                        {isPublishStage(id) ? (
-                          <PublishStageControls
-                            cycleId={cycle.id}
-                            groupId={group.id}
-                            target={
-                              id === 'publish_managers'
-                                ? 'managers'
-                                : 'employees'
-                            }
-                            date={toUtcIso(
-                              stage.start ?? {
-                                date: cycle.endDate,
-                                time: '00:00',
-                              },
-                            )}
-                            dateLabel={
-                              id === 'publish_managers'
-                                ? 'Managers visible from'
-                                : 'Employees visible from'
-                            }
-                            releaseLabel={
-                              id === 'publish_managers'
-                                ? 'Release to managers now'
-                                : 'Release to employees now'
-                            }
-                            onDateChange={(next) =>
-                              setStageDate(id, 'start', next)
-                            }
-                          />
-                        ) : (
-                          <StageWindowFields
-                            startLabel="Opens"
-                            endLabel="Closes"
-                            startValue={toUtcIso(
-                              stage.start ?? {
-                                date: cycle.startDate,
-                                time: '00:00',
-                              },
-                            )}
-                            endValue={toUtcIso(
-                              stage.end ??
-                                stage.start ?? {
-                                  date: cycle.endDate,
-                                  time: '00:00',
-                                },
-                            )}
-                            onStartChange={(date) =>
-                              setStageDate(id, 'start', date)
-                            }
-                            onEndChange={(date) =>
-                              setStageDate(id, 'end', date)
-                            }
-                          />
-                        )}
-                      </div>
-                    ) : null}
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-
-          <section className="pd-reviews-group-form__block">
-            <h3 className="pd-field__label">Form people fill in</h3>
-            <p className="pd-reviews-flow__hint">{reviewFormSummary(policy)}</p>
-            <ul className="pd-reviews-stage-list">
-              <li className="pd-reviews-stage-list__item">
-                <div className="pd-reviews-stage-list__row">
-                  <Switch
-                    label="Enable Goals grade"
-                    className="pd-reviews-type-list__switch"
-                    checked={policy.managerReview.gradeGoals}
-                    onChange={(event) =>
-                      patchPolicy({
-                        managerReview: {
-                          ...policy.managerReview,
-                          gradeGoals: event.target.checked,
-                        },
-                      })
-                    }
-                  />
-                  <div className="pd-reviews-stage-list__copy">
-                    <p className="pd-reviews-stage-list__title">Goals grade</p>
-                    <p className="pd-reviews-stage-list__hint">
-                      Managers pick a Goals grade on the goals card. Off keeps
-                      goals as progress only.
-                    </p>
-                  </div>
-                </div>
-              </li>
-              <li className="pd-reviews-stage-list__item">
-                <div className="pd-reviews-stage-list__row">
-                  <Switch
-                    label="Enable Overall grade"
-                    className="pd-reviews-type-list__switch"
-                    checked={policy.managerReview.gradeOverall}
-                    onChange={(event) =>
-                      patchPolicy({
-                        managerReview: {
-                          ...policy.managerReview,
-                          gradeOverall: event.target.checked,
-                        },
-                      })
-                    }
-                  />
-                  <div className="pd-reviews-stage-list__copy">
-                    <p className="pd-reviews-stage-list__title">Overall grade</p>
-                    <p className="pd-reviews-stage-list__hint">
-                      Show the overall grade grid on the scorecard. Off hides
-                      it.
-                    </p>
-                  </div>
-                </div>
-              </li>
-            </ul>
-          </section>
-
-          <details className="pd-cycle-setup__more">
-            <summary>More review rules</summary>
-            <div className="pd-reviews-policy-grid">
-              <Select
-                label="Self-review visibility"
-                value={policy.selfReview.visibility}
-                onChange={(event) =>
-                  patchPolicy({
-                    selfReview: {
-                      ...policy.selfReview,
-                      visibility: event.target
-                        .value as ReviewPolicy['selfReview']['visibility'],
-                    },
-                  })
-                }
-                options={[
-                  { value: 'visible_first', label: 'Manager sees self-review first' },
-                  { value: 'sequential', label: 'Self-review must finish first' },
-                  { value: 'blinded', label: 'Blinded until the manager submits' },
-                ]}
-              />
-              <Select
-                label="Late self-review"
-                value={policy.selfReview.latePolicy}
-                onChange={(event) =>
-                  patchPolicy({
-                    selfReview: {
-                      ...policy.selfReview,
-                      latePolicy: event.target
-                        .value as ReviewPolicy['selfReview']['latePolicy'],
-                    },
-                  })
-                }
-                options={[
-                  { value: 'proceed', label: 'Manager proceeds without it' },
-                  { value: 'block', label: 'Block manager until it is in' },
-                  { value: 'ptr_unblock', label: 'PTR unblocks case by case' },
-                ]}
-              />
-              <Select
-                label="Goals score"
-                value={policy.managerReview.goalsScoreEdit}
-                onChange={(event) =>
-                  patchPolicy({
-                    managerReview: {
-                      ...policy.managerReview,
-                      goalsScoreEdit: event.target
-                        .value as ReviewPolicy['managerReview']['goalsScoreEdit'],
-                    },
-                  })
-                }
-                options={[
-                  { value: 'read_only', label: 'Read only — system average' },
-                  {
-                    value: 'override_with_reason',
-                    label: 'Manager may override with a reason',
-                  },
-                ]}
-              />
-              <Select
-                label="Final grade"
-                value={policy.managerReview.finalGradeEdit}
-                onChange={(event) =>
-                  patchPolicy({
-                    managerReview: {
-                      ...policy.managerReview,
-                      finalGradeEdit: event.target
-                        .value as ReviewPolicy['managerReview']['finalGradeEdit'],
-                    },
-                  })
-                }
-                options={[
-                  {
-                    value: 'override_with_reason',
-                    label: 'Confirm or override with a reason',
-                  },
-                  { value: 'confirm_only', label: 'Confirm the calculated grade only' },
-                ]}
-              />
-              <Select
-                label="Release"
-                value={policy.release.mode}
-                onChange={(event) =>
-                  patchPolicy({
-                    release: {
-                      ...policy.release,
-                      mode: event.target.value as ReviewPolicy['release']['mode'],
-                    },
-                  })
-                }
-                options={[
-                  { value: 'window_then_auto', label: 'Window, then auto-release' },
-                  { value: 'batch_ptr', label: 'PTR releases everyone at once' },
-                  {
-                    value: 'manager_then_deadline',
-                    label: 'Manager releases, then deadline',
-                  },
-                  {
-                    value: 'immediate_on_submit',
-                    label: 'Visible when the manager submits',
-                  },
-                ]}
-              />
-              <Select
-                label="Appeal"
-                value={policy.appeal.mode}
-                onChange={(event) =>
-                  patchPolicy({
-                    appeal: {
-                      ...policy.appeal,
-                      mode: event.target.value as ReviewPolicy['appeal']['mode'],
-                    },
-                  })
-                }
-                options={[
-                  { value: 'record_only', label: 'Written record only' },
-                  { value: 'can_change_with_ptr', label: 'PTR may change the grade' },
-                ]}
-              />
+          <section className="pd-reviews-edit-card">
+            <div className="pd-reviews-edit-card__heading">
+              <header className="pd-reviews-edit-card__head">
+                <Star size={16} strokeWidth={1.75} aria-hidden />
+                <h3 className="pd-reviews-edit-card__title">Grades On The Form</h3>
+                <HintIcon
+                  content={reviewFormSummary(policy)}
+                  label="About Grades On The Form"
+                />
+              </header>
+              <p className="pd-reviews-edit-card__lede">
+                Questions and areas open on the left. These switches only show
+                or hide grades on the scorecard.
+              </p>
             </div>
-          </details>
+            <ul className="pd-reviews-type-list">
+              <li className="pd-reviews-type-list__item">
+                <Target
+                  size={16}
+                  strokeWidth={1.75}
+                  className="pd-reviews-type-list__icon"
+                  aria-hidden
+                />
+                <div>
+                  <p className="pd-reviews-type-list__label">Goals Grade</p>
+                  <p className="pd-reviews-type-list__desc">
+                    Managers pick a Goals grade on the goals card. Off keeps
+                    goals as progress only.
+                  </p>
+                </div>
+                <Switch
+                  label="Enable Goals Grade"
+                  className="pd-reviews-type-list__switch"
+                  checked={policy.managerReview.gradeGoals}
+                  onChange={(event) =>
+                    patchPolicy({
+                      managerReview: {
+                        ...policy.managerReview,
+                        gradeGoals: event.target.checked,
+                      },
+                    })
+                  }
+                />
+              </li>
+              <li className="pd-reviews-type-list__item">
+                <LayoutGrid
+                  size={16}
+                  strokeWidth={1.75}
+                  className="pd-reviews-type-list__icon"
+                  aria-hidden
+                />
+                <div>
+                  <p className="pd-reviews-type-list__label">Overall Grade</p>
+                  <p className="pd-reviews-type-list__desc">
+                    Show the overall grade grid on the scorecard. Off hides it.
+                  </p>
+                </div>
+                <Switch
+                  label="Enable Overall Grade"
+                  className="pd-reviews-type-list__switch"
+                  checked={policy.managerReview.gradeOverall}
+                  onChange={(event) =>
+                    patchPolicy({
+                      managerReview: {
+                        ...policy.managerReview,
+                        gradeOverall: event.target.checked,
+                      },
+                    })
+                  }
+                />
+              </li>
+            </ul>
+          </section>
         </div>
       </ModuleSettingsLock>
     </EditPageShell>

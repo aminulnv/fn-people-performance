@@ -59,7 +59,7 @@ export function TopBar({
             type="button"
             className="pd-topbar__icon-btn"
             onClick={onMobileMenuOpen}
-            aria-label="Open menu"
+            aria-label="Open Menu"
           >
             <Menu size={16} strokeWidth={2} />
           </button>

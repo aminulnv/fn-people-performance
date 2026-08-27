@@ -27,7 +27,7 @@ const items: SearchItem[] = [
     id: 'action:my-goals',
     kind: 'action',
     scope: 'actions',
-    label: 'Go to my goals',
+    label: 'Go To My Goals',
     keywords: ['goals'],
     path: '/goals/q3/1',
   },

@@ -40,6 +40,7 @@ export function CycleDetailsEditPage({
     (cycle.sourceLinks ?? []).map((link) => link.sourceCycleId),
   )
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const showPerformanceYear = cyclePurposeOf(cycle) !== 'quarterly_checkin'
 
   const yearOptions = useMemo(
@@ -61,6 +62,7 @@ export function CycleDetailsEditPage({
   )
 
   const save = () => {
+    if (saving) return
     setError(null)
     if (!toUtcIso(startDate) || !toUtcIso(endDate)) {
       setError('Start and end timestamps are required.')
@@ -71,16 +73,20 @@ export function CycleDetailsEditPage({
       return
     }
     try {
+      setSaving(true)
       void updateReviewCycle(cycle.id, {
         name,
         ...(showPerformanceYear ? { yearKey: yearKey || undefined } : {}),
         startDate: toUtcIso(startDate) || startDate,
         endDate: toUtcIso(endDate) || endDate,
         sourceLinks: sourceLinksFromIds(sourceIds),
-      }).catch(() => {})
+      })
+        .catch(() => {})
+        .finally(() => setSaving(false))
       onSuccess?.('Settings saved.')
       if (!embedded) onClose()
     } catch (err) {
+      setSaving(false)
       setError(err instanceof Error ? err.message : 'Could not save settings.')
     }
   }
@@ -90,6 +96,7 @@ export function CycleDetailsEditPage({
       title="Cycle Details"
       onBack={onClose}
       onSave={save}
+      saving={saving}
       error={error}
       embedded={embedded}
       actionsPlacement="bottom"
@@ -98,7 +105,7 @@ export function CycleDetailsEditPage({
         <section className="pd-reviews-edit-card">
           <header className="pd-reviews-edit-card__head">
             <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-            <h3 className="pd-reviews-edit-card__title">Name and dates</h3>
+            <h3 className="pd-reviews-edit-card__title">Name And Dates</h3>
           </header>
           <Input
             label="Cycle name"
@@ -144,7 +151,7 @@ export function CycleDetailsEditPage({
           <section className="pd-reviews-edit-card">
             <header className="pd-reviews-edit-card__head">
               <Link2 size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Included cycles</h3>
+              <h3 className="pd-reviews-edit-card__title">Included Cycles</h3>
             </header>
             <p className="pd-reviews-flow__hint">
               The annual Goals score is the average of the cycles you include.

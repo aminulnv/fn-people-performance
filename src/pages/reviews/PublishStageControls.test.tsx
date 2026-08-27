@@ -30,8 +30,8 @@ function renderControls(
       groupId="group-1"
       target="managers"
       date="2026-10-15T09:00:00.000Z"
-      dateLabel="Managers visible from"
-      releaseLabel="Release to managers now"
+      dateLabel="Publish to managers from"
+      releaseLabel="Publish to Managers First Now"
       onDateChange={onDateChange}
       {...overrides}
     />,
@@ -46,13 +46,13 @@ describe('PublishStageControls', () => {
       .mockResolvedValue([])
 
     renderControls()
-    fireEvent.click(screen.getByRole('button', { name: 'Release to managers now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Publish to Managers First Now' }))
     expect(release).not.toHaveBeenCalled()
 
     fireEvent.click(
       within(
-        screen.getByRole('dialog', { name: 'Release to managers now?' }),
-      ).getByRole('button', { name: 'Release now' }),
+        screen.getByRole('dialog', { name: 'Publish to Managers First Now?' }),
+      ).getByRole('button', { name: 'Publish Now' }),
     )
 
     await waitFor(() => {
@@ -60,7 +60,7 @@ describe('PublishStageControls', () => {
     })
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
-    expect(notice).toHaveTextContent('Released to managers.')
+    expect(notice).toHaveTextContent('Final grades are now visible to managers.')
   })
 
   it('releases the group to employees after confirm', async () => {
@@ -70,21 +70,21 @@ describe('PublishStageControls', () => {
 
     renderControls({
       target: 'employees',
-      dateLabel: 'Employees visible from',
-      releaseLabel: 'Release to employees now',
+      dateLabel: 'Publish to everyone from',
+      releaseLabel: 'Publish to Everyone Now',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Release to employees now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Publish to Everyone Now' }))
     fireEvent.click(
       within(
-        screen.getByRole('dialog', { name: 'Release to employees now?' }),
-      ).getByRole('button', { name: 'Release now' }),
+        screen.getByRole('dialog', { name: 'Publish to Everyone Now?' }),
+      ).getByRole('button', { name: 'Publish Now' }),
     )
 
     await waitFor(() => {
       expect(release).toHaveBeenCalledWith('cycle-1', 'group-1', 'employees')
     })
     expect(await screen.findByRole('status')).toHaveTextContent(
-      'Released to employees.',
+      'Review published.',
     )
   })
 
@@ -95,14 +95,14 @@ describe('PublishStageControls', () => {
 
     renderControls({
       target: 'employees',
-      dateLabel: 'Employees visible from',
-      releaseLabel: 'Release to employees now',
+      dateLabel: 'Publish to everyone from',
+      releaseLabel: 'Publish to Everyone Now',
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Release to employees now' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Publish to Everyone Now' }))
     fireEvent.click(
       within(
-        screen.getByRole('dialog', { name: 'Release to employees now?' }),
-      ).getByRole('button', { name: 'Release now' }),
+        screen.getByRole('dialog', { name: 'Publish to Everyone Now?' }),
+      ).getByRole('button', { name: 'Publish Now' }),
     )
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
@@ -114,7 +114,7 @@ describe('PublishStageControls', () => {
     const release = vi.spyOn(packetsApi, 'releaseReviewGroup')
     const { onDateChange } = renderControls()
 
-    fireEvent.change(screen.getByLabelText('Managers visible from'), {
+    fireEvent.change(screen.getByLabelText('Publish to managers from'), {
       target: { value: '2026-10-20T09:00' },
     })
 

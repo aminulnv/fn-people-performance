@@ -295,7 +295,7 @@ export function describeEmptyGoalsList(input: {
 }): { title: string; description: string; offerAdd: boolean } {
   if (input.peopleInScope === 0) {
     return {
-      title: 'No people in this scope',
+      title: 'No People In This Scope',
       description:
         input.scope === 'reports'
           ? 'You have no direct reports in this cycle.'
@@ -306,7 +306,7 @@ export function describeEmptyGoalsList(input: {
 
   if (input.hasQuery) {
     return {
-      title: 'No matches',
+      title: 'No Matches',
       description: 'Try a different search or status filter.',
       offerAdd: false,
     }
@@ -323,13 +323,13 @@ export function describeEmptyGoalsList(input: {
     const label = FILTER_LABELS[input.statusFilter]
     if (input.waitingPeople === 0) {
       return {
-        title: 'No goals to show',
+        title: 'No Goals To Show',
         description: `No one in this scope is ${label} right now.`,
         offerAdd: false,
       }
     }
     return {
-      title: 'No goals to show',
+      title: 'No Goals To Show',
       description:
         input.waitingPeople === 1
           ? `1 person in this scope is ${label} but has not added any goals yet.`
@@ -339,7 +339,7 @@ export function describeEmptyGoalsList(input: {
   }
 
   return {
-    title: 'No goals yet',
+    title: 'No Goals Yet',
     description:
       input.waitingPeople === 1
         ? '1 person in this scope has not added goals for this cycle yet.'

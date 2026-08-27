@@ -1,4 +1,5 @@
 import {
+  createContext,
   useEffect,
   useRef,
   useState,
@@ -35,7 +36,7 @@ type SettingsSidePanelProps = {
   closeLabel: string
   /** Replaces the default heading when the caller needs an editable title. */
   title?: ReactNode
-  /** Extra chrome actions before Close — e.g. Full view. */
+  /** Extra chrome actions before Close. */
   tools?: ReactNode
   /** Pinned top navigation under the title. */
   subnav?: ReactNode
@@ -43,6 +44,10 @@ type SettingsSidePanelProps = {
   sideSheet?: SettingsSideSheet
   onClose: () => void
 }
+
+export const SettingsPanelActionsContext = createContext<HTMLElement | null>(
+  null,
+)
 
 export function SettingsSidePanel({
   children,
@@ -63,6 +68,7 @@ export function SettingsSidePanel({
     panelWidthWithinViewport(DEFAULT_PANEL_WIDTH),
   )
   const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
+  const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   const isSideSheetOpenRef = useRef(isSideSheetOpen)
   onCloseRef.current = onClose
   isSideSheetOpenRef.current = isSideSheetOpen
@@ -117,12 +123,13 @@ export function SettingsSidePanel({
   }
 
   return createPortal(
-    <div
-      className="pd-settings-panel"
-      style={
-        { '--pd-settings-panel-width': `${panelWidth}px` } as CSSProperties
-      }
-    >
+    <SettingsPanelActionsContext.Provider value={actionsHost}>
+      <div
+        className="pd-settings-panel"
+        style={
+          { '--pd-settings-panel-width': `${panelWidth}px` } as CSSProperties
+        }
+      >
       <button
         type="button"
         className="pd-settings-panel__scrim"
@@ -182,6 +189,10 @@ export function SettingsSidePanel({
             {title ?? <h2 className="pd-settings-panel__title">{label}</h2>}
           </div>
           <div className="pd-settings-panel__tools">
+            <div
+              ref={setActionsHost}
+              className="pd-settings-panel__actions"
+            />
             {tools}
             <button
               type="button"
@@ -199,7 +210,8 @@ export function SettingsSidePanel({
         ) : null}
         <div className="pd-settings-panel__body">{children}</div>
       </aside>
-    </div>,
+    </div>
+    </SettingsPanelActionsContext.Provider>,
     document.body,
   )
 }

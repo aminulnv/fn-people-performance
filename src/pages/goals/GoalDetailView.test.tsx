@@ -134,7 +134,7 @@ describe('GoalDetailView', () => {
     expect(
       owner.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    expect(screen.getByLabelText('Add comment')).toBeInTheDocument()
+    expect(screen.getByLabelText('Add Comment')).toBeInTheDocument()
     expect(screen.getByText('Description')).toBeInTheDocument()
     const description = screen.getByText('Ship fewer defects')
     expect(description.closest('details')).not.toHaveAttribute('open')
@@ -267,10 +267,10 @@ describe('GoalDetailView', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: 'Add cascading from' }),
+      screen.queryByRole('button', { name: 'Add Cascading From' }),
     ).toBeNull()
     startEditing()
-    fireEvent.click(screen.getByRole('button', { name: 'Add cascading from' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cascading From' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascading from' }))
     fireEvent.click(screen.getByRole('option', { name: /Raise quality bar/ }))
 
@@ -397,13 +397,13 @@ describe('GoalDetailView', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: 'Add cascading to' }),
+      screen.queryByRole('button', { name: 'Add Cascading To' }),
     ).toBeNull()
     startEditing()
-    fireEvent.click(screen.getByRole('button', { name: 'Add cascading to' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cascading To' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascaded to' }))
     expect(
-      screen.queryByRole('option', { name: /Create new cascading goal/ }),
+      screen.queryByRole('option', { name: /Create New Cascading Goal/ }),
     ).toBeNull()
     fireEvent.click(screen.getByRole('option', { name: /Cut defects/ }))
 
@@ -448,14 +448,14 @@ describe('GoalDetailView', () => {
     )
 
     startEditing()
-    fireEvent.click(screen.getByRole('button', { name: 'Add cascading to' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cascading To' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascaded to' }))
     fireEvent.click(
-      screen.getByRole('option', { name: /Create new cascading goal/ }),
+      screen.getByRole('option', { name: /Create New Cascading Goal/ }),
     )
 
     expect(
-      screen.getByRole('dialog', { name: 'Cascade this goal' }),
+      screen.getByRole('dialog', { name: 'Cascade This Goal' }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('checkbox', { name: /Second Report/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascade' }))
@@ -483,10 +483,10 @@ describe('GoalDetailView', () => {
     )
 
     startEditing()
-    fireEvent.click(screen.getByRole('button', { name: 'Add cascading to' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cascading To' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascaded to' }))
     expect(
-      screen.getByRole('option', { name: /Create new cascading goal/ }),
+      screen.getByRole('option', { name: /Create New Cascading Goal/ }),
     ).toBeInTheDocument()
   })
 
@@ -704,14 +704,14 @@ describe('GoalDetailView', () => {
 
     openCommentActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
-    const editor = screen.getByLabelText('Edit comment')
+    const editor = screen.getByLabelText('Edit Comment')
     fireEvent.change(editor, { target: { value: 'Updated note' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     expect(onUpdateComment).toHaveBeenCalledWith('c1', 'Updated note')
 
     openCommentActions()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete comment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Comment' }))
     expect(onRemoveComment).toHaveBeenCalledWith('c1')
   })
 
@@ -772,7 +772,7 @@ describe('GoalDetailView', () => {
     )
 
     expect(
-      screen.queryByRole('button', { name: 'Cascade this goal' }),
+      screen.queryByRole('button', { name: 'Cascade This Goal' }),
     ).not.toBeInTheDocument()
   })
 
@@ -879,17 +879,17 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    expect(screen.getByRole('heading', { name: 'No metrics yet' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'No Metrics Yet' })).toBeInTheDocument()
     expect(
       screen.getByText(
         'Add a number or a milestone so progress on this goal can be tracked.',
       ),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Add number' }),
+      screen.getByRole('button', { name: 'Add Number' }),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add milestones' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Milestones' }))
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         measurements: expect.arrayContaining([
@@ -919,7 +919,7 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add number' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Number' }))
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         measurements: [
@@ -1049,7 +1049,7 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    const updates = screen.getByLabelText('Progress logs')
+    const updates = screen.getByLabelText('Progress Logs')
     expect(updates).not.toHaveAttribute('open')
     expect(updates).toHaveTextContent('Log')
     expect(updates.querySelector('.pd-count-badge')).toHaveTextContent('1')
@@ -1059,7 +1059,7 @@ describe('GoalDetailView', () => {
     fireEvent.click(screen.getByText('Log'))
     expect(updates).toHaveAttribute('open')
     expect(
-      screen.getByRole('heading', { name: 'Progress logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
     ).toBeInTheDocument()
     expect(updates).toHaveTextContent('0 → 2')
     expect(updates).not.toHaveTextContent('Aminul')
@@ -1072,7 +1072,7 @@ describe('GoalDetailView', () => {
     expect(screen.getByText(/Last value:/)).toHaveTextContent('0 → 2 → 6')
     expect(screen.getByText(/Last value:/)).toHaveTextContent('Q3 2026')
     fireEvent.change(field, { target: { value: '5' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Update For NPS' }))
 
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0][0].measurements[0]).toMatchObject({
@@ -1328,7 +1328,7 @@ describe('GoalDetailView', () => {
     fireEvent.change(screen.getByLabelText('Current progress for NPS'), {
       target: { value: '5' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Update For NPS' }))
 
     expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls[0][0].measurements[0]).toMatchObject({
@@ -1361,7 +1361,7 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    expect(screen.getByLabelText('Add goal')).toBeInTheDocument()
+    expect(screen.getByLabelText('Add Goal')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Name this goal')).toHaveValue(
       'Ship the draft',
     )
@@ -1448,14 +1448,14 @@ describe('GoalDetailView', () => {
     expect(nameField).toHaveFocus()
     expect(screen.queryByText('Goal name is required')).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Progress metrics' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add number' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Add milestones' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add Number' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add Milestones' })).toBeDisabled()
     expect(screen.getByLabelText('Description')).toBeDisabled()
     expect(
-      screen.getByRole('button', { name: 'Add cascading from' }),
+      screen.getByRole('button', { name: 'Add Cascading From' }),
     ).toBeDisabled()
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Add number' }))
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Add Number' }))
     expect(screen.getByText('Goal name is required')).toBeInTheDocument()
     fireEvent.blur(nameField)
     expect(screen.getByText('Goal name is required')).toBeInTheDocument()
@@ -1465,10 +1465,10 @@ describe('GoalDetailView', () => {
       target: { value: 'Ship the draft' },
     })
 
-    expect(screen.getByRole('button', { name: 'Add number' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Add Number' })).toBeEnabled()
     expect(screen.getByLabelText('Description')).toBeEnabled()
     expect(
-      screen.getByRole('button', { name: 'Add cascading from' }),
+      screen.getByRole('button', { name: 'Add Cascading From' }),
     ).toBeEnabled()
   })
 
@@ -1507,13 +1507,13 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    const addCascade = screen.getByRole('button', { name: 'Add cascading from' })
+    const addCascade = screen.getByRole('button', { name: 'Add Cascading From' })
     const title = screen.getByLabelText('Goal name')
     expect(
       addCascade.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
     expect(
-      screen.queryByRole('button', { name: 'Add cascading to' }),
+      screen.queryByRole('button', { name: 'Add Cascading To' }),
     ).toBeNull()
   })
 

@@ -1,10 +1,9 @@
-import { useState, type MouseEvent } from 'react'
+import { useState } from 'react'
 import {
   BarChart3,
   Building2,
   Check,
   Hand,
-  Info,
   Landmark,
   Lightbulb,
   Minus,
@@ -15,7 +14,6 @@ import {
   UserCheck,
   type LucideIcon,
 } from 'lucide-react'
-import { Tooltip } from '@/components/ui'
 import {
   CALIBRATION_MODE_META,
   CALIBRATION_SECTION_HINTS,
@@ -34,14 +32,22 @@ import type {
   GradeRecommendationId,
   ReviewCycle,
 } from '@/lib/reviews/types'
+import { CALIBRATION_STAGE_ORDER } from '@/lib/reviews/reviewStages'
 import { EditPageShell } from './EditPageShell'
 import { GroupMembersEditor } from './GroupMembersEditor'
+import { HintIcon } from './HintIcon'
+import {
+  useReviewSettingsDraft,
+  type ReviewSettingsDraft,
+} from './ReviewSettingsEditPage'
+import { ReviewStageList } from './ReviewStageList'
 
 type CalibrationEditPageProps = {
   cycle: ReviewCycle
   group: CycleGroup
   onClose: () => void
   embedded?: boolean
+  stageDraft?: ReviewSettingsDraft
   onSuccess?: (message: string) => void
 }
 
@@ -62,24 +68,6 @@ const RECOMMENDATION_ICONS: Record<GradeRecommendationId, LucideIcon> = {
   none: MinusCircle,
   manager_average: UserCheck,
   weighted: Scale,
-}
-
-function HintIcon({ content, label }: { content: string; label: string }) {
-  return (
-    <Tooltip content={content} side="top" portal delayMs={80}>
-      <button
-        type="button"
-        className="pd-help-icon"
-        aria-label={label}
-        onClick={(event: MouseEvent<HTMLButtonElement>) => {
-          event.stopPropagation()
-          event.preventDefault()
-        }}
-      >
-        <Info size={14} strokeWidth={2} aria-hidden />
-      </button>
-    </Tooltip>
-  )
 }
 
 function SectionHeading({
@@ -105,12 +93,16 @@ export function CalibrationEditPage({
   group,
   onClose,
   embedded = false,
+  stageDraft,
   onSuccess,
 }: CalibrationEditPageProps) {
+  const ownedStageDraft = useReviewSettingsDraft(cycle, group, onClose, embedded)
+  const stages = stageDraft ?? ownedStageDraft
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
     normalizeCalibration(group.calibration),
   )
   const [error, setError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const total = distributionTotal(draft.gradeDistribution)
 
@@ -131,21 +123,27 @@ export function CalibrationEditPage({
   }
 
   const save = () => {
+    if (saving) return
     if (total !== 100) {
       setError(`Grade distribution must total 100% (currently ${total}%).`)
       return
     }
     setError(null)
     try {
+      setSaving(true)
       const pending = updateCycleGroup(cycle.id, group.id, {
         calibration: normalizeCalibration(draft),
+        stagesConfig: stages.stagesConfig,
       })
-      void pending.catch(() => {
-        /* Shown on the cycle page after close. */
-      })
+      void pending
+        .catch(() => {
+          /* Shown on the cycle page after close. */
+        })
+        .finally(() => setSaving(false))
       onSuccess?.('Settings saved.')
       if (!embedded) onClose()
     } catch (err) {
+      setSaving(false)
       setError(
         err instanceof Error ? err.message : 'Could not save calibration.',
       )
@@ -158,10 +156,23 @@ export function CalibrationEditPage({
       description="Who aligns grades, how they are suggested, and the target mix."
       onBack={onClose}
       onSave={save}
+      saving={saving}
       error={error}
       embedded={embedded}
-      actionsPlacement={embedded ? 'bottom' : 'top'}
+      actionsPlacement="top"
     >
+      <section className="pd-reviews-group-form__block">
+        <h3 className="pd-field__label">When Calibration Happens</h3>
+        <ReviewStageList
+          cycle={cycle}
+          groupId={group.id}
+          stageIds={CALIBRATION_STAGE_ORDER}
+          stagesConfig={stages.stagesConfig}
+          setStageEnabled={stages.setStageEnabled}
+          setStageDate={stages.setStageDate}
+        />
+      </section>
+
       <div className="pd-reviews-calibration-edit__choices">
         <section className="pd-reviews-edit-section">
           <SectionHeading
@@ -276,21 +287,18 @@ export function CalibrationEditPage({
 
       <section className="pd-reviews-group-form__block">
         <div className="pd-reviews-edit-card__head">
-          <h3 className="pd-field__label">Senior leadership</h3>
+          <h3 className="pd-field__label">Senior Leadership</h3>
           <HintIcon
             content={CALIBRATION_SECTION_HINTS.seniorLeadership}
-            label="About Senior leadership"
+            label="About Senior Leadership"
           />
         </div>
-        <p className="pd-reviews-flow__hint">
-          People who sit in SLT calibration for this group.
-        </p>
         <GroupMembersEditor
           memberIds={draft.sltMemberIds ?? []}
           onChange={(sltMemberIds) =>
             setDraft((prev) => ({ ...prev, sltMemberIds }))
           }
-          searchLabel="Add senior leaders"
+          searchLabel="Add Senior Leaders"
           placeholder="Add a person…"
           peopleOnly
         />

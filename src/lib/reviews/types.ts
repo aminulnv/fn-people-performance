@@ -180,8 +180,6 @@ export type ReviewPolicy = {
   selfReview: {
     ratePillars: boolean;
     rateOverall: boolean;
-    visibility: "blinded" | "visible_first" | "sequential";
-    latePolicy: "proceed" | "block" | "ptr_unblock";
   };
   managerReview: {
     narrative: "off" | "overall" | "per_pillar";
@@ -190,8 +188,6 @@ export type ReviewPolicy = {
     gradeGoals: boolean;
     /** Show the overall grade grid. Independent of the Goals grade. */
     gradeOverall: boolean;
-    goalsScoreEdit: "read_only" | "override_with_reason";
-    finalGradeEdit: "confirm_only" | "override_with_reason";
     gradeSuggestion: "none" | "completion_reference" | "weighted_suggest";
     latePolicy: "escalate" | "extend" | "ptr_delegate";
     escalationRoles: Array<"hod" | "slt" | "ptr">;
@@ -199,18 +195,6 @@ export type ReviewPolicy = {
   calibration: {
     editors: "hod" | "hrbp" | "hod_and_hrbp";
     distribution: "off" | "guidance" | "enforced";
-  };
-  release: {
-    mode:
-      | "batch_ptr"
-      | "manager_then_deadline"
-      | "window_then_auto"
-      | "immediate_on_submit";
-    acknowledgement: "none" | "first_view" | "acknowledge_button";
-  };
-  appeal: {
-    mode: "record_only" | "can_change_with_ptr";
-    days: number;
   };
   eligibility: {
     excludeNoticePeriod: boolean;

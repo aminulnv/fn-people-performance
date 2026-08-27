@@ -197,7 +197,7 @@ export function TodoMeasureEditCard({
             onClick={() => onAddItem(list.listKey)}
           >
             <Plus size={12} strokeWidth={2} aria-hidden />
-            Add task
+            Add Task
           </button>
         </div>
       </div>
@@ -276,7 +276,7 @@ export function TodoMeasureEditCard({
           onClick={onAddTodoList}
         >
           <Plus size={12} strokeWidth={2} aria-hidden />
-          Add task list
+          Add Task List
         </button>
       </div>
     </details>

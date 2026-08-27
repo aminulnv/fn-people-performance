@@ -15,6 +15,7 @@ import type {
 import { CountStepperField } from "./CountStepperField";
 import { CycleModuleField, ModuleSettingsLock } from "./CycleModulesFields";
 import { EditPageShell } from "./EditPageShell";
+import { HintIcon } from "./HintIcon";
 import { GoalCycleExtensionsEditor } from "./GoalCycleExtensionsEditor";
 import { StageWindowFields } from "./StageDateTable";
 
@@ -43,6 +44,7 @@ export function GoalsSettingsEditPage({
   );
   const [goals, setGoals] = useState(() => structuredClone(source.stagesConfig.goals));
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const allowLateSubmissions =
     settings.postWindowGoalPolicy === "two_tier_approval";
 
@@ -54,8 +56,10 @@ export function GoalsSettingsEditPage({
   };
 
   const save = () => {
+    if (saving) return;
     setError(null);
     try {
+      setSaving(true);
       const stagesConfig = {
         ...source.stagesConfig,
         goals: {
@@ -67,12 +71,15 @@ export function GoalsSettingsEditPage({
         settings,
         stagesConfig,
       });
-      void pending.catch(() => {
-        /* Shown on the cycle page after close. */
-      });
+      void pending
+        .catch(() => {
+          /* Shown on the cycle page after close. */
+        })
+        .finally(() => setSaving(false));
       onSuccess?.("Settings saved.");
       if (!embedded) onClose();
     } catch (err) {
+      setSaving(false);
       setError(err instanceof Error ? err.message : "Could not save settings.");
     }
   };
@@ -87,10 +94,11 @@ export function GoalsSettingsEditPage({
       }
       onBack={onClose}
       onSave={save}
+      saving={saving}
       error={error}
       embedded={embedded}
       showActions={enabled}
-      actionsPlacement={embedded ? "bottom" : "top"}
+      actionsPlacement="top"
     >
       {onEnabledChange ? (
         <section className="pd-reviews-edit-card pd-reviews-module-enable">
@@ -101,13 +109,13 @@ export function GoalsSettingsEditPage({
           />
         </section>
       ) : null}
-      <ModuleSettingsLock locked={!enabled} label="Goal settings">
+      <ModuleSettingsLock locked={!enabled} label="Goal Settings">
       <div className="pd-reviews-settings-edit">
         <div className="pd-reviews-settings-edit__column">
           <section className="pd-reviews-edit-card pd-reviews-edit-card--window">
             <header className="pd-reviews-edit-card__head">
               <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Goal window</h3>
+              <h3 className="pd-reviews-edit-card__title">Goal Window</h3>
             </header>
             <StageWindowFields
               startLabel="Opens"
@@ -153,15 +161,15 @@ export function GoalsSettingsEditPage({
             <div className="pd-reviews-edit-card__heading">
               <header className="pd-reviews-edit-card__head">
                 <Target size={16} strokeWidth={1.75} aria-hidden />
-                <h3 className="pd-reviews-edit-card__title">Goal count</h3>
+                <h3 className="pd-reviews-edit-card__title">Goal Count</h3>
               </header>
             </div>
             <div className="pd-reviews-policy">
               <div className="pd-reviews-policy__group">
-                <h4 className="pd-reviews-policy__title">People must have</h4>
+                <h4 className="pd-reviews-policy__title">People Must Have</h4>
                 <div className="pd-reviews-policy-grid">
                   <CountStepperField
-                    label="At least"
+                    label="Min"
                     value={settings.goalCountPolicy.minimumRequired}
                     onChange={(minimumRequired) =>
                       setSettings((prev) => ({
@@ -174,7 +182,7 @@ export function GoalsSettingsEditPage({
                     }
                   />
                   <CountStepperField
-                    label="At most"
+                    label="Max"
                     allowEmpty
                     placeholder="No limit"
                     emptyStepTo={settings.goalCountPolicy.recommendedMaximum}
@@ -191,15 +199,17 @@ export function GoalsSettingsEditPage({
                   />
                 </div>
               </div>
-              <details className="pd-cycle-setup__more">
-                <summary>Suggested range</summary>
-                <p className="pd-reviews-flow__hint">
-                  A hint on the goals page. People can still submit if they stay
-                  inside the required range.
-                </p>
+              <div className="pd-reviews-policy__group">
+                <h4 className="pd-reviews-policy__title">
+                  Recommended Goal Count
+                  <HintIcon
+                    content="A hint on the goals page. People can still submit if they stay inside the required range."
+                    label="About Recommended Goal Count"
+                  />
+                </h4>
                 <div className="pd-reviews-policy-grid">
                   <CountStepperField
-                    label="From"
+                    label="Min"
                     value={settings.goalCountPolicy.recommendedMinimum}
                     onChange={(recommendedMinimum) =>
                       setSettings((prev) => ({
@@ -212,7 +222,7 @@ export function GoalsSettingsEditPage({
                     }
                   />
                   <CountStepperField
-                    label="To"
+                    label="Max"
                     value={settings.goalCountPolicy.recommendedMaximum}
                     onChange={(recommendedMaximum) =>
                       setSettings((prev) => ({
@@ -225,28 +235,43 @@ export function GoalsSettingsEditPage({
                     }
                   />
                 </div>
-              </details>
+              </div>
             </div>
           </section>
 
           <section className="pd-reviews-edit-card pd-reviews-edit-card--policy">
             <div className="pd-reviews-goal-policy pd-reviews-goal-policy--card">
               <h4 className="pd-reviews-goal-policy__title">
-                Allow after deadline
+                Allow After Deadline
+                <HintIcon
+                  content={
+                    <ul className="pd-help-tip">
+                      <li>
+                        <strong>On</strong>
+                        People can still submit. Late changes need manager and skip-level approval.
+                      </li>
+                      <li>
+                        <strong>Off</strong>
+                        Goal editing stops at the deadline.
+                      </li>
+                    </ul>
+                  }
+                  label="About Allow After Deadline"
+                />
+                <Switch
+                  label="Allow submissions after deadline"
+                  className="pd-reviews-type-list__switch"
+                  checked={allowLateSubmissions}
+                  onChange={(event) =>
+                    setSettings((prev) => ({
+                      ...prev,
+                      postWindowGoalPolicy: (event.target.checked
+                        ? "two_tier_approval"
+                        : "hard_stop") satisfies PostWindowGoalPolicy,
+                    }))
+                  }
+                />
               </h4>
-              <Switch
-                label="Allow submissions after deadline"
-                className="pd-reviews-type-list__switch"
-                checked={allowLateSubmissions}
-                onChange={(event) =>
-                  setSettings((prev) => ({
-                    ...prev,
-                    postWindowGoalPolicy: (event.target.checked
-                      ? "two_tier_approval"
-                      : "hard_stop") satisfies PostWindowGoalPolicy,
-                  }))
-                }
-              />
             </div>
           </section>
         </div>

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  formatLocalDate,
   formatLocalDateRange,
+  formatLocalDatesRange,
   formatLocalTimestamp,
   localWallToUtcIso,
   setTimeZoneForTests,
@@ -39,5 +41,18 @@ describe('timezone conversion', () => {
         'Asia/Dhaka',
       ),
     ).toBe('15-Jan-2026, 9:00 PM – 15-Jan-2026, 10:00 PM')
+  })
+
+  it('formats a date-only range without timestamps', () => {
+    expect(
+      formatLocalDate('2026-07-01T00:00:00.000Z', 'UTC'),
+    ).toBe('01-Jul-2026')
+    expect(
+      formatLocalDatesRange(
+        '2026-07-01T09:00:00.000Z',
+        '2026-09-30T17:00:00.000Z',
+        'UTC',
+      ),
+    ).toBe('01-Jul-2026 – 30-Sep-2026')
   })
 })

@@ -144,7 +144,7 @@ describe('GoalsPersonDetail manager review', () => {
     clearSession()
   })
 
-  it('does not rewrite the People directory hash when embedded', async () => {
+  it('does not rewrite the People Directory hash when embedded', async () => {
     render(
       <MemoryRouter initialEntries={['/people?employee=1#everyone']}>
         <AuthProvider>
@@ -229,10 +229,10 @@ describe('GoalsPersonDetail manager review', () => {
 
     fireEvent.click(await screen.findByText('Raise the quality bar'))
     startEditingGoal()
-    fireEvent.click(screen.getByRole('button', { name: 'Add cascading to' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cascading To' }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascaded to' }))
     fireEvent.click(
-      screen.getByRole('option', { name: /Create new cascading goal/ }),
+      screen.getByRole('option', { name: /Create New Cascading Goal/ }),
     )
     fireEvent.click(screen.getByRole('checkbox', { name: /Direct Report/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Cascade' }))
@@ -331,7 +331,7 @@ describe('GoalsPersonDetail manager review', () => {
     fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
     fireEvent.click(await screen.findByText(goal.description))
     startEditingGoal()
-    fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Task' }))
 
     await waitFor(() => {
       expect(
@@ -379,7 +379,7 @@ describe('GoalsPersonDetail manager review', () => {
     expect(screen.queryByText(/direct manager/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/skip-level/i)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Continue editing' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Continue Editing' }))
 
     await waitFor(() => {
       expect(
@@ -471,10 +471,10 @@ describe('GoalsPersonDetail manager review', () => {
     expect(banner).not.toHaveTextContent('You')
 
     const alert = screen.getByRole('alert')
-    expect(alert).toHaveTextContent('Action required')
+    expect(alert).toHaveTextContent('Action Required')
     expect(alert).toHaveTextContent('Add at least 2 goals')
     expect(
-      screen.getByRole('button', { name: 'Add another goal' }),
+      screen.getByRole('button', { name: 'Add Another Goal' }),
     ).toBeInTheDocument()
   })
 
@@ -499,7 +499,7 @@ describe('GoalsPersonDetail manager review', () => {
     fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
 
     expect(
-      await screen.findByText(/Sent back for changes/),
+      await screen.findByText(/Sent Back For Changes/),
     ).toBeInTheDocument()
     expect(screen.getByText(/Please revise the targets/)).toBeInTheDocument()
     expect(screen.getByLabelText('Late Submission')).toBeInTheDocument()
@@ -642,7 +642,7 @@ describe('GoalsPersonDetail submission status', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('shows Action required on the card and a measure error in Metrics', async () => {
+  it('shows Action Required on the card and a measure error in Metrics', async () => {
     const snapshot = getGoalsSnapshot()
     savePersonGoals(
       {
@@ -670,12 +670,12 @@ describe('GoalsPersonDetail submission status', () => {
     )
 
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent('Action required')
+    expect(alert).toHaveTextContent('Action Required')
     expect(alert).toHaveTextContent('Add at least 2 goals')
     expect(alert).not.toHaveTextContent('Weights need to add up to 100%')
     expect(alert).not.toHaveTextContent('still needs a metric')
     expect(
-      screen.getByRole('button', { name: 'Add another goal' }),
+      screen.getByRole('button', { name: 'Add Another Goal' }),
     ).toBeInTheDocument()
     const metricIcons = screen.getAllByRole('img', {
       name: 'Still needs a metric.',
@@ -699,7 +699,7 @@ describe('GoalsPersonDetail submission status', () => {
     fireEvent.click(screen.getByTitle('test'))
     const drawer = await screen.findByRole('dialog', { name: 'View test' })
     const ribbon = drawer.querySelector('[role="alert"]')
-    expect(ribbon).toHaveTextContent('Action required')
+    expect(ribbon).toHaveTextContent('Action Required')
     expect(ribbon).toHaveTextContent('Still needs a metric.')
     expect(ribbon).not.toHaveTextContent('test')
     expect(drawer).not.toHaveTextContent('Add at least 2 goals')
@@ -752,16 +752,16 @@ describe('GoalsPersonDetail submission status', () => {
       { target: { value: '42' } },
     )
     fireEvent.click(
-      screen.getByRole('button', { name: `Add update for ${metric.title}` }),
+      screen.getByRole('button', { name: `Add Update For ${metric.title}` }),
     )
 
     expect(
-      screen.queryByRole('button', { name: 'Save as draft' }),
+      screen.queryByRole('button', { name: 'Save As Draft' }),
     ).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Close goal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Goal' }))
 
     expect(
-      screen.queryByRole('dialog', { name: 'Unsaved changes' }),
+      screen.queryByRole('dialog', { name: 'Unsaved Changes' }),
     ).not.toBeInTheDocument()
     expect(drawer).not.toBeInTheDocument()
     await waitFor(() => {
@@ -816,7 +816,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
     clearSession()
   })
 
-  it('does not flash Action required before the store retargets an excluded person', async () => {
+  it('does not flash Action Required before the store retargets an excluded person', async () => {
     await putPeopleInGroup([2])
 
     render(
@@ -827,17 +827,17 @@ describe('GoalsPersonDetail cycle eligibility', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.queryByText('Action required')).not.toBeInTheDocument()
+    expect(screen.queryByText('Action Required')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /add goal/i }),
     ).not.toBeInTheDocument()
     expect(
       await screen.findByRole('status', {
-        name: /Not in this cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
       }),
     ).toBeInTheDocument()
-    expect(screen.queryByText('Action required')).not.toBeInTheDocument()
-    expect(screen.queryByText('Not started')).not.toBeInTheDocument()
+    expect(screen.queryByText('Action Required')).not.toBeInTheDocument()
+    expect(screen.queryByText('Not Started')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('group', { name: /goal totals/i }),
     ).not.toBeInTheDocument()
@@ -848,6 +848,38 @@ describe('GoalsPersonDetail cycle eligibility', () => {
     expect(
       screen.queryByRole('button', { name: /add goal/i }),
     ).not.toBeInTheDocument()
+  })
+
+  it('sits the cycle notice in the goal window ribbon', async () => {
+    await putPeopleInGroup([2])
+    const leftover = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(leftover).toBeTruthy()
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('status', {
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+      }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByText(leftover.description))
+    const drawer = await screen.findByRole('dialog', {
+      name: `View ${leftover.description}`,
+    })
+    const ribbon = drawer.querySelector('.pd-goals-drawer__ribbon')
+    const body = drawer.querySelector('.pd-goals-drawer__body')
+    expect(ribbon).toHaveTextContent('Not In This Cycle')
+    expect(ribbon).toHaveTextContent(
+      'Direct Report is not assigned to a group for this cycle.',
+    )
+    expect(ribbon?.firstElementChild).toHaveClass('pd-goals-sendback--ribbon')
+    expect(body).not.toHaveTextContent('Not In This Cycle')
   })
 
   it('does not say they joined after Day 1 when they were left out of the cycle groups', async () => {
@@ -864,7 +896,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not in this cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
       }),
     ).toBeInTheDocument()
     expect(screen.queryByText(/joined after Day 1/)).not.toBeInTheDocument()
@@ -890,7 +922,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not eligible this quarter\. Direct Report joined after Day 1, so goal setting starts next quarter\./,
+        name: /Not Eligible This Quarter\. Direct Report joined after Day 1, so goal setting starts next quarter\./,
       }),
     ).toBeInTheDocument()
   })

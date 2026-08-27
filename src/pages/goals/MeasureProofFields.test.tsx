@@ -10,9 +10,9 @@ describe("MeasureProofFields", () => {
     render(<MeasureProofFields name="NPS" onChange={vi.fn()} />)
 
     expect(screen.queryByLabelText("Proof link for NPS")).not.toBeInTheDocument()
-    fireEvent.mouseEnter(screen.getByRole("button", { name: "Add proof for NPS" }))
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Add Proof For NPS" }))
     expect(screen.queryByLabelText("Proof link for NPS")).not.toBeInTheDocument()
-    const addButton = screen.getByRole("button", { name: "Add proof for NPS" })
+    const addButton = screen.getByRole("button", { name: "Add Proof For NPS" })
     expect(addButton).not.toHaveClass("is-linked")
     fireEvent.click(addButton)
     expect(screen.getByLabelText("Proof link for NPS")).toBeInTheDocument()
@@ -154,14 +154,14 @@ describe("MeasureProofFields", () => {
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.queryByText("Saved")).not.toBeInTheDocument()
     expect(
-      screen.getByRole("button", { name: "Add proof for NPS" }),
+      screen.getByRole("button", { name: "Add Proof For NPS" }),
     ).not.toHaveClass("is-linked")
   })
 
   it("does not offer Add proof when the field is locked", () => {
     render(<MeasureProofFields name="NPS" disabled onChange={vi.fn()} />)
     expect(
-      screen.queryByRole("button", { name: "Add proof for NPS" }),
+      screen.queryByRole("button", { name: "Add Proof For NPS" }),
     ).not.toBeInTheDocument()
   })
 })

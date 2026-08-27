@@ -11,7 +11,7 @@
   --shell-surface-raised: color-mix(in srgb,
       var(--color-sidebar) 72%,
       black);
-  --shell-glow-duration: 8s;
+  --shell-glow-duration: 6s;
   /* Loop start; the 0%/100% keyframes reference this var so the
      reduced-motion / paused pose can never drift out of sync */
   --shell-glow-pose: translate3d(-12%, 0, 0) scale3d(1.05, 1.05, 1);

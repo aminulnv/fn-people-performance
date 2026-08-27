@@ -69,9 +69,11 @@ describe("GoalOkrReferenceList", () => {
       screen.getByText("Build Performance Platform Phase 1"),
     ).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "FundedNext company" })).toBeNull();
+    const roleChip = screen.getAllByText("Responsible")[0]?.closest(".pd-okr-ref__role");
+    expect(roleChip?.querySelector(".pd-okr-ref__role-avatar")).toBeTruthy();
   });
 
-  it("shows directory names, avatars, and profile links in the RACI tooltip", async () => {
+  it("keeps tracking details off the card until hover", () => {
     renderList(
       <GoalOkrReferenceList
         employeeId={871}
@@ -80,20 +82,37 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
-    const raciTriggers = screen.getAllByRole("button", { name: "RACI" });
-    expect(screen.queryByRole("tooltip")).toBeNull();
-    expect(screen.queryByText("Saif from Directory")).toBeNull();
+    expect(screen.queryByText("On Track")).toBeNull();
+    expect(screen.queryByText("20% → 100%")).toBeNull();
+    expect(screen.queryByText(/Week 9/)).toBeNull();
+  });
 
-    fireEvent.mouseEnter(raciTriggers[0].closest(".pd-tooltip")!);
+  it("shows the full KR in an organized hover panel", async () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    fireEvent.mouseEnter(
+      screen.getByText("Build Performance Platform Phase 1").closest(".pd-tooltip")!,
+    );
 
     const tip = await screen.findByRole("tooltip");
+    expect(within(tip).getByText("Key result")).toBeInTheDocument();
+    expect(within(tip).getByText("On Track")).toBeInTheDocument();
+    expect(within(tip).getByText("20% → 100%")).toBeInTheDocument();
+    expect(within(tip).getByText("Week 9 · On Track · S.M. Fahim · 21 Aug")).toBeInTheDocument();
+    expect(within(tip).getByText("Weekly update")).toBeInTheDocument();
     const profile = within(tip).getByRole("link", { name: "Saif from Directory" });
     expect(profile).toHaveAttribute("href", "/people/871");
     expect(within(profile).getByRole("img")).toBeInTheDocument();
     expect(within(tip).queryByText("Saif Ivna Alam")).toBeNull();
   });
 
-  it("keeps the RACI tooltip open while hovering its content", async () => {
+  it("keeps the KR hover panel open while the pointer is over it", async () => {
     renderList(
       <GoalOkrReferenceList
         employeeId={871}
@@ -102,16 +121,17 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
-    const trigger = screen.getAllByRole("button", { name: "RACI" })[2]
+    const trigger = screen
+      .getByText("Keep dependencies and delivery risks visible")
       .closest(".pd-tooltip")!;
     fireEvent.mouseEnter(trigger);
     const tip = await screen.findByRole("tooltip");
     fireEvent.mouseEnter(tip);
     fireEvent.mouseLeave(trigger);
 
-    expect(screen.getByText("Platform delivery")).toBeInTheDocument();
+    expect(within(tip).getByText("Platform delivery")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: /R · Responsible/ }),
+      within(tip).getByRole("heading", { name: /R · Responsible/ }),
     ).toBeInTheDocument();
   });
 

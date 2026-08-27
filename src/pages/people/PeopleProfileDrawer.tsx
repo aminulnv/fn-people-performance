@@ -51,7 +51,7 @@ export function PeopleProfileDrawer({
   return (
     <GoalCreateDrawer
       label={employee?.fullName || 'Employee profile'}
-      closeLabel="Close profile"
+      closeLabel="Close Profile"
       onClose={onClose}
     >
       {!employee && isLoading ? (

@@ -165,7 +165,7 @@ export function MeasureProofFields({
 
   const triggerLabel = hasProof
     ? `Edit proof for ${name}`
-    : `Add proof for ${name}`;
+    : `Add Proof For ${name}`;
   const showSaved =
     Boolean(committedHref) &&
     !isWriting &&

@@ -13,7 +13,7 @@ describe('GoalSendBackNotice', () => {
     const note = screen.getByRole('status')
     expect(note).toHaveClass('pd-goals-sendback--sentence')
     expect(note).toHaveTextContent(
-      'Sent back for changes: Hey, work on the goal titles a bit!',
+      'Sent Back For Changes: Hey, work on the goal titles a bit!',
     )
   })
 
@@ -26,7 +26,7 @@ describe('GoalSendBackNotice', () => {
     )
 
     expect(screen.getByRole('status')).toHaveTextContent(
-      'Sent back for changes by Line Manager: Hey, work on the goal titles a bit!',
+      'Sent Back For Changes by Line Manager: Hey, work on the goal titles a bit!',
     )
     expect(screen.getByRole('img', { name: 'Line Manager' })).toBeInTheDocument()
   })
@@ -43,7 +43,7 @@ describe('GoalSendBackNotice', () => {
     expect(note).toHaveClass('pd-goals-sendback--ribbon')
     expect(note).toHaveClass('pd-goals-banner--sendback')
     expect(note).toHaveTextContent(
-      'Sent back for changes: Hey, work on the goal titles a bit!',
+      'Sent Back For Changes: Hey, work on the goal titles a bit!',
     )
   })
 })

@@ -13,7 +13,7 @@ import { cx } from '@/lib/cx'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { formatLocalDateRange } from '@/lib/dates/timezone'
-import { cyclePurposeOf } from '@/lib/reviews/purpose'
+import { PURPOSE_SHORT_LABEL, cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   buildEmployeeScorecardHistory,
@@ -34,12 +34,6 @@ const PURPOSE_ICON: Record<CyclePurpose, LucideIcon> = {
   quarterly_checkin: CalendarDays,
   annual_appraisal: Layers,
   custom: Building2,
-}
-
-const PURPOSE_SHORT_LABEL: Record<CyclePurpose, string> = {
-  quarterly_checkin: 'Quarterly',
-  annual_appraisal: 'Annual',
-  custom: 'Custom',
 }
 
 function statusVariant(status: ScorecardStatus): BadgeVariant {
@@ -97,7 +91,7 @@ export function EmployeeProfilePerformanceTab({
         <EmptyState
           className="pd-empty--inline"
           icon={Star}
-          title="No performance reviews yet"
+          title="No Performance Reviews Yet"
           description={
             isSelf
               ? 'Scorecards will appear here once a cycle is available.'
@@ -111,7 +105,7 @@ export function EmployeeProfilePerformanceTab({
   return (
     <section className="pd-profile__panel" aria-label="Performance history">
       <header className="pd-profile__panel-head pd-profile__panel-head--stack">
-        <h2 className="pd-profile__panel-title">Performance history</h2>
+        <h2 className="pd-profile__panel-title">Performance History</h2>
         <p className="pd-profile__panel-lede">
           Review status and grades across recent cycles
         </p>

@@ -32,7 +32,7 @@ export function ActivitySettingsPanel() {
           </span>
           <div>
             <h2 id="activity-heading" className="pd-settings-section__title">
-              Activity log
+              Activity Log
             </h2>
             <p className="pd-settings-section__hint">
               Organisation-wide history of goals, reviews, people, and access
@@ -61,7 +61,7 @@ export function ActivitySettingsPanel() {
                   loading={isFetchingNextPage}
                   onClick={() => void fetchNextPage()}
                 >
-                  Load older activity
+                  Load Older Activity
                 </Button>
               </div>
             ) : null}

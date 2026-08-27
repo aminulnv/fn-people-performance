@@ -44,7 +44,7 @@ describe('MetricProgressUpdate', () => {
     const onCommit = vi.fn()
     render(<MetricProgressUpdate metric={metric} onCommit={onCommit} />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Update For NPS' }))
     expect(onCommit).not.toHaveBeenCalled()
   })
 
@@ -55,7 +55,7 @@ describe('MetricProgressUpdate', () => {
 
     expect(screen.queryByText('Log update')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Current value')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Add update for NPS' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add Update For NPS' })).toBeInTheDocument()
   })
 
   it('shows a success message after logging an update', async () => {
@@ -65,7 +65,7 @@ describe('MetricProgressUpdate', () => {
 
     const field = screen.getByLabelText('Current progress for NPS')
     fireEvent.change(field, { target: { value: '5' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add update for NPS' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Update For NPS' }))
 
     expect(onCommit).toHaveBeenCalledWith(5)
     const notice = screen.getByRole('status')
@@ -74,7 +74,7 @@ describe('MetricProgressUpdate', () => {
     expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
 
     await act(async () => {
-      vi.advanceTimersByTime(4000)
+      vi.advanceTimersByTime(2000)
     })
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
     vi.useRealTimers()

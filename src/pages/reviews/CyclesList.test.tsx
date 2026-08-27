@@ -1,8 +1,10 @@
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import {
+  createCycleGroup,
   createReviewCycle,
+  getReviewCycle,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
 import CycleDetailPage from '@/pages/CycleDetailPage'
@@ -16,6 +18,27 @@ beforeAll(() => {
     this.removeAttribute('open')
   }
 })
+
+function createDataTransfer() {
+  const store: Record<string, string> = {}
+  return {
+    dropEffect: 'none',
+    effectAllowed: 'uninitialized',
+    files: [] as unknown as FileList,
+    items: [] as unknown as DataTransferItemList,
+    types: [] as string[],
+    setData(type: string, value: string) {
+      store[type] = value
+    },
+    getData(type: string) {
+      return store[type] ?? ''
+    },
+    clearData() {
+      for (const key of Object.keys(store)) delete store[key]
+    },
+    setDragImage() {},
+  } as DataTransfer
+}
 
 afterEach(() => {
   cleanup()
@@ -55,7 +78,7 @@ describe('CyclesList', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByText('Scheduled'))
+    fireEvent.click(screen.getByText('Quarterly'))
     expect(screen.getByText('Opened cycle')).toBeInTheDocument()
   })
 
@@ -82,7 +105,7 @@ describe('CyclesList', () => {
     )
     expect(screen.getByLabelText('Year')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     expect(await screen.findByText('Opened annual settings')).toBeInTheDocument()
   })
@@ -113,7 +136,7 @@ describe('CyclesList', () => {
     fireEvent.change(screen.getByLabelText('Ends'), {
       target: { value: '2026-08-31T17:00' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
@@ -179,6 +202,145 @@ describe('CyclesList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand Annual 2026' }))
     fireEvent.click(screen.getByRole('link', { name: /Q1 2026/ }))
     expect(screen.getByText('Opened nested cycle')).toBeInTheDocument()
+  })
+
+  it('includes a dragged cycle when dropped on an annual', async () => {
+    resetReviewsStoreForTests()
+    await createReviewCycle({
+      type: 'regular',
+      periodKey: 'annual-2026',
+    })
+    await createReviewCycle({
+      type: 'regular',
+      periodKey: 'q1-2025',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <Routes>
+          <Route path="/cycles" element={<CyclesList />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const source = screen.getByRole('link', { name: /Q1 2025/ }).closest('tr')
+    const annual = screen.getByRole('link', { name: /Annual 2026/ }).closest('tr')
+    if (!source || !annual) throw new Error('Expected cycle rows')
+
+    const dataTransfer = createDataTransfer()
+    fireEvent.dragStart(source, { dataTransfer })
+    fireEvent.dragOver(annual, { dataTransfer })
+    fireEvent.drop(annual, { dataTransfer })
+    fireEvent.dragEnd(source, { dataTransfer })
+
+    await waitFor(() => {
+      expect(
+        getReviewCycle('annual-2026')?.sourceLinks?.map(
+          (link) => link.sourceCycleId,
+        ),
+      ).toContain('q1-2025')
+    })
+    expect(
+      document.querySelectorAll('.pd-reviews-cycles__branch'),
+    ).toHaveLength(2)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Q1 2025 included in Annual 2026.',
+    )
+  })
+
+  it('removes a nested cycle when dragged out of the annual', async () => {
+    resetReviewsStoreForTests()
+    await createReviewCycle({
+      type: 'regular',
+      periodKey: 'annual-2026',
+    })
+    await createReviewCycle({
+      type: 'regular',
+      periodKey: 'q1-2025',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <Routes>
+          <Route path="/cycles" element={<CyclesList />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const nested = screen.getByRole('link', { name: /Q3 2026/ }).closest('tr')
+    const outside = screen.getByRole('link', { name: /Q1 2025/ }).closest('tr')
+    if (!nested || !outside) throw new Error('Expected cycle rows')
+
+    const dataTransfer = createDataTransfer()
+    fireEvent.dragStart(nested, { dataTransfer })
+    fireEvent.dragOver(outside, { dataTransfer })
+    fireEvent.drop(outside, { dataTransfer })
+    fireEvent.dragEnd(nested, { dataTransfer })
+
+    await waitFor(() => {
+      expect(
+        getReviewCycle('annual-2026')?.sourceLinks?.map(
+          (link) => link.sourceCycleId,
+        ),
+      ).not.toContain('q3-2026')
+    })
+    expect(
+      document.querySelectorAll('.pd-reviews-cycles__branch'),
+    ).toHaveLength(0)
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Q3 2026 removed from Annual 2026.',
+    )
+  })
+
+  it('shows people, groups, and module flags for each cycle', async () => {
+    resetReviewsStoreForTests()
+    await createCycleGroup('q3-2026', { name: 'Everyone', memberIds: [1, 2] })
+    await createCycleGroup('q3-2026', { name: 'Leads', memberIds: [2, 3] })
+    await createReviewCycle({
+      type: 'regular',
+      periodKey: 'annual-2026',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <Routes>
+          <Route path="/cycles" element={<CyclesList />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByRole('columnheader', { name: /People/ })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Groups/ })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Goals/ })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /Reviews/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('columnheader', { name: /Calibration/ }),
+    ).toBeInTheDocument()
+
+    const quarter = screen.getByRole('link', { name: /Q3 2026/ }).closest('tr')
+    const annual = screen.getByRole('link', { name: /Annual 2026/ }).closest('tr')
+    if (!quarter || !annual) throw new Error('Expected cycle rows')
+
+    const quarterCells = within(quarter).getAllByRole('cell')
+    expect(quarterCells[1]).toHaveTextContent('Quarterly')
+    expect(quarterCells[7].textContent).toMatch(
+      /\d{2}-[A-Z][a-z]{2}-\d{4} – \d{2}-[A-Z][a-z]{2}-\d{4}/,
+    )
+    expect(quarterCells[7]).not.toHaveTextContent('AM')
+    expect(quarterCells[7]).not.toHaveTextContent('PM')
+    expect(quarterCells[2]).toHaveTextContent('3')
+    expect(quarterCells[3]).toHaveTextContent('2')
+    expect(quarterCells[4]).toHaveTextContent('On')
+    expect(quarterCells[5]).toHaveTextContent('On')
+    expect(quarterCells[6]).toHaveTextContent('Off')
+
+    const annualCells = within(annual).getAllByRole('cell')
+    expect(annualCells[1]).toHaveTextContent('Annual')
+    expect(annualCells[2]).toHaveTextContent('0')
+    expect(annualCells[3]).toHaveTextContent('0')
+    expect(annualCells[4]).toHaveTextContent('Off')
+    expect(annualCells[5]).toHaveTextContent('On')
+    expect(annualCells[6]).toHaveTextContent('On')
   })
 
   it('shows a date-based status for custom cycles and filters them by kind', async () => {

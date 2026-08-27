@@ -44,7 +44,7 @@ export function CountStepperField({
       <div className="pd-reviews-count-stepper">
         <button
           type="button"
-          className="pd-reviews-count-step"
+          className="pd-reviews-stepper"
           aria-label={`Decrease ${label}`}
           disabled={!canDecrease}
           onClick={() => {
@@ -76,7 +76,7 @@ export function CountStepperField({
         />
         <button
           type="button"
-          className="pd-reviews-count-step"
+          className="pd-reviews-stepper"
           aria-label={`Increase ${label}`}
           onClick={() => {
             commit(value == null ? (emptyStepTo ?? min) : value + 1)

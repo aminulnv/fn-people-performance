@@ -47,7 +47,7 @@ export function MeasureTypeAddButtons({
     <section
       className="pd-goal-create__measure-add"
       role="group"
-      aria-label="Add metrics"
+      aria-label="Add Metrics"
     >
       <button
         type="button"
@@ -57,7 +57,7 @@ export function MeasureTypeAddButtons({
         onClick={onAddMilestone}
       >
         <ListTodo size={16} strokeWidth={1.75} aria-hidden />
-        Add milestones
+        Add Milestones
       </button>
       <button
         type="button"
@@ -67,7 +67,7 @@ export function MeasureTypeAddButtons({
         onClick={onAddNumber}
       >
         <Hash size={16} strokeWidth={1.75} aria-hidden />
-        Add number
+        Add Number
       </button>
     </section>
   )

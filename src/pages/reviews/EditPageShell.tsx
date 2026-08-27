@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react'
+import { useContext, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui'
+import { SettingsPanelActionsContext } from './SettingsSidePanel'
 
 type EditPageShellProps = {
   title: string
@@ -42,9 +44,14 @@ export function EditPageShell({
       </Button>
     </div>
   ) : null
+  const panelActionsHost = useContext(SettingsPanelActionsContext)
+  const usePanelChrome = Boolean(panelActionsHost && actions)
   const showHeading = !embedded
-  const showTopActions = actionsPlacement === 'top' && Boolean(actions)
+  const showTopActions =
+    !usePanelChrome && actionsPlacement === 'top' && Boolean(actions)
   const showHeader = showHeading || showTopActions
+  const showFooter =
+    !usePanelChrome && actionsPlacement === 'bottom' && Boolean(actions)
 
   return (
     <div className={embedded ? 'pd-reviews-edit pd-reviews-edit--embedded' : 'pd-reviews-edit'}>
@@ -56,7 +63,7 @@ export function EditPageShell({
                 type="button"
                 className="pd-reviews-edit__back"
                 onClick={onBack}
-                aria-label="Back to cycle settings"
+                aria-label="Back To Cycle Settings"
               >
                 <ChevronLeft size={20} strokeWidth={2} aria-hidden />
               </button>
@@ -79,9 +86,12 @@ export function EditPageShell({
       ) : null}
 
       <div className="pd-reviews-edit__body">{children}</div>
-      {actionsPlacement === 'bottom' && actions ? (
+      {showFooter ? (
         <div className="pd-reviews-edit__footer">{actions}</div>
       ) : null}
+      {usePanelChrome && panelActionsHost
+        ? createPortal(actions, panelActionsHost)
+        : null}
     </div>
   )
 }

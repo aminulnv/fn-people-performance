@@ -17,7 +17,7 @@ describe('ReviewFormSheet', () => {
     )
 
     expect(
-      screen.getByRole('heading', { name: 'Review form' }),
+      screen.getByRole('heading', { name: 'Review Form' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Templates and questions')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Preset')).toBeInTheDocument()

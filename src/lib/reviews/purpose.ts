@@ -12,6 +12,12 @@ export const PURPOSE_LABEL: Record<CyclePurpose, string> = {
   custom: 'Custom cycle',
 }
 
+export const PURPOSE_SHORT_LABEL: Record<CyclePurpose, string> = {
+  quarterly_checkin: 'Quarterly',
+  annual_appraisal: 'Annual',
+  custom: 'Custom',
+}
+
 export function inferPurpose(
   periodKey?: string,
   fallback: CyclePurpose = 'custom',
@@ -90,6 +96,75 @@ export function sourceLinksFromIds(
     weightPercent,
     excluded: false,
   }))
+}
+
+export function includedSourceIds(cycle: Pick<ReviewCycle, 'sourceLinks'>): string[] {
+  return (cycle.sourceLinks ?? [])
+    .filter((link) => !link.excluded)
+    .map((link) => link.sourceCycleId)
+}
+
+export function findAnnualOwningSource(
+  cycles: ReviewCycle[],
+  sourceCycleId: string,
+): ReviewCycle | undefined {
+  return cycles.find(
+    (cycle) =>
+      cyclePurposeOf(cycle) === 'annual_appraisal' &&
+      includedSourceIds(cycle).includes(sourceCycleId),
+  )
+}
+
+export function includeSourceInAnnualPatches(
+  cycles: ReviewCycle[],
+  annualId: string,
+  sourceCycleId: string,
+): Array<{ cycleId: string; sourceLinks: NonNullable<ReviewCycle['sourceLinks']> }> {
+  const annual = cycles.find((cycle) => cycle.id === annualId)
+  const source = cycles.find((cycle) => cycle.id === sourceCycleId)
+  if (!annual || !source) return []
+  if (cyclePurposeOf(annual) !== 'annual_appraisal') return []
+  if (!isLinkableSourceCycle(source, annualId)) return []
+  if (includedSourceIds(annual).includes(sourceCycleId)) return []
+
+  const patches = [
+    {
+      cycleId: annualId,
+      sourceLinks: sourceLinksFromIds([
+        ...includedSourceIds(annual),
+        sourceCycleId,
+      ]),
+    },
+  ]
+  const previous = findAnnualOwningSource(
+    cycles.filter((cycle) => cycle.id !== annualId),
+    sourceCycleId,
+  )
+  if (previous) {
+    patches.push({
+      cycleId: previous.id,
+      sourceLinks: sourceLinksFromIds(
+        includedSourceIds(previous).filter((id) => id !== sourceCycleId),
+      ),
+    })
+  }
+  return patches
+}
+
+export function excludeSourceFromAnnualPatches(
+  cycles: ReviewCycle[],
+  sourceCycleId: string,
+): Array<{ cycleId: string; sourceLinks: NonNullable<ReviewCycle['sourceLinks']> }> {
+  const owner = findAnnualOwningSource(cycles, sourceCycleId)
+  if (!owner) return []
+  return [
+    {
+      cycleId: owner.id,
+      sourceLinks: sourceLinksFromIds(
+        includedSourceIds(owner).filter((id) => id !== sourceCycleId),
+      ),
+    },
+  ]
 }
 
 export function quarterLabelForCycle(cycle: Pick<ReviewCycle, 'periodKey' | 'name'>): string {

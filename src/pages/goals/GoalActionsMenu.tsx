@@ -69,7 +69,7 @@ function ToolbarButton({
 
 export function GoalActionsMenu({
   variant = 'toolbar',
-  label = 'More actions',
+  label = 'More Actions',
   canCascade = false,
   canRemove = false,
   cascadeTargets = [],
@@ -146,7 +146,7 @@ export function GoalActionsMenu({
           title="Remove this goal?"
           description="This goal will be removed from the current cycle. This cannot be undone."
           confirmLabel="Remove Goal"
-          cancelLabel="Keep goal"
+          cancelLabel="Keep Goal"
           confirmVariant="danger"
         />
       ) : null}
@@ -176,7 +176,7 @@ export function GoalActionsMenu({
       fullViewHref
         ? {
             id: 'full-view',
-            label: 'Full view',
+            label: 'Full View',
             icon: <Maximize2 size={16} strokeWidth={1.75} />,
             onSelect: () => {
               navigate(fullViewHref)
@@ -213,7 +213,7 @@ export function GoalActionsMenu({
           triggerProps={{
             className: 'pd-people__icon-btn',
             'aria-label': label,
-            title: 'More actions',
+            title: 'More Actions',
           }}
           items={items}
         />
@@ -232,7 +232,7 @@ export function GoalActionsMenu({
       {onCascade ? (
         <ToolbarButton
           label="Cascade"
-          ariaLabel="Cascade this goal"
+          ariaLabel="Cascade This Goal"
           disabled={!canCascade}
           onClick={() => {
             if (!canCascade) return
@@ -245,7 +245,7 @@ export function GoalActionsMenu({
       {fullViewHref ? (
         <Link className="pd-people__ghost-btn" to={fullViewHref}>
           <Maximize2 size={16} strokeWidth={1.75} aria-hidden />
-          Full view
+          Full View
         </Link>
       ) : null}
       {canViewActivity ? (

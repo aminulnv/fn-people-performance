@@ -41,7 +41,7 @@ export function ReportGoalsEmpty({
     <EmptyState
       className="pd-goals__empty"
       icon={Target}
-      title="No goals yet"
+      title="No Goals Yet"
       description={
         !canAdd && lockMessage
           ? lockMessage
@@ -404,7 +404,7 @@ export function ReportGoalsCard({
               <button
                 type="button"
                 className="pd-people__icon-btn"
-                aria-label={`More actions for ${person.name}`}
+                aria-label={`More Actions For ${person.name}`}
                 aria-expanded={menuOpen}
                 onClick={toggleMenu}
               >
@@ -421,7 +421,7 @@ export function ReportGoalsCard({
                       setActivityOpen(true)
                     }}
                   >
-                    View activity
+                    View Activity
                   </button>
                 </div>
               ) : null}

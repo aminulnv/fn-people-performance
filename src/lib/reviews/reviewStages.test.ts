@@ -4,6 +4,7 @@ import {
   applyCycleModules,
   cycleModulesOf,
   isPublishStage,
+  isRequiredReviewStage,
   describeCycleSetup,
   describeEnabledFlow,
   presetCycleModules,
@@ -16,6 +17,7 @@ describe('cycle module presets', () => {
     expect(presetEnabledStages('quarterly_checkin', 'q3-2026')).toEqual([
       'goals',
       'manager_review',
+      'publish_employees',
     ])
     expect(presetCycleModules('quarterly_checkin', 'q3-2026')).toEqual({
       goals: true,
@@ -44,6 +46,7 @@ describe('cycle module presets', () => {
   it('uses the quarterly review flow when Reviews is turned on for Q4', () => {
     expect(presetReviewFlowStages('quarterly_checkin', 'q4-2026')).toEqual([
       'manager_review',
+      'publish_employees',
     ])
   })
 })
@@ -53,6 +56,8 @@ describe('publish stages', () => {
     expect(isPublishStage('publish_managers')).toBe(true)
     expect(isPublishStage('publish_employees')).toBe(true)
     expect(isPublishStage('manager_review')).toBe(false)
+    expect(isRequiredReviewStage('publish_employees')).toBe(true)
+    expect(isRequiredReviewStage('publish_managers')).toBe(false)
   })
 })
 
@@ -100,6 +105,10 @@ describe('applyCycleModules', () => {
       next.reviewStages?.find((stage) => stage.id === 'manager_review')?.enabled,
     ).toBe(true)
     expect(
+      next.reviewStages?.find((stage) => stage.id === 'publish_employees')
+        ?.enabled,
+    ).toBe(true)
+    expect(
       next.reviewStages?.find((stage) => stage.id === 'self_review')?.enabled,
     ).toBe(false)
   })
@@ -127,5 +136,30 @@ describe('applyCycleModules', () => {
       next.reviewStages?.find((stage) => stage.id === 'appeal')?.enabled,
     ).toBe(false)
     expect(describeEnabledFlow(next.reviewStages)).not.toContain('Appeal')
+  })
+
+  it('keeps employee grade visibility on while Reviews stays on', () => {
+    const config = buildDefaultStagesConfig(
+      '2026-07-01',
+      '2026-09-30',
+      'quarterly_checkin',
+      'q3-2026',
+    )
+    const hiddenFromEmployees = {
+      ...config,
+      reviewStages: (config.reviewStages ?? []).map((stage) =>
+        stage.id === 'publish_employees' ? { ...stage, enabled: false } : stage,
+      ),
+    }
+    const next = applyCycleModules(
+      hiddenFromEmployees,
+      { goals: true, reviews: true },
+      'quarterly_checkin',
+      'q3-2026',
+    )
+    expect(
+      next.reviewStages?.find((stage) => stage.id === 'publish_employees')
+        ?.enabled,
+    ).toBe(true)
   })
 })

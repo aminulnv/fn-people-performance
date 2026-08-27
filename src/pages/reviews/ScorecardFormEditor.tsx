@@ -1,7 +1,12 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react'
 import { Button, EmptyState, Field, Input, ListboxSelect, Switch } from '@/components/ui'
-import { pillarWeightTotal, reweightEnabledPillars } from '@/lib/reviews/reviewPolicy'
+import {
+  clampPillarWeight,
+  pillarWeightTotal,
+  remainingPillarWeight,
+  reweightEnabledPillars,
+} from '@/lib/reviews/reviewPolicy'
 import { BufferedWeightInput } from '@/pages/goals/GoalMeasurementReadout'
 import {
   addCustomPillar,
@@ -26,19 +31,22 @@ type ScorecardFormEditorProps = {
 
 const WEIGHT_STEP = 5
 
-function clampWeight(value: number) {
-  return Math.min(100, Math.max(0, value))
+function clampWeight(value: number, max = 100) {
+  return Math.min(max, Math.max(0, value))
 }
 
 function PillarWeightField({
   label,
   weight,
+  max,
   onChange,
 }: {
   label: string
   weight: number
+  max: number
   onChange: (weight: number) => void
 }) {
+  const ceiling = Math.min(100, max)
   return (
     <div className="pd-reviews-weight">
       <p className="pd-reviews-weight__label">Weight</p>
@@ -48,7 +56,7 @@ function PillarWeightField({
           className="pd-reviews-weight__step"
           aria-label={`Decrease weight for ${label}`}
           disabled={weight <= 0}
-          onClick={() => onChange(clampWeight(weight - WEIGHT_STEP))}
+          onClick={() => onChange(clampWeight(weight - WEIGHT_STEP, ceiling))}
         >
           <Minus size={14} strokeWidth={2.25} aria-hidden />
         </button>
@@ -57,7 +65,8 @@ function PillarWeightField({
             weight={weight}
             ariaLabel={`Weight for ${label}`}
             className="pd-reviews-weight__input"
-            onChange={(next) => onChange(clampWeight(next))}
+            maxWeight={ceiling}
+            onChange={(next) => onChange(clampWeight(next, ceiling))}
           />
           <span className="pd-reviews-weight__suffix" aria-hidden>
             %
@@ -67,8 +76,8 @@ function PillarWeightField({
           type="button"
           className="pd-reviews-weight__step"
           aria-label={`Increase weight for ${label}`}
-          disabled={weight >= 100}
-          onClick={() => onChange(clampWeight(weight + WEIGHT_STEP))}
+          disabled={weight >= ceiling}
+          onClick={() => onChange(clampWeight(weight + WEIGHT_STEP, ceiling))}
         >
           <Plus size={14} strokeWidth={2.25} aria-hidden />
         </button>
@@ -78,8 +87,8 @@ function PillarWeightField({
 }
 
 const SHOWN_ON: Record<ReviewQuestionVisibility, string> = {
-  employee: 'Self-review',
-  manager: 'Manager review',
+  employee: 'Self-Review',
+  manager: 'Manager Review',
   calibrators: 'Calibration',
 }
 
@@ -134,7 +143,7 @@ export function ScorecardFormEditor({
 
       <section className="pd-reviews-group-form__block">
         <div className="pd-reviews-form__section-head">
-          <h3 className="pd-field__label">What we grade</h3>
+          <h3 className="pd-field__label">What We Grade</h3>
           {weight !== 100 ? (
             <p className="pd-reviews-form__weight">{weight}% of 100%</p>
           ) : null}
@@ -150,6 +159,9 @@ export function ScorecardFormEditor({
                   onChange={(event) => {
                     const next = updateScorecardPillar(policy, item.id, {
                       enabled: event.target.checked,
+                      weight: event.target.checked
+                        ? clampPillarWeight(policy, item.id, item.weight)
+                        : item.weight,
                     })
                     onChange(
                       event.target.checked
@@ -178,10 +190,11 @@ export function ScorecardFormEditor({
                 <PillarWeightField
                   label={item.label}
                   weight={item.weight}
+                  max={remainingPillarWeight(policy, item.id)}
                   onChange={(nextWeight) =>
                     onChange(
                       updateScorecardPillar(policy, item.id, {
-                        weight: nextWeight,
+                        weight: clampPillarWeight(policy, item.id, nextWeight),
                       }),
                     )
                   }
@@ -219,7 +232,7 @@ export function ScorecardFormEditor({
             }}
           >
             <Plus size={14} strokeWidth={2} aria-hidden />
-            Add area
+            Add Area
           </Button>
         </div>
       </section>
@@ -230,7 +243,7 @@ export function ScorecardFormEditor({
         {onForm.length === 0 ? (
           <EmptyState
             className="pd-reviews-form-preview__empty"
-            title="No questions yet"
+            title="No Questions Yet"
             description="Create one for this form, or use a preset above."
             action={
               <Button
@@ -240,7 +253,7 @@ export function ScorecardFormEditor({
                 onClick={() => onChange(addReviewQuestion(policy))}
               >
                 <Plus size={14} strokeWidth={2} aria-hidden />
-                Create question
+                Create Question
               </Button>
             }
           />
@@ -267,7 +280,7 @@ export function ScorecardFormEditor({
             onClick={() => onChange(addReviewQuestion(policy))}
           >
             <Plus size={14} strokeWidth={2} aria-hidden />
-            Add question
+            Add Question
           </Button>
         ) : null}
 
@@ -290,7 +303,7 @@ export function ScorecardFormEditor({
                       )
                     }
                   >
-                    Put on the form
+                    Put On The Form
                   </Button>
                 </li>
               ))}

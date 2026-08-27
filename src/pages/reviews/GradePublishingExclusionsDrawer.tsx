@@ -89,7 +89,7 @@ export function GradePublishingExclusionsDrawer({
       <button
         type="button"
         className="pd-reviews-drawer__scrim"
-        aria-label="Close grade publishing exclusions"
+        aria-label="Close Grade Publishing Exclusions"
         onClick={onClose}
       />
       <aside
@@ -111,7 +111,7 @@ export function GradePublishingExclusionsDrawer({
           </button>
           <div className="pd-reviews-drawer__heading">
             <h2 id={titleId} className="pd-reviews-drawer__title">
-              Grade publishing exclusions
+              Grade Publishing Exclusions
             </h2>
             <p id={descriptionId} className="pd-reviews-drawer__subtitle">
               Select individual employees who will not receive their grade

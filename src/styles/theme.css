@@ -106,29 +106,30 @@
       color-mix(in srgb, var(--color-theme) 8%, #02040a) 100%);
 
   /*
-   * Shell glow inks — separate from UI mid/bright (those flip in .dark
-   * for chips/avatars and would collapse the haze to smoke).
+   * Shell glow inks — same hue as --color-theme, extra chroma (not white)
+   * so the drift reads on the dark sidebar. Separate from UI mid/bright
+   * (those flip in .dark for chips/avatars and would collapse the haze).
    */
-  --app-shell-glow-core: var(--color-theme);
-  --app-shell-glow-soft: color-mix(in srgb, var(--color-theme) 70%, white);
-  --app-shell-glow-highlight: color-mix(in srgb, var(--color-theme) 75%, white);
-  --app-shell-glow-depth: var(--color-theme-darker);
+  --app-shell-glow-core: oklch(from var(--color-theme) l calc(c * 1.45) h);
+  --app-shell-glow-soft: oklch(from var(--color-theme) min(0.72, calc(l + 0.06)) calc(c * 1.3) h);
+  --app-shell-glow-highlight: oklch(from var(--color-theme) min(0.76, calc(l + 0.1)) calc(c * 1.25) h);
+  --app-shell-glow-depth: oklch(from var(--color-theme-darker) l calc(c * 1.2) h);
 
   /* Theme-shade glow blobs — painted on a 150% overlay (see layout-shell.css)
      so the drift animation never reveals hard edges. Positions keep the
      blobs over the top-left chrome for the whole loop. */
   --app-shell-glow:
     radial-gradient(ellipse 35% 40% at 21% 18%,
-      color-mix(in srgb, var(--app-shell-glow-core) 40%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-core) 62%, transparent) 0%,
       transparent 48%),
     radial-gradient(ellipse 27% 32% at 31% 13%,
-      color-mix(in srgb, var(--app-shell-glow-soft) 24%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-soft) 38%, transparent) 0%,
       transparent 46%),
     radial-gradient(ellipse 29% 27% at 15% 29%,
-      color-mix(in srgb, var(--app-shell-glow-highlight) 16%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-highlight) 28%, transparent) 0%,
       transparent 44%),
     radial-gradient(ellipse 24% 35% at 26% 26%,
-      color-mix(in srgb, var(--app-shell-glow-depth) 32%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-depth) 44%, transparent) 0%,
       transparent 44%);
 }
 
@@ -184,22 +185,22 @@
   --color-neutral-hover: #3a424a;
 
   /*
-   * Dark glow boost — more theme chroma (not white tint) + larger soft
-   * falloff so the haze still reads against the deeper canvas.
+   * Dark glow boost — same hue, more chroma + larger falloff so the
+   * haze still reads against the deeper canvas (no extra white tint).
    */
-  --app-shell-glow-soft: color-mix(in srgb, var(--color-theme) 88%, white);
-  --app-shell-glow-highlight: color-mix(in srgb, var(--color-theme) 92%, white);
+  --app-shell-glow-soft: oklch(from var(--color-theme) min(0.74, calc(l + 0.08)) calc(c * 1.35) h);
+  --app-shell-glow-highlight: oklch(from var(--color-theme) min(0.78, calc(l + 0.12)) calc(c * 1.3) h);
   --app-shell-glow:
     radial-gradient(ellipse 40% 46% at 21% 18%,
-      color-mix(in srgb, var(--app-shell-glow-core) 68%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-core) 82%, transparent) 0%,
       transparent 54%),
     radial-gradient(ellipse 32% 38% at 31% 13%,
-      color-mix(in srgb, var(--app-shell-glow-soft) 34%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-soft) 48%, transparent) 0%,
       transparent 52%),
     radial-gradient(ellipse 34% 32% at 15% 29%,
-      color-mix(in srgb, var(--app-shell-glow-highlight) 18%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-highlight) 32%, transparent) 0%,
       transparent 50%),
     radial-gradient(ellipse 28% 40% at 26% 26%,
-      color-mix(in srgb, var(--app-shell-glow-depth) 48%, transparent) 0%,
+      color-mix(in srgb, var(--app-shell-glow-depth) 58%, transparent) 0%,
       transparent 50%);
 }

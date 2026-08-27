@@ -1,4 +1,11 @@
-import { Fragment, useMemo, useState } from 'react'
+import {
+  Fragment,
+  useMemo,
+  useRef,
+  useState,
+  type DragEvent,
+  type MutableRefObject,
+} from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
@@ -25,10 +32,23 @@ import {
   type AttributeValue,
 } from '@/lib/filters/attributeFilters'
 import { nestCyclesForList } from '@/lib/reviews/cycleList'
-import { formatLocalDateRange } from '@/lib/dates/timezone'
-import { cyclePurposeOf } from '@/lib/reviews/purpose'
+import { cycleGroupsOf, cycleMemberIds } from '@/lib/reviews/cycleGroups'
+import { formatLocalDatesRange } from '@/lib/dates/timezone'
+import {
+  cycleHasCalibration,
+  cycleHasGoals,
+  cycleHasReviews,
+} from '@/lib/reviews/groupSummary'
+import {
+  PURPOSE_SHORT_LABEL,
+  cyclePurposeOf,
+  excludeSourceFromAnnualPatches,
+  findAnnualOwningSource,
+  includeSourceInAnnualPatches,
+  isLinkableSourceCycle,
+} from '@/lib/reviews/purpose'
 import { cycleDetailPath } from '@/lib/reviews/paths'
-import { sortCyclesForList } from '@/lib/reviews/store'
+import { sortCyclesForList, updateReviewCycle } from '@/lib/reviews/store'
 import {
   cycleStatusLabel,
   resolveCycleStatus,
@@ -47,6 +67,15 @@ import {
 
 type CycleListFilter = 'all' | ReviewCycleStatus | 'custom'
 
+const CYCLE_DRAG_TYPE = 'application/x-review-cycle-id'
+
+function readDraggedCycleId(event: DragEvent, fallback: string | null): string | null {
+  const fromTransfer =
+    event.dataTransfer.getData(CYCLE_DRAG_TYPE) ||
+    event.dataTransfer.getData('text/plain')
+  return fromTransfer || fallback
+}
+
 export function CyclesList() {
   const navigate = useNavigate()
   const [toastNotice, setToastNotice] = useLocationSaveNotice()
@@ -61,6 +90,13 @@ export function CyclesList() {
     {},
   )
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const [draggingId, setDraggingId] = useState<string | null>(null)
+  const [draggingFromAnnualId, setDraggingFromAnnualId] = useState<string | null>(
+    null,
+  )
+  const [dropAnnualId, setDropAnnualId] = useState<string | null>(null)
+  const [dropOut, setDropOut] = useState(false)
+  const skipRowClick = useRef(false)
 
   const cycleAttributes = useMemo(
     () => [
@@ -106,8 +142,9 @@ export function CyclesList() {
     (): Record<string, AttributeValue[]> => ({
       name: uniqueAttributeValues(sorted.map((cycle) => cycle.name)),
       type: [
-        { value: 'regular', label: 'Scheduled' },
-        { value: 'custom', label: 'Custom' },
+        { value: 'quarterly_checkin', label: PURPOSE_SHORT_LABEL.quarterly_checkin },
+        { value: 'annual_appraisal', label: PURPOSE_SHORT_LABEL.annual_appraisal },
+        { value: 'custom', label: PURPOSE_SHORT_LABEL.custom },
       ],
       status: [
         { value: 'future', label: 'Future' },
@@ -146,7 +183,7 @@ export function CyclesList() {
       if (
         !matchesAttributeFilters(attributeFilters, {
           name: cycle.name.trim(),
-          type: cycle.type === 'regular' ? 'regular' : 'custom',
+          type: cyclePurposeOf(cycle),
           status,
         })
       ) {
@@ -156,9 +193,9 @@ export function CyclesList() {
       const statusLabel = cycleStatusLabel(status)
       const haystack = [
         cycle.name,
-        cycle.type,
+        PURPOSE_SHORT_LABEL[cyclePurposeOf(cycle)],
         statusLabel,
-        formatLocalDateRange(cycle.startDate, cycle.endDate),
+        formatLocalDatesRange(cycle.startDate, cycle.endDate),
       ]
         .join(' ')
         .toLowerCase()
@@ -178,6 +215,135 @@ export function CyclesList() {
     })
   }
 
+  function expandAnnual(cycleId: string) {
+    setCollapsed((current) => {
+      if (!current.has(cycleId)) return current
+      const next = new Set(current)
+      next.delete(cycleId)
+      return next
+    })
+  }
+
+  function clearDrag() {
+    setDraggingId(null)
+    setDraggingFromAnnualId(null)
+    setDropAnnualId(null)
+    setDropOut(false)
+  }
+
+  function beginDrag(
+    cycle: ReviewCycle,
+    event: DragEvent<HTMLTableRowElement>,
+    fromAnnualId?: string,
+  ) {
+    if (!isLinkableSourceCycle(cycle)) return
+    event.dataTransfer.setData(CYCLE_DRAG_TYPE, cycle.id)
+    event.dataTransfer.setData('text/plain', cycle.id)
+    event.dataTransfer.effectAllowed = 'move'
+    setDraggingId(cycle.id)
+    setDraggingFromAnnualId(fromAnnualId ?? null)
+    setDropAnnualId(null)
+    setDropOut(false)
+  }
+
+  function hoverAnnual(annualId: string, event: DragEvent<HTMLTableRowElement>) {
+    if (!draggingId) return
+    event.preventDefault()
+    event.stopPropagation()
+    event.dataTransfer.dropEffect = 'move'
+    setDropAnnualId(annualId)
+    setDropOut(false)
+    expandAnnual(annualId)
+  }
+
+  function leaveAnnual(annualId: string, event: DragEvent<HTMLTableRowElement>) {
+    const next = event.relatedTarget
+    if (next instanceof Node && event.currentTarget.contains(next)) return
+    setDropAnnualId((current) => (current === annualId ? null : current))
+  }
+
+  function hoverListRoot(event: DragEvent<HTMLElement>) {
+    const sourceId = draggingId
+    if (!sourceId) return
+    if (!draggingFromAnnualId && !findAnnualOwningSource(cycles, sourceId)) {
+      return
+    }
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDropAnnualId(null)
+    setDropOut(true)
+  }
+
+  async function applySourceLinkPatches(
+    patches: Array<{
+      cycleId: string
+      sourceLinks: NonNullable<ReviewCycle['sourceLinks']>
+    }>,
+    success: string,
+    failure: string,
+  ) {
+    if (patches.length === 0) return
+    try {
+      await Promise.all(
+        patches.map((patch) =>
+          updateReviewCycle(patch.cycleId, { sourceLinks: patch.sourceLinks }),
+        ),
+      )
+      setToastNotice(successNotice(success))
+    } catch (err) {
+      setToastNotice({
+        variant: 'error',
+        message: err instanceof Error ? err.message : failure,
+        shownAt: Date.now(),
+      })
+    }
+  }
+
+  async function dropOnAnnual(
+    annualId: string,
+    event: DragEvent<HTMLTableRowElement>,
+  ) {
+    event.preventDefault()
+    event.stopPropagation()
+    const sourceId = readDraggedCycleId(event, draggingId)
+    const fromAnnualId = draggingFromAnnualId
+    clearDrag()
+    skipRowClick.current = true
+    if (!sourceId) return
+    if (fromAnnualId === annualId) return
+    const patches = includeSourceInAnnualPatches(cycles, annualId, sourceId)
+    const source = cycles.find((cycle) => cycle.id === sourceId)
+    const annual = cycles.find((cycle) => cycle.id === annualId)
+    await applySourceLinkPatches(
+      patches,
+      source && annual
+        ? `${source.name} included in ${annual.name}.`
+        : 'Cycle included.',
+      'Could not include that cycle.',
+    )
+    expandAnnual(annualId)
+  }
+
+  async function dropOutOfAnnual(event: DragEvent<HTMLElement>) {
+    event.preventDefault()
+    event.stopPropagation()
+    const sourceId = readDraggedCycleId(event, draggingId)
+    clearDrag()
+    skipRowClick.current = true
+    if (!sourceId) return
+    const patches = excludeSourceFromAnnualPatches(cycles, sourceId)
+    if (patches.length === 0) return
+    const source = cycles.find((cycle) => cycle.id === sourceId)
+    const annual = findAnnualOwningSource(cycles, sourceId)
+    await applySourceLinkPatches(
+      patches,
+      source && annual
+        ? `${source.name} removed from ${annual.name}.`
+        : 'Cycle removed.',
+      'Could not remove that cycle.',
+    )
+  }
+
   const cycleColumns = useMemo<ResizableColumn[]>(
     () => [
       {
@@ -188,8 +354,13 @@ export function CyclesList() {
         growWeight: 3,
         minWidth: 280,
       },
-      { id: 'cycle-type', label: 'Type', minWidth: 108 },
-      { id: 'timeframe', label: 'Timeframe', grow: true, minWidth: 148 },
+      { id: 'cycle-type', label: 'Type', minWidth: 116 },
+      { id: 'people', label: 'People', minWidth: 80 },
+      { id: 'groups', label: 'Groups', minWidth: 80 },
+      { id: 'goals', label: 'Goals', minWidth: 72 },
+      { id: 'reviews', label: 'Reviews', minWidth: 84 },
+      { id: 'calibration', label: 'Calibration', minWidth: 100 },
+      { id: 'timeframe', label: 'Timeframe', grow: true, minWidth: 132 },
       { id: 'status', label: 'Status', minWidth: 108 },
     ],
     [],
@@ -373,7 +544,7 @@ export function CyclesList() {
               className="pd-people__empty-panel"
               icon={CalendarDays}
               title={
-                cycles.length === 0 ? 'No cycles yet' : 'No matches'
+                cycles.length === 0 ? 'No Cycles Yet' : 'No Matches'
               }
               description={
                 cycles.length === 0
@@ -409,16 +580,27 @@ export function CyclesList() {
             />
           </div>
         ) : (
-          <div className="pd-people__table-wrap">
+          <div
+            className={[
+              'pd-people__table-wrap',
+              dropOut ? 'pd-reviews-cycles__wrap--drop-out' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onDragOver={hoverListRoot}
+            onDrop={(event) => void dropOutOfAnnual(event)}
+          >
             <ResizableTable
               className="pd-people__table pd-reviews-cycles__table"
-              storageKey="reviews-cycles-column-widths-v2"
+              storageKey="reviews-cycles-column-widths-v3"
               columns={cycleColumns}
             >
               <tbody>
                 {tree.map((node) => {
                   const isOpen =
                     searchOpen || !collapsed.has(node.cycle.id)
+                  const parentIsAnnual =
+                    cyclePurposeOf(node.cycle) === 'annual_appraisal'
                   return (
                     <Fragment key={node.cycle.id}>
                       <CycleRow
@@ -430,6 +612,27 @@ export function CyclesList() {
                             ? () => toggleCollapsed(node.cycle.id)
                             : undefined
                         }
+                        canDrag={isLinkableSourceCycle(node.cycle)}
+                        isDragging={draggingId === node.cycle.id}
+                        isDropTarget={dropAnnualId === node.cycle.id}
+                        skipRowClick={skipRowClick}
+                        onDragStart={(event) => beginDrag(node.cycle, event)}
+                        onDragEnd={clearDrag}
+                        onDragOver={
+                          parentIsAnnual
+                            ? (event) => hoverAnnual(node.cycle.id, event)
+                            : hoverListRoot
+                        }
+                        onDragLeave={
+                          parentIsAnnual
+                            ? (event) => leaveAnnual(node.cycle.id, event)
+                            : undefined
+                        }
+                        onDrop={
+                          parentIsAnnual
+                            ? (event) => void dropOnAnnual(node.cycle.id, event)
+                            : (event) => void dropOutOfAnnual(event)
+                        }
                       />
                       {isOpen
                         ? node.children.map((child, index) => (
@@ -438,6 +641,30 @@ export function CyclesList() {
                               cycle={child}
                               nested
                               isLastChild={index === node.children.length - 1}
+                              canDrag={isLinkableSourceCycle(child)}
+                              isDragging={draggingId === child.id}
+                              isDropTarget={false}
+                              skipRowClick={skipRowClick}
+                              onDragStart={(event) =>
+                                beginDrag(child, event, node.cycle.id)
+                              }
+                              onDragEnd={clearDrag}
+                              onDragOver={
+                                parentIsAnnual
+                                  ? (event) => hoverAnnual(node.cycle.id, event)
+                                  : undefined
+                              }
+                              onDragLeave={
+                                parentIsAnnual
+                                  ? (event) => leaveAnnual(node.cycle.id, event)
+                                  : undefined
+                              }
+                              onDrop={
+                                parentIsAnnual
+                                  ? (event) =>
+                                      void dropOnAnnual(node.cycle.id, event)
+                                  : undefined
+                              }
                             />
                           ))
                         : null}
@@ -466,6 +693,14 @@ export function CyclesList() {
   )
 }
 
+function ModuleFlag({ on }: { on: boolean }) {
+  return (
+    <span className={`pd-reviews-status pd-reviews-status--${on ? 'on' : 'off'}`}>
+      {on ? 'On' : 'Off'}
+    </span>
+  )
+}
+
 function iconForCycle(cycle: ReviewCycle) {
   const purpose = cyclePurposeOf(cycle)
   if (purpose === 'annual_appraisal') return Layers
@@ -480,6 +715,15 @@ function CycleRow({
   childCount = 0,
   isOpen = false,
   onToggle,
+  canDrag = false,
+  isDragging = false,
+  isDropTarget = false,
+  skipRowClick,
+  onDragStart,
+  onDragEnd,
+  onDragOver,
+  onDragLeave,
+  onDrop,
 }: {
   cycle: ReviewCycle
   nested?: boolean
@@ -487,6 +731,15 @@ function CycleRow({
   childCount?: number
   isOpen?: boolean
   onToggle?: () => void
+  canDrag?: boolean
+  isDragging?: boolean
+  isDropTarget?: boolean
+  skipRowClick: MutableRefObject<boolean>
+  onDragStart?: (event: DragEvent<HTMLTableRowElement>) => void
+  onDragEnd?: () => void
+  onDragOver?: (event: DragEvent<HTMLTableRowElement>) => void
+  onDragLeave?: (event: DragEvent<HTMLTableRowElement>) => void
+  onDrop?: (event: DragEvent<HTMLTableRowElement>) => void
 }) {
   const navigate = useNavigate()
   const status = resolveCycleStatus(cycle)
@@ -503,12 +756,34 @@ function CycleRow({
         !nested && childCount > 0 && isOpen
           ? 'pd-reviews-cycles__row--open'
           : '',
+        canDrag ? 'pd-reviews-cycles__row--draggable' : '',
+        isDragging ? 'pd-reviews-cycles__row--dragging' : '',
+        isDropTarget ? 'pd-reviews-cycles__row--drop' : '',
       ]
         .filter(Boolean)
         .join(' ')}
       tabIndex={0}
       aria-level={nested ? 2 : 1}
+      aria-grabbed={canDrag ? isDragging : undefined}
+      draggable={canDrag}
+      onDragStart={canDrag ? onDragStart : undefined}
+      onDragEnd={
+        canDrag
+          ? () => {
+              skipRowClick.current = true
+              onDragEnd?.()
+            }
+          : undefined
+      }
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
       onClick={(event) => {
+        if (skipRowClick.current) {
+          skipRowClick.current = false
+          event.preventDefault()
+          return
+        }
         const target = event.target as HTMLElement
         if (target.closest('a, button')) return
         navigate(to)
@@ -545,7 +820,7 @@ function CycleRow({
           ) : (
             <span className="pd-reviews-cycles__expand-spacer" aria-hidden />
           )}
-          <Link to={to} className="pd-reviews-cycle-link">
+          <Link to={to} className="pd-reviews-cycle-link" draggable={false}>
             <span
               className={`pd-reviews-cycle-link__icon pd-reviews-cycle-link__icon--${purpose}`}
               aria-hidden
@@ -560,10 +835,25 @@ function CycleRow({
         </span>
       </td>
       <td className="pd-reviews-cycles__muted">
-        {cycle.type === 'regular' ? 'Scheduled' : 'Custom'}
+        {PURPOSE_SHORT_LABEL[purpose]}
+      </td>
+      <td className="pd-reviews-cycles__count">
+        {cycleMemberIds(cycle).length}
+      </td>
+      <td className="pd-reviews-cycles__count">
+        {cycleGroupsOf(cycle).length}
+      </td>
+      <td className="pd-reviews-cycles__flag">
+        <ModuleFlag on={cycleHasGoals(cycle)} />
+      </td>
+      <td className="pd-reviews-cycles__flag">
+        <ModuleFlag on={cycleHasReviews(cycle)} />
+      </td>
+      <td className="pd-reviews-cycles__flag">
+        <ModuleFlag on={cycleHasCalibration(cycle)} />
       </td>
       <td className="pd-reviews-cycles__muted">
-        {formatLocalDateRange(cycle.startDate, cycle.endDate)}
+        {formatLocalDatesRange(cycle.startDate, cycle.endDate)}
       </td>
       <td className="pd-reviews-cycles__status">
         <span

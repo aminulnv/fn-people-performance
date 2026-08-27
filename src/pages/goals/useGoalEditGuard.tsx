@@ -127,8 +127,8 @@ export function useGoalEditGuard({
           lineManager,
           skipLevelManager,
         })}
-        confirmLabel="Continue editing"
-        cancelLabel="Keep current goals"
+        confirmLabel="Continue Editing"
+        cancelLabel="Keep Current Goals"
       />
     ),
   };

@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import {
   Building2,
+  CalendarClock,
   Plus,
   Search,
   Trash2,
@@ -9,12 +10,20 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { Button, Input } from "@/components/ui";
+import { Avatar, Button, Input } from "@/components/ui";
+import { HintIcon } from "./HintIcon";
 import { addUtcDays, compareDateTime, datePart } from "@/lib/dates/timestamp";
 import { formatLocalTimestamp } from "@/lib/dates/timezone";
+import { avatarStyle } from "@/lib/employees/avatar";
+import type { PlatformEmployee } from "@/lib/employees/types";
 import { useOrganisation } from "@/lib/employees/useEmployees";
 import { toIntegerId } from "@/lib/integerId";
 import type { OrgDepartment, OrgTeam } from "@/lib/organisation/types";
+import {
+  compareByNameRelevance,
+  compareGroupsByNameRelevance,
+  nameRelevanceScore,
+} from "@/lib/search/nameRelevance";
 import type {
   GoalCycleExtension,
   GoalCycleExtensionScope,
@@ -35,7 +44,9 @@ type PopulationSearchResult = {
   label: string;
   description?: string;
   icon: LucideIcon;
+  person?: PlatformEmployee;
   scope: GoalCycleExtensionScope;
+  score: number;
 };
 
 const RESULT_LIMIT_PER_SECTION = 5;
@@ -173,7 +184,6 @@ export function GoalCycleExtensionsEditor({
             normalizedQuery,
           ),
       )
-      .slice(0, RESULT_LIMIT_PER_SECTION)
       .map((employee) => ({
         key: `person:${employee.employeeId}`,
         section: "People" as const,
@@ -182,11 +192,27 @@ export function GoalCycleExtensionsEditor({
           [employee.jobTitle, employee.department].filter(Boolean).join(" · ") ||
           employee.email,
         icon: UserRound,
+        person: employee,
         scope: {
           type: "people" as const,
           employeeIds: [toIntegerId(employee.employeeId) ?? employee.employeeId],
         },
-      }));
+        score: nameRelevanceScore(
+          employee.fullName,
+          [
+            employee.employeeId,
+            employee.email,
+            employee.jobTitle,
+            employee.department,
+            employee.team,
+            employee.division,
+            employee.jobGrade,
+          ],
+          normalizedQuery,
+        ),
+      }))
+      .sort(compareByNameRelevance)
+      .slice(0, RESULT_LIMIT_PER_SECTION);
 
     const departmentResults = organisation.departments
       .filter((department) =>
@@ -202,7 +228,6 @@ export function GoalCycleExtensionsEditor({
           normalizedQuery,
         ),
       )
-      .slice(0, RESULT_LIMIT_PER_SECTION)
       .map((department) => ({
         key: `department:${department.id}`,
         section: "Departments" as const,
@@ -217,7 +242,20 @@ export function GoalCycleExtensionsEditor({
           activeEmployees,
           fallbackDepartmentIds,
         ),
-      }));
+        score: nameRelevanceScore(
+          department.name,
+          [
+            department.head?.fullName ?? "",
+            ...department.teams.flatMap((team) => [
+              team.name,
+              team.manager?.fullName ?? "",
+            ]),
+          ],
+          normalizedQuery,
+        ),
+      }))
+      .sort(compareByNameRelevance)
+      .slice(0, RESULT_LIMIT_PER_SECTION);
 
     const teamResults = organisation.teams
       .filter((team) =>
@@ -226,7 +264,6 @@ export function GoalCycleExtensionsEditor({
           normalizedQuery,
         ),
       )
-      .slice(0, RESULT_LIMIT_PER_SECTION)
       .map((team) => ({
         key: `team:${team.id}`,
         section: "Teams" as const,
@@ -237,9 +274,28 @@ export function GoalCycleExtensionsEditor({
         )}`,
         icon: UsersRound,
         scope: buildTeamScope(team, activeEmployees, fallbackTeamIds),
-      }));
+        score: nameRelevanceScore(
+          team.name,
+          [team.departmentName, team.manager?.fullName ?? ""],
+          normalizedQuery,
+        ),
+      }))
+      .sort(compareByNameRelevance)
+      .slice(0, RESULT_LIMIT_PER_SECTION);
 
-    return [...peopleResults, ...departmentResults, ...teamResults];
+    const grouped = SEARCH_SECTIONS.map((section) => ({
+      section,
+      items:
+        section === "People"
+          ? peopleResults
+          : section === "Departments"
+            ? departmentResults
+            : teamResults,
+    }))
+      .filter((group) => group.items.length > 0)
+      .sort(compareGroupsByNameRelevance(SEARCH_SECTIONS));
+
+    return grouped.flatMap((group) => group.items);
   }, [
     activeEmployees,
     fallbackDepartmentIds,
@@ -249,10 +305,18 @@ export function GoalCycleExtensionsEditor({
     selectedEmployeeIds,
   ]);
 
-  const groupedResults = SEARCH_SECTIONS.map((section) => ({
-    section,
-    results: results.filter((result) => result.section === section),
-  })).filter((group) => group.results.length > 0);
+  const groupedResults: {
+    section: SearchSection;
+    results: PopulationSearchResult[];
+  }[] = [];
+  for (const result of results) {
+    const current = groupedResults[groupedResults.length - 1];
+    if (current?.section === result.section) {
+      current.results.push(result);
+    } else {
+      groupedResults.push({ section: result.section, results: [result] });
+    }
+  }
 
   useEffect(() => {
     setActiveIndex(0);
@@ -260,7 +324,7 @@ export function GoalCycleExtensionsEditor({
 
   useEffect(() => {
     if (!open) return;
-    resultRefs.current[activeIndex]?.scrollIntoView({ block: "nearest" });
+    resultRefs.current[activeIndex]?.scrollIntoView?.({ block: "nearest" });
   }, [activeIndex, open]);
 
   useEffect(() => {
@@ -365,10 +429,14 @@ export function GoalCycleExtensionsEditor({
   return (
     <div className="pd-cycle-extensions">
       <div className="pd-cycle-extensions__heading">
-        <div>
-          <h4>Deadline extensions</h4>
-          <p>Give selected teams, departments, or people more time.</p>
-        </div>
+        <header className="pd-reviews-edit-card__head">
+          <CalendarClock size={16} strokeWidth={1.75} aria-hidden />
+          <h3 className="pd-reviews-edit-card__title">Custom Deadlines</h3>
+          <HintIcon
+            content="Give selected teams, departments, or people more time."
+            label="About Custom Deadlines"
+          />
+        </header>
         {!isAdding ? (
           <Button
             type="button"
@@ -378,7 +446,7 @@ export function GoalCycleExtensionsEditor({
             onClick={() => setIsAdding(true)}
           >
             <Plus size={15} aria-hidden />
-            Add extension
+            Add Deadline
           </Button>
         ) : null}
       </div>
@@ -387,13 +455,34 @@ export function GoalCycleExtensionsEditor({
         <ul className="pd-cycle-extensions__list">
           {extensions.map((extension) => (
             <li key={extension.id}>
-              <span>
-                <strong>{extensionLabel(extension, activeEmployees)}</strong>
-                <small>Until {formatLocalTimestamp(extension.endDate) || extension.endDate}</small>
+              <span className="pd-cycle-extensions__list-copy">
+                {extension.scope.type === "people" ? (
+                  <span className="pd-cycle-extensions__list-avatars">
+                    {activeEmployees
+                      .filter((employee) =>
+                        extension.scope.type === "people" &&
+                        extension.scope.employeeIds.includes(employee.employeeId),
+                      )
+                      .slice(0, 3)
+                      .map((person) => (
+                        <Avatar
+                          key={person.employeeId}
+                          name={person.fullName}
+                          src={person.avatarUrl || undefined}
+                          size="sm"
+                          style={avatarStyle(person.fullName)}
+                        />
+                      ))}
+                  </span>
+                ) : null}
+                <span>
+                  <strong>{extensionLabel(extension, activeEmployees)}</strong>
+                  <small>Until {formatLocalTimestamp(extension.endDate) || extension.endDate}</small>
+                </span>
               </span>
               <button
                 type="button"
-                aria-label={`Remove extension for ${extensionLabel(
+                aria-label={`Remove deadline for ${extensionLabel(
                   extension,
                   activeEmployees,
                 )}`}
@@ -406,15 +495,15 @@ export function GoalCycleExtensionsEditor({
             </li>
           ))}
         </ul>
-      ) : (
-        <p className="pd-cycle-extensions__empty">No deadline extensions.</p>
+      ) : isAdding ? null : (
+        <p className="pd-cycle-extensions__empty">No custom deadlines.</p>
       )}
 
       {isAdding ? (
         <div className="pd-cycle-extensions__composer">
           <div className="pd-cycle-extensions__population">
             <span className="pd-cycle-extensions__population-label">
-              Extend deadline for
+              Deadline for
             </span>
             <div ref={containerRef} className="pd-cycle-extensions__search-wrap">
               <label className="pd-cycle-extensions__search">
@@ -493,12 +582,21 @@ export function GoalCycleExtensionsEditor({
                                   onClick={() => selectResult(result)}
                                   onMouseEnter={() => setActiveIndex(index)}
                                 >
-                                  <span
-                                    className="pd-cycle-extensions__search-result-icon"
-                                    aria-hidden
-                                  >
-                                    <Icon size={14} strokeWidth={2} />
-                                  </span>
+                                  {result.person ? (
+                                    <Avatar
+                                      name={result.person.fullName}
+                                      src={result.person.avatarUrl || undefined}
+                                      size="sm"
+                                      style={avatarStyle(result.person.fullName)}
+                                    />
+                                  ) : (
+                                    <span
+                                      className="pd-cycle-extensions__search-result-icon"
+                                      aria-hidden
+                                    >
+                                      <Icon size={14} strokeWidth={2} />
+                                    </span>
+                                  )}
                                   <span className="pd-cycle-extensions__search-result-text">
                                     <span className="pd-cycle-extensions__search-result-label">
                                       {result.label}
@@ -559,7 +657,12 @@ export function GoalCycleExtensionsEditor({
                           key={person.employeeId}
                           className="pd-cycle-extensions__chip"
                         >
-                          <UserRound size={13} aria-hidden />
+                          <Avatar
+                            name={person.fullName}
+                            src={person.avatarUrl || undefined}
+                            size="sm"
+                            style={avatarStyle(person.fullName)}
+                          />
                           {person.fullName}
                           <button
                             type="button"
@@ -576,7 +679,7 @@ export function GoalCycleExtensionsEditor({
           </div>
 
           <label className="pd-cycle-extensions__date">
-            <span>Extended deadline</span>
+            <span>Custom deadline</span>
             <Input
               type="datetime"
               min={baseEndDate}
@@ -603,7 +706,7 @@ export function GoalCycleExtensionsEditor({
               disabled={!canAdd}
               onClick={addExtension}
             >
-              Add extension
+              Add Deadline
             </Button>
           </div>
         </div>

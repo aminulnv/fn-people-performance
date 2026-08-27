@@ -368,7 +368,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && notStarted > 0) {
     attention.push({
       id: 'reviews_not_started',
-      title: 'Reviews not started',
+      title: 'Reviews Not Started',
       count: notStarted,
       why: 'Nobody has opened this person’s review yet.',
       href: reviewsHref,
@@ -377,7 +377,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && statusCounts.self_in_progress > 0) {
     attention.push({
       id: 'self_reviews_open',
-      title: 'Self-reviews still open',
+      title: 'Self-Reviews Still Open',
       count: statusCounts.self_in_progress,
       why: 'The employee started and has not submitted.',
       href: reviewsHref,
@@ -386,7 +386,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && statusCounts.manager_in_progress > 0) {
     attention.push({
       id: 'manager_reviews_open',
-      title: 'Manager reviews still open',
+      title: 'Manager Reviews Still Open',
       count: statusCounts.manager_in_progress,
       why: 'The line manager has a draft and has not submitted.',
       href: reviewsHref,
@@ -399,7 +399,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && readyToRelease > 0) {
     attention.push({
       id: 'ready_to_release',
-      title: 'Waiting on release',
+      title: 'Waiting On Release',
       count: readyToRelease,
       why: 'Manager review is in or past submit — still not with the employee.',
       href: reviewsHref,
@@ -408,7 +408,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && statusCounts.released_to_managers > 0) {
     attention.push({
       id: 'held_with_managers',
-      title: 'Released to managers only',
+      title: 'Released To Managers Only',
       count: statusCounts.released_to_managers,
       why: 'Employees cannot see the official grade yet.',
       href: reviewsHref,
@@ -421,7 +421,7 @@ export function buildAnalyticsDashboard(input: {
   if (showReviews && openAppeals > 0) {
     attention.push({
       id: 'open_appeals',
-      title: 'Open appeals',
+      title: 'Open Appeals',
       count: openAppeals,
       why: 'An employee recorded a challenge after release.',
       href: reviewsHref,
@@ -430,7 +430,7 @@ export function buildAnalyticsDashboard(input: {
   if (showGoals && (goals?.missing ?? 0) > 0) {
     attention.push({
       id: 'goals_missing',
-      title: 'No goals on file',
+      title: 'No Goals On File',
       count: goals?.missing ?? 0,
       why: 'These people are in the cycle and have not saved any goals.',
       href: goalsHref,

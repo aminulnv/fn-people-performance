@@ -179,7 +179,7 @@ describe('GoalsTable nested measures', () => {
     expect(log.querySelector('.pd-count-badge')).toHaveTextContent('1')
     expect(log.closest('.pd-goals-table__goal')).toBeTruthy()
     expect(log.closest('.pd-goals-table__metric')).toBeNull()
-    expect(screen.queryByText('Progress logs')).not.toBeInTheDocument()
+    expect(screen.queryByText('Progress Logs')).not.toBeInTheDocument()
     expect(
       screen.getByRole('button', {
         name: 'Update checklist for Quality process',
@@ -230,7 +230,7 @@ describe('GoalsTable nested measures', () => {
     )
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add update for Primary outcome completion',
+        name: 'Add Update For Primary outcome completion',
       }),
     )
 
@@ -260,7 +260,7 @@ describe('GoalsTable nested measures', () => {
 
     fireEvent.click(log)
     expect(
-      screen.getByRole('heading', { name: 'Progress logs None yet' }),
+      screen.getByRole('heading', { name: 'Progress Logs None yet' }),
     ).toBeInTheDocument()
     fireEvent.click(
       screen.getByRole('checkbox', {
@@ -325,7 +325,7 @@ describe('GoalsTable nested measures', () => {
       'pd-goals-table--weight-error',
     )
     expect(
-      screen.queryByRole('button', { name: 'Distribute evenly' }),
+      screen.queryByRole('button', { name: 'Distribute Evenly' }),
     ).not.toBeInTheDocument()
   })
 
@@ -369,7 +369,7 @@ describe('GoalsTable nested measures', () => {
     expect(document.querySelector('.pd-goals-table')).toHaveClass(
       'pd-goals-table--weight-error',
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Distribute evenly' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute Evenly' }))
     expect(onDistributeWeights).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'g1', weight: 20 }),
       expect.objectContaining({ id: 'g2', weight: 20 }),
@@ -395,7 +395,7 @@ describe('GoalsTable nested measures', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Distribute evenly' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Distribute Evenly' }))
     expect(onDistributeWeights).toHaveBeenCalledWith([
       expect.objectContaining({ id: 'g1', weight: 50 }),
       expect.objectContaining({ id: 'g2', weight: 50 }),
@@ -535,7 +535,7 @@ describe('GoalsTable nested measures', () => {
     fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Raise quality bar')
-    expect(tip).not.toHaveTextContent('No metrics yet')
+    expect(tip).not.toHaveTextContent('No Metrics Yet')
   })
 
   it('shows the cascade owner and metrics in the table icon tooltip', async () => {
@@ -728,7 +728,7 @@ describe('GoalsTable nested measures', () => {
   it('sits an action ribbon behind the table, peeking above the headers', () => {
     render(
       <GoalsTable
-        banner={<p role="alert">Action required Add at least 2 goals.</p>}
+        banner={<p role="alert">Action Required Add at least 2 goals.</p>}
         rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
       />,
     )
@@ -748,7 +748,7 @@ describe('GoalsTable nested measures', () => {
   it('sits a send-back ribbon behind the table, peeking above the headers', () => {
     render(
       <GoalsTable
-        leadBanner={<p role="status">Sent back for changes: Tighten the titles.</p>}
+        leadBanner={<p role="status">Sent Back For Changes: Tighten the titles.</p>}
         rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
       />,
     )
@@ -768,8 +768,8 @@ describe('GoalsTable nested measures', () => {
   it('stacks the send-back wrap behind and above the action wrap', () => {
     render(
       <GoalsTable
-        leadBanner={<p role="status">Sent back for changes: Tighten the titles.</p>}
-        banner={<p role="alert">Action required Add at least 2 goals.</p>}
+        leadBanner={<p role="status">Sent Back For Changes: Tighten the titles.</p>}
+        banner={<p role="alert">Action Required Add at least 2 goals.</p>}
         rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
       />,
     )
@@ -834,7 +834,7 @@ describe('GoalsTable nested measures', () => {
     expect(actionsHead.querySelector('.pd-sr-only')).toHaveTextContent('Actions')
     expect(actionsHead.textContent).toBe('Actions')
 
-    const menu = screen.getByRole('button', { name: 'More actions for Quality' })
+    const menu = screen.getByRole('button', { name: 'More Actions For Quality' })
     expect(menu.closest('.pd-goals-table__actions')).toBeTruthy()
     expect(menu.closest('.pd-goals-table__metric')).toBeNull()
     expect(metricsHead.compareDocumentPosition(actionsHead) &

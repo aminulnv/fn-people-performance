@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  PURPOSE_SHORT_LABEL,
+  cyclePurposeOf,
+  excludeSourceFromAnnualPatches,
+  includeSourceInAnnualPatches,
   listLinkableSourceCycles,
   sourceLinksFromIds,
   suggestedSourceLinks,
@@ -20,6 +24,27 @@ function cycle(
     ...patch,
   }
 }
+
+describe('PURPOSE_SHORT_LABEL', () => {
+  it('names the three kinds without calling period cycles scheduled', () => {
+    expect(PURPOSE_SHORT_LABEL.quarterly_checkin).toBe('Quarterly')
+    expect(PURPOSE_SHORT_LABEL.annual_appraisal).toBe('Annual')
+    expect(PURPOSE_SHORT_LABEL.custom).toBe('Custom')
+    expect(
+      PURPOSE_SHORT_LABEL[
+        cyclePurposeOf({ type: 'regular', periodKey: 'q3-2026' })
+      ],
+    ).toBe('Quarterly')
+    expect(
+      PURPOSE_SHORT_LABEL[
+        cyclePurposeOf({ type: 'regular', periodKey: 'annual-2026' })
+      ],
+    ).toBe('Annual')
+    expect(
+      PURPOSE_SHORT_LABEL[cyclePurposeOf({ type: 'custom', periodKey: '' })],
+    ).toBe('Custom')
+  })
+})
 
 describe('listLinkableSourceCycles', () => {
   it('includes quarterly and custom cycles and skips other annuals', () => {
@@ -66,6 +91,155 @@ describe('sourceLinksFromIds', () => {
       weightPercent: 50,
       excluded: false,
     })
+  })
+})
+
+describe('includeSourceInAnnualPatches', () => {
+  it('adds a loose cycle to the annual', () => {
+    const annual = cycle({
+      id: 'annual-2026',
+      name: 'Annual 2026',
+      periodKey: 'annual-2026',
+      sourceLinks: [
+        { sourceCycleId: 'q3-2026', weightPercent: 100, excluded: false },
+      ],
+    })
+    const patches = includeSourceInAnnualPatches(
+      [
+        annual,
+        cycle({ id: 'q3-2026', name: 'Q3 2026', periodKey: 'q3-2026' }),
+        cycle({ id: 'q1-2025', name: 'Q1 2025', periodKey: 'q1-2025' }),
+      ],
+      'annual-2026',
+      'q1-2025',
+    )
+
+    expect(patches).toEqual([
+      {
+        cycleId: 'annual-2026',
+        sourceLinks: sourceLinksFromIds(['q3-2026', 'q1-2025']),
+      },
+    ])
+  })
+
+  it('moves a cycle from one annual to another', () => {
+    const from = cycle({
+      id: 'annual-2025',
+      name: 'Annual 2025',
+      periodKey: 'annual-2025',
+      sourceLinks: sourceLinksFromIds(['q1-2025', 'q2-2025']),
+    })
+    const to = cycle({
+      id: 'annual-2026',
+      name: 'Annual 2026',
+      periodKey: 'annual-2026',
+      sourceLinks: sourceLinksFromIds(['q3-2026']),
+    })
+    const patches = includeSourceInAnnualPatches(
+      [
+        from,
+        to,
+        cycle({ id: 'q1-2025', name: 'Q1 2025', periodKey: 'q1-2025' }),
+        cycle({ id: 'q2-2025', name: 'Q2 2025', periodKey: 'q2-2025' }),
+        cycle({ id: 'q3-2026', name: 'Q3 2026', periodKey: 'q3-2026' }),
+      ],
+      'annual-2026',
+      'q1-2025',
+    )
+
+    expect(patches).toEqual([
+      {
+        cycleId: 'annual-2026',
+        sourceLinks: sourceLinksFromIds(['q3-2026', 'q1-2025']),
+      },
+      {
+        cycleId: 'annual-2025',
+        sourceLinks: sourceLinksFromIds(['q2-2025']),
+      },
+    ])
+  })
+
+  it('returns no patches when the cycle is already included', () => {
+    const annual = cycle({
+      id: 'annual-2026',
+      name: 'Annual 2026',
+      periodKey: 'annual-2026',
+      sourceLinks: sourceLinksFromIds(['q3-2026']),
+    })
+    expect(
+      includeSourceInAnnualPatches(
+        [
+          annual,
+          cycle({ id: 'q3-2026', name: 'Q3 2026', periodKey: 'q3-2026' }),
+        ],
+        'annual-2026',
+        'q3-2026',
+      ),
+    ).toEqual([])
+  })
+
+  it('ignores dropping an annual onto another annual', () => {
+    expect(
+      includeSourceInAnnualPatches(
+        [
+          cycle({
+            id: 'annual-2026',
+            name: 'Annual 2026',
+            periodKey: 'annual-2026',
+          }),
+          cycle({
+            id: 'annual-2025',
+            name: 'Annual 2025',
+            periodKey: 'annual-2025',
+          }),
+        ],
+        'annual-2026',
+        'annual-2025',
+      ),
+    ).toEqual([])
+  })
+})
+
+describe('excludeSourceFromAnnualPatches', () => {
+  it('removes a nested cycle from its annual', () => {
+    const annual = cycle({
+      id: 'annual-2026',
+      name: 'Annual 2026',
+      periodKey: 'annual-2026',
+      sourceLinks: sourceLinksFromIds(['q3-2026', 'q1-2025']),
+    })
+    expect(
+      excludeSourceFromAnnualPatches(
+        [
+          annual,
+          cycle({ id: 'q3-2026', name: 'Q3 2026', periodKey: 'q3-2026' }),
+          cycle({ id: 'q1-2025', name: 'Q1 2025', periodKey: 'q1-2025' }),
+        ],
+        'q1-2025',
+      ),
+    ).toEqual([
+      {
+        cycleId: 'annual-2026',
+        sourceLinks: sourceLinksFromIds(['q3-2026']),
+      },
+    ])
+  })
+
+  it('returns no patches when the cycle is not included', () => {
+    expect(
+      excludeSourceFromAnnualPatches(
+        [
+          cycle({
+            id: 'annual-2026',
+            name: 'Annual 2026',
+            periodKey: 'annual-2026',
+            sourceLinks: sourceLinksFromIds(['q3-2026']),
+          }),
+          cycle({ id: 'q1-2025', name: 'Q1 2025', periodKey: 'q1-2025' }),
+        ],
+        'q1-2025',
+      ),
+    ).toEqual([])
   })
 })
 

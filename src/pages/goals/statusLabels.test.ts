@@ -39,7 +39,7 @@ describe('cycleIneligibilityEmptyState', () => {
     expect(
       cycleIneligibilityEmptyState('Aminul Islam Borhan', 'not_in_cycle'),
     ).toEqual({
-      title: 'Not in this cycle',
+      title: 'Not In This Cycle',
       description:
         'Aminul Islam Borhan is not assigned to a group for this cycle.',
     })
@@ -52,7 +52,7 @@ describe('cycleIneligibilityEmptyState', () => {
     expect(
       cycleIneligibilityEmptyState('Aminul Islam Borhan', 'joined_after_day1'),
     ).toEqual({
-      title: 'Not eligible this quarter',
+      title: 'Not Eligible This Quarter',
       description:
         'Aminul Islam Borhan joined after Day 1, so goal setting starts next quarter.',
     })
@@ -62,14 +62,14 @@ describe('cycleIneligibilityEmptyState', () => {
 describe('ownGoalsEmptyCopy', () => {
   it('invites a first goal without dumping weight rules', () => {
     expect(ownGoalsEmptyCopy(true)).toEqual({
-      title: 'No goals yet',
+      title: 'No Goals Yet',
       description: 'Add your first goal for this cycle.',
     })
   })
 
   it('uses the lock message when goals cannot be added', () => {
     expect(ownGoalsEmptyCopy(false, 'The window is closed.')).toEqual({
-      title: 'No goals yet',
+      title: 'No Goals Yet',
       description: 'The window is closed.',
     })
   })

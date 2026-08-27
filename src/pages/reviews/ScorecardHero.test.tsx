@@ -105,7 +105,7 @@ describe('ScorecardHero', () => {
         'Executive · People & Culture · Reviewer Aminul Islam Borhan',
       ),
     ).toBeTruthy()
-    expect(screen.getByText('Overall grade')).toBeTruthy()
+    expect(screen.getByText('Overall Grade')).toBeTruthy()
     expect(screen.queryByText('Manager grade')).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
@@ -135,7 +135,7 @@ describe('ScorecardHero', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Self-review grade')).toBeTruthy()
+    expect(screen.getByText('Self-Review Grade')).toBeTruthy()
     expect(screen.getByText('Performing')).toBeTruthy()
     expect(screen.queryByText('Exceeding')).toBeNull()
     expect(screen.queryByText('Exceptional')).toBeNull()
@@ -163,7 +163,7 @@ describe('ScorecardHero', () => {
       </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Self-review' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Self-Review' }))
     expect(onViewStage).toHaveBeenCalledWith('self_review')
     expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
       'aria-current',
@@ -183,9 +183,9 @@ describe('ScorecardHero', () => {
   it('lets the stage row carry status instead of repeating manager-review chips', () => {
     renderHero({ status: 'manager_submitted' })
 
-    expect(screen.queryByText('In progress')).toBeNull()
-    expect(screen.queryByText('Manager review submitted')).toBeNull()
-    const managerStep = screen.getByText('Manager review').closest('li')
+    expect(screen.queryByText('In Progress')).toBeNull()
+    expect(screen.queryByText('Manager Review submitted')).toBeNull()
+    const managerStep = screen.getByText('Manager Review').closest('li')
     const publishedStep = screen.getByText('Published').closest('li')
     expect(managerStep?.className).toContain('is-done')
     expect(publishedStep?.className).toContain('is-active')

@@ -23,6 +23,7 @@ import {
 } from '@/lib/organisation/paths'
 import type { OrganisationSnapshot } from '@/lib/organisation/types'
 import { cycleDetailPath } from '@/lib/reviews/paths'
+import { PURPOSE_SHORT_LABEL, cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   scorecardDetailPath,
@@ -162,7 +163,7 @@ function actionItems(
       id: 'action:my-goals',
       kind: 'action',
       scope: 'actions',
-      label: 'Go to my goals',
+      label: 'Go To My Goals',
       description: goals.cycle.label,
       keywords: uniqueKeywords(['goals', 'mine', 'my goals', goals.cycle.label]),
       path: myGoalsPath,
@@ -172,7 +173,7 @@ function actionItems(
       id: 'action:my-profile',
       kind: 'action',
       scope: 'actions',
-      label: 'Go to my profile',
+      label: 'Go To My Profile',
       description: user?.name,
       keywords: uniqueKeywords(['profile', 'account', 'me']),
       path: '/profile',
@@ -182,7 +183,7 @@ function actionItems(
       id: 'action:my-reviews',
       kind: 'action',
       scope: 'actions',
-      label: 'Open my reviews',
+      label: 'Open My Reviews',
       description: 'Scorecards',
       keywords: uniqueKeywords(['reviews', 'scorecards', 'mine']),
       path: '/reviews/scorecards',
@@ -192,7 +193,7 @@ function actionItems(
       id: 'action:org-chart',
       kind: 'action',
       scope: 'actions',
-      label: 'Open organisation chart',
+      label: 'Open Organisation Chart',
       keywords: uniqueKeywords(['org chart', 'tree', 'reporting']),
       path: '/organisation/chart',
       icon: Network,
@@ -201,7 +202,7 @@ function actionItems(
       id: 'action:settings',
       kind: 'action',
       scope: 'actions',
-      label: 'Open settings',
+      label: 'Open Settings',
       keywords: uniqueKeywords(['preferences', 'account']),
       path: '/settings',
       icon: Zap,
@@ -213,7 +214,7 @@ function actionItems(
       id: 'action:create-person',
       kind: 'action',
       scope: 'actions',
-      label: 'Create a person',
+      label: 'Create A Person',
       description: 'Add someone to the directory',
       keywords: uniqueKeywords(['new employee', 'add person', 'hire']),
       path: '/people/new',
@@ -258,7 +259,7 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
     id: 'page:/organisation/chart',
     kind: 'page',
     scope: 'pages',
-    label: 'Organisation chart',
+    label: 'Organisation Chart',
     description: '/organisation/chart',
     keywords: uniqueKeywords(['org chart', 'tree']),
     path: '/organisation/chart',
@@ -351,6 +352,7 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
       keywords: uniqueKeywords([
         cycle.periodKey,
         cycle.yearKey,
+        PURPOSE_SHORT_LABEL[cyclePurposeOf(cycle)],
         cycleStatusLabel(status),
       ]),
       path: write ? cycleDetailPath(cycle.id) : '/reviews/scorecards',

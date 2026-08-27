@@ -21,22 +21,32 @@ export const DEFAULT_ANNUAL_PILLARS: ScorecardPillar[] = SCORECARD_PILLAR_CATALO
   (pillar) => ({ ...pillar }),
 )
 
+function stripUnusedManagerFields(
+  managerReview: ReviewPolicy['managerReview'] & {
+    goalsScoreEdit?: unknown
+    finalGradeEdit?: unknown
+  },
+): ReviewPolicy['managerReview'] {
+  const {
+    goalsScoreEdit: _goalsScore,
+    finalGradeEdit: _finalGrade,
+    ...rest
+  } = managerReview
+  return rest
+}
+
 export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin'): ReviewPolicy {
   const isAnnual = purpose === 'annual_appraisal'
   const base: ReviewPolicy = {
     selfReview: {
       ratePillars: isAnnual,
       rateOverall: isAnnual,
-      visibility: 'visible_first',
-      latePolicy: 'proceed',
     },
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
       gradeGoals: isAnnual,
       gradeOverall: true,
-      goalsScoreEdit: 'read_only',
-      finalGradeEdit: 'override_with_reason',
       gradeSuggestion: 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
@@ -44,14 +54,6 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
     calibration: {
       editors: 'hod_and_hrbp',
       distribution: 'guidance',
-    },
-    release: {
-      mode: isAnnual ? 'window_then_auto' : 'immediate_on_submit',
-      acknowledgement: 'first_view',
-    },
-    appeal: {
-      mode: 'record_only',
-      days: 7,
     },
     eligibility: {
       excludeNoticePeriod: true,
@@ -75,8 +77,13 @@ export function normalizeReviewPolicy(
   const defaults = defaultReviewPolicy(purpose)
   if (!policy) return defaults
   return {
-    selfReview: { ...defaults.selfReview, ...policy.selfReview },
-    managerReview: {
+    selfReview: {
+      ratePillars:
+        policy.selfReview?.ratePillars ?? defaults.selfReview.ratePillars,
+      rateOverall:
+        policy.selfReview?.rateOverall ?? defaults.selfReview.rateOverall,
+    },
+    managerReview: stripUnusedManagerFields({
       ...defaults.managerReview,
       ...policy.managerReview,
       gradeGoals:
@@ -84,11 +91,10 @@ export function normalizeReviewPolicy(
       gradeOverall:
         policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
       escalationRoles:
-        policy.managerReview?.escalationRoles ?? defaults.managerReview.escalationRoles,
-    },
+        policy.managerReview?.escalationRoles ??
+        defaults.managerReview.escalationRoles,
+    }),
     calibration: { ...defaults.calibration, ...policy.calibration },
-    release: { ...defaults.release, ...policy.release },
-    appeal: { ...defaults.appeal, ...policy.appeal },
     eligibility: { ...defaults.eligibility, ...policy.eligibility },
     scorecard: {
       pillars: mergePillarCatalog(
@@ -134,6 +140,27 @@ export function enabledQuestions(
 
 export function pillarWeightTotal(policy: ReviewPolicy): number {
   return enabledPillars(policy).reduce((sum, pillar) => sum + pillar.weight, 0)
+}
+
+/** Room left for this pillar so enabled weights never exceed 100. */
+export function remainingPillarWeight(
+  policy: ReviewPolicy,
+  pillarId: string,
+): number {
+  const usedByOthers = enabledPillars(policy).reduce((sum, pillar) => {
+    if (pillar.id === pillarId) return sum
+    return sum + pillar.weight
+  }, 0)
+  return Math.max(0, 100 - usedByOthers)
+}
+
+export function clampPillarWeight(
+  policy: ReviewPolicy,
+  pillarId: string,
+  weight: number,
+): number {
+  const ceiling = remainingPillarWeight(policy, pillarId)
+  return Math.min(ceiling, Math.max(0, Math.round(weight)))
 }
 
 export function reweightEnabledPillars(policy: ReviewPolicy): ReviewPolicy {

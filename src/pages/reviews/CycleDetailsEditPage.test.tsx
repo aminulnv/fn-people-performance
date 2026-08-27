@@ -117,6 +117,38 @@ describe('CycleDetailsEditPage', () => {
     expect(yearField).toHaveTextContent('2027')
   })
 
+  it('saves a newly included cycle on an existing annual cycle', async () => {
+    await reviewsStore.createReviewCycle({
+      type: 'regular',
+      periodKey: 'q1-2026',
+    })
+    const annual = await reviewsStore.createReviewCycle({
+      type: 'regular',
+      periodKey: 'annual-2026',
+      sourceLinks: [],
+    })
+    const update = vi.spyOn(reviewsStore, 'updateReviewCycle')
+
+    render(<CycleDetailsEditPage cycle={annual} onClose={() => {}} />)
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Q1 2026/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(update).toHaveBeenCalledWith(
+      annual.id,
+      expect.objectContaining({
+        sourceLinks: [
+          expect.objectContaining({ sourceCycleId: 'q1-2026' }),
+        ],
+      }),
+    )
+    expect(
+      reviewsStore
+        .getReviewCycle(annual.id)
+        ?.sourceLinks?.map((link) => link.sourceCycleId),
+    ).toEqual(['q1-2026'])
+  })
+
   it('notifies the parent after a successful save', () => {
     const onSuccess = vi.fn()
     vi.spyOn(reviewsStore, 'updateReviewCycle').mockResolvedValue(sampleCycle())

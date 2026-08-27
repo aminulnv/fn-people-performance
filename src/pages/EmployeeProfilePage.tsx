@@ -178,8 +178,8 @@ function CopyEmail({ email }: { email: string }) {
         type="button"
         className="pd-profile__icon-action"
         onClick={() => void onCopy()}
-        aria-label={copied ? 'Copied' : 'Copy email'}
-        title={copied ? 'Copied' : 'Copy email'}
+        aria-label={copied ? 'Copied' : 'Copy Email'}
+        title={copied ? 'Copied' : 'Copy Email'}
       >
         <Copy size={14} strokeWidth={1.75} aria-hidden />
       </button>
@@ -413,8 +413,8 @@ export function EmployeeProfileView({
               className={
                 embedded ? 'pd-people__icon-btn' : 'pd-people__ghost-btn'
               }
-              aria-label="Full view"
-              title="Full view"
+              aria-label="Full View"
+              title="Full View"
             >
               <Maximize2 size={16} strokeWidth={1.75} aria-hidden />
               {embedded ? null : 'Full view'}
@@ -443,7 +443,7 @@ export function EmployeeProfileView({
             <button
               type="button"
               className="pd-people__icon-btn"
-              aria-label="More actions"
+              aria-label="More Actions"
               aria-expanded={moreOpen}
               aria-haspopup="menu"
               onClick={toggleMore}
@@ -460,7 +460,7 @@ export function EmployeeProfileView({
                   onClick={() => void copyEmail()}
                 >
                   <Copy size={15} strokeWidth={1.75} aria-hidden />
-                  Copy email
+                  Copy Email
                 </button>
                 <button
                   type="button"
@@ -472,7 +472,7 @@ export function EmployeeProfileView({
                   }}
                 >
                   <History size={15} strokeWidth={1.75} aria-hidden />
-                  Open activity log
+                  Open Activity Log
                 </button>
                 {canManageAccess ? (
                   <Link
@@ -685,7 +685,7 @@ export function EmployeeProfileView({
                   <GitBranch size={18} strokeWidth={1.75} aria-hidden />
                   <span>
                     <span className="pd-profile__nav-title">
-                      {isSelf ? 'View Org Chart' : 'Back to People'}
+                      {isSelf ? 'View Org Chart' : 'Back To People'}
                     </span>
                   </span>
                   <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
@@ -759,7 +759,7 @@ export default function EmployeeProfilePage() {
         aria-label="Employee not found"
         title="Employee not found"
         description="This person may have been removed or the link is outdated."
-        action={<PageStatusLink to="/people" label="Back to People" />}
+        action={<PageStatusLink to="/people" label="Back To People" />}
       />
     )
   }

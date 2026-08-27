@@ -6,7 +6,7 @@ import {
 } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronDown, Copy, Search } from "lucide-react";
+import { Check, Copy, Search } from "lucide-react";
 import { Avatar, Tooltip } from "@/components/ui";
 import { ApiError } from "@/lib/apiClient";
 import { avatarStyle } from "@/lib/employees/avatar";
@@ -20,6 +20,7 @@ import {
   raciSearchText,
   resolveRaciParty,
   type OkrDirectoryPerson,
+  type OkrLastCheckIn,
   type OkrRaci,
   type OkrRaciParty,
   type OkrReferenceScope,
@@ -52,8 +53,6 @@ function matchesQuery(
     ...item.roles,
     raciSearchText(item.raci),
     directoryNames,
-    item.lastCheckIn?.note ?? "",
-    item.lastCheckIn?.authorName ?? "",
     ...item.milestones.map((milestone) => milestone.title),
   ]
     .join(" ")
@@ -85,6 +84,17 @@ function progressLine(item: OkrWorkItem): string | null {
   if (current && target) return `${current} → ${target}`;
   if (item.progressPercent != null) return `${Math.round(item.progressPercent)}%`;
   return current ?? target;
+}
+
+function checkInLine(checkIn: OkrLastCheckIn): string {
+  return [
+    checkIn.weekNumber != null ? `Week ${checkIn.weekNumber}` : "",
+    checkIn.statusLabel,
+    checkIn.authorName,
+    checkIn.submittedAt ? formatCheckInDate(checkIn.submittedAt) : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function clusterByObjective(items: OkrWorkItem[]) {
@@ -165,40 +175,123 @@ function OkrRaciList({
   );
 }
 
-function stopSummaryToggle(
-  event: MouseEvent<HTMLButtonElement> | PointerEvent<HTMLButtonElement>,
-) {
-  event.preventDefault();
-  event.stopPropagation();
+function RoleChip({
+  role,
+  viewer,
+}: {
+  role: string;
+  viewer: OkrDirectoryPerson | null;
+}) {
+  if (!role) return null;
+  return (
+    <span className="pd-okr-ref__role">
+      {viewer ? (
+        <Avatar
+          name={viewer.fullName}
+          src={viewer.avatarUrl || undefined}
+          size="sm"
+          className="pd-okr-ref__role-avatar"
+          alt=""
+          style={avatarStyle(viewer.fullName)}
+        />
+      ) : null}
+      {role}
+    </span>
+  );
 }
 
-function OkrRaciTip({
-  raci,
+function OkrWorkDetail({
+  item,
   directory,
+  viewer,
 }: {
-  raci: OkrRaci;
+  item: OkrWorkItem;
   directory: OkrDirectoryPerson[];
+  viewer: OkrDirectoryPerson | null;
 }) {
-  if (RACI_ROWS.every((row) => raci[row.key].length === 0)) return null;
+  const role = item.roles.map(formatOkrRole).join(", ");
+  const measure = progressLine(item);
+  const tone = okrStatusTone(item.status);
+  const checkIn = item.lastCheckIn;
+  const kindLabel =
+    item.kind === "special_project" ? "Special project" : "Key result";
 
   return (
-    <Tooltip
-      side="left"
-      portal
-      interactive
-      delayMs={80}
-      content={<OkrRaciList raci={raci} directory={directory} />}
-    >
-      <button
-        type="button"
-        className="pd-okr-ref__raci-trigger"
-        aria-label="RACI"
-        onClick={stopSummaryToggle}
-        onPointerDown={stopSummaryToggle}
-      >
-        RACI
-      </button>
-    </Tooltip>
+    <div className="pd-okr-ref__detail">
+      <header className="pd-okr-ref__detail-head">
+        <p className="pd-okr-ref__detail-kind">{kindLabel}</p>
+        <h3>{item.shortTitle}</h3>
+        {item.description ? (
+          <p className="pd-okr-ref__detail-desc">{item.description}</p>
+        ) : null}
+      </header>
+
+      {item.objectiveTitle ? (
+        <p className="pd-okr-ref__obj">
+          <span>OBJ</span>
+          {item.objectiveTitle}
+        </p>
+      ) : null}
+
+      <dl className="pd-okr-ref__detail-facts">
+        {role ? (
+          <div>
+            <dt>Role</dt>
+            <dd>
+              <RoleChip role={role} viewer={viewer} />
+            </dd>
+          </div>
+        ) : null}
+        {item.statusLabel ? (
+          <div>
+            <dt>Status</dt>
+            <dd>
+              <span className={`pd-okr-ref__status pd-okr-ref__status--${tone}`}>
+                {item.statusLabel}
+              </span>
+            </dd>
+          </div>
+        ) : null}
+        {measure ? (
+          <div>
+            <dt>Progress</dt>
+            <dd className="pd-okr-ref__measure">{measure}</dd>
+          </div>
+        ) : null}
+        {item.quarterLabel || item.quarter ? (
+          <div>
+            <dt>Quarter</dt>
+            <dd>{item.quarterLabel || item.quarter}</dd>
+          </div>
+        ) : null}
+      </dl>
+
+      {checkIn ? (
+        <section className="pd-okr-ref__detail-section">
+          <h4>Last Check-In</h4>
+          <p>{checkInLine(checkIn)}</p>
+          {checkIn.note ? (
+            <p className="pd-okr-ref__detail-note">{checkIn.note}</p>
+          ) : null}
+        </section>
+      ) : null}
+
+      {item.milestones.length > 0 ? (
+        <section className="pd-okr-ref__detail-section">
+          <h4>Milestones</h4>
+          <ul>
+            {item.milestones.map((milestone) => (
+              <li key={milestone.id}>
+                {milestone.title}
+                {milestone.status ? ` · ${formatOkrRole(milestone.status)}` : ""}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <OkrRaciList raci={item.raci} directory={directory} />
+    </div>
   );
 }
 
@@ -229,7 +322,7 @@ function CopyOkrTitle({ title }: { title: string }) {
         event.stopPropagation();
       }}
       aria-label={copied ? "Copied" : `Copy ${title}`}
-      title={copied ? "Copied" : "Copy title"}
+      title={copied ? "Copied" : "Copy Title"}
     >
       {copied ? (
         <Check size={13} strokeWidth={2.25} aria-hidden />
@@ -243,75 +336,44 @@ function CopyOkrTitle({ title }: { title: string }) {
 function WorkItem({
   item,
   directory,
+  viewer,
 }: {
   item: OkrWorkItem;
   directory: OkrDirectoryPerson[];
+  viewer: OkrDirectoryPerson | null;
 }) {
-  const tone = okrStatusTone(item.status);
   const role = item.roles.map(formatOkrRole).join(", ");
-  const checkIn = item.lastCheckIn;
-  const measure = progressLine(item);
+  const hasRaci = RACI_ROWS.some((row) => item.raci[row.key].length > 0);
 
   return (
-    <details className="pd-okr-ref__item">
-      <summary>
-        <span className="pd-okr-ref__item-copy">
-          <span className="pd-okr-ref__title">
-            <strong>{item.shortTitle}</strong>
-            <CopyOkrTitle title={item.shortTitle} />
-          </span>
-          {item.description ? (
-            <small className="pd-okr-ref__desc">{item.description}</small>
-          ) : null}
-          <span className="pd-okr-ref__meta">
-            {role ? <span className="pd-okr-ref__role">{role}</span> : null}
-            {item.statusLabel ? (
-              <span
-                className={`pd-okr-ref__status pd-okr-ref__status--${tone}`}
-              >
-                {item.statusLabel}
-              </span>
+    <Tooltip
+      className="pd-okr-ref__item-tip"
+      side="left"
+      portal
+      interactive
+      delayMs={80}
+      content={
+        <OkrWorkDetail item={item} directory={directory} viewer={viewer} />
+      }
+    >
+      <div className="pd-okr-ref__item">
+        <div className="pd-okr-ref__item-head">
+          <span className="pd-okr-ref__item-copy">
+            <span className="pd-okr-ref__title">
+              <strong>{item.shortTitle}</strong>
+              <CopyOkrTitle title={item.shortTitle} />
+            </span>
+            {item.description ? (
+              <small className="pd-okr-ref__desc">{item.description}</small>
             ) : null}
-            {measure ? (
-              <span className="pd-okr-ref__measure">{measure}</span>
-            ) : null}
-            <OkrRaciTip raci={item.raci} directory={directory} />
+            <span className="pd-okr-ref__meta">
+              <RoleChip role={role} viewer={viewer} />
+              {hasRaci ? <span className="pd-okr-ref__raci-trigger">RACI</span> : null}
+            </span>
           </span>
-        </span>
-        <ChevronDown
-          className="pd-okr-ref__item-chevron"
-          size={15}
-          strokeWidth={2.25}
-          aria-hidden
-        />
-      </summary>
-      <div className="pd-okr-ref__item-body">
-        {checkIn ? (
-          <p>
-            Last check-in
-            {checkIn.weekNumber != null ? ` · Week ${checkIn.weekNumber}` : ""}
-            {checkIn.statusLabel ? ` · ${checkIn.statusLabel}` : ""}
-            {checkIn.authorName ? ` · ${checkIn.authorName}` : ""}
-            {checkIn.submittedAt
-              ? ` · ${formatCheckInDate(checkIn.submittedAt)}`
-              : ""}
-            {checkIn.note ? ` — ${checkIn.note}` : ""}
-          </p>
-        ) : (
-          <p>No check-in yet.</p>
-        )}
-        {item.milestones.length > 0 ? (
-          <ul>
-            {item.milestones.map((milestone) => (
-              <li key={milestone.id}>
-                {milestone.title}
-                {milestone.status ? ` · ${formatOkrRole(milestone.status)}` : ""}
-              </li>
-            ))}
-          </ul>
-        ) : null}
+        </div>
       </div>
-    </details>
+    </Tooltip>
   );
 }
 
@@ -319,10 +381,12 @@ function ObjectiveCluster({
   objective,
   items,
   directory,
+  viewer,
 }: {
   objective: string;
   items: OkrWorkItem[];
   directory: OkrDirectoryPerson[];
+  viewer: OkrDirectoryPerson | null;
 }) {
   return (
     <div className="pd-okr-ref__cluster">
@@ -334,7 +398,12 @@ function ObjectiveCluster({
       ) : null}
       <div className="pd-okr-ref__list">
         {items.map((item) => (
-          <WorkItem key={item.id} item={item} directory={directory} />
+          <WorkItem
+            key={item.id}
+            item={item}
+            directory={directory}
+            viewer={viewer}
+          />
         ))}
       </div>
     </div>
@@ -345,10 +414,12 @@ function KindGroup({
   title,
   items,
   directory,
+  viewer,
 }: {
   title: string;
   items: OkrWorkItem[];
   directory: OkrDirectoryPerson[];
+  viewer: OkrDirectoryPerson | null;
 }) {
   if (items.length === 0) return null;
   return (
@@ -363,6 +434,7 @@ function KindGroup({
           objective={cluster.objective}
           items={cluster.items}
           directory={directory}
+          viewer={viewer}
         />
       ))}
     </section>
@@ -400,6 +472,20 @@ export function GoalOkrReferenceList({
     enabled: windowProp == null && lookupId > 0,
   });
   const window = windowProp ?? data;
+  const viewer = useMemo(() => {
+    const fromDirectory = directory.find(
+      (person) => person.employeeId === lookupId,
+    );
+    if (fromDirectory) return fromDirectory;
+    const fallbackName = window?.employeeName.trim();
+    if (!fallbackName) return null;
+    return {
+      employeeId: lookupId,
+      fullName: fallbackName,
+      email: "",
+      avatarUrl: "",
+    };
+  }, [directory, lookupId, window?.employeeName]);
   const items = window?.items ?? [];
   const filtered = useMemo(
     () =>
@@ -459,6 +545,7 @@ export function GoalOkrReferenceList({
                   title="Key results"
                   items={quarterItems.filter((item) => item.kind === "key_result")}
                   directory={directory}
+                  viewer={viewer}
                 />
                 <KindGroup
                   title="Special projects"
@@ -466,6 +553,7 @@ export function GoalOkrReferenceList({
                     (item) => item.kind === "special_project",
                   )}
                   directory={directory}
+                  viewer={viewer}
                 />
               </section>
             );
@@ -476,11 +564,13 @@ export function GoalOkrReferenceList({
               title="Key results"
               items={keyResults}
               directory={directory}
+              viewer={viewer}
             />
             <KindGroup
               title="Special projects"
               items={specialProjects}
               directory={directory}
+              viewer={viewer}
             />
           </>
         )

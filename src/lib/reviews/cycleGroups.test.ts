@@ -80,7 +80,7 @@ describe('cloneCycleSettingsIntoGroup', () => {
     host.settings.postWindowGoalPolicy = 'hard_stop'
     const created = cloneCycleSettingsIntoGroup(host, {
       id: 'group-new',
-      name: 'Senior leadership',
+      name: 'Senior Leadership',
       memberIds: [9],
     })
     expect(created.settings.postWindowGoalPolicy).toBe('hard_stop')
@@ -100,7 +100,7 @@ describe('cloneCycleSettingsIntoGroup', () => {
     ]
     const created = cloneCycleSettingsIntoGroup(host, {
       id: 'group-new',
-      name: 'Senior leadership',
+      name: 'Senior Leadership',
     })
     expect(created.stagesConfig.goals.extensions).toEqual([])
   })

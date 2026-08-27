@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/apiClient";
+import type { CycleGroup } from "./types";
 import { createInitialReviewsSnapshot } from "./demoData";
 import { buildPeriod, formatDateRange } from "./periods";
-import { updateReviewCycleRemote } from "./remoteApi";
+import { updateCycleGroupRemote, updateReviewCycleRemote } from "./remoteApi";
 import { resolveCycleStatus } from "./status";
 import {
   clearReviewsMutationError,
@@ -16,6 +17,7 @@ import {
   resetReviewsStoreForTests,
   setReviewsLocalModeForTests,
   sortCyclesForList,
+  updateCycleGroup,
   updateCycleSettings,
   updateCycleStagesConfig,
   updateReviewCycle,
@@ -26,6 +28,7 @@ vi.mock("./remoteApi", async (importOriginal) => {
   return {
     ...actual,
     updateReviewCycleRemote: vi.fn(),
+    updateCycleGroupRemote: vi.fn(),
   };
 });
 
@@ -194,7 +197,7 @@ describe("reviews store", () => {
         ),
       ),
     ).toBe(true);
-    expect(isCycleTypeConstraintError(new ApiError("Cycle not found.", 404))).toBe(
+    expect(isCycleTypeConstraintError(new ApiError("Cycle Not Found.", 404))).toBe(
       false,
     );
   });
@@ -257,7 +260,7 @@ describe("reviews store", () => {
     };
 
     await expect(updateCycleStagesConfig(cycle.id, invalid)).rejects.toThrow(
-      "Goal setting must end on or after its start date.",
+      "Goal Setting must end on or after its start date.",
     );
   });
 
@@ -379,6 +382,35 @@ describe("reviews store", () => {
     expect(updated.stagesConfig.goals.extensions).toEqual(
       stages.goals.extensions,
     );
+  });
+
+  it("persists included source cycles on an existing annual cycle", async () => {
+    const quarter = createInitialReviewsSnapshot().cycles[0];
+    if (!quarter) throw new Error("Expected seeded cycle");
+    const extra = await createReviewCycle({
+      type: "regular",
+      periodKey: "q1-2026",
+    });
+    const annual = await createReviewCycle({
+      type: "regular",
+      periodKey: "annual-2026",
+      sourceLinks: [{ sourceCycleId: quarter.id, weightPercent: 100, excluded: false }],
+    });
+
+    const updated = await updateReviewCycle(annual.id, {
+      sourceLinks: [
+        { sourceCycleId: quarter.id, weightPercent: 50, excluded: false },
+        { sourceCycleId: extra.id, weightPercent: 50, excluded: false },
+      ],
+    });
+
+    expect(updated.sourceLinks?.map((link) => link.sourceCycleId)).toEqual([
+      quarter.id,
+      extra.id,
+    ]);
+    expect(
+      getReviewCycle(annual.id)?.sourceLinks?.map((link) => link.sourceCycleId),
+    ).toEqual([quarter.id, extra.id]);
   });
 
   it("saves settings and stages in one local commit", async () => {
@@ -524,7 +556,7 @@ describe("reviews store", () => {
       memberIds: [101, 102],
     });
     await createCycleGroup(cycle.id, {
-      name: "Senior leadership",
+      name: "Senior Leadership",
       memberIds: [101],
     });
 
@@ -533,7 +565,7 @@ describe("reviews store", () => {
       [102],
     );
     expect(
-      stored?.groups?.find((group) => group.name === "Senior leadership")
+      stored?.groups?.find((group) => group.name === "Senior Leadership")
         ?.memberIds,
     ).toEqual([101]);
   });
@@ -555,6 +587,55 @@ describe("reviews store", () => {
     expect(test.groups?.[0]?.cycleId).toBe(test.id);
     expect(test.groups?.[0]?.name).toBe("Leadership");
     expect(test.groups?.[0]?.memberIds).toEqual([9]);
+  });
+
+  it("queues overlapping group saves so they do not collide on version", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    const group = await createCycleGroup(cycle.id, { name: "Everyone" });
+
+    let releaseFirst!: (value: CycleGroup) => void;
+    vi.mocked(updateCycleGroupRemote)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirst = resolve;
+          }),
+      )
+      .mockImplementationOnce(async (_cycleId, _groupId, patch) => ({
+        ...group,
+        name: String(patch.name),
+        version: 3,
+      }));
+    setReviewsLocalModeForTests(false);
+
+    const first = updateCycleGroup(cycle.id, group.id, { name: "First save" });
+    const second = updateCycleGroup(cycle.id, group.id, { name: "Second save" });
+
+    expect(updateCycleGroupRemote).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(updateCycleGroupRemote).mock.calls[0][2]).toMatchObject({
+      expectedVersion: group.version,
+      name: "First save",
+    });
+
+    releaseFirst({
+      ...group,
+      name: "First save",
+      version: 2,
+    });
+    await expect(first).resolves.toMatchObject({
+      name: "First save",
+      version: 2,
+    });
+    await expect(second).resolves.toMatchObject({
+      name: "Second save",
+      version: 3,
+    });
+    expect(updateCycleGroupRemote).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(updateCycleGroupRemote).mock.calls[1][2]).toMatchObject({
+      expectedVersion: 2,
+      name: "Second save",
+    });
   });
 
   it("leaves existing cycles with no groups unchanged", async () => {

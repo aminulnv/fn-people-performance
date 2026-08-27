@@ -59,6 +59,7 @@ let hydratePromise: Promise<void> | null = null;
 let localModeOverride: boolean | null = null;
 const listeners = new Set<() => void>();
 const pendingCycleSaves = new Map<string, Promise<ReviewCycle>>();
+const pendingGroupSaves = new Map<string, Promise<CycleGroup>>();
 
 function useLocalReviews(): boolean {
   if (localModeOverride !== null) return localModeOverride;
@@ -200,6 +201,7 @@ export function resetReviewsStoreForTests(): void {
   hydratePromise = null;
   localModeOverride = null;
   pendingCycleSaves.clear();
+  pendingGroupSaves.clear();
   cycleIdSeq = 0;
   try {
     sessionStorage.removeItem(STORAGE_KEY);
@@ -588,6 +590,9 @@ function cyclePatchIsNoop(current: ReviewCycle, next: ReviewCycle): boolean {
     current.name === next.name &&
     current.startDate === next.startDate &&
     current.endDate === next.endDate &&
+    current.yearKey === next.yearKey &&
+    JSON.stringify(current.sourceLinks ?? []) ===
+      JSON.stringify(next.sourceLinks ?? []) &&
     JSON.stringify(current.settings) === JSON.stringify(next.settings) &&
     JSON.stringify(current.stagesConfig) === JSON.stringify(next.stagesConfig) &&
     JSON.stringify(current.calibration) === JSON.stringify(next.calibration)
@@ -795,7 +800,28 @@ export type UpdateCycleGroupInput = {
   calibration?: Partial<CalibrationLogic>;
 };
 
-export function updateCycleGroup(
+function groupSaveKey(cycleId: string, groupId: string) {
+  return `${cycleId}:${groupId}`;
+}
+
+function trackPendingGroupSave(
+  key: string,
+  run: Promise<CycleGroup>,
+): Promise<CycleGroup> {
+  pendingGroupSaves.set(key, run);
+  void run
+    .finally(() => {
+      if (pendingGroupSaves.get(key) === run) {
+        pendingGroupSaves.delete(key);
+      }
+    })
+    .catch(() => {
+      /* Failures are stored on the snapshot for the cycle page. */
+    });
+  return run;
+}
+
+function applyCycleGroupUpdate(
   cycleId: string,
   groupId: string,
   patch: UpdateCycleGroupInput,
@@ -881,6 +907,28 @@ export function updateCycleGroup(
 
   replaceCycleInMemory(replaceGroupOnCycle(cycle, next));
   return Promise.resolve(clone(next));
+}
+
+export function updateCycleGroup(
+  cycleId: string,
+  groupId: string,
+  patch: UpdateCycleGroupInput,
+): Promise<CycleGroup> {
+  const key = groupSaveKey(cycleId, groupId);
+  const prior = pendingGroupSaves.get(key);
+  if (prior) {
+    return trackPendingGroupSave(
+      key,
+      prior.then(
+        () => applyCycleGroupUpdate(cycleId, groupId, patch),
+        () => applyCycleGroupUpdate(cycleId, groupId, patch),
+      ),
+    );
+  }
+  return trackPendingGroupSave(
+    key,
+    applyCycleGroupUpdate(cycleId, groupId, patch),
+  );
 }
 
 export function deleteCycleGroup(
@@ -1065,10 +1113,10 @@ function validateGoalExtensions(
 ): void {
   for (const extension of extensions) {
     if (!extension.endDate || toSortKey(extension.endDate) <= toSortKey(baseEndDate)) {
-      throw new Error("An extension deadline must be after the standard goal deadline.");
+      throw new Error("A custom deadline must be after the standard goal deadline.");
     }
     if (datePart(extension.endDate) >= datePart(performanceStartDate)) {
-      throw new Error("An extension deadline must be before performance review starts.");
+      throw new Error("A custom deadline must be before performance review starts.");
     }
 
     const scope = extension.scope;
@@ -1083,7 +1131,7 @@ function validateGoalExtensions(
         scope.employeeIds.length > 0 &&
         scope.employeeIds.every(isIntegerId));
     if (!hasValidScope) {
-      throw new Error("Each extension requires a valid team, department, or people selection.");
+      throw new Error("Each custom deadline requires a valid team, department, or people selection.");
     }
   }
 }
@@ -1118,21 +1166,21 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
   > = [];
   if (goalsOn) {
     ranges.push([
-      "Goal setting",
+      "Goal Setting",
       config.goals.employee.startDate,
       config.goals.employee.endDate,
     ]);
   }
   if (selfOn) {
     ranges.push([
-      "Self-review",
+      "Self-Review",
       config.performance.employeeStart.date,
       config.performance.employeeEnd.date,
     ]);
   }
   if (managerOn) {
     ranges.push([
-      "Manager review",
+      "Manager Review",
       config.performance.managerStart.date,
       config.performance.managerEnd.date,
     ]);

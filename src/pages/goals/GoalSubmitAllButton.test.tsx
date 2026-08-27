@@ -105,7 +105,7 @@ describe('GoalSubmitAllButton', () => {
       'We recommend setting 3 to 5 goals',
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Submit anyway' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Anyway' }))
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 })

@@ -7,6 +7,7 @@ import {
   inferPurpose,
   mergeReviewStages,
   syncLegacyStageWindows,
+  withRequiredReviewStages,
 } from './reviewConfig.mjs'
 
 function datePart(value) {
@@ -246,7 +247,9 @@ export function normalizeStagesConfig(config, quarter = {}) {
       ? defaultReviewStages(purpose, merged)
       : deriveReviewStagesFromLegacy(purpose, merged),
   )
-  return syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged))
+  return withRequiredReviewStages(
+    syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+  )
 }
 
 function validationError(message) {
@@ -382,12 +385,12 @@ export function validateCycleStagesConfig(config) {
       dateTimeSortKey(extension.endDate) <= dateTimeSortKey(config.goals.employee.endDate)
     ) {
       throw validationError(
-        'An extension deadline must be after the standard goal deadline.',
+        'A custom deadline must be after the standard goal deadline.',
       )
     }
     if (datePart(extension.endDate) >= datePart(config.performance.employeeStart?.date ?? config.performance.employeeStart)) {
       throw validationError(
-        'An extension deadline must be before performance review starts.',
+        'A custom deadline must be before performance review starts.',
       )
     }
 
@@ -411,7 +414,7 @@ export function validateCycleStagesConfig(config) {
       )
     if (!validDepartment && !validTeam && !validPeople) {
       throw validationError(
-        'Each extension requires a valid team, department, or people selection.',
+        'Each custom deadline requires a valid team, department, or people selection.',
       )
     }
   }

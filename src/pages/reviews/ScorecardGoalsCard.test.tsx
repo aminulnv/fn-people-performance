@@ -30,9 +30,9 @@ describe('ScorecardGoalsCard', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('No goals for Q1 2026')).toBeTruthy()
+    expect(screen.getByText('No Goals For Q1 2026')).toBeTruthy()
     expect(screen.queryByText('Performing')).toBeNull()
-    expect(screen.getByRole('link', { name: 'Open goals' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Open Goals' })).toHaveAttribute(
       'href',
       '/goals/q1-2026/969',
     )

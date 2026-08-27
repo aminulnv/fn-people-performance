@@ -15,7 +15,7 @@ export function GoalUnsavedCloseDialog({
     <Modal
       open={open}
       onClose={onStay}
-      title="Unsaved changes"
+      title="Unsaved Changes"
       description="Save this goal as a draft to keep your work, or discard the changes."
       actions={
         <>
@@ -23,7 +23,7 @@ export function GoalUnsavedCloseDialog({
             Discard
           </Button>
           <Button variant="primary" onClick={onSaveDraft}>
-            Save as draft
+            Save As Draft
           </Button>
         </>
       }

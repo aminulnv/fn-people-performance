@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Send } from 'lucide-react'
 import { Button, ConfirmDialog, Input } from '@/components/ui'
 import {
   ReviewSaveBanner,
@@ -14,14 +15,14 @@ const CONFIRM: Record<
   { title: string; description: string }
 > = {
   managers: {
-    title: 'Release to managers now?',
+    title: 'Publish to Managers First Now?',
     description:
-      'Line managers will see the final grade immediately for everyone in this group who already has a manager grade. This does not wait for the scheduled time.',
+      'Line managers will see the official grade immediately for everyone in this group who already has a manager grade. Employees still cannot see their result. This does not wait for the scheduled time.',
   },
   employees: {
-    title: 'Release to employees now?',
+    title: 'Publish to Everyone Now?',
     description:
-      'People will see their final grade immediately if they already have a manager grade in this group. This does not wait for the scheduled time.',
+      'People will see their official grade immediately if they already have a manager grade in this group. This does not wait for the scheduled time.',
   },
 }
 
@@ -58,8 +59,8 @@ export function PublishStageControls({
         setToastNotice(
           successNotice(
             target === 'managers'
-              ? 'Released to managers.'
-              : 'Released to employees.',
+              ? 'Final grades are now visible to managers.'
+              : 'Review published.',
           ),
         )
       })
@@ -68,8 +69,8 @@ export function PublishStageControls({
           err instanceof Error
             ? err.message
             : target === 'managers'
-              ? 'Could not release to managers.'
-              : 'Could not release to employees.',
+              ? 'Could not show final grades to managers.'
+              : 'Could not publish the review.',
         )
       })
       .finally(() => {
@@ -83,28 +84,35 @@ export function PublishStageControls({
         notice={toastNotice}
         onDismiss={() => setToastNotice(null)}
       />
-      <Input
-        label="Visible from"
-        type="datetime"
-        aria-label={dateLabel}
-        value={date}
-        onChange={(event) => onDateChange(event.target.value)}
-      />
-      <div className="pd-reviews-publish__now">
-        <p className="pd-reviews-publish__now-label">Need it sooner?</p>
-        <Button
-          variant="secondary"
-          size="sm"
-          pill
-          disabled={busy}
-          aria-label={releaseLabel}
-          onClick={() => {
-            setError(null)
-            setPending(true)
-          }}
-        >
-          Release now
-        </Button>
+      <div className="pd-reviews-publish__row">
+        <div className="pd-reviews-window__date">
+          <span className="pd-reviews-window__label">Visible from</span>
+          <Input
+            type="datetime"
+            aria-label={dateLabel}
+            value={date}
+            onChange={(event) => onDateChange(event.target.value)}
+          />
+        </div>
+        <div className="pd-reviews-window__date pd-reviews-publish__now">
+          <span className="pd-reviews-window__label">Publish early</span>
+          <div className="pd-field">
+            <Button
+              variant="primary"
+              pill
+              className="pd-reviews-publish__now-btn"
+              disabled={busy}
+              aria-label={releaseLabel}
+              onClick={() => {
+                setError(null)
+                setPending(true)
+              }}
+            >
+              <Send size={15} strokeWidth={2} aria-hidden />
+              Publish Now
+            </Button>
+          </div>
+        </div>
       </div>
       {error ? (
         <p className="pd-reviews-modal__error" role="alert">
@@ -123,7 +131,7 @@ export function PublishStageControls({
         }}
         title={confirm.title}
         description={confirm.description}
-        confirmLabel="Release now"
+        confirmLabel="Publish Now"
         cancelLabel="Cancel"
       />
     </div>

@@ -109,8 +109,8 @@ describe('CycleSettingsView', () => {
 
     expect(screen.getByRole('dialog', { name: 'Cycle Details' })).toBeInTheDocument()
     expect(screen.getByLabelText('Cycle name')).toBeInTheDocument()
-    expect(screen.queryByText('This cycle includes')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
+    expect(screen.queryByText('This Cycle Includes')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Everyone' })).toBeInTheDocument()
   })
 
@@ -148,11 +148,8 @@ describe('CycleSettingsView', () => {
       'aria-pressed',
       'false',
     )
-    expect(screen.getByRole('link', { name: 'Full view' })).toHaveAttribute(
-      'href',
-      '/cycles/cycle-1/groups/group-1',
-    )
-    expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Full View' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
   })
 
   it('opens the review form on the left of group review settings', () => {
@@ -162,10 +159,10 @@ describe('CycleSettingsView', () => {
 
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.getByLabelText('Preset')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Review form' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Review Form' })).toBeInTheDocument()
   })
 
   it('opens the group hub when adding a group', async () => {
@@ -179,7 +176,7 @@ describe('CycleSettingsView', () => {
     vi.spyOn(reviewsStore, 'createCycleGroup').mockResolvedValue(created)
 
     renderSettings(cycle)
-    fireEvent.click(screen.getByRole('button', { name: 'Add group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Group' }))
 
     await waitFor(() => {
       expect(reviewsStore.createCycleGroup).toHaveBeenCalledWith(cycle.id, {
@@ -195,9 +192,10 @@ describe('CycleSettingsView', () => {
       'true',
     )
     expect(
-      screen.getByRole('searchbox', { name: 'Add people to this group' }),
+      screen.getByRole('searchbox', { name: 'Search people in this group' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
   })
 
   it('renders a newly created annual cycle as a short identity, not a calendar', async () => {
@@ -215,7 +213,7 @@ describe('CycleSettingsView', () => {
     expect(within(identity).getByText('Year')).toBeInTheDocument()
     expect(within(identity).getByText('2028')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'January 2029' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create New Group' })).toBeInTheDocument()
   })
 
   it('adds an empty New group so the cycle uses group cards, not an empty-state message', async () => {
@@ -230,7 +228,7 @@ describe('CycleSettingsView', () => {
     renderSettings(cycle)
 
     expect(screen.queryByText('No one is in this cycle yet')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create New Group' })).toBeInTheDocument()
     await waitFor(() => {
       expect(getReviewCycle(cycle.id)?.groups).toHaveLength(1)
     })
@@ -243,7 +241,7 @@ describe('CycleSettingsView', () => {
 
     renderSettings()
     fireEvent.click(screen.getByRole('button', { name: 'Delete Everyone' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Group' }))
 
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
@@ -270,7 +268,9 @@ describe('CycleSettingsView', () => {
     expect(notice).toHaveTextContent('Success!')
     expect(notice).toHaveTextContent('Settings saved.')
     expect(notice).toHaveClass('pd-review-packet__banner--overlay')
-    expect(notice.parentElement).toBe(document.body)
+    expect(notice.closest('.pd-review-packet__banners')?.parentElement).toBe(
+      document.body,
+    )
   })
 
   it('keeps publish results on the group, not the cycle page', () => {
@@ -280,10 +280,10 @@ describe('CycleSettingsView', () => {
       screen.queryByRole('heading', { name: 'Publish results' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Release to managers now' }),
+      screen.queryByRole('button', { name: 'Publish to Managers First Now' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Release to employees now' }),
+      screen.queryByRole('button', { name: 'Publish to Everyone Now' }),
     ).not.toBeInTheDocument()
   })
 })

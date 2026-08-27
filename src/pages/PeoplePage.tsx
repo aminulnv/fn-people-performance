@@ -297,7 +297,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         aria-labelledby="directory-heading"
       >
         <h2 id="directory-heading" className="pd-sr-only">
-          People directory
+          People Directory
         </h2>
 
         {loadState === 'loading' && employees.length === 0 ? (
@@ -313,7 +313,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             <EmptyState
               className="pd-empty--inline"
               icon={Users}
-              title="No employees yet"
+              title="No Employees Yet"
               description="Add people to the directory to get started."
               action={
                 <Link to="/people/new" className="pd-people__create-btn">
@@ -327,7 +327,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
           <EmptyState
             className="pd-people__empty-panel"
             icon={Users}
-            title="No people match your filters"
+            title="No People Match Your Filters"
             description={
               query.trim()
                 ? `No one matches “${query.trim()}” with the filters you have applied. Try a different search or clear filters.`

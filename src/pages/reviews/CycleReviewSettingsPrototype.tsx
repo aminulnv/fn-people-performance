@@ -37,7 +37,7 @@ export function CycleReviewSettingsPrototype({
             className="pd-reviews-settings__section-title"
             id="cycle-review-settings-heading"
           >
-            Review settings
+            Review Settings
           </h3>
           <p className="pd-reviews-settings__section-lede">
             Performance review window, review types, publishing rules, and
@@ -61,7 +61,7 @@ export function CycleReviewSettingsPrototype({
         >
           <dl className="pd-reviews-kv">
             <div className="pd-reviews-kv__row">
-              <dt>Performance review window</dt>
+              <dt>Performance Review Window</dt>
               <dd>
                 {formatLocalDateRange(
                   performanceReview.managerStart,
@@ -70,17 +70,17 @@ export function CycleReviewSettingsPrototype({
               </dd>
             </div>
             <div className="pd-reviews-kv__row">
-              <dt>Review types</dt>
+              <dt>Review Types</dt>
               <dd>{enabledReviewTypeLabels(cycle.settings)}</dd>
             </div>
             <div className="pd-reviews-kv__row">
-              <dt>Grade publishing exclusion</dt>
+              <dt>Grade Publishing Exclusion</dt>
               <dd>
                 {exclusionsLabel(cycle.settings.excludedEmployeeIds?.length ?? 0)}
               </dd>
             </div>
             <div className="pd-reviews-kv__row">
-              <dt>Auto scorecard generation</dt>
+              <dt>Auto Scorecard Generation</dt>
               <dd>
                 <Badge variant={autoScorecards ? "completed" : "neutral"}>
                   {autoScorecards ? "Enabled" : "Disabled"}
@@ -103,13 +103,13 @@ export function CycleReviewSettingsPrototype({
         >
           <dl className="pd-reviews-kv">
             <div className="pd-reviews-kv__row">
-              <dt>Calibration mode</dt>
+              <dt>Calibration Mode</dt>
               <dd>
                 {CALIBRATION_MODE_META[cycle.calibration.calibrationMode].label}
               </dd>
             </div>
             <div className="pd-reviews-kv__row">
-              <dt>Grade recommendation logic</dt>
+              <dt>Grade Recommendation Logic</dt>
               <dd>
                 {
                   GRADE_RECOMMENDATION_META[cycle.calibration.gradeRecommendation]
@@ -118,7 +118,7 @@ export function CycleReviewSettingsPrototype({
               </dd>
             </div>
             <div className="pd-reviews-kv__row pd-reviews-kv__row--stacked">
-              <dt>Calibration grade distribution</dt>
+              <dt>Calibration Grade Distribution</dt>
               <dd>
                 <ul className="pd-reviews-bands">
                   {GRADE_BAND_ORDER.map((band) => (

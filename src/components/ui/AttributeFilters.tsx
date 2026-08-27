@@ -174,7 +174,7 @@ export function AttributeFilters({
                   setOpenAttribute(null)
                   setQuery('')
                 }}
-                aria-label="Back to attributes"
+                aria-label="Back To Attributes"
               >
                 <ChevronLeft size={18} strokeWidth={2} aria-hidden />
               </button>
@@ -184,7 +184,7 @@ export function AttributeFilters({
               type="button"
               className="pd-people-filters__icon-btn"
               onClick={closePanel}
-              aria-label="Close filters"
+              aria-label="Close Filters"
             >
               <X size={16} strokeWidth={2} aria-hidden />
             </button>
@@ -302,7 +302,7 @@ export function AttributeFilters({
                 className="pd-people-filters__clear"
                 onClick={() => onChange({})}
               >
-                Clear filters
+                Clear Filters
               </button>
             </footer>
           ) : null}

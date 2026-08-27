@@ -33,7 +33,7 @@ describe('GoalCreateDrawer', () => {
       </GoalCreateDrawer>,
     )
 
-    expect(screen.getByRole('dialog', { name: 'Add goal' })).toHaveFocus()
+    expect(screen.getByRole('dialog', { name: 'Add Goal' })).toHaveFocus()
   })
 
   it('renders goal creation content in a dialog', () => {
@@ -43,7 +43,7 @@ describe('GoalCreateDrawer', () => {
       </GoalCreateDrawer>,
     )
 
-    expect(screen.getByRole('dialog', { name: 'Add goal' })).toHaveTextContent(
+    expect(screen.getByRole('dialog', { name: 'Add Goal' })).toHaveTextContent(
       'Goal fields',
     )
   })
@@ -51,19 +51,19 @@ describe('GoalCreateDrawer', () => {
   it('sits a ribbon above the padded goal body', () => {
     render(
       <GoalCreateDrawer
-        ribbon={<p role="status">Action required</p>}
+        ribbon={<p role="status">Action Required</p>}
         onClose={() => undefined}
       >
         <p>Goal fields</p>
       </GoalCreateDrawer>,
     )
 
-    const dialog = screen.getByRole('dialog', { name: 'Add goal' })
+    const dialog = screen.getByRole('dialog', { name: 'Add Goal' })
     const ribbon = dialog.querySelector('.pd-goals-drawer__ribbon')
     const body = dialog.querySelector('.pd-goals-drawer__body')
-    expect(ribbon).toHaveTextContent('Action required')
+    expect(ribbon).toHaveTextContent('Action Required')
     expect(body).toHaveTextContent('Goal fields')
-    expect(body).not.toHaveTextContent('Action required')
+    expect(body).not.toHaveTextContent('Action Required')
   })
 
   it('closes when Escape is pressed', () => {
@@ -107,7 +107,7 @@ describe('GoalCreateDrawer', () => {
       </GoalCreateDrawer>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel adding goal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Adding Goal' }))
 
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -116,7 +116,7 @@ describe('GoalCreateDrawer', () => {
     render(
       <GoalCreateDrawer
         label="View Improve delivery"
-        closeLabel="Close goal"
+        closeLabel="Close Goal"
         onClose={() => undefined}
       >
         <p>Goal details</p>
@@ -134,7 +134,7 @@ describe('GoalCreateDrawer', () => {
         <p>Goal details</p>
       </GoalCreateDrawer>,
     )
-    const dialog = screen.getByRole('dialog', { name: 'Add goal' })
+    const dialog = screen.getByRole('dialog', { name: 'Add Goal' })
 
     fireEvent.keyDown(
       screen.getByRole('separator', { name: 'Resize goal panel' }),

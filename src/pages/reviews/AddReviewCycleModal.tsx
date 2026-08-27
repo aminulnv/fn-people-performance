@@ -180,8 +180,8 @@ export function AddReviewCycleModal({
 
   return (
     <SettingsSidePanel
-      label="Add cycle"
-      closeLabel="Close add cycle"
+      label="Add Cycle"
+      closeLabel="Close Add Cycle"
       onClose={onClose}
     >
       <div className="pd-reviews-create">
@@ -253,7 +253,7 @@ export function AddReviewCycleModal({
 
         <section className="pd-reviews-create__modules" aria-labelledby="add-cycle-modules">
           <h3 className="pd-field__label" id="add-cycle-modules">
-            This cycle includes
+            This Cycle Includes
           </h3>
           <CycleModulesFields modules={modules} onChange={setModules} />
         </section>
@@ -300,7 +300,7 @@ export function AddReviewCycleModal({
             disabled={saving || !canCreate}
             aria-busy={saving || undefined}
           >
-            Create cycle
+            Create Cycle
           </button>
         </div>
       </div>

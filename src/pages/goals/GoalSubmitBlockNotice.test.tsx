@@ -22,7 +22,7 @@ describe('GoalSubmitBlockNotice', () => {
     )
 
     const card = screen.getByRole('alert')
-    expect(card).toHaveTextContent('Action required')
+    expect(card).toHaveTextContent('Action Required')
     fireEvent.click(
       screen.getByRole('button', { name: 'Ada’s quality goal' }),
     )
@@ -60,11 +60,11 @@ describe('GoalSubmitBlockNotice', () => {
           { reason: 'Weights need to add up to 100%.' },
         ]}
         onAddGoal={onAddGoal}
-        addGoalLabel="Add another goal"
+        addGoalLabel="Add Another Goal"
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add another goal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Another Goal' }))
     expect(onAddGoal).toHaveBeenCalledOnce()
   })
 
@@ -108,7 +108,7 @@ describe('GoalSubmitBlockNotice', () => {
     )
 
     const ribbon = screen.getByRole('alert')
-    expect(ribbon).toHaveTextContent('Action required')
+    expect(ribbon).toHaveTextContent('Action Required')
     expect(ribbon).toHaveTextContent('Needs a title.')
     expect(ribbon).not.toHaveTextContent('Untitled goal 1')
     expect(screen.queryByRole('button', { name: 'Untitled goal 1' })).toBeNull()

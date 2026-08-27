@@ -12,7 +12,7 @@ function SendBackCopy({
 }) {
   return (
     <p className="pd-goals-sendback__copy">
-      <span className="pd-goals-sendback__title">Sent back for changes</span>
+      <span className="pd-goals-sendback__title">Sent Back For Changes</span>
       {author ? (
         <>
           {' '}

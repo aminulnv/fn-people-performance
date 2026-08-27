@@ -247,7 +247,7 @@ export const GlobalSearchPalette = forwardRef<
     <dialog
       ref={dialogRef}
       className="pd-global-search"
-      aria-label="Search the company"
+      aria-label="Search The Company"
     >
       <form
         className="pd-global-search__header"

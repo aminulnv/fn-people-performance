@@ -161,34 +161,34 @@ describe('AnalyticsPage', () => {
     renderPage()
 
     expect(
-      await screen.findByRole('heading', { name: 'Needs attention' }),
+      await screen.findByRole('heading', { name: 'Needs Attention' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Reviews' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /Reviews not started/i }),
+      screen.getByRole('link', { name: /Reviews Not Started/i }),
     ).toHaveAttribute('href', '/reviews')
     expect(
-      screen.getByRole('link', { name: /Manager reviews still open/i }),
+      screen.getByRole('link', { name: /Manager Reviews Still Open/i }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Review pipeline' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Review Pipeline' })).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Grade mix vs guideline' }),
+      screen.getByRole('heading', { name: 'Grade Mix Vs Guideline' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Departments behind' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Departments Behind' })).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Managers to follow up' }),
+      screen.getByRole('heading', { name: 'Managers To Follow Up' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Alex Manager' })).toHaveAttribute(
       'href',
       '/people/1',
     )
-    expect(screen.queryByText('Coming soon')).not.toBeInTheDocument()
+    expect(screen.queryByText('Coming Soon')).not.toBeInTheDocument()
   })
 
   it('puts the cycle picker first and clears the dashboard from Clear', async () => {
     renderPage()
-    await screen.findByRole('heading', { name: 'Needs attention' })
+    await screen.findByRole('heading', { name: 'Needs Attention' })
 
     fireEvent.click(screen.getByRole('button', { name: /Cycle:/ }))
     const options = screen.getAllByRole('option')
@@ -196,10 +196,10 @@ describe('AnalyticsPage', () => {
 
     fireEvent.click(options[0])
     expect(
-      screen.getByRole('heading', { name: 'Pick a cycle' }),
+      screen.getByRole('heading', { name: 'Pick A Cycle' }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('heading', { name: 'Needs attention' }),
+      screen.queryByRole('heading', { name: 'Needs Attention' }),
     ).not.toBeInTheDocument()
   })
 })

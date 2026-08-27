@@ -26,7 +26,7 @@ describe('AddReviewCycleModal', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByRole('dialog', { name: 'Add cycle' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Add Cycle' })).toBeInTheDocument()
     expect(screen.getByLabelText('Year')).toHaveValue(
       annualPeriodKey(new Date().getFullYear()),
     )
@@ -80,7 +80,7 @@ describe('AddReviewCycleModal', () => {
     fireEvent.change(screen.getByLabelText('Year'), {
       target: { value: annualPeriodKey(2026) },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith({
@@ -112,7 +112,7 @@ describe('AddReviewCycleModal', () => {
     fireEvent.change(screen.getByLabelText('Ends'), {
       target: { value: '2026-07-01T09:00' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     expect(create).not.toHaveBeenCalled()
     expect(
@@ -143,7 +143,7 @@ describe('AddReviewCycleModal', () => {
     expect(screen.getByRole('switch', { name: 'Enable Reviews' })).not.toBeChecked()
 
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Reviews' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith(
@@ -197,7 +197,7 @@ describe('AddReviewCycleModal', () => {
     expect(screen.getByRole('checkbox', { name: /Q3 2026/i })).toBeChecked()
     expect(screen.getByText('Q3 2026')).toBeVisible()
     fireEvent.click(screen.getByRole('checkbox', { name: /Leadership mid-year/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith(

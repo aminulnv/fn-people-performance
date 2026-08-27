@@ -243,7 +243,7 @@ describe('describeEmptyGoalsList', () => {
       canAddOwnGoals: true,
     })
 
-    expect(result.title).toBe('No goals yet')
+    expect(result.title).toBe('No Goals Yet')
     expect(result.description).toBe('Add your first goal for this cycle.')
     expect(result.offerAdd).toBe(true)
   })

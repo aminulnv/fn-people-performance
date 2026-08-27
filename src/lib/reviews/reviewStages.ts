@@ -24,19 +24,34 @@ export const REVIEW_FLOW_STAGE_ORDER: ReviewStageId[] = REVIEW_STAGE_ORDER.filte
   (id) => id !== 'goals',
 )
 
+export function isCalibrationStage(id: ReviewStageId): boolean {
+  return id === 'calibration_hod_hrbp' || id === 'calibration_slt'
+}
+
+export const REVIEW_ONLY_STAGE_ORDER: ReviewStageId[] =
+  REVIEW_FLOW_STAGE_ORDER.filter((id) => !isCalibrationStage(id))
+
+export const CALIBRATION_STAGE_ORDER: ReviewStageId[] =
+  REVIEW_FLOW_STAGE_ORDER.filter(isCalibrationStage)
+
 /** Milestone stages: one visible-from date, not an open/close window. */
 export function isPublishStage(id: ReviewStageId): boolean {
   return id === 'publish_managers' || id === 'publish_employees'
 }
 
+/** Employee publish is the review close-out — not optional. */
+export function isRequiredReviewStage(id: ReviewStageId): boolean {
+  return id === 'publish_employees'
+}
+
 export const REVIEW_STAGE_LABEL: Record<ReviewStageId, string> = {
-  goals: 'Goal setting',
-  self_review: 'Self-review',
-  manager_review: 'Manager review',
-  calibration_hod_hrbp: 'HOD / HRBP calibration',
-  calibration_slt: 'SLT calibration',
-  publish_managers: 'Release to managers',
-  publish_employees: 'Release to employees',
+  goals: 'Goal Setting',
+  self_review: 'Self-Review',
+  manager_review: 'Manager Review',
+  calibration_hod_hrbp: 'HOD / HRBP Calibration',
+  calibration_slt: 'SLT Calibration',
+  publish_managers: 'Publish to Managers First',
+  publish_employees: 'Publish to Everyone',
   appeal: 'Appeal',
 }
 
@@ -46,8 +61,10 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
   manager_review: 'The line manager rates the person and submits a grade.',
   calibration_hod_hrbp: 'HOD and HRBP align grades across the department.',
   calibration_slt: 'SLT reviews the department outcome with the HOD.',
-  publish_managers: 'Line managers see the final grade first.',
-  publish_employees: 'People see their own final grade after managers.',
+  publish_managers:
+    'Optional head start. Publish the official grade to managers before employees, so they can prepare 1:1s.',
+  publish_employees:
+    'When everyone sees the official review, including the employee. This always happens after a review.',
   appeal: 'Employee can leave a written record after release.',
 }
 
@@ -81,9 +98,9 @@ export function presetEnabledStages(
     ]
   }
   if (purpose === 'custom') {
-    return ['manager_review']
+    return ['manager_review', 'publish_employees']
   }
-  return ['goals', 'manager_review']
+  return ['goals', 'manager_review', 'publish_employees']
 }
 
 export function cycleModulesOf(
@@ -133,6 +150,20 @@ export function presetReviewFlowStages(
   return presetEnabledStages(purpose, key).filter((id) => id !== 'goals')
 }
 
+export function withRequiredReviewStages(
+  config: CycleStagesConfig,
+): CycleStagesConfig {
+  const reviewsOn = isReviewsModuleEnabled(config.reviewStages)
+  return syncLegacyStageWindows({
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      isRequiredReviewStage(stage.id)
+        ? { ...stage, enabled: reviewsOn }
+        : stage,
+    ),
+  })
+}
+
 export function applyCycleModules(
   config: CycleStagesConfig,
   modules: CycleModules,
@@ -147,6 +178,9 @@ export function applyCycleModules(
     }
     if (!modules.reviews) {
       return { ...stage, enabled: false }
+    }
+    if (isRequiredReviewStage(stage.id)) {
+      return { ...stage, enabled: true }
     }
     if (reviewsWereOn) return stage
     return { ...stage, enabled: reviewPreset.has(stage.id) }
@@ -400,10 +434,16 @@ export function mergeReviewStages(
   })
 }
 
-export function describeEnabledFlow(stages: ReviewStageConfig[] | undefined): string {
-  const labels = enabledReviewStages(stages)
+export function enabledFlowLabels(
+  stages: ReviewStageConfig[] | undefined,
+): string[] {
+  return enabledReviewStages(stages)
     .filter((stage) => stage.id !== 'goals')
     .map((stage) => REVIEW_STAGE_LABEL[stage.id])
+}
+
+export function describeEnabledFlow(stages: ReviewStageConfig[] | undefined): string {
+  const labels = enabledFlowLabels(stages)
   if (labels.length === 0) return 'No review stages are on.'
   return labels.join(' → ')
 }

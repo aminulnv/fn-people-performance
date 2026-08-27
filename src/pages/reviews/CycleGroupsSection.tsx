@@ -33,7 +33,7 @@ export function CycleGroupsSection({
               className="pd-reviews-settings__section-title"
               id="cycle-groups-heading"
             >
-              People in this cycle
+              People In This Cycle
             </h3>
             {groups.length > 0 ? (
               <span className="pd-reviews-settings__section-count">
@@ -49,7 +49,7 @@ export function CycleGroupsSection({
         {groups.length > 0 ? (
           <Button variant="primary" size="sm" pill onClick={onAddGroup}>
             <Plus size={14} strokeWidth={2} aria-hidden />
-            Add group
+            Add Group
           </Button>
         ) : null}
       </header>
@@ -74,7 +74,7 @@ export function CycleGroupsSection({
               <Plus size={18} strokeWidth={2.25} />
             </span>
             <span className="pd-cycle-setup__group-create-label">
-              Create new group
+              Create New Group
             </span>
           </button>
         </li>
@@ -93,7 +93,7 @@ export function CycleGroupsSection({
             ? `Delete “${pendingDelete.name}”? Those people will not be in this cycle until you add them to another group.`
             : ''
         }
-        confirmLabel="Delete group"
+        confirmLabel="Delete Group"
         cancelLabel="Cancel"
         confirmVariant="danger"
       />

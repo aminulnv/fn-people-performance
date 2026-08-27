@@ -252,10 +252,10 @@ export function gradeForViewStage(
 }
 
 export function gradeLabelForViewStage(stage: ScorecardViewStage) {
-  if (stage === 'self_review') return 'Self-review grade'
+  if (stage === 'self_review') return 'Self-Review Grade'
   if (stage === 'manager_review') return 'Manager grade'
   if (stage === 'calibration_hod_hrbp') return 'Calibrated grade'
-  return 'Overall grade'
+  return 'Overall Grade'
 }
 
 export function feedbackRoleForViewStage(

@@ -134,12 +134,12 @@ export default function CycleDetailPage() {
             triggerProps={{
               className: 'pd-people__icon-btn',
               'aria-label': 'More cycle actions',
-              title: 'More actions',
+              title: 'More Actions',
             }}
             items={[
               {
                 id: 'activity',
-                label: 'View activity',
+                label: 'View Activity',
                 icon: <History size={16} strokeWidth={1.75} />,
                 onSelect: () => setActivityOpen(true),
               },

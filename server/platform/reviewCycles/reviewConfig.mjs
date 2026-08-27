@@ -49,8 +49,8 @@ export function presetEnabledStages(purpose, periodKey) {
       'appeal',
     ]
   }
-  if (purpose === 'custom') return ['manager_review']
-  return ['goals', 'manager_review']
+  if (purpose === 'custom') return ['manager_review', 'publish_employees']
+  return ['goals', 'manager_review', 'publish_employees']
 }
 
 export function cycleModulesOf(stages) {
@@ -65,12 +65,25 @@ export function presetReviewFlowStages(purpose, periodKey) {
   return presetEnabledStages(purpose, key).filter((id) => id !== 'goals')
 }
 
+export function withRequiredReviewStages(config) {
+  const reviewsOn = cycleModulesOf(config.reviewStages).reviews
+  return syncLegacyStageWindows({
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      stage.id === 'publish_employees'
+        ? { ...stage, enabled: reviewsOn }
+        : stage,
+    ),
+  })
+}
+
 export function applyCycleModules(config, modules, purpose, periodKey) {
   const reviewsWereOn = cycleModulesOf(config.reviewStages).reviews
   const reviewPreset = new Set(presetReviewFlowStages(purpose, periodKey))
   const reviewStages = (config.reviewStages ?? []).map((stage) => {
     if (stage.id === 'goals') return { ...stage, enabled: modules.goals }
     if (!modules.reviews) return { ...stage, enabled: false }
+    if (stage.id === 'publish_employees') return { ...stage, enabled: true }
     if (reviewsWereOn) return stage
     return { ...stage, enabled: reviewPreset.has(stage.id) }
   })
@@ -287,16 +300,12 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
     selfReview: {
       ratePillars: isAnnual,
       rateOverall: isAnnual,
-      visibility: 'visible_first',
-      latePolicy: 'proceed',
     },
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
       gradeGoals: isAnnual,
       gradeOverall: true,
-      goalsScoreEdit: 'read_only',
-      finalGradeEdit: 'override_with_reason',
       gradeSuggestion: 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
@@ -305,11 +314,6 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
       editors: 'hod_and_hrbp',
       distribution: 'guidance',
     },
-    release: {
-      mode: isAnnual ? 'window_then_auto' : 'immediate_on_submit',
-      acknowledgement: 'first_view',
-    },
-    appeal: { mode: 'record_only', days: 7 },
     eligibility: {
       excludeNoticePeriod: true,
       excludeProbation: false,
@@ -370,14 +374,28 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
   }
 }
 
+function stripUnusedManagerFields(managerReview) {
+  const {
+    goalsScoreEdit: _goalsScore,
+    finalGradeEdit: _finalGrade,
+    ...rest
+  } = managerReview
+  return rest
+}
+
 export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin') {
   const defaults = defaultReviewPolicy(purpose)
   if (!policy || typeof policy !== 'object' || Array.isArray(policy) || Object.keys(policy).length === 0) {
     return defaults
   }
   return {
-    selfReview: { ...defaults.selfReview, ...policy.selfReview },
-    managerReview: {
+    selfReview: {
+      ratePillars:
+        policy.selfReview?.ratePillars ?? defaults.selfReview.ratePillars,
+      rateOverall:
+        policy.selfReview?.rateOverall ?? defaults.selfReview.rateOverall,
+    },
+    managerReview: stripUnusedManagerFields({
       ...defaults.managerReview,
       ...policy.managerReview,
       gradeGoals:
@@ -386,10 +404,8 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin') {
         policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
       escalationRoles:
         policy.managerReview?.escalationRoles ?? defaults.managerReview.escalationRoles,
-    },
+    }),
     calibration: { ...defaults.calibration, ...policy.calibration },
-    release: { ...defaults.release, ...policy.release },
-    appeal: { ...defaults.appeal, ...policy.appeal },
     eligibility: { ...defaults.eligibility, ...policy.eligibility },
     scorecard: {
       pillars: policy.scorecard?.pillars?.length

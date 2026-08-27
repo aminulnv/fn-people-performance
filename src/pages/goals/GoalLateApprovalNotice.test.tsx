@@ -32,7 +32,7 @@ describe('GoalLateApprovalNotice', () => {
 
   it('links to the skip-level manager once the direct manager approved', () => {
     renderNotice('manager_manager')
-    expect(screen.getByText('Pending final approval')).toBeInTheDocument()
+    expect(screen.getByText('Pending Final Approval')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Nafis Karim/ })).toHaveAttribute(
       'href',
       '/people/p3',

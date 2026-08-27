@@ -213,7 +213,7 @@ export function GoalProgressEditor({
                 onClick={distributeWeightsEvenly}
               >
                 <Scale size={14} strokeWidth={2} aria-hidden />
-                Distribute evenly
+                Distribute Evenly
               </button>
             ) : null}
           </div>

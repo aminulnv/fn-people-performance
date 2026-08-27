@@ -37,7 +37,7 @@ export function GoalCascadeTargetDialog({
     <Modal
       open={open}
       onClose={onClose}
-      title="Cascade this goal"
+      title="Cascade This Goal"
       description="Choose who should get a child goal under this one. Their title is left blank so they can write a relevant goal. This is not sent to every report unless you select them."
       actions={
         <>
@@ -54,7 +54,7 @@ export function GoalCascadeTargetDialog({
           >
             {selectedIds.length <= 1
               ? 'Cascade'
-              : `Cascade to ${selectedIds.length} people`}
+              : `Cascade To ${selectedIds.length} People`}
           </Button>
         </>
       }

@@ -50,12 +50,12 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('builds People > Add employee', () => {
+  it('builds People > Add Employee', () => {
     expect(
       buildBreadcrumbs({ pathname: '/people/new', navItems }),
     ).toEqual([
       { label: 'People', href: '/people' },
-      { label: 'Add employee' },
+      { label: 'Add Employee' },
     ])
   })
 
@@ -64,7 +64,7 @@ describe('buildBreadcrumbs', () => {
       buildBreadcrumbs({ pathname: '/organisation/chart', navItems }),
     ).toEqual([
       { label: 'Organisation', href: '/organisation' },
-      { label: 'Org chart' },
+      { label: 'Org Chart' },
     ])
 
     expect(

@@ -1732,6 +1732,22 @@ a.pd-btn--secondary:visited {
   text-align: start;
 }
 
+.pd-tooltip__content:has(.pd-help-tip) {
+  max-width: 15.5rem;
+  text-align: start;
+}
+
+.pd-help-tip {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-left: 0.95rem;
+}
+
+.pd-help-tip strong {
+  display: block;
+}
+
 .pd-covering-tip {
   display: inline-flex;
   align-items: center;

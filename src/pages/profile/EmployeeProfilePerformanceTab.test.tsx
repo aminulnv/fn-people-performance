@@ -87,13 +87,13 @@ describe('EmployeeProfilePerformanceTab', () => {
       screen.getByLabelText('Loading performance reviews'),
     ).toBeInTheDocument()
     expect(
-      screen.queryByText('No performance reviews yet'),
+      screen.queryByText('No Performance Reviews Yet'),
     ).not.toBeInTheDocument()
 
     await ensureReviewCyclesLoaded()
 
     expect(
-      await screen.findByRole('heading', { name: 'Performance history' }),
+      await screen.findByRole('heading', { name: 'Performance History' }),
     ).toBeInTheDocument()
     expect(
       screen.queryByLabelText('Loading performance reviews'),
@@ -111,11 +111,11 @@ describe('EmployeeProfilePerformanceTab', () => {
     renderTab()
 
     expect(
-      await screen.findByRole('heading', { name: 'Performance history' }),
+      await screen.findByRole('heading', { name: 'Performance History' }),
     ).toBeInTheDocument()
     expect(screen.getByText(/1 cycle/)).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /Not started/i }),
+      screen.getByRole('link', { name: /Not Started/i }),
     ).toBeInTheDocument()
     expect(screen.getByText('No grade')).toBeInTheDocument()
     expect(screen.getByText(/Quarterly|Annual|Custom/)).toBeInTheDocument()

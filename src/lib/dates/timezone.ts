@@ -86,6 +86,29 @@ export function utcIsoToLocalWall(
   }
 }
 
+function localWallDate(
+  value: string | { date: string; time?: string } | null | undefined,
+  timeZone: string,
+): { year: string; day: string; monthName: string } | null {
+  const wall = utcIsoToLocalWall(
+    typeof value === 'string' || !value ? value : toUtcIso(value),
+    timeZone,
+  )
+  if (!wall) return null
+  const [, year, month, day] = DATE_RE.exec(wall.date) ?? []
+  const monthName = MONTHS[Number(month) - 1]
+  if (!year || !day || !monthName) return null
+  return { year, day, monthName }
+}
+
+export function formatLocalDate(
+  value: string | { date: string; time?: string } | null | undefined,
+  timeZone = browserTimeZone(),
+): string {
+  const wall = localWallDate(value, timeZone)
+  return wall ? `${wall.day}-${wall.monthName}-${wall.year}` : ''
+}
+
 export function formatLocalTimestamp(
   value: string | { date: string; time?: string } | null | undefined,
   timeZone = browserTimeZone(),
@@ -95,14 +118,13 @@ export function formatLocalTimestamp(
     timeZone,
   )
   if (!wall) return ''
-  const [, year, month, day] = DATE_RE.exec(wall.date) ?? []
-  const monthName = MONTHS[Number(month) - 1]
-  if (!year || !day || !monthName) return ''
+  const date = formatLocalDate(value, timeZone)
+  if (!date) return ''
   const hour24 = Number(wall.time.slice(0, 2))
   const minutes = wall.time.slice(3, 5)
   const hour12 = hour24 % 12 || 12
   const suffix = hour24 >= 12 ? 'PM' : 'AM'
-  return `${day}-${monthName}-${year}, ${hour12}:${minutes} ${suffix}`
+  return `${date}, ${hour12}:${minutes} ${suffix}`
 }
 
 export function formatLocalDateRange(
@@ -114,5 +136,17 @@ export function formatLocalDateRange(
   if (!end) return left
   const right = formatLocalTimestamp(end, timeZone)
   if (!right || toUtcIso(start) === toUtcIso(end)) return left
+  return `${left} – ${right}`
+}
+
+export function formatLocalDatesRange(
+  start: string | { date: string; time?: string } | null | undefined,
+  end?: string | { date: string; time?: string } | null,
+  timeZone = browserTimeZone(),
+): string {
+  const left = formatLocalDate(start, timeZone)
+  if (!end) return left
+  const right = formatLocalDate(end, timeZone)
+  if (!right || left === right) return left
   return `${left} – ${right}`
 }

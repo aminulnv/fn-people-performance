@@ -1995,27 +1995,23 @@ a.pd-people__ghost-btn--outline:hover {
 .pd-profile__cover-modal .pd-reviews-window {
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
-  align-items: end;
-  gap: 0.75rem 0.55rem;
+  grid-template-rows: auto auto;
+  column-gap: 0.55rem;
+  row-gap: 0.4rem;
   max-width: none;
 }
 
 .pd-profile__cover-modal .pd-reviews-window--notch {
-  align-items: center;
+  grid-template-rows: auto;
 }
 
-.pd-profile__cover-modal .pd-reviews-window--notch .pd-reviews-window__track {
-  padding-bottom: 0;
+.pd-profile__cover-modal .pd-reviews-window--notch .pd-reviews-window__date {
+  display: block;
+  grid-row: auto;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__date {
-  display: grid;
-  gap: 0.4rem;
   min-width: max-content;
-}
-
-.pd-profile__cover-modal .pd-reviews-window__date--end {
-  text-align: right;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__label {
@@ -2026,39 +2022,6 @@ a.pd-people__ghost-btn--outline:hover {
   text-transform: uppercase;
 }
 
-.pd-profile__cover-modal .pd-reviews-window__track {
-  display: grid;
-  grid-template-columns: minmax(0.75rem, 1fr) auto minmax(0.75rem, 1fr);
-  align-items: center;
-  gap: 0.35rem;
-  min-width: 1.5rem;
-  padding-bottom: 1.05rem;
-}
-
-.pd-profile__cover-modal .pd-reviews-window__line {
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-theme) 8%, var(--color-divider)),
-    color-mix(in srgb, var(--color-theme) 42%, var(--color-divider))
-  );
-}
-
-.pd-profile__cover-modal .pd-reviews-window__track .pd-reviews-window__line:last-child {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--color-theme) 42%, var(--color-divider)),
-    color-mix(in srgb, var(--color-theme) 8%, var(--color-divider))
-  );
-}
-
-.pd-profile__cover-modal .pd-reviews-window__dot {
-  width: 0.45rem;
-  height: 0.45rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-theme) 55%, var(--color-divider));
-}
-
 .pd-profile__cover-modal .pd-reviews-window .pd-field__control {
   font-variant-numeric: tabular-nums;
 }
@@ -2066,14 +2029,18 @@ a.pd-people__ghost-btn--outline:hover {
 @media (max-width: 560px) {
   .pd-profile__cover-modal .pd-reviews-window {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: none;
   }
 
-  .pd-profile__cover-modal .pd-reviews-window__track {
+  .pd-profile__cover-modal .pd-reviews-window__date {
+    display: grid;
+    grid-template-rows: none;
+    grid-row: auto;
+    gap: 0.4rem;
+  }
+
+  .pd-profile__cover-modal .pd-reviews-window__arrow {
     display: none;
-  }
-
-  .pd-profile__cover-modal .pd-reviews-window__date--end {
-    text-align: left;
   }
 }
 

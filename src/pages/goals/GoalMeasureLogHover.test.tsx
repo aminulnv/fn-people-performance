@@ -82,7 +82,7 @@ describe('GoalMeasureLogHover', () => {
     fireEvent.mouseEnter(log.parentElement!)
 
     expect(
-      screen.getByRole('dialog', { name: 'Progress logs 1 update' }),
+      screen.getByRole('dialog', { name: 'Progress Logs 1 update' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -144,11 +144,11 @@ describe('GoalMeasureLogHover', () => {
     )
 
     expect(
-      screen.getByRole('heading', { name: 'Progress logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
     ).toBeInTheDocument()
 
-    const heading = screen.getByRole('heading', { name: 'Progress logs 1 update' })
-    const dialog = screen.getByRole('dialog', { name: 'Progress logs 1 update' })
+    const heading = screen.getByRole('heading', { name: 'Progress Logs 1 update' })
+    const dialog = screen.getByRole('dialog', { name: 'Progress Logs 1 update' })
     const field = screen.getByLabelText(
       'Current progress for Primary outcome completion',
     )
@@ -166,7 +166,7 @@ describe('GoalMeasureLogHover', () => {
     fireEvent.change(field, { target: { value: '72' } })
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Add update for Primary outcome completion',
+        name: 'Add Update For Primary outcome completion',
       }),
     )
 
@@ -199,7 +199,7 @@ describe('GoalMeasureLogHover', () => {
       }),
     )
 
-    const heading = screen.getByRole('heading', { name: 'Progress logs None yet' })
+    const heading = screen.getByRole('heading', { name: 'Progress Logs None yet' })
     const checkbox = screen.getByRole('checkbox', {
       name: 'Mark Triage incoming defects complete',
     })
@@ -209,7 +209,7 @@ describe('GoalMeasureLogHover', () => {
     fireEvent.click(checkbox)
     expect(onToggleTodo).toHaveBeenCalledWith('t1', true)
     expect(
-      screen.getByRole('dialog', { name: 'Progress logs None yet' }).parentElement,
+      screen.getByRole('dialog', { name: 'Progress Logs None yet' }).parentElement,
     ).toBe(document.body)
   })
 
@@ -245,7 +245,7 @@ describe('GoalMeasureLogHover', () => {
       }),
     )
 
-    const heading = screen.getByRole('heading', { name: 'Progress logs 1 update' })
+    const heading = screen.getByRole('heading', { name: 'Progress Logs 1 update' })
     const checkbox = screen.getByRole('checkbox', {
       name: 'Mark Triage incoming defects incomplete',
     })

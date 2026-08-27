@@ -76,7 +76,7 @@ export function ProfileOrgChart({
           <Link
             to={chartHref}
             className="pd-profile__icon-action"
-            aria-label="View org chart"
+            aria-label="View Org Chart"
           >
             <ChevronRight size={14} strokeWidth={1.75} aria-hidden />
           </Link>

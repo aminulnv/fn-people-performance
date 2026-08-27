@@ -63,8 +63,8 @@ type GoalCreateDrawerProps = {
 
 export function GoalCreateDrawer({
   children,
-  label = 'Add goal',
-  closeLabel = 'Cancel adding goal',
+  label = 'Add Goal',
+  closeLabel = 'Cancel Adding Goal',
   sideSheet,
   ribbon,
   onClose,

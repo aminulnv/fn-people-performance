@@ -46,7 +46,7 @@ function ActivityLogDrawerPanel({
       <button
         type="button"
         className="pd-activity-drawer__scrim"
-        aria-label="Close activity"
+        aria-label="Close Activity"
         onClick={onClose}
       />
       <aside
@@ -59,7 +59,7 @@ function ActivityLogDrawerPanel({
       >
         <header className="pd-activity-drawer__head">
           <div>
-            <p className="pd-activity-drawer__eyebrow">Activity log</p>
+            <p className="pd-activity-drawer__eyebrow">Activity Log</p>
             <h2>
               <History size={20} strokeWidth={2.25} aria-hidden />
               {title}
@@ -69,7 +69,7 @@ function ActivityLogDrawerPanel({
           <button
             type="button"
             className="pd-activity-drawer__close"
-            aria-label="Close activity"
+            aria-label="Close Activity"
             onClick={onClose}
           >
             <X size={18} strokeWidth={1.75} aria-hidden />
@@ -90,7 +90,7 @@ function ActivityLogDrawerPanel({
                   disabled={isFetchingNextPage}
                   onClick={() => void fetchNextPage()}
                 >
-                  {isFetchingNextPage ? 'Loading…' : 'Load older activity'}
+                  {isFetchingNextPage ? 'Loading…' : 'Load Older Activity'}
                 </button>
               ) : null}
             </>
@@ -129,7 +129,7 @@ export function ActivityLogDrawer({
 
 /** Quiet text/link trigger — never styled like a primary CTA. */
 export function ActivityLogTrigger({
-  label = 'View activity',
+  label = 'View Activity',
   onClick,
   className = 'pd-activity-link',
 }: {

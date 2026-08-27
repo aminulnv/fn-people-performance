@@ -347,7 +347,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
 
   const backTo = mode === 'edit' ? `/people/${employeeId}` : '/people'
   const previewName =
-    form.fullName.trim() || (mode === 'edit' ? 'Employee' : 'New employee')
+    form.fullName.trim() || (mode === 'edit' ? 'Employee' : 'New Employee')
   const previewMeta = [form.jobTitle.trim(), form.department.trim(), form.division.trim()]
     .filter(Boolean)
     .join(' · ')
@@ -463,7 +463,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   return (
     <form
       className="pd-page pd-people pd-profile pd-profile--editing"
-      aria-label={mode === 'edit' ? 'Edit employee' : 'Add employee'}
+      aria-label={mode === 'edit' ? 'Edit Employee' : 'Add Employee'}
       onSubmit={onSubmit}
       noValidate
     >
@@ -732,7 +732,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
               <Link to="/people" className="pd-profile__nav-card">
                 <GitBranch size={18} strokeWidth={1.75} aria-hidden />
                 <span>
-                  <span className="pd-profile__nav-title">Back to People</span>
+                  <span className="pd-profile__nav-title">Back To People</span>
                 </span>
                 <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
               </Link>

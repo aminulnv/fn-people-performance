@@ -41,6 +41,24 @@ describe('StageWindowFields', () => {
     expect(screen.getByRole('button', { name: '28' })).not.toBeDisabled()
   })
 
+  it('left-aligns the start and end labels the same way', () => {
+    render(
+      <StageWindowFields
+        startLabel="Opens"
+        endLabel="Closes"
+        startValue="2026-07-21T09:00"
+        endValue="2026-07-28T17:00"
+        onStartChange={() => {}}
+        onEndChange={() => {}}
+      />,
+    )
+
+    const opens = screen.getByText('Opens')
+    const closes = screen.getByText('Closes')
+    expect(opens.className).toBe(closes.className)
+    expect(opens.parentElement?.className).toBe(closes.parentElement?.className)
+  })
+
   it('shows an error when the end is before the start', () => {
     render(
       <StageWindowFields

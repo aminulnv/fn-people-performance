@@ -45,7 +45,7 @@ export function ownGoalsEmptyCopy(
   lockMessage?: string | null,
 ): { title: string; description: string } {
   return {
-    title: 'No goals yet',
+    title: 'No Goals Yet',
     description: canAdd
       ? 'Add your first goal for this cycle.'
       : (lockMessage ?? 'Goals cannot be added for this cycle right now.'),
@@ -68,12 +68,12 @@ export function cycleIneligibilityEmptyState(
 ): { title: string; description: string } {
   if (reason === 'not_in_cycle') {
     return {
-      title: 'Not in this cycle',
+      title: 'Not In This Cycle',
       description: `${personName} is not assigned to a group for this cycle.`,
     }
   }
   return {
-    title: 'Not eligible this quarter',
+    title: 'Not Eligible This Quarter',
     description: `${personName} joined after Day 1, so goal setting starts next quarter.`,
   }
 }

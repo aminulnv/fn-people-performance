@@ -27,7 +27,7 @@ export function EmployeeProfileTeamTab({
         <EmptyState
           className="pd-empty--inline"
           icon={Users}
-          title={isSelf ? 'No direct reports' : 'Individual contributor'}
+          title={isSelf ? 'No Direct Reports' : 'Individual Contributor'}
           description={
             isSelf
               ? 'People who report to you will appear here once reporting lines are set.'
@@ -39,9 +39,9 @@ export function EmployeeProfileTeamTab({
   }
 
   return (
-    <section className="pd-profile__panel" aria-label="Direct reports">
+    <section className="pd-profile__panel" aria-label="Direct Reports">
       <header className="pd-profile__panel-head">
-        <h2 className="pd-profile__panel-title">Direct reports</h2>
+        <h2 className="pd-profile__panel-title">Direct Reports</h2>
         <p className="pd-profile__panel-meta">
           {reports.length} {reports.length === 1 ? 'person' : 'people'}
         </p>

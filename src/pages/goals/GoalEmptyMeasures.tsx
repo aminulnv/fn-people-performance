@@ -19,7 +19,7 @@ export function GoalEmptyMeasures({
     <EmptyState
       className="pd-goal-view__empty-measures"
       icon={ListTodo}
-      title="No metrics yet"
+      title="No Metrics Yet"
       description="Add a number or a milestone so progress on this goal can be tracked."
       action={
         canAdd && onAddMilestones && onAddNumber ? (

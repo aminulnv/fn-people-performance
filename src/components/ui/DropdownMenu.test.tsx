@@ -9,7 +9,7 @@ describe('DropdownMenu', () => {
     const onSelect = vi.fn()
     render(
       <DropdownMenu
-        label="More actions"
+        label="More Actions"
         items={[{ id: 'duplicate', label: 'Duplicate', onSelect }]}
       />,
     )
@@ -18,7 +18,7 @@ describe('DropdownMenu', () => {
       screen.queryByRole('menuitem', { name: 'Duplicate' }),
     ).not.toBeInTheDocument()
 
-    fireEvent.mouseEnter(screen.getByRole('button', { name: 'More actions' }).closest('.pd-menu')!)
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'More Actions' }).closest('.pd-menu')!)
 
     expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }))

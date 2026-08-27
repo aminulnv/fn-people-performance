@@ -245,7 +245,7 @@ describe('ReviewPacketView', () => {
     renderEdit()
     await screen.findByRole('button', { name: 'Cancel' })
     expect(screen.queryByRole('button', { name: /Goals \(/ })).toBeNull()
-    expect(screen.queryByLabelText('Goals grade')).toBeNull()
+    expect(screen.queryByLabelText('Goals Grade')).toBeNull()
     expect(screen.getByRole('heading', { name: 'Overall Grade' })).toBeTruthy()
   })
 
@@ -314,19 +314,19 @@ describe('ReviewPacketView', () => {
 
     await screen.findByRole('button', { name: 'Cancel' })
     expect(
-      screen.queryByRole('button', { name: 'Record calibration change' }),
+      screen.queryByRole('button', { name: 'Record Calibration Change' }),
     ).toBeNull()
     expect(screen.queryByRole('heading', { name: 'Calibration' })).toBeNull()
   })
 
-  it('keeps Cancel, Save draft, and Submit in one action row', async () => {
+  it('keeps Cancel, Save Draft, and Submit in one action row', async () => {
     renderEdit()
     const toolbar = await screen.findByRole('toolbar', { name: 'Review actions' })
     const actions = toolbar.querySelector('.pd-review-packet__actions')
     expect(toolbar.querySelector('.pd-review-packet__island')).toBeTruthy()
     expect(actions?.querySelectorAll('button')).toHaveLength(3)
     expect(actions).toHaveTextContent('Cancel')
-    expect(actions).toHaveTextContent('Save draft')
+    expect(actions).toHaveTextContent('Save Draft')
     expect(actions).toHaveTextContent('Submit')
   })
 
@@ -348,7 +348,7 @@ describe('ReviewPacketView', () => {
     await waitFor(() => expect(strengths).toHaveValue('Shipped the cycle work'))
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.getByRole('dialog', { name: 'Unsaved changes' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Unsaved Changes' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Stay' }))
     expect(screen.queryByText('Scorecard view')).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: /^Strengths/ })).toHaveValue(
@@ -360,9 +360,9 @@ describe('ReviewPacketView', () => {
     expect(screen.getByText('Scorecard view')).toBeInTheDocument()
   })
 
-  it('leaves edit mode after Save draft', async () => {
+  it('leaves edit mode after Save Draft', async () => {
     renderEdit()
-    const saveDraft = await screen.findByRole('button', { name: 'Save draft' })
+    const saveDraft = await screen.findByRole('button', { name: 'Save Draft' })
     await waitFor(() => expect(saveDraft).toBeEnabled())
 
     fireEvent.click(saveDraft)
@@ -437,7 +437,7 @@ describe('ReviewPacketView', () => {
       target: { value: 'Aligned with the department mix.' },
     })
     fireEvent.click(
-      screen.getByRole('button', { name: 'Record calibration change' }),
+      screen.getByRole('button', { name: 'Record Calibration Change' }),
     )
 
     const notice = await screen.findByRole('status')
@@ -511,7 +511,7 @@ describe('ReviewPacketView', () => {
     fireEvent.change(await screen.findByLabelText('Written record'), {
       target: { value: 'The grade missed shipped work.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Submit appeal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Appeal' }))
 
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')

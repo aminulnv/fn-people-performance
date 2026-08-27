@@ -15,26 +15,26 @@ const PAGES = {
   home: {
     title: 'Home',
     icon: Home,
-    emptyTitle: 'Coming soon',
+    emptyTitle: 'Coming Soon',
     emptyDescription:
       'Updates, priorities, and quick links across people, goals, and reviews will land here.',
-    action: { to: '/people', label: 'Go to People' },
+    action: { to: '/people', label: 'Go To People' },
   },
   analytics: {
     title: 'Analytics',
     icon: BarChart3,
-    emptyTitle: 'Coming soon',
+    emptyTitle: 'Coming Soon',
     emptyDescription:
       'Completion rates, org-wide trends, and reporting will appear here once available.',
-    action: { to: '/goals', label: 'Go to Goals' },
+    action: { to: '/goals', label: 'Go To Goals' },
   },
   dashboard: {
     title: 'Dashboard',
     icon: LayoutDashboard,
-    emptyTitle: 'Coming soon',
+    emptyTitle: 'Coming Soon',
     emptyDescription:
       'A focused summary of people, goals, and reviews will show here. Browse People or Goals in the meantime.',
-    action: { to: '/people', label: 'Go to People' },
+    action: { to: '/people', label: 'Go To People' },
   },
 } as const satisfies Record<string, ComingSoonConfig>
 
@@ -67,7 +67,7 @@ export default function ComingSoonPage({ page }: { page: ComingSoonPageId }) {
 /** Shared empty copy for employee profile tabs that are not built yet. */
 export const profileTabComingSoon = {
   performance: {
-    title: 'Performance coming soon',
+    title: 'Performance Coming Soon',
     descriptionSelf:
       'Ratings, review history, and feedback will appear here.',
     descriptionOther:
@@ -75,7 +75,7 @@ export const profileTabComingSoon = {
     icon: Star,
   },
   goals: {
-    title: 'Goals coming soon',
+    title: 'Goals Coming Soon',
     descriptionSelf:
       'Your goal progress will show here. Use Goals in the sidebar for the full cycle view.',
     descriptionOther:
@@ -83,7 +83,7 @@ export const profileTabComingSoon = {
     icon: Target,
   },
   team: {
-    title: 'Team coming soon',
+    title: 'Team Coming Soon',
     descriptionSelf:
       'Your direct reports and team structure will appear here.',
     descriptionOther:

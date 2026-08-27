@@ -37,8 +37,8 @@ export function GoalLateApprovalNotice({
       <div className="pd-goals-late__copy">
         <p className="pd-goals-late__title">
           {awaitingManager
-            ? 'Submitted after the deadline'
-            : 'Pending final approval'}
+            ? 'Submitted After The Deadline'
+            : 'Pending Final Approval'}
         </p>
         <p className="pd-goals-late__body">
           {awaitingManager ? (

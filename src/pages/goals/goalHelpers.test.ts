@@ -300,7 +300,7 @@ describe('personMatchesScope', () => {
     expect(personMatchesScope(peer, 'reports', null)).toBe(true)
   })
 
-  it('keeps only the viewer for My goals', () => {
+  it('keeps only the viewer for My Goals', () => {
     expect(personMatchesScope(viewer, 'mine', viewer)).toBe(true)
     expect(personMatchesScope(report, 'mine', viewer)).toBe(false)
     expect(personMatchesScope(peer, 'mine', viewer)).toBe(false)

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Maximize2 } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { ChevronLeft, Scale, Star, Target, Users } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Badge, SegmentedControl } from '@/components/ui'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
-import { cycleGroupPath } from '@/lib/reviews/paths'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
 import { updateCycleGroup } from '@/lib/reviews/store'
@@ -27,12 +27,16 @@ type GroupSettingsViewProps = {
   onSuccess?: (message: string) => void
 }
 
-const GROUP_JOBS = [
-  { id: 'people', label: 'People' },
-  { id: 'goals', label: 'Goals' },
-  { id: 'review', label: 'Reviews' },
-  { id: 'calibration', label: 'Calibration' },
-] as const
+const GROUP_JOBS: {
+  id: 'people' | 'goals' | 'review' | 'calibration'
+  label: string
+  icon: LucideIcon
+}[] = [
+  { id: 'people', label: 'People', icon: Users },
+  { id: 'goals', label: 'Goals', icon: Target },
+  { id: 'review', label: 'Reviews', icon: Star },
+  { id: 'calibration', label: 'Calibration', icon: Scale },
+]
 
 type GroupJob = (typeof GROUP_JOBS)[number]['id']
 
@@ -46,15 +50,24 @@ function jobFromHash(hash: string): GroupJob {
 }
 
 function jobsForModules(modules: CycleModules) {
-  return GROUP_JOBS.map((item) =>
-    item.id === 'calibration' && !modules.reviews
+  return GROUP_JOBS.map((item) => {
+    const option = {
+      id: item.id,
+      label: (
+        <>
+          <item.icon size={15} strokeWidth={1.75} aria-hidden />
+          {item.label}
+        </>
+      ),
+    }
+    return item.id === 'calibration' && !modules.reviews
       ? {
-          ...item,
+          ...option,
           disabled: true,
           title: 'Turn on Reviews to use Calibration.',
         }
-      : item,
-  )
+      : option
+  })
 }
 
 function visibleScreen(requested: GroupJob, modules: CycleModules): GroupJob {
@@ -82,11 +95,6 @@ export function GroupSettingsView({
   const [name, setName] = useState(group.name)
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
   const resolvedScreen = visibleScreen(screen, modules)
-  const fullViewHref = cycleGroupPath(
-    cycle.id,
-    group.id,
-    resolvedScreen === 'people' ? undefined : resolvedScreen,
-  )
   const jobOptions = jobsForModules(modules)
   const reviewDraft = useReviewSettingsDraft(cycle, group, onClose, true)
   const reviewFormSheet =
@@ -229,6 +237,7 @@ export function GroupSettingsView({
           cycle={cycle}
           group={group}
           embedded
+          stageDraft={reviewDraft}
           onClose={onClose}
           onSuccess={onSuccess}
         />
@@ -246,7 +255,7 @@ export function GroupSettingsView({
                 type="button"
                 className="pd-reviews-edit__back"
                 onClick={onClose}
-                aria-label="Back to cycle"
+                aria-label="Back To Cycle"
               >
                 <ChevronLeft size={20} strokeWidth={2} aria-hidden />
               </button>
@@ -269,21 +278,11 @@ export function GroupSettingsView({
   return (
     <SettingsSidePanel
       label={name.trim() || group.name}
-      closeLabel="Close group settings"
+      closeLabel="Close Group Settings"
       onClose={onClose}
       title={title}
       subnav={nav}
       sideSheet={reviewFormSheet}
-      tools={
-        <Link
-          to={fullViewHref}
-          className="pd-people__icon-btn"
-          aria-label="Full view"
-          title="Full view"
-        >
-          <Maximize2 size={16} strokeWidth={1.75} aria-hidden />
-        </Link>
-      }
     >
       {body}
     </SettingsSidePanel>

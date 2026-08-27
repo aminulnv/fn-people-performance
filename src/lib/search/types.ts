@@ -68,7 +68,7 @@ export const SEARCH_SCOPES: Array<{ id: SearchScope; label: string }> = [
 
 export const SEARCH_KIND_GROUP: Record<SearchKind, { id: string; label: string }> =
   {
-    action: { id: 'action', label: 'Jump to' },
+    action: { id: 'action', label: 'Jump To' },
     page: { id: 'page', label: 'Pages' },
     person: { id: 'person', label: 'People' },
     department: { id: 'department', label: 'Departments' },

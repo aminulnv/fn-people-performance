@@ -40,7 +40,7 @@ describe('ScorecardFormEditor', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create question' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create Question' }))
     expect(onChange).toHaveBeenCalled()
     expect(onChange.mock.calls[0]?.[0].scorecard.questions).toHaveLength(1)
   })
@@ -121,6 +121,22 @@ describe('ScorecardFormEditor', () => {
         (pillar: { id: string }) => pillar.id === 'goals',
       )?.weight,
     ).toBe(45)
+  })
+
+  it('does not let pillar weights go over 100%', () => {
+    const onChange = vi.fn()
+    render(
+      <ScorecardFormEditor
+        policy={defaultReviewPolicy('annual_appraisal')}
+        onChange={onChange}
+      />,
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Increase weight for Goals' }),
+    ).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Increase weight for Goals' }))
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('lets the user turn Leadership on', () => {

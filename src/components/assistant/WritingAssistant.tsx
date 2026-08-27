@@ -270,12 +270,12 @@ export function WritingAssistant() {
             transition={{ type: 'spring', stiffness: 420, damping: 30, mass: 0.8 }}
           >
             <div className="pd-assistant__panel-head">
-              <p className="pd-assistant__eyebrow">Quick tip</p>
+              <p className="pd-assistant__eyebrow">Quick Tip</p>
               <button
                 ref={panelFocusRef}
                 type="button"
                 className="pd-assistant__icon-btn"
-                aria-label="Close tip"
+                aria-label="Close Tip"
                 onClick={() => close()}
               >
                 <X size={16} strokeWidth={2.25} aria-hidden="true" />
@@ -287,7 +287,7 @@ export function WritingAssistant() {
             <p className="pd-assistant__body">{tip.body}</p>
             <div className="pd-assistant__actions">
               <button type="button" className="pd-assistant__btn" onClick={() => close()}>
-                Got it
+                Got It
               </button>
               <button
                 type="button"
@@ -312,7 +312,7 @@ export function WritingAssistant() {
           )}
           aria-expanded={isOpen}
           aria-controls={panelId}
-          aria-label={isOpen ? 'Hide tip' : 'Show tip'}
+          aria-label={isOpen ? 'Hide Tip' : 'Show Tip'}
           tabIndex={isEntering ? -1 : 0}
           initial={HIDDEN_POSE}
           animate={pose}

@@ -200,7 +200,7 @@ export default function LoginPage() {
               disabled={busy}
               aria-busy={busy || undefined}
             >
-              Sign In with Email
+              Sign In With Email
             </button>
           </form>
 
@@ -216,7 +216,7 @@ export default function LoginPage() {
             onClick={() => void handleGoogleSignIn()}
           >
             <GoogleMark />
-            Continue with Google
+            Continue With Google
           </button>
 
           {error || oauthError ? (

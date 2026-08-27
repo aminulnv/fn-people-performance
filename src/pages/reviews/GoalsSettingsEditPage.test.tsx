@@ -64,7 +64,7 @@ describe('GoalsSettingsEditPage', () => {
       />,
     )
 
-    expect(screen.getByRole('heading', { name: 'Deadline extensions' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Custom Deadlines' })).toBeInTheDocument()
     expect(screen.getByText('Product')).toBeInTheDocument()
     expect(screen.getByText(/Until 15-Aug-2026/)).toBeInTheDocument()
 
@@ -75,5 +75,47 @@ describe('GoalsSettingsEditPage', () => {
     )
     expect(saved?.stagesConfig.goals.extensions).toEqual([extension])
     expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+  })
+
+  it('shows recommended goal count without collapsing it', () => {
+    const { cycle, group } = seededGroup()
+    render(
+      <GoalsSettingsEditPage
+        cycle={cycle}
+        group={group}
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: /recommended goal count/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Suggested range')).not.toBeInTheDocument()
+    expect(screen.getAllByLabelText('Min')).toHaveLength(2)
+    expect(screen.getAllByLabelText('Max')).toHaveLength(2)
+  })
+
+  it('places the after-deadline toggle immediately after the heading', () => {
+    const { cycle, group } = seededGroup()
+    render(
+      <GoalsSettingsEditPage
+        cycle={cycle}
+        group={group}
+        onClose={() => {}}
+        onSuccess={() => {}}
+        enabled
+        onEnabledChange={() => {}}
+      />,
+    )
+
+    const heading = screen.getByRole('heading', { name: /allow after deadline/i })
+    const toggle = screen.getByRole('switch', {
+      name: 'Allow submissions after deadline',
+    })
+    expect(heading.contains(toggle)).toBe(true)
+    expect(
+      heading.firstChild?.textContent?.trim().startsWith('Allow After Deadline'),
+    ).toBe(true)
   })
 })

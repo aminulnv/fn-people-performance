@@ -23,31 +23,31 @@ export const REVIEW_TYPE_META: Record<
   }
 > = {
   line_manager: {
-    label: 'Line manager reviews',
+    label: 'Line Manager Reviews',
     description:
       'Review feedback from line managers are the foundation of the performance result.',
     badge: 'required',
     required: true,
   },
   self: {
-    label: 'Self reviews',
+    label: 'Self Reviews',
     description:
       'Allows the employee to submit a review of their own performance and behaviours.',
     badge: 'recommended',
   },
   upwards: {
-    label: 'Upwards reviews',
+    label: 'Upwards Reviews',
     description:
       'Direct and functional reports are allowed to submit anonymous reviews of their managers.',
     badge: 'recommended',
   },
   peer: {
-    label: 'Peer reviews',
+    label: 'Peer Reviews',
     description: 'Allow peers to review each other.',
     badge: 'recommended',
   },
   functional_manager: {
-    label: 'Functional manager reviews',
+    label: 'Functional Manager Reviews',
     description:
       'Allows functional managers (FM) to submit performance reviews for their reports.',
   },
@@ -147,12 +147,12 @@ export const CALIBRATION_MODE_META: Record<
       'Add a calibrator column to the calibration table. Assign calibrators individually for each employee as needed.',
   },
   department: {
-    label: 'Department owners',
+    label: 'Department Owners',
     description:
       'Department owners calibrate grades for people in their department.',
   },
   central: {
-    label: 'Central calibration',
+    label: 'Central Calibration',
     description:
       'A central calibrator group reviews and finalises grades across the organisation.',
   },
@@ -163,15 +163,15 @@ export const GRADE_RECOMMENDATION_META: Record<
   { label: string; description: string }
 > = {
   none: {
-    label: 'No recommendation',
+    label: 'No Recommendation',
     description: 'Keep the column empty - calibrators need to pick.',
   },
   manager_average: {
-    label: 'Manager average',
+    label: 'Manager Average',
     description: 'Pre-fill with the average of manager-submitted scores.',
   },
   weighted: {
-    label: 'Weighted scorecards',
+    label: 'Weighted Scorecards',
     description:
       'Pre-fill from weighted scorecard results across review types.',
   },
@@ -231,7 +231,7 @@ export function stagesConfigToTimeline(
       id: stage.id === 'goals' ? 'employee_goals' : stage.id,
       label:
         stage.id === 'goals'
-          ? 'Goal setting'
+          ? 'Goal Setting'
           : stage.id.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase()),
       startDate: stage.start?.date ?? config.goals.employee.startDate,
       endDate: stage.end?.date,
@@ -240,13 +240,13 @@ export function stagesConfigToTimeline(
   return [
     {
       id: 'employee_goals',
-      label: 'Goal setting',
+      label: 'Goal Setting',
       startDate: config.goals.employee.startDate,
       endDate: config.goals.employee.endDate,
     },
     {
       id: 'performance_review',
-      label: 'Performance review',
+      label: 'Performance Review',
       startDate: config.performance.managerStart.date,
       endDate: config.performance.managerEnd.date,
     },

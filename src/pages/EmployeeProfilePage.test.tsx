@@ -57,7 +57,7 @@ function renderRoute(path: string, routes: ReactNode) {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           {routes}
-          <Route path="/people" element={<p>People directory</p>} />
+          <Route path="/people" element={<p>People Directory</p>} />
         </Routes>
       </MemoryRouter>
     </AuthProvider>,
@@ -234,7 +234,7 @@ describe('V1 employee profiles', () => {
     )
 
     expect(await screen.findByLabelText('Loading employee')).toBeInTheDocument()
-    expect(screen.queryByText('People directory')).not.toBeInTheDocument()
+    expect(screen.queryByText('People Directory')).not.toBeInTheDocument()
   })
 
   it('hides edit actions and blocks the direct edit route without write access', async () => {
@@ -247,7 +247,7 @@ describe('V1 employee profiles', () => {
     )
     expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument()
     expect(
-      screen.queryByRole('link', { name: 'Edit employee details' }),
+      screen.queryByRole('link', { name: 'Edit Employee details' }),
     ).not.toBeInTheDocument()
 
     profile.unmount()
@@ -547,7 +547,7 @@ describe('V1 employee profiles', () => {
     fireEvent.click(screen.getByRole('button', { name: /Team/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Direct reports' }),
+      await screen.findByRole('heading', { name: 'Direct Reports' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Test Employee/ }),
@@ -583,7 +583,7 @@ describe('V1 employee profiles', () => {
     expect(
       await screen.findByRole('link', { name: /Org Structures/ }),
     ).toHaveAttribute('href', '/organisation/departments/product')
-    expect(screen.getByRole('link', { name: 'View org chart' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View Org Chart' })).toHaveAttribute(
       'href',
       '/organisation/chart?person=1',
     )
@@ -593,7 +593,7 @@ describe('V1 employee profiles', () => {
     )
 
     fireEvent.mouseEnter(
-      screen.getByRole('button', { name: 'More actions' }).closest(
+      screen.getByRole('button', { name: 'More Actions' }).closest(
         '.pd-profile__more',
       )!,
     )
@@ -620,7 +620,7 @@ describe('V1 employee profiles', () => {
     fireEvent.click(screen.getByRole('button', { name: /Performance/ }))
 
     expect(
-      await screen.findByRole('heading', { name: 'Performance history' }),
+      await screen.findByRole('heading', { name: 'Performance History' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Q3 2026|Q2 2026|Q1 2026|2026/i }),

@@ -37,7 +37,7 @@ export function GoalSubmitBlockNotice({
   blockers,
   onOpenGoal,
   onAddGoal,
-  addGoalLabel = 'Add a goal',
+  addGoalLabel = 'Add A Goal',
   layout = 'card',
   nameTheGoal = true,
 }: {
@@ -95,7 +95,7 @@ export function GoalSubmitBlockNotice({
           <span className="pd-goals-banner__icon" aria-hidden>
             <CircleAlert size={13} strokeWidth={2.25} />
           </span>
-          <p className="pd-goals-banner__title">Action required</p>
+          <p className="pd-goals-banner__title">Action Required</p>
           {reasons}
         </div>
         {canAddGoal ? (
@@ -129,7 +129,7 @@ export function GoalSubmitBlockNotice({
       </span>
       <div className="pd-goals-sendback__copy">
         <div className="pd-goals-sendback__head">
-          <p className="pd-goals-sendback__title">Action required</p>
+          <p className="pd-goals-sendback__title">Action Required</p>
         </div>
         {reasons}
       </div>

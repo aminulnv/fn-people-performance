@@ -86,7 +86,7 @@ describe('GroupSettingsView', () => {
     expect(screen.queryByText('Needs people')).not.toBeInTheDocument()
   })
 
-  it('links Full view to the current job', () => {
+  it('opens review settings without a full-view link', () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter>
@@ -96,28 +96,35 @@ describe('GroupSettingsView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
 
-    expect(screen.getByRole('link', { name: 'Full view' })).toHaveAttribute(
-      'href',
-      '/cycles/cycle-1/groups/group-1#review',
+    expect(screen.queryByRole('link', { name: 'Full View' })).not.toBeInTheDocument()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.querySelector('.pd-settings-panel__chrome')).toContainElement(
+      screen.getByRole('button', { name: 'Save' }),
     )
-    expect(screen.queryByText('Goal setting')).not.toBeInTheDocument()
+    expect(screen.queryByText('Goal Setting')).not.toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable Manager review' }),
+      screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable Goals grade' }),
+      screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable Goals Grade' }),
     ).not.toBeChecked()
     expect(
-      screen.getByRole('switch', { name: 'Enable Overall grade' }),
+      screen.getByRole('switch', { name: 'Enable Overall Grade' }),
     ).toBeChecked()
-    expect(screen.getByText('Goals grade')).toBeInTheDocument()
-    expect(screen.getByText('Overall grade')).toBeInTheDocument()
+    expect(screen.getByText('Goals Grade')).toBeInTheDocument()
+    expect(screen.getByText('Overall Grade')).toBeInTheDocument()
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.getByLabelText('Preset')).toBeInTheDocument()
-    expect(screen.getByText('What we grade')).toBeInTheDocument()
+    expect(screen.getByText('What We Grade')).toBeInTheDocument()
   })
 
   it('keeps publish dates on the release stages', () => {
@@ -134,22 +141,28 @@ describe('GroupSettingsView', () => {
       screen.queryByRole('heading', { name: 'Publish results' }),
     ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable Release to managers' }),
+      screen.getByRole('switch', { name: 'Enable Publish to Managers First' }),
     ).not.toBeChecked()
     expect(
-      screen.queryByLabelText('Managers visible from'),
+      screen.queryByLabelText('Publish to managers from'),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', {
+        name: 'Enable Publish to Everyone',
+      }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Publish to everyone from')).toBeInTheDocument()
 
     fireEvent.click(
-      screen.getByRole('switch', { name: 'Enable Release to managers' }),
+      screen.getByRole('switch', { name: 'Enable Publish to Managers First' }),
     )
 
-    expect(screen.getByLabelText('Managers visible from')).toBeInTheDocument()
+    expect(screen.getByLabelText('Publish to managers from')).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Release to managers now' }),
+      screen.getByRole('button', { name: 'Publish to Managers First Now' }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByLabelText('Release to managers on'),
+      screen.queryByLabelText('Release To Managers On'),
     ).not.toBeInTheDocument()
   })
 
@@ -161,7 +174,7 @@ describe('GroupSettingsView', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.queryByRole('button', { name: 'Review form' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Review Form' })).toBeNull()
   })
 
   it('opens the review form tab on the full page Reviews job', () => {
@@ -184,7 +197,7 @@ describe('GroupSettingsView', () => {
     )
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.getByLabelText('Preset')).toBeInTheDocument()
   })
@@ -209,8 +222,8 @@ describe('GroupSettingsView', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.queryByRole('button', { name: 'Back to group' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Back to cycle' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Back To Group' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Back To Cycle' })).toBeInTheDocument()
   })
 
   it('unlocks goal settings from the Goals page', () => {
@@ -233,7 +246,7 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Goals' }))
 
     expect(screen.getByRole('switch', { name: 'Enable Goals' })).not.toBeChecked()
-    expect(screen.getByText('Goal window')).toBeInTheDocument()
+    expect(screen.getByText('Goal Window')).toBeInTheDocument()
     expect(screen.getByLabelText('Opens')).toBeDisabled()
 
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Goals' }))
@@ -262,9 +275,9 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
 
     expect(screen.getByRole('switch', { name: 'Enable Reviews' })).not.toBeChecked()
-    expect(screen.getByText('When reviews happen')).toBeInTheDocument()
+    expect(screen.getByText('When Reviews Happen')).toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable Manager review' }),
+      screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
       'aria-disabled',
@@ -279,7 +292,7 @@ describe('GroupSettingsView', () => {
 
     expect(screen.getByRole('switch', { name: 'Enable Reviews' })).toBeChecked()
     expect(
-      screen.getByRole('switch', { name: 'Enable Manager review' }),
+      screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Calibration' })).not.toHaveAttribute(
       'aria-disabled',
@@ -297,9 +310,9 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
 
     expect(screen.getByRole('navigation', { name: 'Group settings' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Back to group' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Back To Group' })).toBeNull()
     expect(
-      screen.getByRole('switch', { name: 'Enable Manager review' }),
+      screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeInTheDocument()
   })
 
@@ -313,9 +326,16 @@ describe('GroupSettingsView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
 
-    expect(screen.getByText('Senior leadership')).toBeInTheDocument()
+    expect(screen.getByText('When Calibration Happens')).toBeInTheDocument()
     expect(
-      screen.getByRole('searchbox', { name: 'Add senior leaders' }),
+      screen.getByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable SLT Calibration' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Senior Leadership')).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'Add Senior Leaders' }),
     ).toBeInTheDocument()
   })
 
@@ -340,6 +360,11 @@ describe('GroupSettingsView', () => {
     expect(screen.getByRole('button', { name: 'Goals' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reviews' })).toBeInTheDocument()
     expect(screen.queryByText('What they do')).not.toBeInTheDocument()
+    for (const name of ['People', 'Goals', 'Reviews', 'Calibration'] as const) {
+      expect(
+        screen.getByRole('button', { name }).querySelector('svg'),
+      ).toBeInTheDocument()
+    }
   })
 
   it('keeps the Reviews tab on a Q4 cycle so Reviews can be turned on there', () => {
@@ -371,6 +396,6 @@ describe('GroupSettingsView', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
-    expect(screen.queryByText('Senior leadership')).not.toBeInTheDocument()
+    expect(screen.queryByText('Senior Leadership')).not.toBeInTheDocument()
   })
 })

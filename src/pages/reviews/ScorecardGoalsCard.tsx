@@ -103,7 +103,7 @@ export function ScorecardGoalsCard({
               className={gradeSelectClass(goalsGrade)}
               id="scorecard-goals-grade"
               aria-label={
-                goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals grade'
+                goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals Grade'
               }
               value={goalsGrade ?? ''}
               disabled={gradeLocked}
@@ -136,7 +136,7 @@ export function ScorecardGoalsCard({
         <EmptyState
           className="pd-empty--inline"
           icon={Target}
-          title={`No goals for ${cycleLabel}`}
+          title={`No Goals For ${cycleLabel}`}
           description="Add or approve goals on the Goals page before they can roll into this review."
           action={
             goalsHref ? (
@@ -144,7 +144,7 @@ export function ScorecardGoalsCard({
                 to={goalsHref}
                 className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
               >
-                Open goals
+                Open Goals
               </Link>
             ) : null
           }
@@ -167,7 +167,7 @@ export function ScorecardGoalsCard({
       {openGoal ? (
         <GoalCreateDrawer
           label={`View ${goalTitle(openGoal, openIndex)}`}
-          closeLabel="Close goal"
+          closeLabel="Close Goal"
           onClose={() => {
             setOpenGoalId(null)
             setOpenMeasureKey(null)

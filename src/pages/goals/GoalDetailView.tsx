@@ -134,84 +134,84 @@ function GoalCommentItem({
         style={avatarStyle(item.authorName)}
       />
       <div className="pd-goal-view__comment-body">
-        <div className="pd-goal-view__comment-head">
+        <div className="pd-goal-view__comment-main">
           <p className="pd-goal-view__comment-meta">
             <strong>{item.authorName}</strong>
             <span>{formatRefreshAge(item.createdAt)}</span>
           </p>
-          {canManage && !editing ? (
-            <DropdownMenu
-              label="Comment actions"
-              align="end"
-              trigger={
-                <MoreHorizontal size={16} strokeWidth={1.75} aria-hidden />
-              }
-              triggerProps={{
-                className: "pd-people__icon-btn",
-                "aria-label": "Comment actions",
-              }}
-              items={[
-                {
-                  id: "edit",
-                  label: "Edit",
-                  icon: <Pencil size={16} strokeWidth={1.75} />,
-                  onSelect: startEditing,
-                },
-                {
-                  id: "delete",
-                  label: "Delete",
-                  danger: true,
-                  icon: <Trash2 size={16} strokeWidth={1.75} />,
-                  onSelect: () => setConfirmRemove(true),
-                },
-              ]}
-            />
-          ) : null}
-        </div>
-        {editing ? (
-          <div className="pd-goal-view__comment-edit">
-            <label
-              className="pd-goal-view__composer"
-              htmlFor={fieldId}
-            >
-              <span className="pd-sr-only">Edit comment</span>
-              <input
-                id={fieldId}
-                type="text"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    saveEdit();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    cancelEditing();
-                  }
-                }}
-              />
-            </label>
-            <div className="pd-goal-view__comment-edit-actions">
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={cancelEditing}
+          {editing ? (
+            <div className="pd-goal-view__comment-edit">
+              <label
+                className="pd-goal-view__composer"
+                htmlFor={fieldId}
               >
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                disabled={!draft.trim() || draft.trim() === item.text}
-                onClick={saveEdit}
-              >
-                Save
-              </Button>
+                <span className="pd-sr-only">Edit Comment</span>
+                <input
+                  id={fieldId}
+                  type="text"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveEdit();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancelEditing();
+                    }
+                  }}
+                />
+              </label>
+              <div className="pd-goal-view__comment-edit-actions">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={cancelEditing}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!draft.trim() || draft.trim() === item.text}
+                  onClick={saveEdit}
+                >
+                  Save
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <p className="pd-goal-view__comment-text">{item.text}</p>
-        )}
+          ) : (
+            <p className="pd-goal-view__comment-text">{item.text}</p>
+          )}
+        </div>
+        {canManage && !editing ? (
+          <DropdownMenu
+            label="Comment actions"
+            align="end"
+            trigger={
+              <MoreHorizontal size={16} strokeWidth={1.75} aria-hidden />
+            }
+            triggerProps={{
+              className: "pd-people__icon-btn",
+              "aria-label": "Comment actions",
+            }}
+            items={[
+              {
+                id: "edit",
+                label: "Edit",
+                icon: <Pencil size={16} strokeWidth={1.75} />,
+                onSelect: startEditing,
+              },
+              {
+                id: "delete",
+                label: "Delete",
+                danger: true,
+                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                onSelect: () => setConfirmRemove(true),
+              },
+            ]}
+          />
+        ) : null}
       </div>
       <ConfirmDialog
         open={confirmRemove}
@@ -222,8 +222,8 @@ function GoalCommentItem({
         }}
         title="Delete this comment?"
         description="This comment will be removed. This cannot be undone."
-        confirmLabel="Delete comment"
-        cancelLabel="Keep comment"
+        confirmLabel="Delete Comment"
+        cancelLabel="Keep Comment"
         confirmVariant="danger"
       />
     </li>
@@ -505,7 +505,7 @@ export function GoalDetailView({
         onClick={() => setCascadeFromOpen(true)}
       >
         <CornerLeftDown size={11} strokeWidth={2.25} aria-hidden />
-        Add cascading from
+        Add Cascading From
       </button>
     ) : null;
 
@@ -552,7 +552,7 @@ export function GoalDetailView({
         onClick={() => setCascadeToOpen(true)}
       >
         <CornerDownRight size={11} strokeWidth={2.25} aria-hidden />
-        Add cascading to
+        Add Cascading To
       </button>
     ) : cascadedTo.length > 0 ? (
       <section className="pd-goal-view__header-cascade" aria-label="Cascaded to">
@@ -686,7 +686,7 @@ export function GoalDetailView({
   return (
     <div
       className="pd-goal-view"
-      aria-label={isNew ? "Add goal" : title}
+      aria-label={isNew ? "Add Goal" : title}
       onPointerDownCapture={markNameTouchedIfLeaving}
     >
       <header className="pd-goal-view__header">
@@ -1026,12 +1026,12 @@ export function GoalDetailView({
             <p className="pd-goal-view__empty">No comments yet.</p>
           )}
           <label className="pd-goal-view__composer" htmlFor={commentFieldId}>
-            <span className="pd-sr-only">Add comment</span>
+            <span className="pd-sr-only">Add Comment</span>
             <input
               id={commentFieldId}
               type="text"
               value={comment}
-              placeholder="Add comment"
+              placeholder="Add Comment"
               disabled={!canMutate || (isEditing && !goalNamed)}
               onChange={(event) => setComment(event.target.value)}
               onKeyDown={(event) => {
@@ -1044,7 +1044,7 @@ export function GoalDetailView({
             <button
               type="button"
               className="pd-goal-view__send"
-              aria-label="Send comment"
+              aria-label="Send Comment"
               disabled={!canMutate || (isEditing && !goalNamed) || !comment.trim()}
               onClick={submitComment}
             >

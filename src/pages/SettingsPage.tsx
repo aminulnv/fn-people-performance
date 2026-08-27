@@ -42,8 +42,8 @@ type SettingsSectionId =
 const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'assistant', label: 'Assistant' },
-  { id: 'access', label: 'Admin access' },
-  { id: 'activity', label: 'Activity log' },
+  { id: 'access', label: 'Admin Access' },
+  { id: 'activity', label: 'Activity Log' },
   { id: 'about', label: 'About' },
 ]
 

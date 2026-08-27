@@ -367,7 +367,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         {describeEnabledFlow(stages)}
       </p>
       <ActivityLogTrigger
-        label="View review activity"
+        label="View Review Activity"
         onClick={() => setActivityOpen(true)}
       />
 
@@ -437,7 +437,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
 
       {showSelfForm && stageView.viewing === 'self_review' ? (
         <PacketForm
-          title="Self-review"
+          title="Self-Review"
           locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted'}
           questions={selfQuestions}
           pillars={pillars}
@@ -463,7 +463,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
 
       {showManagerForm && stageView.viewing === 'manager_review' ? (
         <PacketForm
-          title="Manager review"
+          title="Manager Review"
           locked={
             packet.status === 'released_to_employees' ||
             packet.status === 'released_to_managers'
@@ -481,11 +481,6 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             !gradeGoals || goalsGradeRole === 'manager' ? ['goals'] : []
           }
           showOverall={gradeOverall}
-          showSelf={
-            policy.selfReview.visibility !== 'blinded' ||
-            packet.status === 'self_submitted' ||
-            packet.status === 'manager_submitted'
-          }
           onDraftChange={setPacketDraft}
           onUserEdit={() => setDirty(true)}
         />
@@ -538,7 +533,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
                   disabled={saving || packetDraft == null}
                   onClick={() => void savePacket(false)}
                 >
-                  Save draft
+                  Save Draft
                 </Button>
                 <Button
                   variant="primary"
@@ -561,7 +556,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           setLeaveOpen(false)
           navigate(viewHref)
         }}
-        title="Unsaved changes"
+        title="Unsaved Changes"
         description="Leave without saving? Your edits will be lost."
         confirmLabel="Discard"
         cancelLabel="Stay"
@@ -645,7 +640,6 @@ function PacketForm({
   extraGrades,
   hidePillarIds = [],
   showOverall = true,
-  showSelf,
   onDraftChange,
   onUserEdit,
 }: {
@@ -660,7 +654,6 @@ function PacketForm({
   extraGrades?: Record<string, GradeBandId | ''>
   hidePillarIds?: string[]
   showOverall?: boolean
-  showSelf?: boolean
   onDraftChange: (draft: PacketDraft) => void
   onUserEdit: () => void
 }) {
@@ -725,7 +718,7 @@ function PacketForm({
 
   return (
     <section className="pd-reviews-edit-card" aria-label={title}>
-      {showOverall && showSelf && packet.selfOverallGrade ? (
+      {showOverall && packet.selfOverallGrade ? (
         <p className="pd-reviews-flow__hint">
           Self-review overall: {packet.selfOverallGrade}
         </p>
@@ -821,7 +814,7 @@ function CalibrationBlock({
         disabled={!grade || !reason.trim()}
         onClick={() => grade && void onSave(grade, reason)}
       >
-        Record calibration change
+        Record Calibration Change
       </Button>
     </section>
   )
@@ -861,7 +854,7 @@ function AppealBlock({
         disabled={!body.trim()}
         onClick={() => void onSave(body)}
       >
-        Submit appeal
+        Submit Appeal
       </Button>
     </section>
   )

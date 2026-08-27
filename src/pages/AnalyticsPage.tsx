@@ -141,17 +141,17 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
   const reviewTiles = dashboard.reviews
     ? [
         {
-          label: 'Not started',
+          label: 'Not Started',
           value: dashboard.reviews.notStarted,
           icon: CircleDashed,
         },
         {
-          label: 'In progress',
+          label: 'In Progress',
           value: dashboard.reviews.inProgress,
           icon: Clock3,
         },
         {
-          label: 'Waiting on release',
+          label: 'Waiting On Release',
           value: dashboard.reviews.waiting,
           icon: AlertTriangle,
         },
@@ -165,7 +165,7 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
   const goalTiles = dashboard.goals
     ? [
         {
-          label: 'Goals on file',
+          label: 'Goals On File',
           value: dashboard.goals.withGoals,
           icon: Target,
         },
@@ -196,21 +196,21 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
           {reviewTiles.length > 0 ? (
             <KpiGroup
               title="Reviews"
-              label="Review progress"
+              label="Review Progress"
               tiles={reviewTiles}
             />
           ) : null}
           {goalTiles.length > 0 ? (
-            <KpiGroup title="Goals" label="Goal coverage" tiles={goalTiles} />
+            <KpiGroup title="Goals" label="Goal Coverage" tiles={goalTiles} />
           ) : null}
         </div>
       ) : null}
 
       {dashboard.attention.length > 0 ? (
         <AnalyticsSection
-          title="Needs attention"
+          title="Needs Attention"
           copy="The queues that still change the cycle outcome."
-          label="Needs attention"
+          label="Needs Attention"
         >
           <div className="pd-analytics__attention">
             {dashboard.attention.map((item) => (
@@ -239,9 +239,9 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
         <div className="pd-analytics__grid pd-analytics__grid--insights">
           {dashboard.pipeline.length > 0 ? (
             <AnalyticsSection
-              title="Review pipeline"
+              title="Review Pipeline"
               copy="Where each packet sits right now — not a vanity completion score."
-              label="Review pipeline"
+              label="Review Pipeline"
             >
               <div className="pd-analytics__pipeline">
                 {dashboard.pipeline.map((step) => (
@@ -265,9 +265,9 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
 
           {dashboard.gradeMix.length > 0 ? (
             <AnalyticsSection
-              title="Grade mix vs guideline"
+              title="Grade Mix Vs Guideline"
               copy="Official grades against this cycle’s calibration bands."
-              label="Grade mix"
+              label="Grade Mix"
             >
               <div className="pd-analytics__grades">
                 {dashboard.gradeMix.map((row) => (
@@ -304,7 +304,7 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
         <div className="pd-analytics__grid pd-analytics__grid--tables">
           {dashboard.departments.length > 0 ? (
             <AnalyticsSection
-              title="Departments behind"
+              title="Departments Behind"
               copy="Sorted by reviews still open. Waiting means submitted or in calibration."
               label="Departments"
               table
@@ -344,7 +344,7 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
 
           {dashboard.managers.length > 0 ? (
             <AnalyticsSection
-              title="Managers to follow up"
+              title="Managers To Follow Up"
               copy="Line managers with the most reviews still not submitted."
               label="Managers"
               table
@@ -386,19 +386,19 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
 const DEPARTMENT_COLUMNS: ResizableColumn[] = [
   { id: 'department', label: 'Department', grow: true, minWidth: 160 },
   { id: 'people', label: 'People', minWidth: 72 },
-  { id: 'not-started', label: 'Not started', minWidth: 96 },
-  { id: 'in-progress', label: 'In progress', minWidth: 96 },
+  { id: 'not-started', label: 'Not Started', minWidth: 96 },
+  { id: 'in-progress', label: 'In Progress', minWidth: 96 },
   { id: 'waiting', label: 'Waiting', minWidth: 88 },
   { id: 'released', label: 'Released', minWidth: 88 },
-  { id: 'unfinished', label: 'Still open', minWidth: 88 },
+  { id: 'unfinished', label: 'Still Open', minWidth: 88 },
 ]
 
 const MANAGER_COLUMNS: ResizableColumn[] = [
   { id: 'manager', label: 'Manager', grow: true, minWidth: 160 },
   { id: 'team', label: 'Reviews', minWidth: 80 },
-  { id: 'not-started', label: 'Not started', minWidth: 96 },
-  { id: 'in-progress', label: 'In progress', minWidth: 96 },
-  { id: 'unfinished', label: 'Still open', minWidth: 88 },
+  { id: 'not-started', label: 'Not Started', minWidth: 96 },
+  { id: 'in-progress', label: 'In Progress', minWidth: 96 },
+  { id: 'unfinished', label: 'Still Open', minWidth: 88 },
 ]
 
 export default function AnalyticsPage() {
@@ -605,7 +605,7 @@ export default function AnalyticsPage() {
     return (
       <PageStatus
         variant="error"
-        title="Could not load people"
+        title="Could Not Load People"
         description={loadError ?? 'Reload and try again.'}
       />
     )
@@ -614,7 +614,7 @@ export default function AnalyticsPage() {
     return (
       <PageStatus
         variant="error"
-        title="Could not load analytics"
+        title="Could Not Load Analytics"
         description={dataError ?? 'Reload and try again.'}
         action={<PageStatusRetry onClick={retryLoad} />}
       />
@@ -628,7 +628,7 @@ export default function AnalyticsPage() {
     waitingForDefaultCycle ||
     (Boolean(cycleId) && dataState !== 'ready')
   ) {
-    return <PageStatus variant="loading" title="Loading analytics" />
+    return <PageStatus variant="loading" title="Loading Analytics" />
   }
 
   const hasRoster = Boolean(dashboard && dashboard.memberCount > 0)
@@ -666,7 +666,7 @@ export default function AnalyticsPage() {
       {!cycle ? (
         <EmptyState
           icon={Users}
-          title={cycleOptions.length === 0 ? 'No cycles yet' : 'Pick a cycle'}
+          title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
           description={
             cycleOptions.length === 0
               ? 'Create a review cycle to start tracking goals and reviews.'
@@ -676,7 +676,7 @@ export default function AnalyticsPage() {
       ) : !hasRoster ? (
         <EmptyState
           icon={Users}
-          title="No one in this view"
+          title="No One In This View"
           description="This cycle has no matching people for the selected scope."
         />
       ) : dashboard ? (

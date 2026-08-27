@@ -81,28 +81,32 @@ describe('CalibrationEditPage', () => {
       />,
     )
 
+    expect(screen.getByText('When Calibration Happens')).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About Calibrators' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About Manual' })).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About Department owners' }),
+      screen.getByRole('button', { name: 'About Department Owners' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About Central calibration' }),
+      screen.getByRole('button', { name: 'About Central Calibration' }),
     ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'About Recommendation' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About No recommendation' }),
+      screen.getByRole('button', { name: 'About No Recommendation' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About Manager average' }),
+      screen.getByRole('button', { name: 'About Manager Average' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About Weighted scorecards' }),
+      screen.getByRole('button', { name: 'About Weighted Scorecards' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'About Senior leadership' }),
+      screen.getByRole('button', { name: 'About Senior Leadership' }),
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About Distribution' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'About Exceptional' })).toBeInTheDocument()

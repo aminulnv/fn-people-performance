@@ -95,7 +95,7 @@ export function MetricProgressUpdate({
           variant="secondary"
           size={compact ? 'sm' : 'md'}
           pill
-          aria-label={`Add update for ${name}`}
+          aria-label={`Add Update For ${name}`}
           disabled={disabled || parsedCurrent(draft) == null}
           onClick={save}
         >

@@ -451,7 +451,7 @@ export function GoalsTable({
                 }}
               >
                 <Scale size={14} strokeWidth={2} aria-hidden />
-                Distribute evenly
+                Distribute Evenly
               </button>
             </div>
           ) : null}
@@ -632,7 +632,7 @@ export function GoalsTable({
                 >
                   <GoalActionsMenu
                     variant="menu"
-                    label={`More actions for ${title}`}
+                    label={`More Actions For ${title}`}
                     canCascade={canCascade}
                     canRemove={canRemove}
                     cascadeTargets={cascadeTargets}

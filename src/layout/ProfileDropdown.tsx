@@ -162,7 +162,7 @@ export function ProfileDropdown({
         open={showSignOutConfirm}
         onClose={handleCloseConfirm}
         onConfirm={handleConfirmSignOut}
-        title="Sign out?"
+        title="Sign Out?"
         description="Are you sure you want to sign out?"
         confirmLabel="Sign Out"
         confirmVariant="danger"

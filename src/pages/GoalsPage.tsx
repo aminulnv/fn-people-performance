@@ -506,7 +506,7 @@ function GoalsOverviewGoalPanel({
   return (
     <GoalCreateDrawer
       label={`View ${goalTitle(selectedGoal, selectedIndex)}`}
-      closeLabel="Close goal"
+      closeLabel="Close Goal"
       sideSheet={okrSideSheetFor(personId, snapshot.cycle.label)}
       onClose={() => unsavedClose.requestLeave(onClose)}
       ribbon={
@@ -516,6 +516,18 @@ function GoalsOverviewGoalPanel({
             nameTheGoal={false}
             blockers={submitBlockersForGoal(selectedGoal.id, submitCheck.blockers)}
             onOpenGoal={onGoalChange}
+          />
+        ) : ineligibility ? (
+          <CycleIneligibilityNotice
+            layout="ribbon"
+            personName={subject.name}
+            reason={ineligibility}
+          />
+        ) : lockContent && lockMessage ? (
+          <GoalEditLockNotice
+            layout="ribbon"
+            message={lockContent}
+            spoken={lockMessage}
           />
         ) : null
       }
@@ -531,14 +543,6 @@ function GoalsOverviewGoalPanel({
         onDiscard={unsavedClose.discard}
         onSaveDraft={unsavedClose.saveDraft}
       />
-      {ineligibility ? (
-        <CycleIneligibilityNotice
-          personName={subject.name}
-          reason={ineligibility}
-        />
-      ) : lockContent && lockMessage ? (
-        <GoalEditLockNotice message={lockContent} spoken={lockMessage} />
-      ) : null}
       <div className="pd-goals-review">
         <GoalDetailView
           goal={selectedGoal}
@@ -1189,10 +1193,10 @@ function GoalsOverview() {
       >
         <h2 id="goals-people-heading" className="pd-sr-only">
           {scope === "mine"
-            ? "My goals"
+            ? "My Goals"
             : scope === "reports"
-              ? "My Reports' goals"
-              : "Everyone's goals"}
+              ? "My Reports' Goals"
+              : "Everyone's Goals"}
         </h2>
         {isGoalsListPending ? (
           <div
@@ -1238,6 +1242,7 @@ function GoalsOverview() {
             {visibleScope === "mine" && viewerIneligibility && me ? (
               <div className="pd-goals__notices">
                 <CycleIneligibilityNotice
+                  layout="ribbon"
                   personName={me.name}
                   reason={viewerIneligibility}
                 />
@@ -1754,11 +1759,11 @@ export function GoalsPersonDetail({
       <div className="pd-page pd-goals" aria-label="Goals">
         <EmptyState
           icon={Target}
-          title="Cycle not found"
+          title="Cycle Not Found"
           description="That goal cycle is not available. Open All Goals and pick a current cycle."
           action={
             <Link to="/goals" className="pd-people__create-btn">
-              Back to All Goals
+              Back To All Goals
             </Link>
           }
         />
@@ -1781,7 +1786,7 @@ export function GoalsPersonDetail({
         />
         <EmptyState
           icon={Target}
-          title="No goal cycles yet"
+          title="No Goal Cycles Yet"
           description={
             canManageCycles
               ? "Add a cycle, then come back to set goals."
@@ -1813,7 +1818,7 @@ export function GoalsPersonDetail({
         {cycleToolbar}
         <EmptyState
           icon={Users}
-          title="No people yet"
+          title="No People Yet"
           description="Add employees in People to start setting and reviewing goals."
           action={
             <Link to="/people/new" className="pd-people__create-btn">
@@ -1831,7 +1836,7 @@ export function GoalsPersonDetail({
       <div className="pd-page pd-goals" aria-label="Goals">
         <EmptyState
           icon={Target}
-          title="Goals not available"
+          title="Goals Not Available"
           description="You do not have access to this person's goals."
         />
       </div>
@@ -2087,7 +2092,7 @@ export function GoalsPersonDetail({
               className="pd-people__back pd-people__back--toolbar"
             >
               <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
-              Back to All Goals
+              Back To All Goals
             </Link>
             <section className="pd-profile__hero pd-goals-detail-header__hero">
               <div className="pd-profile__hero-main">
@@ -2311,7 +2316,7 @@ function ManagerReportGoalsTable({
         blockers={submitSetBlockers(submitCheck.blockers)}
         onOpenGoal={(goalId) => onOpen(goalId)}
         onAddGoal={canEditStructure ? addGoal : undefined}
-        addGoalLabel={goals.length > 0 ? "Add another goal" : "Add a goal"}
+        addGoalLabel={goals.length > 0 ? "Add Another Goal" : "Add A Goal"}
       />
     ) : null;
   const cascade = cascadeFromFor(person.id);
@@ -2495,7 +2500,7 @@ function ManagerPanel({
     return (
       <EmptyState
         icon={Users}
-        title="No direct reports"
+        title="No Direct Reports"
         description="People who report to you will show up here with their goals."
       />
     );
@@ -2900,7 +2905,7 @@ function EmployeePanel({
     goalDrawer = (
       <GoalCreateDrawer
         label={isNew ? undefined : `View ${goalTitle(selectedGoal, selectedIndex)}`}
-        closeLabel="Close goal"
+        closeLabel="Close Goal"
         sideSheet={okrSideSheetFor(personId, cycleLabel)}
         onClose={requestCloseGoal}
         ribbon={
@@ -2914,15 +2919,21 @@ function EmployeePanel({
               )}
               onOpenGoal={onOpenGoal}
             />
+          ) : ineligibility ? (
+            <CycleIneligibilityNotice
+              layout="ribbon"
+              personName={personName}
+              reason={ineligibility}
+            />
+          ) : !isNew && editLock && !canEditDraft ? (
+            <GoalEditLockNotice
+              layout="ribbon"
+              message={editLockContent ?? editLock}
+              spoken={editLock}
+            />
           ) : null
         }
       >
-        {!isNew && editLock && !canEditDraft ? (
-          <GoalEditLockNotice
-            message={editLockContent ?? editLock}
-            spoken={editLock}
-          />
-        ) : null}
         <GoalDetailView
           isNew={isNew}
           goal={selectedGoal}
@@ -3139,7 +3150,7 @@ function EmployeePanel({
             ? () => requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
             : undefined
         }
-        addGoalLabel={goals.length > 0 ? 'Add another goal' : 'Add a goal'}
+        addGoalLabel={goals.length > 0 ? 'Add Another Goal' : 'Add A Goal'}
       />
     ) : null;
   const sendBackNotice = sendBackReason ? (
@@ -3379,7 +3390,7 @@ function EmployeePanel({
           ? "pd-goals-shell pd-goals-shell--toolbar-only"
           : "pd-goals-shell"
       }
-      aria-label={showsGoals ? "My goals" : undefined}
+      aria-label={showsGoals ? "My Goals" : undefined}
     >
       {goalEditGuard}
       <GoalUnsavedCloseDialog

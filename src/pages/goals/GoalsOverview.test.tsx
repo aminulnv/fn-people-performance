@@ -132,7 +132,7 @@ describe('Goals overview cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not in this cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
       }),
     ).toBeInTheDocument()
     expect(screen.getByText(leftover.description)).toBeInTheDocument()
@@ -160,7 +160,7 @@ describe('Goals overview cycle eligibility', () => {
       screen.getByRole('button', { name: 'Filters, 1 selected' }),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Clear Filters' }))
     expect(screen.getByRole('button', { name: 'Filters' })).toBeInTheDocument()
   })
 
@@ -178,7 +178,7 @@ describe('Goals overview cycle eligibility', () => {
       screen.getByRole('columnheader', { name: /^Cycle/ }),
     ).toBeInTheDocument()
     expect(
-      screen.queryByRole('status', { name: /Not in this cycle/ }),
+      screen.queryByRole('status', { name: /Not In This Cycle/ }),
     ).not.toBeInTheDocument()
   })
 
@@ -307,7 +307,7 @@ describe('Goals overview cycle eligibility', () => {
 
     fireEvent.click(await screen.findByText(ownGoal.description))
     startEditingGoal()
-    fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add Task' }))
 
     await waitFor(() => {
       expect(

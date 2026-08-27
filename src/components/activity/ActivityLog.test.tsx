@@ -169,7 +169,7 @@ describe('ActivityLogDrawer', () => {
     )
     const dialog = screen.getByRole('dialog', { name: 'Goal activity' })
     expect(dialog).toHaveClass('pd-activity-drawer__panel')
-    expect(screen.getByText('Activity log')).toBeInTheDocument()
+    expect(screen.getByText('Activity Log')).toBeInTheDocument()
     expect(
       screen.getByRole('heading', { name: 'Goal activity' }),
     ).toBeInTheDocument()
@@ -180,9 +180,9 @@ describe('ActivityLogTrigger', () => {
   it('exposes a quiet text action', () => {
     const onClick = vi.fn()
     renderWithQuery(
-      <ActivityLogTrigger label="View activity" onClick={onClick} />,
+      <ActivityLogTrigger label="View Activity" onClick={onClick} />,
     )
-    const button = screen.getByRole('button', { name: 'View activity' })
+    const button = screen.getByRole('button', { name: 'View Activity' })
     expect(button.className).toContain('pd-activity-link')
     fireEvent.click(button)
     expect(onClick).toHaveBeenCalledOnce()

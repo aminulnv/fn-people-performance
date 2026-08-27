@@ -3,6 +3,8 @@ import { formatDateRange } from './periods'
 import {
   cycleModulesOf,
   describeEnabledFlow,
+  isCalibrationStage,
+  isGoalsModuleEnabled,
   isReviewsModuleEnabled,
 } from './reviewStages'
 import type {
@@ -31,7 +33,7 @@ export function goalCountSummary(policy: GoalCountPolicy): string {
 }
 
 export function groupNextStep(group: CycleGroup): string | null {
-  if (group.memberIds.length === 0) return 'Add people'
+  if (group.memberIds.length === 0) return 'Add People'
   const modules = cycleModulesOf(group.stagesConfig.reviewStages)
   if (!modules.goals && !modules.reviews) {
     return 'Choose goals, reviews, or both'
@@ -87,5 +89,45 @@ export function cycleHasReviews(
   if (isReviewsModuleEnabled(cycle.stagesConfig.reviewStages)) return true
   return (cycle.groups ?? []).some((group) =>
     isReviewsModuleEnabled(group.stagesConfig.reviewStages),
+  )
+}
+
+/** True when this cycle or any group runs goal setting. */
+export function cycleHasGoals(
+  cycle: Pick<ReviewCycle, 'stagesConfig' | 'groups'>,
+): boolean {
+  if (isGoalsModuleEnabled(cycle.stagesConfig.reviewStages)) return true
+  return (cycle.groups ?? []).some((group) =>
+    isGoalsModuleEnabled(group.stagesConfig.reviewStages),
+  )
+}
+
+function stagesHaveCalibration(
+  stages: ReviewCycle['stagesConfig']['reviewStages'],
+  calibration: ReviewCycle['stagesConfig']['calibration'],
+): boolean {
+  if (stages?.length) {
+    return stages.some((stage) => isCalibrationStage(stage.id) && stage.enabled)
+  }
+  return Boolean(calibration.enabled)
+}
+
+/** True when this cycle or any group runs calibration. */
+export function cycleHasCalibration(
+  cycle: Pick<ReviewCycle, 'stagesConfig' | 'groups'>,
+): boolean {
+  if (
+    stagesHaveCalibration(
+      cycle.stagesConfig.reviewStages,
+      cycle.stagesConfig.calibration,
+    )
+  ) {
+    return true
+  }
+  return (cycle.groups ?? []).some((group) =>
+    stagesHaveCalibration(
+      group.stagesConfig.reviewStages,
+      group.stagesConfig.calibration,
+    ),
   )
 }

@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Lock } from "lucide-react";
-import { cx } from "@/lib/cx";
 import type { CycleEligibilityReason } from "@/lib/goals/demoData";
 import { cycleIneligibilityEmptyState } from "./statusLabels";
 
@@ -13,30 +12,52 @@ export function GoalEditLockNotice({
   message: ReactNode;
   spoken?: string;
   title?: string;
-  /** `ribbon` sits on the goals card, matching Late Submission. */
+  /** `ribbon` is a flush strip, matching Action required. */
   layout?: "card" | "ribbon";
 }) {
-  const label = spoken ?? (typeof message === "string" ? message : title)
+  const label = spoken ?? (typeof message === "string" ? message : title);
+  const detail = message ? (
+    <p className="pd-goals-sendback__reason pd-goals-banner__detail">
+      {message}
+    </p>
+  ) : spoken ? (
+    <p className="pd-goals-sendback__reason pd-goals-banner__detail">
+      {spoken}
+    </p>
+  ) : null;
+
+  if (layout === "ribbon") {
+    return (
+      <aside
+        className="pd-goals-sendback pd-goals-sendback--ribbon pd-goals-banner pd-goals-banner--lock pd-goals-banner--ribbon"
+        role="status"
+        aria-label={label}
+      >
+        <div className="pd-goals-banner__start">
+          <span className="pd-goals-banner__icon" aria-hidden>
+            <Lock size={13} strokeWidth={2.25} />
+          </span>
+          <p className="pd-goals-banner__title">{title}</p>
+          {detail}
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
-      className={cx(
-        "pd-goals-banner",
-        "pd-goals-banner--lock",
-        layout === "ribbon" && "pd-goals-banner--ribbon",
-      )}
+      className="pd-goals-sendback pd-goals-sendback--lock pd-goals-sendback--compact"
       role="status"
       aria-label={label}
     >
-      <div className="pd-goals-banner__start">
-        <span className="pd-goals-banner__icon" aria-hidden>
-          <Lock size={13} strokeWidth={2.25} />
-        </span>
-        <p className="pd-goals-banner__title">{title}</p>
-        {message ? (
-          <p className="pd-goals-banner__detail">{message}</p>
-        ) : spoken ? (
-          <p className="pd-goals-banner__detail">{spoken}</p>
-        ) : null}
+      <span className="pd-goals-sendback__icon" aria-hidden>
+        <Lock size={13} strokeWidth={2.25} />
+      </span>
+      <div className="pd-goals-sendback__copy">
+        <div className="pd-goals-sendback__head">
+          <p className="pd-goals-sendback__title">{title}</p>
+        </div>
+        {detail}
       </div>
     </aside>
   );

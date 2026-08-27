@@ -4,9 +4,9 @@ import { ClipboardList } from 'lucide-react'
 import { SettingsSidePanel } from './SettingsSidePanel'
 
 const reviewFormSheet = {
-  tabLabel: 'Review form',
+  tabLabel: 'Review Form',
   tabIcon: ClipboardList,
-  label: 'Review form templates',
+  label: 'Review Form Templates',
   content: <p>Preset questions</p>,
 }
 
@@ -20,7 +20,7 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Cycle details"
-        closeLabel="Close cycle details"
+        closeLabel="Close Cycle Details"
         onClose={() => undefined}
       >
         <p>Cycle fields</p>
@@ -36,7 +36,7 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Group settings"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         title={<input aria-label="Group name" defaultValue="SLT" />}
         onClose={() => undefined}
       >
@@ -54,7 +54,7 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Everyone"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         subnav={<nav aria-label="Group settings">People</nav>}
         onClose={() => undefined}
       >
@@ -73,14 +73,14 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Cycle details"
-        closeLabel="Close cycle details"
+        closeLabel="Close Cycle Details"
         onClose={onClose}
       >
         <p>Cycle fields</p>
       </SettingsSidePanel>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close cycle details' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Cycle Details' }))
 
     expect(onClose).toHaveBeenCalledOnce()
   })
@@ -90,7 +90,7 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Cycle details"
-        closeLabel="Close cycle details"
+        closeLabel="Close Cycle Details"
         onClose={onClose}
       >
         <p>Cycle fields</p>
@@ -111,7 +111,7 @@ describe('SettingsSidePanel', () => {
       render(
         <SettingsSidePanel
           label="Cycle details"
-          closeLabel="Close cycle details"
+          closeLabel="Close Cycle Details"
           onClose={onClose}
         >
           <p>Cycle fields</p>
@@ -130,7 +130,7 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Everyone"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         sideSheet={reviewFormSheet}
         onClose={() => undefined}
       >
@@ -140,10 +140,10 @@ describe('SettingsSidePanel', () => {
 
     expect(screen.queryByText('Preset questions')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(
-      screen.getByRole('region', { name: 'Review form templates' }),
+      screen.getByRole('region', { name: 'Review Form Templates' }),
     ).toHaveTextContent('Preset questions')
   })
 
@@ -151,14 +151,14 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Everyone"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         sideSheet={reviewFormSheet}
         onClose={() => undefined}
       >
         <p>Review windows</p>
       </SettingsSidePanel>,
     )
-    const tab = screen.getByRole('button', { name: 'Review form' })
+    const tab = screen.getByRole('button', { name: 'Review Form' })
 
     expect(tab).toHaveAttribute('data-expanded', 'false')
 
@@ -167,7 +167,7 @@ describe('SettingsSidePanel', () => {
 
     fireEvent.click(tab)
     expect(
-      screen.getByRole('region', { name: 'Review form templates' }),
+      screen.getByRole('region', { name: 'Review Form Templates' }),
     ).toBeInTheDocument()
     expect(tab).toHaveAttribute('data-expanded', 'true')
 
@@ -181,20 +181,20 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Everyone"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         sideSheet={reviewFormSheet}
         onClose={onClose}
       >
         <p>Review windows</p>
       </SettingsSidePanel>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(onClose).not.toHaveBeenCalled()
     expect(
-      screen.queryByRole('region', { name: 'Review form templates' }),
+      screen.queryByRole('region', { name: 'Review Form Templates' }),
     ).toBeNull()
   })
 
@@ -202,14 +202,14 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Cycle details"
-        closeLabel="Close cycle details"
+        closeLabel="Close Cycle Details"
         onClose={() => undefined}
       >
         <p>Cycle fields</p>
       </SettingsSidePanel>,
     )
 
-    expect(screen.queryByRole('button', { name: 'Review form' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Review Form' })).toBeNull()
   })
 
   it('widens the review form sheet with the keyboard from its resize handle', () => {
@@ -221,15 +221,15 @@ describe('SettingsSidePanel', () => {
     render(
       <SettingsSidePanel
         label="Everyone"
-        closeLabel="Close group settings"
+        closeLabel="Close Group Settings"
         sideSheet={reviewFormSheet}
         onClose={() => undefined}
       >
         <p>Review windows</p>
       </SettingsSidePanel>,
     )
-    fireEvent.click(screen.getByRole('button', { name: 'Review form' }))
-    const sheet = screen.getByRole('region', { name: 'Review form templates' })
+    fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
+    const sheet = screen.getByRole('region', { name: 'Review Form Templates' })
 
     fireEvent.keyDown(
       screen.getByRole('separator', { name: 'Resize review form panel' }),

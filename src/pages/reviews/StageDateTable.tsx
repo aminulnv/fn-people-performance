@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui";
 import { isEndBeforeStart } from "@/lib/dates/timestamp";
 
@@ -121,12 +122,10 @@ export function StageWindowFields({
           labelPlacement={labelPlacement}
         />
       </div>
-      <div className="pd-reviews-window__track" aria-hidden>
-        <span className="pd-reviews-window__line" />
-        <span className="pd-reviews-window__dot" />
-        <span className="pd-reviews-window__line" />
-      </div>
-      <div className="pd-reviews-window__date pd-reviews-window__date--end">
+      <span className="pd-reviews-window__arrow" aria-hidden>
+        <ArrowRight size={16} strokeWidth={1.75} />
+      </span>
+      <div className="pd-reviews-window__date">
         {notched ? null : (
           <span className="pd-reviews-window__label">{endLabel}</span>
         )}

@@ -11,7 +11,7 @@ export function TopBarSearch() {
       onClick={openSearch}
       aria-haspopup="dialog"
       aria-keyshortcuts="/"
-      aria-label="Search the company"
+      aria-label="Search The Company"
     >
       <Search size={16} strokeWidth={2} />
     </button>

@@ -12,7 +12,7 @@ function renderMenu(
     <MemoryRouter>
       <GoalActionsMenu
         variant="menu"
-        label="More actions for Ship quality"
+        label="More Actions For Ship quality"
         onDuplicate={vi.fn()}
         onCascade={vi.fn()}
         canCascade
@@ -34,7 +34,7 @@ describe('GoalActionsMenu', () => {
 
     expect(screen.getByRole('button', { name: 'Duplicate' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'More actions' }),
+      screen.queryByRole('button', { name: 'More Actions' }),
     ).not.toBeInTheDocument()
   })
 
@@ -51,7 +51,7 @@ describe('GoalActionsMenu', () => {
     })
 
     fireEvent.mouseEnter(
-      screen.getByRole('button', { name: 'More actions for Ship quality' })
+      screen.getByRole('button', { name: 'More Actions For Ship quality' })
         .closest('.pd-menu')!,
     )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
@@ -64,7 +64,7 @@ describe('GoalActionsMenu', () => {
 
     expect(screen.queryByRole('button', { name: 'Duplicate' })).not.toBeInTheDocument()
     fireEvent.mouseEnter(
-      screen.getByRole('button', { name: 'More actions for Ship quality' })
+      screen.getByRole('button', { name: 'More Actions For Ship quality' })
         .closest('.pd-menu')!,
     )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }))

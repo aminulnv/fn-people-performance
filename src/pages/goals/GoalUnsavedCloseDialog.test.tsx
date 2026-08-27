@@ -46,10 +46,10 @@ describe("GoalUnsavedCloseDialog", () => {
     );
 
     expect(
-      screen.getByRole("dialog", { name: "Unsaved changes" }),
+      screen.getByRole("dialog", { name: "Unsaved Changes" }),
     ).toHaveTextContent("Save this goal as a draft");
 
-    fireEvent.click(screen.getByRole("button", { name: "Save as draft" }));
+    fireEvent.click(screen.getByRole("button", { name: "Save As Draft" }));
     expect(onSaveDraft).toHaveBeenCalledOnce();
 
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));

@@ -56,7 +56,7 @@ describe('ReportGoalsCard', () => {
     )
 
     expect(screen.getByText('Not started')).toBeInTheDocument()
-    expect(screen.getByText('No goals yet')).toBeInTheDocument()
+    expect(screen.getByText('No Goals Yet')).toBeInTheDocument()
     expect(screen.getByText('Saif has not added goals for this cycle.')).toBeInTheDocument()
     expect(screen.queryByText('0 goals · Not started')).not.toBeInTheDocument()
     expect(screen.queryByText('Draft')).not.toBeInTheDocument()
@@ -70,7 +70,7 @@ describe('ReportGoalsCard', () => {
       />,
     )
 
-    expect(screen.getByText('No goals yet')).toBeInTheDocument()
+    expect(screen.getByText('No Goals Yet')).toBeInTheDocument()
     expect(
       screen.getByText('Goal editing opens 7 Dec 2026 and closes 1 Jan 2027.'),
     ).toBeInTheDocument()
@@ -465,15 +465,15 @@ describe('ReportGoalsCard', () => {
     )
 
     const trigger = screen.getByRole('button', {
-      name: 'More actions for Saif Ivna Alam',
+      name: 'More Actions For Saif Ivna Alam',
     })
     expect(
-      screen.queryByRole('menuitem', { name: 'View activity' }),
+      screen.queryByRole('menuitem', { name: 'View Activity' }),
     ).not.toBeInTheDocument()
 
     fireEvent.mouseEnter(trigger.closest('.pd-goal-view__menu')!)
     expect(
-      screen.getByRole('menuitem', { name: 'View activity' }),
+      screen.getByRole('menuitem', { name: 'View Activity' }),
     ).toBeInTheDocument()
   })
 })

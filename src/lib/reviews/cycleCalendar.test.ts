@@ -170,7 +170,7 @@ describe('primaryCalendarFillKind', () => {
       ranges: [
         {
           kind: 'performance-review' as const,
-          label: 'Performance review',
+          label: 'Performance Review',
           startDate: '2026-09-01',
           endDate: '2026-09-30',
         },
@@ -178,7 +178,7 @@ describe('primaryCalendarFillKind', () => {
       milestones: [
         {
           kind: 'publish-managers' as const,
-          label: 'Publish to managers',
+          label: 'Publish to Managers First',
           date: '2026-09-15',
         },
       ],
@@ -193,7 +193,7 @@ describe('primaryCalendarFillKind', () => {
         ranges: [
           {
             kind: 'cycle',
-            label: 'Cycle timeframe',
+            label: 'Cycle Timeframe',
             startDate: '2026-08-01',
             endDate: '2026-09-30',
           },

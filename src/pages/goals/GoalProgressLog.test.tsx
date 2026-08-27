@@ -45,7 +45,7 @@ describe('GoalProgressLog', () => {
 
     fireEvent.click(screen.getByText('Log'))
     expect(
-      screen.getByRole('heading', { name: 'Progress logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -74,7 +74,7 @@ describe('GoalProgressLog', () => {
 
     fireEvent.click(screen.getByText('Log'))
     expect(
-      screen.getByRole('heading', { name: 'Progress logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
     ).toBeInTheDocument()
     const change = screen.getByText(
       (_, node) =>
@@ -95,7 +95,7 @@ describe('GoalProgressLog', () => {
 
     fireEvent.click(screen.getByText('Log'))
     expect(
-      screen.getByRole('heading', { name: 'Progress logs 2 updates' }),
+      screen.getByRole('heading', { name: 'Progress Logs 2 updates' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Marked Completed')).not.toBeInTheDocument()
     expect(screen.queryByText('Marked Incomplete')).not.toBeInTheDocument()

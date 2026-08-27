@@ -54,7 +54,7 @@ export function buildBreadcrumbs({
   goalsGoalTitle,
 }: BreadcrumbContext): BreadcrumbItem[] {
   if (pathname === '/people/new' || pathname.startsWith('/people/new/')) {
-    return [peopleRoot(), { label: 'Add employee' }]
+    return [peopleRoot(), { label: 'Add Employee' }]
   }
 
   const employeeEdit = matchPath(
@@ -88,14 +88,14 @@ export function buildBreadcrumbs({
   if (pathname === '/organisation/departments/new') {
     return [
       { label: 'Organisation', href: '/organisation' },
-      { label: 'Add department' },
+      { label: 'Add Department' },
     ]
   }
 
   if (pathname === '/organisation/chart') {
     return [
       { label: 'Organisation', href: '/organisation' },
-      { label: 'Org chart' },
+      { label: 'Org Chart' },
     ]
   }
 

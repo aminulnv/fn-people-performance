@@ -92,7 +92,7 @@ describe('Goals overview loading', () => {
     clearSession()
   })
 
-  it('shows a loading surface instead of “No goals yet”', () => {
+  it('shows a loading surface instead of “No Goals Yet”', () => {
     render(
       <MemoryRouter initialEntries={['/goals#my-goals']}>
         <AuthProvider>
@@ -102,6 +102,6 @@ describe('Goals overview loading', () => {
     )
 
     expect(screen.getByLabelText('Loading goals')).toBeInTheDocument()
-    expect(screen.queryByText('No goals yet')).not.toBeInTheDocument()
+    expect(screen.queryByText('No Goals Yet')).not.toBeInTheDocument()
   })
 })

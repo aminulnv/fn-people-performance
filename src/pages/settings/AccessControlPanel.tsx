@@ -181,7 +181,7 @@ export function AccessControlPanel() {
           </span>
           <div>
             <h2 id="access-heading" className="pd-settings-section__title">
-              Admin access
+              Admin Access
             </h2>
             <p className="pd-settings-section__hint">
               Assign platform-wide read or read + write access. Reporting-line
@@ -190,7 +190,7 @@ export function AccessControlPanel() {
             {canReadActivity ? (
               <div style={{ marginTop: '0.55rem' }}>
                 <ActivityLogTrigger
-                  label="View access activity"
+                  label="View Access Activity"
                   onClick={() => setActivityOpen(true)}
                 />
               </div>
@@ -222,7 +222,7 @@ export function AccessControlPanel() {
               }
               options={profileOptions}
               allowEmpty={false}
-              aria-label="Admin access level"
+              aria-label="Admin Access Level"
             />
           </div>
           <Button
@@ -234,7 +234,7 @@ export function AccessControlPanel() {
             }
           >
             <Plus size={14} strokeWidth={2.25} aria-hidden />
-            Add admin
+            Add Admin
           </Button>
         </div>
       ) : (

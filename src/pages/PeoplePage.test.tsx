@@ -102,7 +102,7 @@ describe('PeoplePage', () => {
     expect(
       await screen.findByRole('dialog', { name: 'Person 001' }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Full view/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /Full View/i })).toHaveAttribute(
       'href',
       '/people/1',
     )
@@ -173,7 +173,7 @@ describe('PeoplePage', () => {
     )
 
     fireEvent.click(screen.getByText('person.1@example.com'))
-    fireEvent.click(await screen.findByRole('link', { name: /Full view/i }))
+    fireEvent.click(await screen.findByRole('link', { name: /Full View/i }))
     expect(screen.getByText('Opened profile 1')).toBeInTheDocument()
   })
 })

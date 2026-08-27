@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Switch } from '@/components/ui'
 import { cx } from '@/lib/cx'
 import type { CycleModules } from '@/lib/reviews/types'
+import { HintIcon } from './HintIcon'
 
 export type CycleModuleId = keyof CycleModules
 
@@ -41,15 +42,15 @@ export function CycleModuleField({
   const item = MODULE_COPY[id]
   return (
     <div className="pd-reviews-stage-list__row">
-      <Switch
-        label={item.enableLabel}
-        className="pd-reviews-type-list__switch"
-        checked={enabled}
-        onChange={(event) => onChange(event.target.checked)}
-      />
-      <div className="pd-reviews-stage-list__copy">
+      <div className="pd-reviews-stage-list__copy pd-reviews-edit-card__head">
         <p className="pd-reviews-stage-list__title">{item.title}</p>
-        <p className="pd-reviews-stage-list__hint">{item.hint}</p>
+        <HintIcon content={item.hint} label={`About ${item.title}`} />
+        <Switch
+          label={item.enableLabel}
+          className="pd-reviews-type-list__switch"
+          checked={enabled}
+          onChange={(event) => onChange(event.target.checked)}
+        />
       </div>
     </div>
   )

@@ -94,7 +94,7 @@ export function extractCycleCalendarMarkers(
   const rawRanges: CycleCalendarRange[] = [
     {
       kind: 'cycle',
-      label: 'Cycle timeframe',
+      label: 'Cycle Timeframe',
       startDate: cycle.startDate,
       endDate: cycle.endDate,
     },
@@ -107,7 +107,7 @@ export function extractCycleCalendarMarkers(
       if (goalsOn) {
         ranges.push({
           kind: 'goal-setting',
-          label: 'Goal setting',
+          label: 'Goal Setting',
           startDate: stagesConfig.goals.employee.startDate,
           endDate: stagesConfig.goals.employee.endDate,
         })
@@ -117,7 +117,7 @@ export function extractCycleCalendarMarkers(
       if (selfReview?.start && selfReview.end) {
         ranges.push({
           kind: 'performance-review',
-          label: 'Self-review',
+          label: 'Self-Review',
           startDate: selfReview.start.date,
           endDate: selfReview.end.date,
         })
@@ -125,7 +125,7 @@ export function extractCycleCalendarMarkers(
       if (manager?.start && manager.end) {
         ranges.push({
           kind: 'performance-review',
-          label: 'Manager review',
+          label: 'Manager Review',
           startDate: manager.start.date,
           endDate: manager.end.date,
         })
@@ -133,7 +133,7 @@ export function extractCycleCalendarMarkers(
       if (stages.length === 0) {
         ranges.push({
           kind: 'performance-review',
-          label: 'Performance review',
+          label: 'Performance Review',
           startDate: stagesConfig.performance.managerStart.date,
           endDate: stagesConfig.performance.managerEnd.date,
         })
@@ -143,7 +143,7 @@ export function extractCycleCalendarMarkers(
       if (hod?.start && hod.end) {
         ranges.push({
           kind: 'calibration',
-          label: 'HOD / HRBP calibration',
+          label: 'HOD / HRBP Calibration',
           startDate: hod.start.date,
           endDate: hod.end.date,
         })
@@ -151,7 +151,7 @@ export function extractCycleCalendarMarkers(
       if (slt?.start && slt.end) {
         ranges.push({
           kind: 'calibration',
-          label: 'SLT calibration',
+          label: 'SLT Calibration',
           startDate: slt.start.date,
           endDate: slt.end.date,
         })
@@ -180,12 +180,12 @@ export function extractCycleCalendarMarkers(
     .flatMap((stagesConfig) => [
       {
         kind: 'publish-managers' as const,
-        label: 'Publish to managers',
+        label: 'Publish to Managers First',
         date: stagesConfig.publish.toManager.date,
       },
       {
         kind: 'publish-employees' as const,
-        label: 'Publish to employees',
+        label: 'Publish to Everyone',
         date: stagesConfig.publish.toAll.date,
       },
     ])

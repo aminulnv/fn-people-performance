@@ -3,8 +3,8 @@ import type { ReviewPolicy } from '@/lib/reviews/types'
 import { ScorecardFormEditor } from './ScorecardFormEditor'
 import type { SettingsSideSheet } from './SettingsSideSheetRail'
 
-export const REVIEW_FORM_SHEET_LABEL = 'Review form templates'
-export const REVIEW_FORM_TAB_LABEL = 'Review form'
+export const REVIEW_FORM_SHEET_LABEL = 'Review Form Templates'
+export const REVIEW_FORM_TAB_LABEL = 'Review Form'
 
 export function reviewFormSummary(policy: ReviewPolicy): string {
   const questions = policy.scorecard.questions.filter((question) => question.enabled)
@@ -45,7 +45,7 @@ export function ReviewFormSheet({
       <header className="pd-reviews-form-sheet__head">
         <h2>
           <ClipboardList size={20} strokeWidth={2.25} aria-hidden />
-          Review form
+          Review Form
         </h2>
       </header>
       <div className="pd-reviews-form-sheet__body">

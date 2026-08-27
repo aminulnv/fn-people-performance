@@ -100,8 +100,8 @@ export function GoalSubmitAllButton({
         open={warningOpen}
         title={`${isResubmit ? 'Resubmit' : 'Submit'} these goals?`}
         description={warning ?? undefined}
-        confirmLabel={isResubmit ? 'Resubmit anyway' : 'Submit anyway'}
-        cancelLabel="Review goals"
+        confirmLabel={isResubmit ? 'Resubmit Anyway' : 'Submit Anyway'}
+        cancelLabel="Review Goals"
         onClose={() => setWarningOpen(false)}
         onConfirm={() => {
           setWarningOpen(false)

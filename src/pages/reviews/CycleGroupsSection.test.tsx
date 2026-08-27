@@ -107,10 +107,10 @@ describe('CycleGroupsSection', () => {
     )
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Everyone' })).toHaveTextContent('1 person')
     expect(screen.getByRole('button', { name: 'New group' })).toHaveTextContent('0 people')
-    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create New Group' })).toBeInTheDocument()
   })
 
   it('opens a group from its card', () => {
@@ -139,7 +139,7 @@ describe('CycleGroupsSection', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create new group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create New Group' }))
     expect(onAddGroup).toHaveBeenCalled()
   })
 
@@ -155,7 +155,7 @@ describe('CycleGroupsSection', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete Everyone' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Delete group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Group' }))
     expect(onDelete).toHaveBeenCalledWith('group-1')
   })
 
@@ -172,7 +172,7 @@ describe('CycleGroupsSection', () => {
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.queryByText('No one is in this cycle yet')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Create new group' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create New Group' }))
     expect(onAddGroup).toHaveBeenCalled()
   })
 })

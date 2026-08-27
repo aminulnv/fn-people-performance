@@ -84,7 +84,7 @@ describe('auth route guards', () => {
     })
   })
 
-  it('signs in from Continue with Google', async () => {
+  it('signs in from Continue With Google', async () => {
     clearSession()
     renderRoutes('/login')
 

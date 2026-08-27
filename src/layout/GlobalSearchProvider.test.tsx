@@ -54,7 +54,7 @@ describe('GlobalSearchProvider', () => {
   it('opens search from slash when the page is not a typing target', () => {
     renderProvider()
     fireEvent.keyDown(window, { key: '/' })
-    expect(screen.getByRole('dialog', { name: 'Search the company' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Search The Company' })).toBeInTheDocument()
   })
 
   it('leaves slash alone inside a text field', () => {
@@ -75,7 +75,7 @@ describe('GlobalSearchProvider', () => {
 
   it('opens search from the top-bar button', () => {
     renderProvider()
-    fireEvent.click(screen.getByRole('button', { name: 'Search the company' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Search The Company' }))
     expect(screen.getByRole('dialog')).toBeInTheDocument()
   })
 })

@@ -235,7 +235,7 @@ export function GoalCascadeToField({
       ? [
           {
             value: CREATE_CASCADE_VALUE,
-            label: 'Create new cascading goal',
+            label: 'Create New Cascading Goal',
             description: 'Blank child for selected reports',
             className: 'pd-listbox__option--action',
           },

@@ -6,6 +6,8 @@ import {
   groupNextStep,
   groupWindowSummary,
   groupWorkLabel,
+  cycleHasCalibration,
+  cycleHasGoals,
   cycleHasReviews,
   includedCycleCount,
   peopleCountLabel,
@@ -88,7 +90,7 @@ describe('goalCountSummary', () => {
 
 describe('groupNextStep', () => {
   it('asks for people before anything else', () => {
-    expect(groupNextStep(sampleGroup({ memberIds: [] }))).toBe('Add people')
+    expect(groupNextStep(sampleGroup({ memberIds: [] }))).toBe('Add People')
   })
 
   it('is ready when people and work are set', () => {
@@ -118,7 +120,7 @@ describe('groupWindowSummary', () => {
 
 describe('gradesJobSummary', () => {
   it('uses the calibration mode label', () => {
-    expect(gradesJobSummary(sampleGroup())).toBe('Department owners')
+    expect(gradesJobSummary(sampleGroup())).toBe('Department Owners')
   })
 })
 
@@ -163,6 +165,66 @@ describe('cycleHasReviews', () => {
         ],
       }),
     ).toBe(true)
+  })
+})
+
+describe('cycleHasGoals', () => {
+  it('is false on an annual cycle', () => {
+    expect(
+      cycleHasGoals({
+        stagesConfig: buildDefaultStagesConfig(
+          '2027-01-01',
+          '2027-02-15',
+          'annual_appraisal',
+          'annual-2026',
+        ),
+        groups: [],
+      }),
+    ).toBe(false)
+  })
+
+  it('is true when a group still runs goals', () => {
+    expect(
+      cycleHasGoals({
+        stagesConfig: buildDefaultStagesConfig(
+          '2027-01-01',
+          '2027-02-15',
+          'annual_appraisal',
+          'annual-2026',
+        ),
+        groups: [sampleGroup()],
+      }),
+    ).toBe(true)
+  })
+})
+
+describe('cycleHasCalibration', () => {
+  it('is true on an annual cycle', () => {
+    expect(
+      cycleHasCalibration({
+        stagesConfig: buildDefaultStagesConfig(
+          '2027-01-01',
+          '2027-02-15',
+          'annual_appraisal',
+          'annual-2026',
+        ),
+        groups: [],
+      }),
+    ).toBe(true)
+  })
+
+  it('is false on a quarterly check-in', () => {
+    expect(
+      cycleHasCalibration({
+        stagesConfig: buildDefaultStagesConfig(
+          '2026-07-01',
+          '2026-09-30',
+          'quarterly_checkin',
+          'q3-2026',
+        ),
+        groups: [],
+      }),
+    ).toBe(false)
   })
 })
 
