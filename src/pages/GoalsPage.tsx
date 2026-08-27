@@ -102,6 +102,7 @@ import {
 } from "@/lib/delegations/store";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
+import { okrQuarterFromLabel } from "@/lib/okr/quarter";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
 import {
   useGoalsHydration,
@@ -217,7 +218,7 @@ function personMeta(person: GoalsSnapshot["people"][number]): string {
 
 function okrScopeFor(personId: string): OkrReferenceScope | undefined {
   const employee = getEmployee(Number(personId));
-  if (!employee?.department.trim()) return undefined;
+  if (!employee) return undefined;
   return {
     department: employee.department,
     wing: employee.team,
@@ -236,14 +237,21 @@ function persistThenNotify(
 }
 
 /** Bookmark tab that pulls the read-only OKRs out from behind the goal drawer. */
-function okrSideSheetFor(personId: string) {
-  const scope = okrScopeFor(personId);
-  if (!scope) return undefined;
+function okrSideSheetFor(personId: string, cycleLabel?: string) {
+  const employeeId = Number(personId);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) return undefined;
   return {
     tabLabel: OKR_REFERENCE_TAB_LABEL,
     tabIcon: Target,
     label: OKR_REFERENCE_SHEET_LABEL,
-    content: <GoalOkrReferenceSheet scope={scope} />,
+    content: (
+      <GoalOkrReferenceSheet
+        employeeId={employeeId}
+        quarter={okrQuarterFromLabel(cycleLabel)}
+        cycleLabel={cycleLabel}
+        scope={okrScopeFor(personId)}
+      />
+    ),
   };
 }
 
@@ -499,7 +507,7 @@ function GoalsOverviewGoalPanel({
     <GoalCreateDrawer
       label={`View ${goalTitle(selectedGoal, selectedIndex)}`}
       closeLabel="Close goal"
-      sideSheet={okrSideSheetFor(personId)}
+      sideSheet={okrSideSheetFor(personId, snapshot.cycle.label)}
       onClose={() => unsavedClose.requestLeave(onClose)}
       ribbon={
         canSubmitBatch ? (
@@ -2893,7 +2901,7 @@ function EmployeePanel({
       <GoalCreateDrawer
         label={isNew ? undefined : `View ${goalTitle(selectedGoal, selectedIndex)}`}
         closeLabel="Close goal"
-        sideSheet={okrSideSheetFor(personId)}
+        sideSheet={okrSideSheetFor(personId, cycleLabel)}
         onClose={requestCloseGoal}
         ribbon={
           canSubmitBatch ? (

@@ -12,7 +12,6 @@ import {
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { CycleDetailsEditPage } from './CycleDetailsEditPage'
 import { CycleGroupsSection } from './CycleGroupsSection'
-import { CyclePublishSection } from './CyclePublishSection'
 import { GroupSettingsView } from './GroupSettingsView'
 import {
   ReviewSaveBanner,
@@ -145,8 +144,6 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
           if (group) openGroup(group)
         }}
       />
-
-      <CyclePublishSection cycle={cycle} />
 
       {editing === 'cycle-details' ? (
         <SettingsSidePanel

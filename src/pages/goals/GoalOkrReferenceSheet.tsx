@@ -1,32 +1,50 @@
-import { Eye, Target } from "lucide-react";
+import { Target } from "lucide-react";
 import { COMPANY_OKR_NAME, type OkrReferenceScope } from "@/lib/okr/reference";
 import { GoalOkrReferenceList } from "./GoalOkrReferenceList";
 
-export const OKR_REFERENCE_SHEET_LABEL = "Company, department, and wing OKRs";
+export const OKR_REFERENCE_SHEET_LABEL = "Your OKRs";
 export const OKR_REFERENCE_TAB_LABEL = "View OKRs";
 
-function scopeLine(scope: OkrReferenceScope): string {
-  return [COMPANY_OKR_NAME, scope.department.trim(), scope.wing.trim()]
+function scopeLine(
+  scope?: OkrReferenceScope,
+  cycleLabel?: string,
+): string {
+  return [
+    COMPANY_OKR_NAME,
+    scope?.department.trim(),
+    scope?.wing.trim(),
+    cycleLabel,
+  ]
     .filter(Boolean)
     .join(" · ");
 }
 
 /** Reference content sized for the goal drawer's pull-out sheet. */
-export function GoalOkrReferenceSheet({ scope }: { scope: OkrReferenceScope }) {
+export function GoalOkrReferenceSheet({
+  employeeId,
+  quarter,
+  cycleLabel,
+  scope,
+}: {
+  employeeId: number;
+  quarter?: string;
+  cycleLabel?: string;
+  scope?: OkrReferenceScope;
+}) {
   return (
     <div className="pd-okr-sheet">
       <header className="pd-okr-sheet__head">
-        <span className="pd-okr-sheet__eyebrow">
-          <Eye size={13} strokeWidth={2} aria-hidden />
-          Read-only reference
-        </span>
         <h2>
           <Target size={20} strokeWidth={2.25} aria-hidden />
-          Company, department &amp; wing OKRs
+          Your OKRs
         </h2>
-        <p>{scopeLine(scope)}</p>
+        <p>{scopeLine(scope, cycleLabel ?? quarter)}</p>
       </header>
-      <GoalOkrReferenceList scope={scope} />
+      <GoalOkrReferenceList
+        employeeId={employeeId}
+        quarter={quarter}
+        scope={scope}
+      />
     </div>
   );
 }

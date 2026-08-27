@@ -132,7 +132,7 @@ describe('Goals overview cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not in this cycle\. Direct Report is not assigned to a review group for this cycle\./,
+        name: /Not in this cycle\. Direct Report is not assigned to a group for this cycle\./,
       }),
     ).toBeInTheDocument()
     expect(screen.getByText(leftover.description)).toBeInTheDocument()

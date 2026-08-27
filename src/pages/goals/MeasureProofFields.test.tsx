@@ -167,13 +167,18 @@ describe("MeasureProofFields", () => {
 })
 
 describe("MeasureProofReadout", () => {
-  it("shows the host for a saved link", () => {
+  it("shows an icon-only link for a saved proof", () => {
     render(
       <MeasureProofReadout proofUrl="https://www.example.com/report" />,
     )
 
-    const link = screen.getByRole("link", { name: /example.com\/report/ })
+    const link = screen.getByRole("link", {
+      name: "Open proof at example.com/report",
+    })
     expect(link).toHaveAttribute("href", "https://www.example.com/report")
+    expect(link).toHaveAttribute("target", "_blank")
+    expect(link).toHaveClass("pd-goal-proof__url-btn", "is-linked")
+    expect(link).not.toHaveTextContent("example.com")
   })
 
   it("renders nothing when both fields are empty", () => {

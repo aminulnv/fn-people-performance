@@ -120,7 +120,7 @@ describe('GroupSettingsView', () => {
     expect(screen.getByText('What we grade')).toBeInTheDocument()
   })
 
-  it('keeps release dates off the group Reviews page', () => {
+  it('keeps publish dates on the release stages', () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter>
@@ -131,16 +131,25 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
 
     expect(
-      screen.getByRole('switch', { name: 'Enable Release to managers' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('heading', { name: 'Publish results' }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable Release to employees' }),
+      screen.getByRole('switch', { name: 'Enable Release to managers' }),
+    ).not.toBeChecked()
+    expect(
+      screen.queryByLabelText('Managers visible from'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('switch', { name: 'Enable Release to managers' }),
+    )
+
+    expect(screen.getByLabelText('Managers visible from')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Release to managers now' }),
     ).toBeInTheDocument()
     expect(
       screen.queryByLabelText('Release to managers on'),
-    ).not.toBeInTheDocument()
-    expect(
-      screen.queryByLabelText('Release to employees on'),
     ).not.toBeInTheDocument()
   })
 

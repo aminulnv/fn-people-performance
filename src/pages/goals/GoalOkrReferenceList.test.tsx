@@ -1,47 +1,126 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { PlatformEmployee } from "@/lib/employees/types";
 import { GoalOkrReferenceList } from "./GoalOkrReferenceList";
+import { okrWindowFixture } from "./okrWindowFixture";
+
+const directory: PlatformEmployee[] = [
+  {
+    employeeId: 871,
+    fullName: "Saif from Directory",
+    email: "saif.alam@nextventures.io",
+    startDate: "2024-01-01",
+    jobTitle: "Engineer",
+    department: "Engineering",
+    team: "Platform",
+    division: "",
+    reportsToName: "",
+    departmentHeadName: "",
+    hrbpName: "",
+    jobGrade: "",
+    site: "",
+    avatarUrl: "https://cdn.example/saif.jpg",
+    managerEmail: "",
+    isActive: true,
+    createdAt: "2024-01-01T00:00:00.000Z",
+    updatedAt: "2024-01-01T00:00:00.000Z",
+  },
+];
+
+vi.mock("@/lib/employees/useEmployees", () => ({
+  useEmployees: () => ({ employees: directory }),
+}));
 
 afterEach(cleanup);
 
+function renderList(ui: ReactNode) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </MemoryRouter>,
+  );
+}
+
 describe("GoalOkrReferenceList", () => {
-  it("groups references by company, department, and wing", () => {
-    render(
+  it("lists key results under their objective, not the objective as the title", () => {
+    renderList(
       <GoalOkrReferenceList
+        employeeId={871}
         scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
       />,
     );
 
     expect(
-      screen.getByRole("heading", { name: "FundedNext company" }),
+      screen.getByRole("heading", { name: "Key results" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Engineering department" }),
+      screen.getByText(
+        "People Foundation — Build leadership and structure that scales",
+      ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "Platform wing" }),
+      screen.getByText("Build Performance Platform Phase 1"),
     ).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "FundedNext company" })).toBeNull();
   });
 
-  it("shows the RACI matrix on a key result", () => {
-    render(
+  it("shows directory names, avatars, and profile links in the RACI tooltip", async () => {
+    renderList(
       <GoalOkrReferenceList
+        employeeId={871}
         scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
       />,
     );
 
-    expect(screen.getAllByText("RACI").length).toBeGreaterThan(0);
-    expect(
-      screen.getByText("Keep dependencies and delivery risks visible"),
-    ).toBeInTheDocument();
+    const raciTriggers = screen.getAllByRole("button", { name: "RACI" });
+    expect(screen.queryByRole("tooltip")).toBeNull();
+    expect(screen.queryByText("Saif from Directory")).toBeNull();
+
+    fireEvent.mouseEnter(raciTriggers[0].closest(".pd-tooltip")!);
+
+    const tip = await screen.findByRole("tooltip");
+    const profile = within(tip).getByRole("link", { name: "Saif from Directory" });
+    expect(profile).toHaveAttribute("href", "/people/871");
+    expect(within(profile).getByRole("img")).toBeInTheDocument();
+    expect(within(tip).queryByText("Saif Ivna Alam")).toBeNull();
+  });
+
+  it("keeps the RACI tooltip open while hovering its content", async () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    const trigger = screen.getAllByRole("button", { name: "RACI" })[2]
+      .closest(".pd-tooltip")!;
+    fireEvent.mouseEnter(trigger);
+    const tip = await screen.findByRole("tooltip");
+    fireEvent.mouseEnter(tip);
+    fireEvent.mouseLeave(trigger);
+
     expect(screen.getByText("Platform delivery")).toBeInTheDocument();
-    expect(screen.getAllByTitle("Responsible").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("heading", { name: /R · Responsible/ }),
+    ).toBeInTheDocument();
   });
 
   it("filters references by title and key result", () => {
-    render(
+    renderList(
       <GoalOkrReferenceList
+        employeeId={871}
         scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
       />,
     );
 
@@ -50,17 +129,43 @@ describe("GoalOkrReferenceList", () => {
     });
 
     expect(
-      screen.getByText("Deliver Platform priorities predictably"),
+      screen.getByText("Keep dependencies and delivery risks visible"),
     ).toBeInTheDocument();
     expect(
       screen.queryByText("Improve customer outcomes across Engineering"),
     ).toBeNull();
   });
 
-  it("reports when nothing matches the search", () => {
-    render(
+  it("copies an OKR title without collapsing the search", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    renderList(
       <GoalOkrReferenceList
+        employeeId={871}
         scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Copy Keep dependencies and delivery risks visible",
+      }),
+    );
+
+    expect(writeText).toHaveBeenCalledWith(
+      "Keep dependencies and delivery risks visible",
+    );
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
+  it("reports when nothing matches the search", () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
       />,
     );
 

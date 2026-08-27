@@ -102,13 +102,14 @@ export function registerReviewPacketRoutes(app) {
   )
 
   app.post(
-    '/api/platform/review-cycles/:cycleId/release',
+    '/api/platform/review-cycles/:cycleId/groups/:groupId/release',
     requirePlatformAuth,
     requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       try {
         const packets = await releaseReviewPackets(
           req.params.cycleId,
+          req.params.groupId,
           req.body?.target === 'employees' ? 'employees' : 'managers',
           req.platformUser,
         )

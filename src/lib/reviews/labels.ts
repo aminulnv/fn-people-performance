@@ -61,12 +61,35 @@ export const REVIEW_TYPE_ORDER: ReviewTypeId[] = [
   'functional_manager',
 ]
 
-export const GRADE_BAND_META: Record<GradeBandId, { label: string }> = {
-  exceptional: { label: 'Exceptional' },
-  exceeding: { label: 'Exceeding' },
-  performing: { label: 'Performing' },
-  developing: { label: 'Developing' },
-  unsatisfactory: { label: 'Unsatisfactory' },
+export const GRADE_BAND_META: Record<
+  GradeBandId,
+  { label: string; description: string }
+> = {
+  exceptional: {
+    label: 'Exceptional',
+    description:
+      'Reserved for people who consistently exceed every goal and operate well above their grade.',
+  },
+  exceeding: {
+    label: 'Exceeding',
+    description:
+      'People who achieve all goals and often deliver beyond what was asked.',
+  },
+  performing: {
+    label: 'Performing',
+    description:
+      'The expected band — reliably achieves goals and consistently lives company values.',
+  },
+  developing: {
+    label: 'Developing',
+    description:
+      'Partially achieves goals and needs regular support to close competency or values gaps.',
+  },
+  unsatisfactory: {
+    label: 'Unsatisfactory',
+    description:
+      'Significantly misses goals, or shows competency or values gaps, despite management support.',
+  },
 }
 
 export const GRADE_BAND_ORDER: GradeBandId[] = [
@@ -153,6 +176,15 @@ export const GRADE_RECOMMENDATION_META: Record<
       'Pre-fill from weighted scorecard results across review types.',
   },
 }
+
+export const CALIBRATION_SECTION_HINTS = {
+  calibrators: 'Who reviews and finalises grades for people in this group.',
+  recommendation:
+    'Whether calibrators see a suggested grade before they decide.',
+  seniorLeadership: 'People who sit in SLT calibration for this group.',
+  distribution:
+    'The target mix of grades for this group. Percentages must add up to 100%.',
+} as const
 
 export function enabledReviewTypeLabels(settings: CycleSettings): string {
   const types: Record<ReviewTypeId, boolean> = {

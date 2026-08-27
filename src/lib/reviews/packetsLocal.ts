@@ -142,12 +142,19 @@ export function calibrateLocalPacket(
 
 export function releaseLocalPackets(
   cycleId: string,
+  groupId: string,
   target: 'managers' | 'employees',
 ): ReviewPacket[] {
   const status: ReviewPacketStatus =
     target === 'managers' ? 'released_to_managers' : 'released_to_employees'
+  const memberIds = new Set(
+    cycleGroupsOf(getReviewCycle(cycleId) ?? { groups: [] }).find(
+      (group) => group.id === groupId,
+    )?.memberIds ?? [],
+  )
   for (const [key, packet] of packets) {
     if (packet.cycleId !== cycleId) continue
+    if (!memberIds.has(packet.employeeId)) continue
     packets.set(key, {
       ...packet,
       publishedOverallGrade:

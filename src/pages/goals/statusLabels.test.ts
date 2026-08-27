@@ -35,13 +35,13 @@ describe('submissionStatusLabel', () => {
 })
 
 describe('cycleIneligibilityEmptyState', () => {
-  it('explains a missing review group instead of a late join', () => {
+  it('explains a missing group instead of a late join', () => {
     expect(
       cycleIneligibilityEmptyState('Aminul Islam Borhan', 'not_in_cycle'),
     ).toEqual({
       title: 'Not in this cycle',
       description:
-        'Aminul Islam Borhan is not assigned to a review group for this cycle.',
+        'Aminul Islam Borhan is not assigned to a group for this cycle.',
     })
     expect(cycleIneligibilityStatusLabel('not_in_cycle')).toBe(
       'Not in this cycle',

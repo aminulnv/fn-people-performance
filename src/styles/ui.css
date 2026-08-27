@@ -1693,6 +1693,10 @@ a.pd-btn--secondary:visited {
   box-shadow: var(--shadow-deep);
 }
 
+.pd-tooltip__content--interactive {
+  pointer-events: auto;
+}
+
 .pd-tooltip__content--top {
   bottom: calc(100% + 0.375rem);
 }

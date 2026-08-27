@@ -17,7 +17,7 @@ import {
 import { findPeriod } from "./periods";
 import {
   applyCycleModules,
-  isCyclePublishStage,
+  isPublishStage,
   REVIEW_STAGE_LABEL,
 } from "./reviewStages";
 import {
@@ -1142,7 +1142,7 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
   for (const stage of config.reviewStages ?? []) {
     if (
       !stage.enabled ||
-      isCyclePublishStage(stage.id) ||
+      isPublishStage(stage.id) ||
       coveredIds.has(stage.id)
     ) {
       continue;

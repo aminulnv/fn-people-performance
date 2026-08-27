@@ -3,7 +3,7 @@ import { buildDefaultStagesConfig } from './demoData'
 import {
   applyCycleModules,
   cycleModulesOf,
-  isCyclePublishStage,
+  isPublishStage,
   describeCycleSetup,
   describeEnabledFlow,
   presetCycleModules,
@@ -48,11 +48,11 @@ describe('cycle module presets', () => {
   })
 })
 
-describe('cycle publish stages', () => {
-  it('treats manager and employee release as cycle-wide', () => {
-    expect(isCyclePublishStage('publish_managers')).toBe(true)
-    expect(isCyclePublishStage('publish_employees')).toBe(true)
-    expect(isCyclePublishStage('manager_review')).toBe(false)
+describe('publish stages', () => {
+  it('treats manager and employee release as milestone stages', () => {
+    expect(isPublishStage('publish_managers')).toBe(true)
+    expect(isPublishStage('publish_employees')).toBe(true)
+    expect(isPublishStage('manager_review')).toBe(false)
   })
 })
 

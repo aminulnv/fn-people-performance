@@ -1,337 +1,381 @@
-import { hasSystemPermission } from "@/lib/accessControl/types";
-import type { SystemPermission } from "@/lib/accessControl/types";
-
 export const COMPANY_OKR_NAME = "FundedNext";
 
 export type OkrReferenceLevel = "company" | "department" | "wing";
-
-/** Who the OKR platform would show this record to. */
-export type OkrReferenceAudience = "everyone" | "department" | "wing" | "admins";
-
-export type OkrRaci = {
-  responsible: string[];
-  accountable: string[];
-  consulted: string[];
-  informed: string[];
-};
-
-export type OkrKeyResult = {
-  id: string;
-  text: string;
-  raci: OkrRaci;
-};
 
 export type OkrReferenceScope = {
   department: string;
   wing: string;
 };
 
-export type OkrReferenceViewer = {
-  department: string;
-  wing: string;
-  permissions?: readonly SystemPermission[];
+export type OkrRaciParty = {
+  employeeId: number | null;
+  email: string;
+  label: string;
 };
 
-export type OkrReference = {
+export type OkrRaci = {
+  responsible: OkrRaciParty[];
+  accountable: OkrRaciParty[];
+  consulted: OkrRaciParty[];
+  informed: OkrRaciParty[];
+};
+
+export type OkrDirectoryPerson = {
+  employeeId: number;
+  fullName: string;
+  email: string;
+  avatarUrl: string;
+};
+
+export type ResolvedOkrRaciParty = {
+  employeeId: number | null;
+  name: string;
+  avatarUrl: string;
+  linked: boolean;
+};
+
+export type OkrLastCheckIn = {
+  weekNumber: number | null;
+  statusLabel: string;
+  note: string | null;
+  submittedAt: string | null;
+  authorName: string | null;
+};
+
+export type OkrMilestone = {
   id: string;
-  level: OkrReferenceLevel;
-  audience: OkrReferenceAudience;
   title: string;
-  description: string;
-  ownerLabel: string;
-  keyResults: OkrKeyResult[];
+  status: string;
+  weight: number;
 };
 
-function scopeKey(value: string): string {
-  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-");
+export type OkrWorkKind = "key_result" | "special_project";
+
+export type OkrWorkItem = {
+  id: string;
+  kind: OkrWorkKind;
+  level: OkrReferenceLevel;
+  quarter: string;
+  quarterLabel: string;
+  title: string;
+  shortTitle: string;
+  description: string;
+  objectiveTitle: string;
+  ownerLabel: string;
+  status: string;
+  statusLabel: string;
+  roles: string[];
+  unit: string;
+  currentValue: number | null;
+  targetValue: number | null;
+  progressPercent: number | null;
+  lastCheckIn: OkrLastCheckIn | null;
+  raci: OkrRaci;
+  milestones: OkrMilestone[];
+};
+
+export type OkrWindowData = {
+  employeeName: string;
+  quarterLabel: string | null;
+  allQuarters: boolean;
+  total: number;
+  items: OkrWorkItem[];
+};
+
+type OkrPersonLike = {
+  kind?: string;
+  name?: string;
+  displayName?: string;
+  label?: string;
+  email?: string;
+  employeeId?: number | string | null;
+};
+
+type OkrRaciLike = {
+  accountable?: OkrPersonLike[];
+  responsible?: OkrPersonLike[];
+  consulted?: OkrPersonLike[];
+  informed?: OkrPersonLike[];
+};
+
+type OkrCheckInLike = {
+  weekNumber?: number | null;
+  statusLabel?: string;
+  note?: string | null;
+  submittedAt?: string | null;
+  author?: OkrPersonLike | null;
+};
+
+type OkrMilestoneLike = {
+  id?: string;
+  title?: string;
+  status?: string;
+  weight?: number;
+};
+
+type OkrItemLike = {
+  id?: string;
+  title?: string;
+  longTitle?: string;
+  shortTitle?: string;
+  tier?: string;
+  status?: string;
+  statusLabel?: string;
+  roles?: string[];
+  unit?: string;
+  currentValue?: number | null;
+  targetValue?: number | null;
+  progressPercent?: number | null;
+  raci?: OkrRaciLike;
+  lastCheckIn?: OkrCheckInLike | null;
+  objective?: {
+    title?: string;
+    longTitle?: string;
+    shortTitle?: string;
+    owner?: OkrPersonLike | null;
+  } | null;
+  owner?: OkrPersonLike | null;
+  milestones?: OkrMilestoneLike[];
+};
+
+type OkrQuarterLike = {
+  name?: string;
+  quarter?: string;
+  keyResults?: OkrItemLike[];
+  specialProjects?: OkrItemLike[];
+};
+
+export type OkrEmployeePayload = {
+  employee?: {
+    displayName?: string;
+    email?: string;
+  } | null;
+  filter?: {
+    quarter?: string;
+    allQuarters?: boolean;
+  } | null;
+  quarters?: OkrQuarterLike[];
+};
+
+export function partyLabel(party: OkrPersonLike | null | undefined): string {
+  if (!party) return "";
+  if (party.kind === "label" && party.label?.trim()) return party.label.trim();
+  return (
+    party.displayName?.trim() ||
+    party.name?.trim() ||
+    party.label?.trim() ||
+    ""
+  );
 }
 
-function sameOrgUnit(left: string, right: string): boolean {
-  return scopeKey(left) === scopeKey(right) && scopeKey(left) !== "";
+/** Strip an optional NXT prefix and keep a positive HR employee id. */
+export function okrHrEmployeeId(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const raw = String(value).trim().replace(/^NXT/i, "");
+  const employeeId = Number(raw);
+  if (!Number.isInteger(employeeId) || employeeId <= 0) return null;
+  return employeeId;
 }
 
-function keyResult(
-  id: string,
-  text: string,
-  raci: Partial<OkrRaci>,
-): OkrKeyResult {
+export function mapRaciParties(
+  parties: OkrPersonLike[] | undefined,
+): OkrRaciParty[] {
+  return (parties ?? [])
+    .map((party) => ({
+      employeeId: okrHrEmployeeId(party.employeeId),
+      email: party.email?.trim() ?? "",
+      label: partyLabel(party),
+    }))
+    .filter((party) => party.employeeId != null || party.label);
+}
+
+export function raciSearchText(raci: OkrRaci): string {
+  return [
+    ...raci.accountable,
+    ...raci.responsible,
+    ...raci.consulted,
+    ...raci.informed,
+  ]
+    .flatMap((party) => [party.label, party.email])
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Prefer the directory name for a RACI person once their HR id matches. */
+export function resolveRaciParty(
+  party: OkrRaciParty,
+  directory: OkrDirectoryPerson[],
+): ResolvedOkrRaciParty {
+  const byId =
+    party.employeeId != null
+      ? directory.find((person) => person.employeeId === party.employeeId)
+      : undefined;
+  const email = party.email.trim().toLowerCase();
+  const byEmail =
+    !byId && email
+      ? directory.find((person) => person.email.trim().toLowerCase() === email)
+      : undefined;
+  const match = byId ?? byEmail;
+  if (match) {
+    return {
+      employeeId: match.employeeId,
+      name: match.fullName,
+      avatarUrl: match.avatarUrl,
+      linked: true,
+    };
+  }
   return {
-    id,
-    text,
-    raci: {
-      responsible: raci.responsible ?? [],
-      accountable: raci.accountable ?? [],
-      consulted: raci.consulted ?? [],
-      informed: raci.informed ?? [],
-    },
+    employeeId: party.employeeId,
+    name: party.label,
+    avatarUrl: "",
+    linked: false,
   };
 }
 
-function hasAllRead(viewer?: OkrReferenceViewer): boolean {
-  return (
-    hasSystemPermission(viewer?.permissions, "platform.read_all") ||
-    hasSystemPermission(viewer?.permissions, "platform.write_all")
-  );
+export function levelFromTier(tier?: string): OkrReferenceLevel {
+  const value = tier?.trim().toLowerCase() ?? "";
+  if (value.includes("company") || value.startsWith("t1")) return "company";
+  if (value.includes("wing") || value.startsWith("t4")) return "wing";
+  return "department";
 }
 
-/**
- * Mirrors OKR-platform RBAC: if the viewer could not see the OKR there,
- * they cannot see it here either.
- */
-export function canViewOkrReference(
-  reference: OkrReference,
-  viewer?: OkrReferenceViewer,
-  scope?: OkrReferenceScope,
-): boolean {
-  if (!viewer) return true;
-  if (hasAllRead(viewer)) return true;
-  if (reference.audience === "admins") return false;
-  if (reference.audience === "everyone" || reference.level === "company") {
-    return true;
-  }
+export function formatOkrMeasure(
+  value: number | null,
+  unit: string,
+): string | null {
+  if (value == null) return null;
+  const rounded = Number.isInteger(value) ? String(value) : value.toFixed(1);
+  if (unit === "%") return `${rounded}%`;
+  if (unit) return `${rounded} ${unit}`;
+  return rounded;
+}
 
-  const department = scope?.department ?? "";
+export function formatOkrRole(role: string): string {
+  return role
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function okrStatusTone(
+  status?: string,
+): "ok" | "warn" | "danger" | "muted" {
+  const value = status?.trim().toLowerCase() ?? "";
   if (
-    reference.audience === "department" ||
-    reference.audience === "wing" ||
-    reference.level === "department" ||
-    reference.level === "wing"
+    value === "on_track" ||
+    value === "done" ||
+    value === "completed" ||
+    value === "complete"
   ) {
-    return sameOrgUnit(viewer.department, department);
+    return "ok";
   }
-  return false;
+  if (value === "at_risk") return "warn";
+  if (value === "behind" || value === "blocked") return "danger";
+  return "muted";
 }
 
-export function listVisibleOkrReferences(
-  scope: OkrReferenceScope,
-  viewer?: OkrReferenceViewer,
-): OkrReference[] {
-  return listOkrReferences(scope).filter((reference) =>
-    canViewOkrReference(reference, viewer, scope),
-  );
+function mapCheckIn(
+  checkIn: OkrCheckInLike | null | undefined,
+): OkrLastCheckIn | null {
+  if (!checkIn) return null;
+  const weekNumber =
+    typeof checkIn.weekNumber === "number" ? checkIn.weekNumber : null;
+  return {
+    weekNumber,
+    statusLabel: checkIn.statusLabel?.trim() || "",
+    note: checkIn.note?.trim() || null,
+    submittedAt: checkIn.submittedAt?.trim() || null,
+    authorName: partyLabel(checkIn.author) || null,
+  };
 }
 
-/**
- * Temporary local feed for the read-only OKR surface. The UI depends only on
- * this contract, so the separate OKR platform API can replace this source
- * without changing goal storage or goal components.
- */
-export function listOkrReferences(scope: OkrReferenceScope): OkrReference[] {
-  const department = scope.department.trim();
-  const wing = scope.wing.trim();
+function mapRaci(raci: OkrRaciLike | undefined): OkrRaci {
+  return {
+    accountable: mapRaciParties(raci?.accountable),
+    responsible: mapRaciParties(raci?.responsible),
+    consulted: mapRaciParties(raci?.consulted),
+    informed: mapRaciParties(raci?.informed),
+  };
+}
 
-  const references: OkrReference[] = [
-    {
-      id: "company-customer-trust",
-      level: "company",
-      audience: "everyone",
-      title: `Strengthen customer trust across ${COMPANY_OKR_NAME}`,
-      description:
-        "Keep company-wide customer outcomes visible so team goals stay aligned with what FundedNext ships to clients.",
-      ownerLabel: `${COMPANY_OKR_NAME} leadership`,
-      keyResults: [
-        keyResult("company-nps", "Raise the company customer-trust score", {
-          responsible: ["Customer Experience"],
-          accountable: ["CEO office"],
-          consulted: ["Product", "Support"],
-          informed: ["All departments"],
-        }),
-        keyResult(
-          "company-reliability",
-          "Keep platform reliability above the company target",
-          {
-            responsible: ["Platform reliability"],
-            accountable: ["CTO"],
-            consulted: ["Engineering"],
-            informed: ["All departments"],
-          },
-        ),
-      ],
-    },
-    {
-      id: "company-operating-rhythm",
-      level: "company",
-      audience: "everyone",
-      title: `Tighten the ${COMPANY_OKR_NAME} operating rhythm`,
-      description:
-        "Make quarterly priorities, owners, and progress reviewable in one place across the company.",
-      ownerLabel: `${COMPANY_OKR_NAME} leadership`,
-      keyResults: [
-        keyResult(
-          "company-priorities",
-          "Publish one company priority list before each quarter",
-          {
-            responsible: ["PTR"],
-            accountable: ["COO"],
-            consulted: ["Department heads"],
-            informed: ["All employees"],
-          },
-        ),
-        keyResult(
-          "company-reviews",
-          "Complete leadership reviews on the published cadence",
-          {
-            responsible: ["Department heads"],
-            accountable: ["COO"],
-            consulted: ["PTR"],
-            informed: ["SLT"],
-          },
-        ),
-      ],
-    },
-    {
-      id: "company-capital-plan",
-      level: "company",
-      audience: "admins",
-      title: "Board capital allocation (leadership only)",
-      description:
-        "Confidential company capital plan. Hidden from anyone who cannot see it on the OKR platform.",
-      ownerLabel: `${COMPANY_OKR_NAME} board`,
-      keyResults: [
-        keyResult("company-capital", "Lock the quarterly capital envelope", {
-          responsible: ["Finance"],
-          accountable: ["CFO"],
-          consulted: ["CEO office"],
-          informed: ["Board"],
-        }),
-      ],
-    },
-  ];
+function mapWorkItem(
+  item: OkrItemLike,
+  kind: OkrWorkKind,
+  quarter: OkrQuarterLike,
+): OkrWorkItem | null {
+  const id = item.id?.trim();
+  const title = item.shortTitle?.trim() || item.title?.trim();
+  if (!id || !title) return null;
+  const quarterKey = quarter.quarter?.trim() || quarter.name?.trim() || "";
+  const longTitle = item.longTitle?.trim() || item.title?.trim() || "";
+  return {
+    id: `${kind}:${id}`,
+    kind,
+    level: levelFromTier(item.tier),
+    quarter: quarterKey,
+    quarterLabel: quarter.name?.trim() || quarterKey,
+    title,
+    shortTitle: title,
+    description: longTitle && longTitle !== title ? longTitle : "",
+    objectiveTitle:
+      item.objective?.shortTitle?.trim() ||
+      item.objective?.title?.trim() ||
+      "",
+    ownerLabel:
+      partyLabel(item.objective?.owner) || partyLabel(item.owner) || "",
+    status: item.status?.trim() || "",
+    statusLabel: item.statusLabel?.trim() || item.status?.trim() || "",
+    roles: Array.isArray(item.roles) ? item.roles.filter(Boolean) : [],
+    unit: item.unit?.trim() || "",
+    currentValue:
+      typeof item.currentValue === "number" ? item.currentValue : null,
+    targetValue:
+      typeof item.targetValue === "number" ? item.targetValue : null,
+    progressPercent:
+      typeof item.progressPercent === "number" ? item.progressPercent : null,
+    lastCheckIn: mapCheckIn(item.lastCheckIn),
+    raci: mapRaci(item.raci),
+    milestones: (item.milestones ?? [])
+      .map((milestone, index) => {
+        const milestoneId = milestone.id?.trim() || `${id}-ms-${index}`;
+        const milestoneTitle = milestone.title?.trim();
+        if (!milestoneTitle) return null;
+        return {
+          id: milestoneId,
+          title: milestoneTitle,
+          status: milestone.status?.trim() || "",
+          weight: typeof milestone.weight === "number" ? milestone.weight : 0,
+        };
+      })
+      .filter((milestone): milestone is OkrMilestone => milestone !== null),
+  };
+}
 
-  if (!department) return references;
+/** Flatten KRs and special projects into one window work list. */
+export function mapEmployeeOkrPayload(
+  payload: OkrEmployeePayload,
+): OkrWindowData {
+  const items = (payload.quarters ?? []).flatMap((quarter) => [
+    ...(quarter.keyResults ?? []).flatMap((item) => {
+      const mapped = mapWorkItem(item, "key_result", quarter);
+      return mapped ? [mapped] : [];
+    }),
+    ...(quarter.specialProjects ?? []).flatMap((item) => {
+      const mapped = mapWorkItem(item, "special_project", quarter);
+      return mapped ? [mapped] : [];
+    }),
+  ]);
 
-  const departmentKey = scopeKey(department);
-  references.push(
-    {
-      id: `${departmentKey}-customer-outcomes`,
-      level: "department",
-      audience: "department",
-      title: `Improve customer outcomes across ${department}`,
-      description:
-        "Focus the department on measurable customer value, faster feedback loops, and clearer ownership of outcomes.",
-      ownerLabel: `${department} leadership`,
-      keyResults: [
-        keyResult(
-          `${departmentKey}-outcome`,
-          "Improve the department’s primary customer outcome metric",
-          {
-            responsible: [`${department} squad leads`],
-            accountable: [`${department} head`],
-            consulted: ["Customer Experience"],
-            informed: [`${department} department`],
-          },
-        ),
-        keyResult(
-          `${departmentKey}-feedback`,
-          "Shorten the time from insight to delivered improvement",
-          {
-            responsible: [`${department} delivery`],
-            accountable: [`${department} head`],
-            consulted: ["Product"],
-            informed: [`${department} department`],
-          },
-        ),
-      ],
-    },
-    {
-      id: `${departmentKey}-operating-quality`,
-      level: "department",
-      audience: "department",
-      title: `Raise operating quality in ${department}`,
-      description:
-        "Make delivery more predictable while reducing avoidable rework and operational risk.",
-      ownerLabel: `${department} leadership`,
-      keyResults: [
-        keyResult(
-          `${departmentKey}-ontime`,
-          "Increase on-time delivery of committed priorities",
-          {
-            responsible: [`${department} delivery`],
-            accountable: [`${department} head`],
-            consulted: ["PMO"],
-            informed: [`${department} department`],
-          },
-        ),
-        keyResult(
-          `${departmentKey}-rework`,
-          "Reduce repeat issues caused by process gaps",
-          {
-            responsible: [`${department} quality`],
-            accountable: [`${department} head`],
-            consulted: ["Risk"],
-            informed: [`${department} department`],
-          },
-        ),
-      ],
-    },
-  );
-
-  if (!wing) return references;
-
-  const wingKey = scopeKey(wing);
-  return [
-    ...references,
-    {
-      id: `${departmentKey}-${wingKey}-delivery`,
-      level: "wing",
-      audience: "wing",
-      title: `Deliver ${wing} priorities predictably`,
-      description:
-        "Translate department outcomes into a focused wing plan with explicit metrics and dependable execution.",
-      ownerLabel: `${wing} wing`,
-      keyResults: [
-        keyResult(
-          `${wingKey}-commitments`,
-          "Deliver the wing’s committed quarterly priorities",
-          {
-            responsible: [`${wing} leads`],
-            accountable: [`${wing} owner`],
-            consulted: [`${department} head`],
-            informed: [`${wing} wing`],
-          },
-        ),
-        keyResult(
-          `${wingKey}-dependencies`,
-          "Keep dependencies and delivery risks visible",
-          {
-            responsible: [`${wing} delivery`],
-            accountable: [`${wing} owner`],
-            consulted: ["PMO"],
-            informed: [`${department} department`],
-          },
-        ),
-      ],
-    },
-    {
-      id: `${departmentKey}-${wingKey}-capability`,
-      level: "wing",
-      audience: "wing",
-      title: `Strengthen capability across ${wing}`,
-      description:
-        "Build the processes, skills, and shared standards needed for the wing to sustain stronger performance.",
-      ownerLabel: `${wing} wing`,
-      keyResults: [
-        keyResult(
-          `${wingKey}-standard`,
-          "Adopt one shared quality standard across the wing",
-          {
-            responsible: [`${wing} quality`],
-            accountable: [`${wing} owner`],
-            consulted: [`${department} quality`],
-            informed: [`${wing} wing`],
-          },
-        ),
-        keyResult(
-          `${wingKey}-gaps`,
-          "Close the highest-priority capability gaps",
-          {
-            responsible: [`${wing} leads`],
-            accountable: [`${wing} owner`],
-            consulted: ["People"],
-            informed: [`${wing} wing`],
-          },
-        ),
-      ],
-    },
-  ];
+  const filterQuarter = payload.filter?.quarter?.trim() || null;
+  return {
+    employeeName: payload.employee?.displayName?.trim() || "",
+    quarterLabel:
+      filterQuarter ||
+      items[0]?.quarterLabel ||
+      payload.quarters?.[0]?.name?.trim() ||
+      null,
+    allQuarters: payload.filter?.allQuarters === true,
+    total: items.length,
+    items,
+  };
 }

@@ -95,9 +95,13 @@ describe('GoalsTable nested measures', () => {
       }),
     )
 
-    expect(
-      screen.getByRole('link', { name: /dash.fn\/outcome/ }),
-    ).toHaveAttribute('href', 'https://dash.fn/outcome')
+    const link = screen.getByRole('link', {
+      name: 'Open proof at dash.fn/outcome',
+    })
+    expect(link).toHaveAttribute('href', 'https://dash.fn/outcome')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveClass('pd-goal-proof__url-btn', 'is-linked')
+    expect(link).not.toHaveTextContent('dash.fn')
   })
 
   it('highlights the measure that opened the goal window', () => {

@@ -1,20 +1,24 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 import {
   BarChart3,
   Building2,
   Check,
   Hand,
+  Info,
   Landmark,
+  Lightbulb,
   Minus,
+  MinusCircle,
   Plus,
   Scale,
   Shuffle,
-  Slash,
   UserCheck,
   type LucideIcon,
 } from 'lucide-react'
+import { Tooltip } from '@/components/ui'
 import {
   CALIBRATION_MODE_META,
+  CALIBRATION_SECTION_HINTS,
   distributionTotal,
   GRADE_BAND_META,
   GRADE_BAND_ORDER,
@@ -55,9 +59,45 @@ const MODE_ICONS: Record<CalibrationModeId, LucideIcon> = {
 }
 
 const RECOMMENDATION_ICONS: Record<GradeRecommendationId, LucideIcon> = {
-  none: Slash,
+  none: MinusCircle,
   manager_average: UserCheck,
   weighted: Scale,
+}
+
+function HintIcon({ content, label }: { content: string; label: string }) {
+  return (
+    <Tooltip content={content} side="top" portal delayMs={80}>
+      <button
+        type="button"
+        className="pd-help-icon"
+        aria-label={label}
+        onClick={(event: MouseEvent<HTMLButtonElement>) => {
+          event.stopPropagation()
+          event.preventDefault()
+        }}
+      >
+        <Info size={14} strokeWidth={2} aria-hidden />
+      </button>
+    </Tooltip>
+  )
+}
+
+function SectionHeading({
+  icon: Icon,
+  title,
+  hint,
+}: {
+  icon: LucideIcon
+  title: string
+  hint: string
+}) {
+  return (
+    <header className="pd-reviews-edit-card__head">
+      <Icon size={16} strokeWidth={1.75} aria-hidden />
+      <h3 className="pd-reviews-edit-section__title">{title}</h3>
+      <HintIcon content={hint} label={`About ${title}`} />
+    </header>
+  )
 }
 
 export function CalibrationEditPage({
@@ -124,10 +164,11 @@ export function CalibrationEditPage({
     >
       <div className="pd-reviews-calibration-edit__choices">
         <section className="pd-reviews-edit-section">
-          <header className="pd-reviews-edit-card__head">
-            <Shuffle size={16} strokeWidth={1.75} aria-hidden />
-            <h3 className="pd-reviews-edit-section__title">Calibrators</h3>
-          </header>
+          <SectionHeading
+            icon={Shuffle}
+            title="Calibrators"
+            hint={CALIBRATION_SECTION_HINTS.calibrators}
+          />
           <div
             className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
             role="listbox"
@@ -135,43 +176,52 @@ export function CalibrationEditPage({
           >
             {MODE_ORDER.map((id) => {
               const ModeIcon = MODE_ICONS[id]
+              const meta = CALIBRATION_MODE_META[id]
               return (
-                <button
+                <div
                   key={id}
-                  type="button"
-                  role="option"
-                  aria-selected={draft.calibrationMode === id}
                   className={[
                     'pd-reviews-choice-picker__option',
                     draft.calibrationMode === id ? 'is-selected' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  onClick={() =>
-                    setDraft((prev) => ({ ...prev, calibrationMode: id }))
-                  }
-                  title={CALIBRATION_MODE_META[id].description}
                 >
-                  <span className="pd-reviews-choice-picker__title">
-                    <span className="pd-reviews-choice-picker__label">
-                      <ModeIcon size={15} strokeWidth={1.9} aria-hidden />
-                      <strong>{CALIBRATION_MODE_META[id].label}</strong>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={draft.calibrationMode === id}
+                    className="pd-reviews-choice-picker__choice"
+                    onClick={() =>
+                      setDraft((prev) => ({ ...prev, calibrationMode: id }))
+                    }
+                  >
+                    <span className="pd-reviews-choice-picker__title">
+                      <span className="pd-reviews-choice-picker__label">
+                        <ModeIcon size={15} strokeWidth={1.9} aria-hidden />
+                        <strong>{meta.label}</strong>
+                      </span>
+                      {draft.calibrationMode === id ? (
+                        <Check size={15} strokeWidth={2.5} aria-hidden />
+                      ) : null}
                     </span>
-                    {draft.calibrationMode === id ? (
-                      <Check size={15} strokeWidth={2.5} aria-hidden />
-                    ) : null}
-                  </span>
-                </button>
+                  </button>
+                  <HintIcon
+                    content={meta.description}
+                    label={`About ${meta.label}`}
+                  />
+                </div>
               )
             })}
           </div>
         </section>
 
         <section className="pd-reviews-edit-section">
-          <header className="pd-reviews-edit-card__head">
-            <Slash size={18} strokeWidth={1.75} />
-            <h3 className="pd-reviews-edit-section__title">Recommendation</h3>
-          </header>
+          <SectionHeading
+            icon={Lightbulb}
+            title="Recommendation"
+            hint={CALIBRATION_SECTION_HINTS.recommendation}
+          />
           <div
             className="pd-reviews-choice-picker pd-reviews-choice-picker--tiles"
             role="listbox"
@@ -179,37 +229,45 @@ export function CalibrationEditPage({
           >
             {RECOMMENDATION_ORDER.map((id) => {
               const RecommendationIcon = RECOMMENDATION_ICONS[id]
+              const meta = GRADE_RECOMMENDATION_META[id]
               return (
-                <button
+                <div
                   key={id}
-                  type="button"
-                  role="option"
-                  aria-selected={draft.gradeRecommendation === id}
                   className={[
                     'pd-reviews-choice-picker__option',
                     draft.gradeRecommendation === id ? 'is-selected' : '',
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  onClick={() =>
-                    setDraft((prev) => ({ ...prev, gradeRecommendation: id }))
-                  }
-                  title={GRADE_RECOMMENDATION_META[id].description}
                 >
-                  <span className="pd-reviews-choice-picker__title">
-                    <span className="pd-reviews-choice-picker__label">
-                      <RecommendationIcon
-                        size={15}
-                        strokeWidth={1.9}
-                        aria-hidden
-                      />
-                      <strong>{GRADE_RECOMMENDATION_META[id].label}</strong>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={draft.gradeRecommendation === id}
+                    className="pd-reviews-choice-picker__choice"
+                    onClick={() =>
+                      setDraft((prev) => ({ ...prev, gradeRecommendation: id }))
+                    }
+                  >
+                    <span className="pd-reviews-choice-picker__title">
+                      <span className="pd-reviews-choice-picker__label">
+                        <RecommendationIcon
+                          size={15}
+                          strokeWidth={1.9}
+                          aria-hidden
+                        />
+                        <strong>{meta.label}</strong>
+                      </span>
+                      {draft.gradeRecommendation === id ? (
+                        <Check size={15} strokeWidth={2.5} aria-hidden />
+                      ) : null}
                     </span>
-                    {draft.gradeRecommendation === id ? (
-                      <Check size={15} strokeWidth={2.5} aria-hidden />
-                    ) : null}
-                  </span>
-                </button>
+                  </button>
+                  <HintIcon
+                    content={meta.description}
+                    label={`About ${meta.label}`}
+                  />
+                </div>
               )
             })}
           </div>
@@ -217,7 +275,13 @@ export function CalibrationEditPage({
       </div>
 
       <section className="pd-reviews-group-form__block">
-        <h3 className="pd-field__label">Senior leadership</h3>
+        <div className="pd-reviews-edit-card__head">
+          <h3 className="pd-field__label">Senior leadership</h3>
+          <HintIcon
+            content={CALIBRATION_SECTION_HINTS.seniorLeadership}
+            label="About Senior leadership"
+          />
+        </div>
         <p className="pd-reviews-flow__hint">
           People who sit in SLT calibration for this group.
         </p>
@@ -235,10 +299,11 @@ export function CalibrationEditPage({
       <section className="pd-reviews-edit-section">
         <header className="pd-reviews-distribution__header">
           <div>
-            <div className="pd-reviews-edit-card__head">
-              <BarChart3 size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-section__title">Distribution</h3>
-            </div>
+            <SectionHeading
+              icon={BarChart3}
+              title="Distribution"
+              hint={CALIBRATION_SECTION_HINTS.distribution}
+            />
           </div>
           <span
             className={[
@@ -268,6 +333,10 @@ export function CalibrationEditPage({
               <div className="pd-reviews-distribution__text">
                 <span className="pd-reviews-distribution__label">
                   {GRADE_BAND_META[id].label}
+                  <HintIcon
+                    content={GRADE_BAND_META[id].description}
+                    label={`About ${GRADE_BAND_META[id].label}`}
+                  />
                 </span>
               </div>
               <div className="pd-reviews-distribution__controls">

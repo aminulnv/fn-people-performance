@@ -89,15 +89,16 @@ export async function calibrateReviewPacket(
   return visiblePacket(response.packet)
 }
 
-export async function releaseReviewCycle(
+export async function releaseReviewGroup(
   cycleId: string,
+  groupId: string,
   target: 'managers' | 'employees',
 ): Promise<ReviewPacket[]> {
   if (useLocalReviewPackets()) {
-    return visiblePackets(releaseLocalPackets(cycleId, target))
+    return visiblePackets(releaseLocalPackets(cycleId, groupId, target))
   }
   const response = await apiFetch<{ packets: ReviewPacket[] }>(
-    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/release`,
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}/release`,
     { method: 'POST', body: { target } },
   )
   return visiblePackets(response.packets)

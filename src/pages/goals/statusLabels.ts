@@ -69,7 +69,7 @@ export function cycleIneligibilityEmptyState(
   if (reason === 'not_in_cycle') {
     return {
       title: 'Not in this cycle',
-      description: `${personName} is not assigned to a review group for this cycle.`,
+      description: `${personName} is not assigned to a group for this cycle.`,
     }
   }
   return {

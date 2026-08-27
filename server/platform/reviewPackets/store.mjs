@@ -410,8 +410,17 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
   }
 }
 
-export async function releaseReviewPackets(cycleId, target, platformUser) {
+export async function releaseReviewPackets(
+  cycleId,
+  groupId,
+  target,
+  platformUser,
+) {
   const toManagers = target === 'managers'
+  const cycle = await getReviewCycle(cycleId)
+  if (!cycle) throw new HttpError(404, 'Cycle not found')
+  const group = (cycle.groups ?? []).find((item) => item.id === groupId)
+  if (!group) throw new HttpError(404, 'Group not found')
   const client = await getPool().connect()
   try {
     await client.query('BEGIN')
@@ -425,11 +434,17 @@ export async function releaseReviewPackets(cycleId, target, platformUser) {
            updated_at = now()
        WHERE cycle_id = $1
          AND manager_overall_grade IS NOT NULL
+         AND employee_id IN (
+           SELECT employee_id
+           FROM platform.review_cycle_group_members
+           WHERE group_id = $4 AND cycle_id = $1
+         )
        RETURNING id, employee_id, cycle_id, published_overall_grade`,
       [
         cycleId,
         toManagers ? 'released_to_managers' : 'released_to_employees',
         toManagers,
+        groupId,
       ],
     )
     const actor = actorFromUser(platformUser)
@@ -444,7 +459,7 @@ export async function releaseReviewPackets(cycleId, target, platformUser) {
       summary: toManagers
         ? `Released grades to managers (${rows.length})`
         : `Released grades to employees (${rows.length})`,
-      metadata: { packetCount: rows.length },
+      metadata: { packetCount: rows.length, groupId },
       source: 'api',
     })
     for (const packet of rows) {

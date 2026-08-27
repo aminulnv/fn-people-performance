@@ -7,7 +7,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { ExternalLink, Link2 } from "lucide-react";
+import { Link2 } from "lucide-react";
 import { cx } from "@/lib/cx";
 import { proofLinkLabel, proofParts } from "@/lib/goals/proof";
 import {
@@ -265,14 +265,15 @@ export function MeasureProofReadout({
   return (
     <div className="pd-goal-proof-readout">
       <a
-        className="pd-goal-proof-readout__link"
+        className="pd-goal-proof__url-btn is-linked"
         href={href}
         target="_blank"
         rel="noopener noreferrer"
+        aria-label={`Open proof at ${proofLinkLabel(href)}`}
+        title={href}
         onClick={(event) => event.stopPropagation()}
       >
-        <ExternalLink size={12} strokeWidth={2.25} aria-hidden />
-        {proofLinkLabel(href)}
+        <Link2 size={16} strokeWidth={1.75} aria-hidden />
       </a>
     </div>
   );

@@ -6,7 +6,7 @@ import { normalizeCycleSettings } from '@/lib/reviews/demoData'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   describeEnabledFlow,
-  isCyclePublishStage,
+  isPublishStage,
   REVIEW_FLOW_STAGE_ORDER,
   REVIEW_STAGE_HINT,
   REVIEW_STAGE_LABEL,
@@ -23,6 +23,7 @@ import type {
 } from '@/lib/reviews/types'
 import { CycleModuleField, ModuleSettingsLock } from './CycleModulesFields'
 import { EditPageShell } from './EditPageShell'
+import { PublishStageControls } from './PublishStageControls'
 import { reviewFormSummary } from './ReviewFormSheet'
 import { StageWindowFields } from './StageDateTable'
 
@@ -95,14 +96,14 @@ export function useReviewSettingsDraft(
     setStagesConfig((prev) =>
       syncLegacyStageWindows({
         ...prev,
-        reviewStages: (prev.reviewStages ?? []).map((stage) =>
-          stage.id === id
-            ? {
-              ...stage,
-              [field]: parsed ?? { date, time: stage[field]?.time ?? '00:00' },
-            }
-            : stage,
-        ),
+        reviewStages: (prev.reviewStages ?? []).map((stage) => {
+          if (stage.id !== id) return stage
+          const next = parsed ?? { date, time: stage[field]?.time ?? '00:00' }
+          if (isPublishStage(id)) {
+            return { ...stage, start: next, end: next }
+          }
+          return { ...stage, [field]: next }
+        }),
       }),
     )
   }
@@ -249,28 +250,62 @@ export function ReviewSettingsEditPage({
                         </p>
                       </div>
                     </div>
-                    {isCyclePublishStage(id) ? null : stage.enabled ||
-                      !enabled ? (
+                    {stage.enabled || !enabled ? (
                       <div className="pd-reviews-stage-list__window">
-                        <StageWindowFields
-                          startLabel="Opens"
-                          endLabel="Closes"
-                          startValue={toUtcIso(
-                            stage.start ?? {
-                              date: cycle.startDate,
-                              time: '00:00',
-                            },
-                          )}
-                          endValue={toUtcIso(
-                            stage.end ??
+                        {isPublishStage(id) ? (
+                          <PublishStageControls
+                            cycleId={cycle.id}
+                            groupId={group.id}
+                            target={
+                              id === 'publish_managers'
+                                ? 'managers'
+                                : 'employees'
+                            }
+                            date={toUtcIso(
                               stage.start ?? {
                                 date: cycle.endDate,
                                 time: '00:00',
                               },
-                          )}
-                          onStartChange={(date) => setStageDate(id, 'start', date)}
-                          onEndChange={(date) => setStageDate(id, 'end', date)}
-                        />
+                            )}
+                            dateLabel={
+                              id === 'publish_managers'
+                                ? 'Managers visible from'
+                                : 'Employees visible from'
+                            }
+                            releaseLabel={
+                              id === 'publish_managers'
+                                ? 'Release to managers now'
+                                : 'Release to employees now'
+                            }
+                            onDateChange={(next) =>
+                              setStageDate(id, 'start', next)
+                            }
+                          />
+                        ) : (
+                          <StageWindowFields
+                            startLabel="Opens"
+                            endLabel="Closes"
+                            startValue={toUtcIso(
+                              stage.start ?? {
+                                date: cycle.startDate,
+                                time: '00:00',
+                              },
+                            )}
+                            endValue={toUtcIso(
+                              stage.end ??
+                                stage.start ?? {
+                                  date: cycle.endDate,
+                                  time: '00:00',
+                                },
+                            )}
+                            onStartChange={(date) =>
+                              setStageDate(id, 'start', date)
+                            }
+                            onEndChange={(date) =>
+                              setStageDate(id, 'end', date)
+                            }
+                          />
+                        )}
                       </div>
                     ) : null}
                   </li>

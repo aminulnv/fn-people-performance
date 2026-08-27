@@ -29,6 +29,7 @@ import { listActivityEvents } from './activity.mjs'
 import { registerReviewCycleRoutes } from './reviewCycles/routes.mjs'
 import { registerReviewPacketRoutes } from './reviewPackets/routes.mjs'
 import { registerGoalRoutes } from './goals/routes.mjs'
+import { registerOkrRoutes } from './okr/routes.mjs'
 import { registerRealtimeRoutes } from './realtime/routes.mjs'
 import { publishWrite } from './realtime/fromRequest.mjs'
 import {
@@ -358,4 +359,5 @@ export function registerPlatformRoutes(app) {
   registerReviewCycleRoutes(app)
   registerReviewPacketRoutes(app)
   registerGoalRoutes(app)
+  registerOkrRoutes(app)
 }

@@ -24,8 +24,8 @@ export const REVIEW_FLOW_STAGE_ORDER: ReviewStageId[] = REVIEW_STAGE_ORDER.filte
   (id) => id !== 'goals',
 )
 
-/** Cycle-wide release. Dates live on Publish results, not the group window. */
-export function isCyclePublishStage(id: ReviewStageId): boolean {
+/** Milestone stages: one visible-from date, not an open/close window. */
+export function isPublishStage(id: ReviewStageId): boolean {
   return id === 'publish_managers' || id === 'publish_employees'
 }
 
@@ -46,10 +46,8 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
   manager_review: 'The line manager rates the person and submits a grade.',
   calibration_hod_hrbp: 'HOD and HRBP align grades across the department.',
   calibration_slt: 'SLT reviews the department outcome with the HOD.',
-  publish_managers:
-    'Managers see the final grade first. The date is under Publish results on the cycle.',
-  publish_employees:
-    'Employees see their released grade. The date is under Publish results on the cycle.',
+  publish_managers: 'Line managers see the final grade first.',
+  publish_employees: 'People see their own final grade after managers.',
   appeal: 'Employee can leave a written record after release.',
 }
 

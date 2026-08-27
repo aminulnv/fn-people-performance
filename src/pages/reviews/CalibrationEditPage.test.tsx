@@ -70,6 +70,50 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
 }
 
 describe('CalibrationEditPage', () => {
+  it('explains every calibration option with an info icon', () => {
+    const { cycle, group } = sample()
+
+    render(
+      <CalibrationEditPage
+        cycle={cycle}
+        group={group}
+        onClose={() => {}}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'About Calibrators' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Manual' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Department owners' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Central calibration' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Recommendation' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About No recommendation' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Manager average' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Weighted scorecards' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Senior leadership' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Distribution' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Exceptional' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Exceeding' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Performing' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'About Developing' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'About Unsatisfactory' }),
+    ).toBeInTheDocument()
+  })
+
   it('notifies the parent after a successful save', () => {
     const { cycle, group } = sample()
     const onSuccess = vi.fn()

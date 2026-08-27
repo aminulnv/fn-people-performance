@@ -273,17 +273,17 @@ describe('CycleSettingsView', () => {
     expect(notice.parentElement).toBe(document.body)
   })
 
-  it('puts cycle-wide release on the cycle, not the people list', () => {
+  it('keeps publish results on the group, not the cycle page', () => {
     renderSettings()
 
     expect(
-      screen.getByRole('heading', { name: 'Publish results' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('heading', { name: 'Publish results' }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Release to managers now' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Release to managers now' }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Release to employees now' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: 'Release to employees now' }),
+    ).not.toBeInTheDocument()
   })
 })
