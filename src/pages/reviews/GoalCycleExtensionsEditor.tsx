@@ -166,7 +166,7 @@ export function GoalCycleExtensionsEditor({
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return [];
 
-    const peopleResults = activeEmployees
+    const peopleResults: PopulationSearchResult[] = activeEmployees
       .filter(
         (employee) =>
           !selectedEmployeeIds.includes(employee.employeeId) &&
@@ -214,7 +214,7 @@ export function GoalCycleExtensionsEditor({
       .sort(compareByNameRelevance)
       .slice(0, RESULT_LIMIT_PER_SECTION);
 
-    const departmentResults = organisation.departments
+    const departmentResults: PopulationSearchResult[] = organisation.departments
       .filter((department) =>
         includesQuery(
           [
@@ -257,7 +257,7 @@ export function GoalCycleExtensionsEditor({
       .sort(compareByNameRelevance)
       .slice(0, RESULT_LIMIT_PER_SECTION);
 
-    const teamResults = organisation.teams
+    const teamResults: PopulationSearchResult[] = organisation.teams
       .filter((team) =>
         includesQuery(
           [team.name, team.departmentName, team.manager?.fullName ?? ""],

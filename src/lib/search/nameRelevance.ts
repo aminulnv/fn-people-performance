@@ -38,11 +38,11 @@ export function compareByNameRelevance<
   return left.score - right.score || left.label.localeCompare(right.label)
 }
 
-export function compareGroupsByNameRelevance<T extends { score: number }>(
+export function compareGroupsByNameRelevance(
   sectionOrder: readonly string[],
 ): (
-  left: { section: string; items: T[] },
-  right: { section: string; items: T[] },
+  left: { section: string; items: readonly { score: number }[] },
+  right: { section: string; items: readonly { score: number }[] },
 ) => number {
   return (left, right) => {
     const leftScore = Math.min(...left.items.map((item) => item.score))
