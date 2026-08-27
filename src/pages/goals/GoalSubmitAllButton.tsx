@@ -62,21 +62,23 @@ export function GoalSubmitAllButton({
   }
 
   const button = (
-    <button
-      type="button"
-      className="pd-people__ghost-btn pd-people__ghost-btn--success"
-      disabled={disabled}
-      aria-describedby={blocked ? hintId : undefined}
-      onClick={requestSubmit}
-    >
-      <Send size={16} strokeWidth={1.75} aria-hidden />
-      {actionLabel}
+    <>
+      <button
+        type="button"
+        className="pd-people__ghost-btn pd-people__ghost-btn--success"
+        disabled={disabled}
+        aria-describedby={blocked ? hintId : undefined}
+        onClick={requestSubmit}
+      >
+        <Send size={16} strokeWidth={1.75} aria-hidden />
+        {actionLabel}
+      </button>
       {blocked ? (
         <span id={hintId} className="pd-sr-only">
           {blocked}
         </span>
       ) : null}
-    </button>
+    </>
   )
 
   return (
