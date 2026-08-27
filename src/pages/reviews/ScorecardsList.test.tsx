@@ -116,6 +116,19 @@ function renderList(hash = '') {
 }
 
 describe('ScorecardsList', () => {
+  it('filters scorecards from the Filters menu', async () => {
+    renderList('#everyone')
+
+    await screen.findByRole('link', { name: 'Casey Peer' })
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Employee' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Casey Peer' }))
+
+    expect(scorecardLink('Casey Peer')).toBeInTheDocument()
+    expect(scorecardLink('Riley Report')).toBeNull()
+    expect(screen.getByText('1 shown')).toBeInTheDocument()
+  })
+
   it('scopes the manager queue with My Reviews, My Reports, and Everyone', async () => {
     renderList()
 

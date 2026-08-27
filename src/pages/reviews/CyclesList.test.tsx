@@ -5,6 +5,7 @@ import {
   createReviewCycle,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
+import CycleDetailPage from '@/pages/CycleDetailPage'
 import { CyclesList } from './CyclesList'
 
 beforeAll(() => {
@@ -23,6 +24,22 @@ afterEach(() => {
 })
 
 describe('CyclesList', () => {
+  it('filters cycles from the Filters menu', () => {
+    resetReviewsStoreForTests()
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <CyclesList />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Type' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Custom' }))
+
+    expect(screen.getByText('0 shown')).toBeInTheDocument()
+  })
+
   it('opens a cycle when the row is clicked outside the name', () => {
     resetReviewsStoreForTests()
 
@@ -70,21 +87,55 @@ describe('CyclesList', () => {
     expect(await screen.findByText('Opened annual settings')).toBeInTheDocument()
   })
 
+  it('shows a success toast after adding a cycle', async () => {
+    resetReviewsStoreForTests()
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <Routes>
+          <Route path="/cycles" element={<CyclesList />} />
+          <Route
+            path="/cycles/:cycleId/:section"
+            element={<CycleDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Cycle' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('Name'), {
+      target: { value: 'New cycle' },
+    })
+    fireEvent.change(screen.getByLabelText('Starts'), {
+      target: { value: '2026-08-01T09:00' },
+    })
+    fireEvent.change(screen.getByLabelText('Ends'), {
+      target: { value: '2026-08-31T17:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Cycle created.')
+    expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'New cycle',
+    )
+  })
+
   it('nests included quarters under the annual and keeps unlinked cycles top-level', async () => {
     resetReviewsStoreForTests()
     await createReviewCycle({
       type: 'regular',
-      purpose: 'quarterly_checkin',
       periodKey: 'q1-2026',
     })
     await createReviewCycle({
       type: 'regular',
-      purpose: 'annual_appraisal',
       periodKey: 'annual-2026',
     })
     await createReviewCycle({
       type: 'regular',
-      purpose: 'quarterly_checkin',
       periodKey: 'q1-2025',
     })
 
@@ -128,5 +179,36 @@ describe('CyclesList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Expand Annual 2026' }))
     fireEvent.click(screen.getByRole('link', { name: /Q1 2026/ }))
     expect(screen.getByText('Opened nested cycle')).toBeInTheDocument()
+  })
+
+  it('shows a date-based status for custom cycles and filters them by kind', async () => {
+    resetReviewsStoreForTests()
+    await createReviewCycle({
+      type: 'custom',
+      name: 'Leadership Mid Year',
+      startDate: '2025-01-01',
+      endDate: '2025-01-31',
+    })
+
+    render(
+      <MemoryRouter initialEntries={['/cycles']}>
+        <Routes>
+          <Route path="/cycles" element={<CyclesList />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    const customRow = screen.getByRole('link', {
+      name: /Leadership Mid Year/,
+    }).closest('tr')
+    expect(customRow).toHaveTextContent('Custom')
+    expect(customRow).toHaveTextContent('Previous')
+    expect(customRow).not.toHaveTextContent('Manual')
+
+    fireEvent.click(screen.getByRole('button', { name: /Custom/ }))
+    expect(
+      screen.getByRole('link', { name: /Leadership Mid Year/ }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Q3 2026/ })).not.toBeInTheDocument()
   })
 })

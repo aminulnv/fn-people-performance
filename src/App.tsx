@@ -13,7 +13,10 @@ import {
   goalsDetailPath,
   goalsGoalPath,
 } from '@/pages/goals/goalHelpers'
-import { RequirePlatformWrite } from '@/layout/RequirePlatformWrite'
+import {
+  RequirePlatformRead,
+  RequirePlatformWrite,
+} from '@/layout/RequirePlatformWrite'
 import {
   GlobalRouteProgressComplete,
   NavigationProgressProvider,
@@ -23,6 +26,7 @@ const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
+const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
@@ -185,7 +189,11 @@ function App() {
               />
               <Route
                 path="analytics"
-                element={<ComingSoonPage page="analytics" />}
+                element={
+                  <RequirePlatformRead>
+                    <AnalyticsPage />
+                  </RequirePlatformRead>
+                }
               />
               <Route path="dashboard" element={<DashboardPage />} />
               <Route path="settings" element={<SettingsPage />} />

@@ -168,4 +168,41 @@ describe('distributeAutoWidths', () => {
     expect(layout.tableWidth).toBe(200)
     expect(layout.overflows).toBe(false)
   })
+
+  it('shares leftover width across every grow column', () => {
+    const layout = distributeAutoWidths(
+      [
+        { id: 'name', label: 'Name', grow: true },
+        { id: 'purpose', label: 'Purpose', grow: true },
+        { id: 'status', label: 'Status' },
+      ],
+      { name: 120, purpose: 100, status: 80 },
+      401,
+    )
+
+    expect(layout.widths).toEqual({ name: 170, purpose: 151, status: 80 })
+    expect(layout.tableWidth).toBe(401)
+    expect(layout.overflows).toBe(false)
+  })
+
+  it('gives more leftover width to heavier grow columns', () => {
+    const layout = distributeAutoWidths(
+      [
+        { id: 'name', label: 'Name', grow: true, growWeight: 3 },
+        { id: 'purpose', label: 'Purpose', grow: true },
+        { id: 'timeframe', label: 'Timeframe', grow: true },
+        { id: 'status', label: 'Status' },
+      ],
+      { name: 120, purpose: 100, timeframe: 100, status: 80 },
+      500,
+    )
+
+    expect(layout.widths).toEqual({
+      name: 180,
+      purpose: 120,
+      timeframe: 120,
+      status: 80,
+    })
+    expect(layout.tableWidth).toBe(500)
+  })
 })

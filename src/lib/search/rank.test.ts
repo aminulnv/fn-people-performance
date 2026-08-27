@@ -54,12 +54,51 @@ describe('scoreSearchItem', () => {
     expect(scoreSearchItem(catalog[0], 'ada missing')).toBeNull()
   })
 
-  it('boosts an exact employee id', () => {
-    const byId = scoreSearchItem(catalog[0], '1')
-    const byName = scoreSearchItem(catalog[0], 'Ada')
-    expect(byId).not.toBeNull()
+  it('ranks a name match above a manager-keyword match', () => {
+    const named = item({
+      id: 'person:tajrian',
+      kind: 'person',
+      scope: 'people',
+      label: 'Tajrian Rahman',
+      description: 'Manager I · Client Experience',
+      keywords: ['Client Experience'],
+    })
+    const report = item({
+      id: 'person:jessica',
+      kind: 'person',
+      scope: 'people',
+      label: 'Jessica Dehoedt',
+      description: 'Executive · Client Experience',
+      keywords: ['Client Experience', 'Tajrian Rahman'],
+    })
+    const byName = scoreSearchItem(named, 'tajrian')
+    const byManager = scoreSearchItem(report, 'tajrian')
     expect(byName).not.toBeNull()
-    expect(byId!.score).toBeGreaterThan(byName!.score)
+    expect(byManager).not.toBeNull()
+    expect(byName!.score).toBeGreaterThan(byManager!.score)
+  })
+
+  it('boosts an exact employee id above other numeric matches', () => {
+    const withId = item({
+      id: 'person:42',
+      kind: 'person',
+      scope: 'people',
+      label: 'Ada Lovelace',
+      keywords: ['42', 'ada@example.com'],
+    })
+    const withNumberInTitle = item({
+      id: 'person:7',
+      kind: 'person',
+      scope: 'people',
+      label: 'Grace Hopper',
+      description: 'Engineer · Team 42',
+      keywords: ['7'],
+    })
+    const byId = scoreSearchItem(withId, '42')
+    const byDescription = scoreSearchItem(withNumberInTitle, '42')
+    expect(byId).not.toBeNull()
+    expect(byDescription).not.toBeNull()
+    expect(byId!.score).toBeGreaterThan(byDescription!.score)
   })
 })
 
@@ -83,5 +122,45 @@ describe('presentSearchResults', () => {
     const presented = presentSearchResults(catalog, 'g: checkout', 'people')
     expect(presented.scope).toBe('goals')
     expect(presented.flat.map((entry) => entry.id)).toEqual(['goal:1'])
+  })
+
+  it('puts the named person first when reports also match the manager', () => {
+    const people: SearchItem[] = [
+      item({
+        id: 'person:jessica',
+        kind: 'person',
+        scope: 'people',
+        label: 'Jessica Dehoedt',
+        description: 'Executive · Client Experience',
+        keywords: ['Tajrian Rahman'],
+      }),
+      item({
+        id: 'person:pafsin',
+        kind: 'person',
+        scope: 'people',
+        label: 'Pafsin Akter Prithy',
+        description: 'Sr. Executive · Client Experience',
+        keywords: ['Tajrian Rahman'],
+      }),
+      item({
+        id: 'person:tajrian',
+        kind: 'person',
+        scope: 'people',
+        label: 'Tajrian Rahman',
+        description: 'Manager I · Client Experience',
+        keywords: ['Client Experience'],
+      }),
+      item({
+        id: 'goal:1',
+        kind: 'goal',
+        scope: 'goals',
+        label: 'Improve CX coverage',
+        description: 'Tajrian Rahman · Q3 2026',
+        keywords: ['Tajrian Rahman'],
+      }),
+    ]
+    const presented = presentSearchResults(people, 'tajrian', 'all')
+    expect(presented.flat[0]?.id).toBe('person:tajrian')
+    expect(presented.groups[0]?.id).toBe('person')
   })
 })

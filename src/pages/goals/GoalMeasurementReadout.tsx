@@ -6,6 +6,7 @@ import type { Goal, Metric } from '@/lib/goals/types'
 import type { MeasurementPanel } from '@/lib/goals/measurements'
 import { measurementPanels, todoMeasureItems } from '@/lib/goals/measurements'
 import { measurePanelName, measurePanelProgress } from '@/pages/goals/measurePanelDisplay'
+import { proofLinkLabel, proofParts } from '@/lib/goals/proof'
 import {
   formatMetricNumber,
   metricSummary,
@@ -13,7 +14,16 @@ import {
   type MetricTipDetails,
 } from './goalHelpers'
 
-export function GoalMetricTip({ tip }: { tip: MetricTipDetails }) {
+export function GoalMetricTip({
+  tip,
+  proofUrl,
+}: {
+  tip: MetricTipDetails
+  proofUrl?: string
+  comment?: string
+}) {
+  const proof = proofParts(proofUrl)
+
   return (
     <div className="pd-goals-table__metric-tip">
       <div className="pd-goals-table__metric-tip-title">{tip.title}</div>
@@ -34,6 +44,12 @@ export function GoalMetricTip({ tip }: { tip: MetricTipDetails }) {
           <span>Unit</span>
           <span>{tip.unit}</span>
         </div>
+        {proof.href ? (
+          <div className="pd-goals-table__metric-tip-row">
+            <span>Proof</span>
+            <span>{proofLinkLabel(proof.href)}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   )
@@ -376,7 +392,9 @@ export function GoalMetricReadout({
         target={target}
         currentControl={currentControl}
         showCaptions={showCaptions}
-        tooltip={<GoalMetricTip tip={tip} />}
+        tooltip={
+          <GoalMetricTip tip={tip} proofUrl={metric.proofUrl} />
+        }
       />
       {showWeight ? <GoalWeightReadout weight={metric.weight} /> : null}
     </div>

@@ -94,7 +94,11 @@ export function GoalCreateDrawer({
   useEffect(() => {
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    panelRef.current?.focus()
+    const autofocusField = panelRef.current?.querySelector<HTMLElement>(
+      '[data-autofocus]',
+    )
+    if (autofocusField) autofocusField.focus()
+    else panelRef.current?.focus()
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return

@@ -1,20 +1,26 @@
-import { Fragment, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
+  Briefcase,
+  Building2,
+  CalendarDays,
   ChevronDown,
   ChevronRight,
   CircleAlert,
   CircleCheck,
+  CircleDot,
   Clock3,
   FilePenLine,
   Plus,
   Search,
   Target,
   Undo2,
+  UserRound,
   Users,
 } from "lucide-react";
 import {
+  AttributeFilters,
   Avatar,
   Button,
   CountBadge,
@@ -27,6 +33,13 @@ import {
   SegmentedControl,
   type ResizableColumn,
 } from "@/components/ui";
+import {
+  matchesAttributeFilters,
+  uniqueAttributeValues,
+  uniqueLabeledAttributeValues,
+  type AttributeFilterMap,
+  type AttributeValue,
+} from "@/lib/filters/attributeFilters";
 import {
   appendGoalWithWeight,
   canSubmitGoals,
@@ -125,6 +138,7 @@ import {
 import { GoalSubmitAllButton } from "./goals/GoalSubmitAllButton";
 import {
   ReviewSaveBanner,
+  successNotice,
   type ReviewSaveNotice,
 } from "./reviews/ReviewSaveBanner";
 import { GoalEmptyActions } from "./goals/GoalEmptyActions";
@@ -208,6 +222,17 @@ function okrScopeFor(personId: string): OkrReferenceScope | undefined {
     department: employee.department,
     wing: employee.team,
   };
+}
+
+function persistThenNotify(
+  persist: () => Promise<boolean> | boolean | void | Promise<void>,
+  onSuccess: () => void,
+) {
+  return Promise.resolve(persist()).then((saved) => {
+    if (saved === false) return false;
+    onSuccess();
+    return true;
+  });
 }
 
 /** Bookmark tab that pulls the read-only OKRs out from behind the goal drawer. */
@@ -349,6 +374,10 @@ function GoalsOverviewGoalPanel({
     subjectId: personId,
     syncActiveSelection: false,
   });
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null);
+  const showOverviewGoalToast = (message: string) => {
+    setToastNotice(successNotice(message));
+  };
 
   const personCycle = subjectCycle ?? snapshot?.cycle;
   const ineligibility =
@@ -377,6 +406,10 @@ function GoalsOverviewGoalPanel({
     status: subjectGoals?.status ?? "draft",
     persistedGoals,
   });
+  const persistBaselineRef = useRef(persistedGoals);
+  if (!hasPromptableUnsavedGoalDraft(goals, persistedGoals)) {
+    persistBaselineRef.current = persistedGoals;
+  }
   const canEditDraft = Boolean(capabilities?.canEditStructure);
   const canManualSave =
     canEditDraft &&
@@ -385,7 +418,9 @@ function GoalsOverviewGoalPanel({
     void actions.saveGoals(personId, goals);
   };
   const unsavedClose = useGoalUnsavedClose({
-    dirty: canManualSave && hasPromptableUnsavedGoalDraft(goals, persistedGoals),
+    dirty:
+      canManualSave &&
+      hasPromptableUnsavedGoalDraft(goals, persistBaselineRef.current),
     onSaveDraft: persistDraft,
     onDiscard: () => setGoals(persistedGoals),
   });
@@ -443,10 +478,14 @@ function GoalsOverviewGoalPanel({
   };
   const replaceSelected = (next: Goal) =>
     goals.map((goal) => (goal.id === next.id ? next : goal));
-  const saveGoal = (next: Goal) => {
+  const saveGoal = (next: Goal, message = "Goal saved.") => {
     const updated = replaceSelected(next);
     setGoals(updated);
-    void actions.saveGoals(personId, updated);
+    persistBaselineRef.current = updated;
+    void persistThenNotify(
+      () => actions.saveGoals(personId, updated),
+      () => showOverviewGoalToast(message),
+    );
   };
   const canSubmitBatch =
     Boolean(capabilities?.canSubmit) &&
@@ -473,6 +512,10 @@ function GoalsOverviewGoalPanel({
         ) : null
       }
     >
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       {goalEditGuard}
       <GoalUnsavedCloseDialog
         open={unsavedClose.dialogOpen}
@@ -521,10 +564,36 @@ function GoalsOverviewGoalPanel({
             const updated = replaceSelected(next);
             setGoals(updated);
             const progressGoals = progressOnlyGoals(persistedGoals, updated);
-            if (progressGoals) void actions.saveProgress(personId, progressGoals);
+            if (progressGoals) {
+              void persistThenNotify(
+                () => actions.saveProgress(personId, progressGoals),
+                () => showOverviewGoalToast("Progress saved."),
+              );
+            }
           }}
           onAddComment={(text) => {
-            void actions.addComment(personId, selectedGoal.id, text);
+            void persistThenNotify(
+              () => actions.addComment(personId, selectedGoal.id, text),
+              () => showOverviewGoalToast("Comment added."),
+            );
+          }}
+          onUpdateComment={(commentId, text) => {
+            void persistThenNotify(
+              () =>
+                actions.updateComment(
+                  personId,
+                  selectedGoal.id,
+                  commentId,
+                  text,
+                ),
+              () => showOverviewGoalToast("Comment updated."),
+            );
+          }}
+          onRemoveComment={(commentId) => {
+            void persistThenNotify(
+              () => actions.removeComment(personId, selectedGoal.id, commentId),
+              () => showOverviewGoalToast("Comment deleted."),
+            );
           }}
           onSave={(next) => requestGoalEdit(() => saveGoal(next))}
           onDuplicate={
@@ -532,7 +601,9 @@ function GoalsOverviewGoalPanel({
               ? () => {
                 requestGoalEdit(() => {
                   void actions.duplicateGoal(personId, selectedGoal.id).then((copy) => {
-                    if (copy) onGoalChange(copy.id);
+                    if (!copy) return;
+                    onGoalChange(copy.id);
+                    showOverviewGoalToast("Goal duplicated.");
                   });
                 });
               }
@@ -542,7 +613,11 @@ function GoalsOverviewGoalPanel({
             canCascade
               ? (reportIds) => {
                 requestGoalEdit(() => {
-                  void actions.cascadeGoal(personId, selectedGoal.id, reportIds);
+                  void actions
+                    .cascadeGoal(personId, selectedGoal.id, reportIds)
+                    .then(() => {
+                      showOverviewGoalToast("Goal cascaded.");
+                    });
                 });
               }
               : undefined
@@ -551,7 +626,15 @@ function GoalsOverviewGoalPanel({
             canCascade
               ? (option) => {
                 requestGoalEdit(() => {
-                  void actions.linkCascadeTo(personId, selectedGoal.id, option);
+                  void persistThenNotify(
+                    () =>
+                      actions.linkCascadeTo(
+                        personId,
+                        selectedGoal.id,
+                        option,
+                      ),
+                    () => showOverviewGoalToast("Goal cascaded."),
+                  );
                 });
               }
               : undefined
@@ -560,10 +643,14 @@ function GoalsOverviewGoalPanel({
             canCascade
               ? (recipient) => {
                 requestGoalEdit(() => {
-                  void actions.unlinkCascadeTo(personId, selectedGoal.id, {
-                    personId: recipient.personId,
-                    goalId: recipient.goalId,
-                  });
+                  void persistThenNotify(
+                    () =>
+                      actions.unlinkCascadeTo(personId, selectedGoal.id, {
+                        personId: recipient.personId,
+                        goalId: recipient.goalId,
+                      }),
+                    () => showOverviewGoalToast("Cascade removed."),
+                  );
                 });
               }
               : undefined
@@ -572,9 +659,15 @@ function GoalsOverviewGoalPanel({
             canEditDraft
               ? () => {
                 requestGoalEdit(() => {
-                  void actions.saveGoals(
-                    personId,
-                    removeGoalKeepingWeights(goals, selectedGoal.id),
+                  const updated = removeGoalKeepingWeights(
+                    goals,
+                    selectedGoal.id,
+                  );
+                  setGoals(updated);
+                  persistBaselineRef.current = updated;
+                  void persistThenNotify(
+                    () => actions.saveGoals(personId, updated),
+                    () => showOverviewGoalToast("Goal deleted."),
                   );
                   onClose();
                 });
@@ -595,6 +688,9 @@ function GoalsOverview() {
   const snapshot = useSharedGoalsSnapshot();
   const cycleMembershipReady = useReviewCyclesHydrated();
   const [query, setQuery] = useState("");
+  const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
+    {},
+  );
   const [selectedCycleIds, setSelectedCycleIds] = useState<string[]>(() => [
     snapshot.cycle.id,
   ]);
@@ -793,6 +889,17 @@ function GoalsOverview() {
     return scopedRows
       .filter((row) => {
         if (!matchesStatusFilter(row.status, statusFilter)) return false;
+        if (
+          !matchesAttributeFilters(attributeFilters, {
+            owner: row.person.name.trim(),
+            cycle: row.cycleLabel.trim(),
+            goal: row.title.trim(),
+            department: row.person.department.trim(),
+            jobTitle: row.person.title.trim(),
+          })
+        ) {
+          return false;
+        }
         if (!normalizedQuery) return true;
         return [
           row.title,
@@ -832,7 +939,7 @@ function GoalsOverview() {
           sensitivity: "base",
         });
       });
-  }, [query, scopedRows, statusFilter]);
+  }, [attributeFilters, query, scopedRows, statusFilter]);
 
   const tableRows = useMemo(
     () => withOwnerRowSpans(filtered, expandedIds),
@@ -937,6 +1044,46 @@ function GoalsOverview() {
       },
     ];
 
+  const goalAttributes = useMemo(
+    () => [
+      { id: "owner", label: "Owner", icon: UserRound },
+      { id: "cycle", label: "Cycle", icon: CalendarDays },
+      { id: "goal", label: "Goal", icon: Target },
+      { id: "department", label: "Department", icon: Building2 },
+      { id: "jobTitle", label: "Job title", icon: Briefcase },
+      { id: "approval", label: "Approval", icon: CircleDot },
+    ],
+    [],
+  );
+
+  const goalAttributeValues = useMemo(
+    (): Record<string, AttributeValue[]> => ({
+      owner: uniqueAttributeValues(scopedRows.map((row) => row.person.name)),
+      cycle: uniqueAttributeValues(scopedRows.map((row) => row.cycleLabel)),
+      goal: uniqueAttributeValues(scopedRows.map((row) => row.title)),
+      department: uniqueAttributeValues(
+        scopedRows.map((row) => row.person.department),
+      ),
+      jobTitle: uniqueAttributeValues(scopedRows.map((row) => row.person.title)),
+      approval: uniqueLabeledAttributeValues(
+        scopedRows.map((row) => ({
+          value: row.status,
+          label: statusLabel(row.status),
+        })),
+      ),
+    }),
+    [scopedRows],
+  );
+
+  const selectedGoalFilters = useMemo(
+    () => ({
+      ...attributeFilters,
+      approval:
+        statusFilter && statusFilter !== "all" ? [statusFilter] : [],
+    }),
+    [attributeFilters, statusFilter],
+  );
+
   const isGoalsListPending =
     visibleScope === "mine"
       ? (!hydration.ownReady || !cycleMembershipReady) && ownGoalCount === 0
@@ -999,6 +1146,21 @@ function GoalsOverview() {
         </div>
 
         <div className="pd-people__toolbar">
+          <AttributeFilters
+            attributes={goalAttributes}
+            valuesFor={(id) => goalAttributeValues[id] ?? []}
+            selected={selectedGoalFilters}
+            onChange={(next) => {
+              const { approval, ...rest } = next;
+              if (approval?.length === 1) {
+                setStatusFilter(approval[0] as GoalsListFilter);
+              } else {
+                setStatusFilter(null);
+              }
+              setAttributeFilters(rest);
+            }}
+            sectionLabel="Goal attributes"
+          />
           <label className="pd-people__search pd-goals-overview__search">
             <Search size={16} strokeWidth={1.75} aria-hidden />
             <span className="pd-sr-only">Search goals</span>
@@ -1874,12 +2036,14 @@ export function GoalsPersonDetail({
       highlightMeasureKey={openMeasureKey}
       onOpenGoal={openGoal}
       onPersistGoals={(goals) => actions.saveGoals(active.id, goals)}
-      onPersistProgress={(goals) => {
-        void actions.saveProgress(active.id, goals);
-      }}
-      onAddComment={(goalId, text) => {
-        void actions.addComment(active.id, goalId, text);
-      }}
+      onPersistProgress={(goals) => actions.saveProgress(active.id, goals)}
+      onAddComment={(goalId, text) => actions.addComment(active.id, goalId, text)}
+      onUpdateComment={(goalId, commentId, text) =>
+        actions.updateComment(active.id, goalId, commentId, text)
+      }
+      onRemoveComment={(goalId, commentId) =>
+        actions.removeComment(active.id, goalId, commentId)
+      }
       onDuplicateGoal={(goalId) => actions.duplicateGoal(active.id, goalId)}
       previousCycleLabel={previousCycle?.label}
       onCopyPreviousGoals={() => actions.copyPreviousGoals(active.id)}
@@ -1979,9 +2143,9 @@ export function GoalsPersonDetail({
           onSendBackReason={setSendBackReason}
           busy={busy}
           onSaveGoals={(id, goals) => void actions.saveGoals(id, goals)}
-          onApprove={(id) => void actions.approve(id)}
+          onApprove={(id) => actions.approve(id)}
           onSendBack={(id) =>
-            void actions.sendBack(id, sendBackReason).then(() => {
+            actions.sendBack(id, sendBackReason).then(() => {
               setSendBackReason("");
             })
           }
@@ -1991,6 +2155,72 @@ export function GoalsPersonDetail({
       ) : null}
     </div>
   );
+}
+
+function reportCycleLock({
+  cycle,
+  cycleStatus,
+  person,
+  row,
+  canEditDraft,
+  canUpdateProgress,
+  lineManager,
+  skipLevelManager,
+}: {
+  cycle: GoalsSnapshot["cycle"];
+  cycleStatus: GoalsSnapshot["cycleStatus"];
+  person: GoalsSnapshot["people"][number];
+  row: PersonGoals;
+  canEditDraft: boolean;
+  canUpdateProgress: boolean;
+  lineManager?: { id?: string | null; name: string; avatarUrl?: string } | null;
+  skipLevelManager?: { id?: string | null; name: string; avatarUrl?: string } | null;
+}): { banner: ReactNode; spoken: string | null; preferLockBanner?: boolean } {
+  const ineligibility = cycleIneligibilityReason(person, cycle, row.status);
+  if (ineligibility) {
+    const empty = cycleIneligibilityEmptyState(person.name, ineligibility);
+    return {
+      banner: (
+        <CycleIneligibilityNotice
+          layout="ribbon"
+          personName={person.name}
+          reason={ineligibility}
+        />
+      ),
+      spoken: `${empty.title}. ${empty.description}`,
+      preferLockBanner: true,
+    };
+  }
+  if (canEditDraft) return { banner: null, spoken: null };
+  const args = {
+    cycle,
+    cycleStatus,
+    canUpdateProgress,
+    status: row.status,
+    postWindowApprovalStage: row.postWindowApprovalStage,
+    subject: person,
+    lineManagerName: lineManager?.name,
+    skipLevelManagerName: skipLevelManager?.name ?? null,
+  };
+  const segments = goalEditLockSegments(args);
+  if (!segments) return { banner: null, spoken: null };
+  const spoken = speakGoalEditLockSegments(segments, args);
+  return {
+    banner: (
+      <GoalEditLockNotice
+        layout="ribbon"
+        message={
+          <GoalLockSegments
+            segments={segments}
+            lineManager={lineManager}
+            skipLevelManager={skipLevelManager}
+          />
+        }
+        spoken={spoken}
+      />
+    ),
+    spoken,
+  };
 }
 
 function ManagerReportGoalsTable({
@@ -2003,9 +2233,11 @@ function ManagerReportGoalsTable({
   actorId,
   deadlinePassed,
   goalCountPolicy,
+  lockMessage,
   openGoalId,
   onOpen,
   onSaveGoals,
+  onGoalDeleted,
   busy = false,
 }: {
   cycleId: string;
@@ -2017,9 +2249,11 @@ function ManagerReportGoalsTable({
   actorId?: string;
   deadlinePassed: boolean;
   goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
+  lockMessage?: string | null;
   openGoalId: string | null;
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
+  onGoalDeleted?: () => void;
   busy?: boolean;
 }) {
   const reportApprovers = cascadeApprovers(cascadeFromFor(person.id));
@@ -2052,7 +2286,9 @@ function ManagerReportGoalsTable({
       onOpen(next[next.length - 1]?.id ?? null);
     });
   };
-  const showSubmitIssues = row.status === "draft" || row.status === "sent_back";
+  const showSubmitIssues =
+    canEditStructure &&
+    (row.status === "draft" || row.status === "sent_back");
   const submitCheck = canSubmitGoals(goals, goalCountPolicy);
   const submitBlockNotice =
     showSubmitIssues && !submitCheck.ok ? (
@@ -2103,6 +2339,7 @@ function ManagerReportGoalsTable({
           personName={person.name}
           canAdd={canEditStructure}
           busy={busy}
+          lockMessage={lockMessage}
           onAdd={canEditStructure ? addGoal : undefined}
         />
       </>
@@ -2177,6 +2414,7 @@ function ManagerReportGoalsTable({
               requestGoalEdit(() => {
                 persistNow(removeGoalKeepingWeights(goals, goalId));
                 if (openGoalId === goalId) onOpen(null);
+                onGoalDeleted?.();
               });
             }
             : undefined
@@ -2209,8 +2447,8 @@ function ManagerPanel({
   sendBackReason: string;
   onSendBackReason: (v: string) => void;
   busy: boolean;
-  onApprove: (id: string) => void;
-  onSendBack: (id: string) => void;
+  onApprove: (id: string) => void | Promise<void>;
+  onSendBack: (id: string) => void | Promise<void>;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   openedGoalId?: string | null;
   onOpenedGoalChange?: (goalId: string | null) => void;
@@ -2231,6 +2469,10 @@ function ManagerPanel({
     setOpenMeasureKey(next ? (measureKey ?? null) : null);
   };
   const [sendBackFor, setSendBackFor] = useState<string | null>(null);
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null);
+  const showSuccessToast = (message: string) => {
+    setToastNotice(successNotice(message));
+  };
   const active =
     reports.find((r) => r.row.goals.some((goal) => goal.id === openGoalId)) ??
     null;
@@ -2259,6 +2501,17 @@ function ManagerPanel({
           snapshot.cycle.phase === "hard_lock" &&
           !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
           snapshot.cycle.postWindowGoalPolicy === "two_tier_approval";
+        const canEditDraft = Boolean(reportCaps?.canEditStructure);
+        const lock = reportCycleLock({
+          cycle: snapshot.cycle,
+          cycleStatus: snapshot.cycleStatus,
+          person,
+          row,
+          canEditDraft,
+          canUpdateProgress: Boolean(reportCaps?.canUpdateProgress),
+          lineManager: reportApprovers.lineManager,
+          skipLevelManager: reportApprovers.skipLevelManager,
+        });
         return (
           <ReportGoalsCard
             key={person.id}
@@ -2280,29 +2533,39 @@ function ManagerPanel({
               setSendBackFor(sendBackFor === person.id ? null : person.id)
             }
             onSendBackReason={onSendBackReason}
-            onApprove={() => onApprove(person.id)}
+            onApprove={() => {
+              void Promise.resolve(onApprove(person.id)).then(() => {
+                showSuccessToast("Goals approved.");
+              });
+            }}
             onSendBack={() => {
-              onSendBack(person.id);
-              setSendBackFor(null);
+              void Promise.resolve(onSendBack(person.id)).then(() => {
+                showSuccessToast("Goals sent back.");
+                setSendBackFor(null);
+              });
             }}
             activityFilters={{
               cycleId: snapshot.cycle.id,
               subjectEmployeeId: Number(person.id),
             }}
+            lockBanner={lock.banner}
+            preferLockBanner={lock.preferLockBanner}
           >
             <ManagerReportGoalsTable
               cycleId={snapshot.cycle.id}
               person={person}
               row={row}
-              canEditStructure={Boolean(reportCaps?.canEditStructure)}
+              canEditStructure={canEditDraft}
               cascadeFromFor={cascadeFromFor}
               cascadeRecipientsFor={cascadeRecipientsFor}
               actorId={commentAuthorId}
               deadlinePassed={allowLateSubmissions}
               goalCountPolicy={snapshot.cycle.goalCountPolicy}
+              lockMessage={lock.spoken}
               openGoalId={openGoalId}
               onOpen={setOpenGoalId}
               onSaveGoals={onSaveGoals}
+              onGoalDeleted={() => showSuccessToast("Goal deleted.")}
               busy={busy}
             />
           </ReportGoalsCard>
@@ -2311,11 +2574,21 @@ function ManagerPanel({
     </>
   );
 
-  if (!active || !selectedGoal) return table;
+  const withToast = (
+    <>
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
+      {table}
+    </>
+  );
+
+  if (!active || !selectedGoal) return withToast;
 
   return (
     <>
-      {table}
+      {withToast}
       <GoalsOverviewGoalPanel
         cycleId={snapshot.cycle.id}
         personId={active.person.id}
@@ -2368,6 +2641,8 @@ function EmployeePanel({
   onPersistGoals,
   onPersistProgress,
   onAddComment,
+  onUpdateComment,
+  onRemoveComment,
   previousCycleLabel,
   onCopyPreviousGoals,
   onDuplicateGoal,
@@ -2424,8 +2699,10 @@ function EmployeePanel({
   onOpenGoal: (goalId: string | null, measureKey?: string) => void;
   onPersistGoals: (goals: Goal[]) => void | Promise<boolean | void>;
   /** Progress-only updates never send goals back for approval. */
-  onPersistProgress: (goals: Goal[]) => void;
+  onPersistProgress: (goals: Goal[]) => Promise<boolean> | boolean | void;
   onAddComment?: (goalId: string, text: string) => void;
+  onUpdateComment?: (goalId: string, commentId: string, text: string) => void;
+  onRemoveComment?: (goalId: string, commentId: string) => void;
   previousCycleLabel?: string;
   onCopyPreviousGoals: () => Promise<Goal | null>;
   onDuplicateGoal: (goalId: string) => Promise<Goal | null>;
@@ -2449,6 +2726,7 @@ function EmployeePanel({
       status: row.status,
       persistedGoals: row.goals,
     });
+  const persistBaselineRef = useRef(row.goals);
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(
     null,
   );
@@ -2470,7 +2748,10 @@ function EmployeePanel({
   });
   const { schedule: schedulePersist, flush: flushPersist } = useDebouncedGoalSave(
     (next) => {
-      void onPersistGoals(next);
+      persistBaselineRef.current = next;
+      void persistThenNotify(() => onPersistGoals(next), () => {
+        showSuccessToast("Goal saved.");
+      });
     },
   );
 
@@ -2481,9 +2762,9 @@ function EmployeePanel({
   const persistDraft = () => {
     flushPersist();
     const wasCreating = creatingIds.size > 0;
-    void Promise.resolve(onPersistGoals(goals)).then((saved) => {
-      if (saved === false) return;
-      if (wasCreating) showSuccessToast("Goal created.");
+    persistBaselineRef.current = goals;
+    void persistThenNotify(() => onPersistGoals(goals), () => {
+      showSuccessToast(wasCreating ? "Goal created." : "Goal saved.");
     });
     for (const goalId of creatingIds) stopCreating(goalId);
   };
@@ -2518,7 +2799,17 @@ function EmployeePanel({
 
   const setAndPersist = (next: Goal[]) => {
     setGoals(next);
+    persistBaselineRef.current = next;
     onPersistGoals(next);
+  };
+
+  const persistNamedGoals = (next: Goal[], message: string) => {
+    setGoals(next);
+    persistBaselineRef.current = next;
+    void persistThenNotify(
+      () => onPersistGoals(next),
+      () => showSuccessToast(message),
+    );
   };
 
   const addGoal = () => {
@@ -2529,7 +2820,9 @@ function EmployeePanel({
 
   const copyPreviousGoals = async () => {
     const firstCopiedGoal = await onCopyPreviousGoals();
-    if (firstCopiedGoal) onOpenGoal(firstCopiedGoal.id);
+    if (!firstCopiedGoal) return;
+    onOpenGoal(firstCopiedGoal.id);
+    showSuccessToast("Goals copied.");
   };
 
   const ownerFor = (goal: Goal) => resolveOwner(goal);
@@ -2646,7 +2939,31 @@ function EmployeePanel({
           onAddComment={
             isNew || !onAddComment
               ? undefined
-              : (text) => onAddComment(selectedGoal.id, text)
+              : (text) => {
+                  void persistThenNotify(
+                    () => onAddComment(selectedGoal.id, text),
+                    () => showSuccessToast("Comment added."),
+                  );
+                }
+          }
+          onUpdateComment={
+            isNew || !onUpdateComment
+              ? undefined
+              : (commentId, text) =>
+                  void persistThenNotify(
+                    () =>
+                      onUpdateComment(selectedGoal.id, commentId, text),
+                    () => showSuccessToast("Comment updated."),
+                  )
+          }
+          onRemoveComment={
+            isNew || !onRemoveComment
+              ? undefined
+              : (commentId) =>
+                  void persistThenNotify(
+                    () => onRemoveComment(selectedGoal.id, commentId),
+                    () => showSuccessToast("Comment deleted."),
+                  )
           }
           onDuplicate={
             isNew || !canDuplicate
@@ -2654,7 +2971,9 @@ function EmployeePanel({
               : () => {
                 requestGoalEdit(() => {
                   void onDuplicateGoal(selectedGoal.id).then((copy) => {
-                    if (copy) onOpenGoal(copy.id);
+                    if (!copy) return;
+                    onOpenGoal(copy.id);
+                    showSuccessToast("Goal duplicated.");
                   });
                 });
               }
@@ -2664,7 +2983,9 @@ function EmployeePanel({
               ? undefined
               : (reportIds) => {
                 requestGoalEdit(() => {
-                  void onCascadeGoal(selectedGoal.id, reportIds);
+                  void onCascadeGoal(selectedGoal.id, reportIds).then(() => {
+                    showSuccessToast("Goal cascaded.");
+                  });
                 });
               }
           }
@@ -2673,7 +2994,10 @@ function EmployeePanel({
               ? undefined
               : (option) => {
                 requestGoalEdit(() => {
-                  void onLinkCascadeTo(selectedGoal.id, option);
+                  void persistThenNotify(
+                    () => onLinkCascadeTo(selectedGoal.id, option),
+                    () => showSuccessToast("Goal cascaded."),
+                  );
                 });
               }
           }
@@ -2682,10 +3006,14 @@ function EmployeePanel({
               ? undefined
               : (recipient) => {
                 requestGoalEdit(() => {
-                  void onUnlinkCascadeTo(selectedGoal.id, {
-                    personId: recipient.personId,
-                    goalId: recipient.goalId,
-                  });
+                  void persistThenNotify(
+                    () =>
+                      onUnlinkCascadeTo(selectedGoal.id, {
+                        personId: recipient.personId,
+                        goalId: recipient.goalId,
+                      }),
+                    () => showSuccessToast("Cascade removed."),
+                  );
                 });
               }
           }
@@ -2696,23 +3024,28 @@ function EmployeePanel({
             setGoals(updated);
             if (isNew) return;
             const progressGoals = progressOnlyGoals(row.goals, updated);
-            if (progressGoals) onPersistProgress(progressGoals);
+            if (progressGoals) {
+              void persistThenNotify(
+                () => onPersistProgress(progressGoals),
+                () => showSuccessToast("Progress saved."),
+              );
+            }
           }}
           onSave={(next) => {
             const updated = goals.map((goal) =>
               goal.id === selectedGoal.id ? next : goal,
             );
-            if (isNew) {
-              void Promise.resolve(onPersistGoals(updated)).then((saved) => {
-                if (saved === false) return;
-                setGoals(updated);
+            if (creatingIds.has(selectedGoal.id)) {
+              setGoals(updated);
+              persistBaselineRef.current = updated;
+              void persistThenNotify(() => onPersistGoals(updated), () => {
                 stopCreating(selectedGoal.id);
                 onOpenGoal(selectedGoal.id);
                 showSuccessToast("Goal created.");
               });
               return;
             }
-            setAndPersist(updated);
+            persistNamedGoals(updated, "Goal saved.");
           }}
           onRemove={
             canEditDraft
@@ -2726,6 +3059,7 @@ function EmployeePanel({
                     );
                     setAndPersist(updated);
                     closeGoal();
+                    showSuccessToast("Goal deleted.");
                   });
                 }
               : undefined
@@ -2749,7 +3083,7 @@ function EmployeePanel({
           <GoalSubmitAllButton
             status={row.status}
             busy={busy}
-            reasons={submitCheck.reasons}
+            blockers={submitCheck.blockers}
             warning={submitCheck.warning}
             onSubmit={() => {
               const message =
@@ -2809,21 +3143,23 @@ function EmployeePanel({
       }
     />
   ) : null;
+  const lockBanner = ineligibility ? (
+    <CycleIneligibilityNotice
+      layout="ribbon"
+      personName={personName}
+      reason={ineligibility}
+    />
+  ) : editLock && !canEditDraft ? (
+    <GoalEditLockNotice
+      layout="ribbon"
+      message={editLockContent ?? editLock}
+      spoken={editLock}
+    />
+  ) : null;
   const ownerNotices = showsGoals ? (
     <div className="pd-goals__notices">
       {goals.length === 0 ? sendBackNotice : null}
       {goals.length === 0 ? submitBlockNotice : null}
-      {ineligibility ? (
-        <CycleIneligibilityNotice
-          personName={personName}
-          reason={ineligibility}
-        />
-      ) : editLock && !canEditDraft ? (
-        <GoalEditLockNotice
-          message={editLockContent ?? editLock}
-          spoken={editLock}
-        />
-      ) : null}
       {row.status === "incomplete" ? (
         <Notice tone="danger">
           No submission by Day 30 — flagged incomplete. Quarter score is 0.
@@ -2901,7 +3237,9 @@ function EmployeePanel({
           canCascade
             ? (goalId, reportIds) => {
               requestGoalEdit(() => {
-                void onCascadeGoal(goalId, reportIds);
+                void onCascadeGoal(goalId, reportIds).then(() => {
+                  showSuccessToast("Goal cascaded.");
+                });
               });
             }
             : undefined
@@ -2913,6 +3251,7 @@ function EmployeePanel({
                 const updated = removeGoalKeepingWeights(goals, goalId);
                 setAndPersist(updated);
                 if (openGoalId === goalId) onOpenGoal(null);
+                showSuccessToast("Goal deleted.");
               });
             }
             : undefined
@@ -2944,7 +3283,10 @@ function EmployeePanel({
             ? (next) => {
               requestGoalEdit(() => {
                 setGoals(next);
-                void onPersistGoals(next);
+                persistBaselineRef.current = next;
+                void persistThenNotify(() => onPersistGoals(next), () => {
+                  showSuccessToast("Goal saved.");
+                });
               });
             }
             : undefined
@@ -2970,7 +3312,12 @@ function EmployeePanel({
                   };
                 });
                 const progressGoals = progressOnlyGoals(row.goals, next);
-                if (progressGoals) onPersistProgress(progressGoals);
+                if (progressGoals) {
+                  void persistThenNotify(
+                    () => onPersistProgress(progressGoals),
+                    () => showSuccessToast("Progress saved."),
+                  );
+                }
                 return next;
               });
             }
@@ -2996,7 +3343,12 @@ function EmployeePanel({
                   };
                 });
                 const progressGoals = progressOnlyGoals(row.goals, next);
-                if (progressGoals) onPersistProgress(progressGoals);
+                if (progressGoals) {
+                  void persistThenNotify(
+                    () => onPersistProgress(progressGoals),
+                    () => showSuccessToast("Progress saved."),
+                  );
+                }
                 return next;
               });
             }
@@ -3043,6 +3395,8 @@ function EmployeePanel({
             cycleId,
             subjectEmployeeId: Number(personId),
           }}
+          lockBanner={lockBanner}
+          preferLockBanner={Boolean(ineligibility)}
         >
           {ownerNotices}
           {goalsBody}

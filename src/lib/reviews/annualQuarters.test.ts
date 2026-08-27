@@ -17,7 +17,6 @@ function cycle(
 ): ReviewCycle {
   return {
     type: "regular",
-    purpose: "quarterly_checkin",
     startDate: "2026-01-01",
     endDate: "2026-03-31",
     yearKey: "2026",
@@ -59,7 +58,6 @@ describe("usesAnnualLinkedQuarters", () => {
       id: "annual-2026",
       name: "Annual 2026",
       periodKey: "annual-2026",
-      purpose: "annual_appraisal",
       sourceLinks: [
         { sourceCycleId: "q1-2026", weightPercent: 25, excluded: false },
       ],
@@ -69,7 +67,7 @@ describe("usesAnnualLinkedQuarters", () => {
       usesAnnualLinkedQuarters({ ...annual, sourceLinks: [] }),
     ).toBe(false);
     expect(
-      usesAnnualLinkedQuarters({ ...annual, purpose: "quarterly_checkin" }),
+      usesAnnualLinkedQuarters({ ...annual, periodKey: "q1-2026" }),
     ).toBe(false);
     expect(
       usesAnnualLinkedQuarters(

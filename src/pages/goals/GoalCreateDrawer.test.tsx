@@ -16,6 +16,26 @@ afterEach(() => {
 })
 
 describe('GoalCreateDrawer', () => {
+  it('focuses an inner autofocus field instead of the dialog', () => {
+    render(
+      <GoalCreateDrawer onClose={() => undefined}>
+        <textarea data-autofocus aria-label="Goal name" />
+      </GoalCreateDrawer>,
+    )
+
+    expect(screen.getByLabelText('Goal name')).toHaveFocus()
+  })
+
+  it('focuses the dialog when no field asks for autofocus', () => {
+    render(
+      <GoalCreateDrawer onClose={() => undefined}>
+        <p>Goal fields</p>
+      </GoalCreateDrawer>,
+    )
+
+    expect(screen.getByRole('dialog', { name: 'Add goal' })).toHaveFocus()
+  })
+
   it('renders goal creation content in a dialog', () => {
     render(
       <GoalCreateDrawer onClose={() => undefined}>

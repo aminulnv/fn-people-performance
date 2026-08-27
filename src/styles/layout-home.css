@@ -4,60 +4,40 @@
   gap: 1.5rem;
 }
 
-/* Compact layout when two or more banners share the home view. */
+/* Slightly tighter when two or more banners share the home view. */
 .pd-page--home-multiple {
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .pd-page--home-multiple .pd-home-banner__surface {
-  min-height: 6rem;
+  min-height: 5.25rem;
 }
 
 .pd-page--home-multiple .pd-home-banner__body {
-  gap: clamp(0.5rem, 1.2vw, 1rem);
-  padding: clamp(0.625rem, 1.2vw, 0.875rem) clamp(0.75rem, 1.5vw, 1.25rem);
+  gap: clamp(0.5rem, 1.1vw, 0.875rem);
+  padding: clamp(0.5rem, 1.1vw, 0.75rem) clamp(0.75rem, 1.5vw, 1.25rem);
 }
 
 .pd-page--home-multiple .pd-home-banner__icon-wrap {
-  width: clamp(2.625rem, 4vw, 3.375rem);
-  height: clamp(2.625rem, 4vw, 3.375rem);
-}
-
-.pd-page--home-multiple .pd-home-banner__copy {
-  gap: 0.15rem;
+  width: clamp(2.25rem, 3.4vw, 2.75rem);
+  height: clamp(2.25rem, 3.4vw, 2.75rem);
 }
 
 .pd-page--home-multiple .pd-home-banner__title {
-  font-size: clamp(1.1rem, 1.8vw, 1.35rem);
-}
-
-.pd-page--home-multiple .pd-home-banner__subline {
-  font-size: clamp(0.8rem, 1.1vw, 0.9rem);
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
 }
 
 .pd-page--home-multiple .pd-home-banner__aside-primary {
-  font-size: clamp(1.375rem, 2.7vw, 2.25rem);
+  font-size: clamp(1.25rem, 2.4vw, 1.875rem);
 }
 
-.pd-page--home-multiple .pd-home-banner__aside-secondary {
-  font-size: clamp(0.85rem, 1.4vw, 1rem);
-}
-
-.pd-page--home-multiple .pd-home-banner--modify_goals .pd-home-banner__aside-primary {
-  font-size: clamp(1rem, 2.1vw, 1.625rem);
-}
-
-.pd-page--home-multiple .pd-home-banner--modify_goals .pd-home-banner__aside-secondary,
-.pd-page--home-multiple .pd-home-banner--update_progress .pd-home-banner__aside-secondary {
-  font-size: clamp(0.75rem, 1.2vw, 0.875rem);
+.pd-page--home-multiple .pd-home-banner--modify_goals .pd-home-banner__aside-primary,
+.pd-page--home-multiple .pd-home-banner--status .pd-home-banner__aside-primary {
+  font-size: clamp(1rem, 1.9vw, 1.375rem);
 }
 
 .pd-page--home-multiple .pd-home-banner--update_progress .pd-home-banner__aside-primary {
-  font-size: clamp(1.125rem, 2.4vw, 1.875rem);
-}
-
-.pd-page--home-multiple .pd-home-banner--status .pd-home-banner__aside-primary {
-  font-size: clamp(1rem, 2.1vw, 1.625rem);
+  font-size: clamp(1.05rem, 2.1vw, 1.5rem);
 }
 
 .pd-home-banner {
@@ -79,7 +59,7 @@
 .pd-home-banner__surface {
   position: relative;
   overflow: hidden;
-  min-height: 12rem;
+  min-height: 6.5rem;
   border-radius: inherit;
   background: linear-gradient(
     90deg,
@@ -105,9 +85,9 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: clamp(1rem, 2.4vw, 2rem);
+  gap: clamp(0.75rem, 1.6vw, 1.25rem);
   min-height: inherit;
-  padding: clamp(1.25rem, 2.4vw, 1.75rem) clamp(1.25rem, 3vw, 2.5rem);
+  padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2.2vw, 1.75rem);
 }
 
 .pd-home-banner--no-icon .pd-home-banner__body {
@@ -118,8 +98,8 @@
   display: grid;
   place-items: center;
   flex: 0 0 auto;
-  width: clamp(5.25rem, 8vw, 6.75rem);
-  height: clamp(5.25rem, 8vw, 6.75rem);
+  width: clamp(2.75rem, 4vw, 3.5rem);
+  height: clamp(2.75rem, 4vw, 3.5rem);
   color: color-mix(in srgb, var(--pd-home-banner-accent, var(--color-theme)) 78%, white);
 }
 
@@ -134,23 +114,23 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.35rem;
+  gap: 0.2rem;
   min-width: 0;
 }
 
 .pd-home-banner__title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: clamp(1.65rem, 2.6vw, 2.125rem);
+  font-size: clamp(1.2rem, 1.9vw, 1.5rem);
   font-weight: 800;
   letter-spacing: -0.03em;
-  line-height: 1.08;
+  line-height: 1.15;
   color: var(--color-white);
 }
 
 .pd-home-banner__subline {
   margin: 0;
-  font-size: clamp(0.95rem, 1.35vw, 1.125rem);
+  font-size: clamp(0.8125rem, 1.15vw, 0.9375rem);
   font-weight: 500;
   line-height: 1.35;
   color: color-mix(in srgb, white 88%, transparent);
@@ -188,37 +168,37 @@
 
 .pd-home-banner__aside-primary {
   font-family: var(--font-heading);
-  font-size: clamp(2.75rem, 5.4vw, 4.5rem);
+  font-size: clamp(1.625rem, 3vw, 2.25rem);
   font-weight: 800;
   letter-spacing: -0.04em;
-  line-height: 0.92;
+  line-height: 0.95;
 }
 
 .pd-home-banner__aside-secondary {
   font-family: var(--font-heading);
-  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  font-size: clamp(0.875rem, 1.5vw, 1.125rem);
   font-weight: 400;
   letter-spacing: -0.03em;
   line-height: 1;
 }
 
 .pd-home-banner--modify_goals .pd-home-banner__aside-primary {
-  font-size: clamp(2rem, 4.2vw, 3.25rem);
-  line-height: 0.95;
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
+  line-height: 1;
 }
 
 .pd-home-banner--modify_goals .pd-home-banner__aside-secondary,
 .pd-home-banner--update_progress .pd-home-banner__aside-secondary {
-  font-size: clamp(1.15rem, 2.1vw, 1.75rem);
+  font-size: clamp(0.75rem, 1.2vw, 0.9375rem);
 }
 
 .pd-home-banner--update_progress .pd-home-banner__aside-primary {
-  font-size: clamp(2.25rem, 4.8vw, 3.75rem);
+  font-size: clamp(1.375rem, 2.6vw, 1.875rem);
 }
 
 .pd-home-banner--status .pd-home-banner__aside-primary {
-  font-size: clamp(2rem, 4.2vw, 3.25rem);
-  line-height: 0.95;
+  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
+  line-height: 1;
 }
 
 @media (max-width: 760px) {
@@ -240,38 +220,34 @@
   }
 
   .pd-home-banner__aside-primary {
-    font-size: clamp(2rem, 9vw, 2.75rem);
+    font-size: clamp(1.25rem, 6vw, 1.625rem);
   }
 
   .pd-home-banner__aside-secondary {
-    font-size: clamp(1rem, 4.5vw, 1.35rem);
+    font-size: clamp(0.75rem, 3.5vw, 0.9375rem);
   }
 
   .pd-page--home-multiple .pd-home-banner__aside-primary {
-    font-size: clamp(1rem, 5vw, 1.375rem);
-  }
-
-  .pd-page--home-multiple .pd-home-banner__aside-secondary {
-    font-size: clamp(0.75rem, 3.5vw, 0.95rem);
+    font-size: clamp(1rem, 4.5vw, 1.25rem);
   }
 }
 
 @media (max-width: 480px) {
   .pd-home-banner__surface {
-    min-height: 10.5rem;
+    min-height: 5.75rem;
   }
 
   .pd-home-banner__icon-wrap {
-    width: clamp(4.75rem, 14vw, 5.5rem);
-    height: clamp(4.75rem, 14vw, 5.5rem);
+    width: clamp(2.5rem, 8vw, 3rem);
+    height: clamp(2.5rem, 8vw, 3rem);
   }
 
   .pd-page--home-multiple .pd-home-banner__surface {
-    min-height: 5.25rem;
+    min-height: 4.75rem;
   }
 
   .pd-page--home-multiple .pd-home-banner__icon-wrap {
-    width: clamp(2.375rem, 7vw, 2.75rem);
-    height: clamp(2.375rem, 7vw, 2.75rem);
+    width: clamp(2.125rem, 6.5vw, 2.5rem);
+    height: clamp(2.125rem, 6.5vw, 2.5rem);
   }
 }

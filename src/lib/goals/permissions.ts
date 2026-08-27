@@ -85,7 +85,7 @@ export function deriveGoalCapabilities(
   const { actor, subject, row, cycle, cycleStatus } = context;
   const eligible = isEligibleForCycle(subject, cycle);
   const mutable = canMutateGoalStatus(row.status);
-  const currentCycle = cycleStatus === "current" || cycleStatus === "manual";
+  const currentCycle = cycleStatus === "current";
   const windowOpen =
     cycle.phase === "window_open" ||
     (cycle.phase === "hard_lock" &&

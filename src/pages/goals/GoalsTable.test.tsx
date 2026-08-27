@@ -68,6 +68,38 @@ describe('GoalsTable nested measures', () => {
     expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(2)
   })
 
+  it('shows a proof link on the nested measure when one is saved', () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              measurements: [
+                {
+                  ...goalWithMeasures.measurements[0]!,
+                  proofUrl: 'https://dash.fn/outcome',
+                },
+                goalWithMeasures.measurements[1]!,
+              ],
+            },
+            title: goalWithMeasures.description,
+          },
+        ]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+
+    expect(
+      screen.getByRole('link', { name: /dash.fn\/outcome/ }),
+    ).toHaveAttribute('href', 'https://dash.fn/outcome')
+  })
+
   it('highlights the measure that opened the goal window', () => {
     const onOpen = vi.fn()
     const props = {

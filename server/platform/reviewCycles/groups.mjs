@@ -6,7 +6,7 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
-import { normalizeReviewPolicy } from './reviewConfig.mjs'
+import { cyclePurposeOf, normalizeReviewPolicy } from './reviewConfig.mjs'
 import {
   normalizeStagesConfig,
   validateCalibration,
@@ -20,10 +20,16 @@ function isoTimestamp(value) {
   return new Date(value).toISOString()
 }
 
-function isoDate(value) {
-  if (!value) return ''
-  if (value instanceof Date) return value.toISOString().slice(0, 10)
-  return String(value).slice(0, 10)
+function isoInstant(value) {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString()
+  }
+  const raw = String(value).trim()
+  if (!raw) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T00:00:00.000Z`
+  const instant = new Date(raw)
+  return Number.isNaN(instant.getTime()) ? '' : instant.toISOString()
 }
 
 function uniqueEmployeeIds(employeeIds) {
@@ -31,9 +37,12 @@ function uniqueEmployeeIds(employeeIds) {
 }
 
 export function mapCycleGroup(row, memberIds = [], quarter) {
-  const startDate = isoDate(quarter?.startDate ?? row.start_date)
-  const endDate = isoDate(quarter?.endDate ?? row.end_date)
-  const purpose = quarter?.purpose ?? row.purpose ?? 'quarterly_checkin'
+  const startDate = isoInstant(quarter?.startDate ?? row.start_date)
+  const endDate = isoInstant(quarter?.endDate ?? row.end_date)
+  const purpose = cyclePurposeOf({
+    periodKey: quarter?.periodKey ?? row.period_key,
+    type: quarter?.type ?? row.cycle_type,
+  })
   return {
     id: row.id,
     cycleId: row.cycle_id,
@@ -65,7 +74,8 @@ export async function loadGroupsForCycles(client, cycleIds) {
     `SELECT group_row.*,
             cycle.start_date,
             cycle.end_date,
-            cycle.purpose
+            cycle.period_key,
+            cycle.cycle_type
      FROM platform.review_cycle_groups group_row
      JOIN platform.review_cycles cycle ON cycle.id = group_row.cycle_id
      WHERE group_row.cycle_id = ANY($1::text[])
@@ -94,7 +104,8 @@ export async function loadGroupsForCycles(client, cycleIds) {
     const group = mapCycleGroup(row, membersByGroup.get(row.id) ?? [], {
       startDate: row.start_date,
       endDate: row.end_date,
-      purpose: row.purpose,
+      periodKey: row.period_key,
+      type: row.cycle_type,
     })
     const list = groupsByCycle.get(row.cycle_id) ?? []
     list.push(group)
@@ -155,7 +166,15 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
       input.settings.postWindowGoalPolicy,
       Boolean(input.settings.autoScorecardGeneration),
       JSON.stringify(input.calibration),
-      JSON.stringify(normalizeReviewPolicy(input.settings.reviewPolicy, input.purpose)),
+      JSON.stringify(
+        normalizeReviewPolicy(
+          input.settings.reviewPolicy,
+          cyclePurposeOf({
+            periodKey: input.periodKey,
+            type: input.type,
+          }),
+        ),
+      ),
       actor.actorEmployeeId,
     ],
   )
@@ -168,6 +187,8 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
   const group = mapCycleGroup(rows[0], memberIds, {
     startDate: input.startDate,
     endDate: input.endDate,
+    periodKey: input.periodKey,
+    type: input.type,
   })
   await appendActivityEvent(client, {
     eventKey: 'review_cycle.group_created',
@@ -202,7 +223,8 @@ function actorFromUser(platformUser) {
 
 async function getGroupRow(client, cycleId, groupId, { forUpdate = false } = {}) {
   const { rows } = await client.query(
-    `SELECT group_row.*, cycle.start_date, cycle.end_date, cycle.purpose
+    `SELECT group_row.*, cycle.start_date, cycle.end_date,
+            cycle.period_key, cycle.cycle_type
      FROM platform.review_cycle_groups group_row
      JOIN platform.review_cycles cycle ON cycle.id = group_row.cycle_id
      WHERE group_row.id = $1
@@ -228,7 +250,12 @@ async function loadGroup(client, cycleId, groupId) {
   return mapCycleGroup(
     row,
     rows.map((item) => Number(item.employee_id)),
-    { startDate: row.start_date, endDate: row.end_date, purpose: row.purpose },
+    {
+      startDate: row.start_date,
+      endDate: row.end_date,
+      periodKey: row.period_key,
+      type: row.cycle_type,
+    },
   )
 }
 
@@ -238,8 +265,8 @@ export async function createCycleGroup(cycleId, input, platformUser) {
   try {
     await client.query('BEGIN')
     const { rows } = await client.query(
-      `SELECT id, start_date, end_date, stages_config, review_types,
-              goal_count_policy, post_window_goal_policy,
+      `SELECT id, start_date, end_date, period_key, cycle_type, stages_config,
+              review_types, goal_count_policy, post_window_goal_policy,
               auto_scorecard_generation, calibration_config
        FROM platform.review_cycles
        WHERE id = $1 AND deleted_at IS NULL
@@ -252,8 +279,10 @@ export async function createCycleGroup(cycleId, input, platformUser) {
     const cloned = {
       name: input.name,
       memberIds: input.memberIds,
-      startDate: isoDate(cycle.start_date),
-      endDate: isoDate(cycle.end_date),
+      startDate: isoInstant(cycle.start_date),
+      endDate: isoInstant(cycle.end_date),
+      periodKey: cycle.period_key,
+      type: cycle.cycle_type,
       stagesConfig: input.stagesConfig ?? cycle.stages_config,
       settings: input.settings ?? {
         reviewTypes: cycle.review_types,
@@ -304,7 +333,10 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
         before.settings.autoScorecardGeneration,
       reviewPolicy: normalizeReviewPolicy(
         patch.reviewPolicy ?? before.settings.reviewPolicy,
-        row.purpose,
+        cyclePurposeOf({
+          periodKey: row.period_key,
+          type: row.cycle_type,
+        }),
       ),
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)
@@ -318,8 +350,8 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
 
     const stagesConfig = patch.stagesConfig
       ? normalizeStagesConfig(patch.stagesConfig, {
-          startDate: isoDate(row.start_date),
-          endDate: isoDate(row.end_date),
+          startDate: isoInstant(row.start_date),
+          endDate: isoInstant(row.end_date),
         })
       : before.stagesConfig
     if (patch.stagesConfig) validateCycleStagesConfig(stagesConfig)
@@ -451,8 +483,8 @@ export async function copyCycleGroups(sourceCycleId, targetCycleId, platformUser
         {
           name: group.name,
           memberIds: group.memberIds,
-          startDate: isoDate(targetRows[0].start_date),
-          endDate: isoDate(targetRows[0].end_date),
+          startDate: isoInstant(targetRows[0].start_date),
+          endDate: isoInstant(targetRows[0].end_date),
           stagesConfig: group.stagesConfig,
           settings: group.settings,
           calibration: group.calibration,

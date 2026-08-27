@@ -9,7 +9,7 @@ export type CycleListNode = {
 /**
  * Nest source cycles under the annual that includes them. A cycle is claimed
  * by at most one annual (newer year first). Unlinked cycles stay top-level.
- * Root order is the input order; children sort by start date.
+ * Root order is the input order; children sort by start date, latest first.
  */
 export function nestCyclesForList(cycles: ReviewCycle[]): CycleListNode[] {
   const byId = new Map(cycles.map((cycle) => [cycle.id, cycle]))
@@ -36,9 +36,9 @@ export function nestCyclesForList(cycles: ReviewCycle[]): CycleListNode[] {
       children.push(child)
     }
     children.sort((left, right) => {
-      const start = left.startDate.localeCompare(right.startDate)
+      const start = right.startDate.localeCompare(left.startDate)
       if (start !== 0) return start
-      return left.name.localeCompare(right.name)
+      return right.name.localeCompare(left.name)
     })
     childrenByParent.set(annual.id, children)
   }

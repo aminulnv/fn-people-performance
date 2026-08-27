@@ -50,6 +50,30 @@ describe('classifyGoalUpdate', () => {
     assert.equal(result.changes[0].to, 'On track for the quarter.')
   })
 
+  it('emits a comment updated event when only the text changes', () => {
+    const previous = {
+      ...baseGoal,
+      comments: [{ id: 'c1', text: 'On track for the quarter.' }],
+    }
+    const result = classifyGoalUpdate(previous, {
+      ...previous,
+      comments: [{ id: 'c1', text: 'Still on track.' }],
+    })
+    assert.equal(result.eventKey, 'goal.comment_updated')
+    assert.equal(result.changes[0].from, 'On track for the quarter.')
+    assert.equal(result.changes[0].to, 'Still on track.')
+  })
+
+  it('emits a comment deleted event when a comment is removed', () => {
+    const previous = {
+      ...baseGoal,
+      comments: [{ id: 'c1', text: 'On track for the quarter.' }],
+    }
+    const result = classifyGoalUpdate(previous, { ...previous, comments: [] })
+    assert.equal(result.eventKey, 'goal.comment_deleted')
+    assert.equal(result.changes[0].from, 'On track for the quarter.')
+  })
+
   it('emits a milestone completed event', () => {
     const previous = {
       ...baseGoal,

@@ -13,13 +13,20 @@ import {
   Search,
 } from 'lucide-react'
 import {
+  AttributeFilters,
   EmptyState,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
+import {
+  matchesAttributeFilters,
+  uniqueAttributeValues,
+  type AttributeFilterMap,
+  type AttributeValue,
+} from '@/lib/filters/attributeFilters'
 import { nestCyclesForList } from '@/lib/reviews/cycleList'
-import { formatDateRange } from '@/lib/reviews/periods'
-import { cyclePurposeOf, PURPOSE_LABEL } from '@/lib/reviews/purpose'
+import { formatLocalDateRange } from '@/lib/dates/timezone'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { cycleDetailPath } from '@/lib/reviews/paths'
 import { sortCyclesForList } from '@/lib/reviews/store'
 import {
@@ -27,22 +34,44 @@ import {
   resolveCycleStatus,
 } from '@/lib/reviews/status'
 import type { ReviewCycle, ReviewCycleStatus } from '@/lib/reviews/types'
-import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 import { AddReviewCycleModal } from './AddReviewCycleModal'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  useLocationSaveNotice,
+} from './ReviewSaveBanner'
 
-type CycleStatusFilter = 'all' | ReviewCycleStatus
+type CycleListFilter = 'all' | ReviewCycleStatus | 'custom'
 
 export function CyclesList() {
   const navigate = useNavigate()
+  const [toastNotice, setToastNotice] = useLocationSaveNotice()
   const { cycles } = useReviewsSnapshot()
+  const cyclesHydrated = useReviewCyclesHydrated()
   const [query, setQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
-  const [statusFilter, setStatusFilter] = useState<CycleStatusFilter | null>(
+  const [statusFilter, setStatusFilter] = useState<CycleListFilter | null>(
     null,
+  )
+  const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
+    {},
   )
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
-  function toggleStatusFilter(next: CycleStatusFilter) {
+  const cycleAttributes = useMemo(
+    () => [
+      { id: 'name', label: 'Name', icon: CalendarDays },
+      { id: 'type', label: 'Type', icon: Layers },
+      { id: 'status', label: 'Status', icon: CircleCheck },
+    ],
+    [],
+  )
+
+  function toggleStatusFilter(next: CycleListFilter) {
     setStatusFilter((current) => (current === next ? null : next))
   }
 
@@ -69,15 +98,58 @@ export function CyclesList() {
       current: statuses.filter((status) => status === 'current').length,
       future: statuses.filter((status) => status === 'future').length,
       previous: statuses.filter((status) => status === 'previous').length,
-      manual: statuses.filter((status) => status === 'manual').length,
+      custom: sorted.filter((cycle) => cycle.type !== 'regular').length,
     }
   }, [sorted])
+
+  const cycleAttributeValues = useMemo(
+    (): Record<string, AttributeValue[]> => ({
+      name: uniqueAttributeValues(sorted.map((cycle) => cycle.name)),
+      type: [
+        { value: 'regular', label: 'Scheduled' },
+        { value: 'custom', label: 'Custom' },
+      ],
+      status: [
+        { value: 'future', label: 'Future' },
+        { value: 'current', label: 'Current' },
+        { value: 'previous', label: 'Previous' },
+      ],
+    }),
+    [sorted],
+  )
+
+  const selectedCycleFilters = useMemo(() => {
+    const next = { ...attributeFilters }
+    if (statusFilter === 'current' || statusFilter === 'future' || statusFilter === 'previous') {
+      next.status = [statusFilter]
+    } else if (statusFilter === 'all') {
+      next.status = ['future', 'current', 'previous']
+    } else if (statusFilter === 'custom') {
+      next.type = ['custom']
+    }
+    return next
+  }, [attributeFilters, statusFilter])
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return sorted.filter((cycle) => {
       const status = resolveCycleStatus(cycle)
-      if (statusFilter && statusFilter !== 'all' && status !== statusFilter) {
+      if (statusFilter === 'custom') {
+        if (cycle.type === 'regular') return false
+      } else if (
+        statusFilter &&
+        statusFilter !== 'all' &&
+        status !== statusFilter
+      ) {
+        return false
+      }
+      if (
+        !matchesAttributeFilters(attributeFilters, {
+          name: cycle.name.trim(),
+          type: cycle.type === 'regular' ? 'regular' : 'custom',
+          status,
+        })
+      ) {
         return false
       }
       if (!q) return true
@@ -85,15 +157,14 @@ export function CyclesList() {
       const haystack = [
         cycle.name,
         cycle.type,
-        PURPOSE_LABEL[cycle.purpose ?? 'quarterly_checkin'],
         statusLabel,
-        formatDateRange(cycle.startDate, cycle.endDate),
+        formatLocalDateRange(cycle.startDate, cycle.endDate),
       ]
         .join(' ')
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [query, sorted, statusFilter])
+  }, [attributeFilters, query, sorted, statusFilter])
 
   const tree = useMemo(() => nestCyclesForList(filtered), [filtered])
   const searchOpen = query.trim().length > 0
@@ -114,17 +185,22 @@ export function CyclesList() {
         label: 'Cycle name',
         name: 'Cycle name',
         grow: true,
+        growWeight: 3,
+        minWidth: 280,
       },
-      { id: 'purpose', label: 'Purpose' },
-      { id: 'cycle-type', label: 'Kind' },
-      { id: 'timeframe', label: 'Timeframe' },
-      { id: 'status', label: 'Status' },
+      { id: 'cycle-type', label: 'Type', minWidth: 108 },
+      { id: 'timeframe', label: 'Timeframe', grow: true, minWidth: 148 },
+      { id: 'status', label: 'Status', minWidth: 108 },
     ],
     [],
   )
 
   return (
     <div className="pd-reviews-cycles">
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
@@ -202,18 +278,18 @@ export function CyclesList() {
           type="button"
           className={[
             'pd-people__summary-btn',
-            statusFilter === 'manual' ? 'is-active' : '',
+            statusFilter === 'custom' ? 'is-active' : '',
           ]
             .filter(Boolean)
             .join(' ')}
-          aria-pressed={statusFilter === 'manual'}
-          onClick={() => toggleStatusFilter('manual')}
+          aria-pressed={statusFilter === 'custom'}
+          onClick={() => toggleStatusFilter('custom')}
         >
           <span className="pd-people__summary-label">
             <Building2 size={14} strokeWidth={1.75} aria-hidden />
-            Ad-hoc
+            Custom
           </span>
-          <span className="pd-people__summary-value">{stats.manual}</span>
+          <span className="pd-people__summary-value">{stats.custom}</span>
         </button>
       </div>
 
@@ -233,11 +309,38 @@ export function CyclesList() {
         </div>
 
         <div className="pd-people__bar-end">
-          {filtered.length !== sorted.length || statusFilter ? (
+          {filtered.length !== sorted.length ||
+          statusFilter ||
+          Object.keys(attributeFilters).length > 0 ? (
             <p className="pd-people__stat">{filtered.length} shown</p>
           ) : null}
 
           <div className="pd-people__toolbar">
+            <AttributeFilters
+              attributes={cycleAttributes}
+              valuesFor={(id) => cycleAttributeValues[id] ?? []}
+              selected={selectedCycleFilters}
+              onChange={(next) => {
+                const status = next.status ?? []
+                const type = next.type ?? []
+                if (status.length === 1) {
+                  setStatusFilter(status[0] as CycleListFilter)
+                } else if (
+                  type.length === 1 &&
+                  type[0] === 'custom' &&
+                  status.length === 0
+                ) {
+                  setStatusFilter('custom')
+                } else if (status.length === 3) {
+                  setStatusFilter('all')
+                } else {
+                  setStatusFilter(null)
+                }
+                const { status: _status, ...rest } = next
+                setAttributeFilters(rest)
+              }}
+              sectionLabel="Cycle attributes"
+            />
             <button
               type="button"
               className="pd-people__create-btn"
@@ -258,7 +361,13 @@ export function CyclesList() {
           Cycles
         </h2>
 
-        {filtered.length === 0 ? (
+        {!cyclesHydrated && cycles.length === 0 ? (
+          <div
+            className="pd-people__empty-state"
+            aria-busy="true"
+            aria-label="Loading cycles"
+          />
+        ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
               className="pd-people__empty-panel"
@@ -268,7 +377,7 @@ export function CyclesList() {
               }
               description={
                 cycles.length === 0
-                  ? 'Create a regular or ad-hoc cycle to start performance reviews.'
+                  ? 'Create a scheduled or custom cycle to start performance reviews.'
                   : query.trim()
                     ? `No cycles match “${query.trim()}” with the filters you have applied.`
                     : 'These filters exclude every cycle. Try clearing them to see the full list.'
@@ -290,6 +399,7 @@ export function CyclesList() {
                     onClick={() => {
                       setQuery('')
                       setStatusFilter(null)
+                      setAttributeFilters({})
                     }}
                   >
                     Clear Filters
@@ -302,7 +412,7 @@ export function CyclesList() {
           <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-cycles__table"
-              storageKey="reviews-cycles-column-widths"
+              storageKey="reviews-cycles-column-widths-v2"
               columns={cycleColumns}
             >
               <tbody>
@@ -347,7 +457,9 @@ export function CyclesList() {
         cycles={cycles}
         onCreated={(cycle) => {
           setAddOpen(false)
-          navigate(cycleDetailPath(cycle.id, 'settings'))
+          navigate(cycleDetailPath(cycle.id, 'settings'), {
+            state: { saveNotice: successNotice('Cycle created.') },
+          })
         }}
       />
     </div>
@@ -448,13 +560,10 @@ function CycleRow({
         </span>
       </td>
       <td className="pd-reviews-cycles__muted">
-        {PURPOSE_LABEL[cycle.purpose ?? 'quarterly_checkin']}
+        {cycle.type === 'regular' ? 'Scheduled' : 'Custom'}
       </td>
       <td className="pd-reviews-cycles__muted">
-        {cycle.type === 'regular' ? 'Scheduled' : 'Custom dates'}
-      </td>
-      <td className="pd-reviews-cycles__muted">
-        {formatDateRange(cycle.startDate, cycle.endDate)}
+        {formatLocalDateRange(cycle.startDate, cycle.endDate)}
       </td>
       <td className="pd-reviews-cycles__status">
         <span

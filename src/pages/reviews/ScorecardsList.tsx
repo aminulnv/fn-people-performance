@@ -2,14 +2,22 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Award,
+  Briefcase,
+  Building2,
+  CalendarDays,
   CircleCheck,
   CircleDashed,
+  CircleDot,
   Clock3,
   Eye,
   EyeOff,
+  Layers,
   Search,
+  UserRound,
+  UsersRound,
 } from 'lucide-react'
 import {
+  AttributeFilters,
   Avatar,
   CycleSelect,
   EmptyState,
@@ -19,6 +27,13 @@ import {
   type CycleSelectOption,
   type ResizableColumn,
 } from '@/components/ui'
+import {
+  matchesAttributeFilters,
+  uniqueAttributeValues,
+  uniqueLabeledAttributeValues,
+  type AttributeFilterMap,
+  type AttributeValue,
+} from '@/lib/filters/attributeFilters'
 import { useAuth } from '@/lib/auth'
 import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
 import {
@@ -48,7 +63,10 @@ import {
 import { useUrlHashTab } from '@/lib/routing/urlHash'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
-import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 
 function PersonCell({
   name,
@@ -98,7 +116,11 @@ export function ScorecardsList() {
   const { user } = useAuth()
   const { employees, loadState, loadError } = useEmployees()
   const { cycles } = useReviewsSnapshot()
+  const cyclesHydrated = useReviewCyclesHydrated()
   const [query, setQuery] = useState('')
+  const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
+    {},
+  )
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
   const coversRevision = useManagerDelegationsRevision()
@@ -247,10 +269,72 @@ export function ScorecardsList() {
     }
   }, [queueRows])
 
+  const scorecardAttributes = useMemo(
+    () => [
+      { id: 'employee', label: 'Employee', icon: UserRound },
+      { id: 'cycle', label: 'Cycle', icon: CalendarDays },
+      { id: 'role', label: 'Role', icon: Briefcase },
+      { id: 'seniority', label: 'Seniority', icon: Layers },
+      { id: 'team', label: 'Team', icon: UsersRound },
+      { id: 'department', label: 'Department', icon: Building2 },
+      { id: 'reviewer', label: 'Reviewer', icon: UserRound },
+      { id: 'grade', label: 'Grade', icon: Award },
+      { id: 'status', label: 'Status', icon: CircleDot },
+    ],
+    [],
+  )
+
+  const scorecardAttributeValues = useMemo(
+    (): Record<string, AttributeValue[]> => ({
+      employee: uniqueAttributeValues(queueRows.map((row) => row.employeeName)),
+      cycle: uniqueAttributeValues(queueRows.map((row) => row.cycleLabel)),
+      role: uniqueAttributeValues(queueRows.map((row) => row.role)),
+      seniority: uniqueAttributeValues(queueRows.map((row) => row.seniority)),
+      team: uniqueAttributeValues(queueRows.map((row) => row.team)),
+      department: uniqueAttributeValues(queueRows.map((row) => row.department)),
+      reviewer: uniqueAttributeValues(queueRows.map((row) => row.reviewerName)),
+      grade: uniqueLabeledAttributeValues(
+        queueRows.map((row) =>
+          row.grade
+            ? { value: row.grade, label: gradeLabel(row.grade) }
+            : { value: '', label: 'None' },
+        ),
+      ),
+      status: [
+        { value: 'completed', label: SCORECARD_STATUS_LIST_LABEL.completed },
+        { value: 'in_progress', label: SCORECARD_STATUS_LIST_LABEL.in_progress },
+        { value: 'not_started', label: SCORECARD_STATUS_LIST_LABEL.not_started },
+      ],
+    }),
+    [queueRows],
+  )
+
+  const selectedScorecardFilters = useMemo(
+    () => ({
+      ...attributeFilters,
+      status: statusFilter === 'all' ? [] : [statusFilter],
+    }),
+    [attributeFilters, statusFilter],
+  )
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
     return queueRows.filter((row) => {
       if (statusFilter !== 'all' && row.status !== statusFilter) return false
+      if (
+        !matchesAttributeFilters(attributeFilters, {
+          employee: row.employeeName.trim(),
+          cycle: row.cycleLabel.trim(),
+          role: row.role.trim(),
+          seniority: row.seniority.trim(),
+          team: row.team.trim(),
+          department: row.department.trim(),
+          reviewer: row.reviewerName.trim(),
+          grade: row.grade ?? '',
+        })
+      ) {
+        return false
+      }
       if (!q) return true
       const haystack = [
         row.employeeName,
@@ -266,7 +350,7 @@ export function ScorecardsList() {
         .toLowerCase()
       return haystack.includes(q)
     })
-  }, [query, queueRows, statusFilter])
+  }, [attributeFilters, query, queueRows, statusFilter])
 
   const [gradesRevealed, setGradesRevealed] = useState(false)
   const [gradeOverrides, setGradeOverrides] = useState<
@@ -277,6 +361,7 @@ export function ScorecardsList() {
     setGradesRevealed(false)
     setGradeOverrides({})
     setStatusFilter('all')
+    setAttributeFilters({})
   }, [cycleKeys])
 
   const isGradeRevealed = (row: ScorecardRow) => {
@@ -435,6 +520,29 @@ export function ScorecardsList() {
             />
           ) : null}
         </div>
+
+        <div className="pd-people__bar-end">
+          {filtered.length !== queueRows.length ||
+          statusFilter !== 'all' ||
+          Object.keys(attributeFilters).length > 0 ? (
+            <p className="pd-people__stat">{filtered.length} shown</p>
+          ) : null}
+          <AttributeFilters
+            attributes={scorecardAttributes}
+            valuesFor={(id) => scorecardAttributeValues[id] ?? []}
+            selected={selectedScorecardFilters}
+            onChange={(next) => {
+              const { status, ...rest } = next
+              if (status?.length === 1) {
+                setStatusFilter(status[0] as StatusFilter)
+              } else {
+                setStatusFilter('all')
+              }
+              setAttributeFilters(rest)
+            }}
+            sectionLabel="Review attributes"
+          />
+        </div>
       </div>
 
       <section
@@ -449,7 +557,8 @@ export function ScorecardsList() {
               : "Everyone's reviews"}
         </h2>
 
-        {loadState === 'loading' && employees.length === 0 ? (
+        {(loadState === 'loading' && employees.length === 0) ||
+        (!cyclesHydrated && cycles.length === 0) ? (
           <p className="pd-people__empty">Loading performance reviews…</p>
         ) : loadState === 'error' && employees.length === 0 ? (
           <p className="pd-people__empty">

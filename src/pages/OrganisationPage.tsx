@@ -6,15 +6,23 @@ import {
   ChevronRight,
   Plus,
   Search,
+  UserRound,
   Users,
   UsersRound,
 } from 'lucide-react'
 import { OrgChartLink } from '@/components/OrgChartLink'
 import {
+  AttributeFilters,
   Avatar,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
+import {
+  matchesAttributeFilters,
+  uniqueAttributeValues,
+  type AttributeFilterMap,
+  type AttributeValue,
+} from '@/lib/filters/attributeFilters'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { listDepartments } from '@/lib/employees/store'
@@ -81,6 +89,11 @@ function departmentMatchesQuery(department: OrgDepartment, q: string): boolean {
     .join(' ')
     .toLowerCase()
   return haystack.includes(q)
+}
+
+function departmentTeamNames(department: OrgDepartment): string[] {
+  if (department.teams.length === 0) return ['']
+  return department.teams.map((team) => team.name.trim())
 }
 
 function teamMatchesQuery(team: OrgTeam, q: string): boolean {
@@ -162,6 +175,9 @@ export default function OrganisationPage() {
   const [structureView, setStructureView] = useState<StructureView | null>(null)
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
+  const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
+    {},
+  )
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
   function toggleStructureView(next: StructureView) {
@@ -190,17 +206,35 @@ export default function OrganisationPage() {
         if (mineOnly && !isMyDepartment(department, user, employees)) {
           return false
         }
+        if (
+          !matchesAttributeFilters(attributeFilters, {
+            name: department.name.trim(),
+            owner: department.head?.fullName.trim() ?? '',
+            team: departmentTeamNames(department),
+          })
+        ) {
+          return false
+        }
         return departmentMatchesQuery(department, q)
       })
       .sort((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }),
       )
-  }, [employees, mineOnly, q, snapshot.departments, user])
+  }, [attributeFilters, employees, mineOnly, q, snapshot.departments, user])
 
   const filteredTeams = useMemo(() => {
     return snapshot.teams
       .filter((team) => {
         if (mineOnly && !isMyTeam(team, user, employees)) return false
+        if (
+          !matchesAttributeFilters(attributeFilters, {
+            name: team.name.trim(),
+            department: team.departmentName.trim(),
+            owner: team.manager?.fullName.trim() ?? '',
+          })
+        ) {
+          return false
+        }
         return teamMatchesQuery(team, q)
       })
       .sort((a, b) => {
@@ -210,7 +244,7 @@ export default function OrganisationPage() {
         if (byDept !== 0) return byDept
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       })
-  }, [employees, mineOnly, q, snapshot.teams, user])
+  }, [attributeFilters, employees, mineOnly, q, snapshot.teams, user])
 
   function toggleExpanded(departmentId: string) {
     setExpanded((prev) => {
@@ -232,6 +266,56 @@ export default function OrganisationPage() {
     [snapshot.departments],
   )
   const activeView = structureView ?? 'departments'
+
+  useEffect(() => {
+    setAttributeFilters({})
+  }, [activeView])
+
+  const orgAttributes = useMemo(
+    () =>
+      activeView === 'departments'
+        ? [
+            { id: 'name', label: 'Department name', icon: Building2 },
+            { id: 'team', label: 'Team', icon: UsersRound },
+            { id: 'owner', label: 'Owner', icon: UserRound },
+          ]
+        : [
+            { id: 'name', label: 'Team name', icon: UsersRound },
+            { id: 'department', label: 'Department', icon: Building2 },
+            { id: 'owner', label: 'Owner', icon: UserRound },
+          ],
+    [activeView],
+  )
+
+  const orgAttributeValues = useMemo((): Record<string, AttributeValue[]> => {
+    if (activeView === 'departments') {
+      return {
+        name: uniqueAttributeValues(
+          snapshot.departments.map((department) => department.name),
+        ),
+        team: uniqueAttributeValues(
+          snapshot.departments.flatMap((department) =>
+            departmentTeamNames(department),
+          ),
+        ),
+        owner: uniqueAttributeValues(
+          snapshot.departments.map(
+            (department) => department.head?.fullName ?? '',
+          ),
+        ),
+      }
+    }
+    return {
+      name: uniqueAttributeValues(snapshot.teams.map((team) => team.name)),
+      department: uniqueAttributeValues(
+        snapshot.teams.map((team) => team.departmentName),
+      ),
+      owner: uniqueAttributeValues(
+        snapshot.teams.map((team) => team.manager?.fullName ?? ''),
+      ),
+    }
+  }, [activeView, snapshot.departments, snapshot.teams])
+  const selectedTeams = attributeFilters.team ?? []
   const mineLabel =
     activeView === 'departments' ? 'My Department' : 'My Teams'
   const departmentColumns = useMemo<ResizableColumn[]>(
@@ -353,6 +437,13 @@ export default function OrganisationPage() {
         </div>
 
         <div className="pd-people__toolbar">
+          <AttributeFilters
+            attributes={orgAttributes}
+            valuesFor={(id) => orgAttributeValues[id] ?? []}
+            selected={attributeFilters}
+            onChange={setAttributeFilters}
+            sectionLabel="Organisation attributes"
+          />
           <OrgChartLink />
           <Link
             to="/organisation/departments/new"
@@ -403,19 +494,32 @@ export default function OrganisationPage() {
           ) : (
             <div className="pd-people__table-wrap">
               <ResizableTable
-                className="pd-people__table"
+                className="pd-people__table pd-org__departments-table"
                 storageKey="organisation-departments-column-widths"
                 columns={departmentColumns}
               >
                 <tbody>
                   {filteredDepartments.map((department) => {
-                    const isOpen = expanded.has(department.id)
-                    const teamsInView = department.teams.filter((team) =>
-                      teamMatchesQuery(team, q),
-                    )
+                    const teamsInView = department.teams.filter((team) => {
+                      if (
+                        selectedTeams.length > 0 &&
+                        !selectedTeams.includes(team.name.trim())
+                      ) {
+                        return false
+                      }
+                      return teamMatchesQuery(team, q)
+                    })
+                    const isOpen =
+                      expanded.has(department.id) || selectedTeams.length > 0
                     return (
                       <Fragment key={department.id}>
-                        <tr>
+                        <tr
+                          className={
+                            isOpen && teamsInView.length > 0
+                              ? 'pd-org__row--open'
+                              : undefined
+                          }
+                        >
                           <td>
                             <div className="pd-org__name-cell">
                               <button
@@ -465,15 +569,22 @@ export default function OrganisationPage() {
                           <td>{department.headcount}</td>
                         </tr>
                         {isOpen
-                          ? teamsInView.map((team) => (
+                          ? teamsInView.map((team, index) => (
                               <tr
                                 key={team.id}
-                                className="pd-org__team-row"
+                                className={[
+                                  'pd-org__team-row',
+                                  index === teamsInView.length - 1
+                                    ? 'pd-org__team-row--last'
+                                    : '',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' ')}
                               >
                                 <td>
                                   <div className="pd-org__name-cell">
                                     <span
-                                      className="pd-org__expand-spacer"
+                                      className="pd-org__branch"
                                       aria-hidden
                                     />
                                     <Link
@@ -501,7 +612,7 @@ export default function OrganisationPage() {
                                     size="sm"
                                   />
                                 </td>
-                                <td className="pd-org__muted">Team</td>
+                                <td className="pd-org__muted">-</td>
                                 <td>{team.headcount}</td>
                               </tr>
                             ))

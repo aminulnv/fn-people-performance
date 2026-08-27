@@ -33,7 +33,12 @@ import {
   gradesGoalsSeparately,
   gradesOverall,
 } from '@/lib/reviews/reviewPolicy'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { getReviewCycle } from '@/lib/reviews/store'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
@@ -60,9 +65,11 @@ export default function ScorecardDetailPage() {
   const employeeId = Number(employeeIdParam)
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
+  const { cycles } = useReviewsSnapshot()
+  const cyclesHydrated = useReviewCyclesHydrated()
   const resolvedCycleId = useMemo(
     () => resolveReviewCycleKey(cycleKey),
-    [cycleKey],
+    [cycleKey, cycles],
   )
   const [goalsRevision, setGoalsRevision] = useState(0)
   const [packet, setPacket] = useState<ReviewPacket | null>(null)
@@ -78,7 +85,7 @@ export default function ScorecardDetailPage() {
     : null
   const policy =
     policyResolution?.settings.reviewPolicy ??
-    defaultReviewPolicy(cycle?.purpose ?? 'quarterly_checkin')
+    defaultReviewPolicy(cyclePurposeOf(cycle))
   const goalsPillar = enabledPillars(policy).find((pillar) => pillar.id === 'goals')
   const linkedQuarters = useAnnualLinkedQuarters({
     cycle,
@@ -150,7 +157,7 @@ export default function ScorecardDetailPage() {
       user?.email,
       packet,
     )
-  }, [cycleKey, employeeId, employees, goalsRevision, packet, user?.email])
+  }, [cycleKey, cycles, employeeId, employees, goalsRevision, packet, user?.email])
 
   const stages = policyResolution?.stagesConfig.reviewStages
   const stageView = useScorecardViewStage({
@@ -177,7 +184,7 @@ export default function ScorecardDetailPage() {
   }
 
   if (!detail) {
-    if (isLoading || !packetReady) {
+    if (isLoading || !packetReady || !cyclesHydrated) {
       return (
         <PageStatus
           variant="loading"

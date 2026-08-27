@@ -1,7 +1,9 @@
 import { useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { Select, Switch } from '@/components/ui'
+import { parseDateTime } from '@/lib/dates/timestamp'
+import { toUtcIso } from '@/lib/dates/timezone'
 import { normalizeCycleSettings } from '@/lib/reviews/demoData'
-import { PURPOSE_HINT } from '@/lib/reviews/purpose'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   describeEnabledFlow,
   isCyclePublishStage,
@@ -32,6 +34,7 @@ type ReviewSettingsEditPageProps = {
   draft?: ReviewSettingsDraft
   enabled?: boolean
   onEnabledChange?: (enabled: boolean) => void
+  onSuccess?: (message: string) => void
 }
 
 export type ReviewSettingsDraft = {
@@ -50,7 +53,7 @@ export type ReviewSettingsDraft = {
   ) => void
   replaceStagesConfig: (next: CycleStagesConfig) => void
   patchPolicy: (partial: Partial<ReviewPolicy>) => void
-  save: () => void
+  save: () => boolean
 }
 
 export function useReviewSettingsDraft(
@@ -60,7 +63,7 @@ export function useReviewSettingsDraft(
   embedded = false,
 ): ReviewSettingsDraft {
   const [settings, setSettings] = useState(() =>
-    normalizeCycleSettings(group.settings, cycle.purpose ?? 'quarterly_checkin'),
+    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle)),
   )
   const [stagesConfig, setStagesConfig] = useState<CycleStagesConfig>(() =>
     structuredClone(group.stagesConfig),
@@ -69,7 +72,7 @@ export function useReviewSettingsDraft(
 
   const policy =
     settings.reviewPolicy ??
-    normalizeCycleSettings(group.settings, cycle.purpose ?? 'quarterly_checkin')
+    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle))
       .reviewPolicy!
 
   const setStageEnabled = (id: ReviewStageId, enabled: boolean) => {
@@ -88,6 +91,7 @@ export function useReviewSettingsDraft(
     field: 'start' | 'end',
     date: string,
   ) => {
+    const parsed = parseDateTime(date)
     setStagesConfig((prev) =>
       syncLegacyStageWindows({
         ...prev,
@@ -95,7 +99,7 @@ export function useReviewSettingsDraft(
           stage.id === id
             ? {
               ...stage,
-              [field]: { date, time: stage[field]?.time ?? '00:00' },
+              [field]: parsed ?? { date, time: stage[field]?.time ?? '00:00' },
             }
             : stage,
         ),
@@ -125,7 +129,7 @@ export function useReviewSettingsDraft(
       setError(
         `Enabled pillars must add up to 100%. They currently add up to ${weight}%. Open the review form to adjust the mix.`,
       )
-      return
+      return false
     }
     try {
       void updateCycleGroup(cycle.id, group.id, {
@@ -138,8 +142,10 @@ export function useReviewSettingsDraft(
         stagesConfig,
       }).catch(() => { })
       if (!embedded) onClose()
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings.')
+      return false
     }
   }
 
@@ -165,6 +171,7 @@ export function ReviewSettingsEditPage({
   draft,
   enabled = true,
   onEnabledChange,
+  onSuccess,
 }: ReviewSettingsEditPageProps) {
   const owned = useReviewSettingsDraft(cycle, group, onClose, embedded)
   const editor = draft ?? owned
@@ -191,7 +198,9 @@ export function ReviewSettingsEditPage({
           : 'Turn on Reviews to set when they happen and the form.'
       }
       onBack={onClose}
-      onSave={save}
+      onSave={() => {
+        if (save()) onSuccess?.('Settings saved.')
+      }}
       error={error}
       embedded={embedded}
       showActions={enabled}
@@ -210,9 +219,6 @@ export function ReviewSettingsEditPage({
         <div className="pd-reviews-group-form">
           <section className="pd-reviews-flow">
             <p className="pd-reviews-flow__path">{flow}</p>
-            <p className="pd-reviews-flow__hint">
-              {PURPOSE_HINT[cycle.purpose ?? 'quarterly_checkin']}
-            </p>
           </section>
 
           <section className="pd-reviews-group-form__block">
@@ -249,12 +255,19 @@ export function ReviewSettingsEditPage({
                         <StageWindowFields
                           startLabel="Opens"
                           endLabel="Closes"
-                          startValue={stage.start?.date ?? cycle.startDate}
-                          endValue={
-                            stage.end?.date ??
-                            stage.start?.date ??
-                            cycle.endDate
-                          }
+                          startValue={toUtcIso(
+                            stage.start ?? {
+                              date: cycle.startDate,
+                              time: '00:00',
+                            },
+                          )}
+                          endValue={toUtcIso(
+                            stage.end ??
+                              stage.start ?? {
+                                date: cycle.endDate,
+                                time: '00:00',
+                              },
+                          )}
                           onStartChange={(date) => setStageDate(id, 'start', date)}
                           onEndChange={(date) => setStageDate(id, 'end', date)}
                         />

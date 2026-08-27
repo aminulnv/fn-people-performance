@@ -79,7 +79,7 @@ export function SettingsSidePanel({
 
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
-      if (document.querySelector('dialog[open], .pd-reviews-drawer')) return
+      if (document.querySelector('dialog[open], .pd-reviews-drawer, .pd-datetime-popover')) return
       if (isSideSheetOpenRef.current) {
         setIsSideSheetOpen(false)
         return

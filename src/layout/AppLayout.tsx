@@ -15,6 +15,7 @@ import { GlobalSearchProvider } from './GlobalSearchProvider'
 import { Sidebar } from './Sidebar'
 import { TopBar } from './TopBar'
 import { getReviewCycle } from '@/lib/reviews/store'
+import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { getGoalsSnapshot } from '@/lib/goals/store'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
@@ -39,6 +40,7 @@ export function AppLayout({
   const { isMobile } = useBreakpoint()
   const { enabled: assistantEnabled } = useAssistantPrefs()
   const { employees } = useEmployees({ load: false })
+  const { cycles } = useReviewsSnapshot()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
 
   const goalTodos = useGoalTodoCounts()
@@ -137,7 +139,13 @@ export function AppLayout({
     matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
   const cycleIdParam =
     cycleGroupMatch?.params.cycleId ?? cycleDetailMatch?.params.cycleId
-  const cycle = cycleIdParam ? getReviewCycle(cycleIdParam) : undefined
+  const cycle = cycleIdParam
+    ? (cycles.find(
+        (item) =>
+          item.id === cycleIdParam ||
+          item.id === decodeURIComponent(cycleIdParam),
+      ) ?? getReviewCycle(cycleIdParam))
+    : undefined
   const cycleName = cycle?.name
   const cycleGroupName = (() => {
     const groupId = cycleGroupMatch?.params.groupId

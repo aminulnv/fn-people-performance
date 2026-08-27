@@ -1,4 +1,4 @@
-/** Server-side cycle purpose / stage / policy defaults. Mirrors src/lib/reviews. */
+/** Server-side cycle stage / policy defaults. Mirrors src/lib/reviews. */
 
 export const REVIEW_STAGE_ORDER = [
   'goals',
@@ -21,6 +21,13 @@ export function inferPurpose(periodKey, fallback = 'custom') {
 export function inferYearKey(periodKey, startDate) {
   const fromPeriod = String(periodKey ?? '').match(/(\d{4})$/)?.[1]
   return fromPeriod ?? String(startDate ?? '').slice(0, 4) ?? null
+}
+
+export function cyclePurposeOf({ periodKey, type } = {}) {
+  return inferPurpose(
+    periodKey,
+    type === 'custom' || type === 'ad-hoc' ? 'custom' : 'quarterly_checkin',
+  )
 }
 
 export function isGoalsOnlyQuarter(periodKey) {
@@ -71,7 +78,8 @@ export function applyCycleModules(config, modules, purpose, periodKey) {
 }
 
 function at(date, time = '00:00') {
-  return { date, time }
+  const parsed = parseDateTime(date)
+  return { date: parsed?.date ?? date, time }
 }
 
 export function deriveReviewStagesFromLegacy(purpose, config) {
@@ -153,8 +161,28 @@ export function defaultReviewStages(purpose, config, periodKey) {
   })
 }
 
+function datePart(value) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value ?? ''))
+  return match?.[1] ?? ''
+}
+
+function parseDateTime(value) {
+  const raw = String(value ?? '')
+  const datetime = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(raw)
+  if (datetime) return { date: datetime[1], time: datetime[2] }
+  const date = datePart(raw)
+  return date ? { date, time: '00:00' } : null
+}
+
 export function applyNestedWindowsToReviewStages(config) {
-  const at = (date, time = '00:00') => ({ date, time })
+  const at = (value, fallbackTime = '00:00') => {
+    const parsed = parseDateTime(value)
+    if (!parsed) return { date: value, time: fallbackTime }
+    return {
+      date: parsed.date,
+      time: /T\d{2}:\d{2}/.test(String(value ?? '')) ? parsed.time : fallbackTime,
+    }
+  }
   return {
     ...config,
     reviewStages: (config.reviewStages ?? []).map((stage) => {

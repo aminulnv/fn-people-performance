@@ -99,13 +99,19 @@
   --banner-muted: color-mix(in srgb, var(--color-white) 70%, var(--color-danger));
 }
 
-.pd-app-content-card > .pd-review-packet__banner {
+.pd-app-content-card > .pd-review-packet__banner,
+.pd-review-packet__banner--overlay {
   position: absolute;
   top: calc(var(--pd-topbar-h, 3.5rem) + var(--spacing-4, 1rem));
   right: var(--spacing-5, 1.25rem);
   z-index: 8;
   animation: pd-review-packet-banner-in var(--pd-drawer-in-duration, 180ms)
     var(--pd-drawer-in-ease, ease-out) both;
+}
+
+.pd-review-packet__banner--overlay {
+  position: fixed;
+  z-index: 120;
 }
 
 @keyframes pd-review-packet-banner-in {
@@ -121,7 +127,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pd-app-content-card > .pd-review-packet__banner {
+  .pd-app-content-card > .pd-review-packet__banner,
+  .pd-review-packet__banner--overlay {
     animation: none;
   }
 }

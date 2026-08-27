@@ -1,6 +1,11 @@
 import { overallCompletion } from "@/lib/goals/weightage";
 import type { Goal } from "@/lib/goals/types";
-import { inferYearKey, quarterLabelForCycle, suggestedSourceLinks } from "./purpose";
+import {
+  cyclePurposeOf,
+  inferYearKey,
+  quarterLabelForCycle,
+  suggestedSourceLinks,
+} from "./purpose";
 import { isGoalsOnlyQuarter } from "./reviewStages";
 import type {
   CycleSourceLink,
@@ -26,7 +31,7 @@ export function annualSourceLinks(
   cycle: ReviewCycle | null | undefined,
   cycles: ReviewCycle[] = [],
 ) {
-  if (cycle?.purpose !== "annual_appraisal") return [];
+  if (!cycle || cyclePurposeOf(cycle) !== "annual_appraisal") return [];
   const stored = (cycle.sourceLinks ?? []).filter((link) => !link.excluded);
   if (stored.length > 0) return stored;
   const yearKey = cycle.yearKey ?? inferYearKey(cycle.periodKey, cycle.startDate);

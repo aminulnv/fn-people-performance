@@ -38,6 +38,7 @@ import {
 } from '@/components/ui'
 import { useHoverMenu } from '@/layout/useHoverMenu'
 import { hasSystemPermission } from '@/lib/accessControl/types'
+import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import { avatarStyle } from '@/lib/employees/avatar'
 import {
   countDirectReports,
@@ -59,6 +60,7 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import {
   departmentPathForName,
+  orgChartPath,
   organisationPathForEmployee,
   teamPathForNames,
 } from '@/lib/organisation/paths'
@@ -82,6 +84,11 @@ import {
 } from '@/lib/profile/tabHashes'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
 import { useAuth } from '@/lib/useAuth'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  useLocationSaveNotice,
+} from '@/pages/reviews/ReviewSaveBanner'
 import '@/styles/layout-people.css'
 import '@/styles/layout-activity.css'
 
@@ -121,13 +128,7 @@ export const PROFILE_TAB_OPTIONS = profileTabOptions()
 
 function formatStartDate(iso: string): string {
   if (!iso) return '—'
-  const date = new Date(`${iso}T00:00:00`)
-  if (Number.isNaN(date.getTime())) return iso
-  return date.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  return formatLocalTimestamp(iso) || iso
 }
 
 export function DetailRow({
@@ -327,10 +328,15 @@ export function EmployeeProfileView({
     (directoryReady
       ? countDirectReports(employee)
       : extras?.directReports.length ?? 0) > 0
+  const [toastNotice, setToastNotice] = useLocationSaveNotice()
+  const showSuccessToast = (message: string) => {
+    setToastNotice(successNotice(message))
+  }
   const delegationEditor = useManagerDelegationEditor({
     employee,
     employees,
     hasDirectReports,
+    onSuccess: showSuccessToast,
   })
   const teamOwnerSources = useMemo(
     () => ({
@@ -375,6 +381,10 @@ export function EmployeeProfileView({
       }
       aria-label={employee.fullName}
     >
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <section className="pd-profile__hero">
         <div className="pd-profile__hero-main">
           <Avatar
@@ -639,7 +649,7 @@ export function EmployeeProfileView({
                 avatarUrl: employee.avatarUrl,
               }}
               managerReportCount={managerReportCount}
-              chartHref="/organisation/chart"
+              chartHref={orgChartPath(employee.employeeId)}
             />
 
             <nav className="pd-profile__nav-cards" aria-label="More about this person">
@@ -669,7 +679,7 @@ export function EmployeeProfileView({
               </Link>
               {embedded && !isSelf ? null : (
                 <Link
-                  to={isSelf ? '/organisation/chart' : '/people'}
+                  to={isSelf ? orgChartPath(employee.employeeId) : '/people'}
                   className="pd-profile__nav-card"
                 >
                   <GitBranch size={18} strokeWidth={1.75} aria-hidden />

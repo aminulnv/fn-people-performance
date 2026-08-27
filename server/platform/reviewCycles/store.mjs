@@ -8,12 +8,13 @@ import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { attachGroupsToCycles } from './groups.mjs'
 import {
-  inferPurpose,
+  cyclePurposeOf,
   inferYearKey,
   normalizeReviewPolicy,
 } from './reviewConfig.mjs'
 import {
   validateCalibration,
+  validateCycleDateRange,
   validateCycleStagesConfig,
   validateGoalCountPolicy,
   normalizeStagesConfig,
@@ -25,10 +26,16 @@ function isoTimestamp(value) {
   return new Date(value).toISOString()
 }
 
-function isoDate(value) {
-  if (!value) return ''
-  if (value instanceof Date) return value.toISOString().slice(0, 10)
-  return String(value).slice(0, 10)
+function isoInstant(value) {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString()
+  }
+  const raw = String(value).trim()
+  if (!raw) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T00:00:00.000Z`
+  const instant = new Date(raw)
+  return Number.isNaN(instant.getTime()) ? '' : instant.toISOString()
 }
 
 function actorFromUser(platformUser) {
@@ -39,16 +46,24 @@ function actorFromUser(platformUser) {
   }
 }
 
+function normalizeCycleType(type) {
+  return type === 'custom' || type === 'ad-hoc' ? 'custom' : 'regular'
+}
+
+function isCycleTypeCheckError(err) {
+  const message = err instanceof Error ? err.message : String(err)
+  return /review_cycles_cycle_type_check/.test(message)
+}
+
 function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
-  const startDate = isoDate(row.start_date)
-  const endDate = isoDate(row.end_date)
-  const purpose =
-    row.purpose || inferPurpose(row.period_key, row.cycle_type === 'ad-hoc' ? 'custom' : 'quarterly_checkin')
+  const startDate = isoInstant(row.start_date)
+  const endDate = isoInstant(row.end_date)
+  const type = normalizeCycleType(row.cycle_type)
+  const purpose = cyclePurposeOf({ periodKey: row.period_key, type })
   return {
     id: row.id,
     name: row.name,
-    type: row.cycle_type,
-    purpose,
+    type,
     startDate,
     endDate,
     periodKey: row.period_key ?? undefined,
@@ -283,12 +298,11 @@ export async function createReviewCycle(input, platformUser) {
   const actor = actorFromUser(platformUser)
   try {
     await client.query('BEGIN')
-    const purpose =
-      input.purpose ||
-      inferPurpose(
-        input.periodKey,
-        input.type === 'ad-hoc' ? 'custom' : 'quarterly_checkin',
-      )
+    const type = normalizeCycleType(input.type)
+    const purpose = cyclePurposeOf({
+      periodKey: input.periodKey,
+      type,
+    })
     const stagesConfig = normalizeStagesConfig(input.stagesConfig, {
       startDate: input.startDate,
       endDate: input.endDate,
@@ -296,6 +310,7 @@ export async function createReviewCycle(input, platformUser) {
       periodKey: input.periodKey,
     })
     validateGoalCountPolicy(input.settings.goalCountPolicy)
+    validateCycleDateRange(input.startDate, input.endDate)
     validateCycleStagesConfig(stagesConfig)
     validateCalibration(input.calibration)
     const reviewPolicy = normalizeReviewPolicy(
@@ -305,39 +320,53 @@ export async function createReviewCycle(input, platformUser) {
 
     const id = await allocateCycleId(
       client,
-      input.id || input.periodKey || `adhoc-${crypto.randomUUID()}`,
+      input.id || input.periodKey || `custom-${crypto.randomUUID()}`,
     )
-    const { rows } = await client.query(
-      `INSERT INTO platform.review_cycles (
+    const insertSql = `INSERT INTO platform.review_cycles (
          id, name, cycle_type, period_key, start_date, end_date, is_test,
          stages_config, review_types, goal_count_policy,
          post_window_goal_policy, auto_scorecard_generation, calibration_config,
-         purpose, year_key, review_policy,
+         year_key, review_policy,
          created_by_employee_id, updated_by_employee_id
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14,$15,$16::jsonb,$17,$17
+         $1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10::jsonb,$11,$12,$13::jsonb,$14,$15::jsonb,$16,$16
        )
-       RETURNING *`,
-      [
-        id,
-        input.name,
-        input.type,
-        input.periodKey ?? null,
-        input.startDate,
-        input.endDate,
-        Boolean(input.isTest),
-        JSON.stringify(stagesConfig),
-        JSON.stringify(input.settings.reviewTypes),
-        JSON.stringify(input.settings.goalCountPolicy),
-        input.settings.postWindowGoalPolicy,
-        Boolean(input.settings.autoScorecardGeneration),
-        JSON.stringify(input.calibration),
-        purpose,
-        input.yearKey ?? inferYearKey(input.periodKey, input.startDate),
-        JSON.stringify(reviewPolicy),
-        actor.actorEmployeeId,
-      ],
-    )
+       RETURNING *`
+    const insertValues = (cycleType) => [
+      id,
+      input.name,
+      cycleType,
+      input.periodKey ?? null,
+      input.startDate,
+      input.endDate,
+      Boolean(input.isTest),
+      JSON.stringify(stagesConfig),
+      JSON.stringify(input.settings.reviewTypes),
+      JSON.stringify(input.settings.goalCountPolicy),
+      input.settings.postWindowGoalPolicy,
+      Boolean(input.settings.autoScorecardGeneration),
+      JSON.stringify(input.calibration),
+      input.yearKey ?? inferYearKey(input.periodKey, input.startDate),
+      JSON.stringify(reviewPolicy),
+      actor.actorEmployeeId,
+    ]
+    const typesToTry = type === 'custom' ? ['custom', 'ad-hoc'] : [type]
+    let rows
+    let lastInsertError
+    for (const cycleType of typesToTry) {
+      await client.query('SAVEPOINT cycle_type_insert')
+      try {
+        ;({ rows } = await client.query(insertSql, insertValues(cycleType)))
+        lastInsertError = null
+        await client.query('RELEASE SAVEPOINT cycle_type_insert')
+        break
+      } catch (err) {
+        lastInsertError = err
+        await client.query('ROLLBACK TO SAVEPOINT cycle_type_insert')
+        if (!isCycleTypeCheckError(err)) throw err
+      }
+    }
+    if (!rows?.length) throw lastInsertError
     const exclusions = await replaceExclusions(
       client,
       id,
@@ -391,7 +420,10 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
     assertExpectedVersion(row, patch.expectedVersion)
 
     const before = await mapCycleWithExclusions(client, row)
-    const nextPurpose = patch.purpose ?? before.purpose
+    const nextPurpose = cyclePurposeOf({
+      periodKey: before.periodKey,
+      type: before.type,
+    })
     const nextSettings = {
       reviewTypes: patch.reviewTypes
         ? { ...patch.reviewTypes, line_manager: true }
@@ -417,8 +449,8 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
 
     const stagesConfig = patch.stagesConfig
       ? normalizeStagesConfig(patch.stagesConfig, {
-          startDate: isoDate(row.start_date),
-          endDate: isoDate(row.end_date),
+          startDate: isoInstant(row.start_date),
+          endDate: isoInstant(row.end_date),
           purpose: nextPurpose,
         })
       : before.stagesConfig
@@ -438,12 +470,12 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
     const nextName = patch.name?.trim() || before.name
     const nextStartDate = patch.startDate ?? before.startDate
     const nextEndDate = patch.endDate ?? before.endDate
+    validateCycleDateRange(nextStartDate, nextEndDate)
     const nextYearKey = patch.yearKey ?? before.yearKey ?? null
     const headerChanged =
       nextName !== before.name ||
       nextStartDate !== before.startDate ||
       nextEndDate !== before.endDate ||
-      nextPurpose !== before.purpose ||
       nextYearKey !== (before.yearKey ?? null)
     const settingsChanged =
       fieldChanges(before.settings, nextSettings, [
@@ -484,11 +516,10 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
            auto_scorecard_generation = $8,
            stages_config = $9::jsonb,
            calibration_config = $10::jsonb,
-           purpose = $11,
-           year_key = $12,
-           review_policy = $13::jsonb,
+           year_key = $11,
+           review_policy = $12::jsonb,
            version = version + 1,
-           updated_by_employee_id = $14,
+           updated_by_employee_id = $13,
            updated_at = now()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING *`,
@@ -503,7 +534,6 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
         Boolean(nextSettings.autoScorecardGeneration),
         JSON.stringify(stagesConfig),
         JSON.stringify(nextCalibration),
-        nextPurpose,
         nextYearKey,
         JSON.stringify(nextSettings.reviewPolicy),
         actor.actorEmployeeId,
@@ -695,7 +725,7 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
         [
           cycle.id,
           cycle.name,
-          cycle.type,
+          normalizeCycleType(cycle.type),
           cycle.periodKey ?? null,
           cycle.startDate,
           cycle.endDate,

@@ -7,7 +7,7 @@ import {
   GRADE_BAND_ORDER,
   GRADE_RECOMMENDATION_META,
 } from "@/lib/reviews/labels";
-import { formatDateRange } from "@/lib/reviews/periods";
+import { formatLocalDateRange } from "@/lib/dates/timezone";
 import type { ReviewCycle } from "@/lib/reviews/types";
 import { exclusionsLabel } from "./GradePublishingExclusionsDrawer";
 
@@ -63,9 +63,9 @@ export function CycleReviewSettingsPrototype({
             <div className="pd-reviews-kv__row">
               <dt>Performance review window</dt>
               <dd>
-                {formatDateRange(
-                  performanceReview.managerStart.date,
-                  performanceReview.managerEnd.date,
+                {formatLocalDateRange(
+                  performanceReview.managerStart,
+                  performanceReview.managerEnd,
                 )}
               </dd>
             </div>

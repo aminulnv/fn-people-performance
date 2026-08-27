@@ -2,7 +2,9 @@ import { ChevronRight } from 'lucide-react'
 import type { Metric } from '@/lib/goals/types'
 import { GoalMetricReadout, GoalWeightReadout } from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
+import { ignoreInteractiveSummaryClick } from './measureFold'
 import { MeasureKindIcon } from './MeasureKindIcon'
+import { MeasureProofFields } from './MeasureProofFields'
 import { MetricProgressUpdate } from './MetricProgressUpdate'
 
 export function NumberMeasureViewCard({
@@ -11,12 +13,14 @@ export function NumberMeasureViewCard({
   cycleLabel,
   highlighted = false,
   onLogProgress,
+  onProofChange,
 }: {
   metric: Metric
   goalTitle?: string
   cycleLabel?: string
   highlighted?: boolean
   onLogProgress?: (nextValue: number | undefined) => void
+  onProofChange?: (next: { proofUrl?: string; comment?: string }) => void
 }) {
   const name = metric.title.trim()
 
@@ -33,7 +37,10 @@ export function NumberMeasureViewCard({
       aria-label={name || 'Metric'}
       open
     >
-      <summary className="pd-goal-view__fold-head">
+      <summary
+        className="pd-goal-view__fold-head"
+        onClick={ignoreInteractiveSummaryClick}
+      >
         <ChevronRight
           size={14}
           strokeWidth={2.25}
@@ -46,6 +53,13 @@ export function NumberMeasureViewCard({
           <GoalMetricReadout metric={metric} showWeight={false} />
         </div>
         <div className="pd-goal-view__fold-meta">
+          <MeasureProofFields
+            proofUrl={metric.proofUrl}
+            comment={metric.comment}
+            name={name || "metric"}
+            disabled={!onProofChange}
+            onChange={onProofChange}
+          />
           <GoalWeightReadout weight={metric.weight} />
         </div>
       </summary>

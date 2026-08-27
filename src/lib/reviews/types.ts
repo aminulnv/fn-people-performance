@@ -1,8 +1,15 @@
-export type ReviewCycleType = "regular" | "ad-hoc";
+export type ReviewCycleType = "regular" | "custom";
+
+/** Older rows and payloads used `ad-hoc` for the same kind. */
+export function normalizeCycleType(
+  type: string | null | undefined,
+): ReviewCycleType {
+  return type === "custom" || type === "ad-hoc" ? "custom" : "regular";
+}
 
 export type CyclePurpose = "quarterly_checkin" | "annual_appraisal" | "custom";
 
-export type ReviewCycleStatus = "future" | "current" | "previous" | "manual";
+export type ReviewCycleStatus = "future" | "current" | "previous";
 
 export type CycleSectionId = "settings";
 
@@ -10,13 +17,16 @@ export type CycleSectionId = "settings";
 export type StageProcessMode = "schedule" | "manual";
 
 export type DateRange = {
+  /** UTC instant: `YYYY-MM-DDTHH:mm:ss.sssZ` (legacy date-only is midnight UTC). */
   startDate: string;
+  /** UTC instant: `YYYY-MM-DDTHH:mm:ss.sssZ` (legacy date-only is midnight UTC). */
   endDate: string;
 };
 
 export type DateTimeValue = {
+  /** UTC calendar date `YYYY-MM-DD`. */
   date: string;
-  /** 24h `HH:mm` in UTC. */
+  /** UTC 24h `HH:mm`. */
   time: string;
 };
 
@@ -39,7 +49,7 @@ export type GoalCycleExtensionScope =
 
 export type GoalCycleExtension = {
   id: string;
-  /** Population-specific employee goal deadline (YYYY-MM-DD). */
+  /** Population-specific employee goal deadline (`YYYY-MM-DD` or timestamp). */
   endDate: string;
   scope: GoalCycleExtensionScope;
 };
@@ -272,7 +282,6 @@ export type ReviewCycle = {
   id: string;
   name: string;
   type: ReviewCycleType;
-  purpose?: CyclePurpose;
   startDate: string;
   endDate: string;
   periodKey?: string;

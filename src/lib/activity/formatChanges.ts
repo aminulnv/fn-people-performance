@@ -294,5 +294,11 @@ export function activityHeadline(event: ActivityEvent): string {
   if (event.eventKey === 'goal.comment_added') {
     return 'Commented on a goal'
   }
+  if (event.eventKey === 'goal.comment_updated') {
+    return 'Edited a comment'
+  }
+  if (event.eventKey === 'goal.comment_deleted') {
+    return 'Deleted a comment'
+  }
   return activityEventLabel(event.eventKey)
 }

@@ -24,20 +24,16 @@ function parseEmployeeId(value, label) {
   return employeeId
 }
 
-function parseDay(value, label) {
-  const day = String(value ?? '').trim()
-  if (!DATE_RE.test(day)) {
-    throw new HttpError(400, `${label} must be a YYYY-MM-DD date`)
+function parseInstant(value, label) {
+  const raw = String(value ?? '').trim()
+  if (!raw) {
+    throw new HttpError(400, `${label} is required`)
   }
-  return day
-}
-
-function startOfDay(day) {
-  return `${day}T00:00:00.000Z`
-}
-
-function endOfDay(day) {
-  return `${day}T23:59:59.999Z`
+  const instant = new Date(DATE_RE.test(raw) ? `${raw}T00:00:00.000Z` : raw)
+  if (Number.isNaN(instant.getTime())) {
+    throw new HttpError(400, `${label} must be a timestamp`)
+  }
+  return instant.toISOString()
 }
 
 function delegationStatus(row, now = new Date()) {
@@ -58,8 +54,8 @@ function mapDelegation(row, now = new Date()) {
     delegateName: row.delegate_name ?? '',
     delegateAvatarUrl: row.delegate_avatar_url || undefined,
     absentAvatarUrl: row.absent_avatar_url || undefined,
-    startsOn: String(row.starts_at).slice(0, 10),
-    endsOn: String(row.ends_at).slice(0, 10),
+    startsOn: new Date(row.starts_at).toISOString(),
+    endsOn: new Date(row.ends_at).toISOString(),
     assignedByEmployeeId: Number(row.assigned_by_employee_id),
     assignedByName: row.assigned_by_name ?? '',
     revokedAt: row.revoked_at ? new Date(row.revoked_at).toISOString() : undefined,
@@ -80,11 +76,11 @@ const DELEGATION_FROM = `
 const DELEGATION_SELECT = `
   SELECT
     delegation.*,
-    absent_emp.full_name AS absent_name,
+    absent_emp.name AS absent_name,
     absent_emp.avatar_url AS absent_avatar_url,
-    delegate_emp.full_name AS delegate_name,
+    delegate_emp.name AS delegate_name,
     delegate_emp.avatar_url AS delegate_avatar_url,
-    assigned_emp.full_name AS assigned_by_name
+    assigned_emp.name AS assigned_by_name
   ${DELEGATION_FROM}
 `
 
@@ -165,9 +161,9 @@ export async function assignManagerDelegation(
   if (absentId === delegateId) {
     throw new HttpError(400, 'A manager cannot delegate to themselves')
   }
-  const startDay = parseDay(startsOn, 'Start date')
-  const endDay = parseDay(endsOn, 'End date')
-  if (endDay < startDay) {
+  const startAt = parseInstant(startsOn, 'Start date')
+  const endAt = parseInstant(endsOn, 'End date')
+  if (endAt < startAt) {
     throw new HttpError(400, 'End date must be on or after the start date')
   }
 
@@ -175,7 +171,7 @@ export async function assignManagerDelegation(
   try {
     await client.query('BEGIN')
     const people = await client.query(
-      `SELECT employee_id, full_name, status
+      `SELECT employee_id, name, status
        FROM platform.employees
        WHERE employee_id = ANY($1::int[])`,
       [[absentId, delegateId]],
@@ -200,7 +196,7 @@ export async function assignManagerDelegation(
          AND starts_at <= $3::timestamptz
          AND ends_at >= $2::timestamptz
        LIMIT 1`,
-      [absentId, startOfDay(startDay), endOfDay(endDay)],
+      [absentId, startAt, endAt],
     )
     if (overlap.rows[0]) {
       throw new HttpError(
@@ -219,7 +215,7 @@ export async function assignManagerDelegation(
        )
        VALUES ($1, $2, $3::timestamptz, $4::timestamptz, $5)
        RETURNING id`,
-      [absentId, delegateId, startOfDay(startDay), endOfDay(endDay), actorId],
+      [absentId, delegateId, startAt, endAt, actorId],
     )
     const delegationId = String(inserted.rows[0].id)
     await appendActivityEvent(client, {
@@ -230,19 +226,19 @@ export async function assignManagerDelegation(
       actorEmail: platformUser.email ?? '',
       actorName: platformUser.name ?? '',
       subjectEmployeeId: absentId,
-      summary: `Delegated ${absent.full_name}'s responsibility to ${delegate.full_name}`,
+      summary: `Delegated ${absent.name}'s responsibility to ${delegate.name}`,
       changes: [
         { field: 'delegateEmployeeId', to: delegateId },
-        { field: 'startsOn', to: startDay },
-        { field: 'endsOn', to: endDay },
+        { field: 'startsOn', to: startAt },
+        { field: 'endsOn', to: endAt },
       ],
       metadata: {
         delegateEmployeeId: delegateId,
-        delegateName: delegate.full_name,
+        delegateName: delegate.name,
         absentEmployeeId: absentId,
-        absentName: absent.full_name,
-        startsOn: startDay,
-        endsOn: endDay,
+        absentName: absent.name,
+        startsOn: startAt,
+        endsOn: endAt,
       },
       source: 'api',
     })
@@ -282,8 +278,8 @@ export async function revokeManagerDelegation(delegationId, platformUser) {
     }
     const names = await client.query(
       `SELECT
-         absent_emp.full_name AS absent_name,
-         delegate_emp.full_name AS delegate_name
+         absent_emp.name AS absent_name,
+         delegate_emp.name AS delegate_name
        FROM platform.employees absent_emp
        JOIN platform.employees delegate_emp ON delegate_emp.employee_id = $2
        WHERE absent_emp.employee_id = $1`,

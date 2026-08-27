@@ -257,7 +257,7 @@ async function withDelegatingMetadata(events) {
   const { rows } = await getPool().query(
     `SELECT
        event.id,
-       manager.full_name,
+       manager.name AS full_name,
        manager.avatar_url
      FROM platform.activity_events event
      JOIN platform.employees subject

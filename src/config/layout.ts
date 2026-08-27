@@ -48,7 +48,12 @@ export const layoutConfig: AppLayoutConfig = {
     },
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
-    { path: '/analytics', label: 'Analytics', icon: BarChart3, comingSoon: true },
+    {
+      path: '/analytics',
+      label: 'Analytics',
+      icon: BarChart3,
+      requiredPermission: 'platform.read_all',
+    },
   ],
 }
 

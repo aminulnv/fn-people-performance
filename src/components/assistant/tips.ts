@@ -50,8 +50,8 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
     body: 'Bring recent goals and feedback into reviews so conversations stay concrete.',
   },
   '/analytics': {
-    title: 'Read the signals',
-    body: 'Analytics highlights trends over time — look for patterns, not one-off blips.',
+    title: 'Act on the queues',
+    body: 'Start with Needs attention, then follow unfinished reviews by department and manager.',
   },
   '/settings': {
     title: 'Make it yours',

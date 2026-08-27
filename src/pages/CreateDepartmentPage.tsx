@@ -6,6 +6,7 @@ import { createDepartment } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { departmentKey } from '@/lib/organisation/fromEmployees'
 import { departmentDetailPath } from '@/lib/organisation/paths'
+import { successNotice } from '@/pages/reviews/ReviewSaveBanner'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -54,6 +55,7 @@ export default function CreateDepartmentPage() {
       }
       navigate(departmentDetailPath(departmentKey(result.department.name)), {
         replace: true,
+        state: { saveNotice: successNotice('Department created.') },
       })
     })()
   }

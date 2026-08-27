@@ -34,6 +34,7 @@ function mergeMeasurement(
       progressLog: localItem.progressLog ?? persisted.progressLog,
       rangeMin: localItem.rangeMin,
       rangeMax: localItem.rangeMax,
+      proofUrl: localItem.proofUrl,
     }
   }
   if (persisted.kind !== 'milestone' || localItem.kind !== 'milestone') {
@@ -52,6 +53,7 @@ function mergeMeasurement(
     weight: localItem.weight,
     complete: localItem.complete,
     progressLog: localItem.progressLog ?? persisted.progressLog,
+    proofUrl: localItem.proofUrl,
   }
 }
 
@@ -191,11 +193,13 @@ function goalProgressSnapshot(goal: Goal) {
           id: item.id,
           complete: item.complete,
           progressLog: item.progressLog,
+          proofUrl: item.proofUrl,
         }
       : {
           id: item.id,
           currentValue: item.currentValue,
           progressLog: item.progressLog,
+          proofUrl: item.proofUrl,
         },
   )
 }
@@ -231,6 +235,7 @@ export function applyProgressFrom(persisted: Goal[], local: Goal[]): Goal[] {
             ...item,
             currentValue: localItem.currentValue,
             progressLog: localItem.progressLog,
+            proofUrl: localItem.proofUrl,
           }
         }
         if (item.kind === 'milestone' && localItem.kind === 'milestone') {
@@ -238,6 +243,7 @@ export function applyProgressFrom(persisted: Goal[], local: Goal[]): Goal[] {
             ...item,
             complete: localItem.complete,
             progressLog: localItem.progressLog,
+            proofUrl: localItem.proofUrl,
           }
         }
         return item

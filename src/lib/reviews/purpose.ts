@@ -1,24 +1,15 @@
 import { buildPeriod, findAnnualPeriod, findPeriod } from './periods'
-import type { CyclePeriodOption, CyclePurpose, ReviewCycle } from './types'
+import {
+  normalizeCycleType,
+  type CyclePeriodOption,
+  type CyclePurpose,
+  type ReviewCycle,
+} from './types'
 
 export const PURPOSE_LABEL: Record<CyclePurpose, string> = {
   quarterly_checkin: 'Quarterly check-in',
   annual_appraisal: 'Annual appraisal',
   custom: 'Custom cycle',
-}
-
-export const PURPOSE_SHORT: Record<CyclePurpose, string> = {
-  quarterly_checkin: 'Goals, a manager rating, or both.',
-  annual_appraisal: 'Year-end packet from the cycles you pick.',
-  custom: 'Your own dates and modules.',
-}
-
-export const PURPOSE_HINT: Record<CyclePurpose, string> = {
-  quarterly_checkin:
-    'Starts with goals and a manager rating. Q4 starts with goals only. Kind is a preset — you can change the modules.',
-  annual_appraisal:
-    'Starts as review only. You choose which cycles roll into the year-end packet. Goal setting stays on those cycles.',
-  custom: 'Your own dates. Turn Goals and Reviews on for what this cycle needs.',
 }
 
 export function inferPurpose(
@@ -56,13 +47,13 @@ export function suggestedSourceLinks(
   )
 }
 
-export function cyclePurposeOf(cycle: Pick<ReviewCycle, 'purpose' | 'periodKey' | 'type'>): CyclePurpose {
-  return (
-    cycle.purpose ??
-    inferPurpose(
-      cycle.periodKey,
-      cycle.type === 'ad-hoc' ? 'custom' : 'quarterly_checkin',
-    )
+export function cyclePurposeOf(
+  cycle: Pick<ReviewCycle, 'periodKey' | 'type'> | null | undefined,
+): CyclePurpose {
+  if (!cycle) return 'quarterly_checkin'
+  return inferPurpose(
+    cycle.periodKey,
+    normalizeCycleType(cycle.type) === 'custom' ? 'custom' : 'quarterly_checkin',
   )
 }
 

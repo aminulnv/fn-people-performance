@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  type ReviewSaveNotice,
+} from '@/pages/reviews/ReviewSaveBanner'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { clearSession, writeSession } from '@/lib/authApi'
 import {
@@ -22,13 +28,19 @@ function ManagerDelegationHarness({
   employees: PlatformEmployee[]
   hasDirectReports: boolean
 }) {
+  const [notice, setNotice] = useState<ReviewSaveNotice | null>(null)
   const editor = useManagerDelegationEditor({
     employee,
     employees,
     hasDirectReports,
+    onSuccess: (message) => setNotice(successNotice(message)),
   })
   return (
     <>
+      <ReviewSaveBanner
+        notice={notice}
+        onDismiss={() => setNotice(null)}
+      />
       {editor.canManage ? (
         <button type="button" onClick={editor.openAssign}>
           {editor.assignLabel}
@@ -157,6 +169,11 @@ describe('ManagerDelegationCard', () => {
     expect(
       screen.getByRole('button', { name: 'Revoke Delegation' }),
     ).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Revoke Delegation' }))
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Delegation revoked.')
   })
 
   it('hides assign actions without write access', async () => {

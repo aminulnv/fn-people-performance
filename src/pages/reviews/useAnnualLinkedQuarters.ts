@@ -7,7 +7,7 @@ import {
   usesAnnualLinkedQuarters,
 } from "@/lib/reviews/annualQuarters";
 import { fetchReviewPacket } from "@/lib/reviews/packetsApi";
-import { listReviewCycles } from "@/lib/reviews/store";
+import { useReviewsSnapshot } from "@/lib/reviews/useReviews";
 import type { ReviewCycle, ReviewPacket, ScorecardPillar } from "@/lib/reviews/types";
 
 export function useAnnualLinkedQuarters(input: {
@@ -16,7 +16,7 @@ export function useAnnualLinkedQuarters(input: {
   goalsPillar?: ScorecardPillar;
   goalsRevision?: number;
 }) {
-  const availableCycles = listReviewCycles();
+  const { cycles: availableCycles } = useReviewsSnapshot();
   const links = annualSourceLinks(input.cycle, availableCycles);
   const sourceIds = links.map((link) => link.sourceCycleId).join("|");
   const enabled = usesAnnualLinkedQuarters(
@@ -61,10 +61,9 @@ export function useAnnualLinkedQuarters(input: {
   const rows = useMemo(() => {
     if (!enabled) return [];
     void input.goalsRevision;
-    const cycles = listReviewCycles();
     return buildAnnualQuarterRows({
       links,
-      cycles,
+      cycles: availableCycles,
       packetsByCycleId,
       goalsByCycleId: Object.fromEntries(
         links.map((link) => [
@@ -75,7 +74,14 @@ export function useAnnualLinkedQuarters(input: {
         ]),
       ),
     });
-  }, [enabled, input.employeeId, input.goalsRevision, links, packetsByCycleId]);
+  }, [
+    availableCycles,
+    enabled,
+    input.employeeId,
+    input.goalsRevision,
+    links,
+    packetsByCycleId,
+  ]);
 
   const progressRow = rows.find((row) => row.kind === "progress");
   const goalsByCycleId = Object.fromEntries(

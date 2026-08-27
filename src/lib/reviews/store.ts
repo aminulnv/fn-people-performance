@@ -1,3 +1,5 @@
+import { datePart, toSortKey } from "@/lib/dates/timestamp";
+import { toUtcIso } from "@/lib/dates/timezone";
 import { isIntegerId } from "@/lib/integerId";
 import {
   buildDefaultStagesConfig,
@@ -6,27 +8,32 @@ import {
   normalizeCycleSettings,
   normalizeStagesConfig,
 } from "./demoData";
-import { inferPurpose, inferYearKey, suggestedSourceLinks } from "./purpose";
+import { cyclePurposeOf, inferYearKey, suggestedSourceLinks } from "./purpose";
 import {
   assignMembersExclusively,
   cloneCycleSettingsIntoGroup,
   cycleGroupsOf,
 } from "./cycleGroups";
 import { findPeriod } from "./periods";
-import { applyCycleModules } from "./reviewStages";
-import type {
-  CalibrationLogic,
-  CycleGroup,
-  CycleModules,
-  CyclePurpose,
-  CycleSettings,
-  CycleSourceLink,
-  CycleStagesConfig,
-  GoalCycleExtension,
-  ReviewCycle,
-  ReviewCycleType,
-  ReviewsMutationError,
-  ReviewsSnapshot,
+import {
+  applyCycleModules,
+  isCyclePublishStage,
+  REVIEW_STAGE_LABEL,
+} from "./reviewStages";
+import {
+  normalizeCycleType,
+  type CalibrationLogic,
+  type CycleGroup,
+  type CycleModules,
+  type CyclePurpose,
+  type CycleSettings,
+  type CycleSourceLink,
+  type CycleStagesConfig,
+  type GoalCycleExtension,
+  type ReviewCycle,
+  type ReviewCycleType,
+  type ReviewsMutationError,
+  type ReviewsSnapshot,
 } from "./types";
 import { ApiError } from "@/lib/apiClient";
 import {
@@ -48,6 +55,7 @@ const STORAGE_KEY = "pd-reviews-cycles-v4";
 
 let memory: ReviewsSnapshot | null = null;
 let remoteHydrated = false;
+let hydratePromise: Promise<void> | null = null;
 let localModeOverride: boolean | null = null;
 const listeners = new Set<() => void>();
 const pendingCycleSaves = new Map<string, Promise<ReviewCycle>>();
@@ -189,6 +197,7 @@ export function areReviewCyclesHydrated(): boolean {
 export function resetReviewsStoreForTests(): void {
   memory = null;
   remoteHydrated = false;
+  hydratePromise = null;
   localModeOverride = null;
   pendingCycleSaves.clear();
   cycleIdSeq = 0;
@@ -239,15 +248,14 @@ export function newCycleId(prefix: string): string {
 }
 
 function normalizeStoredCycle(cycle: ReviewCycle): ReviewCycle {
-  const purpose =
-    cycle.purpose ??
-    inferPurpose(
-      cycle.periodKey,
-      cycle.type === "ad-hoc" ? "custom" : "quarterly_checkin",
-    );
+  const type = normalizeCycleType(cycle.type);
+  const purpose = cyclePurposeOf({ ...cycle, type });
+  const { purpose: _dropped, ...rest } = cycle as ReviewCycle & {
+    purpose?: unknown;
+  };
   return {
-    ...cycle,
-    purpose,
+    ...rest,
+    type,
     yearKey: cycle.yearKey ?? inferYearKey(cycle.periodKey, cycle.startDate),
     sourceLinks: cycle.sourceLinks ?? [],
     settings: normalizeCycleSettings(cycle.settings, purpose),
@@ -285,13 +293,19 @@ function replaceCycleInMemory(cycle: ReviewCycle): ReviewCycle {
 /** Hydrate the in-memory cache from the platform API when not in local mode. */
 export async function ensureReviewCyclesLoaded(): Promise<void> {
   if (useLocalReviews() || remoteHydrated) return;
-  const cycles = await fetchReviewCyclesRemote();
-  memory = {
-    cycles: cycles.map((cycle) => normalizeStoredCycle(cycle)),
-    mutationError: null,
-  };
-  remoteHydrated = true;
-  listeners.forEach((listener) => listener());
+  if (hydratePromise) return hydratePromise;
+  hydratePromise = (async () => {
+    const cycles = await fetchReviewCyclesRemote();
+    memory = {
+      cycles: cycles.map((cycle) => normalizeStoredCycle(cycle)),
+      mutationError: null,
+    };
+    remoteHydrated = true;
+    listeners.forEach((listener) => listener());
+  })().finally(() => {
+    hydratePromise = null;
+  });
+  return hydratePromise;
 }
 
 /** Live refresh of every review cycle from the API. */
@@ -308,7 +322,6 @@ export async function reloadReviewCycles(): Promise<void> {
 
 export type CreateReviewCycleInput = {
   type: ReviewCycleType;
-  purpose?: CyclePurpose;
   periodKey?: string;
   yearKey?: string;
   name?: string;
@@ -346,15 +359,13 @@ export async function createReviewCycle(
     if (existing && useLocalReviews()) {
       throw new Error(`${period.label} already exists.`);
     }
-    const purpose =
-      input.purpose ?? inferPurpose(period.key, "quarterly_checkin");
+    const purpose = cyclePurposeOf({ type: "regular", periodKey: period.key });
     cycle = {
       id: period.key,
       name: period.label,
       type: "regular",
-      purpose,
-      startDate: period.startDate,
-      endDate: period.endDate,
+      startDate: toUtcIso(period.startDate),
+      endDate: toUtcIso(period.endDate),
       periodKey: period.key,
       yearKey: input.yearKey ?? inferYearKey(period.key, period.startDate),
       sourceLinks:
@@ -364,8 +375,8 @@ export async function createReviewCycle(
           : []),
       stagesConfig: applyCreateModules(
         buildDefaultStagesConfig(
-          period.startDate,
-          period.endDate,
+          toUtcIso(period.startDate),
+          toUtcIso(period.endDate),
           purpose,
           period.key,
         ),
@@ -380,15 +391,18 @@ export async function createReviewCycle(
       version: 1,
     };
   } else {
-    const name = input.name?.trim() || "Ad-hoc cycle";
-    const startDate = input.startDate ?? new Date().toISOString().slice(0, 10);
-    const endDate = input.endDate ?? startDate;
-    const purpose = input.purpose ?? "custom";
+    const name = input.name?.trim() || "Custom cycle";
+    const startDate = toUtcIso(input.startDate);
+    const endDate = toUtcIso(input.endDate);
+    if (!startDate || !endDate) {
+      throw new Error("Start and end timestamps are required.");
+    }
+    assertEndOnOrAfterStart(startDate, endDate, "Cycle");
+    const purpose = cyclePurposeOf({ type: "custom" });
     cycle = {
-      id: newCycleId("adhoc"),
+      id: newCycleId("custom"),
       name,
-      type: "ad-hoc",
-      purpose,
+      type: "custom",
       startDate,
       endDate,
       yearKey: input.yearKey ?? inferYearKey(undefined, startDate),
@@ -416,10 +430,59 @@ export async function createReviewCycle(
   return clone(cycle);
 }
 
+export function isCycleTypeConstraintError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  const bodyText =
+    typeof error.body === "string"
+      ? error.body
+      : error.body
+        ? JSON.stringify(error.body)
+        : "";
+  return /review_cycles_cycle_type_check/i.test(`${error.message} ${bodyText}`);
+}
+
+async function createRemoteTestCycleFromSource(
+  source: ReviewCycle,
+): Promise<ReviewCycle> {
+  const remote = await createReviewCycleRemote({
+    name: `${source.name} (Test)`,
+    type: "custom",
+    startDate: source.startDate,
+    endDate: source.endDate,
+    yearKey: source.yearKey,
+    sourceLinks: source.sourceLinks ?? [],
+    stagesConfig: source.stagesConfig,
+    settings: source.settings,
+    calibration: source.calibration,
+    isTest: true,
+    purpose: "custom",
+    sourceCycleId: source.id,
+  });
+  replaceCycleInMemory(remote);
+  for (const group of cycleGroupsOf(source)) {
+    const created = await createCycleGroup(remote.id, {
+      name: group.name,
+      memberIds: group.memberIds,
+    });
+    await updateCycleGroup(remote.id, created.id, {
+      settings: group.settings,
+      stagesConfig: group.stagesConfig,
+      calibration: group.calibration,
+    });
+  }
+  return clone(getReviewCycle(remote.id) ?? remote);
+}
+
 export async function createTestCycle(sourceId: string): Promise<ReviewCycle> {
   if (!useLocalReviews()) {
-    const remote = await createTestCycleRemote(sourceId);
-    return replaceCycleInMemory(remote);
+    try {
+      const remote = await createTestCycleRemote(sourceId);
+      return replaceCycleInMemory(remote);
+    } catch (error) {
+      const source = getReviewCycle(sourceId);
+      if (!isCycleTypeConstraintError(error) || !source) throw error;
+      return createRemoteTestCycleFromSource(source);
+    }
   }
 
   const source = getReviewCycle(sourceId);
@@ -430,7 +493,7 @@ export async function createTestCycle(sourceId: string): Promise<ReviewCycle> {
     ...clone(source),
     id: testId,
     name: `${source.name} (Test)`,
-    type: "ad-hoc",
+    type: "custom",
     periodKey: undefined,
     isTest: true,
     createdAt: new Date().toISOString(),
@@ -452,7 +515,6 @@ export type UpdateReviewCycleInput = {
   name?: string;
   startDate?: string;
   endDate?: string;
-  purpose?: CyclePurpose;
   yearKey?: string;
   sourceLinks?: CycleSourceLink[];
   settings?: Partial<CycleSettings>;
@@ -471,22 +533,26 @@ function mergeCyclePatch(
   };
   if (settings?.goalCountPolicy) validateGoalCountPolicy(goalCountPolicy);
 
-  const purpose = patch.purpose ?? current.purpose;
+  const purpose = cyclePurposeOf(current);
   const stagesConfig = patch.stagesConfig
     ? normalizeStagesConfig(patch.stagesConfig, {
         startDate: patch.startDate ?? current.startDate,
         endDate: patch.endDate ?? current.endDate,
         purpose,
+        periodKey: current.periodKey,
       })
     : current.stagesConfig;
   if (patch.stagesConfig) validateCycleStagesConfig(stagesConfig);
 
+  const startDate = patch.startDate ?? current.startDate;
+  const endDate = patch.endDate ?? current.endDate;
+  assertEndOnOrAfterStart(startDate, endDate, "Cycle");
+
   return {
     ...current,
     name: patch.name?.trim() || current.name,
-    startDate: patch.startDate ?? current.startDate,
-    endDate: patch.endDate ?? current.endDate,
-    purpose,
+    startDate,
+    endDate,
     yearKey: patch.yearKey ?? current.yearKey,
     sourceLinks: patch.sourceLinks ?? current.sourceLinks,
     settings: {
@@ -547,7 +613,6 @@ function buildReviewCycleRemoteBody(
   if (patch.name !== undefined) body.name = patch.name;
   if (patch.startDate !== undefined) body.startDate = patch.startDate;
   if (patch.endDate !== undefined) body.endDate = patch.endDate;
-  if (patch.purpose !== undefined) body.purpose = patch.purpose;
   if (patch.yearKey !== undefined) body.yearKey = patch.yearKey;
   if (patch.sourceLinks !== undefined) body.sourceLinks = patch.sourceLinks;
   if (patch.settings) Object.assign(body, patch.settings);
@@ -764,7 +829,8 @@ export function updateCycleGroup(
       ? normalizeStagesConfig(patch.stagesConfig, {
           startDate: cycle.startDate,
           endDate: cycle.endDate,
-          purpose: cycle.purpose,
+          purpose: cyclePurposeOf(cycle),
+          periodKey: cycle.periodKey,
         })
       : current.stagesConfig,
     calibration: patch.calibration
@@ -877,11 +943,14 @@ export async function updateCycleSettings(
     ...patch.goalCountPolicy,
   };
   validateGoalCountPolicy(goalCountPolicy);
+  const startDate = patch.startDate ?? current.startDate;
+  const endDate = patch.endDate ?? current.endDate;
+  assertEndOnOrAfterStart(startDate, endDate, "Cycle");
   const next: ReviewCycle = {
     ...current,
     name: patch.name?.trim() || current.name,
-    startDate: patch.startDate ?? current.startDate,
-    endDate: patch.endDate ?? current.endDate,
+    startDate,
+    endDate,
     settings: {
       ...current.settings,
       reviewTypes: patch.reviewTypes
@@ -995,10 +1064,10 @@ function validateGoalExtensions(
   performanceStartDate: string,
 ): void {
   for (const extension of extensions) {
-    if (!extension.endDate || extension.endDate <= baseEndDate) {
+    if (!extension.endDate || toSortKey(extension.endDate) <= toSortKey(baseEndDate)) {
       throw new Error("An extension deadline must be after the standard goal deadline.");
     }
-    if (extension.endDate >= performanceStartDate) {
+    if (datePart(extension.endDate) >= datePart(performanceStartDate)) {
       throw new Error("An extension deadline must be before performance review starts.");
     }
 
@@ -1019,6 +1088,19 @@ function validateGoalExtensions(
   }
 }
 
+function assertEndOnOrAfterStart(
+  startDate: string | { date: string; time?: string },
+  endDate: string | { date: string; time?: string },
+  label: string,
+): void {
+  if (!toSortKey(startDate) || !toSortKey(endDate)) {
+    throw new Error(`${label} requires a start and end date.`);
+  }
+  if (toSortKey(startDate) > toSortKey(endDate)) {
+    throw new Error(`${label} must end on or after its start date.`);
+  }
+}
+
 function validateCycleStagesConfig(config: CycleStagesConfig): void {
   const enabled = new Map(
     (config.reviewStages ?? []).map((stage) => [stage.id, stage.enabled]),
@@ -1031,7 +1113,9 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
     : true;
   const reviewOn = selfOn || managerOn;
 
-  const ranges: Array<[string, string, string]> = [];
+  const ranges: Array<
+    [string, string | { date: string; time?: string }, string | { date: string; time?: string }]
+  > = [];
   if (goalsOn) {
     ranges.push([
       "Goal setting",
@@ -1054,19 +1138,28 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
     ]);
   }
 
+  const coveredIds = new Set(["goals", "self_review", "manager_review"]);
+  for (const stage of config.reviewStages ?? []) {
+    if (
+      !stage.enabled ||
+      isCyclePublishStage(stage.id) ||
+      coveredIds.has(stage.id)
+    ) {
+      continue;
+    }
+    if (!stage.start || !stage.end) continue;
+    ranges.push([REVIEW_STAGE_LABEL[stage.id], stage.start, stage.end]);
+  }
+
   for (const [label, startDate, endDate] of ranges) {
-    if (!startDate || !endDate) {
-      throw new Error(`${label} requires a start and end date.`);
-    }
-    if (startDate > endDate) {
-      throw new Error(`${label} must end on or after its start date.`);
-    }
+    assertEndOnOrAfterStart(startDate, endDate, label);
   }
 
   if (
     goalsOn &&
     reviewOn &&
-    config.goals.employee.endDate >= config.performance.employeeStart.date
+    datePart(config.goals.employee.endDate) >=
+      datePart(config.performance.employeeStart.date)
   ) {
     throw new Error(
       "Performance review must start after the employee goal lock date.",
@@ -1075,7 +1168,7 @@ function validateCycleStagesConfig(config: CycleStagesConfig): void {
   validateGoalExtensions(
     config.goals.extensions ?? [],
     config.goals.employee.endDate,
-    config.performance.employeeStart.date,
+    toSortKey(config.performance.employeeStart),
   );
 }
 
@@ -1097,7 +1190,7 @@ export async function deleteReviewCycle(cycleId: string): Promise<void> {
   commit({ cycles: nextCycles });
 }
 
-/** Sort: Future → Current → Manual → Previous, then by start date desc. */
+/** Sort: Future → Current → Previous, then by start date desc. */
 export function sortCyclesForList(
   cycles: ReviewCycle[],
   statusOf: (cycle: ReviewCycle) => string,
@@ -1105,8 +1198,7 @@ export function sortCyclesForList(
   const rank: Record<string, number> = {
     future: 0,
     current: 1,
-    manual: 2,
-    previous: 3,
+    previous: 2,
   };
   return [...cycles].sort((a, b) => {
     const ra = rank[statusOf(a)] ?? 9;

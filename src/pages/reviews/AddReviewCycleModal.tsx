@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Input, SegmentedControl, Select } from '@/components/ui'
+import { isEndBeforeStart } from '@/lib/dates/timestamp'
+import { toUtcIso } from '@/lib/dates/timezone'
 import {
   findPeriod,
   formatDateRange,
@@ -59,13 +61,13 @@ export function AddReviewCycleModal({
     [annuals, existingPeriodKeys],
   )
 
-  const [purpose, setPurpose] = useState<CyclePurpose>('quarterly_checkin')
+  const [kind, setKind] = useState<CyclePurpose>('quarterly_checkin')
   const [periodKey, setPeriodKey] = useState('')
   const [modules, setModules] = useState<CycleModules>(() =>
     presetCycleModules('quarterly_checkin'),
   )
   const [sourceIds, setSourceIds] = useState<string[]>([])
-  const [adhocName, setAdhocName] = useState('')
+  const [customName, setCustomName] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -90,11 +92,11 @@ export function AddReviewCycleModal({
   useEffect(() => {
     if (!open) return
     const initialPeriod = availableQuarters[0]?.key ?? ''
-    setPurpose('quarterly_checkin')
+    setKind('quarterly_checkin')
     setPeriodKey(initialPeriod)
     setModules(presetCycleModules('quarterly_checkin', initialPeriod || undefined))
     setSourceIds([])
-    setAdhocName('')
+    setCustomName('')
     setStartDate('')
     setEndDate('')
     setError(null)
@@ -103,8 +105,8 @@ export function AddReviewCycleModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const handlePurposeChange = (next: CyclePurpose) => {
-    setPurpose(next)
+  const handleKindChange = (next: CyclePurpose) => {
+    setKind(next)
     setError(null)
     if (next === 'quarterly_checkin') {
       const nextPeriod = firstKey(availableQuarters, periodKey)
@@ -125,32 +127,40 @@ export function AddReviewCycleModal({
     if (saving) return
     try {
       setError(null)
-      if (purpose !== 'custom' && !periodKey) {
+      if (kind !== 'custom' && !periodKey) {
         setError(
-          purpose === 'annual_appraisal'
+          kind === 'annual_appraisal'
             ? 'Every appraisal year in the picker already exists.'
             : 'Select a quarter before creating the cycle.',
         )
         return
       }
+      if (kind === 'custom') {
+        if (!toUtcIso(startDate) || !toUtcIso(endDate)) {
+          setError('Start and end timestamps are required.')
+          return
+        }
+        if (isEndBeforeStart(startDate, endDate)) {
+          setError('Cycle must end on or after its start date.')
+          return
+        }
+      }
       setSaving(true)
       const cycle =
-        purpose === 'custom'
+        kind === 'custom'
           ? await createReviewCycle({
-              type: 'ad-hoc',
-              purpose: 'custom',
-              name: adhocName || 'Custom cycle',
-              startDate: startDate || undefined,
-              endDate: endDate || startDate || undefined,
+              type: 'custom',
+              name: customName || 'Custom cycle',
+              startDate: toUtcIso(startDate),
+              endDate: toUtcIso(endDate),
               modules,
             })
           : await createReviewCycle({
               type: 'regular',
-              purpose,
               periodKey,
               modules,
               sourceLinks:
-                purpose === 'annual_appraisal'
+                kind === 'annual_appraisal'
                   ? sourceLinksFromIds(sourceIds)
                   : undefined,
             })
@@ -165,8 +175,8 @@ export function AddReviewCycleModal({
   if (!open) return null
 
   const periodOptions =
-    purpose === 'annual_appraisal' ? availableAnnuals : availableQuarters
-  const canCreate = purpose === 'custom' || periodOptions.length > 0
+    kind === 'annual_appraisal' ? availableAnnuals : availableQuarters
+  const canCreate = kind === 'custom' || periodOptions.length > 0
 
   return (
     <SettingsSidePanel
@@ -181,27 +191,27 @@ export function AddReviewCycleModal({
             className="pd-reviews-create__kind"
             aria-label="Kind"
             options={KIND_OPTIONS}
-            value={purpose}
-            onChange={handlePurposeChange}
+            value={kind}
+            onChange={handleKindChange}
           />
         </div>
 
-        {purpose === 'quarterly_checkin' || purpose === 'annual_appraisal' ? (
+        {kind === 'quarterly_checkin' || kind === 'annual_appraisal' ? (
           periodOptions.length === 0 ? (
             <p className="pd-reviews-create__status" role="status">
-              {purpose === 'annual_appraisal'
+              {kind === 'annual_appraisal'
                 ? 'Those years already have an annual cycle.'
                 : 'Those quarters already have a cycle.'}
             </p>
           ) : (
             <Select
-              label={purpose === 'annual_appraisal' ? 'Year' : 'Quarter'}
+              label={kind === 'annual_appraisal' ? 'Year' : 'Quarter'}
               value={periodKey}
               onChange={(event) => {
                 const next = event.target.value
                 setPeriodKey(next)
-                setModules(presetCycleModules(purpose, next))
-                if (purpose === 'annual_appraisal') applySuggestedSources(next)
+                setModules(presetCycleModules(kind, next))
+                if (kind === 'annual_appraisal') applySuggestedSources(next)
               }}
               options={periodOptions.map((period) => ({
                 value: period.key,
@@ -213,21 +223,28 @@ export function AddReviewCycleModal({
           <div className="pd-reviews-create__custom">
             <Input
               label="Name"
-              value={adhocName}
-              onChange={(event) => setAdhocName(event.target.value)}
+              value={customName}
+              onChange={(event) => setCustomName(event.target.value)}
               placeholder="e.g. Leadership mid-year"
             />
             <div className="pd-reviews-create__dates">
               <Input
                 label="Starts"
-                type="date"
+                type="datetime"
                 value={startDate}
+                max={endDate || undefined}
                 onChange={(event) => setStartDate(event.target.value)}
               />
               <Input
                 label="Ends"
-                type="date"
+                type="datetime"
                 value={endDate}
+                min={startDate || undefined}
+                error={
+                  isEndBeforeStart(startDate, endDate)
+                    ? 'Must end on or after the start date.'
+                    : undefined
+                }
                 onChange={(event) => setEndDate(event.target.value)}
               />
             </div>
@@ -241,13 +258,13 @@ export function AddReviewCycleModal({
           <CycleModulesFields modules={modules} onChange={setModules} />
         </section>
 
-        {purpose === 'annual_appraisal' && selectedPeriod ? (
+        {kind === 'annual_appraisal' && selectedPeriod ? (
           <p className="pd-field__hint">
             Window {formatDateRange(selectedPeriod.startDate, selectedPeriod.endDate)}
           </p>
         ) : null}
 
-        {purpose === 'annual_appraisal' ? (
+        {kind === 'annual_appraisal' ? (
           <section className="pd-reviews-create__include" aria-labelledby="add-cycle-include">
             <h3 className="pd-field__label" id="add-cycle-include">
               Include

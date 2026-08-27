@@ -1,3 +1,4 @@
+import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import type {
   CalibrationLogic,
   CalibrationModeId,
@@ -186,24 +187,7 @@ export function postWindowGoalPolicyLabel(policy: PostWindowGoalPolicy): string 
 }
 
 export function formatDateTimeValue(value: DateTimeValue): string {
-  const [y, m, d] = value.date.split('-').map(Number)
-  if (!y || !m || !d) return `${value.date}, ${value.time} UTC`
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ]
-  const [hh, mm] = value.time.split(':')
-  return `${d} ${months[m - 1]} ${y}, ${hh}:${mm} UTC`
+  return formatLocalTimestamp(value)
 }
 
 export function stagesConfigToTimeline(

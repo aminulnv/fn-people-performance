@@ -9,6 +9,7 @@ import {
 import {
   ConfirmDialog,
   DropdownMenu,
+  PageStatus,
 } from '@/components/ui'
 import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
@@ -23,8 +24,16 @@ import {
   cycleStatusLabel,
   resolveCycleStatus,
 } from '@/lib/reviews/status'
-import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 import { CycleSettingsView } from './reviews/CycleSettingsView'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  useLocationSaveNotice,
+} from './reviews/ReviewSaveBanner'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 import '@/styles/layout-activity.css'
@@ -33,6 +42,7 @@ export default function CycleDetailPage() {
   const { cycleId = '', section } = useParams()
   const navigate = useNavigate()
   const snapshot = useReviewsSnapshot()
+  const cyclesHydrated = useReviewCyclesHydrated()
   const cycle = useMemo(
     () =>
       snapshot.cycles.find(
@@ -45,6 +55,7 @@ export default function CycleDetailPage() {
   const [menuError, setMenuError] = useState<string | null>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
+  const [toastNotice, setToastNotice] = useLocationSaveNotice()
 
   useEffect(() => {
     setMenuError(null)
@@ -53,6 +64,16 @@ export default function CycleDetailPage() {
   }, [cycleId])
 
   if (!cycle) {
+    if (!cyclesHydrated) {
+      return (
+        <PageStatus
+          variant="loading"
+          pageClassName="pd-reviews"
+          aria-label="Loading cycle"
+          description="Loading cycle…"
+        />
+      )
+    }
     return <Navigate to={cyclesListPath()} replace />
   }
 
@@ -66,7 +87,9 @@ export default function CycleDetailPage() {
     try {
       setMenuError(null)
       const test = await createTestCycle(cycle.id)
-      navigate(cycleDetailPath(test.id, 'settings'))
+      navigate(cycleDetailPath(test.id, 'settings'), {
+        state: { saveNotice: successNotice('Test cycle created.') },
+      })
     } catch (err) {
       setMenuError(
         err instanceof Error ? err.message : 'Could not create test cycle.',
@@ -79,7 +102,10 @@ export default function CycleDetailPage() {
       setMenuError(null)
       await deleteReviewCycle(cycle.id)
       setDeleteOpen(false)
-      navigate(cyclesListPath(), { replace: true })
+      navigate(cyclesListPath(), {
+        replace: true,
+        state: { saveNotice: successNotice('Cycle deleted.') },
+      })
     } catch (err) {
       setDeleteOpen(false)
       setMenuError(
@@ -136,6 +162,11 @@ export default function CycleDetailPage() {
           />
         </div>
       </header>
+
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
 
       {menuError ? (
         <p className="pd-reviews-modal__error" role="alert">

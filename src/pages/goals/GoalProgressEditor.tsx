@@ -17,6 +17,7 @@ import {
   removeTodoMeasure,
   replaceMilestoneList,
   patchMilestone,
+  withMeasureProof,
   withMeasureTitle,
   withMilestoneListTitle,
   withMilestoneTitle,
@@ -309,6 +310,15 @@ export function GoalProgressEditor({
                     currentMeasurements(),
                     panel.measureGroupId,
                     weight,
+                  ),
+                })
+              }
+              onChangeProof={(next) =>
+                patch({
+                  measurements: withMeasureProof(
+                    currentMeasurements(),
+                    panel.measureGroupId,
+                    next,
                   ),
                 })
               }

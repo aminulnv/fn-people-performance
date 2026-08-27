@@ -12,8 +12,11 @@ import {
   GoalTodoMeasureReadout,
   GoalWeightReadout,
 } from './GoalMeasurementReadout'
+import { proofParts } from '@/lib/goals/proof'
 import { GoalProgressLog } from './GoalProgressLog'
+import { ignoreInteractiveSummaryClick } from './measureFold'
 import { MeasureKindIcon } from './MeasureKindIcon'
+import { MeasureProofFields } from './MeasureProofFields'
 
 type TodoMeasurePanel = Extract<MeasurementPanel, { kind: 'todo_measure' }>
 
@@ -21,6 +24,7 @@ export function TodoMeasureViewCard({
   panel,
   renderTodoItem,
   highlighted = false,
+  onProofChange,
   cardClassName = 'pd-goal-view__fold pd-goal-measure-card',
   headClassName = 'pd-goal-view__fold-head',
   titleClassName = 'pd-goal-view__fold-title',
@@ -30,6 +34,7 @@ export function TodoMeasureViewCard({
   panel: TodoMeasurePanel
   renderTodoItem: (todo: Milestone) => ReactNode
   highlighted?: boolean
+  onProofChange?: (next: { proofUrl?: string; comment?: string }) => void
   cardClassName?: string
   headClassName?: string
   titleClassName?: string
@@ -37,9 +42,11 @@ export function TodoMeasureViewCard({
   todoItemClassName?: string
 }) {
   const name = measurePanelName(panel)
-  const progressEntries = todoMeasureItems(panel).flatMap(
-    (todo) => todo.progressLog ?? [],
-  )
+  const todos = todoMeasureItems(panel)
+  const progressEntries = todos.flatMap((todo) => todo.progressLog ?? [])
+  const proofSource =
+    todos.find((todo) => proofParts(todo.proofUrl, todo.comment).hasProof) ??
+    todos[0]
 
   return (
     <details
@@ -50,7 +57,7 @@ export function TodoMeasureViewCard({
       aria-label={name || 'Metric'}
       open
     >
-      <summary className={headClassName}>
+      <summary className={headClassName} onClick={ignoreInteractiveSummaryClick}>
         <ChevronRight
           size={14}
           strokeWidth={2.25}
@@ -63,6 +70,13 @@ export function TodoMeasureViewCard({
           <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
         </div>
         <div className="pd-goal-view__fold-meta">
+          <MeasureProofFields
+            proofUrl={proofSource?.proofUrl}
+            comment={proofSource?.comment}
+            name={name || 'milestone'}
+            disabled={!onProofChange}
+            onChange={onProofChange}
+          />
           <GoalWeightReadout weight={panel.weight} />
         </div>
       </summary>

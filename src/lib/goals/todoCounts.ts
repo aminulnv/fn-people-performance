@@ -38,6 +38,16 @@ export function goalTodoBadgeLabel(
   return count === 1 ? '1 item needs attention' : `${count} items need attention`
 }
 
+function cycleAcceptsGoalInput(
+  cycle: Pick<GoalsCycle, 'phase' | 'postWindowGoalPolicy'>,
+): boolean {
+  return (
+    cycle.phase === 'window_open' ||
+    (cycle.phase === 'hard_lock' &&
+      cycle.postWindowGoalPolicy === 'two_tier_approval')
+  )
+}
+
 function hasSubmitBlockers(
   row: PersonGoals,
   cycle: Pick<GoalsCycle, 'goalCountPolicy'>,
@@ -63,14 +73,20 @@ export function countOwnGoalTodos(
 /** Same attention items as My Goals, plus each set waiting on this manager. */
 export function countReportGoalTodos(
   reports: readonly { row: PersonGoals }[],
-  cycle: Pick<GoalsCycle, 'goalCountPolicy' | 'assignedGroupId'>,
+  cycle: Pick<
+    GoalsCycle,
+    'goalCountPolicy' | 'assignedGroupId' | 'phase' | 'postWindowGoalPolicy'
+  >,
 ): number {
   if (cycle.assignedGroupId === null) {
     return reports.filter(({ row }) => row.status === 'submitted').length
   }
+  const canSubmit = cycleAcceptsGoalInput(cycle)
   return reports.reduce((total, { row }) => {
     const awaitingReview = row.status === 'submitted' ? 1 : 0
-    return total + awaitingReview + countOwnGoalTodos(row, cycle)
+    return (
+      total + awaitingReview + countOwnGoalTodos(row, cycle, { canSubmit })
+    )
   }, 0)
 }
 

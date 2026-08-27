@@ -4,6 +4,7 @@ import { ChevronLeft, Maximize2 } from 'lucide-react'
 import { Badge, SegmentedControl } from '@/components/ui'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import { cycleGroupPath } from '@/lib/reviews/paths'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
 import { updateCycleGroup } from '@/lib/reviews/store'
 import type { CycleGroup, CycleModules, ReviewCycle } from '@/lib/reviews/types'
@@ -23,6 +24,7 @@ type GroupSettingsViewProps = {
   group: CycleGroup
   onClose: () => void
   variant?: 'panel' | 'page'
+  onSuccess?: (message: string) => void
 }
 
 const GROUP_JOBS = [
@@ -65,6 +67,7 @@ export function GroupSettingsView({
   group,
   onClose,
   variant = 'panel',
+  onSuccess,
 }: GroupSettingsViewProps) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -78,7 +81,6 @@ export function GroupSettingsView({
   )
   const [name, setName] = useState(group.name)
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
-  const hasPeople = group.memberIds.length > 0
   const resolvedScreen = visibleScreen(screen, modules)
   const fullViewHref = cycleGroupPath(
     cycle.id,
@@ -128,7 +130,7 @@ export function GroupSettingsView({
     const stagesConfig = applyCycleModules(
       reviewDraft.stagesConfig,
       next,
-      cycle.purpose ?? 'quarterly_checkin',
+      cyclePurposeOf(cycle),
       cycle.periodKey,
     )
     setModules(next)
@@ -153,13 +155,9 @@ export function GroupSettingsView({
         onChange={(event) => setName(event.target.value)}
         onBlur={saveName}
       />
-      {hasPeople ? (
-        <Badge variant="neutral">
-          {peopleCountLabel(group.memberIds.length)}
-        </Badge>
-      ) : (
-        <Badge variant="pending">Needs people</Badge>
-      )}
+      <Badge variant="neutral">
+        {peopleCountLabel(group.memberIds.length)}
+      </Badge>
     </div>
   )
 
@@ -209,6 +207,7 @@ export function GroupSettingsView({
           onEnabledChange={(goals) => saveModules({ ...modules, goals })}
           embedded
           onClose={onClose}
+          onSuccess={onSuccess}
         />
       ) : null}
 
@@ -221,6 +220,7 @@ export function GroupSettingsView({
           embedded
           draft={reviewDraft}
           onClose={onClose}
+          onSuccess={onSuccess}
         />
       ) : null}
 
@@ -230,6 +230,7 @@ export function GroupSettingsView({
           group={group}
           embedded
           onClose={onClose}
+          onSuccess={onSuccess}
         />
       ) : null}
     </div>

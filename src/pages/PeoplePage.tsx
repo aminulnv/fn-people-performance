@@ -23,12 +23,15 @@ import {
   type DirectoryScope,
 } from '@/pages/people/directoryHashes'
 import {
+  activeDirectoryFilterCount,
   directoryStats,
   employeeSearchHaystack,
   filterDirectory,
+  type DirectoryAttributeFilters,
   type StatusFilter,
 } from '@/pages/people/filterDirectory'
 import { PeopleDirectoryTable } from '@/pages/people/PeopleDirectoryTable'
+import { PeopleFilters } from '@/pages/people/PeopleFilters'
 import { PeopleProfileDrawer } from '@/pages/people/PeopleProfileDrawer'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
 import '@/styles/layout-people.css'
@@ -77,6 +80,8 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
     hashFromTab: hashForPeopleScope,
   })
   const [statusFilter, setStatusFilter] = useState<StatusFilter | null>(null)
+  const [attributeFilters, setAttributeFilters] =
+    useState<DirectoryAttributeFilters>({})
 
   const isV3 = variant === 'v3'
   const employeesById = useMemo(
@@ -131,8 +136,10 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         statusFilter,
         me,
         haystacks: searchHaystacks,
+        attributeFilters,
       }),
     [
+      attributeFilters,
       coversRevision,
       deferredQuery,
       employees,
@@ -141,6 +148,11 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
       searchHaystacks,
       statusFilter,
     ],
+  )
+
+  const activeFilterCount = activeDirectoryFilterCount(
+    statusFilter,
+    attributeFilters,
   )
 
   return (
@@ -255,9 +267,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         </div>
 
         <div className="pd-people__bar-end">
-          {filtered.length !== employees.length ||
-          statusFilter === 'active' ||
-          statusFilter === 'inactive' ? (
+          {filtered.length !== employees.length || activeFilterCount > 0 ? (
             <p className="pd-people__stat">{filtered.length} shown</p>
           ) : null}
 
@@ -266,6 +276,13 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             role="toolbar"
             aria-label="People actions"
           >
+            <PeopleFilters
+              employees={employees}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              attributeFilters={attributeFilters}
+              onAttributeFiltersChange={setAttributeFilters}
+            />
             <OrgChartLink />
             <Link to="/people/new" className="pd-people__create-btn">
               <Plus size={18} strokeWidth={2} aria-hidden />
@@ -324,6 +341,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
                   setQuery('')
                   setScope('all')
                   setStatusFilter(null)
+                  setAttributeFilters({})
                 }}
               >
                 Clear Filters

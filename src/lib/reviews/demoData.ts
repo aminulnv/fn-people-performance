@@ -1,3 +1,4 @@
+import { datePart, parseDateTime } from "@/lib/dates/timestamp";
 import { toIntegerId } from "@/lib/integerId";
 import { buildPeriod } from "./periods";
 import { inferPurpose, inferYearKey } from "./purpose";
@@ -23,7 +24,8 @@ import type {
 const DEFAULT_TIME = "14:00";
 
 function at(date: string, time = DEFAULT_TIME): DateTimeValue {
-  return { date, time };
+  const parsed = parseDateTime(date);
+    return { date: parsed?.date ?? (datePart(date) || date), time };
 }
 
 export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
@@ -144,12 +146,20 @@ function normalizeGoalExtensions(
 
 export function normalizeStagesConfig(
   config?: Partial<CycleStagesConfig>,
-  quarter?: { startDate: string; endDate: string; purpose?: CyclePurpose },
+  quarter?: {
+    startDate: string;
+    endDate: string;
+    purpose?: CyclePurpose;
+    periodKey?: string;
+  },
 ): CycleStagesConfig {
+  const purpose =
+    quarter?.purpose ?? inferPurpose(quarter?.periodKey, "quarterly_checkin");
   const defaults = buildDefaultStagesConfig(
     quarter?.startDate ?? "2026-07-01",
     quarter?.endDate ?? "2026-09-30",
-    quarter?.purpose,
+    purpose,
+    quarter?.periodKey,
   );
   if (!config) return defaults;
 
@@ -208,7 +218,6 @@ export function normalizeStagesConfig(
       },
     },
   };
-  const purpose = quarter?.purpose ?? "quarterly_checkin";
   merged.reviewStages = mergeReviewStages(
     config.reviewStages,
     config.reviewStages?.length
@@ -304,7 +313,7 @@ export function buildDefaultStages(startDate: string, endDate: string) {
 }
 
 function parseIso(iso: string): Date | null {
-  const [y, m, d] = iso.split("-").map(Number);
+  const [y, m, d] = datePart(iso).split("-").map(Number);
   if (!y || !m || !d) return null;
   return new Date(Date.UTC(y, m - 1, d));
 }
@@ -339,7 +348,6 @@ function regularCycle(
     id: period.key,
     name: period.label,
     type: "regular",
-    purpose,
     startDate: period.startDate,
     endDate: period.endDate,
     periodKey: period.key,

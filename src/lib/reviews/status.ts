@@ -1,16 +1,15 @@
+import { datePart } from '@/lib/dates/timestamp'
 import type { ReviewCycle, ReviewCycleStatus } from './types'
 
 function toDay(iso: string): number {
-  const [y, m, d] = iso.split('-').map(Number)
+  const [y, m, d] = datePart(iso).split('-').map(Number)
   return Date.UTC(y, (m ?? 1) - 1, d ?? 1)
 }
 
 export function resolveCycleStatus(
-  cycle: Pick<ReviewCycle, 'type' | 'startDate' | 'endDate'>,
+  cycle: Pick<ReviewCycle, 'startDate' | 'endDate'>,
   today = new Date(),
 ): ReviewCycleStatus {
-  if (cycle.type === 'ad-hoc') return 'manual'
-
   const now = Date.UTC(
     today.getFullYear(),
     today.getMonth(),
@@ -32,7 +31,5 @@ export function cycleStatusLabel(status: ReviewCycleStatus): string {
       return 'Current'
     case 'previous':
       return 'Previous'
-    case 'manual':
-      return 'Manual'
   }
 }

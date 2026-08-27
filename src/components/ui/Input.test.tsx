@@ -1,9 +1,15 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import { setTimeZoneForTests } from '@/lib/dates/timezone'
 import { Input } from './Input'
+
+beforeEach(() => {
+  setTimeZoneForTests('UTC')
+})
 
 afterEach(() => {
   cleanup()
+  setTimeZoneForTests(null)
 })
 
 describe('Input date fields', () => {
@@ -33,5 +39,19 @@ describe('Input date fields', () => {
     )
 
     expect(screen.getByLabelText('Starts')).toHaveValue('2026-08-24')
+  })
+
+  it('shows a timestamp as a date and time label', () => {
+    render(
+      <Input
+        label="Opens"
+        type="datetime"
+        value="2027-09-21T10:00"
+        onChange={() => {}}
+      />,
+    )
+
+    expect(screen.getByLabelText('Opens')).toHaveValue('2027-09-21T10:00')
+    expect(screen.getByText('21-Sep-2027, 10:00 AM')).toBeInTheDocument()
   })
 })

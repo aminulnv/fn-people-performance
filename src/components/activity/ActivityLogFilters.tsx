@@ -47,28 +47,24 @@ export function ActivityLogFilters({
         {showDates ? (
           <>
             <Input
-              type="date"
+              type="datetime"
               label="From"
-              value={(value.from ?? '').slice(0, 10)}
+              value={value.from ?? ''}
               onChange={(event) =>
                 onChange({
                   ...value,
-                  from: event.target.value
-                    ? `${event.target.value}T00:00:00.000Z`
-                    : undefined,
+                  from: event.target.value || undefined,
                 })
               }
             />
             <Input
-              type="date"
+              type="datetime"
               label="To"
-              value={(value.to ?? '').slice(0, 10)}
+              value={value.to ?? ''}
               onChange={(event) =>
                 onChange({
                   ...value,
-                  to: event.target.value
-                    ? `${event.target.value}T23:59:59.999Z`
-                    : undefined,
+                  to: event.target.value || undefined,
                 })
               }
             />

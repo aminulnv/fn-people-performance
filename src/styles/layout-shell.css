@@ -779,8 +779,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
     -webkit-backdrop-filter: none;
   }
 
-  .pd-topbar__icon-btn,
-  .pd-topbar__search {
+  .pd-topbar__icon-btn {
     background: var(--color-bg);
     border-color: var(--color-border);
   }
@@ -996,154 +995,16 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   background: var(--color-neutral-hover);
 }
 
+.pd-topbar__search-btn {
+  border-radius: 50%;
+}
+
 .pd-topbar__actions {
   position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
-}
-
-.pd-topbar__search-wrap {
-  position: relative;
-}
-
-/* Pill search, matching `.pd-people__search` above the directory table. */
-.pd-topbar__search {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  box-sizing: border-box;
-  min-width: 0;
-  width: 13rem;
-  min-height: 2.35rem;
-  padding: 0.4rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-border);
-  background: var(--color-surface-raised, var(--color-surface));
-  color: var(--color-text-secondary);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.pd-topbar__search:focus-within {
-  border-color: color-mix(in srgb, var(--color-theme) 45%, var(--color-border));
-  color: var(--color-text);
-}
-
-.pd-topbar__search-icon {
-  flex-shrink: 0;
-  pointer-events: none;
-}
-
-.pd-topbar__search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font: inherit;
-  font-size: 0.875rem;
-  color: var(--color-text);
-}
-
-.pd-topbar__search-input::placeholder {
-  color: var(--color-text-muted);
-}
-
-.pd-topbar__search-input::-webkit-search-cancel-button {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-.pd-topbar--mobile .pd-topbar__search {
-  width: 9rem;
-}
-
-.pd-topbar__dropdown-panel--search {
-  width: min(22rem, calc(100vw - 1.5rem));
-  max-height: min(32rem, calc(100vh - var(--pd-topbar-h) - 1rem));
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.pd-topbar__search-section + .pd-topbar__search-section {
-  border-top: 1px solid var(--color-border);
-}
-
-.pd-topbar__search-section-label {
-  padding: 0.5rem 0.75rem 0.25rem;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
-}
-
-.pd-topbar__search-list {
-  list-style: none;
-  margin: 0;
-  padding: 0.25rem 0;
-}
-
-.pd-topbar__search-result {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  text-decoration: none;
-  color: var(--color-text);
-  box-sizing: border-box;
-  transition: background-color 0.15s ease;
-}
-
-.pd-topbar__search-result:hover,
-.pd-topbar__search-result--active {
-  background: var(--color-neutral-hover);
-}
-
-.pd-topbar__search-result-icon {
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: var(--color-neutral-hover);
-  color: var(--color-text-sec);
-}
-
-.pd-topbar__search-result-text {
-  display: grid;
-  gap: 0.125rem;
-  min-width: 0;
-}
-
-.pd-topbar__search-result-label {
-  overflow: hidden;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--color-text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pd-topbar__search-result-description {
-  overflow: hidden;
-  font-size: 0.75rem;
-  color: var(--color-text-secondary);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.pd-topbar__search-empty {
-  padding: 0.875rem 0.75rem 1rem;
-  font-size: 0.8125rem;
-  color: var(--color-text-secondary);
 }
 
 .pd-topbar__notifications {

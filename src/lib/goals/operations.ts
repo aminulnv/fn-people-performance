@@ -1,6 +1,12 @@
 import { blankGoal } from './measurements'
 import { displayGoalTitle, newId } from './weightage'
-import type { DemoPerson, Goal, GoalsSnapshot, Measurement } from './types'
+import type {
+  DemoPerson,
+  Goal,
+  GoalComment,
+  GoalsSnapshot,
+  Measurement,
+} from './types'
 
 export type GoalOwnerOption = {
   id: string
@@ -292,6 +298,57 @@ export function replaceGoal(goals: Goal[], nextGoal: Goal): Goal[] {
 
 export function removeGoal(goals: Goal[], goalId: string): Goal[] {
   return goals.filter((goal) => goal.id !== goalId)
+}
+
+export function isOwnGoalComment(
+  comment: Pick<GoalComment, 'authorId' | 'authorName'>,
+  actor: { id?: string; name: string },
+): boolean {
+  if (comment.authorId && actor.id) return comment.authorId === actor.id
+  return comment.authorName === actor.name
+}
+
+function touchGoalComments(
+  goal: Goal,
+  comments: GoalComment[],
+): Goal {
+  return {
+    ...goal,
+    comments,
+    updatedAt: new Date().toISOString(),
+  }
+}
+
+export function replaceGoalComment(
+  goals: Goal[],
+  goalId: string,
+  commentId: string,
+  text: string,
+): Goal[] {
+  const trimmed = text.trim()
+  return goals.map((goal) => {
+    if (goal.id !== goalId) return goal
+    return touchGoalComments(
+      goal,
+      (goal.comments ?? []).map((comment) =>
+        comment.id === commentId ? { ...comment, text: trimmed } : comment,
+      ),
+    )
+  })
+}
+
+export function removeGoalComment(
+  goals: Goal[],
+  goalId: string,
+  commentId: string,
+): Goal[] {
+  return goals.map((goal) => {
+    if (goal.id !== goalId) return goal
+    return touchGoalComments(
+      goal,
+      (goal.comments ?? []).filter((comment) => comment.id !== commentId),
+    )
+  })
 }
 
 function resetMeasurement(measurement: Measurement): Measurement {

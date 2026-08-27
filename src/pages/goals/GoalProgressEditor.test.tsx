@@ -312,6 +312,97 @@ describe('GoalProgressEditor', () => {
     })
   })
 
+  it('lets you attach a proof link on a number measure', () => {
+    const onChange = vi.fn()
+    render(
+      <GoalProgressEditor
+        goal={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [numberMeasure(100)],
+        }}
+        onChange={onChange}
+      />,
+    )
+
+    const urlButton = screen.getByRole('button', { name: 'Add proof for CSAT' })
+    expect(urlButton).not.toHaveTextContent('URL')
+    expect(urlButton.closest('.pd-goal-view__fold-meta')).toBeTruthy()
+    fireEvent.click(urlButton)
+    fireEvent.change(screen.getByLabelText('Proof link for CSAT'), {
+      target: { value: 'https://dash.fn/csat' },
+    })
+    fireEvent.blur(screen.getByLabelText('Proof link for CSAT'))
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measurements: [
+          expect.objectContaining({
+            id: 'metric-CSAT',
+            proofUrl: 'https://dash.fn/csat',
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('lets you attach a proof link on a milestone measure', () => {
+    const onChange = vi.fn()
+    render(
+      <GoalProgressEditor
+        goal={{
+          id: 'g1',
+          description: 'Ship quality',
+          weight: 100,
+          measurements: [milestoneMeasure(100)],
+        }}
+        onChange={onChange}
+      />,
+    )
+
+    const urlButton = screen.getByRole('button', {
+      name: 'Add proof for Prepare Product Requirement Doc',
+    })
+    expect(urlButton).not.toHaveTextContent('URL')
+    expect(urlButton.closest('.pd-goal-view__fold-meta')).toBeTruthy()
+    fireEvent.click(urlButton)
+    fireEvent.change(
+      screen.getByLabelText('Proof link for Prepare Product Requirement Doc'),
+      { target: { value: 'https://dash.fn/prd' } },
+    )
+    fireEvent.blur(
+      screen.getByLabelText('Proof link for Prepare Product Requirement Doc'),
+    )
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measurements: [
+          expect.objectContaining({
+            id: 't1',
+            proofUrl: 'https://dash.fn/prd',
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('does not put a proof control on checklist items', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [milestoneMeasure(100)],
+    })
+
+    expect(
+      screen.queryByRole('button', { name: /proof for Task Item 001/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByLabelText('Proof link for Task Item 001'),
+    ).not.toBeInTheDocument()
+  })
+
   it('blocks the metric body and add actions until the metric is named', () => {
     render(
       <StatefulEditor

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   departmentPathForName,
+  orgChartPath,
   teamPathForNames,
 } from './paths'
 
@@ -25,5 +26,16 @@ describe('organisation unit paths', () => {
 
   it('returns null when the team name is empty', () => {
     expect(teamPathForNames('People & Culture', '')).toBeNull()
+  })
+})
+
+describe('orgChartPath', () => {
+  it('returns the bare chart path without a person', () => {
+    expect(orgChartPath()).toBe('/organisation/chart')
+    expect(orgChartPath(null)).toBe('/organisation/chart')
+  })
+
+  it('points at a person when opening from their profile', () => {
+    expect(orgChartPath(42)).toBe('/organisation/chart?person=42')
   })
 })

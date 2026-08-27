@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Goal } from '@/lib/goals/types'
 import { GoalDetailView } from './GoalDetailView'
 
@@ -31,6 +31,15 @@ vi.mock('@/components/ui', async () => {
   }
 })
 
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+  }
+})
+
 afterEach(cleanup)
 
 const goal: Goal = {
@@ -55,9 +64,8 @@ function startEditing() {
   fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
 }
 
-function saveDraft() {
-  openGoalActions()
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Save' }))
+function blurField(label: string) {
+  fireEvent.blur(screen.getByLabelText(label))
 }
 
 describe('GoalDetailView', () => {
@@ -266,9 +274,9 @@ describe('GoalDetailView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cascading from' }))
     fireEvent.click(screen.getByRole('option', { name: /Raise quality bar/ }))
 
-    expect(onSave).not.toHaveBeenCalled()
-    expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange.mock.calls[0][0]).toMatchObject({
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onSave).toHaveBeenCalledTimes(1)
+    expect(onSave.mock.calls[0][0]).toMatchObject({
       cascadedFromGoalId: 'mgr-1',
       linkedGoalLabel: 'Raise quality bar',
     })
@@ -644,6 +652,107 @@ describe('GoalDetailView', () => {
     )
   })
 
+  function ownComment() {
+    return {
+      ...goal,
+      comments: [
+        {
+          id: 'c1',
+          authorId: '1',
+          authorName: 'Aminul',
+          text: 'Looks good',
+          createdAt: '2026-08-01T00:00:00.000Z',
+        },
+        {
+          id: 'c2',
+          authorId: '2',
+          authorName: 'Line Manager',
+          text: 'Please add a metric',
+          createdAt: '2026-08-02T00:00:00.000Z',
+        },
+      ],
+    }
+  }
+
+  function openCommentActions() {
+    fireEvent.mouseEnter(
+      screen.getByRole('button', { name: 'Comment actions' }).closest('.pd-menu')!,
+    )
+  }
+
+  it('lets the author edit and delete their own comment', () => {
+    const onUpdateComment = vi.fn()
+    const onRemoveComment = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={ownComment()}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        commentAuthorId="1"
+        canUpdateProgress
+        onChange={vi.fn()}
+        onUpdateComment={onUpdateComment}
+        onRemoveComment={onRemoveComment}
+      />,
+    )
+
+    expect(screen.getByText('Looks good')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Comment actions' })).toHaveLength(1)
+
+    openCommentActions()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
+    const editor = screen.getByLabelText('Edit comment')
+    fireEvent.change(editor, { target: { value: 'Updated note' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(onUpdateComment).toHaveBeenCalledWith('c1', 'Updated note')
+
+    openCommentActions()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete comment' }))
+    expect(onRemoveComment).toHaveBeenCalledWith('c1')
+  })
+
+  it('does not offer comment actions on someone else’s note', () => {
+    renderView(
+      <GoalDetailView
+        goal={ownComment()}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        commentAuthorId="1"
+        canUpdateProgress
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Please add a metric')).toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Comment actions' })).toHaveLength(1)
+  })
+
+  it('hides comment actions when the viewer cannot mutate the goal', () => {
+    renderView(
+      <GoalDetailView
+        goal={ownComment()}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="approved"
+        commentAuthorName="Aminul"
+        commentAuthorId="1"
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.queryByRole('button', { name: 'Comment actions' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('does not keep a toolbar cascade action once create lives in cascading to', () => {
     renderView(
       <GoalDetailView
@@ -702,19 +811,24 @@ describe('GoalDetailView', () => {
     fireEvent.change(nameField, { target: { value: 'Raise the quality bar' } })
     expect(onSave).not.toHaveBeenCalled()
 
-    saveDraft()
+    blurField('Goal name')
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'Raise the quality bar' }),
     )
+    expect(screen.getByLabelText('Goal name')).toBeInTheDocument()
+    openGoalActions()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Cancel' }))
     expect(screen.queryByLabelText('Goal name')).not.toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: /Raise the quality bar/ }),
+      screen.getByRole('heading', { name: /Improve delivery quality/ }),
     ).toBeInTheDocument()
     openGoalActions()
     expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
   })
 
-  it('keeps structural edits local until the save icon is used', () => {
+  it('persists the title when the field loses focus', () => {
     const onChange = vi.fn()
     const onSave = vi.fn()
     renderView(
@@ -741,7 +855,7 @@ describe('GoalDetailView', () => {
     expect(onChange).not.toHaveBeenCalled()
     expect(onSave).not.toHaveBeenCalled()
 
-    saveDraft()
+    blurField('Goal name')
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'Raise the quality bar' }),
     )
@@ -750,6 +864,7 @@ describe('GoalDetailView', () => {
 
   it('offers to add milestones or a number when the goal has none', () => {
     const onChange = vi.fn()
+    const onSave = vi.fn()
     renderView(
       <GoalDetailView
         goal={goal}
@@ -760,7 +875,7 @@ describe('GoalDetailView', () => {
         commentAuthorName="Aminul"
         canEdit
         onChange={onChange}
-        onSave={vi.fn()}
+        onSave={onSave}
       />,
     )
 
@@ -775,7 +890,7 @@ describe('GoalDetailView', () => {
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Add milestones' }))
-    expect(onChange).toHaveBeenCalledWith(
+    expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         measurements: expect.arrayContaining([
           expect.objectContaining({ kind: 'milestone' }),
@@ -783,11 +898,13 @@ describe('GoalDetailView', () => {
       }),
     )
     openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
   })
 
   it('adds a number measure from the empty state', () => {
     const onChange = vi.fn()
+    const onSave = vi.fn()
     renderView(
       <GoalDetailView
         goal={goal}
@@ -798,12 +915,12 @@ describe('GoalDetailView', () => {
         commentAuthorName="Aminul"
         canEdit
         onChange={onChange}
-        onSave={vi.fn()}
+        onSave={onSave}
       />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Add number' }))
-    expect(onChange).toHaveBeenCalledWith(
+    expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         measurements: [
           expect.objectContaining({ kind: 'metric', unit: 'number' }),
@@ -811,7 +928,8 @@ describe('GoalDetailView', () => {
       }),
     )
     openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
   })
 
   it('edits the description in the edit session', () => {
@@ -840,13 +958,13 @@ describe('GoalDetailView', () => {
     fireEvent.change(field, { target: { value: 'Cut escaped defects' } })
     expect(onSave).not.toHaveBeenCalled()
 
-    saveDraft()
+    blurField('Description')
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({ details: 'Cut escaped defects' }),
     )
     expect(
-      screen.queryByPlaceholderText('Add a description (optional)'),
-    ).not.toBeInTheDocument()
+      screen.getByPlaceholderText('Add a description (optional)'),
+    ).toBeInTheDocument()
   })
 
   it('shows the table metric tooltip on hover', async () => {
@@ -969,6 +1087,64 @@ describe('GoalDetailView', () => {
         }),
       ],
     })
+  })
+
+  it('shows saved proof on a metric and lets the owner add a link', () => {
+    const onChange = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={{
+          ...goal,
+          measurements: [
+            {
+              id: 'm1',
+              kind: 'metric',
+              title: 'NPS',
+              weight: 100,
+              unit: 'number',
+              direction: 'increase',
+              startValue: 0,
+              currentValue: 2,
+              targetValue: 6,
+              proofUrl: 'https://dash.fn/nps',
+              comment: 'Q2 dashboard',
+            },
+          ],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="approved"
+        commentAuthorName="Aminul"
+        canUpdateProgress
+        onChange={onChange}
+      />,
+    )
+
+    const urlButton = screen.getByRole('button', { name: 'Edit proof for NPS' })
+    expect(urlButton).not.toHaveTextContent('URL')
+    expect(urlButton.closest('.pd-goal-view__fold-meta')).toBeTruthy()
+    fireEvent.click(urlButton)
+    expect(screen.getByText('Saved')).toBeInTheDocument()
+    expect(screen.getByLabelText('Proof link for NPS')).toHaveValue(
+      'https://dash.fn/nps',
+    )
+    expect(screen.queryByLabelText('Proof note for NPS')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Proof link for NPS'), {
+      target: { value: 'https://dash.fn/nps-q3' },
+    })
+    fireEvent.blur(screen.getByLabelText('Proof link for NPS'))
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        measurements: [
+          expect.objectContaining({
+            proofUrl: 'https://dash.fn/nps-q3',
+            comment: 'Q2 dashboard',
+          }),
+        ],
+      }),
+    )
   })
 
   it('shows the measurement editor after entering the edit session', () => {
@@ -1199,15 +1375,22 @@ describe('GoalDetailView', () => {
     expect(screen.queryByText('Not submitted yet')).toBeNull()
     expect(document.querySelector('.pd-goal-view__approval')).toBeNull()
 
-    openGoalActions()
-    const save = screen.getByRole('menuitem', { name: 'Save' })
-    expect(save).toBeEnabled()
-    expect(save).not.toHaveTextContent('Add Goal')
-    fireEvent.click(save)
+    fireEvent.blur(screen.getByPlaceholderText('Name this goal'))
+    expect(onSave).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByPlaceholderText('Name this goal'), {
+      target: { value: 'Ship the launch' },
+    })
+    fireEvent.blur(screen.getByPlaceholderText('Name this goal'))
     expect(onSave).toHaveBeenCalledOnce()
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({ description: 'Ship the launch' }),
+    )
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
   })
 
-  it('disables save on a new goal when there is nothing to persist', () => {
+  it('does not persist a new goal until it has a name', () => {
+    const onSave = vi.fn()
     renderView(
       <GoalDetailView
         isNew
@@ -1215,7 +1398,7 @@ describe('GoalDetailView', () => {
         manualSave
         goal={{
           id: 'goal-new',
-          description: 'Ship the draft',
+          description: '',
           weight: 0,
           measurements: [],
         }}
@@ -1225,12 +1408,13 @@ describe('GoalDetailView', () => {
         status="draft"
         commentAuthorName="Aminul"
         onChange={vi.fn()}
-        onSave={vi.fn()}
+        onSave={onSave}
       />,
     )
 
-    openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Save' })).toBeDisabled()
+    fireEvent.blur(screen.getByPlaceholderText('Name this goal'))
+    expect(onSave).not.toHaveBeenCalled()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
   })
 
   it('locks a new goal until it has a name', () => {
@@ -1259,8 +1443,10 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    expect(screen.getByPlaceholderText('Name this goal')).toHaveValue('')
-    expect(screen.getByText('Goal name is required')).toBeInTheDocument()
+    const nameField = screen.getByPlaceholderText('Name this goal')
+    expect(nameField).toHaveValue('')
+    expect(nameField).toHaveFocus()
+    expect(screen.queryByText('Goal name is required')).not.toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Progress metrics' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add number' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Add milestones' })).toBeDisabled()
@@ -1268,8 +1454,12 @@ describe('GoalDetailView', () => {
     expect(
       screen.getByRole('button', { name: 'Add cascading from' }),
     ).toBeDisabled()
-    openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Save' })).toBeDisabled()
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Add number' }))
+    expect(screen.getByText('Goal name is required')).toBeInTheDocument()
+    fireEvent.blur(nameField)
+    expect(screen.getByText('Goal name is required')).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Goal name'), {
       target: { value: 'Ship the draft' },

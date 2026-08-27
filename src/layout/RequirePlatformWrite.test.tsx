@@ -1,11 +1,15 @@
+import type { ReactNode } from 'react'
 import { describe, expect, it } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { render, screen } from '@testing-library/react'
 import { AuthProvider } from '@/lib/AuthProvider'
 import { writeSession } from '@/lib/authApi'
-import { RequirePlatformWrite } from './RequirePlatformWrite'
+import {
+  RequirePlatformRead,
+  RequirePlatformWrite,
+} from './RequirePlatformWrite'
 
-function renderGate(permissions: string[]) {
+function renderWithPermissions(permissions: string[], children: ReactNode) {
   writeSession({
     user: {
       id: 'test',
@@ -20,18 +24,19 @@ function renderGate(permissions: string[]) {
 
   return render(
     <AuthProvider>
-      <MemoryRouter>
-        <RequirePlatformWrite>
-          <p>Cycle admin content</p>
-        </RequirePlatformWrite>
-      </MemoryRouter>
+      <MemoryRouter>{children}</MemoryRouter>
     </AuthProvider>,
   )
 }
 
 describe('RequirePlatformWrite', () => {
   it('blocks users without platform.write_all', async () => {
-    renderGate(['platform.read_all'])
+    renderWithPermissions(
+      ['platform.read_all'],
+      <RequirePlatformWrite>
+        <p>Cycle admin content</p>
+      </RequirePlatformWrite>,
+    )
     expect(
       await screen.findByText(
         /do not have permission to manage cycles/i,
@@ -41,7 +46,37 @@ describe('RequirePlatformWrite', () => {
   })
 
   it('allows users with platform.write_all', async () => {
-    renderGate(['platform.write_all'])
+    renderWithPermissions(
+      ['platform.write_all'],
+      <RequirePlatformWrite>
+        <p>Cycle admin content</p>
+      </RequirePlatformWrite>,
+    )
     expect(await screen.findByText('Cycle admin content')).toBeInTheDocument()
+  })
+})
+
+describe('RequirePlatformRead', () => {
+  it('blocks users who are not Settings admins', async () => {
+    renderWithPermissions(
+      [],
+      <RequirePlatformRead>
+        <p>Analytics content</p>
+      </RequirePlatformRead>,
+    )
+    expect(
+      await screen.findByText(/available to administrators/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Analytics content')).not.toBeInTheDocument()
+  })
+
+  it('allows Settings admins with platform.read_all', async () => {
+    renderWithPermissions(
+      ['platform.read_all'],
+      <RequirePlatformRead>
+        <p>Analytics content</p>
+      </RequirePlatformRead>,
+    )
+    expect(await screen.findByText('Analytics content')).toBeInTheDocument()
   })
 })

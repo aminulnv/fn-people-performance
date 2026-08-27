@@ -89,15 +89,40 @@ export function classifyGoalUpdate(previous, next) {
   const previousComments = new Map(
     (previous.comments ?? []).map((comment) => [comment.id, comment]),
   )
+  const nextComments = new Map(
+    (next.comments ?? []).map((comment) => [comment.id, comment]),
+  )
   for (const comment of next.comments ?? []) {
-    if (previousComments.has(comment.id)) continue
+    const before = previousComments.get(comment.id)
+    if (!before) {
+      pushChange(
+        changes,
+        kinds,
+        'comment',
+        'comment',
+        null,
+        excerpt(comment.text),
+      )
+      continue
+    }
     pushChange(
       changes,
       kinds,
+      'comment_updated',
       'comment',
-      'comment',
-      null,
+      excerpt(before.text),
       excerpt(comment.text),
+    )
+  }
+  for (const comment of previous.comments ?? []) {
+    if (nextComments.has(comment.id)) continue
+    pushChange(
+      changes,
+      kinds,
+      'comment_deleted',
+      'comment',
+      excerpt(comment.text),
+      null,
     )
   }
 
@@ -230,6 +255,8 @@ export function classifyGoalUpdate(previous, next) {
 function resolveEventKey(kinds) {
   if (kinds.size === 1) {
     if (kinds.has('comment')) return 'goal.comment_added'
+    if (kinds.has('comment_updated')) return 'goal.comment_updated'
+    if (kinds.has('comment_deleted')) return 'goal.comment_deleted'
     if (kinds.has('milestone_done')) return 'goal.milestone_completed'
     if (kinds.has('milestone_reopen')) return 'goal.milestone_reopened'
     if (kinds.has('progress')) return 'goal.metric_progress_updated'
@@ -245,6 +272,10 @@ function resolveSummary(eventKey, title, changes) {
   switch (eventKey) {
     case 'goal.comment_added':
       return `Commented on ${quoted}`
+    case 'goal.comment_updated':
+      return `Edited a comment on ${quoted}`
+    case 'goal.comment_deleted':
+      return `Deleted a comment on ${quoted}`
     case 'goal.milestone_completed':
       return `Completed ${measureFromField(firstField)} on ${quoted}`
     case 'goal.milestone_reopened':

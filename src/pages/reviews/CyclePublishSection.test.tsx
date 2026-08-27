@@ -1,5 +1,6 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { setTimeZoneForTests, toUtcIso } from '@/lib/dates/timezone'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import * as packetsApi from '@/lib/reviews/packetsApi'
 import type { ReviewCycle } from '@/lib/reviews/types'
@@ -14,8 +15,13 @@ beforeAll(() => {
   }
 })
 
+beforeEach(() => {
+  setTimeZoneForTests('UTC')
+})
+
 afterEach(() => {
   cleanup()
+  setTimeZoneForTests(null)
   vi.restoreAllMocks()
 })
 
@@ -89,24 +95,29 @@ describe('CyclePublishSection', () => {
     const cycle = sampleCycle()
     render(<CyclePublishSection cycle={cycle} />)
 
-    expect(screen.getByLabelText('Release to managers on')).toHaveValue(
-      cycle.stagesConfig.publish.toManager.date,
+    expect(screen.getByRole('heading', { name: 'Managers' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Employees' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Managers visible from')).toHaveValue(
+      toUtcIso(cycle.stagesConfig.publish.toManager),
     )
-    expect(screen.getByLabelText('Release to employees on')).toHaveValue(
-      cycle.stagesConfig.publish.toAll.date,
+    expect(screen.getByLabelText('Employees visible from')).toHaveValue(
+      toUtcIso(cycle.stagesConfig.publish.toAll),
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Release to managers' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Release to managers now' }))
     expect(release).not.toHaveBeenCalled()
 
-    const dialog = screen.getByRole('dialog', { name: 'Release to managers?' })
+    const dialog = screen.getByRole('dialog', { name: 'Release to managers now?' })
     fireEvent.click(
-      within(dialog).getByRole('button', { name: 'Release to managers' }),
+      within(dialog).getByRole('button', { name: 'Release now' }),
     )
 
     await waitFor(() => {
       expect(release).toHaveBeenCalledWith('cycle-1', 'managers')
     })
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Released to managers.')
   })
 
   it('releases the cycle to employees after confirm', async () => {
@@ -115,17 +126,20 @@ describe('CyclePublishSection', () => {
       .mockResolvedValue([])
 
     render(<CyclePublishSection cycle={sampleCycle()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Release to employees' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Release to employees now' }))
     fireEvent.click(
-      within(screen.getByRole('dialog', { name: 'Release to employees?' })).getByRole(
+      within(screen.getByRole('dialog', { name: 'Release to employees now?' })).getByRole(
         'button',
-        { name: 'Release to employees' },
+        { name: 'Release now' },
       ),
     )
 
     await waitFor(() => {
       expect(release).toHaveBeenCalledWith('cycle-1', 'employees')
     })
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Released to employees.',
+    )
   })
 
   it('shows the API error when release fails', async () => {
@@ -134,11 +148,11 @@ describe('CyclePublishSection', () => {
     )
 
     render(<CyclePublishSection cycle={sampleCycle()} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Release to employees' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Release to employees now' }))
     fireEvent.click(
-      within(screen.getByRole('dialog', { name: 'Release to employees?' })).getByRole(
+      within(screen.getByRole('dialog', { name: 'Release to employees now?' })).getByRole(
         'button',
-        { name: 'Release to employees' },
+        { name: 'Release now' },
       ),
     )
 
@@ -150,12 +164,12 @@ describe('CyclePublishSection', () => {
   it('lets the user change the cycle publish day', () => {
     render(<CyclePublishSection cycle={sampleCycle()} />)
 
-    fireEvent.change(screen.getByLabelText('Release to managers on'), {
-      target: { value: '2026-10-15' },
+    fireEvent.change(screen.getByLabelText('Managers visible from'), {
+      target: { value: '2026-10-15T09:00' },
     })
 
-    expect(screen.getByLabelText('Release to managers on')).toHaveValue(
-      '2026-10-15',
+    expect(screen.getByLabelText('Managers visible from')).toHaveValue(
+      '2026-10-15T09:00:00.000Z',
     )
   })
 

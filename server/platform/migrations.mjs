@@ -13,6 +13,9 @@ const REQUIRED_MIGRATIONS = [
   '00025_relation_hardening.sql',
   '00026_manager_covers.sql',
   '00027_manager_delegations.sql',
+  '00028_review_cycle_type_custom.sql',
+  '00029_drop_review_cycle_purpose.sql',
+  '00030_date_columns_to_timestamptz.sql',
 ]
 
 export async function assertPlatformMigrations() {

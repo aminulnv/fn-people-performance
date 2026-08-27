@@ -1,6 +1,7 @@
 import { useId, type InputHTMLAttributes } from 'react'
 import { cx } from '@/lib/cx'
 import { DateInputControl } from './DateInputControl'
+import { DateTimeInputControl } from './DateTimeInputControl'
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string
@@ -38,7 +39,9 @@ export function Input({
     ...props,
   }
   const control =
-    type === 'date' ? (
+    type === 'datetime' ? (
+      <DateTimeInputControl {...controlProps} />
+    ) : type === 'date' ? (
       <DateInputControl {...controlProps} />
     ) : (
       <input type={type} {...controlProps} />

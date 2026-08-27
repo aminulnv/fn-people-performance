@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Check, ChevronDown, Search } from 'lucide-react'
 
-export type CycleSelectStatus = 'future' | 'current' | 'previous' | 'manual'
+export type CycleSelectStatus = 'future' | 'current' | 'previous'
 
 export type CycleSelectOption = {
   id: string
@@ -11,11 +11,16 @@ export type CycleSelectOption = {
   statusLabel?: string
 }
 
+export const CYCLE_SELECT_CLEAR_ID = ''
+
 type CycleSelectBaseProps = {
   options: CycleSelectOption[]
   /** Names the picker for assistive tech, e.g. "Goal cycle". */
   label: string
   className?: string
+  /** Put a Clear choice first so the page can drop its cycle. */
+  allowEmpty?: boolean
+  emptyLabel?: string
 }
 
 export type CycleSelectSingleProps = CycleSelectBaseProps & {
@@ -71,8 +76,18 @@ function selectedOptions(
  * Shared by Goals and Reviews so both toolbars read the same.
  */
 export function CycleSelect(props: CycleSelectProps) {
-  const { options, label, className } = props
+  const {
+    options,
+    label,
+    className,
+    allowEmpty = false,
+    emptyLabel = 'Clear',
+  } = props
   const multiple = props.multiple === true
+  const canClear = allowEmpty && !multiple
+  const listOptions = canClear
+    ? [{ id: CYCLE_SELECT_CLEAR_ID, label: emptyLabel }, ...options]
+    : options
   const selectedIds = multiple
     ? props.value
     : [props.value]
@@ -99,13 +114,15 @@ export function CycleSelect(props: CycleSelectProps) {
     }
   }, [open])
 
-  const selected = selectedOptions(options, selectedIds)
-  const primary = selected[0] ?? options[0]
+  const selected = selectedOptions(listOptions, selectedIds)
+  const primary =
+    selected[0] ??
+    (canClear ? { id: CYCLE_SELECT_CLEAR_ID, label: emptyLabel } : options[0])
 
   const needle = query.trim().toLowerCase()
   const filtered = needle
-    ? options.filter((option) => option.label.toLowerCase().includes(needle))
-    : options
+    ? listOptions.filter((option) => option.label.toLowerCase().includes(needle))
+    : listOptions
 
   if (!primary) return null
 
@@ -182,13 +199,16 @@ export function CycleSelect(props: CycleSelectProps) {
                 const isActive = selectedIds.includes(option.id)
                 return (
                   <button
-                    key={option.id}
+                    key={option.id || 'clear'}
                     type="button"
                     role="option"
                     aria-selected={isActive}
                     className={[
                       'pd-cycle-select__option',
                       multiple ? 'pd-cycle-select__option--multi' : '',
+                      option.id === CYCLE_SELECT_CLEAR_ID
+                        ? 'pd-cycle-select__option--empty'
+                        : '',
                       isActive ? 'is-active' : '',
                     ]
                       .filter(Boolean)

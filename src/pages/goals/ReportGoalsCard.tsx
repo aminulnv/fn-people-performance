@@ -27,11 +27,14 @@ export function ReportGoalsEmpty({
   personName,
   canAdd = false,
   busy = false,
+  lockMessage,
   onAdd,
 }: {
   personName: string
   canAdd?: boolean
   busy?: boolean
+  /** Same closed / not-open copy My Goals uses when the set cannot start. */
+  lockMessage?: string | null
   onAdd?: () => void
 }) {
   return (
@@ -39,7 +42,11 @@ export function ReportGoalsEmpty({
       className="pd-goals__empty"
       icon={Target}
       title="No goals yet"
-      description={reportGoalsEmptyDescription(personName, canAdd)}
+      description={
+        !canAdd && lockMessage
+          ? lockMessage
+          : reportGoalsEmptyDescription(personName, canAdd)
+      }
       action={
         canAdd && onAdd ? (
           <Button
@@ -94,6 +101,10 @@ type ReportGoalsCardProps = {
     subjectEmployeeId?: number
     entityType?: string
   }
+  /** Closed-cycle / ineligibility ribbon — same slot as Late Submission. */
+  lockBanner?: ReactNode
+  /** Cycle ineligibility should not be hidden by a late-submission trail. */
+  preferLockBanner?: boolean
   children: ReactNode
 }
 
@@ -256,6 +267,8 @@ export function ReportGoalsCard({
   onSendBack,
   actions,
   activityFilters,
+  lockBanner,
+  preferLockBanner = false,
   children,
 }: ReportGoalsCardProps) {
   const {
@@ -296,21 +309,28 @@ export function ReportGoalsCard({
     lineManager,
     skipLevelManager,
   })
+  const showLockBanner =
+    Boolean(lockBanner) && (preferLockBanner || !trail?.late)
 
   return (
     <div
       className={cx(
         'pd-goals-approval-wrap',
-        trail?.late && 'pd-goals-approval-wrap--late',
+        trail?.late && !showLockBanner && 'pd-goals-approval-wrap--late',
+        showLockBanner && 'pd-goals-approval-wrap--lock',
       )}
     >
-      {trail?.late ? (
+      {showLockBanner && lockBanner ? (
+        lockBanner
+      ) : trail?.late ? (
         <LateSubmissionBanner
           model={trail}
           deadlineMissedAt={deadlineMissedAt}
         />
       ) : null}
-      {trail && !trail.late ? <ApprovalTrail model={trail} /> : null}
+      {trail && !trail.late && !showLockBanner ? (
+        <ApprovalTrail model={trail} />
+      ) : null}
       <section
         className={cx(
           'pd-goals-approval',

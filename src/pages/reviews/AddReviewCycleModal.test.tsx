@@ -60,7 +60,7 @@ describe('AddReviewCycleModal', () => {
     const created = {
       id: annualPeriodKey(2026),
       name: 'Annual 2026',
-      purpose: 'annual_appraisal' as const,
+      periodKey: annualPeriodKey(2026),
     }
     const create = vi
       .spyOn(reviewsStore, 'createReviewCycle')
@@ -85,7 +85,6 @@ describe('AddReviewCycleModal', () => {
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith({
         type: 'regular',
-        purpose: 'annual_appraisal',
         periodKey: annualPeriodKey(2026),
         modules: { goals: false, reviews: true },
         sourceLinks: [],
@@ -94,11 +93,38 @@ describe('AddReviewCycleModal', () => {
     expect(onCreated).toHaveBeenCalledWith(created)
   })
 
+  it('does not create a custom cycle when the end is before the start', async () => {
+    const create = vi.spyOn(reviewsStore, 'createReviewCycle')
+
+    render(
+      <AddReviewCycleModal
+        open
+        onClose={() => {}}
+        onCreated={() => {}}
+        existingPeriodKeys={new Set()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
+    fireEvent.change(screen.getByLabelText('Starts'), {
+      target: { value: '2026-08-01T09:00' },
+    })
+    fireEvent.change(screen.getByLabelText('Ends'), {
+      target: { value: '2026-07-01T09:00' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create cycle' }))
+
+    expect(create).not.toHaveBeenCalled()
+    expect(
+      screen.getByText('Cycle must end on or after its start date.'),
+    ).toBeInTheDocument()
+  })
+
   it('presets Q4 as goals only and lets the user turn Reviews on', async () => {
     const create = vi.spyOn(reviewsStore, 'createReviewCycle').mockResolvedValue({
       id: periodKey(2026, 4),
       name: 'Q4 2026',
-      purpose: 'quarterly_checkin',
+      periodKey: periodKey(2026, 4),
     } as never)
 
     render(
@@ -122,7 +148,6 @@ describe('AddReviewCycleModal', () => {
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
-          purpose: 'quarterly_checkin',
           periodKey: periodKey(2026, 4),
           modules: { goals: true, reviews: true },
         }),
@@ -134,7 +159,7 @@ describe('AddReviewCycleModal', () => {
     const create = vi.spyOn(reviewsStore, 'createReviewCycle').mockResolvedValue({
       id: annualPeriodKey(2026),
       name: 'Annual 2026',
-      purpose: 'annual_appraisal',
+      periodKey: annualPeriodKey(2026),
     } as never)
 
     render(
@@ -148,7 +173,6 @@ describe('AddReviewCycleModal', () => {
             id: 'q3-2026',
             name: 'Q3 2026',
             type: 'regular',
-            purpose: 'quarterly_checkin',
             periodKey: 'q3-2026',
             yearKey: '2026',
             startDate: '2026-07-01',
@@ -157,8 +181,7 @@ describe('AddReviewCycleModal', () => {
           {
             id: 'adhoc-1',
             name: 'Leadership mid-year',
-            type: 'ad-hoc',
-            purpose: 'custom',
+            type: 'custom',
             yearKey: '2026',
             startDate: '2026-06-01',
             endDate: '2026-06-30',
@@ -179,7 +202,6 @@ describe('AddReviewCycleModal', () => {
     await vi.waitFor(() => {
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({
-          purpose: 'annual_appraisal',
           periodKey: annualPeriodKey(2026),
           sourceLinks: expect.arrayContaining([
             expect.objectContaining({ sourceCycleId: 'q3-2026' }),

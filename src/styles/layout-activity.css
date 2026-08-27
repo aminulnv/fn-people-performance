@@ -41,6 +41,7 @@
   z-index: 90;
   display: flex;
   justify-content: flex-end;
+  padding: 0.75rem;
 }
 
 .pd-activity-drawer__scrim {
@@ -50,7 +51,7 @@
   margin: 0;
   padding: 0;
   border: 0;
-  background: color-mix(in srgb, black 36%, transparent);
+  background: color-mix(in srgb, black 42%, transparent);
   cursor: pointer;
 }
 
@@ -59,8 +60,11 @@
   z-index: 1;
   display: flex;
   flex-direction: column;
-  width: min(26rem, 100vw);
-  height: 100%;
+  width: min(26rem, calc(100vw - 1.5rem));
+  height: auto;
+  align-self: stretch;
+  overflow: hidden;
+  border-radius: 1rem;
   background: var(--color-surface-raised, var(--color-surface));
   box-shadow: var(--shadow-deep);
   color: var(--color-text);
@@ -75,6 +79,11 @@
   gap: 1rem;
   padding: 1.15rem 1.15rem 1rem;
   border-bottom: 1px solid var(--color-divider);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-theme) 9%, var(--color-surface)),
+    var(--color-surface) 78%
+  );
 }
 
 .pd-activity-drawer__eyebrow {
@@ -90,17 +99,26 @@
 }
 
 .pd-activity-drawer__head h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   margin: 0;
   font-family: var(--font-heading);
   font-size: 1.15rem;
   letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.pd-activity-drawer__head h2 svg {
+  flex: 0 0 auto;
+  color: var(--color-theme);
 }
 
 .pd-activity-drawer__head p:last-child {
   margin: 0.35rem 0 0;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  line-height: 1.4;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
 .pd-activity-drawer__close {
@@ -108,14 +126,25 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.85rem;
-  height: 1.85rem;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
   padding: 0;
-  border: 1px solid var(--color-border);
+  border: 0;
   border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
+  background: transparent;
+  color: var(--color-text);
   cursor: pointer;
+}
+
+.pd-activity-drawer__close:hover,
+.pd-activity-drawer__close:focus-visible {
+  background: var(--color-muted-bg);
+}
+
+.pd-activity-drawer__close:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-theme) 45%, transparent);
+  outline-offset: 2px;
 }
 
 .pd-activity-drawer__body {
@@ -398,8 +427,12 @@
 }
 
 @media (max-width: 720px) {
+  .pd-activity-drawer {
+    padding: 0.5rem;
+  }
+
   .pd-activity-drawer__panel {
-    width: 100vw;
+    width: min(26rem, calc(100vw - 1rem));
   }
 }
 

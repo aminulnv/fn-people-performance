@@ -3,10 +3,10 @@ import { nestCyclesForList } from './cycleList'
 import type { ReviewCycle } from './types'
 
 function cycle(
-  patch: Partial<ReviewCycle> & Pick<ReviewCycle, 'id' | 'name' | 'purpose'>,
+  patch: Partial<ReviewCycle> & Pick<ReviewCycle, 'id' | 'name'>,
 ): ReviewCycle {
   return {
-    type: patch.type ?? (patch.purpose === 'custom' ? 'ad-hoc' : 'regular'),
+    type: patch.type ?? 'regular',
     startDate: patch.startDate ?? '2026-01-01',
     endDate: patch.endDate ?? '2026-03-31',
     stagesConfig: {} as ReviewCycle['stagesConfig'],
@@ -22,19 +22,19 @@ describe('nestCyclesForList', () => {
     const q1 = cycle({
       id: 'q1-2026',
       name: 'Q1 2026',
-      purpose: 'quarterly_checkin',
+      periodKey: 'q1-2026',
       startDate: '2026-01-01',
     })
     const q3 = cycle({
       id: 'q3-2026',
       name: 'Q3 2026',
-      purpose: 'quarterly_checkin',
+      periodKey: 'q3-2026',
       startDate: '2026-07-01',
     })
     const annual = cycle({
       id: 'annual-2026',
       name: 'Annual 2026',
-      purpose: 'annual_appraisal',
+      periodKey: 'annual-2026',
       yearKey: '2026',
       sourceLinks: [
         { sourceCycleId: 'q3-2026', weightPercent: 50, excluded: false },
@@ -44,7 +44,7 @@ describe('nestCyclesForList', () => {
     const loose = cycle({
       id: 'q1-2025',
       name: 'Q1 2025',
-      purpose: 'quarterly_checkin',
+      periodKey: 'q1-2025',
       yearKey: '2025',
     })
 
@@ -55,8 +55,8 @@ describe('nestCyclesForList', () => {
       'q1-2025',
     ])
     expect(nodes[0]?.children.map((item) => item.id)).toEqual([
-      'q1-2026',
       'q3-2026',
+      'q1-2026',
     ])
     expect(nodes[1]?.children).toEqual([])
   })
@@ -65,17 +65,17 @@ describe('nestCyclesForList', () => {
     const q1 = cycle({
       id: 'q1-2026',
       name: 'Q1 2026',
-      purpose: 'quarterly_checkin',
+      periodKey: 'q1-2026',
     })
     const q2 = cycle({
       id: 'q2-2026',
       name: 'Q2 2026',
-      purpose: 'quarterly_checkin',
+      periodKey: 'q2-2026',
     })
     const annual = cycle({
       id: 'annual-2026',
       name: 'Annual 2026',
-      purpose: 'annual_appraisal',
+      periodKey: 'annual-2026',
       yearKey: '2026',
       sourceLinks: [
         { sourceCycleId: 'q1-2026', weightPercent: 50, excluded: true },
@@ -97,12 +97,12 @@ describe('nestCyclesForList', () => {
     const custom = cycle({
       id: 'mid-year',
       name: 'Mid-year',
-      purpose: 'custom',
+      type: 'custom',
     })
     const older = cycle({
       id: 'annual-2025',
       name: 'Annual 2025',
-      purpose: 'annual_appraisal',
+      periodKey: 'annual-2025',
       yearKey: '2025',
       sourceLinks: [
         { sourceCycleId: 'mid-year', weightPercent: 100, excluded: false },
@@ -111,7 +111,7 @@ describe('nestCyclesForList', () => {
     const newer = cycle({
       id: 'annual-2026',
       name: 'Annual 2026',
-      purpose: 'annual_appraisal',
+      periodKey: 'annual-2026',
       yearKey: '2026',
       sourceLinks: [
         { sourceCycleId: 'mid-year', weightPercent: 100, excluded: false },

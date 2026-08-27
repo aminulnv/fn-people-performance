@@ -10,6 +10,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Button, Input } from "@/components/ui";
+import { addUtcDays, compareDateTime, datePart } from "@/lib/dates/timestamp";
+import { formatLocalTimestamp } from "@/lib/dates/timezone";
 import { useOrganisation } from "@/lib/employees/useEmployees";
 import { toIntegerId } from "@/lib/integerId";
 import type { OrgDepartment, OrgTeam } from "@/lib/organisation/types";
@@ -40,9 +42,7 @@ const RESULT_LIMIT_PER_SECTION = 5;
 const SEARCH_SECTIONS: SearchSection[] = ["People", "Departments", "Teams"];
 
 function dayBefore(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
+  return addUtcDays(isoDate, -1);
 }
 
 function includesQuery(values: Array<string | number>, query: string): boolean {
@@ -346,8 +346,8 @@ export function GoalCycleExtensionsEditor({
 
   const canAdd =
     Boolean(selectedScope) &&
-    endDate > baseEndDate &&
-    endDate < performanceStartDate;
+    compareDateTime(endDate, baseEndDate) > 0 &&
+    datePart(endDate) < datePart(performanceStartDate);
 
   const addExtension = () => {
     if (!selectedScope || !canAdd) return;
@@ -389,7 +389,7 @@ export function GoalCycleExtensionsEditor({
             <li key={extension.id}>
               <span>
                 <strong>{extensionLabel(extension, activeEmployees)}</strong>
-                <small>Until {extension.endDate}</small>
+                <small>Until {formatLocalTimestamp(extension.endDate) || extension.endDate}</small>
               </span>
               <button
                 type="button"
@@ -578,7 +578,7 @@ export function GoalCycleExtensionsEditor({
           <label className="pd-cycle-extensions__date">
             <span>Extended deadline</span>
             <Input
-              type="date"
+              type="datetime"
               min={baseEndDate}
               max={dayBefore(performanceStartDate)}
               value={endDate}

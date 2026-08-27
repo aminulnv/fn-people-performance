@@ -3,7 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ReactElement } from 'react'
 import { ActivityLog } from '@/components/activity/ActivityLog'
-import { ActivityLogTrigger } from '@/components/activity/ActivityLogDrawer'
+import {
+  ActivityLogDrawer,
+  ActivityLogTrigger,
+} from '@/components/activity/ActivityLogDrawer'
 import type { ActivityEvent } from '@/lib/activity/types'
 
 afterEach(cleanup)
@@ -151,6 +154,25 @@ describe('ActivityLog', () => {
     ).toBeGreaterThan(0)
     expect(screen.getByText('Late')).toBeInTheDocument()
     expect(screen.getByText('Yes')).toBeInTheDocument()
+  })
+})
+
+describe('ActivityLogDrawer', () => {
+  it('opens a side sheet with the same chrome as other drawers', () => {
+    renderWithQuery(
+      <ActivityLogDrawer
+        open
+        onClose={() => {}}
+        title="Goal activity"
+        filters={{}}
+      />,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Goal activity' })
+    expect(dialog).toHaveClass('pd-activity-drawer__panel')
+    expect(screen.getByText('Activity log')).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: 'Goal activity' }),
+    ).toBeInTheDocument()
   })
 })
 

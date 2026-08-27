@@ -23,7 +23,6 @@ import {
 } from '@/lib/organisation/paths'
 import type { OrganisationSnapshot } from '@/lib/organisation/types'
 import { cycleDetailPath } from '@/lib/reviews/paths'
-import { cyclePurposeOf, PURPOSE_LABEL } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   scorecardDetailPath,
@@ -342,18 +341,16 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
   }
 
   for (const cycle of cycles) {
-    const purpose = cyclePurposeOf(cycle)
     const status = resolveCycleStatus(cycle)
     items.push({
       id: `cycle:${cycle.id}`,
       kind: 'cycle',
       scope: 'reviews',
       label: cycle.name,
-      description: `${PURPOSE_LABEL[purpose]} · ${cycleStatusLabel(status)}`,
+      description: cycleStatusLabel(status),
       keywords: uniqueKeywords([
         cycle.periodKey,
         cycle.yearKey,
-        PURPOSE_LABEL[purpose],
         cycleStatusLabel(status),
       ]),
       path: write ? cycleDetailPath(cycle.id) : '/reviews/scorecards',

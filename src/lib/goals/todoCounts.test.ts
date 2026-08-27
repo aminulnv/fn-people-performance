@@ -199,6 +199,15 @@ describe('countReportGoalTodos', () => {
       ),
     ).toBe(2)
   })
+
+  it('does not treat empty drafts as action required on a future cycle', () => {
+    expect(
+      countReportGoalTodos(
+        [{ row: row({ personId: 'e2', status: 'draft' }) }],
+        { ...snapshotCycle('group-1'), phase: 'not_open' },
+      ),
+    ).toBe(0)
+  })
 })
 
 describe('goalTodoBadgeLabel', () => {

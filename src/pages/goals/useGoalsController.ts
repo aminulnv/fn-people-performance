@@ -21,10 +21,13 @@ import {
   buildOwnerOptions,
   duplicateGoal,
   indexCascadeRecipients,
+  isOwnGoalComment,
   lineManagerCascade,
   reportCascadeOptions,
   removeGoal,
+  removeGoalComment,
   replaceGoal,
+  replaceGoalComment,
   resolveGoalOwner,
   type GoalOwnerOption,
   type CascadeRecipient,
@@ -57,11 +60,22 @@ import { useCurrentPerson } from "@/lib/useCurrentPerson";
 export type GoalsControllerActions = {
   saveGoals: (subjectId: string, goals: Goal[]) => Promise<boolean>;
   saveGoal: (subjectId: string, goal: Goal) => Promise<void>;
-  saveProgress: (subjectId: string, goals: Goal[]) => Promise<void>;
+  saveProgress: (subjectId: string, goals: Goal[]) => Promise<boolean>;
   addComment: (
     subjectId: string,
     goalId: string,
     text: string,
+  ) => Promise<void>;
+  updateComment: (
+    subjectId: string,
+    goalId: string,
+    commentId: string,
+    text: string,
+  ) => Promise<void>;
+  removeComment: (
+    subjectId: string,
+    goalId: string,
+    commentId: string,
   ) => Promise<void>;
   removeGoal: (subjectId: string, goalId: string) => Promise<void>;
   copyPreviousGoals: (subjectId: string) => Promise<Goal | null>;
@@ -334,7 +348,10 @@ export function useGoalsController({
         );
       },
       async saveProgress(targetSubjectId, goals) {
-        await run(() => saveProgress(mutationContext(targetSubjectId), goals));
+        const result = await run(() =>
+          saveProgress(mutationContext(targetSubjectId), goals),
+        );
+        return result !== undefined;
       },
       async addComment(targetSubjectId, goalId, text) {
         if (!actor) throw new Error("Not signed in.");
@@ -361,6 +378,44 @@ export function useGoalsController({
         });
         await run(() =>
           saveProgress(mutationContext(targetSubjectId), nextGoals),
+        );
+      },
+      async updateComment(targetSubjectId, goalId, commentId, text) {
+        if (!actor) throw new Error("Not signed in.");
+        const row = snapshot?.byPerson[targetSubjectId];
+        if (!row) throw new Error("Unknown goals subject.");
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        const comment = row.goals
+          .find((goal) => goal.id === goalId)
+          ?.comments?.find((entry) => entry.id === commentId);
+        if (!comment) throw new Error("Unknown comment.");
+        if (!isOwnGoalComment(comment, actor)) {
+          throw new Error("You can only edit your own comments.");
+        }
+        await run(() =>
+          saveProgress(
+            mutationContext(targetSubjectId),
+            replaceGoalComment(row.goals, goalId, commentId, trimmed),
+          ),
+        );
+      },
+      async removeComment(targetSubjectId, goalId, commentId) {
+        if (!actor) throw new Error("Not signed in.");
+        const row = snapshot?.byPerson[targetSubjectId];
+        if (!row) throw new Error("Unknown goals subject.");
+        const comment = row.goals
+          .find((goal) => goal.id === goalId)
+          ?.comments?.find((entry) => entry.id === commentId);
+        if (!comment) throw new Error("Unknown comment.");
+        if (!isOwnGoalComment(comment, actor)) {
+          throw new Error("You can only delete your own comments.");
+        }
+        await run(() =>
+          saveProgress(
+            mutationContext(targetSubjectId),
+            removeGoalComment(row.goals, goalId, commentId),
+          ),
         );
       },
       async removeGoal(targetSubjectId, goalId) {

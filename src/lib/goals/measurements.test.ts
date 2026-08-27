@@ -16,11 +16,13 @@ import {
   lockSoloMeasurementWeights,
   removeMilestoneList,
   removeTodoMeasure,
+  readMeasureGroupProof,
   readMeasureGroupTitle,
   readMilestoneListTitle,
   readMilestoneTitle,
   patchMilestone,
   sumPanelWeights,
+  withMeasureProof,
   withMeasureTitle,
   withMilestoneTitle,
   uniqueMilestonesById,
@@ -376,6 +378,45 @@ describe('measurementPanels', () => {
 
     expect(next.every((item) => item.measureTitle === 'Metric 1')).toBe(true)
     expect(readMeasureGroupTitle(next, measureGroupId)).toBe('Metric 1')
+  })
+
+  it('stamps proof across every checklist item in a measure', () => {
+    const measureGroupId = 'measure-1'
+    const listOne = blankMilestone(0, { measureGroupId, measureTitle: 'Quality' })
+    const listTwo = blankMilestone(0, {
+      measureGroupId,
+      measureTitle: 'Quality',
+      listTitle: 'Todo list 2',
+    })
+    const next = withMeasureProof([listOne, listTwo], measureGroupId, {
+      proofUrl: 'https://dash.fn/quality',
+      comment: 'Tracker',
+    })
+
+    expect(
+      next.every(
+        (item) =>
+          item.kind === 'milestone' &&
+          item.proofUrl === 'https://dash.fn/quality' &&
+          item.comment === 'Tracker',
+      ),
+    ).toBe(true)
+    expect(readMeasureGroupProof(next, measureGroupId)).toEqual({
+      proofUrl: 'https://dash.fn/quality',
+      comment: 'Tracker',
+    })
+
+    const urlOnly = withMeasureProof(next, measureGroupId, {
+      proofUrl: 'https://dash.fn/quality-q3',
+    })
+    expect(
+      urlOnly.every(
+        (item) =>
+          item.kind === 'milestone' &&
+          item.proofUrl === 'https://dash.fn/quality-q3' &&
+          item.comment === 'Tracker',
+      ),
+    ).toBe(true)
   })
 
   it('reads and writes measure titles on legacy milestone rows', () => {

@@ -5,12 +5,15 @@ import {
   numberedTaskListTitle,
   readMilestoneListTitle,
   readMilestoneTitle,
+  todoMeasureItems,
   uniqueMilestonesById,
   type MeasurementPanel,
   type TodoListPanel,
 } from '@/lib/goals/measurements'
+import { proofParts } from '@/lib/goals/proof'
 import { ignoreInteractiveSummaryClick } from './measureFold'
 import { GoalTodoCheck } from './GoalTodoCheck'
+import { MeasureProofFields } from './MeasureProofFields'
 import { FocusSafeTextArea } from './FocusSafeTextField'
 import { TaskListNameField, MeasureTitleField } from './MeasureTitleField'
 import { MeasureKindIcon } from './MeasureKindIcon'
@@ -29,6 +32,7 @@ export function TodoMeasureEditCard({
   canEditWeight = true,
   onChangeMeasureTitle,
   onChangeWeight,
+  onChangeProof,
   onChangeListTitle,
   onChangeMilestoneTitle,
   onChangeMilestone,
@@ -60,6 +64,7 @@ export function TodoMeasureEditCard({
   canEditWeight?: boolean
   onChangeMeasureTitle: (title: string) => void
   onChangeWeight: (weight: number) => void
+  onChangeProof?: (next: { proofUrl?: string; comment?: string }) => void
   onRemove?: () => void
   onChangeListTitle: (listKey: string, listTitle: string) => void
   onChangeMilestoneTitle: (milestoneId: string, title: string) => void
@@ -92,6 +97,10 @@ export function TodoMeasureEditCard({
     : 'Weight'
 
   const showListChrome = panel.lists.length > 1
+  const proofSource =
+    todoMeasureItems(panel).find((todo) =>
+      proofParts(todo.proofUrl, todo.comment).hasProof,
+    ) ?? todoMeasureItems(panel)[0]
 
   const renderTodoList = (list: TodoListPanel, index: number) => {
     const todos = uniqueMilestonesById(list.todos)
@@ -133,12 +142,15 @@ export function TodoMeasureEditCard({
 
         <div className="pd-goal-measure-card__list-scroll">
           <ul className={todoListClassName}>
-            {todos.map((todo) => (
+            {todos.map((todo) => {
+              const taskName =
+                readMilestoneTitle(measurements, todo.id).trim() || 'task'
+              return (
               <li key={todo.id} className={todoItemClassName}>
                 <GoalTodoCheck
                   checked={todo.complete}
                   disabled={bodyLocked}
-                  ariaLabel={`Mark ${readMilestoneTitle(measurements, todo.id).trim() || 'task'} complete`}
+                  ariaLabel={`Mark ${taskName} complete`}
                   onChange={(complete) =>
                     onChangeMilestone(todo.id, { complete })
                   }
@@ -171,7 +183,8 @@ export function TodoMeasureEditCard({
                   </button>
                 ) : null}
               </li>
-            ))}
+              )
+            })}
           </ul>
         </div>
 
@@ -221,6 +234,13 @@ export function TodoMeasureEditCard({
           <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
         </div>
         <div className={metricsClassName}>
+          <MeasureProofFields
+            proofUrl={proofSource?.proofUrl}
+            comment={proofSource?.comment}
+            name={measureTitle.trim() || 'milestone'}
+            disabled={bodyLocked}
+            onChange={onChangeProof}
+          />
           {!bodyLocked && canEditWeight ? (
             <GoalWeightInput
               weight={panel.weight}

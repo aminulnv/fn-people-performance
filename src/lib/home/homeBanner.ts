@@ -121,7 +121,7 @@ function goalsHref(cycleId: string, personId: string): string {
 }
 
 function isActiveCycle(cycleStatus: GoalsCycleStatus): boolean {
-  return cycleStatus === 'current' || cycleStatus === 'manual'
+  return cycleStatus === 'current'
 }
 
 function isGoalInputPhase(cycle: GoalsCycle): boolean {

@@ -20,7 +20,7 @@ describe('GoalSubmitAllButton', () => {
       <GoalSubmitAllButton
         status="sent_back"
         busy={false}
-        reasons={[]}
+        blockers={[]}
         onSubmit={onSubmit}
       />,
     )
@@ -32,13 +32,18 @@ describe('GoalSubmitAllButton', () => {
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
 
-  it('shows why submit is blocked instead of failing silently', () => {
+  it('shows table errors on hover when submit is blocked', async () => {
     render(
       <GoalSubmitAllButton
         status="sent_back"
         busy={false}
-        reasons={[
-          'The goal cascaded from Ada still needs a metric — or remove it.',
+        blockers={[
+          {
+            reason: 'The goal cascaded from Ada still needs a metric — or remove it.',
+            goalId: 'goal-1',
+            goalTitle: 'The goal cascaded from Ada',
+            suffix: ' still needs a metric — or remove it.',
+          },
         ]}
         onSubmit={vi.fn()}
       />,
@@ -46,10 +51,39 @@ describe('GoalSubmitAllButton', () => {
 
     const button = screen.getByRole('button', { name: 'Resubmit All' })
     expect(button).toBeDisabled()
-    expect(button).toHaveAttribute(
-      'title',
-      'The goal cascaded from Ada still needs a metric — or remove it.',
+    fireEvent.mouseEnter(button.closest('.pd-tooltip')!)
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent(
+      'The goal cascaded from Ada: Still needs a metric — or remove it.',
     )
+  })
+
+  it('lists every table fix on the disabled submit button', async () => {
+    render(
+      <GoalSubmitAllButton
+        status="draft"
+        busy={false}
+        blockers={[
+          { reason: 'Add at least 2 goals.', action: 'add_goal' },
+          { reason: 'Every goal needs a weight.' },
+          {
+            reason: 'test still needs a metric.',
+            goalId: 'goal-test',
+            goalTitle: 'test',
+            suffix: ' still needs a metric.',
+          },
+        ]}
+        onSubmit={vi.fn()}
+      />,
+    )
+
+    const button = screen.getByRole('button', { name: 'Submit All' })
+    expect(button).toBeDisabled()
+    fireEvent.mouseEnter(button.closest('.pd-tooltip')!)
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Add at least 2 goals.')
+    expect(tip).toHaveTextContent('Every goal needs a weight.')
+    expect(tip).toHaveTextContent('test: Still needs a metric.')
   })
 
   it('asks for confirmation for a non-blocking goal-count warning', () => {
@@ -58,7 +92,7 @@ describe('GoalSubmitAllButton', () => {
       <GoalSubmitAllButton
         status="draft"
         busy={false}
-        reasons={[]}
+        blockers={[]}
         warning="You have 2 goals. We recommend setting 3 to 5 goals."
         onSubmit={onSubmit}
       />,

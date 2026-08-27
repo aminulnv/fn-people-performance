@@ -1,5 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   ChevronDown,
   ChevronsDown,
@@ -19,7 +26,14 @@ import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { scrollElementToCenter } from '@/lib/dom/scrollElementToCenter'
+import { toIntegerId } from '@/lib/integerId'
+import {
+  clampCameraPan,
+  fitCamera,
+  panCameraToCenterRects,
+  zoomCameraAroundPoint,
+  type CameraPoint,
+} from '@/lib/organisation/camera'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -29,6 +43,7 @@ const COMPANY_NAME = 'NEXT Ventures'
 const ZOOM_MIN = 0.3
 const ZOOM_MAX = 2
 const ZOOM_STEP = 0.1
+const HIGHLIGHT_MS = 1000
 
 type OrgNode = {
   employee: PlatformEmployee
@@ -155,6 +170,21 @@ function defaultExpanded(
   return ids
 }
 
+function openingExpanded(
+  nodes: OrgNode[],
+  showCompanyRoot: boolean,
+  focusId: number | null,
+  managerById: Map<number, number | null>,
+): Set<string> {
+  const ids = defaultExpanded(nodes, showCompanyRoot)
+  if (focusId == null) return ids
+  ids.add(COMPANY_ROOT_ID)
+  for (const id of ancestorIds(focusId, managerById)) {
+    if (id !== focusId) ids.add(empKey(id))
+  }
+  return ids
+}
+
 function ancestorIds(
   startId: number,
   managerById: Map<number, number | null>,
@@ -233,7 +263,7 @@ function OrgChartCard({
     <>
       {logoUrl ? (
         <div className="pd-app-logo pd-app-logo--md pd-org-card-logo-wrap">
-          <img src={logoUrl} alt="" />
+          <img src={logoUrl} alt="" draggable={false} />
         </div>
       ) : (
         <Avatar
@@ -252,7 +282,12 @@ function OrgChartCard({
 
   if (href) {
     return (
-      <Link to={href} className={className} data-employee-id={employeeId}>
+      <Link
+        to={href}
+        className={className}
+        data-employee-id={employeeId}
+        draggable={false}
+      >
         {body}
       </Link>
     )
@@ -491,9 +526,10 @@ function OrgChartControls({
 
 export default function OrgChartPage() {
   const { user } = useAuth()
+  const [searchParams] = useSearchParams()
   const { employees, loadState, loadError, reload } = useEmployees()
   const [searchQuery, setSearchQuery] = useState('')
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [userExpanded, setUserExpanded] = useState<Set<string> | null>(null)
   const [zoom, setZoom] = useState(1)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [highlightId, setHighlightId] = useState<string | null>(null)
@@ -506,6 +542,12 @@ export default function OrgChartPage() {
   const stageRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoomInnerRef = useRef<HTMLDivElement>(null)
+  const panRef = useRef<CameraPoint>({ x: 0, y: 0 })
+  const zoomRef = useRef(zoom)
+  const contentRef = useRef(content)
+  const seededCameraRef = useRef(false)
+  zoomRef.current = zoom
+  contentRef.current = content
 
   const myEmployeeId = useMemo(() => {
     const email = user?.email?.toLowerCase()
@@ -514,6 +556,25 @@ export default function OrgChartPage() {
       employees.find((e) => e.email.toLowerCase() === email)?.employeeId ?? null
     )
   }, [user?.email, employees])
+
+  const focusPersonId = useMemo(() => {
+    const id = toIntegerId(searchParams.get('person'))
+    return id != null && id > 0 ? id : null
+  }, [searchParams])
+
+  const managerById = useMemo(() => {
+    const byId = new Map(employees.map((employee) => [employee.employeeId, employee]))
+    const byName = new Map<string, PlatformEmployee>()
+    for (const employee of employees) {
+      const key = employee.fullName.trim().toLowerCase()
+      if (key && !byName.has(key)) byName.set(key, employee)
+    }
+    const map = new Map<number, number | null>()
+    for (const employee of employees) {
+      map.set(employee.employeeId, resolveManagerId(employee, byId, byName))
+    }
+    return map
+  }, [employees])
 
   const visibleEmployees = useMemo(() => {
     const activeEmployees = employees.filter((employee) => employee.isActive)
@@ -548,40 +609,130 @@ export default function OrgChartPage() {
     [showCompanyRoot, companyRoots, visibleEmployees.length],
   )
 
-  useEffect(() => {
-    setExpanded(defaultExpanded(companyRoots, showCompanyRoot))
-  }, [companyRoots, showCompanyRoot, searchQuery])
+  const baselineExpanded = useMemo(
+    () =>
+      openingExpanded(
+        companyRoots,
+        showCompanyRoot,
+        focusPersonId,
+        managerById,
+      ),
+    [companyRoots, focusPersonId, managerById, showCompanyRoot],
+  )
+  const expanded = userExpanded ?? baselineExpanded
 
-  useEffect(() => {
+  const viewportSize = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return { width: 0, height: 0 }
+    return { width: el.clientWidth, height: el.clientHeight }
+  }, [])
+
+  const applyCameraTransform = useCallback(() => {
     const el = zoomInnerRef.current
     if (!el) return
-    const measure = () =>
-      setContent({ width: el.offsetWidth, height: el.offsetHeight })
+    const { x, y } = panRef.current
+    el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoomRef.current})`
+    el.style.transformOrigin = '0 0'
+  }, [])
+
+  const commitPan = useCallback(
+    (next: CameraPoint) => {
+      const viewport = viewportSize()
+      panRef.current =
+        viewport.width === 0 || viewport.height === 0
+          ? next
+          : clampCameraPan(next, contentRef.current, viewport, zoomRef.current)
+      applyCameraTransform()
+    },
+    [applyCameraTransform, viewportSize],
+  )
+
+  const zoomAround = useCallback(
+    (nextZoom: number, origin: CameraPoint) => {
+      const current = zoomRef.current
+      const clamped = clampZoom(nextZoom)
+      if (clamped === current) return
+      const nextPan = zoomCameraAroundPoint(
+        panRef.current,
+        current,
+        clamped,
+        origin,
+      )
+      zoomRef.current = clamped
+      commitPan(nextPan)
+      setZoom(clamped)
+    },
+    [commitPan],
+  )
+
+  const viewportCenter = useCallback((): CameraPoint => {
+    const viewport = viewportSize()
+    return { x: viewport.width / 2, y: viewport.height / 2 }
+  }, [viewportSize])
+
+  const applyFit = useCallback(
+    (size = contentRef.current) => {
+      const viewport = viewportSize()
+      if (
+        size.width === 0 ||
+        size.height === 0 ||
+        viewport.width === 0 ||
+        viewport.height === 0
+      ) {
+        return false
+      }
+      const next = fitCamera(size, viewport, clampZoom)
+      zoomRef.current = next.zoom
+      commitPan(next.pan)
+      setZoom(next.zoom)
+      return true
+    },
+    [commitPan, viewportSize],
+  )
+
+  const openingKey = `${searchQuery}::${focusPersonId ?? ''}`
+  const [appliedOpeningKey, setAppliedOpeningKey] = useState(openingKey)
+  if (appliedOpeningKey !== openingKey) {
+    setAppliedOpeningKey(openingKey)
+    setUserExpanded(null)
+    seededCameraRef.current = false
+  }
+
+  useLayoutEffect(() => {
+    const el = zoomInnerRef.current
+    if (!el) return
+    const measure = () => {
+      const next = { width: el.offsetWidth, height: el.offsetHeight }
+      const sizeChanged =
+        next.width !== contentRef.current.width ||
+        next.height !== contentRef.current.height
+      contentRef.current = next
+      if (sizeChanged) setContent(next)
+      if (next.width === 0 || next.height === 0) return
+      if (!seededCameraRef.current) {
+        if (!applyFit(next)) return
+        seededCameraRef.current = true
+        return
+      }
+      commitPan(panRef.current)
+    }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [companyRoots, expanded])
+  }, [applyFit, commitPan, companyRoots, expanded])
+
+  useLayoutEffect(() => {
+    if (focusPersonId == null) return
+    setHighlightId(empKey(focusPersonId))
+  }, [focusPersonId])
 
   useEffect(() => {
     if (!locateRequest) return
     const targetId = locateRequest.id
-    const byId = new Map(employees.map((e) => [e.employeeId, e]))
-    const byName = new Map<string, PlatformEmployee>()
-    for (const employee of employees) {
-      const key = employee.fullName.trim().toLowerCase()
-      if (key && !byName.has(key)) byName.set(key, employee)
-    }
-    const managerById = new Map<number, number | null>()
-    for (const employee of employees) {
-      managerById.set(
-        employee.employeeId,
-        resolveManagerId(employee, byId, byName),
-      )
-    }
     const reveal = ancestorIds(targetId, managerById)
-    setExpanded((current) => {
-      const next = new Set(current)
+    setUserExpanded((current) => {
+      const next = new Set(current ?? baselineExpanded)
       next.add(COMPANY_ROOT_ID)
       for (const id of reveal) next.add(empKey(id))
       return next
@@ -595,7 +746,13 @@ export default function OrgChartPage() {
           `[data-employee-id="${escapeAttr(empKey(targetId))}"]`,
         )
         if (scroll && target) {
-          scrollElementToCenter(scroll, target)
+          commitPan(
+            panCameraToCenterRects(
+              panRef.current,
+              scroll.getBoundingClientRect(),
+              target.getBoundingClientRect(),
+            ),
+          )
           setHighlightId(empKey(targetId))
         }
       })
@@ -605,20 +762,27 @@ export default function OrgChartPage() {
       cancelAnimationFrame(raf1)
       if (raf2) cancelAnimationFrame(raf2)
     }
-  }, [locateRequest, employees])
+  }, [baselineExpanded, commitPan, locateRequest, managerById])
 
   useEffect(() => {
     if (!highlightId) return
-    const timer = setTimeout(() => setHighlightId(null), 2600)
+    const timer = setTimeout(() => setHighlightId(null), HIGHLIGHT_MS)
     return () => clearTimeout(timer)
   }, [highlightId])
 
   useEffect(() => {
-    const onChange = () =>
+    const onChange = () => {
       setIsFullscreen(document.fullscreenElement === stageRef.current)
+      commitPan(panRef.current)
+    }
+    const onResize = () => commitPan(panRef.current)
     document.addEventListener('fullscreenchange', onChange)
-    return () => document.removeEventListener('fullscreenchange', onChange)
-  }, [])
+    window.addEventListener('resize', onResize)
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [commitPan])
 
   useEffect(() => {
     const el = scrollRef.current
@@ -630,41 +794,49 @@ export default function OrgChartPage() {
     let suppressNextClick = false
     let startX = 0
     let startY = 0
-    let startLeft = 0
-    let startTop = 0
+    let startPan = { x: 0, y: 0 }
+
+    const ignoreTarget = (target: EventTarget | null) =>
+      target instanceof Element &&
+      Boolean(target.closest('button, input, textarea, select'))
 
     const onPointerDown = (event: PointerEvent) => {
-      if (event.button !== 0 || event.pointerType !== 'mouse') return
+      if (event.button !== 0 || !event.isPrimary) return
+      if (ignoreTarget(event.target)) return
       isPanning = true
       moved = false
       suppressNextClick = false
       startX = event.clientX
       startY = event.clientY
-      startLeft = el.scrollLeft
-      startTop = el.scrollTop
+      startPan = { ...panRef.current }
+      el.setPointerCapture?.(event.pointerId)
     }
 
     const onPointerMove = (event: PointerEvent) => {
-      if (!isPanning) return
+      if (!isPanning || !event.isPrimary) return
       const dx = event.clientX - startX
       const dy = event.clientY - startY
       if (!moved && Math.hypot(dx, dy) > DRAG_THRESHOLD_PX) {
         moved = true
         el.classList.add('pd-org-scroll--grabbing')
-        el.setPointerCapture?.(event.pointerId)
       }
-      if (moved) {
-        el.scrollLeft = startLeft - dx
-        el.scrollTop = startTop - dy
-      }
+      if (!moved) return
+      event.preventDefault()
+      commitPan({ x: startPan.x + dx, y: startPan.y + dy })
     }
 
-    const endPan = () => {
+    const endPan = (event: PointerEvent) => {
       if (!isPanning) return
       isPanning = false
       suppressNextClick = moved
       moved = false
       el.classList.remove('pd-org-scroll--grabbing')
+      if (
+        typeof el.hasPointerCapture === 'function' &&
+        el.hasPointerCapture(event.pointerId)
+      ) {
+        el.releasePointerCapture(event.pointerId)
+      }
     }
 
     const onClickCapture = (event: MouseEvent) => {
@@ -674,11 +846,33 @@ export default function OrgChartPage() {
       event.stopPropagation()
     }
 
+    const onDragStart = (event: DragEvent) => {
+      event.preventDefault()
+    }
+
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault()
+      if (event.ctrlKey || event.metaKey) {
+        const rect = el.getBoundingClientRect()
+        zoomAround(zoomRef.current - Math.sign(event.deltaY) * ZOOM_STEP, {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        })
+        return
+      }
+      commitPan({
+        x: panRef.current.x - event.deltaX,
+        y: panRef.current.y - event.deltaY,
+      })
+    }
+
     el.addEventListener('pointerdown', onPointerDown)
     el.addEventListener('pointermove', onPointerMove)
     el.addEventListener('pointerup', endPan)
     el.addEventListener('pointercancel', endPan)
     el.addEventListener('click', onClickCapture, true)
+    el.addEventListener('dragstart', onDragStart)
+    el.addEventListener('wheel', onWheel, { passive: false })
 
     return () => {
       el.removeEventListener('pointerdown', onPointerDown)
@@ -686,58 +880,47 @@ export default function OrgChartPage() {
       el.removeEventListener('pointerup', endPan)
       el.removeEventListener('pointercancel', endPan)
       el.removeEventListener('click', onClickCapture, true)
+      el.removeEventListener('dragstart', onDragStart)
+      el.removeEventListener('wheel', onWheel)
     }
-  }, [loadState, employees.length, companyRoots.length])
+  }, [commitPan, loadState, employees.length, companyRoots.length, zoomAround])
 
-  const toggle = useCallback((id: string) => {
-    setExpanded((current) => {
-      const next = new Set(current)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }, [])
+  const toggle = useCallback(
+    (id: string) => {
+      setUserExpanded((current) => {
+        const next = new Set(current ?? baselineExpanded)
+        if (next.has(id)) next.delete(id)
+        else next.add(id)
+        return next
+      })
+    },
+    [baselineExpanded],
+  )
 
   const expandAll = useCallback(() => {
     const ids = collectIds(companyRoots)
     if (showCompanyRoot) ids.add(COMPANY_ROOT_ID)
-    setExpanded(ids)
+    setUserExpanded(ids)
   }, [companyRoots, showCompanyRoot])
 
-  const collapseAll = useCallback(() => setExpanded(new Set()), [])
+  const collapseAll = useCallback(() => setUserExpanded(new Set()), [])
 
   const zoomIn = useCallback(
-    () => setZoom((z) => clampZoom(z + ZOOM_STEP)),
-    [],
+    () => zoomAround(zoomRef.current + ZOOM_STEP, viewportCenter()),
+    [viewportCenter, zoomAround],
   )
   const zoomOut = useCallback(
-    () => setZoom((z) => clampZoom(z - ZOOM_STEP)),
-    [],
+    () => zoomAround(zoomRef.current - ZOOM_STEP, viewportCenter()),
+    [viewportCenter, zoomAround],
   )
-  const resetZoom = useCallback(() => setZoom(1), [])
+  const resetZoom = useCallback(
+    () => zoomAround(1, viewportCenter()),
+    [viewportCenter, zoomAround],
+  )
 
   const fitToScreen = useCallback(() => {
-    const scroll = scrollRef.current
-    if (!scroll || content.width === 0 || content.height === 0) return
-    const padding = getComputedStyle(scroll)
-    const availableWidth =
-      scroll.clientWidth -
-      parseFloat(padding.paddingLeft) -
-      parseFloat(padding.paddingRight)
-    const availableHeight =
-      scroll.clientHeight -
-      parseFloat(padding.paddingTop) -
-      parseFloat(padding.paddingBottom)
-    if (availableWidth <= 0 || availableHeight <= 0) return
-    setZoom(
-      clampZoom(
-        Math.min(
-          availableWidth / content.width,
-          availableHeight / content.height,
-        ),
-      ),
-    )
-  }, [content])
+    applyFit(content)
+  }, [applyFit, content])
 
   const findMe = useCallback(() => {
     if (myEmployeeId == null) return
@@ -754,11 +937,6 @@ export default function OrgChartPage() {
       void el.requestFullscreen?.()
     }
   }, [])
-
-  const zoomLayerStyle = {
-    width: content.width ? content.width * zoom : undefined,
-    height: content.height ? content.height * zoom : undefined,
-  }
 
   const dataPending = loadState === 'loading' && employees.length === 0
 
@@ -783,39 +961,30 @@ export default function OrgChartPage() {
               </p>
             ) : (
               <div className="pd-org-scroll" ref={scrollRef}>
-                <div className="pd-org-zoom-outer" style={zoomLayerStyle}>
-                  <div
-                    className="pd-org-zoom-inner"
-                    ref={zoomInnerRef}
-                    style={{
-                      transform: `scale(${zoom})`,
-                      transformOrigin: 'top left',
-                    }}
-                  >
-                    <div className="pd-org-tree-wrap">
-                      <ul className="pd-org-tree">
-                        {showCompanyRoot ? (
-                          <CompanyRoot
-                            roots={companyRoots}
-                            employeeCount={visiblePeopleCount}
+                <div className="pd-org-zoom-inner" ref={zoomInnerRef}>
+                  <div className="pd-org-tree-wrap">
+                    <ul className="pd-org-tree">
+                      {showCompanyRoot ? (
+                        <CompanyRoot
+                          roots={companyRoots}
+                          employeeCount={visiblePeopleCount}
+                          expanded={expanded}
+                          highlightId={highlightId}
+                          onToggle={toggle}
+                          logoUrl={layoutConfig.brand.logoUrl}
+                        />
+                      ) : (
+                        companyRoots.map((node) => (
+                          <OrgChartNode
+                            key={node.employee.employeeId}
+                            node={node}
                             expanded={expanded}
                             highlightId={highlightId}
                             onToggle={toggle}
-                            logoUrl={layoutConfig.brand.logoUrl}
                           />
-                        ) : (
-                          companyRoots.map((node) => (
-                            <OrgChartNode
-                              key={node.employee.employeeId}
-                              node={node}
-                              expanded={expanded}
-                              highlightId={highlightId}
-                              onToggle={toggle}
-                            />
-                          ))
-                        )}
-                      </ul>
-                    </div>
+                        ))
+                      )}
+                    </ul>
                   </div>
                 </div>
               </div>

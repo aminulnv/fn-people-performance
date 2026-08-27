@@ -70,6 +70,22 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
 }
 
 describe('GroupSettingsView', () => {
+  it('shows the people count instead of a needs-people chip', () => {
+    const { cycle, group } = sample()
+    group.memberIds = []
+    cycle.groups = [group]
+
+    render(
+      <MemoryRouter>
+        <GroupSettingsView cycle={cycle} group={group} onClose={() => {}} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByLabelText('Group name')).toHaveValue('Everyone')
+    expect(screen.getByText('0 people')).toBeInTheDocument()
+    expect(screen.queryByText('Needs people')).not.toBeInTheDocument()
+  })
+
   it('links Full view to the current job', () => {
     const { cycle, group } = sample()
     render(
@@ -179,6 +195,7 @@ describe('GroupSettingsView', () => {
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Group name')).toHaveValue('Everyone')
+    expect(screen.getByText('1 person')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Goals' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -195,7 +212,6 @@ describe('GroupSettingsView', () => {
       'annual_appraisal',
       'annual-2028',
     )
-    cycle.purpose = 'annual_appraisal'
     cycle.periodKey = 'annual-2028'
     cycle.stagesConfig = group.stagesConfig
 
@@ -302,7 +318,6 @@ describe('GroupSettingsView', () => {
       'annual_appraisal',
       'annual-2028',
     )
-    cycle.purpose = 'annual_appraisal'
     cycle.periodKey = 'annual-2028'
     cycle.stagesConfig = group.stagesConfig
 

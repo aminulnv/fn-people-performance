@@ -18,30 +18,37 @@ import {
 import ScorecardDetailPage from '@/pages/ScorecardDetailPage'
 import { ReviewPacketView } from './ReviewPacketView'
 
-const { employeesState, authState, packetState, saveReviewPacket } = vi.hoisted(
-  () => ({
-    employeesState: {
-      employees: [] as PlatformEmployee[],
-      loadState: 'ready' as const,
-      loadError: null as string | null,
-      isLoading: false,
-      reload: vi.fn(async () => {}),
+const {
+  employeesState,
+  authState,
+  packetState,
+  saveReviewPacket,
+  calibrateReviewPacket,
+  appealReviewPacket,
+} = vi.hoisted(() => ({
+  employeesState: {
+    employees: [] as PlatformEmployee[],
+    loadState: 'ready' as const,
+    loadError: null as string | null,
+    isLoading: false,
+    reload: vi.fn(async () => {}),
+  },
+  authState: {
+    user: {
+      id: '1',
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      personId: '1',
+      employeeId: 1,
     },
-    authState: {
-      user: {
-        id: '1',
-        email: 'alex.manager@example.com',
-        name: 'Alex Manager',
-        personId: '1',
-        employeeId: 1,
-      },
-    },
-    packetState: {
-      packet: null as ReviewPacket | null,
-    },
-    saveReviewPacket: vi.fn(),
-  }),
-)
+  },
+  packetState: {
+    packet: null as ReviewPacket | null,
+  },
+  saveReviewPacket: vi.fn(),
+  calibrateReviewPacket: vi.fn(),
+  appealReviewPacket: vi.fn(),
+}))
 
 vi.mock('@/lib/employees/useEmployees', () => ({
   useEmployees: () => employeesState,
@@ -70,8 +77,8 @@ vi.mock('@/lib/reviews/packetsApi', () => ({
     return packetState.packet
   },
   saveReviewPacket,
-  calibrateReviewPacket: vi.fn(),
-  appealReviewPacket: vi.fn(),
+  calibrateReviewPacket,
+  appealReviewPacket,
 }))
 
 beforeAll(() => {
@@ -149,6 +156,13 @@ beforeEach(async () => {
     managerEmail: 'alex.manager@example.com',
   })
   employeesState.employees = [manager, report]
+  authState.user = {
+    id: '1',
+    email: 'alex.manager@example.com',
+    name: 'Alex Manager',
+    personId: '1',
+    employeeId: 1,
+  }
   const cycle = listReviewCycles()[0]
   if (!cycle) throw new Error('expected a seeded cycle')
   cycleId = cycle.id
@@ -158,6 +172,8 @@ beforeEach(async () => {
   })
   packetState.packet = packet(cycle.id)
   saveReviewPacket.mockReset()
+  calibrateReviewPacket.mockReset()
+  appealReviewPacket.mockReset()
   saveReviewPacket.mockImplementation(async (_id: string, body: { submit?: boolean }) => ({
     ...packetState.packet!,
     status: body.submit ? 'manager_submitted' : 'manager_in_progress',
@@ -373,6 +389,136 @@ describe('ReviewPacketView', () => {
     expect(saveReviewPacket).toHaveBeenCalledWith(
       'pkt-1',
       expect.objectContaining({ submit: true }),
+    )
+  })
+
+  it('shows a success toast after recording calibration', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group) throw new Error('expected a seeded group')
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: {
+        ...group.stagesConfig,
+        calibration: { ...group.stagesConfig.calibration, enabled: true },
+        reviewStages: (group.stagesConfig.reviewStages ?? []).map((stage) =>
+          stage.id === 'calibration_hod_hrbp'
+            ? { ...stage, enabled: true }
+            : stage,
+        ),
+      },
+    })
+    packetState.packet = packet(cycleId, {
+      status: 'manager_submitted',
+      managerOverallGrade: 'performing',
+    })
+    calibrateReviewPacket.mockResolvedValue({
+      ...packetState.packet,
+      calibratedOverallGrade: 'exceeding',
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByLabelText('Calibrated grade'))
+    fireEvent.click(screen.getByRole('option', { name: 'Exceeding' }))
+    fireEvent.change(screen.getByLabelText('Reason for the change'), {
+      target: { value: 'Aligned with the department mix.' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Record calibration change' }),
+    )
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Calibration recorded.')
+    expect(calibrateReviewPacket).toHaveBeenCalled()
+  })
+
+  it('shows a success toast after submitting an appeal', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group) throw new Error('expected a seeded group')
+    const reviewStages = [...(group.stagesConfig.reviewStages ?? [])]
+    const appealIndex = reviewStages.findIndex((stage) => stage.id === 'appeal')
+    if (appealIndex >= 0) {
+      reviewStages[appealIndex] = { ...reviewStages[appealIndex], enabled: true }
+    } else {
+      reviewStages.push({
+        id: 'appeal',
+        enabled: true,
+        start: { date: '2026-10-01', time: '00:00' },
+        end: { date: '2026-10-15', time: '00:00' },
+      })
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: {
+        ...group.stagesConfig,
+        reviewStages,
+      },
+    })
+    authState.user = {
+      id: '2',
+      email: 'riley.report@example.com',
+      name: 'Riley Report',
+      personId: '2',
+      employeeId: 2,
+    }
+    packetState.packet = packet(cycleId, {
+      status: 'released_to_employees',
+      publishedOverallGrade: 'performing',
+    })
+    appealReviewPacket.mockResolvedValue({
+      ...packetState.packet,
+      status: 'appealed',
+      appeals: [
+        {
+          id: 'appeal-1',
+          body: 'The grade missed shipped work.',
+          status: 'open',
+          createdAt: '2026-08-27T00:00:00.000Z',
+          createdByEmployeeId: 2,
+        },
+      ],
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=publish_employees`,
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.change(await screen.findByLabelText('Written record'), {
+      target: { value: 'The grade missed shipped work.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit appeal' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Appeal submitted.')
+    expect(appealReviewPacket).toHaveBeenCalledWith(
+      'pkt-1',
+      'The grade missed shipped work.',
     )
   })
 })

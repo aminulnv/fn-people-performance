@@ -20,7 +20,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
-  DateInputControl,
+  DateTimeInputControl,
   ListboxSelect,
   PageStatus,
   PageStatusLink,
@@ -28,6 +28,8 @@ import {
   SegmentedControl,
 } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
+import { toUtcIso } from '@/lib/dates/timezone'
+import { successNotice } from '@/pages/reviews/ReviewSaveBanner'
 import {
   DetailRow,
   PROFILE_TAB_OPTIONS,
@@ -36,7 +38,10 @@ import {
 import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { countDirectReports } from '@/lib/employees/relationships'
-import { organisationPathForEmployee } from '@/lib/organisation/paths'
+import {
+  orgChartPath,
+  organisationPathForEmployee,
+} from '@/lib/organisation/paths'
 import {
   buildCatalogOptions,
   DEPARTMENT_OPTIONS,
@@ -114,7 +119,7 @@ function InlineInput({
   step,
 }: {
   label: string
-  type?: 'text' | 'email' | 'date' | 'number'
+  type?: 'text' | 'email' | 'datetime' | 'number'
   value: string
   onChange?: (value: string) => void
   placeholder?: string
@@ -138,8 +143,8 @@ function InlineInput({
     onChange: (event: ChangeEvent<HTMLInputElement>) => onChange?.(event.target.value),
   }
 
-  if (type === 'date') {
-    return <DateInputControl {...sharedProps} />
+  if (type === 'datetime') {
+    return <DateTimeInputControl {...sharedProps} />
   }
 
   return <input type={type} {...sharedProps} />
@@ -279,7 +284,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       employeeId: existing.employeeId,
       fullName: existing.fullName,
       email: existing.email,
-      startDate: existing.startDate,
+      startDate: toUtcIso(existing.startDate) || existing.startDate,
       jobTitle: existing.jobTitle,
       department: existing.department,
       team: existing.team,
@@ -412,7 +417,10 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
           setBusy(false)
           return
         }
-        navigate(`/people/${result.employee.employeeId}`, { replace: true })
+        navigate(`/people/${result.employee.employeeId}`, {
+          replace: true,
+          state: { saveNotice: successNotice('Person created.') },
+        })
         return
       }
 
@@ -434,7 +442,10 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
           managerName: manager.fullName,
         })
       }
-      navigate(`/people/${result.employee.employeeId}`, { replace: true })
+      navigate(`/people/${result.employee.employeeId}`, {
+        replace: true,
+        state: { saveNotice: successNotice('Profile updated.') },
+      })
     })()
   }
 
@@ -659,9 +670,11 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                 <DetailRow label="Joining Date" icon={Calendar}>
                   <InlineInput
                     label="Joining Date"
-                    type="date"
+                    type="datetime"
                     value={form.startDate}
-                    onChange={(value) => onFieldChange('startDate', value)}
+                    onChange={(value) =>
+                      onFieldChange('startDate', toUtcIso(value) || value)
+                    }
                   />
                 </DetailRow>
               </dl>
@@ -686,7 +699,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                 avatarUrl: existing?.avatarUrl,
               }}
               managerReportCount={managerReportCount}
-              chartHref="/organisation/chart"
+              chartHref={orgChartPath(existing?.employeeId)}
             />
 
             <nav className="pd-profile__nav-cards" aria-label="More about this person">

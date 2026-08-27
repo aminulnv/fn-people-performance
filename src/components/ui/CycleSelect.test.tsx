@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import {
   CycleSelect,
   sanitizeCycleSelection,
   toggleCycleSelection,
   type CycleSelectOption,
 } from './CycleSelect'
+
+afterEach(() => {
+  cleanup()
+})
 
 const OPTIONS: CycleSelectOption[] = [
   { id: 'annual-2026', label: 'Annual 2026', status: 'future', statusLabel: 'Future' },
@@ -59,6 +63,27 @@ describe('CycleSelect', () => {
 
     expect(onChange).toHaveBeenCalledWith(['q3-2026', 'q2-2026'])
     expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('puts Clear first when empty selection is allowed', () => {
+    const onChange = vi.fn()
+    render(
+      <CycleSelect
+        label="Cycle"
+        allowEmpty
+        emptyLabel="Clear"
+        options={OPTIONS}
+        value="q3-2026"
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cycle: Q3 2026' }))
+    const options = screen.getAllByRole('option')
+    expect(options[0]).toHaveAccessibleName('Clear')
+
+    fireEvent.click(options[0])
+    expect(onChange).toHaveBeenCalledWith('')
   })
 
   it('summarizes more than one selected cycle on the trigger', () => {

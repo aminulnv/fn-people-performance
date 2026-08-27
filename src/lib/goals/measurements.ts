@@ -1,3 +1,4 @@
+import { proofParts } from './proof'
 import type {
   Goal,
   Measurement,
@@ -354,6 +355,41 @@ export function withMeasureTitle(
   return stampMeasureGroup(next, measureGroupId, nextTitle)
 }
 
+export function readMeasureGroupProof(
+  measurements: Measurement[],
+  measureGroupId: string,
+): { proofUrl?: string; comment?: string } {
+  const items = normalizeMilestoneListIds(measurements).filter(
+    (item): item is Milestone =>
+      item.kind === 'milestone' &&
+      milestoneMeasureGroupId(item) === measureGroupId,
+  )
+  const source =
+    items.find((item) => proofParts(item.proofUrl, item.comment).hasProof) ??
+    items[0]
+  return { proofUrl: source?.proofUrl, comment: source?.comment }
+}
+
+export function withMeasureProof(
+  measurements: Measurement[],
+  measureGroupId: string,
+  proof: { proofUrl?: string; comment?: string },
+): Measurement[] {
+  return normalizeMilestoneListIds(measurements).map((item) => {
+    if (
+      item.kind !== 'milestone' ||
+      milestoneMeasureGroupId(item) !== measureGroupId
+    ) {
+      return item
+    }
+    return {
+      ...item,
+      proofUrl: proof.proofUrl,
+      ...('comment' in proof ? { comment: proof.comment } : {}),
+    }
+  })
+}
+
 /** Read a checklist item title from stored measurements — not derived panels. */
 export function readMilestoneTitle(
   measurements: Measurement[],
@@ -495,11 +531,15 @@ export function appendTodoListToMeasure(
       titledPanel?.lists.map((list) => list.listTitle) ?? [],
     )
 
-  const newList = blankMilestone(0, {
-    measureGroupId,
-    measureTitle: sample.measureTitle,
-    listTitle: nextTitle,
-  })
+  const proof = readMeasureGroupProof(nextMeasurements, measureGroupId)
+  const newList = {
+    ...blankMilestone(0, {
+      measureGroupId,
+      measureTitle: sample.measureTitle,
+      listTitle: nextTitle,
+    }),
+    ...proof,
+  }
 
   let insertAt = normalized.length
   for (let index = normalized.length - 1; index >= 0; index -= 1) {
@@ -538,6 +578,7 @@ export function appendMilestoneToList(
 
   const listTitle = milestoneListTitle(list.todos)
   const measureTitle = measureGroupTitle(list.todos)
+  const proof = readMeasureGroupProof(normalized, panel.measureGroupId)
   const runTotal = list.todos.reduce((sum, entry) => sum + entry.weight, 0)
   const nextRun = redistributeMilestoneListWeights(
     [
@@ -548,6 +589,8 @@ export function appendMilestoneToList(
         listTitle: listTitle || undefined,
         measureGroupId: panel.measureGroupId,
         measureTitle: measureTitle || undefined,
+        proofUrl: proof.proofUrl,
+        comment: proof.comment,
       },
     ],
     runTotal,

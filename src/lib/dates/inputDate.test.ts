@@ -15,4 +15,8 @@ describe('formatInputDate', () => {
     expect(formatInputDate('05/03/2027')).toBe('')
     expect(formatInputDate('not-a-date')).toBe('')
   })
+
+  it('reads the calendar day from a timestamp', () => {
+    expect(formatInputDate('2027-03-05T10:00')).toBe('05-Mar-2027')
+  })
 })

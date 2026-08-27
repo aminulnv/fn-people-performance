@@ -5,6 +5,7 @@ import {
   Building2,
   Plus,
   Search,
+  Trash2,
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
@@ -724,7 +725,7 @@ export function GroupMembersEditor({
                             aria-label={`Remove ${employee.fullName}`}
                             onClick={() => removeIds([employee.employeeId])}
                           >
-                            Remove
+                            <Trash2 size={14} strokeWidth={2} aria-hidden />
                           </button>
                         </td>
                       </tr>

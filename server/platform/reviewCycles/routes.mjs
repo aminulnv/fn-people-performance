@@ -80,7 +80,7 @@ export function registerReviewCycleRoutes(app) {
           {
             ...source,
             id: undefined,
-            type: 'ad-hoc',
+            type: 'custom',
             periodKey: undefined,
             isTest: true,
             name: `${source.name} (Test)`,

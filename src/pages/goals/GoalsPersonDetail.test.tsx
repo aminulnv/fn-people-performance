@@ -34,9 +34,8 @@ function startEditingGoal() {
   fireEvent.click(screen.getByRole('menuitem', { name: 'Edit' }))
 }
 
-function saveGoalDraft() {
-  openGoalActions()
-  fireEvent.click(screen.getByRole('menuitem', { name: 'Save' }))
+function blurGoalName() {
+  fireEvent.blur(screen.getByLabelText('Goal name'))
 }
 
 async function seedDirectory(reportStartDate = '2024-01-01') {
@@ -180,6 +179,81 @@ describe('GoalsPersonDetail manager review', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('shows a success toast after approving goals', async () => {
+    renderReportGoals()
+    fireEvent.click(await screen.findByRole('button', { name: 'Approve' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Goals approved.')
+  })
+
+  it('shows a success toast after cascading a goal', async () => {
+    const snapshot = getGoalsSnapshot()
+    savePersonGoals(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: MANAGER_ID,
+        subjectId: MANAGER_ID,
+      },
+      [
+        {
+          id: 'mgr-cascade',
+          ownerId: MANAGER_ID,
+          description: 'Raise the quality bar',
+          weight: 100,
+          measurements: [
+            {
+              id: 'metric-1',
+              kind: 'metric',
+              title: 'Defects',
+              weight: 100,
+              unit: 'number',
+              direction: 'decrease',
+              startValue: 10,
+              targetValue: 2,
+              currentValue: 8,
+            },
+          ],
+        },
+      ],
+    )
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByText('Raise the quality bar'))
+    startEditingGoal()
+    fireEvent.click(screen.getByRole('button', { name: 'Add cascading to' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cascaded to' }))
+    fireEvent.click(
+      screen.getByRole('option', { name: /Create new cascading goal/ }),
+    )
+    fireEvent.click(screen.getByRole('checkbox', { name: /Direct Report/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cascade' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Goal cascaded.')
+  })
+
+  it('shows a success toast after sending goals back', async () => {
+    renderReportGoals()
+    fireEvent.click(await screen.findByRole('button', { name: 'Send Back' }))
+    fireEvent.change(screen.getByLabelText('Send back reason'), {
+      target: { value: 'Please add a metric.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Send Back' }))
+
+    expect(await screen.findByText('Goals sent back.')).toBeInTheDocument()
+    expect(screen.getByText('Success!')).toBeInTheDocument()
+  })
+
   it('hides the person goal totals on an embedded profile', async () => {
     render(
       <MemoryRouter>
@@ -230,7 +304,7 @@ describe('GoalsPersonDetail manager review', () => {
     expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeInTheDocument()
   })
 
-  it('keeps a sent-back report goal local until Save in the side sheet', async () => {
+  it('persists a sent-back report goal when a task is added', async () => {
     const snapshot = getGoalsSnapshot()
     sendBackSubmission(
       {
@@ -259,16 +333,6 @@ describe('GoalsPersonDetail manager review', () => {
     startEditingGoal()
     fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
 
-    openGoalActions()
-    const save = screen.getByRole('menuitem', { name: 'Save' })
-    expect(save).toBeEnabled()
-    expect(
-      getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
-        (item) => item.kind === 'milestone',
-      ),
-    ).toHaveLength(persistedTaskCount)
-
-    fireEvent.click(save)
     await waitFor(() => {
       expect(
         getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
@@ -276,8 +340,11 @@ describe('GoalsPersonDetail manager review', () => {
         ),
       ).toHaveLength(persistedTaskCount + 1)
     })
+    const notice = await screen.findByText('Goal saved.')
+    expect(notice.closest('[role="status"]')).toHaveTextContent('Success!')
     openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
   })
 
   it('lets a manager edit report weights from the table after confirming reapproval', async () => {
@@ -519,15 +586,40 @@ describe('GoalsPersonDetail submission status', () => {
     )
 
     fireEvent.click(await screen.findByRole('button', { name: 'Add Goal' }))
-    fireEvent.change(await screen.findByPlaceholderText('Name this goal'), {
+    const nameField = await screen.findByPlaceholderText('Name this goal')
+    expect(nameField).toHaveFocus()
+    expect(screen.queryByText('Goal name is required')).not.toBeInTheDocument()
+    fireEvent.change(nameField, {
       target: { value: 'Ship the launch' },
     })
-    saveGoalDraft()
+    blurGoalName()
 
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
     expect(notice).toHaveTextContent('Goal created.')
     expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
+  })
+
+  it('shows a success toast after deleting a goal', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={REPORT_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    const snapshot = getGoalsSnapshot()
+    const goal = snapshot.byPerson[REPORT_ID]?.goals[0]
+    expect(goal).toBeTruthy()
+    fireEvent.click(await screen.findByText(goal.description))
+    openGoalActions()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Remove' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Goal' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Goal deleted.')
   })
 
   it('shows a success message after submitting goals', async () => {
@@ -595,6 +687,14 @@ describe('GoalsPersonDetail submission status', () => {
     expect(
       metricIcons.some((icon) => icon.closest('.pd-goals-table__metric')),
     ).toBe(true)
+
+    const submit = screen.getByRole('button', { name: 'Submit All' })
+    expect(submit).toBeDisabled()
+    fireEvent.mouseEnter(submit.closest('.pd-tooltip')!)
+    const submitTip = await screen.findByRole('tooltip')
+    expect(submitTip).toHaveTextContent('Add at least 2 goals.')
+    expect(submitTip).toHaveTextContent('Weights need to add up to 100%.')
+    expect(submitTip).toHaveTextContent('test: Still needs a metric.')
 
     fireEvent.click(screen.getByTitle('test'))
     const drawer = await screen.findByRole('dialog', { name: 'View test' })

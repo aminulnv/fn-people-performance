@@ -1,3 +1,4 @@
+import { datePart } from '@/lib/dates/timestamp'
 import type { CyclePeriodOption } from './types'
 
 const QUARTER_MONTHS = [
@@ -40,6 +41,25 @@ export function listAnnualPeriods(referenceDate = new Date()): CyclePeriodOption
   return [year, year + 1, year - 1]
     .map((value) => findAnnualPeriod(annualPeriodKey(value)))
     .filter((period): period is CyclePeriodOption => Boolean(period))
+}
+
+/** Nearby years for the cycle details picker, plus any year already in use. */
+export function listPerformanceYears(
+  extras: Array<string | undefined> = [],
+  referenceDate = new Date(),
+): string[] {
+  const year = referenceDate.getFullYear()
+  const years = new Set<number>()
+  for (let value = year - 2; value <= year + 2; value += 1) {
+    years.add(value)
+  }
+  for (const extra of extras) {
+    const parsed = Number(extra)
+    if (Number.isInteger(parsed) && parsed >= 2000 && parsed <= 2100) {
+      years.add(parsed)
+    }
+  }
+  return [...years].sort((left, right) => right - left).map(String)
 }
 
 export function buildPeriod(
@@ -92,7 +112,7 @@ export function listCreatePeriods(referenceDate = new Date()): CyclePeriodOption
 
 /** Calendar-day key for date-only values, so timezones cannot shift a stage. */
 export function dayValue(iso: string): number {
-  const [year, month, day] = iso.split('-').map(Number)
+  const [year, month, day] = datePart(iso).split('-').map(Number)
   return Date.UTC(year, (month ?? 1) - 1, day ?? 1)
 }
 
@@ -104,7 +124,7 @@ export function formatDateRange(startDate: string, endDate?: string): string {
   const start = formatShortDate(startDate)
   if (!endDate || endDate === startDate) return start
   const end = formatShortDate(endDate)
-  const sameYear = startDate.slice(0, 4) === endDate.slice(0, 4)
+  const sameYear = datePart(startDate).slice(0, 4) === datePart(endDate).slice(0, 4)
   if (sameYear) {
     const startNoYear = formatShortDate(startDate, { omitYear: true })
     return `${startNoYear} - ${end}`
@@ -116,7 +136,7 @@ export function formatShortDate(
   iso: string,
   opts?: { omitYear?: boolean },
 ): string {
-  const [y, m, d] = iso.split('-').map(Number)
+  const [y, m, d] = datePart(iso).split('-').map(Number)
   if (!y || !m || !d) return iso
   const months = [
     'Jan',

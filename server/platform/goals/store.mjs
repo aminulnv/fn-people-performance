@@ -565,16 +565,32 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
       )
     }
 
+    const { rows: existingCommentRows } = await client.query(
+      `SELECT comment_id FROM platform.goal_comments WHERE goal_id = $1`,
+      [goalId],
+    )
+    const existingCommentIds = new Set(
+      existingCommentRows.map((row) => row.comment_id),
+    )
+    const incomingCommentIds = new Set()
+
     for (const comment of goal.comments ?? []) {
       const commentId = comment.id || newId('c')
+      if (incomingCommentIds.has(commentId)) {
+        throw new HttpError(400, `Duplicate comment id: ${commentId}`)
+      }
+      incomingCommentIds.add(commentId)
       const { rows: commentIdentityRows } = await client.query(
-        `SELECT goal_id FROM platform.goal_comments WHERE comment_id = $1`,
+        `SELECT goal_id, body
+         FROM platform.goal_comments
+         WHERE comment_id = $1`,
         [commentId],
       )
       const commentIdentity = commentIdentityRows[0]
       if (commentIdentity && commentIdentity.goal_id !== goalId) {
         throw new HttpError(409, 'Comment id belongs to another goal')
       }
+      const nextBody = comment.text ?? ''
       if (!commentIdentity) {
         await client.query(
           `INSERT INTO platform.goal_comments (
@@ -585,10 +601,30 @@ async function replaceGoals(client, cycleId, employeeId, goals, actor = {}) {
             goalId,
             actor.actorEmployeeId ?? null,
             actor.actorName ?? '',
-            comment.text ?? '',
+            nextBody,
           ],
         )
+      } else if (commentIdentity.body !== nextBody) {
+        await client.query(
+          `UPDATE platform.goal_comments
+           SET body = $3
+           WHERE comment_id = $1
+             AND goal_id = $2`,
+          [commentId, goalId, nextBody],
+        )
       }
+    }
+
+    const removedCommentIds = [...existingCommentIds].filter(
+      (commentId) => !incomingCommentIds.has(commentId),
+    )
+    if (removedCommentIds.length > 0) {
+      await client.query(
+        `DELETE FROM platform.goal_comments
+         WHERE goal_id = $1
+           AND comment_id = ANY($2::text[])`,
+        [goalId, removedCommentIds],
+      )
     }
   }
 
@@ -639,7 +675,7 @@ function approvalActorFromRow(prefix, row) {
 async function delegatingForAtApproval(client, row) {
   if (!row?.approved_by_employee_id || !row?.employee_id) return null
   const { rows } = await client.query(
-    `SELECT manager.full_name, manager.avatar_url
+    `SELECT manager.name AS full_name, manager.avatar_url
      FROM platform.employees subject
      JOIN platform.employees manager
        ON manager.employee_id = subject.reports_to_employee_id

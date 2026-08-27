@@ -114,6 +114,46 @@ describe('shared draft helpers (V1/V2 contract)', () => {
     expect(progressOnlyGoals([goal], [goal])).toBeNull()
   })
 
+  it('persists a proof URL as progress without taking title edits', () => {
+    const metric = goal.measurements[0]
+    if (metric.kind !== 'metric') throw new Error('expected metric')
+    const local: Goal = {
+      ...goal,
+      description: 'Ship reviews now',
+      measurements: [{ ...metric, proofUrl: 'https://dash.fn/coverage' }],
+    }
+
+    const progressGoals = progressOnlyGoals([goal], [local])
+    expect(progressGoals?.[0]).toMatchObject({
+      description: 'Ship reviews',
+      measurements: [{ id: 'm1', proofUrl: 'https://dash.fn/coverage' }],
+    })
+    expect(
+      isGoalDraftDirty(goal, {
+        ...goal,
+        measurements: [{ ...metric, proofUrl: 'https://dash.fn/coverage' }],
+      }),
+    ).toBe(false)
+    expect(
+      hasPromptableUnsavedGoalDraft(
+        [{ ...goal, measurements: [{ ...metric, proofUrl: 'https://dash.fn/coverage' }] }],
+        [goal],
+      ),
+    ).toBe(false)
+  })
+
+  it('keeps an in-flight proof URL across a persist refresh', () => {
+    const metric = goal.measurements[0]
+    if (metric.kind !== 'metric') throw new Error('expected metric')
+    const merged = mergePersistedGoals(
+      [{ ...goal, measurements: [{ ...metric, proofUrl: 'https://dash.fn/coverage' }] }],
+      [goal],
+    )[0]
+    expect(merged?.measurements[0]).toMatchObject({
+      proofUrl: 'https://dash.fn/coverage',
+    })
+  })
+
   it('detects milestone measure title edits', () => {
     const base: Goal = {
       ...goal,

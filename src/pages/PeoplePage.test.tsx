@@ -136,6 +136,30 @@ describe('PeoplePage', () => {
     expect(screen.queryByText('Opened profile 2')).not.toBeInTheDocument()
   })
 
+  it('filters the directory from the Filters menu', () => {
+    const ada = person(1)
+    ada.fullName = 'Ada Lovelace'
+    ada.department = 'Product'
+    const cara = person(2)
+    cara.fullName = 'Cara Finance'
+    cara.department = 'Finance'
+    employeesState.employees = [ada, cara]
+
+    render(
+      <MemoryRouter>
+        <PeoplePage />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Department' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Product' }))
+
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument()
+    expect(screen.queryByText('Cara Finance')).not.toBeInTheDocument()
+    expect(screen.getByText('1 shown')).toBeInTheDocument()
+  })
+
   it('goes to the full profile from the panel', async () => {
     employeesState.employees = [person(1)]
 

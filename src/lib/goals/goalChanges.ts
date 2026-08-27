@@ -11,8 +11,6 @@ function structuralMeasurement(measurement: Measurement) {
       listTitle: measurement.listTitle,
       title: measurement.title,
       weight: measurement.weight,
-      proofUrl: measurement.proofUrl,
-      comment: measurement.comment,
     }
   }
 
@@ -27,8 +25,6 @@ function structuralMeasurement(measurement: Measurement) {
     targetValue: measurement.targetValue,
     rangeMin: measurement.rangeMin,
     rangeMax: measurement.rangeMax,
-    proofUrl: measurement.proofUrl,
-    comment: measurement.comment,
   }
 }
 

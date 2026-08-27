@@ -7,66 +7,29 @@
 }
 
 .pd-settings__layout {
-  display: grid;
-  grid-template-columns: 12.5rem minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 1.25rem;
-  align-items: start;
+  align-items: stretch;
   width: 100%;
 }
 
 .pd-settings-nav {
   display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  padding: 0.375rem;
-  border: 1px solid var(--color-border);
-  border-radius: 0.75rem;
-  background: var(--color-surface-raised, var(--color-bg));
-  position: sticky;
-  top: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 
-.pd-settings-nav__item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.5rem 0.625rem;
-  border: 0;
-  border-radius: 0.5rem;
-  background: transparent;
-  color: var(--color-text-sec);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
+.pd-settings-nav::-webkit-scrollbar {
+  display: none;
 }
 
-.pd-settings-nav__item:hover {
-  color: var(--color-text-primary);
-  background: color-mix(in srgb, var(--color-text) 5%, transparent);
-}
-
-.pd-settings-nav__item:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
-  outline-offset: 2px;
-}
-
-.pd-settings-nav__item:active {
-  transform: scale(0.98);
-}
-
-.pd-settings-nav__item.is-selected {
-  color: var(--color-on-cta);
-  background: var(--color-cta);
-}
-
-.pd-settings-nav__item.is-selected:hover {
-  color: var(--color-on-cta);
-  background: var(--color-cta);
+.pd-settings-nav__tabs {
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: nowrap;
 }
 
 .pd-settings__panel {
@@ -402,27 +365,7 @@
 
 @media (max-width: 767px) {
   .pd-settings__layout {
-    grid-template-columns: 1fr;
     gap: 0.875rem;
-  }
-
-  .pd-settings-nav {
-    flex-direction: row;
-    gap: 0.25rem;
-    overflow-x: auto;
-    position: static;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  .pd-settings-nav::-webkit-scrollbar {
-    display: none;
-  }
-
-  .pd-settings-nav__item {
-    width: auto;
-    flex: 0 0 auto;
-    white-space: nowrap;
   }
 
   .pd-access__add {

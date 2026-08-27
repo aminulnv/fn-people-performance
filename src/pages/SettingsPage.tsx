@@ -1,17 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
-  Compass,
-  History,
-  Info,
   Monitor,
   Moon,
   MousePointerClick,
-  Palette,
   PanelLeftOpen,
-  ShieldCheck,
   Sun,
-  type LucideIcon,
 } from 'lucide-react'
 import '@/styles/layout-settings.css'
 import {
@@ -30,7 +24,7 @@ import {
   applySidebarMode,
   type SidebarExpandMode,
 } from '@/lib/sidebarPrefs'
-import { Switch } from '@/components/ui'
+import { SegmentedControl, Switch } from '@/components/ui'
 import { useAssistantPrefs } from '@/layout/useAssistantPrefs'
 import { useSidebarPrefs } from '@/layout/useSidebarPrefs'
 import { hasSystemPermission } from '@/lib/accessControl/types'
@@ -40,23 +34,17 @@ import { ActivitySettingsPanel } from './settings/ActivitySettingsPanel'
 
 type SettingsSectionId =
   | 'appearance'
-  | 'sidebar'
   | 'assistant'
   | 'access'
   | 'activity'
   | 'about'
 
-const SETTINGS_SECTIONS: {
-  id: SettingsSectionId
-  label: string
-  icon: LucideIcon
-}[] = [
-  { id: 'appearance', label: 'Appearance', icon: Palette },
-  { id: 'sidebar', label: 'Sidebar', icon: PanelLeftOpen },
-  { id: 'assistant', label: 'Assistant', icon: Compass },
-  { id: 'access', label: 'Admin access', icon: ShieldCheck },
-  { id: 'activity', label: 'Activity log', icon: History },
-  { id: 'about', label: 'About', icon: Info },
+const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
+  { id: 'appearance', label: 'Appearance' },
+  { id: 'assistant', label: 'Assistant' },
+  { id: 'access', label: 'Admin access' },
+  { id: 'activity', label: 'Activity log' },
+  { id: 'about', label: 'About' },
 ]
 
 const SIDEBAR_MODE_OPTIONS: {
@@ -98,6 +86,7 @@ function AppearancePanel() {
   const [themeMode, setThemeMode] = useState(readThemeMode)
   const [customColor, setCustomColor] = useState(readCustomThemeColor)
   const [appearance, setAppearance] = useState(readAppearance)
+  const { mode: sidebarMode } = useSidebarPrefs()
 
   return (
     <section
@@ -109,7 +98,8 @@ function AppearancePanel() {
           Appearance
         </h2>
         <p className="pd-settings-section__hint">
-          Choose light or dark mode, or follow your system setting.
+          Choose light or dark mode, theme color, and how the desktop sidebar
+          opens.
         </p>
       </div>
 
@@ -203,33 +193,13 @@ function AppearancePanel() {
           </label>
         </div>
       </div>
-    </section>
-  )
-}
-
-function SidebarPanel() {
-  const { mode: sidebarMode } = useSidebarPrefs()
-
-  return (
-    <section
-      className="pd-settings-section"
-      aria-labelledby="sidebar-settings-heading"
-    >
-      <div className="pd-settings-section__header">
-        <h2 id="sidebar-settings-heading" className="pd-settings-section__title">
-          Sidebar
-        </h2>
-        <p className="pd-settings-section__hint">
-          Choose how the desktop sidebar opens and closes.
-        </p>
-      </div>
 
       <div className="pd-settings-row">
-        <span className="pd-settings-row__label">Expand mode</span>
+        <span className="pd-settings-row__label">Sidebar</span>
         <div
           className="pd-appearance-toggle"
           role="radiogroup"
-          aria-label="Expand mode"
+          aria-label="Sidebar expand mode"
         >
           {SIDEBAR_MODE_OPTIONS.map((option) => {
             const selected = sidebarMode === option.value
@@ -314,8 +284,6 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
   switch (section) {
     case 'appearance':
       return <AppearancePanel />
-    case 'sidebar':
-      return <SidebarPanel />
     case 'assistant':
       return <AssistantPanel />
     case 'access':
@@ -347,11 +315,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const requested = searchParams.get('section')
+    if (requested === 'sidebar') {
+      setActiveSection('appearance')
+      setSearchParams({}, { replace: true })
+      return
+    }
     if (
       requested !== 'access' &&
       requested !== 'activity' &&
       requested !== 'appearance' &&
-      requested !== 'sidebar' &&
       requested !== 'assistant' &&
       requested !== 'about'
     ) {
@@ -360,36 +332,25 @@ export default function SettingsPage() {
     if (requested === 'access' && !canReadAccess) return
     if (requested === 'activity' && !canReadActivity) return
     setActiveSection(requested)
-  }, [searchParams, canReadAccess, canReadActivity])
+  }, [searchParams, canReadAccess, canReadActivity, setSearchParams])
 
   return (
     <div className="pd-page pd-settings" aria-label="Settings">
       <div className="pd-settings__layout">
         <nav className="pd-settings-nav" aria-label="Settings sections">
-          {sections.map((section) => {
-            const Icon = section.icon
-            const selected = activeSection === section.id
-            return (
-              <button
-                key={section.id}
-                type="button"
-                className={`pd-settings-nav__item${selected ? ' is-selected' : ''}`}
-                aria-current={selected ? 'page' : undefined}
-                onClick={() => {
-                  setActiveSection(section.id)
-                  setSearchParams(
-                    section.id === 'appearance'
-                      ? {}
-                      : { section: section.id },
-                    { replace: true },
-                  )
-                }}
-              >
-                <Icon size={16} strokeWidth={2.25} aria-hidden />
-                <span>{section.label}</span>
-              </button>
-            )
-          })}
+          <SegmentedControl
+            className="pd-settings-nav__tabs"
+            options={sections}
+            value={activeSection}
+            onChange={(section) => {
+              setActiveSection(section)
+              setSearchParams(
+                section === 'appearance' ? {} : { section },
+                { replace: true },
+              )
+            }}
+            aria-label="Settings section"
+          />
         </nav>
 
         <div className="pd-settings__panel">

@@ -1,3 +1,4 @@
+import { hasExplicitTime, parseDateTime } from '@/lib/dates/timestamp'
 import type {
   CycleModules,
   CyclePurpose,
@@ -55,7 +56,8 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
 const DEFAULT_TIME = '00:00'
 
 function at(date: string, time = DEFAULT_TIME): DateTimeValue {
-  return { date, time }
+  const parsed = parseDateTime(date)
+  return { date: parsed?.date ?? date, time }
 }
 
 export function isGoalsOnlyQuarter(periodKey?: string): boolean {
@@ -324,7 +326,14 @@ export function syncLegacyStageWindows(
 export function applyNestedWindowsToReviewStages(
   config: CycleStagesConfig,
 ): CycleStagesConfig {
-  const at = (date: string, time = '00:00'): DateTimeValue => ({ date, time })
+  const at = (value: string, fallbackTime = '00:00'): DateTimeValue => {
+    const parsed = parseDateTime(value)
+    if (!parsed) return { date: value, time: fallbackTime }
+    return {
+      date: parsed.date,
+      time: hasExplicitTime(value) ? parsed.time : fallbackTime,
+    }
+  }
   return {
     ...config,
     reviewStages: (config.reviewStages ?? []).map((stage) => {

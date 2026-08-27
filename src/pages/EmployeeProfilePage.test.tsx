@@ -9,7 +9,13 @@ import {
   replaceMemoryEmployees,
 } from '@/lib/employees/memoryStore'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
+import {
+  createCycleGroup,
+  listReviewCycles,
+  resetReviewsStoreForTests,
+} from '@/lib/reviews/store'
 import EmployeeFormPage from '@/pages/EmployeeFormPage'
+import { successNotice } from '@/pages/reviews/ReviewSaveBanner'
 import EmployeeProfilePage from '@/pages/EmployeeProfilePage'
 import MyProfilePage from '@/pages/MyProfilePage'
 
@@ -125,6 +131,7 @@ describe('V1 employee profiles', () => {
   beforeEach(() => {
     clearSession()
     clearEmployees()
+    resetReviewsStoreForTests()
     employeesState.employees = []
     employeesState.loadState = 'ready'
     employeesState.loadError = null
@@ -136,6 +143,7 @@ describe('V1 employee profiles', () => {
     cleanup()
     clearSession()
     clearEmployees()
+    resetReviewsStoreForTests()
   })
 
   it('renders a cached employee while the directory is still loading', async () => {
@@ -151,6 +159,35 @@ describe('V1 employee profiles', () => {
 
     expect(screen.getByRole('heading', { name: 'Test Employee' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Loading employee')).not.toBeInTheDocument()
+  })
+
+  it('shows a success toast after adding or saving a person', async () => {
+    await seedEmployee()
+    signIn(['platform.read_all'])
+
+    render(
+      <AuthProvider>
+        <MemoryRouter
+          initialEntries={[
+            {
+              pathname: '/people/1',
+              state: { saveNotice: successNotice('Person created.') },
+            },
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/people/:employeeId"
+              element={<EmployeeProfilePage />}
+            />
+          </Routes>
+        </MemoryRouter>
+      </AuthProvider>,
+    )
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Person created.')
   })
 
   it('waits for the directory before deciding an employee is missing', () => {
@@ -546,6 +583,10 @@ describe('V1 employee profiles', () => {
     expect(
       await screen.findByRole('link', { name: /Org Structures/ }),
     ).toHaveAttribute('href', '/organisation/departments/product')
+    expect(screen.getByRole('link', { name: 'View org chart' })).toHaveAttribute(
+      'href',
+      '/organisation/chart?person=1',
+    )
     expect(screen.getByRole('link', { name: 'Product' })).toHaveAttribute(
       'href',
       '/organisation/departments/product',
@@ -564,6 +605,12 @@ describe('V1 employee profiles', () => {
   it('shows scorecards on the Performance tab', async () => {
     await seedEmployee()
     signIn(['platform.read_all'])
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('Expected a seeded review cycle')
+    await createCycleGroup(cycle.id, {
+      name: 'Everyone',
+      memberIds: [1],
+    })
 
     renderRoute(
       '/people/1',

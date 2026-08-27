@@ -1,3 +1,4 @@
+import { datePart } from '@/lib/dates/timestamp'
 import { dayValue } from './periods'
 import type { ReviewCycle } from './types'
 
@@ -197,8 +198,8 @@ export function listCycleCalendarMonths(
   startDate: string,
   endDate: string,
 ): CycleCalendarMonth[] {
-  const [startYear, startMonth] = startDate.split('-').map(Number)
-  const [endYear, endMonth] = endDate.split('-').map(Number)
+  const [startYear, startMonth] = datePart(startDate).split('-').map(Number)
+  const [endYear, endMonth] = datePart(endDate).split('-').map(Number)
   if (!startYear || !startMonth || !endYear || !endMonth) return []
 
   const months: CycleCalendarMonth[] = []

@@ -38,6 +38,7 @@ type CalibrationEditPageProps = {
   group: CycleGroup
   onClose: () => void
   embedded?: boolean
+  onSuccess?: (message: string) => void
 }
 
 const MODE_ORDER: CalibrationModeId[] = ['manual', 'department', 'central']
@@ -64,6 +65,7 @@ export function CalibrationEditPage({
   group,
   onClose,
   embedded = false,
+  onSuccess,
 }: CalibrationEditPageProps) {
   const [draft, setDraft] = useState<CalibrationLogic>(() =>
     normalizeCalibration(group.calibration),
@@ -101,6 +103,7 @@ export function CalibrationEditPage({
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
       })
+      onSuccess?.('Settings saved.')
       if (!embedded) onClose()
     } catch (err) {
       setError(

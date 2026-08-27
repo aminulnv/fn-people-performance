@@ -1,4 +1,5 @@
-import { apiFetch } from '@/lib/apiClient'
+import { ApiError, apiFetch } from '@/lib/apiClient'
+import { toUtcIso } from '@/lib/dates/timezone'
 import type {
   AssignManagerDelegationInput,
   ManagerDelegation,
@@ -8,7 +9,13 @@ const STORAGE_KEY = 'pd-manager-delegations'
 
 let memory: ManagerDelegation[] = []
 let remoteHydrated = false
+const hydrateInFlight = new Map<string, Promise<ManagerDelegation[]>>()
+const hydrateFailedKeys = new Set<string>()
 const listeners = new Set<() => void>()
+
+function hydrateKey(employeeId?: number): string {
+  return employeeId == null ? 'self' : String(employeeId)
+}
 
 function useLocalDelegations(): boolean {
   return (
@@ -68,8 +75,8 @@ export function delegationStatusAt(
   now = new Date(),
 ): ManagerDelegation['status'] {
   if (delegation.revokedAt) return 'revoked'
-  const start = new Date(`${delegation.startsOn}T00:00:00.000Z`)
-  const end = new Date(`${delegation.endsOn}T23:59:59.999Z`)
+  const start = new Date(toUtcIso(delegation.startsOn) || delegation.startsOn)
+  const end = new Date(toUtcIso(delegation.endsOn) || delegation.endsOn)
   if (now < start) return 'scheduled'
   if (now > end) return 'ended'
   return 'active'
@@ -153,14 +160,19 @@ export function assignManagerDelegationLocal(
   if (input.absentEmployeeId === input.delegateEmployeeId) {
     throw new Error('A manager cannot delegate to themselves')
   }
-  if (input.endsOn < input.startsOn) {
+  const startsOn = toUtcIso(input.startsOn)
+  const endsOn = toUtcIso(input.endsOn)
+  if (!startsOn || !endsOn) {
+    throw new Error('Start and end timestamps are required')
+  }
+  if (endsOn < startsOn) {
     throw new Error('End date must be on or after the start date')
   }
   const overlap = listDelegationsForEmployee(input.absentEmployeeId).some(
     (delegation) =>
       (delegation.status === 'active' || delegation.status === 'scheduled') &&
-      delegation.startsOn <= input.endsOn &&
-      delegation.endsOn >= input.startsOn,
+      toUtcIso(delegation.startsOn) <= endsOn &&
+      toUtcIso(delegation.endsOn) >= startsOn,
   )
   if (overlap) {
     throw new Error(
@@ -175,8 +187,8 @@ export function assignManagerDelegationLocal(
     delegateEmployeeId: input.delegateEmployeeId,
     delegateName: input.delegateName,
     delegateAvatarUrl: input.delegateAvatarUrl,
-    startsOn: input.startsOn,
-    endsOn: input.endsOn,
+    startsOn,
+    endsOn,
     assignedByEmployeeId: input.assignedByEmployeeId,
     assignedByName: input.assignedByName,
     status: 'scheduled',
@@ -208,27 +220,52 @@ export async function hydrateManagerDelegations(options?: {
       ? listDelegationsForEmployee(options.employeeId)
       : allDelegations().map((delegation) => withLiveStatus(delegation))
   }
-  const query = options?.employeeId
-    ? `?employeeId=${encodeURIComponent(String(options.employeeId))}`
-    : ''
-  const response = await apiFetch<{ delegations: ManagerDelegation[] }>(
-    `/api/platform/manager-delegations${query}`,
-  )
-  const incoming = response.delegations ?? []
-  if (options?.employeeId) {
-    const remaining = allDelegations().filter(
-      (delegation) =>
-        delegation.absentEmployeeId !== options.employeeId &&
-        delegation.delegateEmployeeId !== options.employeeId,
-    )
-    replaceManagerDelegations([...remaining, ...incoming])
-  } else {
-    const known = new Map(allDelegations().map((item) => [item.id, item]))
-    for (const delegation of incoming) known.set(delegation.id, delegation)
-    replaceManagerDelegations([...known.values()])
-    remoteHydrated = true
+  const key = hydrateKey(options?.employeeId)
+  if (hydrateFailedKeys.has(key)) {
+    return options?.employeeId
+      ? listDelegationsForEmployee(options.employeeId)
+      : allDelegations().map((delegation) => withLiveStatus(delegation))
   }
-  return incoming.map((delegation) => withLiveStatus(delegation))
+  const existing = hydrateInFlight.get(key)
+  if (existing) return existing
+
+  const run = (async () => {
+    const query = options?.employeeId
+      ? `?employeeId=${encodeURIComponent(String(options.employeeId))}`
+      : ''
+    try {
+      const response = await apiFetch<{ delegations: ManagerDelegation[] }>(
+        `/api/platform/manager-delegations${query}`,
+      )
+      const incoming = response.delegations ?? []
+      if (options?.employeeId) {
+        const remaining = allDelegations().filter(
+          (delegation) =>
+            delegation.absentEmployeeId !== options.employeeId &&
+            delegation.delegateEmployeeId !== options.employeeId,
+        )
+        replaceManagerDelegations([...remaining, ...incoming])
+      } else {
+        const known = new Map(allDelegations().map((item) => [item.id, item]))
+        for (const delegation of incoming) known.set(delegation.id, delegation)
+        replaceManagerDelegations([...known.values()])
+        remoteHydrated = true
+      }
+      return incoming.map((delegation) => withLiveStatus(delegation))
+    } catch (error) {
+      if (error instanceof ApiError && error.status >= 500) {
+        hydrateFailedKeys.add(key)
+      }
+      throw error
+    }
+  })()
+
+  hydrateInFlight.set(key, run)
+  try {
+    return await run
+  } finally {
+    hydrateInFlight.delete(key)
+  }
 }
 
 function useLocalDelegationWrites(): boolean {
@@ -288,6 +325,8 @@ export async function revokeManagerDelegationRemote(
 export function resetManagerDelegationsForTests(): void {
   memory = []
   remoteHydrated = false
+  hydrateInFlight.clear()
+  hydrateFailedKeys.clear()
   try {
     localStorage.removeItem(STORAGE_KEY)
   } catch {

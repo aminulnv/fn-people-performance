@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { CalendarRange, Target } from "lucide-react";
 import { Switch } from "@/components/ui";
+import { hasExplicitTime, toTimestamp } from "@/lib/dates/timestamp";
+import { toUtcIso } from "@/lib/dates/timezone";
 import { normalizeCycleSettings } from "@/lib/reviews/demoData";
 import { updateCycleGroup } from "@/lib/reviews/store";
 import type {
@@ -23,6 +25,7 @@ type GoalsSettingsEditPageProps = {
   embedded?: boolean;
   enabled?: boolean;
   onEnabledChange?: (enabled: boolean) => void;
+  onSuccess?: (message: string) => void;
 };
 
 export function GoalsSettingsEditPage({
@@ -32,6 +35,7 @@ export function GoalsSettingsEditPage({
   embedded = false,
   enabled = true,
   onEnabledChange,
+  onSuccess,
 }: GoalsSettingsEditPageProps) {
   const source = group;
   const [settings, setSettings] = useState<CycleSettings>(() =>
@@ -66,6 +70,7 @@ export function GoalsSettingsEditPage({
       void pending.catch(() => {
         /* Shown on the cycle page after close. */
       });
+      onSuccess?.("Settings saved.");
       if (!embedded) onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save settings.");
@@ -107,8 +112,24 @@ export function GoalsSettingsEditPage({
             <StageWindowFields
               startLabel="Opens"
               endLabel="Closes"
-              startValue={goals.employee.startDate}
-              endValue={goals.employee.endDate}
+              startValue={toUtcIso(
+                toTimestamp(
+                  goals.employee.startDate,
+                  hasExplicitTime(goals.employee.startDate)
+                    ? undefined
+                    : source.stagesConfig.reviewStages?.find((stage) => stage.id === "goals")
+                        ?.start?.time,
+                ),
+              )}
+              endValue={toUtcIso(
+                toTimestamp(
+                  goals.employee.endDate,
+                  hasExplicitTime(goals.employee.endDate)
+                    ? undefined
+                    : source.stagesConfig.reviewStages?.find((stage) => stage.id === "goals")
+                        ?.end?.time,
+                ),
+              )}
               onStartChange={(startDate) => setGoalRange({ startDate })}
               onEndChange={(endDate) => setGoalRange({ endDate })}
             />

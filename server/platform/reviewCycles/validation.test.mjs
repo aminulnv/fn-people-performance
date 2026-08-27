@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   buildDefaultStagesConfig,
   normalizeStagesConfig,
+  validateCycleDateRange,
   validateCycleStagesConfig,
 } from './validation.mjs'
 
@@ -80,6 +81,18 @@ test('validateCycleStagesConfig accepts a Q4 goals-only cycle', () => {
     'q4-2026',
   )
   assert.doesNotThrow(() => validateCycleStagesConfig(config))
+})
+
+test('validateCycleDateRange rejects an end before start', () => {
+  assert.throws(
+    () => validateCycleDateRange('2026-08-01', '2026-07-01'),
+    (error) => {
+      assert.equal(error.statusCode, 400)
+      assert.match(error.message, /end on or after/)
+      return true
+    },
+  )
+  assert.doesNotThrow(() => validateCycleDateRange('2026-07-01', '2026-07-01'))
 })
 
 test('validateCycleStagesConfig rejects invalid goal windows with 400', () => {

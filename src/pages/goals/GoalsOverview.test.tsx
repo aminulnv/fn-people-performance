@@ -141,6 +141,29 @@ describe('Goals overview cycle eligibility', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('filters goals from the Filters menu', async () => {
+    await putPeopleInGroup([1, 2])
+    const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(ownGoal).toBeTruthy()
+
+    renderOverview()
+    await waitFor(() => {
+      expect(screen.getByText(ownGoal.description)).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Job title' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Executive' }))
+
+    expect(screen.getByText(ownGoal.description)).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Filters, 1 selected' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }))
+    expect(screen.getByRole('button', { name: 'Filters' })).toBeInTheDocument()
+  })
+
   it('still lists own goals when the viewer is in the cycle', async () => {
     await putPeopleInGroup([1, 2])
     const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
@@ -272,7 +295,7 @@ describe('Goals overview cycle eligibility', () => {
     ).toHaveClass('is-selected')
   })
 
-  it('keeps overview panel edits local until Save on a draft', async () => {
+  it('persists overview panel edits on the action and shows a success toast', async () => {
     await putPeopleInGroup([1, 2])
     const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
     expect(ownGoal).toBeTruthy()
@@ -286,16 +309,6 @@ describe('Goals overview cycle eligibility', () => {
     startEditingGoal()
     fireEvent.click(screen.getByRole('button', { name: 'Add task' }))
 
-    openGoalActions()
-    const save = screen.getByRole('menuitem', { name: 'Save' })
-    expect(save).toBeEnabled()
-    expect(
-      getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
-        (item) => item.kind === 'milestone',
-      ),
-    ).toHaveLength(persistedTaskCount)
-
-    fireEvent.click(save)
     await waitFor(() => {
       expect(
         getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]?.measurements.filter(
@@ -303,7 +316,10 @@ describe('Goals overview cycle eligibility', () => {
         ),
       ).toHaveLength(persistedTaskCount + 1)
     })
+    const notice = await screen.findByText('Goal saved.')
+    expect(notice.closest('[role="status"]')).toHaveTextContent('Success!')
     openGoalActions()
-    expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
   })
 })

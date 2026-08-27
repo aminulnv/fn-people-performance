@@ -1,14 +1,25 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import {
   createReviewCycle,
+  getReviewCycle,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
 import * as reviewsStore from '@/lib/reviews/store'
 import type { ReviewCycle } from '@/lib/reviews/types'
 import { CycleSettingsView } from './CycleSettingsView'
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+  }
+})
 
 afterEach(() => {
   cleanup()
@@ -54,6 +65,7 @@ function sampleCycle(): ReviewCycle {
     id: 'cycle-1',
     name: 'Q3 2026',
     type: 'regular',
+    yearKey: '2026',
     startDate,
     endDate,
     stagesConfig,
@@ -89,17 +101,35 @@ describe('CycleSettingsView', () => {
     renderSettings()
 
     fireEvent.click(
-      within(screen.getByRole('region', { name: 'About this cycle' })).getByRole(
+      within(screen.getByRole('region', { name: 'Cycle Details' })).getByRole(
         'button',
         { name: 'Edit' },
       ),
     )
 
-    expect(screen.getByRole('dialog', { name: 'Cycle details' })).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Cycle Details' })).toBeInTheDocument()
     expect(screen.getByLabelText('Cycle name')).toBeInTheDocument()
     expect(screen.queryByText('This cycle includes')).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People in this cycle' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Everyone' })).toBeInTheDocument()
+  })
+
+  it('does not repeat the cycle name inside Cycle Details', () => {
+    renderSettings()
+
+    expect(
+      within(screen.getByRole('region', { name: 'Cycle Details' })).queryByText(
+        'Q3 2026',
+      ),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cycle Details' })).toBeInTheDocument()
+    const details = within(screen.getByRole('region', { name: 'Cycle Details' }))
+    expect(details.getByText('Starts')).toBeInTheDocument()
+    expect(details.getByText('Ends')).toBeInTheDocument()
+    expect(details.getByText(formatLocalTimestamp('2026-07-01'))).toBeInTheDocument()
+    expect(details.getByText(formatLocalTimestamp('2026-09-30'))).toBeInTheDocument()
+    expect(details.queryByText('Dates')).not.toBeInTheDocument()
+    expect(details.queryByText('Year')).not.toBeInTheDocument()
   })
 
   it('opens group settings on People with a top nav', () => {
@@ -158,6 +188,8 @@ describe('CycleSettingsView', () => {
     })
     expect(screen.getByRole('dialog', { name: 'New group' })).toBeInTheDocument()
     expect(screen.getByLabelText('Group name')).toHaveValue('New group')
+    expect(screen.getByText('0 people')).toBeInTheDocument()
+    expect(screen.queryByText('Needs people')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'People' })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -172,18 +204,73 @@ describe('CycleSettingsView', () => {
     resetReviewsStoreForTests()
     const cycle = await createReviewCycle({
       type: 'regular',
-      purpose: 'annual_appraisal',
       periodKey: 'annual-2028',
     })
 
     renderSettings(cycle)
 
-    expect(screen.getByText('Annual appraisal')).toBeInTheDocument()
-    expect(
-      screen.getByText('Year-end packet from the cycles you pick.'),
-    ).toBeInTheDocument()
+    const identity = screen.getByRole('region', { name: 'Cycle Details' })
+    expect(identity).toBeInTheDocument()
+    expect(within(identity).queryByText('Annual 2028')).not.toBeInTheDocument()
+    expect(within(identity).getByText('Year')).toBeInTheDocument()
+    expect(within(identity).getByText('2028')).toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'January 2029' })).not.toBeInTheDocument()
-    expect(screen.getByText('No one is in this cycle yet')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
+  })
+
+  it('adds an empty New group so the cycle uses group cards, not an empty-state message', async () => {
+    const cycle = await createReviewCycle({
+      type: 'custom',
+      name: 'Empty cycle',
+      startDate: '2026-08-27',
+      endDate: '2026-08-27',
+    })
+    expect(cycle.groups ?? []).toEqual([])
+
+    renderSettings(cycle)
+
+    expect(screen.queryByText('No one is in this cycle yet')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create new group' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(getReviewCycle(cycle.id)?.groups).toHaveLength(1)
+    })
+    expect(getReviewCycle(cycle.id)?.groups?.[0]?.name).toBe('New group')
+    expect(getReviewCycle(cycle.id)?.groups?.[0]?.memberIds).toEqual([])
+  })
+
+  it('shows a success toast after deleting a group', async () => {
+    vi.spyOn(reviewsStore, 'deleteCycleGroup').mockResolvedValue(undefined)
+
+    renderSettings()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Everyone' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete group' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Group deleted.')
+    expect(reviewsStore.deleteCycleGroup).toHaveBeenCalledWith(
+      'cycle-1',
+      'group-1',
+    )
+  })
+
+  it('shows a success toast after saving cycle details', async () => {
+    vi.spyOn(reviewsStore, 'updateReviewCycle').mockResolvedValue(sampleCycle())
+
+    renderSettings()
+    fireEvent.click(
+      within(screen.getByRole('region', { name: 'Cycle Details' })).getByRole(
+        'button',
+        { name: 'Edit' },
+      ),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    const notice = await screen.findByRole('status')
+    expect(notice).toHaveTextContent('Success!')
+    expect(notice).toHaveTextContent('Settings saved.')
+    expect(notice).toHaveClass('pd-review-packet__banner--overlay')
+    expect(notice.parentElement).toBe(document.body)
   })
 
   it('puts cycle-wide release on the cycle, not the people list', () => {
@@ -193,10 +280,10 @@ describe('CycleSettingsView', () => {
       screen.getByRole('heading', { name: 'Publish results' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Release to managers' }),
+      screen.getByRole('button', { name: 'Release to managers now' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Release to employees' }),
+      screen.getByRole('button', { name: 'Release to employees now' }),
     ).toBeInTheDocument()
   })
 })

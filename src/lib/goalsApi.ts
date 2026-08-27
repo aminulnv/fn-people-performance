@@ -82,6 +82,7 @@ export {
   submitBlockersForGoal,
   isMeasureGoalIssue,
   measureIssueLabel,
+  submitHoverHints,
   submitIssueForGoal,
   submitSetBlockers,
   sumGoalWeights,

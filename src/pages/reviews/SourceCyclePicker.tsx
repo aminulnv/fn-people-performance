@@ -1,4 +1,4 @@
-import { formatDateRange } from '@/lib/reviews/periods'
+import { formatLocalDateRange } from '@/lib/dates/timezone'
 import type { ReviewCycle } from '@/lib/reviews/types'
 
 type SourceCyclePickerProps = {
@@ -45,7 +45,7 @@ export function SourceCyclePicker({
               <span className="pd-reviews-create__row-text">
                 <span className="pd-reviews-create__row-name">{item.name}</span>
                 <span className="pd-reviews-create__row-meta">
-                  {formatDateRange(item.startDate, item.endDate)}
+                  {formatLocalDateRange(item.startDate, item.endDate)}
                 </span>
               </span>
             </label>

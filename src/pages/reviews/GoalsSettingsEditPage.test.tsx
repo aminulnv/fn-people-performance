@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import {
   createCycleGroup,
@@ -54,17 +54,19 @@ function seededGroup(): { cycle: ReviewCycle; group: CycleGroup } {
 describe('GoalsSettingsEditPage', () => {
   it('shows deadline extensions and keeps them when settings are saved', () => {
     const { cycle, group } = seededGroup()
+    const onSuccess = vi.fn()
     render(
       <GoalsSettingsEditPage
         cycle={cycle}
         group={group}
         onClose={() => {}}
+        onSuccess={onSuccess}
       />,
     )
 
     expect(screen.getByRole('heading', { name: 'Deadline extensions' })).toBeInTheDocument()
     expect(screen.getByText('Product')).toBeInTheDocument()
-    expect(screen.getByText('Until 2026-08-15')).toBeInTheDocument()
+    expect(screen.getByText(/Until 15-Aug-2026/)).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -72,5 +74,6 @@ describe('GoalsSettingsEditPage', () => {
       (item) => item.id === group.id,
     )
     expect(saved?.stagesConfig.goals.extensions).toEqual([extension])
+    expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
   })
 })

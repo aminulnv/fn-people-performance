@@ -19,12 +19,15 @@ import {
   measurementPanels,
   setMeasurementPanelWeight,
   sumPanelWeights,
+  todoMeasureItems,
   type MeasurementPanel,
 } from '@/lib/goals/measurements'
+import { proofParts } from '@/lib/goals/proof'
 import type { Measurement } from '@/lib/goals/types'
 import { formatProgressTimestamp, goalLastUpdatedAt } from '@/lib/goals/progressLog'
 import { GoalActionsMenu, hasGoalActions } from '@/pages/goals/GoalActionsMenu'
 import { GoalMeasureLogHover } from '@/pages/goals/GoalMeasureLogHover'
+import { MeasureProofReadout } from '@/pages/goals/MeasureProofFields'
 import { MeasureKindIcon } from '@/pages/goals/MeasureKindIcon'
 import {
   GoalMeasureReadout,
@@ -192,6 +195,14 @@ export function MeasureNameCell({
   panel: MeasurementPanel
   logAction?: ReactNode
 }) {
+  const proofSource =
+    panel.kind === 'metric'
+      ? panel.metric
+      : todoMeasureItems(panel).find((todo) =>
+          proofParts(todo.proofUrl, todo.comment).hasProof,
+        )
+  const proofUrl = proofSource?.proofUrl
+
   return (
     <div className="pd-goals-table__name-cell pd-goals-table__name-cell--measure">
       <span className="pd-goals-table__branch" aria-hidden />
@@ -201,6 +212,9 @@ export function MeasureNameCell({
       <span className="pd-goals-table__measure-name" title={name}>
         {name}
       </span>
+      {proofParts(proofUrl).href ? (
+        <MeasureProofReadout proofUrl={proofUrl} />
+      ) : null}
       {logAction}
     </div>
   )

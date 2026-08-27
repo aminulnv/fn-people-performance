@@ -171,6 +171,15 @@ describe('ScorecardHero', () => {
     )
   })
 
+  it('places the stage map above the person name', () => {
+    renderHero({ status: 'manager_submitted' })
+
+    const stages = screen.getByRole('list', { name: 'Review stages' })
+    const name = screen.getByRole('heading', { name: 'Saif Ivna Alam' })
+    expect(stages.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(stages.closest('.pd-reviews-scorecard__hero')).toBeNull()
+  })
+
   it('lets the stage row carry status instead of repeating manager-review chips', () => {
     renderHero({ status: 'manager_submitted' })
 
@@ -180,5 +189,11 @@ describe('ScorecardHero', () => {
     const publishedStep = screen.getByText('Published').closest('li')
     expect(managerStep?.className).toContain('is-done')
     expect(publishedStep?.className).toContain('is-active')
+    expect(
+      managerStep?.querySelector('.pd-reviews-scorecard__step-dot svg'),
+    ).toBeTruthy()
+    expect(
+      publishedStep?.querySelector('.pd-reviews-scorecard__step-dot svg'),
+    ).toBeTruthy()
   })
 })

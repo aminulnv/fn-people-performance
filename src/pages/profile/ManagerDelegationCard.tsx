@@ -8,7 +8,7 @@ import {
   Modal,
   Tooltip,
 } from '@/components/ui'
-import { formatInputDate } from '@/lib/dates/inputDate'
+import { formatLocalDateRange, toUtcIso } from '@/lib/dates/timezone'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { possessiveName } from '@/lib/delegations/roles'
 import {
@@ -22,18 +22,16 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import { useAuth } from '@/lib/useAuth'
 import { StageWindowFields } from '@/pages/reviews/StageDateTable'
 
-function todayIso(): string {
-  return new Date().toISOString().slice(0, 10)
+function nowUtcIso(): string {
+  return new Date().toISOString()
 }
 
-function plusDaysIso(days: number): string {
-  const date = new Date()
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
+function plusDaysUtcIso(days: number): string {
+  return new Date(Date.now() + days * 86_400_000).toISOString()
 }
 
 function formatDelegationRange(startsOn: string, endsOn: string): string {
-  return `${formatInputDate(startsOn)} – ${formatInputDate(endsOn)}`
+  return formatLocalDateRange(startsOn, endsOn)
 }
 
 const DELEGATION_HINT =
@@ -61,18 +59,20 @@ export function useManagerDelegationEditor({
   employee,
   employees,
   hasDirectReports,
+  onSuccess,
 }: {
   employee: PlatformEmployee
   employees: PlatformEmployee[]
   hasDirectReports: boolean
+  onSuccess?: (message: string) => void
 }) {
   const { user } = useAuth()
   const canAssign = hasSystemPermission(user?.permissions, 'platform.write_all')
   const { activeReceived, received } = useManagerDelegations(employee.employeeId)
   const [open, setOpen] = useState(false)
   const [delegateEmployeeId, setDelegateEmployeeId] = useState('')
-  const [startsOn, setStartsOn] = useState(todayIso)
-  const [endsOn, setEndsOn] = useState(() => plusDaysIso(14))
+  const [startsOn, setStartsOn] = useState(nowUtcIso)
+  const [endsOn, setEndsOn] = useState(() => plusDaysUtcIso(14))
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
 
@@ -121,8 +121,8 @@ export function useManagerDelegationEditor({
       listActiveDelegationForEmployee(employee.employeeId) ?? scheduled
     setError(null)
     setDelegateEmployeeId(current ? String(current.delegateEmployeeId) : '')
-    setStartsOn(current?.startsOn ?? todayIso())
-    setEndsOn(current?.endsOn ?? plusDaysIso(14))
+    setStartsOn(toUtcIso(current?.startsOn) || nowUtcIso())
+    setEndsOn(toUtcIso(current?.endsOn) || plusDaysUtcIso(14))
     setOpen(true)
   }
 
@@ -143,8 +143,8 @@ export function useManagerDelegationEditor({
       await assignManagerDelegation({
         absentEmployeeId: employee.employeeId,
         delegateEmployeeId: delegate.employeeId,
-        startsOn,
-        endsOn,
+        startsOn: toUtcIso(startsOn),
+        endsOn: toUtcIso(endsOn),
         absentName: employee.fullName,
         absentAvatarUrl: employee.avatarUrl,
         delegateName: delegate.fullName,
@@ -154,6 +154,7 @@ export function useManagerDelegationEditor({
       })
       setOpen(false)
       setDelegateEmployeeId('')
+      onSuccess?.(current ? 'Delegation updated.' : 'Delegation assigned.')
     } catch (nextError) {
       setError(
         nextError instanceof Error
@@ -173,6 +174,7 @@ export function useManagerDelegationEditor({
     setError(null)
     try {
       await revokeManagerDelegation(current.id)
+      onSuccess?.('Delegation revoked.')
     } catch (nextError) {
       setError(
         nextError instanceof Error

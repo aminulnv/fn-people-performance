@@ -78,8 +78,7 @@
 }
 
 .pd-cycle-select__badge--previous,
-.pd-cycle-select__badge--future,
-.pd-cycle-select__badge--manual {
+.pd-cycle-select__badge--future {
   color: var(--color-text-secondary);
 }
 
@@ -164,6 +163,15 @@
 .pd-cycle-select__option:hover,
 .pd-cycle-select__option.is-active {
   background: var(--color-neutral-hover, var(--color-muted-bg));
+}
+
+.pd-cycle-select__option--empty {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.pd-cycle-select__option--empty .pd-cycle-select__option-label {
+  font-weight: 500;
 }
 
 .pd-cycle-select__option--multi {

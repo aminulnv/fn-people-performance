@@ -19,8 +19,10 @@ export type ResizableColumn = {
   /** Spoken column name, for labels that are markup rather than plain text. */
   name?: string
   minWidth?: number
-  /** Absorbs leftover width once every column has what its content needs. */
+  /** Shares leftover width once every column has what its content needs. */
   grow?: boolean
+  /** Relative share of leftover width. Defaults to 1 when `grow` is set. */
+  growWeight?: number
 }
 
 type ResizableTableProps = {
@@ -62,6 +64,12 @@ function columnName(column: ResizableColumn): string {
 
 function minWidthOf(column: ResizableColumn): number {
   return column.minWidth ?? MIN_COLUMN_WIDTH
+}
+
+function growWeightOf(column: ResizableColumn): number {
+  if (!column.grow) return 0
+  const weight = column.growWeight ?? 1
+  return weight > 0 ? weight : 1
 }
 
 function sumWidths(columns: ResizableColumn[], widths: ColumnWidths): number {
@@ -173,9 +181,9 @@ export function distributeAutoWidths(
 ): AutoLayout {
   const fitted = { ...natural }
   const total = sumWidths(columns, fitted)
-  const growColumn = columns.find((column) => column.grow)
+  const growColumns = columns.filter((column) => column.grow)
 
-  if (!growColumn || total >= availableWidth) {
+  if (growColumns.length === 0 || total >= availableWidth) {
     return {
       widths: fitted,
       tableWidth: total,
@@ -184,8 +192,18 @@ export function distributeAutoWidths(
   }
 
   const slack = availableWidth - total
-  fitted[growColumn.id] =
-    (fitted[growColumn.id] ?? minWidthOf(growColumn)) + slack
+  const weights = growColumns.map(growWeightOf)
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0)
+  let assigned = 0
+
+  growColumns.forEach((column, index) => {
+    const extra =
+      index === growColumns.length - 1
+        ? slack - assigned
+        : Math.floor((slack * weights[index]) / weightTotal)
+    assigned += extra
+    fitted[column.id] = (fitted[column.id] ?? minWidthOf(column)) + extra
+  })
 
   return {
     widths: fitted,
@@ -198,14 +216,14 @@ function columnSignature(columns: ResizableColumn[]): string {
   return columns
     .map(
       (column) =>
-        `${column.id}:${column.minWidth ?? ''}:${column.grow ? '1' : '0'}`,
+        `${column.id}:${column.minWidth ?? ''}:${column.grow ? '1' : '0'}:${column.growWeight ?? ''}`,
     )
     .join('|')
 }
 
 /**
- * Columns auto-fit to their content. One optional grow column absorbs leftover
- * width so short columns stay tight; manual drags still stick.
+ * Columns auto-fit to their content. Grow columns share leftover width so
+ * short columns stay tight; manual drags still stick.
  */
 export function ResizableTable({
   storageKey,

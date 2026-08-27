@@ -7,8 +7,11 @@ import {
   duplicateGoal,
   cascadeApprovers,
   lineManagerCascade,
+  isOwnGoalComment,
   removeGoal,
+  removeGoalComment,
   replaceGoal,
+  replaceGoalComment,
   resetGoalProgress,
   resolveGoalOwner,
   applyCascadeToLink,
@@ -124,6 +127,45 @@ describe('replaceGoal / removeGoal', () => {
     const next = { ...source, description: 'Updated' }
     expect(replaceGoal([source], next)[0].description).toBe('Updated')
     expect(removeGoal([source], 'g1')).toEqual([])
+  })
+})
+
+describe('goal comments', () => {
+  it('matches the author by id when both sides have one', () => {
+    expect(
+      isOwnGoalComment(
+        { authorId: 'p1', authorName: 'Ada' },
+        { id: 'p1', name: 'Ada' },
+      ),
+    ).toBe(true)
+    expect(
+      isOwnGoalComment(
+        { authorId: 'p1', authorName: 'Ada' },
+        { id: 'p2', name: 'Ada' },
+      ),
+    ).toBe(false)
+  })
+
+  it('falls back to the author name when ids are missing', () => {
+    expect(
+      isOwnGoalComment({ authorName: 'Ada' }, { name: 'Ada' }),
+    ).toBe(true)
+    expect(
+      isOwnGoalComment({ authorName: 'Ada' }, { name: 'Ben' }),
+    ).toBe(false)
+  })
+
+  it('edits and removes a comment on the matching goal', () => {
+    const edited = replaceGoalComment([source], 'g1', 'c1', '  Updated note  ')
+    expect(edited[0].comments).toEqual([
+      {
+        id: 'c1',
+        authorName: 'Ada',
+        text: 'Updated note',
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ])
+    expect(removeGoalComment(edited, 'g1', 'c1')[0].comments).toEqual([])
   })
 })
 

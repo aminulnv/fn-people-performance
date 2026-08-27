@@ -469,6 +469,19 @@ describe("goal approval mutations", () => {
     expect(snapshot.byPerson["1"].status).toBe("submitted");
   });
 
+  it("saves a proof URL through the progress boundary", () => {
+    const progress = structuredClone(getGoalsSnapshot().byPerson["1"].goals);
+    const metric = firstGoal(progress).measurements[0];
+    if (metric.kind !== "metric") throw new Error("expected metric");
+    metric.proofUrl = "https://dash.fn/defects";
+
+    const snapshot = updateGoalProgress(ctx("1", "2"), progress);
+    const saved = firstGoal(snapshot.byPerson["1"].goals).measurements[0];
+
+    expect(snapshot.byPerson["1"].status).toBe("submitted");
+    expect(saved).toMatchObject({ proofUrl: "https://dash.fn/defects" });
+  });
+
   it("rejects structural edits through the progress boundary", () => {
     const next = structuredClone(getGoalsSnapshot().byPerson["1"].goals);
     firstGoal(next).description = "A structural change";

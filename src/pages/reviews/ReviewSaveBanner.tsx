@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocation } from 'react-router-dom'
 import { Check } from 'lucide-react'
 import '@/styles/toast.css'
 
@@ -9,10 +10,51 @@ export type ReviewSaveNotice = {
   shownAt: number
 }
 
+export function successNotice(message: string): ReviewSaveNotice {
+  return { variant: 'success', message, shownAt: Date.now() }
+}
+
+export function noticeFromLocationState(state: unknown): ReviewSaveNotice | null {
+  if (!state || typeof state !== 'object' || !('saveNotice' in state)) {
+    return null
+  }
+  const notice = (state as { saveNotice?: ReviewSaveNotice }).saveNotice
+  if (
+    !notice ||
+    (notice.variant !== 'success' && notice.variant !== 'error') ||
+    typeof notice.message !== 'string'
+  ) {
+    return null
+  }
+  return notice
+}
+
+export function useLocationSaveNotice() {
+  const location = useLocation()
+  const [notice, setNotice] = useState<ReviewSaveNotice | null>(null)
+
+  useEffect(() => {
+    const next = noticeFromLocationState(location.state)
+    if (!next) return
+    setNotice(next)
+  }, [location.state])
+
+  return [notice, setNotice] as const
+}
+
 export function reviewChromeHost() {
   return typeof document === 'undefined'
     ? null
     : document.querySelector('.pd-app-content-card')
+}
+
+function overlayToastHost() {
+  if (typeof document === 'undefined') return null
+  return document.querySelector(
+    '.pd-settings-panel, .pd-goals-drawer, .pd-reviews-drawer',
+  )
+    ? document.body
+    : null
 }
 
 export function ReviewActionIsland({ children }: { children: ReactNode }) {
@@ -43,7 +85,8 @@ export function ReviewSaveBanner({
   }, [notice, onDismiss])
 
   if (!notice) return null
-  const host = reviewChromeHost()
+  const overlayHost = overlayToastHost()
+  const host = overlayHost ?? reviewChromeHost()
   const isError = notice.variant === 'error'
   const banner = (
     <div
@@ -51,7 +94,10 @@ export function ReviewSaveBanner({
       className={[
         'pd-review-packet__banner',
         `pd-review-packet__banner--${notice.variant}`,
-      ].join(' ')}
+        overlayHost ? 'pd-review-packet__banner--overlay' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       role="status"
     >
       <span className="pd-review-packet__banner-icon" aria-hidden>

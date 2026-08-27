@@ -23,7 +23,7 @@ import {
   fetchReviewPacket,
   saveReviewPacket,
 } from '@/lib/reviews/packetsApi'
-import { PURPOSE_HINT } from '@/lib/reviews/purpose'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   defaultReviewPolicy,
   enabledPillars,
@@ -33,6 +33,10 @@ import {
 } from '@/lib/reviews/reviewPolicy'
 import { describeEnabledFlow, getReviewStage } from '@/lib/reviews/reviewStages'
 import { getReviewCycle } from '@/lib/reviews/store'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { calibrationIsEditable } from '@/lib/reviews/scorecardStages'
@@ -123,13 +127,15 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
+  const { cycles } = useReviewsSnapshot()
+  const cyclesHydrated = useReviewCyclesHydrated()
   const cycle = getReviewCycle(cycleId)
   const policyResolution = cycle
     ? resolveCyclePolicyForPerson(cycle, employeeId)
     : null
   const policy =
     policyResolution?.settings.reviewPolicy ??
-    defaultReviewPolicy(cycle?.purpose ?? 'quarterly_checkin')
+    defaultReviewPolicy(cyclePurposeOf(cycle))
   const viewerId = user?.employeeId ?? (Number(user?.personId) || null)
   const isSubject = viewerId === employeeId
   const isManager = Boolean(viewerId && viewerId !== employeeId)
@@ -158,7 +164,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const detail = useMemo(
     () =>
       buildScorecardDetail(cycleId, employeeId, employees, user?.email, packet),
-    [cycleId, employeeId, employees, goalsRevision, packet, user?.email],
+    [cycleId, cycles, employeeId, employees, goalsRevision, packet, user?.email],
   )
 
   useEffect(() => {
@@ -230,6 +236,14 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   }, [goalsGradeRole, packet])
 
   if (!cycle) {
+    if (!cyclesHydrated) {
+      return (
+        <PageStatus
+          variant="loading"
+          description="Loading the review packet…"
+        />
+      )
+    }
     return <PageStatus variant="not-found" description="This cycle is not available." />
   }
   if (error) {
@@ -349,9 +363,6 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           onViewStage={stageView.selectStage}
         />
       ) : null}
-      <p className="pd-reviews-flow__hint">
-        {PURPOSE_HINT[cycle.purpose ?? 'quarterly_checkin']}
-      </p>
       <p className="pd-reviews-flow__path">
         {describeEnabledFlow(stages)}
       </p>
@@ -561,21 +572,53 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         <CalibrationBlock
           packet={packet}
           onSave={async (toGrade, reason) => {
-            const next = await calibrateReviewPacket(packet.id, {
-              toGrade,
-              reason,
-              stageId: 'calibration_hod_hrbp',
-            })
-            setPacket(next)
+            try {
+              const next = await calibrateReviewPacket(packet.id, {
+                toGrade,
+                reason,
+                stageId: 'calibration_hod_hrbp',
+              })
+              setPacket(next)
+              setSaveNotice({
+                variant: 'success',
+                message: 'Calibration recorded.',
+                shownAt: Date.now(),
+              })
+            } catch (err: unknown) {
+              setSaveNotice({
+                variant: 'error',
+                message:
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not record calibration.',
+                shownAt: Date.now(),
+              })
+            }
           }}
         />
       ) : null}
 
-      {showAppealForm && stageView.viewing === 'appeal' ? (
+      {showAppealForm ? (
         <AppealBlock
           packet={packet}
           onSave={async (body) => {
-            setPacket(await appealReviewPacket(packet.id, body))
+            try {
+              setPacket(await appealReviewPacket(packet.id, body))
+              setSaveNotice({
+                variant: 'success',
+                message: 'Appeal submitted.',
+                shownAt: Date.now(),
+              })
+            } catch (err: unknown) {
+              setSaveNotice({
+                variant: 'error',
+                message:
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not submit this appeal.',
+                shownAt: Date.now(),
+              })
+            }
           }}
         />
       ) : null}

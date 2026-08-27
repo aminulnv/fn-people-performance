@@ -13,6 +13,10 @@ import { SEARCH_KIND_GROUP, SEARCH_KIND_ORDER } from './types'
 export const SEARCH_LIMIT_PER_GROUP = 8
 export const SEARCH_LIMIT_EMPTY = 12
 
+const LABEL_FIELD_BOOST = 800
+const DESCRIPTION_FIELD_BOOST = 150
+const EMPLOYEE_ID_BOOST = 1200
+
 export type SearchPresentation = {
   queryText: string
   scope: SearchScope
@@ -22,6 +26,14 @@ export type SearchPresentation = {
 
 function fieldsOf(item: SearchItem): string[] {
   return [item.label, item.description ?? '', ...item.keywords]
+}
+
+function fieldBoost(item: SearchItem, field: string): number {
+  if (field === item.label) return LABEL_FIELD_BOOST
+  if (item.description && field === item.description) {
+    return DESCRIPTION_FIELD_BOOST
+  }
+  return 0
 }
 
 export function scoreSearchItem(
@@ -43,8 +55,9 @@ export function scoreSearchItem(
     for (const field of fieldsOf(item)) {
       const match = scoreFuzzy(token, field)
       if (!match) continue
-      if (!best || match.score > best.score) {
-        best = { score: match.score, field, ranges: match.ranges }
+      const score = match.score + fieldBoost(item, field)
+      if (!best || score > best.score) {
+        best = { score, field, ranges: match.ranges }
       }
     }
     if (!best) return null
@@ -53,7 +66,7 @@ export function scoreSearchItem(
   }
 
   if (item.kind === 'person' && tokens.length === 1 && /^\d+$/.test(tokens[0])) {
-    if (item.keywords.includes(tokens[0])) total += 500
+    if (item.keywords.includes(tokens[0])) total += EMPLOYEE_ID_BOOST
   }
 
   return {
@@ -191,7 +204,9 @@ export function presentSearchResults(
       })
     })
 
-  const groups = groupItems(ranked)
+  const groups = groupItems(ranked).sort(
+    (left, right) => (right.items[0]?.score ?? 0) - (left.items[0]?.score ?? 0),
+  )
   return {
     queryText: parsed.text,
     scope,

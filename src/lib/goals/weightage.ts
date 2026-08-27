@@ -253,6 +253,29 @@ export function measureIssueLabel(issue: string): string {
   return issue
 }
 
+/** Submit-button hover — same table wording, with the goal named when it helps. */
+export function submitHoverHint(blocker: SubmitGoalBlocker): string {
+  if (blocker.goalTitle && blocker.suffix) {
+    const what = isMeasureGoalIssue(blocker.reason)
+      ? measureIssueLabel(blocker.reason)
+      : sentenceFromSuffix(blocker.suffix)
+    return `${blocker.goalTitle}: ${what}`
+  }
+  return blocker.reason
+}
+
+export function submitHoverHints(blockers: SubmitGoalBlocker[]): string[] {
+  const hints: string[] = []
+  const seen = new Set<string>()
+  for (const blocker of blockers) {
+    const hint = submitHoverHint(blocker)
+    if (seen.has(hint)) continue
+    seen.add(hint)
+    hints.push(hint)
+  }
+  return hints
+}
+
 export function canSubmitGoals(
   goals: Goal[],
   policy: GoalCountPolicy,

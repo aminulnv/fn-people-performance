@@ -171,7 +171,8 @@ describe('CycleGroupsSection', () => {
     )
 
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Create a group' }))
+    expect(screen.queryByText('No one is in this cycle yet')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Create new group' }))
     expect(onAddGroup).toHaveBeenCalled()
   })
 })

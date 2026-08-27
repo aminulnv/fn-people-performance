@@ -30,6 +30,13 @@ export function teamPathForNames(
   return teamDetailPath(teamKey(departmentName, team))
 }
 
+export function orgChartPath(personId?: number | null): string {
+  if (personId == null || !Number.isInteger(personId) || personId <= 0) {
+    return '/organisation/chart'
+  }
+  return `/organisation/chart?person=${personId}`
+}
+
 /** Best organisation detail page for a directory person. */
 export function organisationPathForEmployee(
   employee: Pick<PlatformEmployee, 'department' | 'team'>,

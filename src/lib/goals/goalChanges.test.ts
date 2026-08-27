@@ -60,6 +60,18 @@ describe('hasStructuralGoalChanges', () => {
     expect(hasStructuralGoalChanges([goal], next)).toBe(false)
   })
 
+  it('allows a proof URL without reapproval', () => {
+    expect(
+      hasStructuralGoalChanges(
+        [goal],
+        withGoal((draft) => {
+          const metric = draft.measurements[1]
+          if (metric.kind === 'metric') metric.proofUrl = 'https://dash.fn/defects'
+        }),
+      ),
+    ).toBe(false)
+  })
+
   it.each([
     ['title', (draft: Goal) => void (draft.description = 'New title')],
     ['description', (draft: Goal) => void (draft.details = 'New details')],

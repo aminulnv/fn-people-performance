@@ -188,7 +188,7 @@ export type GoalsCycle = {
 };
 
 /** Cycle status badge on the Goals cycle picker. */
-export type GoalsCycleStatus = "future" | "current" | "previous" | "manual";
+export type GoalsCycleStatus = "future" | "current" | "previous";
 
 export type GoalsCycleOption = GoalsCycle & {
   status: GoalsCycleStatus;

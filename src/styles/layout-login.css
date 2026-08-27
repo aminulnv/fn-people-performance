@@ -16,6 +16,10 @@
 .pd-login {
   --login-ink: #f5f7fb;
   --login-ink-muted: color-mix(in srgb, white 72%, transparent);
+  --login-field-border: color-mix(in srgb, white 14%, transparent);
+  --login-field-border-hover: color-mix(in srgb, white 22%, transparent);
+  --login-field-border-focus: color-mix(in srgb, white 32%, transparent);
+  --login-field-fill: color-mix(in srgb, black 38%, transparent);
 
   position: relative;
   isolation: isolate;
@@ -176,8 +180,8 @@
   width: 100%;
   min-width: 0;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, white 35%, transparent);
-  background: color-mix(in srgb, black 28%, transparent);
+  border: 1px solid var(--login-field-border);
+  background: var(--login-field-fill);
   overflow: hidden;
   transition:
     border-color 0.15s ease,
@@ -190,8 +194,8 @@
   margin: 0;
   padding: 0 1rem;
   border-radius: 999px;
-  border: 1px solid color-mix(in srgb, white 35%, transparent);
-  background: color-mix(in srgb, black 28%, transparent);
+  border: 1px solid var(--login-field-border);
+  background: var(--login-field-fill);
   color: var(--login-ink);
   font: inherit;
   font-size: 0.95rem;
@@ -220,17 +224,25 @@
   user-select: none;
 }
 
+.pd-login__username:hover {
+  border-color: var(--login-field-border-hover);
+}
+
 .pd-login__username:focus-within {
-  border-color: color-mix(in srgb, white 60%, transparent);
+  border-color: var(--login-field-border-focus);
 }
 
 .pd-login__input::placeholder {
   color: color-mix(in srgb, white 55%, transparent);
 }
 
+.pd-login__input:hover:not(:disabled) {
+  border-color: var(--login-field-border-hover);
+}
+
 .pd-login__input:focus {
   outline: none;
-  border-color: color-mix(in srgb, white 60%, transparent);
+  border-color: var(--login-field-border-focus);
 }
 
 .pd-login__input--username:focus {

@@ -12,6 +12,7 @@ import { GoalProgressLog } from '@/pages/goals/GoalProgressLog'
 import { MeasureKindIcon } from '@/pages/goals/MeasureKindIcon'
 import { MeasureTitleField } from '@/pages/goals/MeasureTitleField'
 import { ignoreInteractiveSummaryClick } from '@/pages/goals/measureFold'
+import { MeasureProofFields } from '@/pages/goals/MeasureProofFields'
 import { MetricProgressUpdate } from '@/pages/goals/MetricProgressUpdate'
 import { NumberTargetEditor } from '@/pages/goals/NumberTargetEditor'
 
@@ -82,6 +83,13 @@ export function NumberMeasureEditCard({
           <GoalMetricReadout metric={metric} showWeight={false} />
         </div>
         <div className={metricsClassName}>
+          <MeasureProofFields
+            proofUrl={metric.proofUrl}
+            comment={metric.comment}
+            name={trimmedTitle || "metric"}
+            disabled={bodyLocked}
+            onChange={(next) => onChange({ ...metric, ...next })}
+          />
           {!bodyLocked && canEditWeight ? (
             <GoalWeightInput
               weight={metric.weight}

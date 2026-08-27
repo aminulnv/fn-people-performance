@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "@/lib/apiClient";
 import { createInitialReviewsSnapshot } from "./demoData";
 import { buildPeriod, formatDateRange } from "./periods";
 import { updateReviewCycleRemote } from "./remoteApi";
@@ -11,6 +12,7 @@ import {
   deleteReviewCycle,
   getReviewCycle,
   getReviewsSnapshot,
+  isCycleTypeConstraintError,
   resetReviewsStoreForTests,
   setReviewsLocalModeForTests,
   sortCyclesForList,
@@ -32,17 +34,51 @@ beforeEach(() => {
 });
 
 describe("resolveCycleStatus", () => {
-  it("marks ad-hoc cycles as manual", () => {
+  it("classifies custom cycles by timeframe", () => {
+    const today = new Date("2026-08-13");
     expect(
       resolveCycleStatus(
         {
-          type: "ad-hoc",
+          type: "custom",
+          startDate: "2026-07-01",
+          endDate: "2026-09-30",
+        },
+        today,
+      ),
+    ).toBe("current");
+    expect(
+      resolveCycleStatus(
+        {
+          type: "custom",
+          startDate: "2027-01-01",
+          endDate: "2027-03-31",
+        },
+        today,
+      ),
+    ).toBe("future");
+    expect(
+      resolveCycleStatus(
+        {
+          type: "custom",
+          startDate: "2026-01-01",
+          endDate: "2026-03-31",
+        },
+        today,
+      ),
+    ).toBe("previous");
+  });
+
+  it("classifies a legacy ad-hoc type by timeframe", () => {
+    expect(
+      resolveCycleStatus(
+        {
+          type: "ad-hoc" as "custom",
           startDate: "2026-01-01",
           endDate: "2026-03-31",
         },
         new Date("2026-08-13"),
       ),
-    ).toBe("manual");
+    ).toBe("previous");
   });
 
   it("classifies regular cycles by timeframe", () => {
@@ -95,13 +131,12 @@ describe("reviews store", () => {
   it("creates an annual appraisal with year stages and linked quarters", async () => {
     const created = await createReviewCycle({
       type: "regular",
-      purpose: "annual_appraisal",
       periodKey: "annual-2028",
     });
-    expect(created.purpose).toBe("annual_appraisal");
+    expect(created.periodKey).toBe("annual-2028");
     expect(created.id).toBe("annual-2028");
-    expect(created.startDate).toBe("2029-01-01");
-    expect(created.endDate).toBe("2029-02-15");
+    expect(created.startDate).toBe("2029-01-01T00:00:00.000Z");
+    expect(created.endDate).toBe("2029-02-15T00:00:00.000Z");
     const enabled = (created.stagesConfig.reviewStages ?? [])
       .filter((stage) => stage.enabled)
       .map((stage) => stage.id);
@@ -113,7 +148,6 @@ describe("reviews store", () => {
   it("creates Q4 as a goals-only cycle", async () => {
     const created = await createReviewCycle({
       type: "regular",
-      purpose: "quarterly_checkin",
       periodKey: "q4-2028",
     });
     const enabled = (created.stagesConfig.reviewStages ?? [])
@@ -125,7 +159,6 @@ describe("reviews store", () => {
   it("honours module overrides when creating a cycle", async () => {
     const created = await createReviewCycle({
       type: "regular",
-      purpose: "quarterly_checkin",
       periodKey: "q4-2029",
       modules: { goals: true, reviews: true },
     });
@@ -139,7 +172,6 @@ describe("reviews store", () => {
   it("lets an annual period be created again after it was deleted", async () => {
     const first = await createReviewCycle({
       type: "regular",
-      purpose: "annual_appraisal",
       periodKey: "annual-2029",
     });
     await deleteReviewCycle(first.id);
@@ -147,16 +179,29 @@ describe("reviews store", () => {
 
     const second = await createReviewCycle({
       type: "regular",
-      purpose: "annual_appraisal",
       periodKey: "annual-2029",
     });
     expect(second.periodKey).toBe("annual-2029");
     expect(getReviewCycle(second.id)?.name).toBe("Annual 2029");
   });
 
+  it("recognizes the live cycle_type check failure", () => {
+    expect(
+      isCycleTypeConstraintError(
+        new ApiError(
+          'new row for relation "review_cycles" violates check constraint "review_cycles_cycle_type_check"',
+          500,
+        ),
+      ),
+    ).toBe(true);
+    expect(isCycleTypeConstraintError(new ApiError("Cycle not found.", 404))).toBe(
+      false,
+    );
+  });
+
   it("creates a test cycle from an existing one", async () => {
     const source = await createReviewCycle({
-      type: "ad-hoc",
+      type: "custom",
       name: "Source",
       startDate: "2026-01-01",
       endDate: "2026-02-01",
@@ -164,12 +209,12 @@ describe("reviews store", () => {
     const test = await createTestCycle(source.id);
     expect(test.isTest).toBe(true);
     expect(test.name).toContain("(Test)");
-    expect(test.type).toBe("ad-hoc");
+    expect(test.type).toBe("custom");
   });
 
   it("deletes a cycle", async () => {
     const created = await createReviewCycle({
-      type: "ad-hoc",
+      type: "custom",
       name: "To delete",
       startDate: "2026-01-01",
       endDate: "2026-02-01",
@@ -214,6 +259,30 @@ describe("reviews store", () => {
     await expect(updateCycleStagesConfig(cycle.id, invalid)).rejects.toThrow(
       "Goal setting must end on or after its start date.",
     );
+  });
+
+  it("rejects a cycle whose end is before its start", async () => {
+    await expect(
+      createReviewCycle({
+        type: "custom",
+        name: "Backwards",
+        startDate: "2026-08-01",
+        endDate: "2026-07-01",
+      }),
+    ).rejects.toThrow("Cycle must end on or after its start date.");
+
+    const cycle = await createReviewCycle({
+      type: "custom",
+      name: "Forward",
+      startDate: "2026-07-01",
+      endDate: "2026-08-01",
+    });
+    expect(() =>
+      updateReviewCycle(cycle.id, {
+        startDate: "2026-08-01",
+        endDate: "2026-07-01",
+      }),
+    ).toThrow("Cycle must end on or after its start date.");
   });
 
   it("saves and validates a cycle-specific goal-count policy", async () => {
@@ -471,7 +540,7 @@ describe("reviews store", () => {
 
   it("copies groups onto a test cycle with new ids", async () => {
     const source = await createReviewCycle({
-      type: "ad-hoc",
+      type: "custom",
       name: "Source",
       startDate: "2026-01-01",
       endDate: "2026-02-01",

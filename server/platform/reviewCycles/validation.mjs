@@ -4,12 +4,31 @@ import {
   applyNestedWindowsToReviewStages,
   defaultReviewStages,
   deriveReviewStagesFromLegacy,
+  inferPurpose,
   mergeReviewStages,
   syncLegacyStageWindows,
 } from './reviewConfig.mjs'
 
+function datePart(value) {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(value ?? ''))
+  return match?.[1] ?? ''
+}
+
+function dateTimeSortKey(value) {
+  if (value && typeof value === 'object') {
+    const date = datePart(value.date)
+    const time = /^\d{2}:\d{2}$/.test(value.time ?? '') ? value.time : '00:00'
+    return date ? `${date}T${time}` : ''
+  }
+  const raw = String(value ?? '')
+  const datetime = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(raw)
+  if (datetime) return `${datetime[1]}T${datetime[2]}`
+  const date = datePart(raw)
+  return date ? `${date}T00:00` : ''
+}
+
 function parseIso(iso) {
-  const [y, m, d] = String(iso).split('-').map(Number)
+  const [y, m, d] = datePart(iso).split('-').map(Number)
   if (!y || !m || !d) return null
   return new Date(Date.UTC(y, m - 1, d))
 }
@@ -150,7 +169,14 @@ export function buildDefaultStagesConfig(startDate, endDate, purpose = 'quarterl
 export function normalizeStagesConfig(config, quarter = {}) {
   const startDate = quarter.startDate ?? '2026-07-01'
   const endDate = quarter.endDate ?? '2026-09-30'
-  const purpose = quarter.purpose ?? 'quarterly_checkin'
+  const purpose =
+    quarter.purpose ??
+    inferPurpose(
+      quarter.periodKey,
+      quarter.type === 'custom' || quarter.type === 'ad-hoc'
+        ? 'custom'
+        : 'quarterly_checkin',
+    )
   const defaults = buildDefaultStagesConfig(
     startDate,
     endDate,
@@ -229,6 +255,21 @@ function validationError(message) {
   return err
 }
 
+const EXTRA_STAGE_LABELS = {
+  calibration_hod_hrbp: 'HOD / HRBP calibration',
+  calibration_slt: 'SLT calibration',
+  appeal: 'Appeal',
+}
+
+export function validateCycleDateRange(startDate, endDate) {
+  if (!dateTimeSortKey(startDate) || !dateTimeSortKey(endDate)) {
+    throw validationError('Cycle requires a start and end date.')
+  }
+  if (dateTimeSortKey(startDate) > dateTimeSortKey(endDate)) {
+    throw validationError('Cycle must end on or after its start date.')
+  }
+}
+
 export function validateGoalCountPolicy(policy) {
   const values = [
     policy.minimumRequired,
@@ -305,12 +346,31 @@ export function validateCycleStagesConfig(config) {
     if (!startDate || !endDate) {
       throw validationError(`${label} requires a start and end date.`)
     }
-    if (startDate > endDate) {
+    if (dateTimeSortKey(startDate) > dateTimeSortKey(endDate)) {
       throw validationError(`${label} must end on or after its start date.`)
     }
   }
 
-  if (goalsOn && reviewOn && config.goals.employee.endDate >= config.performance.employeeStart.date) {
+  for (const stage of config.reviewStages ?? []) {
+    if (
+      !stage.enabled ||
+      stage.id === 'publish_managers' ||
+      stage.id === 'publish_employees' ||
+      stage.id === 'goals' ||
+      stage.id === 'self_review' ||
+      stage.id === 'manager_review' ||
+      !stage.start ||
+      !stage.end
+    ) {
+      continue
+    }
+    const label = EXTRA_STAGE_LABELS[stage.id] ?? stage.id
+    if (dateTimeSortKey(stage.start) > dateTimeSortKey(stage.end)) {
+      throw validationError(`${label} must end on or after its start date.`)
+    }
+  }
+
+  if (goalsOn && reviewOn && datePart(config.goals.employee.endDate) >= datePart(config.performance.employeeStart.date)) {
     throw validationError(
       'Performance review must start after the employee goal lock date.',
     )
@@ -319,13 +379,13 @@ export function validateCycleStagesConfig(config) {
   for (const extension of config.goals.extensions ?? []) {
     if (
       !extension.endDate ||
-      extension.endDate <= config.goals.employee.endDate
+      dateTimeSortKey(extension.endDate) <= dateTimeSortKey(config.goals.employee.endDate)
     ) {
       throw validationError(
         'An extension deadline must be after the standard goal deadline.',
       )
     }
-    if (extension.endDate >= config.performance.employeeStart.date) {
+    if (datePart(extension.endDate) >= datePart(config.performance.employeeStart?.date ?? config.performance.employeeStart)) {
       throw validationError(
         'An extension deadline must be before performance review starts.',
       )

@@ -5,10 +5,14 @@ import {
 } from '@/lib/delegations/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import {
+  activeDirectoryFilterCount,
   compareDirectoryRows,
+  directoryAttributeValues,
   directoryStats,
   employeeSearchHaystack,
   filterDirectory,
+  statusFilterFromValues,
+  toggleAttributeValue,
 } from './filterDirectory'
 
 function person(
@@ -152,6 +156,50 @@ describe('filterDirectory', () => {
         haystacks,
       }).map((row) => row.fullName),
     ).toEqual(['Cara Finance'])
+  })
+})
+
+describe('directory attribute filters', () => {
+  const people = [otherDept, report, manager]
+
+  it('lists unique values and keeps blank fields as None', () => {
+    const blank = person({
+      employeeId: 4,
+      fullName: 'Zed Blank',
+      department: '',
+    })
+    expect(
+      directoryAttributeValues([...people, blank], 'department').map(
+        (option) => option.label,
+      ),
+    ).toEqual(['Finance', 'Product', 'None'])
+  })
+
+  it('narrows the directory to selected attribute values', () => {
+    expect(
+      filterDirectory(people, {
+        query: '',
+        scope: 'all',
+        statusFilter: null,
+        me: manager,
+        attributeFilters: { department: ['Finance'] },
+      }).map((row) => row.fullName),
+    ).toEqual(['Cara Finance'])
+  })
+
+  it('toggles a value on and off and counts active filters', () => {
+    const withDept = toggleAttributeValue({}, 'department', 'Product')
+    expect(withDept).toEqual({ department: ['Product'] })
+    expect(toggleAttributeValue(withDept, 'department', 'Product')).toEqual({})
+    expect(activeDirectoryFilterCount('active', withDept)).toBe(2)
+    expect(activeDirectoryFilterCount('all', {})).toBe(0)
+  })
+
+  it('maps status checkboxes to the summary-card filter', () => {
+    expect(statusFilterFromValues(['active'])).toBe('active')
+    expect(statusFilterFromValues(['inactive'])).toBe('inactive')
+    expect(statusFilterFromValues(['active', 'inactive'])).toBe('all')
+    expect(statusFilterFromValues([])).toBeNull()
   })
 })
 

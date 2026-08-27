@@ -1,5 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Input } from "@/components/ui";
+import { isEndBeforeStart } from "@/lib/dates/timestamp";
+
+export const END_BEFORE_START_MESSAGE = "Must end on or after the start date.";
 
 export function StageTable({
   columns,
@@ -51,20 +54,29 @@ export function DateCell({
   label,
   value,
   onChange,
+  min,
+  max,
+  error,
   labelPlacement = "above",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  min?: string;
+  max?: string;
+  error?: string;
   labelPlacement?: "above" | "notch";
 }) {
   return (
     <Input
-      type="date"
+      type="datetime"
       label={labelPlacement === "notch" ? label : undefined}
       labelPlacement={labelPlacement}
       aria-label={label}
       value={value}
+      min={min}
+      max={max}
+      error={error}
       onChange={(e) => onChange(e.target.value)}
     />
   );
@@ -88,6 +100,9 @@ export function StageWindowFields({
   labelPlacement?: "above" | "notch";
 }) {
   const notched = labelPlacement === "notch";
+  const rangeError = isEndBeforeStart(startValue, endValue)
+    ? END_BEFORE_START_MESSAGE
+    : undefined;
   return (
     <div
       className={
@@ -101,6 +116,7 @@ export function StageWindowFields({
         <DateCell
           label={startLabel}
           value={startValue}
+          max={endValue || undefined}
           onChange={onStartChange}
           labelPlacement={labelPlacement}
         />
@@ -117,6 +133,8 @@ export function StageWindowFields({
         <DateCell
           label={endLabel}
           value={endValue}
+          min={startValue || undefined}
+          error={rangeError}
           onChange={onEndChange}
           labelPlacement={labelPlacement}
         />

@@ -1,6 +1,6 @@
 import { Plus, Trash2, UsersRound } from 'lucide-react'
 import { useState } from 'react'
-import { Button, ConfirmDialog, EmptyState } from '@/components/ui'
+import { Button, ConfirmDialog } from '@/components/ui'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 
@@ -54,46 +54,31 @@ export function CycleGroupsSection({
         ) : null}
       </header>
 
-      {groups.length === 0 ? (
-        <EmptyState
-          className="pd-cycle-setup__empty"
-          icon={UsersRound}
-          title="No one is in this cycle yet"
-          description="Create a group, add people, and choose whether they set goals, do reviews, or both."
-          action={
-            <Button variant="primary" pill onClick={onAddGroup}>
-              <Plus size={14} strokeWidth={2} aria-hidden />
-              Create a group
-            </Button>
-          }
-        />
-      ) : (
-        <ul className="pd-cycle-setup__groups">
-          {groups.map((group) => (
-            <li key={group.id}>
-              <GroupCard
-                group={group}
-                onOpen={() => onOpenGroup(group.id)}
-                onDelete={() => setDeleteId(group.id)}
-              />
-            </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              className="pd-cycle-setup__group-create"
-              onClick={onAddGroup}
-            >
-              <span className="pd-cycle-setup__group-create-icon" aria-hidden>
-                <Plus size={18} strokeWidth={2.25} />
-              </span>
-              <span className="pd-cycle-setup__group-create-label">
-                Create new group
-              </span>
-            </button>
+      <ul className="pd-cycle-setup__groups">
+        {groups.map((group) => (
+          <li key={group.id}>
+            <GroupCard
+              group={group}
+              onOpen={() => onOpenGroup(group.id)}
+              onDelete={() => setDeleteId(group.id)}
+            />
           </li>
-        </ul>
-      )}
+        ))}
+        <li>
+          <button
+            type="button"
+            className="pd-cycle-setup__group-create"
+            onClick={onAddGroup}
+          >
+            <span className="pd-cycle-setup__group-create-icon" aria-hidden>
+              <Plus size={18} strokeWidth={2.25} />
+            </span>
+            <span className="pd-cycle-setup__group-create-label">
+              Create new group
+            </span>
+          </button>
+        </li>
+      </ul>
 
       <ConfirmDialog
         open={Boolean(pendingDelete)}

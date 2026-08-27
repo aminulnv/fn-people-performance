@@ -1,15 +1,24 @@
-import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { CalendarRange, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui'
-import { dayValue, formatDateRange } from '@/lib/reviews/periods'
+import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import { includedCycleCount } from '@/lib/reviews/groupSummary'
-import { PURPOSE_LABEL, PURPOSE_SHORT } from '@/lib/reviews/purpose'
-import { createCycleGroup, deleteCycleGroup } from '@/lib/reviews/store'
+import { cyclePurposeOf } from '@/lib/reviews/purpose'
+import {
+  createCycleGroup,
+  deleteCycleGroup,
+  getReviewCycle,
+} from '@/lib/reviews/store'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { CycleDetailsEditPage } from './CycleDetailsEditPage'
 import { CycleGroupsSection } from './CycleGroupsSection'
 import { CyclePublishSection } from './CyclePublishSection'
 import { GroupSettingsView } from './GroupSettingsView'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  type ReviewSaveNotice,
+} from './ReviewSaveBanner'
 import { SettingsSidePanel } from './SettingsSidePanel'
 
 type CycleSettingsViewProps = {
@@ -21,7 +30,20 @@ type EditTarget = 'cycle-details' | { groupId: string } | null
 export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openedGroup, setOpenedGroup] = useState<CycleGroup | null>(null)
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
+  const skipEmptyGroupProvision = useRef(false)
   const groups = cycle.groups ?? []
+  const showSuccessToast = (message: string) => {
+    setToastNotice(successNotice(message))
+  }
+
+  useEffect(() => {
+    if (skipEmptyGroupProvision.current || groups.length > 0) return
+    const latest = getReviewCycle(cycle.id)
+    if (!latest || (latest.groups?.length ?? 0) > 0) return
+    void createCycleGroup(cycle.id, { name: 'New group' }).catch(() => {})
+  }, [cycle.id, groups.length])
+
   const editingGroup =
     editing && typeof editing === 'object'
       ? (groups.find((item) => item.id === editing.groupId) ??
@@ -40,23 +62,31 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     setEditing({ groupId: group.id })
   }
 
-  const purpose = cycle.purpose ?? 'quarterly_checkin'
-  const dayCount = inclusiveDayCount(cycle.startDate, cycle.endDate)
-  const included = purpose === 'annual_appraisal' ? includedCycleCount(cycle) : null
+  const purpose = cyclePurposeOf(cycle)
+  const included =
+    purpose === 'annual_appraisal' ? includedCycleCount(cycle) : null
+  const showPerformanceYear =
+    purpose !== 'quarterly_checkin' && Boolean(cycle.yearKey)
 
   return (
     <div className="pd-reviews-settings pd-cycle-setup">
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <section
         className="pd-cycle-setup__identity"
         aria-labelledby="cycle-overview-heading"
       >
         <header className="pd-cycle-setup__identity-head">
-          <div>
-            <h2 className="pd-cycle-setup__eyebrow" id="cycle-overview-heading">
-              About this cycle
+          <div className="pd-cycle-setup__identity-title">
+            <CalendarRange size={18} strokeWidth={1.75} aria-hidden />
+            <h2
+              className="pd-cycle-setup__identity-heading"
+              id="cycle-overview-heading"
+            >
+              Cycle Details
             </h2>
-            <p className="pd-cycle-setup__purpose">{PURPOSE_LABEL[purpose]}</p>
-            <p className="pd-cycle-setup__lede">{PURPOSE_SHORT[purpose]}</p>
           </div>
           <Button
             variant="primary"
@@ -71,15 +101,14 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
 
         <dl className="pd-cycle-setup__facts">
           <div className="pd-cycle-setup__fact">
-            <dt>Dates</dt>
-            <dd>
-              {formatDateRange(cycle.startDate, cycle.endDate)}
-              <span className="pd-cycle-setup__fact-aside">
-                {dayCount === 1 ? '1 day' : `${dayCount} days`}
-              </span>
-            </dd>
+            <dt>Starts</dt>
+            <dd>{formatLocalTimestamp(cycle.startDate)}</dd>
           </div>
-          {cycle.yearKey ? (
+          <div className="pd-cycle-setup__fact">
+            <dt>Ends</dt>
+            <dd>{formatLocalTimestamp(cycle.endDate)}</dd>
+          </div>
+          {showPerformanceYear ? (
             <div className="pd-cycle-setup__fact">
               <dt>Year</dt>
               <dd>{cycle.yearKey}</dd>
@@ -104,7 +133,12 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
             .catch(() => {})
         }}
         onDelete={(groupId) => {
-          void deleteCycleGroup(cycle.id, groupId).catch(() => {})
+          skipEmptyGroupProvision.current = true
+          void deleteCycleGroup(cycle.id, groupId)
+            .then(() => {
+              showSuccessToast('Group deleted.')
+            })
+            .catch(() => {})
         }}
         onOpenGroup={(groupId) => {
           const group = groups.find((item) => item.id === groupId)
@@ -116,14 +150,21 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
 
       {editing === 'cycle-details' ? (
         <SettingsSidePanel
-          label="Cycle details"
-          closeLabel="Close cycle details"
+          label="Cycle Details"
+          closeLabel="Close Cycle Details"
+          title={
+            <div className="pd-cycle-setup__identity-title">
+              <CalendarRange size={18} strokeWidth={1.75} aria-hidden />
+              <h2 className="pd-settings-panel__title">Cycle Details</h2>
+            </div>
+          }
           onClose={closeEditor}
         >
           <CycleDetailsEditPage
             cycle={cycle}
             embedded
             onClose={closeEditor}
+            onSuccess={showSuccessToast}
           />
         </SettingsSidePanel>
       ) : null}
@@ -133,14 +174,10 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
           cycle={cycleForEditor}
           group={editingGroup}
           onClose={closeEditor}
+          onSuccess={showSuccessToast}
         />
       ) : null}
     </div>
   )
 }
 
-function inclusiveDayCount(startDate: string, endDate: string): number {
-  const days =
-    Math.round((dayValue(endDate) - dayValue(startDate)) / 86_400_000) + 1
-  return Number.isFinite(days) && days > 0 ? days : 1
-}

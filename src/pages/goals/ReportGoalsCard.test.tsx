@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { GoalEditLockNotice } from './GoalEditLockNotice'
 import { ReportGoalsCard, ReportGoalsEmpty } from './ReportGoalsCard'
 
 afterEach(cleanup)
@@ -59,6 +60,23 @@ describe('ReportGoalsCard', () => {
     expect(screen.getByText('Saif has not added goals for this cycle.')).toBeInTheDocument()
     expect(screen.queryByText('0 goals · Not started')).not.toBeInTheDocument()
     expect(screen.queryByText('Draft')).not.toBeInTheDocument()
+  })
+
+  it('uses the same lock copy as My Goals when the cycle is not open', () => {
+    render(
+      <ReportGoalsEmpty
+        personName="Saif Ivna Alam"
+        lockMessage="Goal editing opens 7 Dec 2026 and closes 1 Jan 2027."
+      />,
+    )
+
+    expect(screen.getByText('No goals yet')).toBeInTheDocument()
+    expect(
+      screen.getByText('Goal editing opens 7 Dec 2026 and closes 1 Jan 2027.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByText('Saif has not added goals for this cycle.'),
+    ).not.toBeInTheDocument()
   })
 
   it('offers Add Goal when the reviewer can start the set', () => {
@@ -361,6 +379,73 @@ describe('ReportGoalsCard', () => {
     })
     expect(trail).toHaveTextContent('Api Singha')
     expect(trail).toHaveTextContent('Nafis')
+  })
+
+  it('shows a read-only ribbon in the same slot as late submission', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="draft"
+          goalCount={0}
+          perspective="owner"
+          lineManager={{ id: '7', name: 'Api Singha' }}
+          lockBanner={
+            <GoalEditLockNotice
+              layout="ribbon"
+              message="Goal editing opens 7 Dec 2026 and closes 1 Jan 2027."
+            />
+          }
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    const banner = screen.getByRole('status', {
+      name: 'Goal editing opens 7 Dec 2026 and closes 1 Jan 2027.',
+    })
+    const card = screen.getByRole('region', { name: 'Saif Ivna Alam goals' })
+    expect(banner).toHaveTextContent('Read Only')
+    expect(banner).toHaveTextContent(
+      'Goal editing opens 7 Dec 2026 and closes 1 Jan 2027.',
+    )
+    expect(banner.parentElement).toHaveClass('pd-goals-approval-wrap--lock')
+    expect(card).not.toContainElement(banner)
+    expect(
+      screen.queryByRole('list', { name: 'You, then Api Singha' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Api Singha')).not.toBeInTheDocument()
+  })
+
+  it('keeps late submission instead of the read-only ribbon', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Saif Ivna Alam' }}
+          status="draft"
+          allowLateSubmissions
+          deadlineMissedAt="2026-07-01"
+          lineManager={{ id: '7', name: 'Api Singha' }}
+          goalCount={1}
+          lockBanner={
+            <GoalEditLockNotice
+              layout="ribbon"
+              message="Q2 2026 is closed, so goals are read-only."
+            />
+          }
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByLabelText('Late Submission')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('status', {
+        name: 'Q2 2026 is closed, so goals are read-only.',
+      }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows the activity overflow on hover', () => {

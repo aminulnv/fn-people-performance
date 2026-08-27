@@ -19,6 +19,11 @@ import {
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { notifyAccessChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  type ReviewSaveNotice,
+} from '@/pages/reviews/ReviewSaveBanner'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import '@/styles/layout-activity.css'
 
@@ -39,6 +44,7 @@ export function AccessControlPanel() {
     useState<AccessProfileKey>('admin_read')
   const [savingEmployeeId, setSavingEmployeeId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
   const canManage = hasSystemPermission(user?.permissions, 'access.manage')
   const canReadActivity =
@@ -143,6 +149,15 @@ export function AccessControlPanel() {
         isGranted: Boolean(nextProfileKey),
       })
       setEmployeeId('')
+      setToastNotice(
+        successNotice(
+          nextProfileKey == null
+            ? 'Access removed.'
+            : previousProfileKey
+              ? 'Access updated.'
+              : 'Access granted.',
+        ),
+      )
     } catch (nextError) {
       setError(errorMessage(nextError))
     } finally {
@@ -155,6 +170,10 @@ export function AccessControlPanel() {
       className="pd-settings-section pd-access"
       aria-labelledby="access-heading"
     >
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <div className="pd-settings-section__header">
         <div className="pd-access__heading">
           <span className="pd-access__heading-icon" aria-hidden>

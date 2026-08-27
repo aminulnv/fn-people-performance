@@ -1,9 +1,18 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
+import { PageStatus } from '@/components/ui'
 import { cycleDetailPath, cyclesListPath } from '@/lib/reviews/paths'
 import { clearReviewsMutationError, getReviewCycle } from '@/lib/reviews/store'
-import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
 import { GroupSettingsView } from './GroupSettingsView'
+import {
+  ReviewSaveBanner,
+  successNotice,
+  type ReviewSaveNotice,
+} from './ReviewSaveBanner'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
@@ -11,6 +20,8 @@ export default function GroupSettingsPage() {
   const { cycleId = '', groupId = '' } = useParams()
   const navigate = useNavigate()
   const snapshot = useReviewsSnapshot()
+  const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
+  const cyclesHydrated = useReviewCyclesHydrated()
   const cycle = useMemo(
     () =>
       snapshot.cycles.find(
@@ -30,6 +41,16 @@ export default function GroupSettingsPage() {
   }, [cycle, groupId])
 
   if (!cycle) {
+    if (!cyclesHydrated) {
+      return (
+        <PageStatus
+          variant="loading"
+          pageClassName="pd-reviews"
+          aria-label="Loading cycle group"
+          description="Loading cycle group…"
+        />
+      )
+    }
     return <Navigate to={cyclesListPath()} replace />
   }
 
@@ -39,6 +60,10 @@ export default function GroupSettingsPage() {
 
   return (
     <div className="pd-page pd-reviews pd-reviews--cycle" aria-label={group.name}>
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       {snapshot.mutationError?.cycleId === cycle.id ? (
         <p className="pd-reviews-modal__error pd-reviews-save-error" role="alert">
           <span>{snapshot.mutationError.message}</span>
@@ -57,6 +82,7 @@ export default function GroupSettingsPage() {
         group={group}
         variant="page"
         onClose={() => navigate(cycleDetailPath(cycle.id))}
+        onSuccess={(message) => setToastNotice(successNotice(message))}
       />
     </div>
   )

@@ -53,10 +53,16 @@ const EMPLOYEE_SELECT = `
   LEFT JOIN platform.employees mgr ON mgr.employee_id = e.reports_to_employee_id
 `
 
-function isoDate(value) {
-  if (!value) return ''
-  if (value instanceof Date) return value.toISOString().slice(0, 10)
-  return String(value).slice(0, 10)
+function isoInstant(value) {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? '' : value.toISOString()
+  }
+  const raw = String(value).trim()
+  if (!raw) return ''
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T00:00:00.000Z`
+  const instant = new Date(raw)
+  return Number.isNaN(instant.getTime()) ? '' : instant.toISOString()
 }
 
 function isoTimestamp(value) {
@@ -77,7 +83,7 @@ export function mapEmployeeRow(row) {
     employeeId: row.employee_id,
     fullName: row.name ?? '',
     email: row.email ?? '',
-    startDate: isoDate(row.joining_date),
+    startDate: isoInstant(row.joining_date),
     jobTitle: row.job_title ?? '',
     department: row.department_name ?? '',
     departmentId: integerId(row.department_id),
@@ -191,10 +197,7 @@ export async function getPlatformEmployeeProfile(employeeId) {
 }
 
 function dateOnly(value) {
-  if (!value) return ''
-  const date = value instanceof Date ? value : new Date(value)
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10)
-  return date.toISOString().slice(0, 10)
+  return isoInstant(value)
 }
 
 async function ensureDepartment(client, name, actor) {

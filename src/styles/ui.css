@@ -365,12 +365,510 @@ a.pd-btn--secondary:visited {
   white-space: nowrap;
 }
 
-.pd-date-input__display[data-empty] {
-  color: var(--color-text-muted);
+.pd-date-input__display[data-empty],
+.pd-date-input__display.pd-field__control[data-empty] {
+  color: color-mix(in srgb, var(--color-text-muted) 58%, var(--color-bg));
+  font-weight: 400;
 }
 
 .pd-date-input:has(.pd-date-input__native:disabled) .pd-date-input__display {
   opacity: 0.55;
+}
+
+.pd-datetime-input .pd-date-input__native {
+  cursor: pointer;
+}
+
+.pd-datetime-popover {
+  position: fixed;
+  z-index: 120;
+}
+
+.pd-datetime-picker {
+  width: 26.5rem;
+  overflow: hidden;
+  border-radius: var(--radius-button, 0.75rem);
+  border: 0.0625rem solid var(--color-border);
+  background: var(--color-surface-raised, var(--color-bg));
+  box-shadow: var(--shadow-deep);
+  color: var(--color-text);
+}
+
+.pd-datetime-picker__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 10.35rem;
+  align-items: stretch;
+}
+
+.pd-datetime-picker__calendar {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 0.85rem 0.5rem;
+}
+
+.pd-datetime-picker__month {
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) 1.75rem;
+  align-items: center;
+}
+
+.pd-datetime-picker__month-label {
+  margin: 0;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.pd-datetime-picker__nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.pd-datetime-picker__nav:hover {
+  background: var(--color-neutral-hover);
+}
+
+.pd-datetime-picker__nav:focus-visible {
+  outline: 0.125rem solid color-mix(in srgb, var(--color-text) 28%, transparent);
+  outline-offset: 0.0625rem;
+}
+
+.pd-datetime-picker__weekdays,
+.pd-datetime-picker__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.15rem;
+}
+
+.pd-datetime-picker__weekdays {
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+}
+
+.pd-datetime-picker__day,
+.pd-datetime-picker__period,
+.pd-datetime-picker__clock-tick {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.pd-datetime-picker__day {
+  min-height: 1.85rem;
+  border-radius: 0.4rem;
+  font-size: 0.8125rem;
+}
+
+.pd-datetime-picker__day.is-outside {
+  color: var(--color-text-muted);
+}
+
+.pd-datetime-picker__day.is-selected {
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+  font-weight: 600;
+}
+
+.pd-datetime-picker__day:hover:not(:disabled):not(.is-selected) {
+  background: var(--color-neutral-hover);
+}
+
+.pd-datetime-picker__day:focus-visible {
+  outline: 0.125rem solid color-mix(in srgb, var(--color-cta) 55%, transparent);
+  outline-offset: 0.0625rem;
+}
+
+.pd-datetime-picker__day:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pd-datetime-picker__clock {
+  /* Sky + clock chrome stay on the light palette in both appearances. */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-raised: #ffffff;
+  --color-white: #ffffff;
+  --color-text: #0a0a0a;
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #64748b;
+  --color-border: #e5e7eb;
+  --color-neutral-hover: #f3f4f6;
+  --color-cta: var(--color-theme-darker);
+  --color-on-cta: var(--color-on-theme-darker);
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.75rem 0.55rem 0.65rem;
+  border-left: 0.0625rem solid var(--color-border);
+  color: var(--color-text);
+  color-scheme: light;
+  transition:
+    background 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease;
+}
+
+.pd-datetime-picker__clock[data-sky='day'] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-amber) 48%, var(--color-white)) 0%,
+    color-mix(in srgb, var(--color-amber) 28%, var(--color-white)) 55%,
+    color-mix(in srgb, var(--color-amber) 18%, var(--color-surface-raised, var(--color-bg))) 100%
+  );
+}
+
+.pd-datetime-picker__clock[data-sky='night'] {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-blue) 42%, var(--color-text)) 0%,
+    color-mix(in srgb, var(--color-text) 86%, var(--color-blue)) 100%
+  );
+  color: var(--color-white);
+  border-left-color: color-mix(in srgb, var(--color-white) 14%, transparent);
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-part {
+  color: color-mix(in srgb, var(--color-white) 72%, transparent);
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-part.is-active,
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-part:focus {
+  color: var(--color-white);
+  background: color-mix(in srgb, var(--color-white) 14%, transparent);
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__meridiem {
+  border-color: color-mix(in srgb, var(--color-white) 22%, transparent);
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__period:not(.is-selected) {
+  color: color-mix(in srgb, var(--color-white) 72%, transparent);
+}
+
+.pd-datetime-picker__clock[data-sky='night']
+  .pd-datetime-picker__period:hover:not(:disabled):not(.is-selected),
+.pd-datetime-picker__clock[data-sky='night']
+  .pd-datetime-picker__clock-tick:hover:not(:disabled):not(.is-selected) {
+  background: color-mix(in srgb, var(--color-white) 14%, transparent);
+}
+
+.pd-datetime-picker__clock-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: stretch;
+  gap: 0.2rem 0.3rem;
+  width: 9.25rem;
+  max-width: 100%;
+}
+
+.pd-datetime-picker__sky-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1 / -1;
+  color: var(--color-amber);
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__sky-mark {
+  color: color-mix(in srgb, var(--color-white) 88%, var(--color-blue));
+}
+
+.pd-datetime-picker__clock-digital {
+  display: grid;
+  grid-column: 1;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  color: inherit;
+  font-size: 2.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.pd-datetime-picker__clock-sep {
+  align-self: center;
+  padding: 0;
+  color: inherit;
+  font-size: 1.1rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.pd-datetime-picker__clock-part {
+  appearance: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0.3rem;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  cursor: text;
+}
+
+.pd-datetime-picker__clock-part.is-active,
+.pd-datetime-picker__clock-part:focus {
+  color: var(--color-text);
+  background: var(--color-neutral-hover);
+}
+
+.pd-datetime-picker__clock-part:focus-visible,
+.pd-datetime-picker__period:focus-visible,
+.pd-datetime-picker__clock-tick:focus-visible {
+  outline: 0.125rem solid color-mix(in srgb, var(--color-cta) 55%, transparent);
+  outline-offset: 0.0625rem;
+}
+
+.pd-datetime-picker__meridiem {
+  display: grid;
+  grid-column: 2;
+  grid-row: 2;
+  grid-template-rows: 1fr 1fr;
+  align-self: stretch;
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.4rem;
+}
+
+.pd-datetime-picker__period {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 1.75rem;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+}
+
+.pd-datetime-picker__period.is-selected {
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+}
+
+.pd-datetime-picker__period:focus-visible {
+  outline-offset: -0.125rem;
+}
+
+.pd-datetime-picker__period:hover:not(:disabled):not(.is-selected),
+.pd-datetime-picker__clock-tick:hover:not(:disabled):not(.is-selected) {
+  background: var(--color-neutral-hover);
+}
+
+.pd-datetime-picker__period:disabled,
+.pd-datetime-picker__clock-tick:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pd-datetime-picker__clock-face {
+  position: relative;
+  overflow: hidden;
+  width: 9.25rem;
+  height: 9.25rem;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition:
+    background 0.4s ease,
+    box-shadow 0.4s ease;
+}
+
+.pd-datetime-picker__clock-face.is-dragging,
+.pd-datetime-picker__clock-face.is-dragging * {
+  cursor: grabbing;
+}
+
+.pd-datetime-picker__clock-face::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(0.09rem 0.09rem at 18% 28%, var(--color-white), transparent),
+    radial-gradient(0.07rem 0.07rem at 72% 22%, var(--color-white), transparent),
+    radial-gradient(0.06rem 0.06rem at 40% 16%, var(--color-white), transparent),
+    radial-gradient(0.08rem 0.08rem at 80% 48%, var(--color-white), transparent),
+    radial-gradient(0.05rem 0.05rem at 28% 62%, var(--color-white), transparent),
+    radial-gradient(0.07rem 0.07rem at 62% 70%, var(--color-white), transparent);
+  transition: opacity 0.4s ease;
+  content: '';
+}
+
+.pd-datetime-picker__clock[data-sky='day'] .pd-datetime-picker__clock-face {
+  background: radial-gradient(
+    circle at 38% 32%,
+    color-mix(in srgb, var(--color-amber) 78%, var(--color-white)),
+    color-mix(in srgb, var(--color-amber) 42%, var(--color-white)) 58%,
+    color-mix(in srgb, var(--color-amber) 16%, var(--color-surface-raised, var(--color-bg))) 100%
+  );
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-face {
+  background: radial-gradient(
+    circle at 64% 30%,
+    color-mix(in srgb, var(--color-white) 26%, var(--color-blue)),
+    color-mix(in srgb, var(--color-blue) 38%, var(--color-text)) 48%,
+    color-mix(in srgb, var(--color-text) 88%, var(--color-blue)) 100%
+  );
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-face::before {
+  opacity: 0.85;
+}
+
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-tick:not(.is-selected) {
+  color: var(--color-white);
+}
+
+.pd-datetime-picker__clock-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  z-index: 1;
+  width: 0.125rem;
+  height: 2.85rem;
+  margin-left: -0.0625rem;
+  border-radius: 999px;
+  background: var(--color-cta);
+  transform-origin: bottom center;
+  transition: transform 0.12s ease;
+}
+
+.pd-datetime-picker__clock-face.is-dragging .pd-datetime-picker__clock-hand {
+  transition: none;
+}
+
+.pd-datetime-picker__clock-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--color-cta);
+  transform: translate(-50%, -50%);
+}
+
+.pd-datetime-picker__clock-tick {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 1.55rem;
+  height: 1.55rem;
+  border-radius: 50%;
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  transform: translate(-50%, -50%) rotate(var(--tick-deg)) translateY(-3.5rem)
+    rotate(calc(var(--tick-deg) * -1));
+}
+
+.pd-datetime-picker__clock-tick.is-selected {
+  background: var(--color-cta);
+  color: var(--color-on-cta);
+}
+
+.pd-datetime-picker__footer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem 0.7rem;
+  border-top: 0.0625rem solid var(--color-border);
+}
+
+.pd-datetime-picker__summary {
+  margin: 0;
+  min-height: 1.75rem;
+  padding: 0.3rem 0.55rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.45rem;
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.pd-datetime-picker__zones {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+  padding: 0.55rem 0.75rem 0.7rem;
+  border-top: 0.0625rem solid var(--color-border);
+  list-style: none;
+}
+
+.pd-datetime-picker__zone {
+  display: grid;
+  grid-template-columns: 1.1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.pd-datetime-picker__flag {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.pd-datetime-picker__zone-name {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-datetime-picker__zone-time {
+  color: var(--color-text);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .pd-field__control--select {
@@ -2037,7 +2535,7 @@ a.pd-btn--secondary:visited {
   left: 0;
   right: 0;
   z-index: 9999;
-  height: 3px;
+  height: 0.125rem;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease;
@@ -2052,10 +2550,10 @@ a.pd-btn--secondary:visited {
   width: 100%;
   transform: scaleX(0);
   transform-origin: left center;
-  background: var(--color-cta);
+  background: var(--color-theme);
   box-shadow:
-    0 0 8px color-mix(in srgb, var(--color-cta) 55%, transparent),
-    0 0 2px color-mix(in srgb, var(--color-cta) 80%, transparent);
+    0 0 8px color-mix(in srgb, var(--color-theme) 55%, transparent),
+    0 0 2px color-mix(in srgb, var(--color-theme) 80%, transparent);
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
 }

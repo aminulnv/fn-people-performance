@@ -1,15 +1,17 @@
 import { useMemo, useState } from 'react'
 import { CalendarRange, Link2 } from 'lucide-react'
-import { Input, Select } from '@/components/ui'
+import { Field, Input, ListboxSelect } from '@/components/ui'
+import { isEndBeforeStart } from '@/lib/dates/timestamp'
+import { toUtcIso } from '@/lib/dates/timezone'
+import { listPerformanceYears } from '@/lib/reviews/periods'
 import {
-  PURPOSE_HINT,
-  PURPOSE_LABEL,
+  cyclePurposeOf,
+  inferYearKey,
   listLinkableSourceCycles,
   sourceLinksFromIds,
 } from '@/lib/reviews/purpose'
-import { applyCycleModules, presetCycleModules } from '@/lib/reviews/reviewStages'
-import { updateCycleGroup, updateReviewCycle } from '@/lib/reviews/store'
-import type { CyclePurpose, ReviewCycle } from '@/lib/reviews/types'
+import { updateReviewCycle } from '@/lib/reviews/store'
+import type { ReviewCycle } from '@/lib/reviews/types'
 import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { EditPageShell } from './EditPageShell'
 import { SourceCyclePicker } from './SourceCyclePicker'
@@ -18,25 +20,37 @@ type CycleDetailsEditPageProps = {
   cycle: ReviewCycle
   onClose: () => void
   embedded?: boolean
+  onSuccess?: (message: string) => void
 }
 
 export function CycleDetailsEditPage({
   cycle,
   onClose,
   embedded = false,
+  onSuccess,
 }: CycleDetailsEditPageProps) {
   const { cycles } = useReviewsSnapshot()
-  const originalPurpose = cycle.purpose ?? 'quarterly_checkin'
   const [name, setName] = useState(cycle.name)
-  const [purpose, setPurpose] = useState<CyclePurpose>(originalPurpose)
-  const [yearKey, setYearKey] = useState(cycle.yearKey ?? '')
-  const [startDate, setStartDate] = useState(cycle.startDate)
-  const [endDate, setEndDate] = useState(cycle.endDate)
+  const [yearKey, setYearKey] = useState(
+    cycle.yearKey ?? inferYearKey(cycle.periodKey, cycle.startDate) ?? '',
+  )
+  const [startDate, setStartDate] = useState(toUtcIso(cycle.startDate) || cycle.startDate)
+  const [endDate, setEndDate] = useState(toUtcIso(cycle.endDate) || cycle.endDate)
   const [sourceIds, setSourceIds] = useState(
     (cycle.sourceLinks ?? []).map((link) => link.sourceCycleId),
   )
   const [error, setError] = useState<string | null>(null)
+  const showPerformanceYear = cyclePurposeOf(cycle) !== 'quarterly_checkin'
 
+  const yearOptions = useMemo(
+    () =>
+      listPerformanceYears([
+        yearKey,
+        cycle.yearKey,
+        ...cycles.map((item) => item.yearKey),
+      ]).map((year) => ({ value: year, label: year })),
+    [cycle.yearKey, cycles, yearKey],
+  )
   const linkable = useMemo(
     () =>
       listLinkableSourceCycles(cycles, {
@@ -48,45 +62,23 @@ export function CycleDetailsEditPage({
 
   const save = () => {
     setError(null)
-    const purposeChanged = purpose !== originalPurpose
-    const nextModules = purposeChanged
-      ? presetCycleModules(purpose, cycle.periodKey)
-      : null
+    if (!toUtcIso(startDate) || !toUtcIso(endDate)) {
+      setError('Start and end timestamps are required.')
+      return
+    }
+    if (isEndBeforeStart(startDate, endDate)) {
+      setError('Cycle must end on or after its start date.')
+      return
+    }
     try {
       void updateReviewCycle(cycle.id, {
         name,
-        purpose,
-        yearKey: yearKey || undefined,
-        startDate,
-        endDate,
+        ...(showPerformanceYear ? { yearKey: yearKey || undefined } : {}),
+        startDate: toUtcIso(startDate) || startDate,
+        endDate: toUtcIso(endDate) || endDate,
         sourceLinks: sourceLinksFromIds(sourceIds),
-        ...(nextModules
-          ? {
-              stagesConfig: applyCycleModules(
-                cycle.stagesConfig,
-                nextModules,
-                purpose,
-                cycle.periodKey,
-              ),
-            }
-          : {}),
-      })
-        .then(() => {
-          if (!nextModules) return
-          return Promise.all(
-            (cycle.groups ?? []).map((group) =>
-              updateCycleGroup(cycle.id, group.id, {
-                stagesConfig: applyCycleModules(
-                  group.stagesConfig,
-                  nextModules,
-                  purpose,
-                  cycle.periodKey,
-                ),
-              }),
-            ),
-          )
-        })
-        .catch(() => {})
+      }).catch(() => {})
+      onSuccess?.('Settings saved.')
       if (!embedded) onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save settings.')
@@ -95,7 +87,7 @@ export function CycleDetailsEditPage({
 
   return (
     <EditPageShell
-      title="Cycle details"
+      title="Cycle Details"
       onBack={onClose}
       onSave={save}
       error={error}
@@ -108,48 +100,47 @@ export function CycleDetailsEditPage({
             <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
             <h3 className="pd-reviews-edit-card__title">Name and dates</h3>
           </header>
-          <p className="pd-reviews-flow__hint">{PURPOSE_HINT[purpose]}</p>
           <Input
             label="Cycle name"
             value={name}
             onChange={(event) => setName(event.target.value)}
           />
-          <Select
-            label="Kind"
-            value={purpose}
-            onChange={(event) =>
-              setPurpose(event.target.value as CyclePurpose)
-            }
-            options={(
-              ['quarterly_checkin', 'annual_appraisal', 'custom'] as const
-            ).map((id) => ({
-              value: id,
-              label: PURPOSE_LABEL[id],
-            }))}
-          />
-          <Input
-            label="Performance year"
-            value={yearKey}
-            onChange={(event) => setYearKey(event.target.value)}
-            placeholder="2026"
-          />
+          {showPerformanceYear ? (
+            <Field label="Performance year" htmlFor="cycle-performance-year">
+              <ListboxSelect
+                id="cycle-performance-year"
+                aria-label="Performance year"
+                allowEmpty={false}
+                value={yearKey}
+                onValueChange={setYearKey}
+                options={yearOptions}
+              />
+            </Field>
+          ) : null}
           <div className="pd-reviews-modal__dates">
             <Input
               label="Starts"
-              type="date"
+              type="datetime"
               value={startDate}
+              max={endDate || undefined}
               onChange={(event) => setStartDate(event.target.value)}
             />
             <Input
               label="Ends"
-              type="date"
+              type="datetime"
               value={endDate}
+              min={startDate || undefined}
+              error={
+                isEndBeforeStart(startDate, endDate)
+                  ? 'Must end on or after the start date.'
+                  : undefined
+              }
               onChange={(event) => setEndDate(event.target.value)}
             />
           </div>
         </section>
 
-        {purpose === 'annual_appraisal' ? (
+        {cyclePurposeOf(cycle) === 'annual_appraisal' ? (
           <section className="pd-reviews-edit-card">
             <header className="pd-reviews-edit-card__head">
               <Link2 size={16} strokeWidth={1.75} aria-hidden />

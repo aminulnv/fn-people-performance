@@ -1,7 +1,20 @@
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  type PointerEvent,
+} from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CornerDownRight, CornerLeftDown, Pencil, Save, Send, Target } from "lucide-react";
-import { Avatar, Badge, type DropdownMenuItem } from "@/components/ui";
+import { ChevronRight, CornerDownRight, CornerLeftDown, MoreHorizontal, Pencil, Send, Target, Trash2 } from "lucide-react";
+import {
+  Avatar,
+  Badge,
+  Button,
+  ConfirmDialog,
+  DropdownMenu,
+  type DropdownMenuItem,
+} from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { newId } from "@/lib/goalsApi";
 import {
@@ -9,12 +22,15 @@ import {
   blankMetric,
   measurementPanels,
   rebalanceMeasurementWeights,
+  withMeasureProof,
 } from "@/lib/goals/measurements";
 import type {
   Goal,
+  GoalComment,
   Measurement,
   PersonGoals,
 } from "@/lib/goals/types";
+import { isOwnGoalComment } from "@/lib/goals/operations";
 import { validateGoalDraft } from "@/lib/goals/draft";
 import { editorGoalTitle, isBlankGoalTitle } from "@/lib/goals/weightage";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
@@ -70,6 +86,150 @@ function commentAuthor(
   );
 }
 
+function GoalCommentItem({
+  item,
+  authors,
+  canManage,
+  onUpdate,
+  onRemove,
+}: {
+  item: GoalComment;
+  authors: CommentAuthor[];
+  canManage: boolean;
+  onUpdate: (commentId: string, text: string) => void;
+  onRemove: (commentId: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.text);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const fieldId = useId();
+
+  const startEditing = () => {
+    setDraft(item.text);
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setDraft(item.text);
+    setEditing(false);
+  };
+
+  const saveEdit = () => {
+    const trimmed = draft.trim();
+    if (!trimmed || trimmed === item.text) {
+      cancelEditing();
+      return;
+    }
+    onUpdate(item.id, trimmed);
+    setEditing(false);
+  };
+
+  return (
+    <li className="pd-goal-view__comment">
+      <Avatar
+        name={item.authorName}
+        src={commentAuthor(item, authors)?.avatarUrl}
+        size="sm"
+        className="pd-people__avatar"
+        style={avatarStyle(item.authorName)}
+      />
+      <div className="pd-goal-view__comment-body">
+        <div className="pd-goal-view__comment-head">
+          <p className="pd-goal-view__comment-meta">
+            <strong>{item.authorName}</strong>
+            <span>{formatRefreshAge(item.createdAt)}</span>
+          </p>
+          {canManage && !editing ? (
+            <DropdownMenu
+              label="Comment actions"
+              align="end"
+              trigger={
+                <MoreHorizontal size={16} strokeWidth={1.75} aria-hidden />
+              }
+              triggerProps={{
+                className: "pd-people__icon-btn",
+                "aria-label": "Comment actions",
+              }}
+              items={[
+                {
+                  id: "edit",
+                  label: "Edit",
+                  icon: <Pencil size={16} strokeWidth={1.75} />,
+                  onSelect: startEditing,
+                },
+                {
+                  id: "delete",
+                  label: "Delete",
+                  danger: true,
+                  icon: <Trash2 size={16} strokeWidth={1.75} />,
+                  onSelect: () => setConfirmRemove(true),
+                },
+              ]}
+            />
+          ) : null}
+        </div>
+        {editing ? (
+          <div className="pd-goal-view__comment-edit">
+            <label
+              className="pd-goal-view__composer"
+              htmlFor={fieldId}
+            >
+              <span className="pd-sr-only">Edit comment</span>
+              <input
+                id={fieldId}
+                type="text"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    saveEdit();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelEditing();
+                  }
+                }}
+              />
+            </label>
+            <div className="pd-goal-view__comment-edit-actions">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={cancelEditing}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={!draft.trim() || draft.trim() === item.text}
+                onClick={saveEdit}
+              >
+                Save
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="pd-goal-view__comment-text">{item.text}</p>
+        )}
+      </div>
+      <ConfirmDialog
+        open={confirmRemove}
+        onClose={() => setConfirmRemove(false)}
+        onConfirm={() => {
+          setConfirmRemove(false);
+          onRemove(item.id);
+        }}
+        title="Delete this comment?"
+        description="This comment will be removed. This cannot be undone."
+        confirmLabel="Delete comment"
+        cancelLabel="Keep comment"
+        confirmVariant="danger"
+      />
+    </li>
+  );
+}
+
 type GoalDetailViewProps = {
   goal: Goal;
   index: number;
@@ -98,16 +258,18 @@ type GoalDetailViewProps = {
   fullViewHref?: string;
   onRequestEdit?: RequestGoalEdit;
   /**
-   * Kept for callers. Edit-session fields stay local until Save;
+   * Kept for callers. Named structural commits go through `onSave`;
    * progress logging always goes through `onChange`.
    */
   manualSave?: boolean;
-  /** Enables Save when the parent draft differs from what is persisted. */
+  /** Kept for callers. Field commits persist on blur when named. */
   hasUnsavedChanges?: boolean;
   onChange: (goal: Goal) => void;
-  /** Persist a comment immediately, even while structural edits stay local. */
+  /** Persist a comment immediately. */
   onAddComment?: (text: string) => void;
-  /** Persist the edit session and return to view. */
+  onUpdateComment?: (commentId: string, text: string) => void;
+  onRemoveComment?: (commentId: string) => void;
+  /** Persist a named structural commit (field blur or discrete action). */
   onSave?: (goal: Goal) => void;
   onDuplicate?: () => void;
   onCascade?: (reportIds: string[]) => void;
@@ -145,9 +307,11 @@ export function GoalDetailView({
   subjectId,
   fullViewHref,
   onRequestEdit = (startEditing) => startEditing(),
-  hasUnsavedChanges = false,
+  hasUnsavedChanges: _hasUnsavedChanges = false,
   onChange,
   onAddComment,
+  onUpdateComment,
+  onRemoveComment,
   onSave,
   onDuplicate,
   onCascade,
@@ -169,7 +333,8 @@ export function GoalDetailView({
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const titleFocusedRef = useRef(false);
   const detailsFocusedRef = useRef(false);
-  const editSnapshotRef = useRef<Goal | null>(null);
+  const skipTitleCommitRef = useRef(false);
+  const skipDetailsCommitRef = useRef(false);
   const goalRef = useRef(goal);
   const commentFieldId = useId();
   const titleFieldId = useId();
@@ -182,12 +347,13 @@ export function GoalDetailView({
   useEffect(() => {
     setCascadeFromOpen(false);
     setCascadeToOpen(false);
-    setNameTouched(isNew);
+    setNameTouched(false);
     setTitleDraft(editorGoalTitle(goal));
     setDetailsDraft(goal.details ?? "");
     setEditing(isNew);
-    editSnapshotRef.current = null;
-  }, [goal.id, isNew]);
+    // First persist flips isNew on the same id — stay in the edit session.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- goal.id
+  }, [goal.id]);
 
   useEffect(() => {
     if (!highlightMeasureKey) {
@@ -229,9 +395,7 @@ export function GoalDetailView({
     description: titleDraft,
     details: detailsDraft || undefined,
   });
-  const textDraftDirty =
-    titleDraft !== goal.description || detailsDraft !== (goal.details ?? "");
-  const saveEnabled = (hasUnsavedChanges || textDraftDirty) && goalNamed;
+  const nameInvalid = nameTouched && Boolean(draftValidation.nameError);
   const panels = measurementPanels(goal.measurements);
   const comments = goal.comments ?? [];
   const progressAuthor = {
@@ -245,22 +409,15 @@ export function GoalDetailView({
 
   const persistStructure = (next: Goal) => {
     goalRef.current = next;
+    const named = !isBlankGoalTitle({ description: next.description });
+    if (named && onSave) {
+      onSave(next);
+      return;
+    }
     onChange(next);
   };
 
-  const goalWithTextDrafts = (base: Goal): Goal => {
-    let next = base;
-    if (titleDraft !== base.description) {
-      next = touch(next, { description: titleDraft });
-    }
-    if (detailsDraft !== (base.details ?? "")) {
-      next = touch(next, { details: detailsDraft || undefined });
-    }
-    return next;
-  };
-
   const startEditing = () => {
-    editSnapshotRef.current = goalRef.current;
     setTitleDraft(editorGoalTitle(goalRef.current));
     setDetailsDraft(goalRef.current.details ?? "");
     setCascadeFromOpen(false);
@@ -281,30 +438,30 @@ export function GoalDetailView({
     setCascadeFromOpen(false);
     setCascadeToOpen(false);
     setNameTouched(false);
-    editSnapshotRef.current = null;
   };
 
-  const saveDraft = () => {
-    const next = goalWithTextDrafts(goalRef.current);
-    goalRef.current = next;
-    if (onSave) onSave(next);
-    else onChange(next);
-    if (!isNew) stopEditing();
+  const markNameTouchedIfLeaving = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    if (!isEditing || goalNamed) return;
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    const titleEdit = titleRef.current?.closest(".pd-goal-create__title-edit");
+    if (titleEdit?.contains(target) || titleRef.current?.contains(target)) {
+      return;
+    }
+    setNameTouched(true);
   };
 
   const cancelEditing = () => {
-    const snapshot = editSnapshotRef.current;
-    if (snapshot) {
-      goalRef.current = snapshot;
-      onChange(snapshot);
-      setTitleDraft(editorGoalTitle(snapshot));
-      setDetailsDraft(snapshot.details ?? "");
-    }
+    setTitleDraft(editorGoalTitle(goalRef.current));
+    setDetailsDraft(goalRef.current.details ?? "");
     stopEditing();
   };
 
   const commitTitleDraft = () => {
     if (titleDraft === goalRef.current.description) return;
+    if (isBlankGoalTitle({ description: titleDraft })) return;
     persistStructure(touch(goalRef.current, { description: titleDraft }));
   };
 
@@ -438,6 +595,36 @@ export function GoalDetailView({
     setComment("");
   };
 
+  const persistCommentText = (commentId: string, text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    if (onUpdateComment) {
+      onUpdateComment(commentId, trimmed);
+      return;
+    }
+    onChange(
+      touch(goal, {
+        comments: comments.map((item) =>
+          item.id === commentId ? { ...item, text: trimmed } : item,
+        ),
+      }),
+    );
+  };
+
+  const persistCommentRemoval = (commentId: string) => {
+    if (onRemoveComment) {
+      onRemoveComment(commentId);
+      return;
+    }
+    onChange(
+      touch(goal, {
+        comments: comments.filter((item) => item.id !== commentId),
+      }),
+    );
+  };
+
+  const canManageComments = canMutate && !(isEditing && !goalNamed);
+
   const sessionActions: DropdownMenuItem[] = [];
   if (canEdit && !isEditing) {
     sessionActions.push({
@@ -452,15 +639,6 @@ export function GoalDetailView({
       id: "cancel",
       label: "Cancel",
       onSelect: cancelEditing,
-    });
-  }
-  if (isEditing) {
-    sessionActions.push({
-      id: "save",
-      label: "Save",
-      icon: <Save size={16} strokeWidth={1.75} />,
-      disabled: !saveEnabled,
-      onSelect: () => onRequestEdit(saveDraft),
     });
   }
   const showActions = hasGoalActions({
@@ -506,7 +684,11 @@ export function GoalDetailView({
   );
 
   return (
-    <div className="pd-goal-view" aria-label={isNew ? "Add goal" : title}>
+    <div
+      className="pd-goal-view"
+      aria-label={isNew ? "Add goal" : title}
+      onPointerDownCapture={markNameTouchedIfLeaving}
+    >
       <header className="pd-goal-view__header">
         <div className="pd-goal-view__window-title">
           <p>
@@ -546,7 +728,9 @@ export function GoalDetailView({
                 value={titleDraft}
                 rows={1}
                 placeholder={isNew ? "Name this goal" : "Goal name"}
-                aria-invalid={Boolean(draftValidation.nameError)}
+                autoFocus={isNew}
+                data-autofocus={isNew ? true : undefined}
+                aria-invalid={nameInvalid || undefined}
                 onFocus={() => {
                   titleFocusedRef.current = true;
                 }}
@@ -559,7 +743,8 @@ export function GoalDetailView({
                     titleRef.current?.blur();
                   }
                   if (event.key === "Escape") {
-                    setTitleDraft(goal.description);
+                    skipTitleCommitRef.current = true;
+                    setTitleDraft(goalRef.current.description);
                     titleFocusedRef.current = false;
                     titleRef.current?.blur();
                   }
@@ -567,10 +752,14 @@ export function GoalDetailView({
                 onBlur={() => {
                   titleFocusedRef.current = false;
                   setNameTouched(true);
+                  if (skipTitleCommitRef.current) {
+                    skipTitleCommitRef.current = false;
+                    return;
+                  }
                   commitTitleDraft();
                 }}
               />
-              {(nameTouched || !goalNamed) && draftValidation.nameError ? (
+              {nameInvalid ? (
                 <p className="pd-goal-create__title-error" role="alert">
                   {draftValidation.nameError}
                 </p>
@@ -668,8 +857,20 @@ export function GoalDetailView({
                     detailsFocusedRef.current = true;
                   }}
                   onChange={(event) => setDetailsDraft(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      skipDetailsCommitRef.current = true;
+                      setDetailsDraft(goalRef.current.details ?? "");
+                      detailsFocusedRef.current = false;
+                      event.currentTarget.blur();
+                    }
+                  }}
                   onBlur={() => {
                     detailsFocusedRef.current = false;
+                    if (skipDetailsCommitRef.current) {
+                      skipDetailsCommitRef.current = false;
+                      return;
+                    }
                     commitDetailsDraft();
                   }}
                 />
@@ -720,14 +921,27 @@ export function GoalDetailView({
                         key={panel.key}
                         panel={panel}
                         highlighted={flashingMeasureKey === panel.key}
+                        onProofChange={
+                          canLogProgress
+                            ? (next) => {
+                                const updated = touch(goalRef.current, {
+                                  measurements: withMeasureProof(
+                                    goalRef.current.measurements,
+                                    panel.measureGroupId,
+                                    next,
+                                  ),
+                                });
+                                goalRef.current = updated;
+                                onChange(updated);
+                              }
+                            : undefined
+                        }
                         renderTodoItem={(todo) => (
                           <>
                             <GoalTodoCheck
                               checked={todo.complete}
                               disabled={!canLogProgress}
-                              ariaLabel={`Mark ${
-                                todo.title.trim() || "task"
-                              } complete`}
+                              ariaLabel={`Mark ${todo.title.trim() || "task"} complete`}
                               onChange={(complete) =>
                                 patchMeasurement(
                                   todo.id,
@@ -769,6 +983,15 @@ export function GoalDetailView({
                                 )
                             : undefined
                         }
+                        onProofChange={
+                          canLogProgress
+                            ? (next) =>
+                                patchMeasurement(panel.metric.id, {
+                                  ...panel.metric,
+                                  ...next,
+                                })
+                            : undefined
+                        }
                       />
                     ),
                   )
@@ -783,22 +1006,20 @@ export function GoalDetailView({
           {comments.length > 0 ? (
             <ul className="pd-goal-view__comment-list">
               {comments.map((item) => (
-                <li key={item.id} className="pd-goal-view__comment">
-                  <Avatar
-                    name={item.authorName}
-                    src={commentAuthor(item, commentAuthors)?.avatarUrl}
-                    size="sm"
-                    className="pd-people__avatar"
-                    style={avatarStyle(item.authorName)}
-                  />
-                  <div>
-                    <p className="pd-goal-view__comment-meta">
-                      <strong>{item.authorName}</strong>
-                      <span>{formatRefreshAge(item.createdAt)}</span>
-                    </p>
-                    <p className="pd-goal-view__comment-text">{item.text}</p>
-                  </div>
-                </li>
+                <GoalCommentItem
+                  key={item.id}
+                  item={item}
+                  authors={commentAuthors}
+                  canManage={
+                    canManageComments &&
+                    isOwnGoalComment(item, {
+                      id: commentAuthorId,
+                      name: commentAuthorName,
+                    })
+                  }
+                  onUpdate={persistCommentText}
+                  onRemove={persistCommentRemoval}
+                />
               ))}
             </ul>
           ) : (

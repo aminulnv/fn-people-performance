@@ -59,11 +59,11 @@ function ActivityLogDrawerPanel({
       >
         <header className="pd-activity-drawer__head">
           <div>
-            <p className="pd-activity-drawer__eyebrow">
-              <History size={13} strokeWidth={2} aria-hidden />
-              Activity log
-            </p>
-            <h2>{title}</h2>
+            <p className="pd-activity-drawer__eyebrow">Activity log</p>
+            <h2>
+              <History size={20} strokeWidth={2.25} aria-hidden />
+              {title}
+            </h2>
             {description ? <p>{description}</p> : null}
           </div>
           <button
@@ -72,7 +72,7 @@ function ActivityLogDrawerPanel({
             aria-label="Close activity"
             onClick={onClose}
           >
-            <X size={15} strokeWidth={2.25} aria-hidden />
+            <X size={18} strokeWidth={1.75} aria-hidden />
           </button>
         </header>
         <div className="pd-activity-drawer__body">

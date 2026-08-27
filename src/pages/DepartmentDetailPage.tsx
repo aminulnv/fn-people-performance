@@ -19,6 +19,10 @@ import type { PlatformDepartment } from '@/lib/employees/types'
 import { useOrganisation } from '@/lib/employees/useEmployees'
 import { teamDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
+import {
+  ReviewSaveBanner,
+  useLocationSaveNotice,
+} from '@/pages/reviews/ReviewSaveBanner'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
@@ -34,6 +38,7 @@ export default function DepartmentDetailPage() {
   const [catalog, setCatalog] = useState<PlatformDepartment[]>([])
   const [catalogReady, setCatalogReady] = useState(false)
   const { organisation, employees, isLoading } = useOrganisation(catalog)
+  const [toastNotice, setToastNotice] = useLocationSaveNotice()
 
   useEffect(() => {
     let cancelled = false
@@ -96,6 +101,10 @@ export default function DepartmentDetailPage() {
       className="pd-page pd-people pd-org pd-org-detail"
       aria-label={department.name}
     >
+      <ReviewSaveBanner
+        notice={toastNotice}
+        onDismiss={() => setToastNotice(null)}
+      />
       <Link to="/organisation" className="pd-org-detail__back">
         <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
         Organisation
