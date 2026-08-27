@@ -25,7 +25,6 @@ import {
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
-const ComingSoonPage = lazy(() => import('@/pages/ComingSoonPage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))

@@ -225,7 +225,7 @@ function okrScopeFor(personId: string): OkrReferenceScope | undefined {
 }
 
 function persistThenNotify(
-  persist: () => Promise<boolean> | boolean | void | Promise<void>,
+  persist: () => Promise<boolean | void> | boolean | void,
   onSuccess: () => void,
 ) {
   return Promise.resolve(persist()).then((saved) => {
@@ -2238,6 +2238,7 @@ function ManagerReportGoalsTable({
   onOpen,
   onSaveGoals,
   onGoalDeleted,
+  onGoalsSaved,
   busy = false,
 }: {
   cycleId: string;
@@ -2254,6 +2255,7 @@ function ManagerReportGoalsTable({
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   onGoalDeleted?: () => void;
+  onGoalsSaved?: () => void;
   busy?: boolean;
 }) {
   const reportApprovers = cascadeApprovers(cascadeFromFor(person.id));
@@ -2271,13 +2273,17 @@ function ManagerReportGoalsTable({
     persistedGoals: row.goals,
   });
   const { schedule: schedulePersist, flush: flushPersist } = useDebouncedGoalSave(
-    (next) => onSaveGoals(person.id, next),
+    (next) => {
+      onSaveGoals(person.id, next);
+      onGoalsSaved?.();
+    },
   );
 
-  const persistNow = (next: Goal[]) => {
+  const persistNow = (next: Goal[], notify = false) => {
     flushPersist();
     setGoals(next);
     onSaveGoals(person.id, next);
+    if (notify) onGoalsSaved?.();
   };
   const addGoal = () => {
     requestGoalEdit(() => {
@@ -2404,7 +2410,7 @@ function ManagerReportGoalsTable({
         onDistributeWeights={
           canEditStructure
             ? (next) => {
-              requestGoalEdit(() => persistNow(next));
+              requestGoalEdit(() => persistNow(next, true));
             }
             : undefined
         }
@@ -2566,6 +2572,7 @@ function ManagerPanel({
               onOpen={setOpenGoalId}
               onSaveGoals={onSaveGoals}
               onGoalDeleted={() => showSuccessToast("Goal deleted.")}
+              onGoalsSaved={() => showSuccessToast("Goal saved.")}
               busy={busy}
             />
           </ReportGoalsCard>

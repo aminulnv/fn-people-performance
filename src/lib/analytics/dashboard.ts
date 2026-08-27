@@ -527,7 +527,7 @@ export function buildAnalyticsDashboard(input: {
       }
       row.people += 1
       const packet = packetByEmployee.get(employee.employeeId)
-      const bucket = packet ? reviewWorkBucket(packet.status) : 'not_started'
+      const bucket = packet ? reviewWorkBucket(packet.status) : 'notStarted'
       row[bucket] += 1
       if (officialGrade(packet)) row.graded += 1
       byDepartment.set(name, row)
