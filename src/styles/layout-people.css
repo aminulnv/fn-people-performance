@@ -1545,6 +1545,10 @@ a.pd-people__ghost-btn--outline:hover {
   gap: 0.85rem;
 }
 
+:root:not(.dark) .pd-app-content-card:has(.pd-profile:not(.pd-profile--embedded)) {
+  background: #f0f0fa;
+}
+
 .pd-profile--embedded {
   width: 100%;
   max-width: 100%;
@@ -1619,6 +1623,10 @@ a.pd-people__ghost-btn--outline:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 12px);
   background: var(--color-surface);
+}
+
+.dark .pd-profile__hero {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
 }
 
 .pd-profile__hero-main {
@@ -1842,6 +1850,11 @@ a.pd-people__ghost-btn--outline:hover {
   max-width: 100%;
   flex-wrap: nowrap;
   background: var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.dark .pd-profile__tabs {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
 }
 
 .pd-profile__tab {
@@ -1882,6 +1895,10 @@ a.pd-people__ghost-btn--outline:hover {
   padding: 0.95rem 1.05rem 1rem;
 }
 
+.dark .pd-profile__card {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+}
+
 .pd-profile__card-head {
   display: flex;
   align-items: center;
@@ -1913,6 +1930,10 @@ a.pd-people__ghost-btn--outline:hover {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg, 12px);
   background: var(--color-surface);
+}
+
+.dark .pd-profile__cover-note {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
 }
 
 .pd-profile__cover-person {
@@ -2111,8 +2132,8 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile__icon-action {
   appearance: none;
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   color: var(--color-text-secondary);
   display: inline-flex;
   align-items: center;
@@ -2127,7 +2148,7 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile__icon-action:hover:not(:disabled) {
   color: var(--color-text);
-  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  background: var(--color-neutral-hover, var(--color-bg-muted));
 }
 
 .pd-profile__icon-action:disabled {
@@ -2266,8 +2287,16 @@ a.pd-people__ghost-btn--outline:hover {
   cursor: pointer;
 }
 
+.dark .pd-profile__nav-card {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+}
+
 .pd-profile__nav-card:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+
+.dark .pd-profile__nav-card:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text) 13%, var(--color-surface));
 }
 
 .pd-profile__nav-card:disabled {
@@ -2293,6 +2322,10 @@ a.pd-people__ghost-btn--outline:hover {
   border-radius: var(--radius-lg, 12px);
   background: var(--color-surface);
   padding: 0.5rem 0.75rem;
+}
+
+.dark .pd-profile__placeholder {
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
 }
 
 .pd-profile__more {
