@@ -3,6 +3,7 @@ import {
   useId,
   useRef,
   useState,
+  type DragEvent,
   type PointerEvent,
 } from "react";
 import { Link } from "react-router-dom";
@@ -30,9 +31,17 @@ import type {
   Measurement,
   PersonGoals,
 } from "@/lib/goals/types";
+import type { MentionablePerson } from "@/lib/goals/mentions";
 import { isOwnGoalComment } from "@/lib/goals/operations";
+import { GoalCommentField } from "./GoalCommentField";
+import { GoalCommentText } from "./GoalCommentText";
 import { validateGoalDraft } from "@/lib/goals/draft";
 import { editorGoalTitle, isBlankGoalTitle } from "@/lib/goals/weightage";
+import {
+  applyOkrPayloadToGoal,
+  dataTransferHasOkrGoal,
+  readOkrGoalDropPayload,
+} from "@/lib/okr/applyToGoal";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
@@ -70,7 +79,7 @@ export type GoalOwner = {
   avatarUrl?: string;
 };
 
-type CommentAuthor = {
+type CommentAuthor = MentionablePerson & {
   id: string;
   name: string;
   avatarUrl?: string;
@@ -141,28 +150,15 @@ function GoalCommentItem({
           </p>
           {editing ? (
             <div className="pd-goal-view__comment-edit">
-              <label
-                className="pd-goal-view__composer"
-                htmlFor={fieldId}
-              >
-                <span className="pd-sr-only">Edit Comment</span>
-                <input
-                  id={fieldId}
-                  type="text"
-                  value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      saveEdit();
-                    }
-                    if (event.key === "Escape") {
-                      event.preventDefault();
-                      cancelEditing();
-                    }
-                  }}
-                />
-              </label>
+              <GoalCommentField
+                id={fieldId}
+                value={draft}
+                onChange={setDraft}
+                people={authors}
+                label="Edit Comment"
+                onSubmit={saveEdit}
+                onCancel={cancelEditing}
+              />
               <div className="pd-goal-view__comment-edit-actions">
                 <Button
                   size="sm"
@@ -181,7 +177,7 @@ function GoalCommentItem({
               </div>
             </div>
           ) : (
-            <p className="pd-goal-view__comment-text">{item.text}</p>
+            <GoalCommentText text={item.text} people={authors} />
           )}
         </div>
         {canManage && !editing ? (
@@ -330,6 +326,7 @@ export function GoalDetailView({
   const [cascadeToOpen, setCascadeToOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(() => editorGoalTitle(goal));
   const [detailsDraft, setDetailsDraft] = useState(goal.details ?? "");
+  const [okrDropActive, setOkrDropActive] = useState(false);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const titleFocusedRef = useRef(false);
   const detailsFocusedRef = useRef(false);
@@ -415,6 +412,21 @@ export function GoalDetailView({
       return;
     }
     onChange(next);
+  };
+
+  const applyDroppedOkr = (event: DragEvent<HTMLDivElement>) => {
+    if (!canEdit) return;
+    const payload = readOkrGoalDropPayload(event.dataTransfer);
+    if (!payload) return;
+    event.preventDefault();
+    setOkrDropActive(false);
+    onRequestEdit(() => {
+      const next = applyOkrPayloadToGoal(goalRef.current, payload);
+      setTitleDraft(next.description);
+      setDetailsDraft(next.details ?? "");
+      setEditing(true);
+      persistStructure(next);
+    });
   };
 
   const startEditing = () => {
@@ -685,9 +697,24 @@ export function GoalDetailView({
 
   return (
     <div
-      className="pd-goal-view"
+      className={okrDropActive ? "pd-goal-view is-okr-drop" : "pd-goal-view"}
       aria-label={isNew ? "Add Goal" : title}
       onPointerDownCapture={markNameTouchedIfLeaving}
+      onDragEnter={(event) => {
+        if (!canEdit || !dataTransferHasOkrGoal(event.dataTransfer)) return;
+        event.preventDefault();
+        setOkrDropActive(true);
+      }}
+      onDragOver={(event) => {
+        if (!canEdit || !dataTransferHasOkrGoal(event.dataTransfer)) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+      }}
+      onDragLeave={(event) => {
+        if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+        setOkrDropActive(false);
+      }}
+      onDrop={applyDroppedOkr}
     >
       <header className="pd-goal-view__header">
         <div className="pd-goal-view__window-title">
@@ -1025,22 +1052,16 @@ export function GoalDetailView({
           ) : (
             <p className="pd-goal-view__empty">No comments yet.</p>
           )}
-          <label className="pd-goal-view__composer" htmlFor={commentFieldId}>
-            <span className="pd-sr-only">Add Comment</span>
-            <input
-              id={commentFieldId}
-              type="text"
-              value={comment}
-              placeholder="Add Comment"
-              disabled={!canMutate || (isEditing && !goalNamed)}
-              onChange={(event) => setComment(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  submitComment();
-                }
-              }}
-            />
+          <GoalCommentField
+            id={commentFieldId}
+            value={comment}
+            onChange={setComment}
+            people={commentAuthors}
+            placeholder="Add a comment. Use @ to tag someone"
+            disabled={!canMutate || (isEditing && !goalNamed)}
+            label="Add Comment"
+            onSubmit={submitComment}
+          >
             <button
               type="button"
               className="pd-goal-view__send"
@@ -1050,7 +1071,7 @@ export function GoalDetailView({
             >
               <Send size={16} strokeWidth={1.75} aria-hidden />
             </button>
-          </label>
+          </GoalCommentField>
         </section>
       ) : null}
     </div>

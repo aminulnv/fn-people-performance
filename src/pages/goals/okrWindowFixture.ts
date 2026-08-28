@@ -82,9 +82,9 @@ export const okrWindowFixture: OkrWindowData = {
       status: "on_track",
       statusLabel: "On Track",
       roles: ["responsible"],
-      unit: "%",
-      currentValue: 40,
-      targetValue: 100,
+      unit: "",
+      currentValue: null,
+      targetValue: null,
       progressPercent: 40,
       lastCheckIn: null,
       raci: {
@@ -95,7 +95,10 @@ export const okrWindowFixture: OkrWindowData = {
           { employeeId: null, email: "", label: "Engineering department" },
         ],
       },
-      milestones: [],
+      milestones: [
+        { id: "wing-ms-1", title: "Risk register live", status: "completed", weight: 50 },
+        { id: "wing-ms-2", title: "Weekly risk review", status: "in_progress", weight: 50 },
+      ],
     },
   ],
 };

@@ -419,8 +419,21 @@ describe("goal approval mutations", () => {
       settings: { postWindowGoalPolicy: "two_tier_approval" },
     });
 
-    const submitted = submitPersonGoals(ctx("1", "1"));
+    expect(() => submitPersonGoals(ctx("1", "1"))).toThrow(
+      "Explain why these goals are late.",
+    );
+    expect(() => submitPersonGoals(ctx("1", "1"), "   ")).toThrow(
+      "Explain why these goals are late.",
+    );
+
+    const submitted = submitPersonGoals(
+      ctx("1", "1"),
+      "I was on leave until last week.",
+    );
     expect(submitted.byPerson["1"].postWindowApprovalStage).toBe("manager");
+    expect(submitted.byPerson["1"].lateJustification).toBe(
+      "I was on leave until last week.",
+    );
 
     const managerApproved = approveSubmission(ctx("1", "2"));
     expect(managerApproved.byPerson["1"].status).toBe("submitted");
@@ -480,6 +493,31 @@ describe("goal approval mutations", () => {
 
     expect(snapshot.byPerson["1"].status).toBe("submitted");
     expect(saved).toMatchObject({ proofUrl: "https://dash.fn/defects" });
+  });
+
+  it("notifies a tagged person when a comment mentions them", () => {
+    const next = structuredClone(getGoalsSnapshot().byPerson["1"].goals);
+    firstGoal(next).comments = [
+      {
+        id: "c-mention",
+        authorId: "2",
+        authorName: "Line Manager",
+        text: "Please review @[Peer Person](3)",
+        mentionedIds: ["3"],
+        createdAt: "2026-06-15T12:00:00.000Z",
+      },
+    ];
+
+    updateGoalProgress(ctx("1", "2"), next);
+
+    const feed = getNotificationFeed("3");
+    expect(feed.unreadCount).toBe(1);
+    expect(feed.items[0].title).toBe("Line Manager mentioned you on a goal");
+    expect(
+      getNotificationFeed("2").items.some((item) =>
+        item.title.includes("mentioned you"),
+      ),
+    ).toBe(false);
   });
 
   it("rejects structural edits through the progress boundary", () => {

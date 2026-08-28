@@ -84,6 +84,8 @@ type ReportGoalsCardProps = {
   allowLateSubmissions?: boolean
   /** Goal-window end used for “Deadline Missed: 5d ago”. */
   deadlineMissedAt?: string
+  /** Why the employee submitted after the deadline. */
+  lateJustification?: string
   canApprove?: boolean
   canSendBack?: boolean
   busy?: boolean
@@ -206,9 +208,11 @@ function ApprovalTrail({ model }: { model: ApprovalTrailModel }) {
 function LateSubmissionBanner({
   model,
   deadlineMissedAt,
+  lateJustification,
 }: {
   model: ApprovalTrailModel
   deadlineMissedAt?: string
+  lateJustification?: string
 }) {
   const namedApprovers = model.stages.filter((stage) => stage.key !== 'you')
   const approvers = namedApprovers.length > 0 ? namedApprovers : model.stages
@@ -236,6 +240,12 @@ function LateSubmissionBanner({
           <ApprovalTrailSteps model={model} stages={approvers} />
         </div>
       ) : null}
+      {lateJustification ? (
+        <p className="pd-goals-banner__reason">
+          <span className="pd-goals-banner__reason-label">Reason</span>
+          {lateJustification}
+        </p>
+      ) : null}
     </aside>
   )
 }
@@ -256,6 +266,7 @@ export function ReportGoalsCard({
   perspective = 'reviewer',
   allowLateSubmissions = false,
   deadlineMissedAt,
+  lateJustification,
   canApprove = false,
   canSendBack = false,
   busy = false,
@@ -326,6 +337,7 @@ export function ReportGoalsCard({
         <LateSubmissionBanner
           model={trail}
           deadlineMissedAt={deadlineMissedAt}
+          lateJustification={lateJustification}
         />
       ) : null}
       {trail && !trail.late && !showLockBanner ? (

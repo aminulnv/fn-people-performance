@@ -624,7 +624,7 @@ describe('GoalsTable nested measures', () => {
     expect(tip).toHaveTextContent('Saif Ivna Alam')
   })
 
-  it('marks a missing measure in the Metrics cell, not on the title', () => {
+  it('marks a missing measure on the goal title', () => {
     render(
       <GoalsTable
         rows={[
@@ -637,39 +637,14 @@ describe('GoalsTable nested measures', () => {
       />,
     )
 
-    const icons = screen.getAllByRole('img', { name: 'Still needs a metric.' })
-    const cellIcon = icons.find((icon) => icon.closest('.pd-goals-table__metric'))
-    expect(cellIcon).toBeTruthy()
+    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
     const title = screen.getByText('test').closest('.pd-goals-table__title')
-    const metrics = cellIcon!.closest('.pd-goals-table__metric')
-    expect(title).not.toContainElement(cellIcon!)
-    expect(title).not.toHaveClass('pd-goals-table__title--error')
-    expect(metrics).toContainElement(cellIcon!)
-    expect(metrics).toHaveClass('pd-goals-table__metric--error')
+    expect(title).toContainElement(icon)
+    expect(title).toHaveClass('pd-goals-table__title--error')
+    expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
   })
 
-  it('shows an error icon on the Metrics header when a row has a metric issue', () => {
-    render(
-      <GoalsTable
-        rows={[
-          {
-            goal: { ...goalWithMeasures, measurements: [] },
-            title: 'test',
-            issue: 'test still needs a metric.',
-          },
-        ]}
-      />,
-    )
-
-    const header = screen.getByRole('columnheader', { name: 'Metrics' })
-    const headerIcon = header.querySelector('[role="img"]')
-    expect(headerIcon).toHaveAttribute('aria-label', 'Still needs a metric.')
-    expect(document.querySelector('.pd-goals-table')).toHaveClass(
-      'pd-goals-table--metric-error',
-    )
-  })
-
-  it('shows only the metric error in the Metrics tooltip, not the goal name', async () => {
+  it('shows only the metric error in the title tooltip, not the goal name', async () => {
     render(
       <GoalsTable
         rows={[
@@ -682,10 +657,8 @@ describe('GoalsTable nested measures', () => {
       />,
     )
 
-    const cellIcon = screen
-      .getAllByRole('img', { name: 'Still needs a metric.' })
-      .find((icon) => icon.closest('.pd-goals-table__metric'))
-    fireEvent.mouseEnter(cellIcon!.closest('.pd-tooltip')!)
+    const icon = screen.getByRole('img', { name: 'Still needs a metric.' })
+    fireEvent.mouseEnter(icon.closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Still needs a metric.')
     expect(tip).not.toHaveTextContent('testing testing testing')
@@ -817,7 +790,29 @@ describe('GoalsTable nested measures', () => {
     expect(chip?.querySelector('svg')).toBeTruthy()
   })
 
-  it('puts the row menu in a headerless column after Metrics', () => {
+  it('shows the metric glance on hover of the metric name', async () => {
+    render(
+      <GoalsTable
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+    fireEvent.mouseEnter(
+      screen.getByText('Primary outcome completion').closest('.pd-tooltip')!,
+    )
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Increase metric')
+    expect(tip).toHaveTextContent('Primary outcome completion')
+    expect(tip).toHaveTextContent('60')
+    expect(tip).toHaveTextContent('100')
+  })
+
+  it('puts the row menu in a headerless column after Progress', () => {
     render(
       <MemoryRouter>
         <GoalsTable
@@ -827,17 +822,16 @@ describe('GoalsTable nested measures', () => {
       </MemoryRouter>,
     )
 
-    const metricsHead = screen.getByRole('columnheader', { name: 'Metrics' })
+    const progressHead = screen.getByRole('columnheader', { name: 'Progress' })
     const actionsHead = screen.getByRole('columnheader', { name: 'Actions' })
-    expect(metricsHead).not.toContainElement(actionsHead)
+    expect(progressHead).not.toContainElement(actionsHead)
     expect(actionsHead).toHaveClass('pd-goals-table__actions-head')
     expect(actionsHead.querySelector('.pd-sr-only')).toHaveTextContent('Actions')
     expect(actionsHead.textContent).toBe('Actions')
 
     const menu = screen.getByRole('button', { name: 'More Actions For Quality' })
     expect(menu.closest('.pd-goals-table__actions')).toBeTruthy()
-    expect(menu.closest('.pd-goals-table__metric')).toBeNull()
-    expect(metricsHead.compareDocumentPosition(actionsHead) &
+    expect(progressHead.compareDocumentPosition(actionsHead) &
       Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 })

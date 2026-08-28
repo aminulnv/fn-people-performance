@@ -257,18 +257,19 @@ describe('Goals overview cycle eligibility', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps metrics cells as table cells so row lines stay aligned', async () => {
+  it('hides the Metrics column from the overview table', async () => {
     await putPeopleInGroup([1, 2])
+    const ownGoal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(ownGoal).toBeTruthy()
 
     renderOverview()
 
-    const cell = await waitFor(() => {
-      const found = document.querySelector('td.pd-goals-overview__metric')
-      expect(found).toBeTruthy()
-      return found as HTMLTableCellElement
+    await waitFor(() => {
+      expect(screen.getByText(ownGoal.description)).toBeInTheDocument()
     })
-    expect(cell.tagName).toBe('TD')
-    expect(getComputedStyle(cell).display).not.toBe('flex')
+    expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
+    expect(document.querySelector('td.pd-goals-overview__metric')).toBeNull()
+    expect(document.querySelector('[data-col="metric"]')).toBeNull()
   })
 
   it('opens the goal panel from a nested measure row', async () => {

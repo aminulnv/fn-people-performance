@@ -1,0 +1,10 @@
+---
+description: Do what the user asks without extra analysis or browser verification
+alwaysApply: true
+---
+
+# Just do it
+
+- Implement what the user asked. Do not analyze, over-explain, or explore beyond what is needed to make the change.
+- The user verifies the work. Do not open the browser, take screenshots, or run UI verification unless they explicitly ask.
+- Do not attach screenshots of implemented work unless they ask.

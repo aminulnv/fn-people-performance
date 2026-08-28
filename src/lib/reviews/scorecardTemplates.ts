@@ -92,7 +92,7 @@ export const SCORECARD_PILLAR_CATALOG: ScorecardPillar[] = [
   {
     id: 'leadership',
     kind: 'leadership',
-    label: 'Leadership',
+    label: 'Leadership Capabilities',
     enabled: false,
     weight: 0,
     pullLinkedQuarters: false,
@@ -168,7 +168,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
   {
     id: 'leadership',
     name: 'Leadership review',
-    hint: 'Goals 50% and Leadership 50%, with leadership questions.',
+    hint: 'Goals 50% and Leadership Capabilities 50%, with leadership questions.',
     pillars: catalogWith([
       ['goals', 50],
       ['leadership', 50],

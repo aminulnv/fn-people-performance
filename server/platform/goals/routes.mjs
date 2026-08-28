@@ -118,6 +118,7 @@ export function registerGoalRoutes(app) {
               ? req.body.goals
               : undefined,
             expectedVersion: req.body?.expectedVersion,
+            lateJustification: req.body?.lateJustification,
           },
         )
         await publishWrite(req, ['goals', 'notifications', 'activity'], {

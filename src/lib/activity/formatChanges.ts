@@ -31,6 +31,7 @@ const FIELD_LABELS: Record<string, string> = {
   jobTitle: 'Job title',
   joiningDate: 'Start date',
   late: 'Late',
+  lateJustification: 'Late justification',
   managerId: 'Manager',
   measure: 'Metric',
   milestone: 'Milestone',

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   formatOkrRole,
+  formatOkrTrackingKind,
   levelFromTier,
   mapEmployeeOkrPayload,
   okrHrEmployeeId,
   okrStatusTone,
+  okrTrackingKind,
   partyLabel,
   resolveRaciParty,
 } from "./reference";
@@ -171,5 +173,14 @@ describe("OKR display helpers", () => {
     expect(okrStatusTone("at_risk")).toBe("warn");
     expect(okrStatusTone("behind")).toBe("danger");
     expect(okrStatusTone("deprioritized")).toBe("muted");
+  });
+
+  it("labels an OKR as milestone or numeric from its tracking shape", () => {
+    expect(okrTrackingKind({ milestones: [] })).toBe("numeric");
+    expect(
+      okrTrackingKind({ milestones: [{ title: "Draft operating model" }] }),
+    ).toBe("milestone");
+    expect(formatOkrTrackingKind("numeric")).toBe("Numeric");
+    expect(formatOkrTrackingKind("milestone")).toBe("Milestone");
   });
 });

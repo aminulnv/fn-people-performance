@@ -17,6 +17,7 @@ import {
   type GoalMutationContext,
 } from "@/lib/goalsApi";
 import { isEligibleForCycle } from "@/lib/goals/demoData";
+import { mentionedIdsIn } from "@/lib/goals/mentions";
 import {
   buildOwnerOptions,
   duplicateGoal,
@@ -95,7 +96,11 @@ export type GoalsControllerActions = {
     goalId: string,
     child: { personId: string; goalId: string },
   ) => Promise<void>;
-  saveAndSubmit: (subjectId: string, goals: Goal[]) => Promise<boolean>;
+  saveAndSubmit: (
+    subjectId: string,
+    goals: Goal[],
+    lateJustification?: string,
+  ) => Promise<boolean>;
   approve: (subjectId: string, goals?: Goal[]) => Promise<void>;
   sendBack: (subjectId: string, reason: string) => Promise<void>;
 };
@@ -359,6 +364,10 @@ export function useGoalsController({
         if (!row) throw new Error("Unknown goals subject.");
         const trimmed = text.trim();
         if (!trimmed) return;
+        const mentionedIds = mentionedIdsIn(
+          trimmed,
+          snapshot?.people ?? [],
+        );
         const nextGoals = row.goals.map((goal) => {
           if (goal.id !== goalId) return goal;
           return {
@@ -371,6 +380,7 @@ export function useGoalsController({
                 authorId: actor.id,
                 authorName: actor.name,
                 text: trimmed,
+                mentionedIds,
                 createdAt: new Date().toISOString(),
               },
             ],
@@ -396,7 +406,13 @@ export function useGoalsController({
         await run(() =>
           saveProgress(
             mutationContext(targetSubjectId),
-            replaceGoalComment(row.goals, goalId, commentId, trimmed),
+            replaceGoalComment(
+              row.goals,
+              goalId,
+              commentId,
+              trimmed,
+              mentionedIdsIn(trimmed, snapshot?.people ?? []),
+            ),
           ),
         );
       },
@@ -509,9 +525,13 @@ export function useGoalsController({
           unlinkCascadedGoal(mutationContext(targetSubjectId), goalId, child),
         );
       },
-      async saveAndSubmit(targetSubjectId, goals) {
+      async saveAndSubmit(targetSubjectId, goals, lateJustification) {
         const result = await run(() =>
-          submitGoals(mutationContext(targetSubjectId), goals),
+          submitGoals(
+            mutationContext(targetSubjectId),
+            goals,
+            lateJustification,
+          ),
         );
         return result !== undefined;
       },

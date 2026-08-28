@@ -95,8 +95,7 @@ describe('ScorecardGoalsCard', () => {
     expect(screen.getByRole('columnheader', { name: 'Goals' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Weight 100%' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Progress' })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: 'Metrics' })).toBeTruthy()
-    expect(screen.queryByRole('columnheader', { name: 'Metric' })).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
     expect(screen.queryByText('Defects closed')).toBeNull()
 
     fireEvent.click(

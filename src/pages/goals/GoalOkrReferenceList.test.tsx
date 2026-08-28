@@ -68,9 +68,18 @@ describe("GoalOkrReferenceList", () => {
     expect(
       screen.getByText("Build Performance Platform Phase 1"),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Improve customer outcomes across Engineering"),
+    ).toBeNull();
     expect(screen.queryByRole("heading", { name: "FundedNext company" })).toBeNull();
+    expect(
+      screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item"),
+    ).toHaveAttribute("draggable", "true");
     const roleChip = screen.getAllByText("Responsible")[0]?.closest(".pd-okr-ref__role");
     expect(roleChip?.querySelector(".pd-okr-ref__role-avatar")).toBeTruthy();
+    expect(
+      screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item"),
+    ).toHaveTextContent("Numeric");
   });
 
   it("keeps tracking details off the card until hover", () => {
@@ -85,6 +94,7 @@ describe("GoalOkrReferenceList", () => {
     expect(screen.queryByText("On Track")).toBeNull();
     expect(screen.queryByText("20% → 100%")).toBeNull();
     expect(screen.queryByText(/Week 9/)).toBeNull();
+    expect(screen.queryByText("Q3 Build, Q4 Testing, Q1 2027 Launch")).toBeNull();
   });
 
   it("shows the full KR in an organized hover panel", async () => {
@@ -102,6 +112,7 @@ describe("GoalOkrReferenceList", () => {
 
     const tip = await screen.findByRole("tooltip");
     expect(within(tip).getByText("Key result")).toBeInTheDocument();
+    expect(within(tip).getByText("Q3 Build, Q4 Testing, Q1 2027 Launch")).toBeInTheDocument();
     expect(within(tip).getByText("On Track")).toBeInTheDocument();
     expect(within(tip).getByText("20% → 100%")).toBeInTheDocument();
     expect(within(tip).getByText("Week 9 · On Track · S.M. Fahim · 21 Aug")).toBeInTheDocument();
@@ -121,6 +132,7 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Wings" }));
     const trigger = screen
       .getByText("Keep dependencies and delivery risks visible")
       .closest(".pd-tooltip")!;
@@ -144,6 +156,7 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Wings" }));
     fireEvent.change(screen.getByRole("searchbox"), {
       target: { value: "dependencies" },
     });
@@ -168,6 +181,7 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: "Wings" }));
     fireEvent.click(
       screen.getByRole("button", {
         name: "Copy Keep dependencies and delivery risks visible",
@@ -178,6 +192,49 @@ describe("GoalOkrReferenceList", () => {
       "Keep dependencies and delivery risks visible",
     );
     expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+
+  it("switches the list between company, department, wings, and all", () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    expect(
+      screen.getByText("Build Performance Platform Phase 1"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Department" }));
+    expect(
+      screen.getByText("Improve customer outcomes across Engineering"),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Build Performance Platform Phase 1"),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Wings" }));
+    expect(
+      screen.getByText("Keep dependencies and delivery risks visible"),
+    ).toBeInTheDocument();
+    expect(
+      screen
+        .getByText("Keep dependencies and delivery risks visible")
+        .closest(".pd-okr-ref__item"),
+    ).toHaveTextContent("Milestone");
+
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+    expect(
+      screen.getByText("Build Performance Platform Phase 1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Improve customer outcomes across Engineering"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Keep dependencies and delivery risks visible"),
+    ).toBeInTheDocument();
   });
 
   it("reports when nothing matches the search", () => {

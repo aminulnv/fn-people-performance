@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { Tooltip } from '@/components/ui'
 import type { Milestone } from '@/lib/goals/types'
 import {
   numberedTaskListTitle,
@@ -10,6 +11,7 @@ import {
 import { measurePanelName } from '@/pages/goals/measurePanelDisplay'
 import {
   GoalTodoMeasureReadout,
+  GoalTodoMeasureTip,
   GoalWeightReadout,
 } from './GoalMeasurementReadout'
 import { proofParts } from '@/lib/goals/proof'
@@ -66,7 +68,18 @@ export function TodoMeasureViewCard({
         />
         <MeasureKindIcon kind="milestone" />
         <div className={titleClassName}>
-          {name ? <h2>{name}</h2> : null}
+          {name ? (
+            <Tooltip
+              className="pd-goals-table__measure-name-tip"
+              side="left"
+              portal
+              interactive
+              delayMs={80}
+              content={<GoalTodoMeasureTip panel={panel} />}
+            >
+              <h2>{name}</h2>
+            </Tooltip>
+          ) : null}
           <GoalTodoMeasureReadout panel={panel} showCaptions={false} />
         </div>
         <div className="pd-goal-view__fold-meta">

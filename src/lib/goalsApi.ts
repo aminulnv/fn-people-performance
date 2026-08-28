@@ -64,6 +64,7 @@ export type {
 export type { GoalMutationContext }
 
 export { isEligibleForCycle }
+import { notifyGoalCommentMentions } from './notifications/goalEvents'
 import { canSubmitGoals } from './goals/weightage'
 
 export {
@@ -406,6 +407,7 @@ export async function unlinkCascadedGoal(
 export async function submitGoals(
   context: GoalMutationContext,
   goals?: Goal[],
+  lateJustification?: string,
 ): Promise<GoalsSnapshot> {
   const snapshot = getGoalsSnapshot()
   const toSubmit = goals ?? snapshot.byPerson[context.subjectId]?.goals ?? []
@@ -415,12 +417,16 @@ export async function submitGoals(
   }
   if (useLocalGoals()) {
     if (goals) savePersonGoals(context, goals)
-    return delay(submitPersonGoals(context))
+    return delay(submitPersonGoals(context, lateJustification))
   }
   const remote = await submitPersonGoalsRemote(
     context.cycleId,
     context.subjectId,
-    { goals, expectedVersion: currentVersion(context) },
+    {
+      goals,
+      expectedVersion: currentVersion(context),
+      lateJustification,
+    },
   )
   return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
 }
@@ -458,6 +464,21 @@ export async function saveProgress(
   goals: Goal[],
 ): Promise<GoalsSnapshot> {
   if (useLocalGoals()) return delay(updateGoalProgress(context, goals))
+  const previous =
+    getGoalsSnapshotForCycle(context.cycleId).byPerson[context.subjectId]
+      ?.goals ?? []
   const remote = await saveGoalsDraftWithRetry(context, goals)
-  return mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
+  const next = mergeRemotePersonGoals(context.cycleId, context.subjectId, remote)
+  const actor = next.people.find((person) => person.id === context.actorId)
+  const subject = next.people.find((person) => person.id === context.subjectId)
+  if (actor && subject) {
+    notifyGoalCommentMentions({
+      snapshot: next,
+      actor,
+      subject,
+      previousGoals: previous,
+      nextGoals: next.byPerson[subject.id]?.goals ?? goals,
+    })
+  }
+  return next
 }

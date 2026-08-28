@@ -6,6 +6,7 @@ import type {
   PersonGoals,
 } from '@/lib/goals/types'
 import { resolveGoalDeadline } from '@/lib/goals/goalExtensions'
+import { displayMentionText, mentionedIdsIn } from '@/lib/goals/mentions'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { NOTIFICATION_EVENTS } from './catalogue'
 import type { NotificationTemplateInput } from './types'
@@ -415,6 +416,75 @@ export function notifyGoalHardLock(
       deadline: resolveGoalDeadline(snapshot.cycle, subject) ?? 'the deadline',
     },
   })
+}
+
+function commentExcerpt(text: string): string {
+  const display = displayMentionText(text).trim()
+  if (display.length <= 80) return display
+  return `${display.slice(0, 77).trimEnd()}…`
+}
+
+function mentionIdsForComment(
+  comment: { text: string; mentionedIds?: string[] },
+  people: DemoPerson[],
+): string[] {
+  return mentionedIdsIn(comment.text, people, comment.mentionedIds ?? [])
+}
+
+export function notifyGoalCommentMentions({
+  snapshot,
+  actor,
+  subject,
+  previousGoals,
+  nextGoals,
+}: GoalEventContext & {
+  previousGoals: Goal[]
+  nextGoals: Goal[]
+}): void {
+  const previousById = new Map(
+    previousGoals.flatMap((goal) =>
+      (goal.comments ?? []).map((comment) => [
+        comment.id,
+        new Set(mentionIdsForComment(comment, snapshot.people)),
+      ]),
+    ),
+  )
+
+  for (const [index, goal] of nextGoals.entries()) {
+    for (const comment of goal.comments ?? []) {
+      const alreadyNotified = previousById.get(comment.id) ?? new Set<string>()
+      const recipients = mentionIdsForComment(comment, snapshot.people).filter(
+        (recipientId) =>
+          recipientId !== actor.id && !alreadyNotified.has(recipientId),
+      )
+      if (recipients.length === 0) continue
+      const excerpt = commentExcerpt(comment.text)
+      for (const recipientId of recipients) {
+        emitNotification({
+          eventKey: NOTIFICATION_EVENTS.GOAL_COMMENT_MENTIONED,
+          recipientId,
+          actorId: actor.id,
+          dedupeKey: `goal-mention:${snapshot.cycle.id}:${subject.id}:${goal.id}:${comment.id}:${recipientId}`,
+          destination: specificGoalDestination(
+            snapshot.cycle.id,
+            subject.id,
+            goal.id,
+          ),
+          cycleId: snapshot.cycle.id,
+          personId: subject.id,
+          goalId: goal.id,
+          variables: {
+            actor: actor.name,
+            employee: subject.name,
+            goal: displayGoalTitle(goal, index),
+            cycle: snapshot.cycle.label,
+            comment: excerpt,
+          },
+          metadata: { commentId: comment.id },
+        })
+      }
+    }
+  }
 }
 
 export function notifyGoalCascaded({

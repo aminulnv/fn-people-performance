@@ -1,6 +1,11 @@
 import { ChevronRight } from 'lucide-react'
+import { Tooltip } from '@/components/ui'
 import type { Metric } from '@/lib/goals/types'
-import { GoalMetricReadout, GoalWeightReadout } from './GoalMeasurementReadout'
+import {
+  GoalMetricReadout,
+  GoalMetricTip,
+  GoalWeightReadout,
+} from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
 import { ignoreInteractiveSummaryClick } from './measureFold'
 import { MeasureKindIcon } from './MeasureKindIcon'
@@ -49,7 +54,18 @@ export function NumberMeasureViewCard({
         />
         <MeasureKindIcon kind="metric" />
         <div className="pd-goal-view__fold-title">
-          {name ? <h2>{name}</h2> : null}
+          {name ? (
+            <Tooltip
+              className="pd-goals-table__measure-name-tip"
+              side="left"
+              portal
+              interactive
+              delayMs={80}
+              content={<GoalMetricTip metric={metric} />}
+            >
+              <h2>{name}</h2>
+            </Tooltip>
+          ) : null}
           <GoalMetricReadout metric={metric} showWeight={false} />
         </div>
         <div className="pd-goal-view__fold-meta">

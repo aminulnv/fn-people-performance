@@ -31,6 +31,7 @@ export const NOTIFICATION_EVENTS = {
   GOAL_PROGRESS_ADJUSTED: 'goal.progress_adjusted',
   GOAL_CHECK_IN_COMPLETED: 'goal.check_in_completed',
   GOAL_CASCADED: 'goal.cascaded',
+  GOAL_COMMENT_MENTIONED: 'goal.comment.mentioned',
 
   REVIEW_SELF_OPENED: 'review.self.opened',
   REVIEW_ASSIGNED: 'review.assigned',
@@ -245,6 +246,13 @@ const entries: NotificationCatalogueEntry[] = [
     channels: [...inApp],
     title: '{{manager}} cascaded a goal to you',
     body: 'Review “{{goal}}” and add metrics before submitting your {{cycle}} goals.',
+  }),
+  entry(NOTIFICATION_EVENTS.GOAL_COMMENT_MENTIONED, {
+    kind: 'action',
+    icon: 'users',
+    channels: [...inAppAndEmail],
+    title: '{{actor}} mentioned you on a goal',
+    body: '{{actor}} tagged you on “{{goal}}” for {{employee}} ({{cycle}}): “{{comment}}”',
   }),
 
   entry(NOTIFICATION_EVENTS.REVIEW_SELF_OPENED, {

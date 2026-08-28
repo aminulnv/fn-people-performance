@@ -88,6 +88,8 @@ export type GoalComment = {
   /** Display snapshot of the author name at write time. */
   authorName: string;
   text: string;
+  /** People tagged in this comment. Re-resolved from text when omitted. */
+  mentionedIds?: string[];
   createdAt: string;
 };
 
@@ -134,6 +136,8 @@ export type PersonGoals = {
   version?: number;
   /** Present only while a late submission is moving through two-tier approval. */
   postWindowApprovalStage?: "manager" | "manager_manager";
+  /** Required when the employee submits after the goal deadline. */
+  lateJustification?: string;
   sendBackReason?: string;
   /** Snapshot of who wrote the send-back note. */
   sendBackBy?: SendBackAuthor;

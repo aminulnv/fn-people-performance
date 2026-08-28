@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CYCLE_SETTINGS } from "@/lib/reviews/demoData";
 import {
+  isGoalDeadlinePassed,
   isGoalWindowOpenForPerson,
+  requireLateJustification,
   resolveGoalDeadline,
 } from "./goalExtensions";
 import type { DemoPerson, GoalsCycle } from "./types";
@@ -72,5 +74,19 @@ describe("goal cycle extensions", () => {
         "2026-08-25",
       ),
     ).toBe(false);
+  });
+
+  it("treats the day after the deadline as late", () => {
+    expect(isGoalDeadlinePassed(cycle, person, "2026-08-31")).toBe(false);
+    expect(isGoalDeadlinePassed(cycle, person, "2026-09-01")).toBe(true);
+  });
+
+  it("requires a non-empty late justification", () => {
+    expect(() => requireLateJustification("  ")).toThrow(
+      "Explain why these goals are late.",
+    );
+    expect(requireLateJustification("  Travel delayed the write-up.  ")).toBe(
+      "Travel delayed the write-up.",
+    );
   });
 });

@@ -3,6 +3,7 @@ import {
   notifyGoalApproved,
   notifyGoalCascaded,
   notifyGoalChangesRequireApproval,
+  notifyGoalCommentMentions,
   notifyGoalHardLock,
   notifyGoalProgressAdjusted,
   notifyGoalSentBack,
@@ -102,6 +103,10 @@ function enrichPersonGoalsActors(
   }
   return { ...row, approvedBy, sendBackBy };
 }
+import {
+  isGoalDeadlinePassed,
+  requireLateJustification,
+} from "./goalExtensions";
 import { canSubmitGoals } from "./weightage";
 
 /** Explicit cycle + actor so UI shells cannot mutate the wrong person or cycle. */
@@ -777,11 +782,15 @@ export function copyPreviousCycleGoals(
     sendBackBy: undefined,
     approvedBy: undefined,
     managerNote: undefined,
+    lateJustification: undefined,
     rating: undefined,
   }));
 }
 
-export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
+export function submitPersonGoals(
+  context: GoalMutationContext,
+  lateJustification?: string,
+): GoalsSnapshot {
   const { actor, subject, row, cycle, capabilities } =
     capabilitiesFor(context);
   if (!capabilities.canSubmit) {
@@ -801,6 +810,11 @@ export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
   const check = canSubmitGoals(row.goals, cycle.goalCountPolicy);
   if (!check.ok) throw new Error(check.reasons[0] ?? "Cannot submit.");
 
+  const late = isGoalDeadlinePassed(cycle, subject);
+  const justification = late
+    ? requireLateJustification(lateJustification)
+    : undefined;
+
   const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => ({
     ...current,
     status: "submitted",
@@ -809,6 +823,7 @@ export function submitPersonGoals(context: GoalMutationContext): GoalsSnapshot {
       cycle.postWindowGoalPolicy === "two_tier_approval"
         ? "manager"
         : undefined,
+    lateJustification: justification,
     sendBackReason: undefined,
     sendBackBy: undefined,
   }));
@@ -944,6 +959,13 @@ export function updateGoalProgress(
     actor,
     subject,
     changedGoalCount,
+  });
+  notifyGoalCommentMentions({
+    snapshot: next,
+    actor,
+    subject,
+    previousGoals: row.goals,
+    nextGoals: goals,
   });
   return next;
 }

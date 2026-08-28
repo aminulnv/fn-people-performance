@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { Send } from 'lucide-react'
-import { ConfirmDialog, Tooltip } from '@/components/ui'
+import { Button, ConfirmDialog, Modal, Textarea, Tooltip } from '@/components/ui'
 import type { SubmissionStatus } from '@/lib/goals/types'
 import {
   submitHoverHints,
@@ -34,6 +34,8 @@ export function GoalSubmitAllButton({
   reasons,
   blockers,
   warning,
+  requiresLateJustification = false,
+  initialLateJustification = '',
   onSubmit,
 }: {
   status: SubmissionStatus
@@ -41,9 +43,12 @@ export function GoalSubmitAllButton({
   reasons?: string[]
   blockers?: SubmitGoalBlocker[]
   warning?: string | null
-  onSubmit: () => void
+  requiresLateJustification?: boolean
+  initialLateJustification?: string
+  onSubmit: (lateJustification?: string) => void
 }) {
-  const [warningOpen, setWarningOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [justification, setJustification] = useState(initialLateJustification)
   const hintId = useId()
   const hints = blockers
     ? submitHoverHints(blockers)
@@ -52,13 +57,23 @@ export function GoalSubmitAllButton({
   const isResubmit = status === 'sent_back'
   const actionLabel = isResubmit ? 'Resubmit All' : 'Submit All'
   const disabled = busy || Boolean(blocked)
+  const needsDialog = Boolean(warning) || requiresLateJustification
+  const canConfirmLate = justification.trim().length > 0
+
+  const closeDialog = () => setDialogOpen(false)
 
   const requestSubmit = () => {
-    if (warning) {
-      setWarningOpen(true)
+    if (needsDialog) {
+      setJustification(initialLateJustification)
+      setDialogOpen(true)
       return
     }
     onSubmit()
+  }
+
+  const confirmSubmit = (lateJustification?: string) => {
+    closeDialog()
+    onSubmit(lateJustification)
   }
 
   const button = (
@@ -96,18 +111,51 @@ export function GoalSubmitAllButton({
       ) : (
         button
       )}
-      <ConfirmDialog
-        open={warningOpen}
-        title={`${isResubmit ? 'Resubmit' : 'Submit'} these goals?`}
-        description={warning ?? undefined}
-        confirmLabel={isResubmit ? 'Resubmit Anyway' : 'Submit Anyway'}
-        cancelLabel="Review Goals"
-        onClose={() => setWarningOpen(false)}
-        onConfirm={() => {
-          setWarningOpen(false)
-          onSubmit()
-        }}
-      />
+      {requiresLateJustification ? (
+        <Modal
+          open={dialogOpen}
+          onClose={closeDialog}
+          title={`${isResubmit ? 'Resubmit' : 'Submit'} after the deadline?`}
+          description={
+            warning
+              ? `${warning} These goals are past the deadline. Explain why they are late — your manager and skip-level manager will see this.`
+              : 'These goals are past the deadline. Explain why they are late — your manager and skip-level manager will see this.'
+          }
+          actions={
+            <>
+              <Button variant="secondary" onClick={closeDialog}>
+                Review Goals
+              </Button>
+              <Button
+                variant="primary"
+                disabled={!canConfirmLate}
+                onClick={() => confirmSubmit(justification.trim())}
+              >
+                {isResubmit ? 'Resubmit Late Goals' : 'Submit Late Goals'}
+              </Button>
+            </>
+          }
+        >
+          <Textarea
+            label="Why are these goals late?"
+            value={justification}
+            onChange={(event) => setJustification(event.target.value)}
+            placeholder="For example, I was on leave until last week"
+            rows={3}
+            required
+          />
+        </Modal>
+      ) : (
+        <ConfirmDialog
+          open={dialogOpen}
+          title={`${isResubmit ? 'Resubmit' : 'Submit'} these goals?`}
+          description={warning ?? undefined}
+          confirmLabel={isResubmit ? 'Resubmit Anyway' : 'Submit Anyway'}
+          cancelLabel="Review Goals"
+          onClose={closeDialog}
+          onConfirm={() => confirmSubmit()}
+        />
+      )}
     </>
   )
 }

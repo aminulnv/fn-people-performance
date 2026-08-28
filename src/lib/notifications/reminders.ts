@@ -1,3 +1,4 @@
+import { datePart } from '@/lib/dates/timestamp'
 import { managerLineRecipientIds } from '@/lib/delegations/roles'
 import {
   getGoalsSnapshot,
@@ -24,7 +25,7 @@ const GOAL_REMINDER_POINTS: ReminderPoint[] = [
 ]
 
 function parseDate(value: string): Date {
-  return new Date(`${value}T12:00:00.000Z`)
+  return new Date(`${datePart(value)}T12:00:00.000Z`)
 }
 
 function dateKey(value: Date): string {
@@ -100,12 +101,15 @@ function evaluateEmployeeGoalReminders(
   const snapshot = getGoalsSnapshot()
   const employee = snapshot.people.find((person) => person.id === recipientId)
   const baseWindow = cycle.goalWindow
-  if (!baseWindow || today < baseWindow.startDate) return
+  const windowStart = datePart(baseWindow?.startDate)
+  if (!baseWindow || !windowStart || today < windowStart) return
   const window = {
-    ...baseWindow,
-    endDate: employee
-      ? (resolveGoalDeadline(cycle, employee) ?? baseWindow.endDate)
-      : baseWindow.endDate,
+    startDate: windowStart,
+    endDate: datePart(
+      employee
+        ? (resolveGoalDeadline(cycle, employee) ?? baseWindow.endDate)
+        : baseWindow.endDate,
+    ),
   }
   const destination = goalDestination(cycle.id, recipientId)
   const isPending = row.status === 'draft' || row.status === 'sent_back'
@@ -189,8 +193,9 @@ function evaluateResultsReminder(
   today: string,
 ): void {
   const reviewCycle = listReviewCycles().find((item) => item.id === cycle.id)
-  if (!reviewCycle || today > reviewCycle.endDate) return
-  const reminderStart = addDays(reviewCycle.endDate, -14)
+  const cycleEnd = reviewCycle ? datePart(reviewCycle.endDate) : ''
+  if (!reviewCycle || !cycleEnd || today > cycleEnd) return
+  const reminderStart = addDays(cycleEnd, -14)
   if (today < reminderStart) return
   if (row.status !== 'approved' && row.status !== 'submitted') return
 
@@ -264,7 +269,7 @@ export function evaluateNotificationReminders(
     const snapshot = getGoalsSnapshotForCycle(cycle.id)
     const person = snapshot.people.find((item) => item.id === recipientId)
     const row = snapshot.byPerson[recipientId]
-    if (!person || !row || person.joinDate > cycle.day1) continue
+    if (!person || !row || person.joinDate > datePart(cycle.day1)) continue
     evaluateEmployeeGoalReminders(cycle, row, recipientId, today)
     evaluateResultsReminder(cycle, row, recipientId, today)
     evaluateManagerSummary(cycle, recipientId)

@@ -1,3 +1,4 @@
+import { datePart } from '@/lib/dates/timestamp'
 import { listEmployees } from '@/lib/employees/store'
 import { buildScorecardsForCycle } from '@/lib/reviews/scorecards'
 import { listReviewCycles } from '@/lib/reviews/store'
@@ -10,7 +11,7 @@ function dateKey(value: Date): string {
 }
 
 function parseDate(value: string): Date {
-  return new Date(`${value}T12:00:00.000Z`)
+  return new Date(`${datePart(value)}T12:00:00.000Z`)
 }
 
 function daysBetween(from: string, to: string): number {
@@ -38,8 +39,9 @@ export function evaluateReviewNotifications(
   const employees = listEmployees()
 
   for (const cycle of listReviewCycles()) {
-    const managerStart = cycle.stagesConfig.performance.managerStart.date
-    const managerEnd = cycle.stagesConfig.performance.managerEnd.date
+    const managerStart = datePart(cycle.stagesConfig.performance.managerStart.date)
+    const managerEnd = datePart(cycle.stagesConfig.performance.managerEnd.date)
+    if (!managerStart || !managerEnd) continue
     const rows = buildScorecardsForCycle(cycle.id, employees, recipient.email)
     const managed = rows.filter((row) => row.reviewerId === employeeId)
     const assigned = managed.filter((row) => row.status !== 'completed')

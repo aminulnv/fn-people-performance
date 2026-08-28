@@ -48,7 +48,6 @@ import {
   removeGoalKeepingWeights,
   selectGoalCycle,
   submitBlockersForGoal,
-  isMeasureGoalIssue,
   submitIssueForGoal,
   submitSetBlockers,
   sumGoalWeights,
@@ -115,13 +114,9 @@ import {
   GoalProgressAge,
   GoalsTable,
   MeasureNameCell,
-  MetricsCountBadge,
 } from "./goals/GoalsTable";
 import { GoalMeasureLogHover } from "./goals/GoalMeasureLogHover";
-import {
-  GoalMeasureReadout,
-  formatWeightReadout,
-} from "./goals/GoalMeasurementReadout";
+import { formatWeightReadout } from "./goals/GoalMeasurementReadout";
 import {
   measurePanelLatestProgressAt,
   measurePanelName,
@@ -304,7 +299,6 @@ const GOALS_COLUMNS: ResizableColumn[] = [
   { id: "goals", label: "Goals", grow: true },
   { id: "weight", label: "Weight" },
   { id: "progress", label: "Progress" },
-  { id: "metric", label: "Metrics" },
   { id: "approval", label: "Approval" },
 ];
 
@@ -1257,12 +1251,7 @@ function GoalsOverview() {
                 {tableRows.map((row) => {
                   const expandKey = goalExpandKey(row);
                   const panels = measurementPanels(row.measurements);
-                  const metricsIssue =
-                    row.issue && isMeasureGoalIssue(row.issue)
-                      ? row.issue
-                      : undefined;
-                  const titleIssue =
-                    row.issue && !metricsIssue ? row.issue : undefined;
+                  const titleIssue = row.issue;
                   const isOpen = expandedIds.has(expandKey);
                   const isGoalSelected =
                     panelSelection?.cycleId === row.cycleId &&
@@ -1445,23 +1434,6 @@ function GoalsOverview() {
                             <Progress value={row.completion} />
                           </div>
                         </td>
-                        <td
-                          data-col="metric"
-                          className={
-                            metricsIssue
-                              ? "pd-goals-overview__metric pd-goals-overview__metric--error"
-                              : "pd-goals-overview__metric"
-                          }
-                        >
-                          <span className="pd-goals-table__metric-cluster">
-                            {metricsIssue ? (
-                              <GoalIssueIcon issue={metricsIssue} />
-                            ) : null}
-                            {row.metricCount > 0 ? (
-                              <MetricsCountBadge count={row.metricCount} />
-                            ) : null}
-                          </span>
-                        </td>
                         <td data-col="approval">
                           <GoalApprovalStatus
                             status={row.status}
@@ -1573,13 +1545,6 @@ function GoalsOverview() {
                                     </span>
                                   </div>
                                   <Progress value={measureProgress} />
-                                </div>
-                              </td>
-                              <td data-col="metric">
-                                <div className="pd-goals-table__metric">
-                                  <div className="pd-goals-table__metric-line">
-                                    <GoalMeasureReadout panel={panel} />
-                                  </div>
                                 </div>
                               </td>
                               <td data-col="approval" />
@@ -2075,7 +2040,9 @@ export function GoalsPersonDetail({
       onUnlinkCascadeTo={(goalId, child) =>
         actions.unlinkCascadeTo(active.id, goalId, child)
       }
-      onSubmit={(goals) => actions.saveAndSubmit(active.id, goals)}
+      onSubmit={(goals, lateJustification) =>
+        actions.saveAndSubmit(active.id, goals, lateJustification)
+      }
     />
   );
 
@@ -2540,6 +2507,7 @@ function ManagerPanel({
             postWindowApprovalStage={row.postWindowApprovalStage}
             allowLateSubmissions={allowLateSubmissions}
             deadlineMissedAt={resolveGoalDeadline(snapshot.cycle, person)}
+            lateJustification={row.lateJustification}
             lineManager={reportApprovers.lineManager}
             skipLevelManager={reportApprovers.skipLevelManager}
             goalCount={row.goals.length}
@@ -2738,7 +2706,7 @@ function EmployeePanel({
     goalId: string,
     child: { personId: string; goalId: string },
   ) => Promise<void>;
-  onSubmit: (goals: Goal[]) => Promise<boolean>;
+  onSubmit: (goals: Goal[], lateJustification?: string) => Promise<boolean>;
 }) {
   const { goals, setGoals, creatingIds, startCreating, stopCreating } =
     useGoalDraftState({
@@ -3111,12 +3079,14 @@ function EmployeePanel({
             busy={busy}
             blockers={submitCheck.blockers}
             warning={submitCheck.warning}
-            onSubmit={() => {
+            requiresLateJustification={allowLateSubmissions}
+            initialLateJustification={row.lateJustification ?? ""}
+            onSubmit={(lateJustification) => {
               const message =
                 row.status === "sent_back"
                   ? "Goals resubmitted."
                   : "Goals submitted.";
-              void onSubmit(goals).then((ok) => {
+              void onSubmit(goals, lateJustification).then((ok) => {
                 if (!ok) return;
                 showSuccessToast(message);
               });
@@ -3413,6 +3383,7 @@ function EmployeePanel({
           perspective="owner"
           allowLateSubmissions={allowLateSubmissions}
           deadlineMissedAt={deadlineMissedAt}
+          lateJustification={row.lateJustification}
           lineManager={cascadeApprovers(cascadeFrom).lineManager}
           skipLevelManager={cascadeApprovers(cascadeFrom).skipLevelManager}
           goalCount={goals.length}

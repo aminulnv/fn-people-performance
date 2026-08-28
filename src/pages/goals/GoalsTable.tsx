@@ -30,7 +30,7 @@ import { GoalMeasureLogHover } from '@/pages/goals/GoalMeasureLogHover'
 import { MeasureProofReadout } from '@/pages/goals/MeasureProofFields'
 import { MeasureKindIcon } from '@/pages/goals/MeasureKindIcon'
 import {
-  GoalMeasureReadout,
+  GoalMeasureGlance,
   WeightHoverField,
   formatWeightReadout,
 } from '@/pages/goals/GoalMeasurementReadout'
@@ -199,8 +199,8 @@ export function MeasureNameCell({
     panel.kind === 'metric'
       ? panel.metric
       : todoMeasureItems(panel).find((todo) =>
-          proofParts(todo.proofUrl, todo.comment).hasProof,
-        )
+        proofParts(todo.proofUrl, todo.comment).hasProof,
+      )
   const proofUrl = proofSource?.proofUrl
 
   return (
@@ -209,9 +209,16 @@ export function MeasureNameCell({
       <MeasureKindIcon
         kind={panel.kind === 'metric' ? 'metric' : 'milestone'}
       />
-      <span className="pd-goals-table__measure-name" title={name}>
-        {name}
-      </span>
+      <Tooltip
+        className="pd-goals-table__measure-name-tip"
+        side="left"
+        portal
+        interactive
+        delayMs={80}
+        content={<GoalMeasureGlance panel={panel} />}
+      >
+        <span className="pd-goals-table__measure-name">{name}</span>
+      </Tooltip>
       {proofParts(proofUrl).href ? (
         <MeasureProofReadout proofUrl={proofUrl} />
       ) : null}
@@ -225,7 +232,7 @@ export type GoalsTableRow = {
   title: string
   /** Set only when the table spans several people, e.g. a manager's reports. */
   owner?: { id: string; name: string; avatarUrl?: string }
-  /** Submit blocker for this goal — title issues sit on the name, measure issues in Metrics. */
+  /** Submit blocker for this goal — shown on the goal name. */
   issue?: string
 }
 
@@ -249,18 +256,6 @@ export function GoalIssueIcon({
       </span>
     </Tooltip>
   )
-}
-
-function metricsColumnIssue(rows: GoalsTableRow[]): string | null {
-  const labels = [
-    ...new Set(
-      rows.flatMap((row) => {
-        if (!row.issue || !isMeasureGoalIssue(row.issue)) return []
-        return [measureIssueLabel(row.issue)]
-      }),
-    ),
-  ]
-  return labels.length > 0 ? labels.join(' ') : null
 }
 
 export function GoalsTable({
@@ -347,8 +342,6 @@ export function GoalsTable({
         ? 'over'
         : 'short'
   const weightError = Boolean(weightIssue)
-  const metricsHeadIssue = metricsColumnIssue(rows)
-  const metricsError = Boolean(metricsHeadIssue)
   const statusChip = status
     ? batchStatusLabel(status, rows.length, postWindowApprovalStage)
     : null
@@ -395,8 +388,7 @@ export function GoalsTable({
   const table = (
     <div
       className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${showActions ? ' pd-goals-table--with-actions' : ''
-        }${weightError ? ' pd-goals-table--weight-error' : ''}${metricsError ? ' pd-goals-table--metric-error' : ''
-        }`}
+        }${weightError ? ' pd-goals-table--weight-error' : ''}`}
       role="table"
       aria-label={label}
     >
@@ -459,20 +451,6 @@ export function GoalsTable({
         <div className="pd-goals-table__progress-head" role="columnheader">
           Progress
         </div>
-        <div
-          className={`pd-goals-table__metric-head${metricsError ? ' pd-goals-table__metric-head--error' : ''
-            }`}
-          role="columnheader"
-          aria-label="Metrics"
-        >
-          Metrics
-          {metricsHeadIssue ? (
-            <GoalIssueIcon
-              issue={metricsHeadIssue}
-              className="pd-goals-table__metric-error-icon"
-            />
-          ) : null}
-        </div>
         {showActions ? (
           <div className="pd-goals-table__actions-head" role="columnheader">
             <span className="pd-sr-only">Actions</span>
@@ -480,8 +458,7 @@ export function GoalsTable({
         ) : null}
       </div>
       {rows.map(({ goal, title, owner, issue }) => {
-        const metricsIssue = issue && isMeasureGoalIssue(issue) ? issue : undefined
-        const titleIssue = issue && !metricsIssue ? issue : undefined
+        const titleIssue = issue
         const completion = Math.round(goalCompletion(goal))
         const openGoal = () => {
           setSelectedMeasureKey(null)
@@ -607,21 +584,6 @@ export function GoalsTable({
                   </span>
                 </div>
                 <Progress value={completion} />
-              </div>
-              <div
-                className={
-                  metricsIssue
-                    ? 'pd-goals-table__metric pd-goals-table__metric--error'
-                    : 'pd-goals-table__metric'
-                }
-                role="cell"
-              >
-                <span className="pd-goals-table__metric-cluster">
-                  {metricsIssue ? <GoalIssueIcon issue={metricsIssue} /> : null}
-                  {panels.length > 0 ? (
-                    <MetricsCountBadge count={panels.length} />
-                  ) : null}
-                </span>
               </div>
               {showActions ? (
                 <div
@@ -779,11 +741,6 @@ export function GoalsTable({
                         </span>
                       </div>
                       <Progress value={measureProgress} />
-                    </div>
-                    <div className="pd-goals-table__metric" role="cell">
-                      <div className="pd-goals-table__metric-line">
-                        <GoalMeasureReadout panel={panel} />
-                      </div>
                     </div>
                     {showActions ? (
                       <div className="pd-goals-table__actions" role="cell" />

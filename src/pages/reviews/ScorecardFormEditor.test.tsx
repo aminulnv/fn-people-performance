@@ -148,7 +148,7 @@ describe('ScorecardFormEditor', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('switch', { name: 'Leadership' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Leadership Capabilities' }))
     expect(
       onChange.mock.calls[0]?.[0].scorecard.pillars.find(
         (pillar: { id: string }) => pillar.id === 'leadership',

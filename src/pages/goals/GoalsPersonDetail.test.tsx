@@ -527,6 +527,15 @@ function signInReport() {
 }
 
 describe('GoalsPersonDetail submission status', () => {
+  beforeAll(() => {
+    HTMLDialogElement.prototype.showModal = function showModal() {
+      this.setAttribute('open', '')
+    }
+    HTMLDialogElement.prototype.close = function close() {
+      this.removeAttribute('open')
+    }
+  })
+
   beforeEach(async () => {
     localStorage.clear()
     sessionStorage.clear()
@@ -633,16 +642,27 @@ describe('GoalsPersonDetail submission status', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Submit All' }))
 
+    expect(screen.getByRole('dialog')).toHaveTextContent(
+      'Submit after the deadline?',
+    )
+    fireEvent.change(screen.getByLabelText('Why are these goals late?'), {
+      target: { value: 'I was on leave until last week.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Late Goals' }))
+
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
     expect(notice).toHaveTextContent('Goals submitted.')
+    expect(screen.getByLabelText('Late Submission')).toHaveTextContent(
+      'I was on leave until last week.',
+    )
     expect(screen.getByRole('button', { name: 'Got It' })).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: 'Submit All' }),
     ).not.toBeInTheDocument()
   })
 
-  it('shows Action Required on the card and a measure error in Metrics', async () => {
+  it('shows Action Required on the card and a measure error on the goal title', async () => {
     const snapshot = getGoalsSnapshot()
     savePersonGoals(
       {
@@ -677,16 +697,11 @@ describe('GoalsPersonDetail submission status', () => {
     expect(
       screen.getByRole('button', { name: 'Add Another Goal' }),
     ).toBeInTheDocument()
-    const metricIcons = screen.getAllByRole('img', {
+    const metricIcon = screen.getByRole('img', {
       name: 'Still needs a metric.',
     })
-    expect(metricIcons.length).toBeGreaterThanOrEqual(2)
-    expect(
-      metricIcons.some((icon) => icon.closest('.pd-goals-table__metric-head')),
-    ).toBe(true)
-    expect(
-      metricIcons.some((icon) => icon.closest('.pd-goals-table__metric')),
-    ).toBe(true)
+    expect(metricIcon.closest('.pd-goals-table__title')).toBeTruthy()
+    expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
 
     const submit = screen.getByRole('button', { name: 'Submit All' })
     expect(submit).toBeDisabled()

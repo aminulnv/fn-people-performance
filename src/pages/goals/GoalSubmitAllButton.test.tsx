@@ -108,4 +108,32 @@ describe('GoalSubmitAllButton', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit Anyway' }))
     expect(onSubmit).toHaveBeenCalledTimes(1)
   })
+
+  it('requires a justification when submitting after the deadline', () => {
+    const onSubmit = vi.fn()
+    render(
+      <GoalSubmitAllButton
+        status="draft"
+        busy={false}
+        blockers={[]}
+        requiresLateJustification
+        onSubmit={onSubmit}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit All' }))
+
+    expect(onSubmit).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('Submit after the deadline?')
+    expect(screen.getByRole('button', { name: 'Submit Late Goals' })).toBeDisabled()
+
+    fireEvent.change(screen.getByLabelText('Why are these goals late?'), {
+      target: { value: 'I was on leave until last week.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Late Goals' }))
+
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onSubmit).toHaveBeenCalledWith('I was on leave until last week.')
+  })
 })

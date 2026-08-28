@@ -7,27 +7,46 @@ import {
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Copy, Search } from "lucide-react";
-import { Avatar, Tooltip } from "@/components/ui";
+import { Avatar, SegmentedControl, Tooltip } from "@/components/ui";
 import { ApiError } from "@/lib/apiClient";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { useEmployees } from "@/lib/employees/useEmployees";
+import {
+  OKR_GOAL_DRAG_TYPE,
+  okrGoalDropPayload,
+} from "@/lib/okr/applyToGoal";
 import { fetchEmployeeOkrs } from "@/lib/okr/performance";
 import { queryKeys } from "@/lib/queryClient";
 import {
   formatOkrMeasure,
   formatOkrRole,
+  formatOkrTrackingKind,
   okrStatusTone,
+  okrTrackingKind,
   raciSearchText,
   resolveRaciParty,
   type OkrDirectoryPerson,
   type OkrLastCheckIn,
   type OkrRaci,
   type OkrRaciParty,
+  type OkrReferenceLevel,
   type OkrReferenceScope,
   type OkrWindowData,
   type OkrWorkItem,
   type ResolvedOkrRaciParty,
 } from "@/lib/okr/reference";
+
+type OkrLevelTab = OkrReferenceLevel | "all";
+
+const LEVEL_TABS = [
+  { id: "company", label: "Company" },
+  { id: "department", label: "Department" },
+  { id: "wing", label: "Wings" },
+  { id: "all", label: "All" },
+] as const satisfies ReadonlyArray<{
+  id: OkrLevelTab;
+  label: string;
+}>;
 
 const RACI_ROWS = [
   { key: "accountable", letter: "A", label: "Accountable" },
@@ -50,6 +69,7 @@ function matchesQuery(
     item.ownerLabel,
     item.statusLabel,
     item.quarterLabel,
+    formatOkrTrackingKind(okrTrackingKind(item)),
     ...item.roles,
     raciSearchText(item.raci),
     directoryNames,
@@ -175,6 +195,15 @@ function OkrRaciList({
   );
 }
 
+function TrackingKindChip({ item }: { item: OkrWorkItem }) {
+  const kind = okrTrackingKind(item);
+  return (
+    <span className={`pd-okr-ref__type pd-okr-ref__type--${kind}`}>
+      {formatOkrTrackingKind(kind)}
+    </span>
+  );
+}
+
 function RoleChip({
   role,
   viewer,
@@ -219,7 +248,10 @@ function OkrWorkDetail({
   return (
     <div className="pd-okr-ref__detail">
       <header className="pd-okr-ref__detail-head">
-        <p className="pd-okr-ref__detail-kind">{kindLabel}</p>
+        <p className="pd-okr-ref__detail-kind">
+          {kindLabel}
+          <TrackingKindChip item={item} />
+        </p>
         <h3>{item.shortTitle}</h3>
         {item.description ? (
           <p className="pd-okr-ref__detail-desc">{item.description}</p>
@@ -323,6 +355,11 @@ function CopyOkrTitle({ title }: { title: string }) {
       }}
       aria-label={copied ? "Copied" : `Copy ${title}`}
       title={copied ? "Copied" : "Copy Title"}
+      draggable={false}
+      onDragStart={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
     >
       {copied ? (
         <Check size={13} strokeWidth={2.25} aria-hidden />
@@ -356,17 +393,26 @@ function WorkItem({
         <OkrWorkDetail item={item} directory={directory} viewer={viewer} />
       }
     >
-      <div className="pd-okr-ref__item">
+      <div
+        className="pd-okr-ref__item"
+        draggable
+        onDragStart={(event) => {
+          event.dataTransfer.setData(
+            OKR_GOAL_DRAG_TYPE,
+            JSON.stringify(okrGoalDropPayload(item)),
+          );
+          event.dataTransfer.setData("text/plain", item.shortTitle);
+          event.dataTransfer.effectAllowed = "copy";
+        }}
+      >
         <div className="pd-okr-ref__item-head">
           <span className="pd-okr-ref__item-copy">
             <span className="pd-okr-ref__title">
               <strong>{item.shortTitle}</strong>
               <CopyOkrTitle title={item.shortTitle} />
             </span>
-            {item.description ? (
-              <small className="pd-okr-ref__desc">{item.description}</small>
-            ) : null}
             <span className="pd-okr-ref__meta">
+              <TrackingKindChip item={item} />
               <RoleChip role={role} viewer={viewer} />
               {hasRaci ? <span className="pd-okr-ref__raci-trigger">RACI</span> : null}
             </span>
@@ -463,6 +509,7 @@ export function GoalOkrReferenceList({
   window?: OkrWindowData;
 }) {
   const [query, setQuery] = useState("");
+  const [level, setLevel] = useState<OkrLevelTab>("company");
   const lookupId = employeeId && employeeId > 0 ? employeeId : 0;
   const { employees } = useEmployees();
   const directory = employees;
@@ -489,10 +536,12 @@ export function GoalOkrReferenceList({
   const items = window?.items ?? [];
   const filtered = useMemo(
     () =>
-      items.filter((item) =>
-        matchesQuery(item, query, directoryForRaci(item.raci, directory)),
+      items.filter(
+        (item) =>
+          (level === "all" || item.level === level) &&
+          matchesQuery(item, query, directoryForRaci(item.raci, directory)),
       ),
-    [directory, items, query],
+    [directory, items, level, query],
   );
   const keyResults = filtered.filter((item) => item.kind === "key_result");
   const specialProjects = filtered.filter(
@@ -518,6 +567,14 @@ export function GoalOkrReferenceList({
 
   return (
     <div className="pd-okr-ref__content">
+      <SegmentedControl
+        className="pd-okr-ref__levels"
+        aria-label="OKR level"
+        value={level}
+        onChange={setLevel}
+        options={LEVEL_TABS}
+      />
+
       <label className="pd-okr-ref__search">
         <span className="pd-sr-only">Search reference OKRs</span>
         <Search size={14} strokeWidth={2} aria-hidden />

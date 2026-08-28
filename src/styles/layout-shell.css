@@ -863,8 +863,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   flex-shrink: 0;
 }
 
-.pd-topbar__breadcrumbs
-  .pd-breadcrumbs__item:not(:first-child):not(:last-child) {
+.pd-topbar__breadcrumbs .pd-breadcrumbs__item:not(:first-child):not(:last-child) {
   flex-shrink: 1000;
 }
 
@@ -1473,7 +1472,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   flex-direction: column;
 }
 
-.pd-app-main > .pd-page.pd-page--status {
+.pd-app-main>.pd-page.pd-page--status {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;

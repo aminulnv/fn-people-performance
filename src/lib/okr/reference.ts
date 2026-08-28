@@ -257,6 +257,20 @@ export function formatOkrRole(role: string): string {
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+export type OkrTrackingKind = "milestone" | "numeric";
+
+export function okrTrackingKind(item: {
+  milestones: Array<{ title: string }>;
+}): OkrTrackingKind {
+  return item.milestones.some((milestone) => milestone.title.trim())
+    ? "milestone"
+    : "numeric";
+}
+
+export function formatOkrTrackingKind(kind: OkrTrackingKind): string {
+  return kind === "milestone" ? "Milestone" : "Numeric";
+}
+
 export function okrStatusTone(
   status?: string,
 ): "ok" | "warn" | "danger" | "muted" {

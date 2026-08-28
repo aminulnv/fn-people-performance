@@ -324,6 +324,7 @@ export function replaceGoalComment(
   goalId: string,
   commentId: string,
   text: string,
+  mentionedIds?: string[],
 ): Goal[] {
   const trimmed = text.trim()
   return goals.map((goal) => {
@@ -331,7 +332,13 @@ export function replaceGoalComment(
     return touchGoalComments(
       goal,
       (goal.comments ?? []).map((comment) =>
-        comment.id === commentId ? { ...comment, text: trimmed } : comment,
+        comment.id === commentId
+          ? {
+              ...comment,
+              text: trimmed,
+              ...(mentionedIds ? { mentionedIds } : {}),
+            }
+          : comment,
       ),
     )
   })

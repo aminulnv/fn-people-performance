@@ -17,6 +17,9 @@ describe("MeasureProofFields", () => {
     fireEvent.click(addButton)
     expect(screen.getByLabelText("Proof link for NPS")).toBeInTheDocument()
     expect(screen.queryByText("Saved")).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole("link", { name: "Open proof for NPS in a new tab" }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByLabelText("Proof note for NPS")).not.toBeInTheDocument()
   })
 
@@ -35,6 +38,12 @@ describe("MeasureProofFields", () => {
     expect(trigger).toHaveClass("is-linked")
     expect(screen.getByText("Saved")).toBeInTheDocument()
     expect(screen.queryByRole("link", { name: /dash.fn\/nps/ })).not.toBeInTheDocument()
+    const openLink = screen.getByRole("link", {
+      name: "Open proof for NPS in a new tab",
+    })
+    expect(openLink).toHaveAttribute("href", "https://dash.fn/nps")
+    expect(openLink).toHaveAttribute("target", "_blank")
+    expect(openLink).toHaveAttribute("rel", "noopener noreferrer")
     expect(screen.getByLabelText("Proof link for NPS")).toHaveValue(
       "https://dash.fn/nps",
     )

@@ -753,6 +753,66 @@ describe('GoalDetailView', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('links tagged people inside a comment', () => {
+    renderView(
+      <GoalDetailView
+        goal={{
+          ...goal,
+          comments: [
+            {
+              id: 'c1',
+              authorId: '1',
+              authorName: 'Aminul',
+              text: 'Hey @[Line Manager](2), please review',
+              createdAt: '2026-08-01T00:00:00.000Z',
+            },
+          ],
+        }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        commentAuthors={[{ id: '2', name: 'Line Manager' }]}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByRole('link', { name: '@Line Manager' }),
+    ).toHaveAttribute('href', '/people/2')
+  })
+
+  it('lets a commenter tag someone from the @ list', () => {
+    const onAddComment = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        commentAuthorId="1"
+        commentAuthors={[
+          { id: '2', name: 'Line Manager', title: 'Manager' },
+          { id: '3', name: 'HR Partner' },
+        ]}
+        canUpdateProgress
+        onChange={vi.fn()}
+        onAddComment={onAddComment}
+      />,
+    )
+
+    const field = screen.getByLabelText('Add Comment')
+    fireEvent.change(field, { target: { value: '@Lin' } })
+    expect(screen.getByRole('option', { name: /Line Manager/ })).toBeInTheDocument()
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(field).toHaveValue('@[Line Manager](2) ')
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(onAddComment).toHaveBeenCalledWith('@[Line Manager](2)')
+  })
+
   it('does not keep a toolbar cascade action once create lives in cascading to', () => {
     renderView(
       <GoalDetailView
@@ -995,18 +1055,18 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    fireEvent.mouseEnter(
-      screen.getByLabelText('Current 2 of target 6').closest('.pd-tooltip')!,
-    )
+    fireEvent.mouseEnter(screen.getByRole('heading', { name: 'NPS' }).closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Increase metric')
-    expect(tip).toHaveTextContent('Initial value')
+    expect(tip).toHaveTextContent('NPS')
+    expect(tip).toHaveTextContent('Initial')
     expect(tip).toHaveTextContent('0')
-    expect(tip).toHaveTextContent('Current value')
+    expect(tip).toHaveTextContent('Current')
     expect(tip).toHaveTextContent('2')
-    expect(tip).toHaveTextContent('Target value')
+    expect(tip).toHaveTextContent('Target')
     expect(tip).toHaveTextContent('6')
     expect(tip).toHaveTextContent('Number')
+    expect(tip).toHaveTextContent('4 to go')
   })
 
   it('shows timestamped progress updates and logs a new current value', () => {
@@ -1515,6 +1575,80 @@ describe('GoalDetailView', () => {
     expect(
       screen.queryByRole('button', { name: 'Add Cascading To' }),
     ).toBeNull()
+  })
+
+  it('fills title, description, and metric when a key result is dropped', () => {
+    const onSave = vi.fn()
+    renderView(
+      <GoalDetailView
+        isNew
+        canEdit
+        manualSave
+        goal={{
+          id: 'goal-new',
+          description: '',
+          weight: 0,
+          measurements: [],
+        }}
+        index={0}
+        owner={{ name: 'Aminul' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+        onSave={onSave}
+      />,
+    )
+
+    const store: Record<string, string> = {}
+    const dataTransfer = {
+      dropEffect: 'none',
+      effectAllowed: 'copy',
+      types: ['application/x-okr-goal-fill'],
+      setData(type: string, value: string) {
+        store[type] = value
+      },
+      getData(type: string) {
+        return store[type] ?? ''
+      },
+    } as DataTransfer
+    dataTransfer.setData(
+      'application/x-okr-goal-fill',
+      JSON.stringify({
+        title: 'Build Performance Platform Phase 1',
+        description: 'Q3 Build, Q4 Testing, Q1 2027 Launch',
+        unit: '%',
+        currentValue: 20,
+        targetValue: 100,
+        progressPercent: 20,
+      }),
+    )
+
+    const form = screen.getByLabelText('Add Goal')
+    fireEvent.dragOver(form, { dataTransfer })
+    fireEvent.drop(form, { dataTransfer })
+
+    expect(screen.getByPlaceholderText('Name this goal')).toHaveValue(
+      'Build Performance Platform Phase 1',
+    )
+    expect(screen.getByLabelText('Description')).toHaveValue(
+      'Q3 Build, Q4 Testing, Q1 2027 Launch',
+    )
+    expect(onSave).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Build Performance Platform Phase 1',
+        details: 'Q3 Build, Q4 Testing, Q1 2027 Launch',
+        measurements: [
+          expect.objectContaining({
+            kind: 'metric',
+            title: 'Build Performance Platform Phase 1',
+            unit: '%',
+            currentValue: 20,
+            targetValue: 100,
+          }),
+        ],
+      }),
+    )
   })
 
   it('highlights the measure card that opened the window', () => {

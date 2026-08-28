@@ -157,6 +157,36 @@ describe('ReportGoalsCard', () => {
     ).toHaveTextContent('Approve')
   })
 
+  it('shows the employee late justification on the late banner', () => {
+    render(
+      <MemoryRouter>
+        <ReportGoalsCard
+          person={{ name: 'Aminul Islam' }}
+          status="submitted"
+          postWindowApprovalStage="manager"
+          skipLevelManager={{ id: '42', name: 'Nafis' }}
+          goalCount={3}
+          canApprove
+          canSendBack
+          lateJustification="I was on leave until last week."
+          busy={false}
+          sendBackOpen={false}
+          sendBackReason=""
+          onToggleSendBack={vi.fn()}
+          onSendBackReason={vi.fn()}
+          onApprove={vi.fn()}
+          onSendBack={vi.fn()}
+        >
+          <p>Improve delivery quality</p>
+        </ReportGoalsCard>
+      </MemoryRouter>,
+    )
+
+    const banner = screen.getByLabelText('Late Submission')
+    expect(banner).toHaveTextContent('Reason')
+    expect(banner).toHaveTextContent('I was on leave until last week.')
+  })
+
   it('tells the line manager who still owes final approval after they signed off', () => {
     render(
       <MemoryRouter>

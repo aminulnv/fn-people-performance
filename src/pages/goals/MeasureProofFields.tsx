@@ -7,7 +7,7 @@ import {
   type CSSProperties,
 } from "react";
 import { createPortal } from "react-dom";
-import { Link2 } from "lucide-react";
+import { ExternalLink, Link2 } from "lucide-react";
 import { cx } from "@/lib/cx";
 import { proofLinkLabel, proofParts } from "@/lib/goals/proof";
 import {
@@ -166,10 +166,10 @@ export function MeasureProofFields({
   const triggerLabel = hasProof
     ? `Edit proof for ${name}`
     : `Add Proof For ${name}`;
+  const draftHref = proofParts(draft).href;
+  const openHref = draftHref ?? committedHref;
   const showSaved =
-    Boolean(committedHref) &&
-    !isWriting &&
-    proofParts(draft).href === committedHref;
+    Boolean(committedHref) && !isWriting && draftHref === committedHref;
 
   const popover =
     open && canEdit ? (
@@ -191,24 +191,38 @@ export function MeasureProofFields({
             </span>
           ) : null}
         </p>
-        <label className="pd-goal-proof__link-row">
+        <div className="pd-goal-proof__link-row">
           <Link2 size={13} strokeWidth={2} aria-hidden />
-          <span className="pd-sr-only">Proof link for {name}</span>
-          <input
-            type="url"
-            inputMode="url"
-            autoComplete="url"
-            placeholder="https://"
-            value={draft}
-            aria-label={`Proof link for ${name}`}
-            autoFocus
-            onChange={(event) => {
-              setIsWriting(true);
-              setDraft(event.target.value);
-            }}
-            onBlur={(event) => persist(event.target.value)}
-          />
-        </label>
+          <label className="pd-goal-proof__link-field">
+            <span className="pd-sr-only">Proof link for {name}</span>
+            <input
+              type="url"
+              inputMode="url"
+              autoComplete="url"
+              placeholder="https://"
+              value={draft}
+              aria-label={`Proof link for ${name}`}
+              autoFocus
+              onChange={(event) => {
+                setIsWriting(true);
+                setDraft(event.target.value);
+              }}
+              onBlur={(event) => persist(event.target.value)}
+            />
+          </label>
+          {openHref ? (
+            <a
+              className="pd-goal-proof__open-btn"
+              href={openHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={`Open proof for ${name} in a new tab`}
+              onClick={keepRowClickFromOpening}
+            >
+              <ExternalLink size={13} strokeWidth={2} aria-hidden />
+            </a>
+          ) : null}
+        </div>
       </div>
     ) : null;
 

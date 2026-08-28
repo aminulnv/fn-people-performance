@@ -12,6 +12,7 @@ export type RemotePersonSubmission = {
   goals: Goal[]
   version?: number
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
+  lateJustification?: string
   sendBackReason?: string
   sendBackBy?: PersonGoals['sendBackBy']
   approvedBy?: PersonGoals['approvedBy']
@@ -25,6 +26,7 @@ function toPersonGoals(submission: RemotePersonSubmission): PersonGoals {
     goals: submission.goals ?? [],
     version: submission.version ?? 0,
     postWindowApprovalStage: submission.postWindowApprovalStage,
+    lateJustification: submission.lateJustification,
     sendBackReason: submission.sendBackReason,
     sendBackBy: submission.sendBackBy,
     approvedBy: submission.approvedBy,
@@ -61,7 +63,11 @@ export async function savePersonGoalsDraftRemote(
 export async function submitPersonGoalsRemote(
   cycleId: string,
   employeeId: number | string,
-  options: { goals?: Goal[]; expectedVersion: number },
+  options: {
+    goals?: Goal[]
+    expectedVersion: number
+    lateJustification?: string
+  },
 ): Promise<PersonGoals> {
   const response = await apiFetch<{ submission: RemotePersonSubmission }>(
     `/api/platform/goal-cycles/${encodeURIComponent(cycleId)}/people/${encodeURIComponent(String(employeeId))}/submit`,
@@ -70,6 +76,7 @@ export async function submitPersonGoalsRemote(
       body: {
         goals: options.goals,
         expectedVersion: options.expectedVersion,
+        lateJustification: options.lateJustification,
       },
     },
   )

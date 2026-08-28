@@ -54,3 +54,24 @@ export function isGoalWindowOpenForPerson(
       today <= deadline,
   );
 }
+
+export function isGoalDeadlinePassed(
+  cycle: GoalsCycle,
+  person: DemoPerson,
+  today = new Date().toISOString().slice(0, 10),
+): boolean {
+  const deadline = resolveGoalDeadline(cycle, person);
+  return Boolean(deadline && today > deadline);
+}
+
+export function normalizeLateJustification(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function requireLateJustification(value: unknown): string {
+  const justification = normalizeLateJustification(value);
+  if (!justification) {
+    throw new Error("Explain why these goals are late.");
+  }
+  return justification;
+}

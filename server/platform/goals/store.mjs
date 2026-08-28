@@ -744,6 +744,7 @@ function mapSubmission(row, goals, rating) {
     personId: String(row.employee_id),
     status: row.status,
     postWindowApprovalStage: row.post_window_approval_stage ?? undefined,
+    lateJustification: row.late_justification ?? undefined,
     sendBackReason: row.send_back_reason ?? undefined,
     sendBackBy: approvalActorFromRow('send_back_by', row),
     managerNote: row.manager_note ?? undefined,
@@ -1064,11 +1065,19 @@ export async function savePersonGoalsDraft(
   }
 }
 
+function requireLateJustification(value) {
+  const justification = typeof value === 'string' ? value.trim() : ''
+  if (!justification) {
+    throw new HttpError(400, 'Explain why these goals are late.')
+  }
+  return justification
+}
+
 export async function submitPersonGoals(
   cycleId,
   employeeId,
   platformUser,
-  { goals, expectedVersion } = {},
+  { goals, expectedVersion, lateJustification } = {},
 ) {
   const client = await getPool().connect()
   const actor = actorFromUser(platformUser)
@@ -1116,6 +1125,9 @@ export async function submitPersonGoals(
     if (isLate && cycle.post_window_goal_policy === 'hard_stop') {
       throw new HttpError(409, 'The goal submission window is closed.')
     }
+    const justification = isLate
+      ? requireLateJustification(lateJustification)
+      : null
     assertGoalSubmission(submittedGoals, cycle.goal_count_policy)
 
     if (Array.isArray(goals)) {
@@ -1132,6 +1144,7 @@ export async function submitPersonGoals(
       `UPDATE platform.goal_submissions
        SET status = 'submitted',
            post_window_approval_stage = $3,
+           late_justification = $4,
            send_back_reason = NULL,
            send_back_by_employee_id = NULL,
            send_back_by_name = NULL,
@@ -1143,7 +1156,7 @@ export async function submitPersonGoals(
            updated_at = now()
        WHERE cycle_id = $1 AND employee_id = $2
        RETURNING *`,
-      [cycleId, employeeId, approvalStage],
+      [cycleId, employeeId, approvalStage, justification],
     )
     const correlationId = await appendGoalDiffActivity(client, {
       previousGoals,
@@ -1169,8 +1182,16 @@ export async function submitPersonGoals(
           : isLate
             ? 'Submitted goals after the deadline'
             : 'Submitted goals for approval',
-      metadata: { late: isLate },
-      changes: isLate ? [{ field: 'late', from: false, to: true }] : [],
+      metadata: {
+        late: isLate,
+        ...(justification ? { lateJustification: justification } : {}),
+      },
+      changes: isLate
+        ? [
+            { field: 'late', from: false, to: true },
+            { field: 'lateJustification', from: null, to: justification },
+          ]
+        : [],
       source: 'api',
     })
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
