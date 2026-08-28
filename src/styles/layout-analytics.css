@@ -96,7 +96,7 @@
   font-weight: 500;
 }
 
-.pd-analytics__kpi-label > svg {
+.pd-analytics__kpi-label>svg {
   flex: 0 0 auto;
   opacity: 0.85;
 }
@@ -191,11 +191,9 @@
 
 .pd-analytics__attention-link:hover {
   border-color: color-mix(in srgb, var(--color-theme) 34%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--color-theme) 10%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-theme) 10%,
+      var(--color-surface));
 }
 
 .pd-analytics__attention-count {

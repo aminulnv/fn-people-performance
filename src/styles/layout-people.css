@@ -1625,6 +1625,15 @@ a.pd-people__ghost-btn--outline:hover {
   background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
 }
 
+.pd-profile__hero,
+.pd-profile__card,
+.pd-profile__nav-card,
+.pd-profile__placeholder,
+.pd-profile__cover-note,
+.pd-profile__tabs {
+  box-shadow: var(--shadow-card);
+}
+
 .pd-profile__hero-main {
   display: flex;
   align-items: center;

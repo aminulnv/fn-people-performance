@@ -33,6 +33,8 @@ type GoalCycleExtensionsEditorProps = {
   extensions: GoalCycleExtension[];
   baseEndDate: string;
   performanceStartDate: string;
+  /** People already on this group — search and scopes stay inside this set. */
+  memberIds: number[];
   onChange: (extensions: GoalCycleExtension[]) => void;
 };
 
@@ -120,12 +122,21 @@ export function GoalCycleExtensionsEditor({
   extensions,
   baseEndDate,
   performanceStartDate,
+  memberIds,
   onChange,
 }: GoalCycleExtensionsEditorProps) {
   const { employees, organisation } = useOrganisation(undefined, { load: true });
   const activeEmployees = useMemo(
     () => employees.filter((employee) => employee.isActive),
     [employees],
+  );
+  const eligibleIdSet = useMemo(() => new Set(memberIds), [memberIds]);
+  const eligibleEmployees = useMemo(
+    () =>
+      activeEmployees.filter((employee) =>
+        eligibleIdSet.has(employee.employeeId),
+      ),
+    [activeEmployees, eligibleIdSet],
   );
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -166,7 +177,7 @@ export function GoalCycleExtensionsEditor({
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return [];
 
-    const peopleResults: PopulationSearchResult[] = activeEmployees
+    const peopleResults: PopulationSearchResult[] = eligibleEmployees
       .filter(
         (employee) =>
           !selectedEmployeeIds.includes(employee.employeeId) &&
@@ -215,8 +226,11 @@ export function GoalCycleExtensionsEditor({
       .slice(0, RESULT_LIMIT_PER_SECTION);
 
     const departmentResults: PopulationSearchResult[] = organisation.departments
-      .filter((department) =>
-        includesQuery(
+      .filter((department) => {
+        if (!department.memberIds.some((id) => eligibleIdSet.has(id))) {
+          return false;
+        }
+        return includesQuery(
           [
             department.name,
             department.head?.fullName ?? "",
@@ -226,20 +240,20 @@ export function GoalCycleExtensionsEditor({
             ]),
           ],
           normalizedQuery,
-        ),
-      )
+        );
+      })
       .map((department) => ({
         key: `department:${department.id}`,
         section: "Departments" as const,
         label: department.name,
-        description: `${pluralize(department.headcount, "person")} · ${pluralize(
-          department.teams.length,
-          "team",
-        )}`,
+        description: `${pluralize(
+          department.memberIds.filter((id) => eligibleIdSet.has(id)).length,
+          "person",
+        )} in this group · ${pluralize(department.teams.length, "team")}`,
         icon: Building2,
         scope: buildDepartmentScope(
           department,
-          activeEmployees,
+          eligibleEmployees,
           fallbackDepartmentIds,
         ),
         score: nameRelevanceScore(
@@ -258,22 +272,25 @@ export function GoalCycleExtensionsEditor({
       .slice(0, RESULT_LIMIT_PER_SECTION);
 
     const teamResults: PopulationSearchResult[] = organisation.teams
-      .filter((team) =>
-        includesQuery(
+      .filter((team) => {
+        if (!team.memberIds.some((id) => eligibleIdSet.has(id))) {
+          return false;
+        }
+        return includesQuery(
           [team.name, team.departmentName, team.manager?.fullName ?? ""],
           normalizedQuery,
-        ),
-      )
+        );
+      })
       .map((team) => ({
         key: `team:${team.id}`,
         section: "Teams" as const,
         label: team.name,
         description: `${team.departmentName} · ${pluralize(
-          team.headcount,
+          team.memberIds.filter((id) => eligibleIdSet.has(id)).length,
           "person",
-        )}`,
+        )} in this group`,
         icon: UsersRound,
-        scope: buildTeamScope(team, activeEmployees, fallbackTeamIds),
+        scope: buildTeamScope(team, eligibleEmployees, fallbackTeamIds),
         score: nameRelevanceScore(
           team.name,
           [team.departmentName, team.manager?.fullName ?? ""],
@@ -297,7 +314,8 @@ export function GoalCycleExtensionsEditor({
 
     return grouped.flatMap((group) => group.items);
   }, [
-    activeEmployees,
+    eligibleEmployees,
+    eligibleIdSet,
     fallbackDepartmentIds,
     fallbackTeamIds,
     organisation,
@@ -433,7 +451,7 @@ export function GoalCycleExtensionsEditor({
           <CalendarClock size={16} strokeWidth={1.75} aria-hidden />
           <h3 className="pd-reviews-edit-card__title">Custom Deadlines</h3>
           <HintIcon
-            content="Give selected teams, departments, or people more time."
+            content="Give selected teams, departments, or people in this group more time."
             label="About Custom Deadlines"
           />
         </header>
@@ -517,8 +535,8 @@ export function GoalCycleExtensionsEditor({
                   ref={inputRef}
                   type="search"
                   className="pd-cycle-extensions__search-input"
-                  placeholder="Search teams, departments, or people…"
-                  aria-label="Search teams, departments, or people"
+                  placeholder="Search people in this group…"
+                  aria-label="Search teams, departments, or people in this group"
                   aria-expanded={open}
                   aria-controls={listId}
                   aria-activedescendant={
@@ -648,7 +666,7 @@ export function GoalCycleExtensionsEditor({
                   </span>
                 ) : null}
                 {selectedScope.type === "people"
-                  ? activeEmployees
+                  ? eligibleEmployees
                       .filter((employee) =>
                         selectedScope.employeeIds.includes(employee.employeeId),
                       )

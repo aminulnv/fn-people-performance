@@ -35,6 +35,9 @@
   --radius-card-lg: 20px;
 
   --shadow-low: 0 1px 3px color-mix(in srgb, var(--color-theme) 12%, transparent);
+  --shadow-card:
+    0 1px 4px color-mix(in srgb, var(--color-text) 7%, transparent),
+    0 5px 14px color-mix(in srgb, var(--color-text) 6%, transparent);
   --shadow-deep: rgba(9, 14, 21, 0.16) 0px 5px 40px 0px;
   --shadow-filter: drop-shadow(0 8px 20px color-mix(in srgb, black 22%, transparent));
 
@@ -50,6 +53,7 @@
  */
 .dark {
   --color-bg: var(--color-surface);
+  --shadow-card: var(--shadow-low);
   --shadow-low:
     0 0 0 1px color-mix(in srgb, white 8%, transparent),
     0 1px 3px color-mix(in srgb, black 55%, transparent),

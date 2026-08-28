@@ -46,6 +46,7 @@
   text-decoration: none;
   border-radius: var(--radius-card-lg);
   outline: none;
+  box-shadow: var(--shadow-card);
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 

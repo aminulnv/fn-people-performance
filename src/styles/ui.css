@@ -282,6 +282,7 @@ a.pd-btn--secondary:visited {
   font-size: 0.875rem;
   line-height: 1.25;
   box-sizing: border-box;
+  box-shadow: var(--shadow-card);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -1394,7 +1395,7 @@ a.pd-btn--secondary:visited {
   border: 0.0625rem solid var(--color-border);
   border-radius: 0.75rem;
   background: var(--color-surface-raised, var(--color-bg));
-  box-shadow: var(--shadow-low);
+  box-shadow: var(--shadow-card);
 }
 
 .pd-table {
@@ -1513,6 +1514,7 @@ a.pd-btn--secondary:visited {
   border: 1px solid var(--color-border);
   border-radius: var(--segmented-radius);
   background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--shadow-card);
 }
 
 .pd-segmented__thumb {
@@ -1628,7 +1630,7 @@ a.pd-btn--secondary:visited {
   border-radius: 0.75rem;
   border: 0.0625rem solid var(--color-border);
   background: var(--color-surface-raised, var(--color-bg));
-  box-shadow: var(--shadow-low);
+  box-shadow: var(--shadow-card);
   border-top: 0.1875rem solid var(--color-cta);
 }
 
@@ -1851,6 +1853,7 @@ a.pd-btn--secondary:visited {
   border: 0.0625rem solid var(--color-border);
   background: var(--color-bg);
   color: var(--color-text-secondary);
+  box-shadow: var(--shadow-card);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -1935,6 +1938,7 @@ a.pd-btn--secondary:visited {
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: var(--shadow-card);
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
@@ -2070,6 +2074,7 @@ a.pd-btn--secondary:visited {
   text-align: left;
   cursor: pointer;
   box-sizing: border-box;
+  box-shadow: var(--shadow-card);
   transition:
     border-color 140ms ease,
     background 140ms ease,
@@ -2459,7 +2464,7 @@ a.pd-btn--secondary:visited {
   border-radius: 0.75rem;
   border: 0.0625rem solid var(--color-border);
   background: var(--color-surface-raised, var(--color-bg));
-  box-shadow: var(--shadow-low);
+  box-shadow: var(--shadow-card);
 }
 
 .pd-card__header {
@@ -2683,7 +2688,8 @@ a.pd-btn--secondary:visited {
   border: 0.0625rem solid var(--color-border);
   border-radius: 0.75rem;
   overflow: hidden;
-  background: var(--color-bg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
 
 .pd-accordion__item+.pd-accordion__item {
@@ -2765,4 +2771,82 @@ a.pd-btn--secondary:visited {
   text-align: center;
   font-size: 0.8125rem;
   color: var(--color-text-muted);
+}
+
+/* Raised surfaces on the grey canvas */
+.pd-people__summary-btn,
+.pd-people__summary-card,
+.pd-people__panel,
+.pd-people__form-shell,
+.pd-people__empty-panel,
+.pd-profile__hero,
+.pd-profile__card,
+.pd-profile__nav-card,
+.pd-profile__placeholder,
+.pd-profile__cover-note,
+.pd-profile__tabs,
+.pd-profile__panel,
+.pd-reviews-edit-card,
+.pd-reviews-edit-section,
+.pd-reviews-scorecard__hero,
+.pd-reviews-scorecard__card,
+.pd-reviews-scorecard__answer,
+.pd-reviews-overview,
+.pd-reviews-settings__card,
+.pd-reviews-choice-card,
+.pd-reviews-choice-picker__option,
+.pd-reviews-form-preview__item,
+.pd-reviews-flow,
+.pd-reviews-manual-start__pill,
+.pd-cycle-setup__identity,
+.pd-cycle-setup__empty,
+.pd-cycle-setup__group,
+.pd-cycle-setup__group-create,
+.pd-cycle-setup__job,
+.pd-cycle-groups__panel,
+.pd-cycle-groups__subbar,
+.pd-cycle-groups__table-wrap,
+.pd-cycle-groups__empty,
+.pd-cycle-groups-members,
+.pd-goal-view__card,
+.pd-goal-view__facts,
+.pd-goal-view__approval,
+.pd-goal-view__empty-measures,
+.pd-goal-view__composer,
+.pd-goal-aside-card,
+.pd-goal-measure-card,
+.pd-goal-todos,
+.pd-goal-create__group,
+.pd-goals-table,
+.pd-goals-table-wrap--action,
+.pd-goals-table-wrap--sendback,
+.pd-goals-banner,
+.pd-goals-sendback,
+.pd-goals-late,
+.pd-goals-approval,
+.pd-goals__notice,
+.pd-okr-ref,
+.pd-org-card,
+.pd-org-detail__stat,
+.pd-analytics__kpi,
+.pd-analytics__section,
+.pd-analytics__attention-link,
+.pd-settings-section,
+.pd-appearance-toggle,
+.pd-activity-import,
+.pd-home-banner,
+.pd-btn,
+.pd-people__ghost-btn,
+.pd-people__icon-btn,
+.pd-people__search,
+.pd-people__chip,
+.pd-people-filters__trigger,
+.pd-profile__icon-action,
+.pd-search__control,
+.pd-listbox__trigger,
+.pd-cycle-select__trigger,
+.pd-menu__trigger,
+.pd-field__control,
+.pd-date-input__display {
+  box-shadow: var(--shadow-card);
 }

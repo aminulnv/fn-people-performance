@@ -149,6 +149,7 @@ export function GoalsSettingsEditPage({
               performanceStartDate={
                 source.stagesConfig.performance.employeeStart.date
               }
+              memberIds={group.memberIds}
               onChange={(extensions) =>
                 setGoals((current) => ({ ...current, extensions }))
               }

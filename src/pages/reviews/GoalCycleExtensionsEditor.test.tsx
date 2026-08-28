@@ -62,18 +62,21 @@ afterEach(() => {
   employeesState.employees = []
 })
 
-function openSearch(query: string) {
+function openSearch(query: string, memberIds?: number[]) {
   render(
     <GoalCycleExtensionsEditor
       extensions={[]}
       baseEndDate="2026-07-01"
       performanceStartDate="2026-09-21"
+      memberIds={memberIds ?? employeesState.employees.map((employee) => employee.employeeId)}
       onChange={() => { }}
     />,
   )
   fireEvent.click(screen.getByRole('button', { name: /add deadline/i }))
   fireEvent.change(
-    screen.getByRole('combobox', { name: 'Search teams, departments, or people' }),
+    screen.getByRole('combobox', {
+      name: 'Search teams, departments, or people in this group',
+    }),
     { target: { value: query } },
   )
 }
@@ -116,5 +119,28 @@ describe('GoalCycleExtensionsEditor search', () => {
     expect(
       teams.compareDocumentPosition(people) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
+  })
+
+  it('only offers people, departments, and teams already on the group', () => {
+    employeesState.employees = [
+      person(1, {
+        fullName: 'Outside Person',
+        department: 'Finance',
+        team: 'Treasury',
+      }),
+      person(2, {
+        fullName: 'Group Person',
+        department: 'Technology',
+        team: 'Core',
+      }),
+    ]
+
+    openSearch('Person', [2])
+
+    const panel = screen.getByRole('listbox', { name: 'Population search results' })
+    expect(within(panel).getByText('Group Person')).toBeInTheDocument()
+    expect(within(panel).queryByText('Outside Person')).not.toBeInTheDocument()
+    expect(within(panel).queryByText('Finance')).not.toBeInTheDocument()
+    expect(within(panel).queryByText('Treasury')).not.toBeInTheDocument()
   })
 })
