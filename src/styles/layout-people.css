@@ -1545,10 +1545,6 @@ a.pd-people__ghost-btn--outline:hover {
   gap: 0.85rem;
 }
 
-:root:not(.dark) .pd-app-content-card:has(.pd-profile:not(.pd-profile--embedded)) {
-  background: #f0f0fa;
-}
-
 .pd-profile--embedded {
   width: 100%;
   max-width: 100%;

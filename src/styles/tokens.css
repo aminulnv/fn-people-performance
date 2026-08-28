@@ -14,7 +14,7 @@
   --foreground: var(--color-text-primary);
 
   /* App aliases used by layout — follow surface/text tokens (flip in .dark) */
-  --color-bg: var(--color-surface);
+  --color-bg: color-mix(in srgb, var(--color-text) 4.5%, var(--color-surface));
   --color-bg-muted: var(--color-muted-bg);
   --color-surface-subtle: var(--color-neutral-hover);
   --color-text: var(--color-text-primary);
@@ -49,6 +49,7 @@
  * A hairline rim restores edge separation; soft depth still sits underneath.
  */
 .dark {
+  --color-bg: var(--color-surface);
   --shadow-low:
     0 0 0 1px color-mix(in srgb, white 8%, transparent),
     0 1px 3px color-mix(in srgb, black 55%, transparent),
