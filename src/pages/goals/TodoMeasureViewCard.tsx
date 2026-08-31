@@ -16,7 +16,10 @@ import {
 } from './GoalMeasurementReadout'
 import { proofParts } from '@/lib/goals/proof'
 import { GoalProgressLog } from './GoalProgressLog'
-import { ignoreInteractiveSummaryClick } from './measureFold'
+import {
+  focusMeasureFromSummary,
+  ignoreInteractiveSummaryClick,
+} from './measureFold'
 import { MeasureKindIcon } from './MeasureKindIcon'
 import { MeasureProofFields } from './MeasureProofFields'
 
@@ -26,6 +29,10 @@ export function TodoMeasureViewCard({
   panel,
   renderTodoItem,
   highlighted = false,
+  open = true,
+  onOpenChange,
+  onActivateMeasure,
+  onFocusMeasure,
   onProofChange,
   cardClassName = 'pd-goal-view__fold pd-goal-measure-card',
   headClassName = 'pd-goal-view__fold-head',
@@ -36,6 +43,10 @@ export function TodoMeasureViewCard({
   panel: TodoMeasurePanel
   renderTodoItem: (todo: Milestone) => ReactNode
   highlighted?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onActivateMeasure?: () => void
+  onFocusMeasure?: () => void
   onProofChange?: (next: { proofUrl?: string; comment?: string }) => void
   cardClassName?: string
   headClassName?: string
@@ -57,9 +68,31 @@ export function TodoMeasureViewCard({
         .join(' ')}
       data-measure-panel={panel.key}
       aria-label={name || 'Metric'}
-      open
+      open={open}
+      onToggle={
+        onOpenChange
+          ? (event) => {
+              const next = event.currentTarget.open
+              if (next !== open) onOpenChange(next)
+            }
+          : undefined
+      }
     >
-      <summary className={headClassName} onClick={ignoreInteractiveSummaryClick}>
+      <summary
+        className={headClassName}
+        title={
+          onFocusMeasure
+            ? 'Click twice or double-click to focus this metric'
+            : undefined
+        }
+        onClick={(event) => {
+          ignoreInteractiveSummaryClick(event)
+          focusMeasureFromSummary(event, onActivateMeasure)
+        }}
+        onDoubleClick={(event) =>
+          focusMeasureFromSummary(event, onFocusMeasure)
+        }
+      >
         <ChevronRight
           size={14}
           strokeWidth={2.25}

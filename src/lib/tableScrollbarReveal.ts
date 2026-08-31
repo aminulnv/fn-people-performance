@@ -1,4 +1,5 @@
-const TABLE_WRAP_SELECTOR = '.pd-people__table-wrap'
+const SCROLLBAR_REVEAL_SELECTOR =
+  '.pd-people__table-wrap, .pd-goals-drawer__body'
 const SCROLLBAR_REVEAL_MS = 900
 
 /** Keep native scrollbars hidden until hover, focus, or active scrolling. */
@@ -10,7 +11,7 @@ export function installTableScrollbarReveal(
   function onScroll(event: Event) {
     const target = event.target
     if (!(target instanceof HTMLElement)) return
-    if (!target.matches(TABLE_WRAP_SELECTOR)) return
+    if (!target.matches(SCROLLBAR_REVEAL_SELECTOR)) return
 
     target.classList.add('is-scrolling')
 

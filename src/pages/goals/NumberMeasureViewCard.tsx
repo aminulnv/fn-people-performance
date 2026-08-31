@@ -7,7 +7,10 @@ import {
   GoalWeightReadout,
 } from './GoalMeasurementReadout'
 import { GoalProgressLog } from './GoalProgressLog'
-import { ignoreInteractiveSummaryClick } from './measureFold'
+import {
+  focusMeasureFromSummary,
+  ignoreInteractiveSummaryClick,
+} from './measureFold'
 import { MeasureKindIcon } from './MeasureKindIcon'
 import { MeasureProofFields } from './MeasureProofFields'
 import { MetricProgressUpdate } from './MetricProgressUpdate'
@@ -17,6 +20,10 @@ export function NumberMeasureViewCard({
   goalTitle,
   cycleLabel,
   highlighted = false,
+  open = true,
+  onOpenChange,
+  onActivateMeasure,
+  onFocusMeasure,
   onLogProgress,
   onProofChange,
 }: {
@@ -24,6 +31,10 @@ export function NumberMeasureViewCard({
   goalTitle?: string
   cycleLabel?: string
   highlighted?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  onActivateMeasure?: () => void
+  onFocusMeasure?: () => void
   onLogProgress?: (nextValue: number | undefined) => void
   onProofChange?: (next: { proofUrl?: string; comment?: string }) => void
 }) {
@@ -40,11 +51,30 @@ export function NumberMeasureViewCard({
         .join(' ')}
       data-measure-panel={metric.id}
       aria-label={name || 'Metric'}
-      open
+      open={open}
+      onToggle={
+        onOpenChange
+          ? (event) => {
+              const next = event.currentTarget.open
+              if (next !== open) onOpenChange(next)
+            }
+          : undefined
+      }
     >
       <summary
         className="pd-goal-view__fold-head"
-        onClick={ignoreInteractiveSummaryClick}
+        title={
+          onFocusMeasure
+            ? 'Click twice or double-click to focus this metric'
+            : undefined
+        }
+        onClick={(event) => {
+          ignoreInteractiveSummaryClick(event)
+          focusMeasureFromSummary(event, onActivateMeasure)
+        }}
+        onDoubleClick={(event) =>
+          focusMeasureFromSummary(event, onFocusMeasure)
+        }
       >
         <ChevronRight
           size={14}

@@ -7,7 +7,7 @@ import {
   type PointerEvent,
 } from "react";
 import { Link } from "react-router-dom";
-import { ChevronRight, CornerDownRight, CornerLeftDown, MoreHorizontal, Pencil, Send, Target, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CornerDownRight, CornerLeftDown, MoreHorizontal, Pencil, Send, Target, Trash2 } from "lucide-react";
 import {
   Avatar,
   Badge,
@@ -272,7 +272,7 @@ type GoalDetailViewProps = {
   onLinkCascadeTo?: (option: CascadeToOption) => void;
   onUnlinkCascadeTo?: (recipient: CascadeRecipient) => void;
   onRemove?: () => void;
-  /** Measure that opened this window — flashes that card for a few seconds. */
+  /** Measure that opened this window — keeps that card highlighted. */
   highlightMeasureKey?: string | null;
 };
 
@@ -316,7 +316,7 @@ export function GoalDetailView({
   onRemove,
   highlightMeasureKey,
 }: GoalDetailViewProps) {
-  const [flashingMeasureKey, setFlashingMeasureKey] = useState<string | null>(
+  const [measureWindowKey, setMeasureWindowKey] = useState<string | null>(
     () => highlightMeasureKey ?? null,
   );
   const [comment, setComment] = useState("");
@@ -332,6 +332,9 @@ export function GoalDetailView({
   const detailsFocusedRef = useRef(false);
   const skipTitleCommitRef = useRef(false);
   const skipDetailsCommitRef = useRef(false);
+  const lastMeasureClickRef = useRef<{ key: string; at: number } | null>(
+    null,
+  );
   const goalRef = useRef(goal);
   const commentFieldId = useId();
   const titleFieldId = useId();
@@ -353,22 +356,16 @@ export function GoalDetailView({
   }, [goal.id]);
 
   useEffect(() => {
-    if (!highlightMeasureKey) {
-      setFlashingMeasureKey(null);
-      return;
-    }
-    setFlashingMeasureKey(highlightMeasureKey);
-    const timeout = window.setTimeout(() => setFlashingMeasureKey(null), 2800);
-    return () => window.clearTimeout(timeout);
+    setMeasureWindowKey(highlightMeasureKey ?? null);
   }, [highlightMeasureKey]);
 
   useEffect(() => {
-    if (!flashingMeasureKey) return;
+    if (!highlightMeasureKey) return;
     const node = document.querySelector(
-      `[data-measure-panel="${CSS.escape(flashingMeasureKey)}"]`,
+      `[data-measure-panel="${CSS.escape(highlightMeasureKey)}"]`,
     );
     node?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
-  }, [flashingMeasureKey]);
+  }, [highlightMeasureKey]);
 
   useEffect(() => {
     if (titleFocusedRef.current) return;
@@ -394,6 +391,23 @@ export function GoalDetailView({
   });
   const nameInvalid = nameTouched && Boolean(draftValidation.nameError);
   const panels = measurementPanels(goal.measurements);
+  const measureWindowPanels = measureWindowKey
+    ? panels.filter((panel) => panel.key === measureWindowKey)
+    : panels;
+  const canFocusMeasure = !measureWindowKey && panels.length > 1;
+  const openMeasureWindow = (key: string) => {
+    lastMeasureClickRef.current = null;
+    setMeasureWindowKey(key);
+  };
+  const armMeasureWindow = (key: string) => {
+    const now = Date.now();
+    const last = lastMeasureClickRef.current;
+    if (last && last.key === key && now - last.at < 500) {
+      openMeasureWindow(key);
+      return;
+    }
+    lastMeasureClickRef.current = { key, at: now };
+  };
   const comments = goal.comments ?? [];
   const progressAuthor = {
     id: commentAuthorId,
@@ -539,18 +553,18 @@ export function GoalDetailView({
           onLink={
             onLinkCascadeTo
               ? (option) => {
-                  onLinkCascadeTo(option);
-                  setCascadeToOpen(false);
-                }
+                onLinkCascadeTo(option);
+                setCascadeToOpen(false);
+              }
               : undefined
           }
           onUnlink={onUnlinkCascadeTo}
           onCreate={
             onCascade
               ? (reportIds) => {
-                  onCascade(reportIds);
-                  setCascadeToOpen(false);
-                }
+                onCascade(reportIds);
+                setCascadeToOpen(false);
+              }
               : undefined
           }
         />
@@ -671,14 +685,14 @@ export function GoalDetailView({
       activityFilters={
         cycleId
           ? {
-              goalId: goal.id,
-              cycleId,
-              subjectEmployeeId: subjectId
-                ? Number(subjectId)
-                : owner.id
-                  ? Number(owner.id)
-                  : undefined,
-            }
+            goalId: goal.id,
+            cycleId,
+            subjectEmployeeId: subjectId
+              ? Number(subjectId)
+              : owner.id
+                ? Number(owner.id)
+                : undefined,
+          }
           : undefined
       }
       onDuplicate={goalNamed ? onDuplicate : undefined}
@@ -841,191 +855,233 @@ export function GoalDetailView({
       </header>
 
       <div className="pd-goal-view__panel">
-          {goal.details?.trim() || isEditing ? (
-            <details
-              key={isEditing ? "edit" : "view"}
-              className="pd-goal-view__note"
-              open={isEditing || undefined}
+        <details
+            key={isEditing ? "edit" : "view"}
+            className="pd-goal-view__note"
+            open={isEditing || undefined}
+          >
+            <summary
+              className={
+                isEditing
+                  ? "pd-goal-view__note-label is-static"
+                  : "pd-goal-view__note-label"
+              }
+              onClick={
+                isEditing
+                  ? (event) => {
+                    event.preventDefault();
+                  }
+                  : undefined
+              }
             >
-              <summary
+              Description
+              {isEditing ? null : (
+                <ChevronRight
+                  size={12}
+                  strokeWidth={2.25}
+                  className="pd-goal-view__note-chevron"
+                  aria-hidden
+                />
+              )}
+            </summary>
+            {isEditing ? (
+              <textarea
+                id={detailsFieldId}
+                className="pd-goal-view__description-input"
+                value={detailsDraft}
+                placeholder="Add a description (optional)"
+                rows={3}
+                aria-label="Description"
+                disabled={!goalNamed}
+                onFocus={() => {
+                  detailsFocusedRef.current = true;
+                }}
+                onChange={(event) => setDetailsDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    skipDetailsCommitRef.current = true;
+                    setDetailsDraft(goalRef.current.details ?? "");
+                    detailsFocusedRef.current = false;
+                    event.currentTarget.blur();
+                  }
+                }}
+                onBlur={() => {
+                  detailsFocusedRef.current = false;
+                  if (skipDetailsCommitRef.current) {
+                    skipDetailsCommitRef.current = false;
+                    return;
+                  }
+                  commitDetailsDraft();
+                }}
+              />
+            ) : (
+              <p
                 className={
-                  isEditing
-                    ? "pd-goal-view__note-label is-static"
-                    : "pd-goal-view__note-label"
-                }
-                onClick={
-                  isEditing
-                    ? (event) => {
-                        event.preventDefault();
-                      }
-                    : undefined
+                  goal.details?.trim()
+                    ? "pd-goal-view__description"
+                    : "pd-goal-view__description is-empty"
                 }
               >
-                Description
-                {isEditing ? null : (
-                  <ChevronRight
-                    size={12}
-                    strokeWidth={2.25}
-                    className="pd-goal-view__note-chevron"
-                    aria-hidden
-                  />
-                )}
-              </summary>
-              {isEditing ? (
-                <textarea
-                  id={detailsFieldId}
-                  className="pd-goal-view__description-input"
-                  value={detailsDraft}
-                  placeholder="Add a description (optional)"
-                  rows={3}
-                  aria-label="Description"
-                  disabled={!goalNamed}
-                  onFocus={() => {
-                    detailsFocusedRef.current = true;
-                  }}
-                  onChange={(event) => setDetailsDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") {
-                      skipDetailsCommitRef.current = true;
-                      setDetailsDraft(goalRef.current.details ?? "");
-                      detailsFocusedRef.current = false;
-                      event.currentTarget.blur();
-                    }
-                  }}
-                  onBlur={() => {
-                    detailsFocusedRef.current = false;
-                    if (skipDetailsCommitRef.current) {
-                      skipDetailsCommitRef.current = false;
-                      return;
-                    }
-                    commitDetailsDraft();
-                  }}
+                {goal.details?.trim() || "No description"}
+              </p>
+            )}
+          </details>
+
+        {isEditing ? (
+          <div className="pd-goal-create">
+            <div className="pd-goal-create__stack">
+              <GoalProgressEditor
+                goal={goal}
+                onChange={persistStructure}
+                progressAuthor={progressAuthor}
+                cycleLabel={cycleLabel}
+                locked={!goalNamed}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="pd-goal-view__body">
+            <div className="pd-goal-view__main">
+              {measureWindowKey && panels.length > 1 ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="pd-goal-view__metrics-back"
+                  onClick={() => setMeasureWindowKey(null)}
+                >
+                  <ChevronLeft size={14} strokeWidth={2.25} aria-hidden />
+                  All Metrics
+                </Button>
+              ) : null}
+              {panels.length === 0 ? (
+                <GoalEmptyMeasures
+                  canAdd={canEdit}
+                  onAddMilestones={() =>
+                    beginEditingWithMeasures(
+                      appendMilestoneList(goalRef.current.measurements),
+                    )
+                  }
+                  onAddNumber={() =>
+                    beginEditingWithMeasures(
+                      rebalanceMeasurementWeights([
+                        ...goalRef.current.measurements,
+                        blankMetric("increase"),
+                      ]),
+                    )
+                  }
                 />
               ) : (
-                <p className="pd-goal-view__description">
-                  {goal.details?.trim()}
-                </p>
-              )}
-            </details>
-          ) : null}
-
-          {isEditing ? (
-            <div className="pd-goal-create">
-              <div className="pd-goal-create__stack">
-                <GoalProgressEditor
-                  goal={goal}
-                  onChange={persistStructure}
-                  progressAuthor={progressAuthor}
-                  cycleLabel={cycleLabel}
-                  locked={!goalNamed}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="pd-goal-view__body">
-              <div className="pd-goal-view__main">
-                {panels.length === 0 ? (
-                  <GoalEmptyMeasures
-                    canAdd={canEdit}
-                    onAddMilestones={() =>
-                      beginEditingWithMeasures(
-                        appendMilestoneList(goalRef.current.measurements),
-                      )
-                    }
-                    onAddNumber={() =>
-                      beginEditingWithMeasures(
-                        rebalanceMeasurementWeights([
-                          ...goalRef.current.measurements,
-                          blankMetric("increase"),
-                        ]),
-                      )
-                    }
-                  />
-                ) : (
-                  panels.map((panel) =>
-                    panel.kind === "todo_measure" ? (
-                      <TodoMeasureViewCard
-                        key={panel.key}
-                        panel={panel}
-                        highlighted={flashingMeasureKey === panel.key}
-                        onProofChange={
-                          canLogProgress
-                            ? (next) => {
-                                const updated = touch(goalRef.current, {
-                                  measurements: withMeasureProof(
-                                    goalRef.current.measurements,
-                                    panel.measureGroupId,
-                                    next,
-                                  ),
-                                });
-                                goalRef.current = updated;
-                                onChange(updated);
-                              }
-                            : undefined
-                        }
-                        renderTodoItem={(todo) => (
-                          <>
-                            <GoalTodoCheck
-                              checked={todo.complete}
-                              disabled={!canLogProgress}
-                              ariaLabel={`Mark ${todo.title.trim() || "task"} complete`}
-                              onChange={(complete) =>
-                                patchMeasurement(
-                                  todo.id,
-                                  recordMilestoneProgress(
-                                    todo,
-                                    complete,
-                                    progressAuthor,
-                                  ),
-                                )
-                              }
-                            />
-                            <p
-                              className={`pd-goal-view__todo-title${
-                                todo.complete ? " is-done" : ""
+                measureWindowPanels.map((panel) =>
+                  panel.kind === "todo_measure" ? (
+                    <TodoMeasureViewCard
+                      key={panel.key}
+                      panel={panel}
+                      highlighted={
+                        highlightMeasureKey === panel.key ||
+                        measureWindowKey === panel.key
+                      }
+                      open
+                      onActivateMeasure={
+                        canFocusMeasure
+                          ? () => armMeasureWindow(panel.key)
+                          : undefined
+                      }
+                      onFocusMeasure={
+                        canFocusMeasure
+                          ? () => openMeasureWindow(panel.key)
+                          : undefined
+                      }
+                      onProofChange={
+                        canLogProgress
+                          ? (next) => {
+                            const updated = touch(goalRef.current, {
+                              measurements: withMeasureProof(
+                                goalRef.current.measurements,
+                                panel.measureGroupId,
+                                next,
+                              ),
+                            });
+                            goalRef.current = updated;
+                            onChange(updated);
+                          }
+                          : undefined
+                      }
+                      renderTodoItem={(todo) => (
+                        <>
+                          <GoalTodoCheck
+                            checked={todo.complete}
+                            disabled={!canLogProgress}
+                            ariaLabel={`Mark ${todo.title.trim() || "task"} complete`}
+                            onChange={(complete) =>
+                              patchMeasurement(
+                                todo.id,
+                                recordMilestoneProgress(
+                                  todo,
+                                  complete,
+                                  progressAuthor,
+                                ),
+                              )
+                            }
+                          />
+                          <p
+                            className={`pd-goal-view__todo-title${todo.complete ? " is-done" : ""
                               }`}
-                            >
-                              {todo.title || "Untitled task"}
-                            </p>
-                          </>
-                        )}
-                      />
-                    ) : (
-                      <NumberMeasureViewCard
-                        key={panel.key}
-                        metric={panel.metric}
-                        highlighted={flashingMeasureKey === panel.key}
-                        goalTitle={goalTitle(goal, index)}
-                        cycleLabel={cycleLabel}
-                        onLogProgress={
-                          canLogProgress
-                            ? (nextValue) =>
-                                patchMeasurement(
-                                  panel.metric.id,
-                                  recordMetricProgress(
-                                    panel.metric,
-                                    nextValue,
-                                    progressAuthor,
-                                  ),
-                                )
-                            : undefined
-                        }
-                        onProofChange={
-                          canLogProgress
-                            ? (next) =>
-                                patchMeasurement(panel.metric.id, {
-                                  ...panel.metric,
-                                  ...next,
-                                })
-                            : undefined
-                        }
-                      />
-                    ),
-                  )
-                )}
-              </div>
+                          >
+                            {todo.title || "Untitled task"}
+                          </p>
+                        </>
+                      )}
+                    />
+                  ) : (
+                    <NumberMeasureViewCard
+                      key={panel.key}
+                      metric={panel.metric}
+                      highlighted={
+                        highlightMeasureKey === panel.key ||
+                        measureWindowKey === panel.key
+                      }
+                      open
+                      onActivateMeasure={
+                        canFocusMeasure
+                          ? () => armMeasureWindow(panel.key)
+                          : undefined
+                      }
+                      onFocusMeasure={
+                        canFocusMeasure
+                          ? () => openMeasureWindow(panel.key)
+                          : undefined
+                      }
+                      goalTitle={goalTitle(goal, index)}
+                      cycleLabel={cycleLabel}
+                      onLogProgress={
+                        canLogProgress
+                          ? (nextValue) =>
+                            patchMeasurement(
+                              panel.metric.id,
+                              recordMetricProgress(
+                                panel.metric,
+                                nextValue,
+                                progressAuthor,
+                              ),
+                            )
+                          : undefined
+                      }
+                      onProofChange={
+                        canLogProgress
+                          ? (next) =>
+                            patchMeasurement(panel.metric.id, {
+                              ...panel.metric,
+                              ...next,
+                            })
+                          : undefined
+                      }
+                    />
+                  ),
+                )
+              )}
             </div>
-          )}
+          </div>
+        )}
       </div>
 
       {!isNew ? (

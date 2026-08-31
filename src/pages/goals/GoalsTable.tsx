@@ -26,7 +26,6 @@ import { proofParts } from '@/lib/goals/proof'
 import type { Measurement } from '@/lib/goals/types'
 import { formatProgressTimestamp, goalLastUpdatedAt } from '@/lib/goals/progressLog'
 import { GoalActionsMenu, hasGoalActions } from '@/pages/goals/GoalActionsMenu'
-import { GoalMeasureLogHover } from '@/pages/goals/GoalMeasureLogHover'
 import { MeasureProofReadout } from '@/pages/goals/MeasureProofFields'
 import { MeasureKindIcon } from '@/pages/goals/MeasureKindIcon'
 import {
@@ -56,7 +55,6 @@ import {
   measurePanelLatestProgressAt,
   measurePanelName,
   measurePanelProgress,
-  measurePanelProgressLog,
   measurePanelTableWeight,
 } from '@/pages/goals/measurePanelDisplay'
 import '@/styles/layout-goals.css'
@@ -189,11 +187,9 @@ export function GoalProgressAge({ at }: { at?: string }) {
 export function MeasureNameCell({
   name,
   panel,
-  logAction,
 }: {
   name: string
   panel: MeasurementPanel
-  logAction?: ReactNode
 }) {
   const proofSource =
     panel.kind === 'metric'
@@ -222,7 +218,6 @@ export function MeasureNameCell({
       {proofParts(proofUrl).href ? (
         <MeasureProofReadout proofUrl={proofUrl} />
       ) : null}
-      {logAction}
     </div>
   )
 }
@@ -281,14 +276,14 @@ export function GoalsTable({
   cascadeRecipientsFor,
   status,
   postWindowApprovalStage,
-  canLogProgress = false,
-  onRecordMetricProgress,
-  onToggleMilestone,
+  openMeasureKey,
 }: {
   rows: GoalsTableRow[]
   onOpen?: (id: string, measureKey?: string) => void
   /** Goal whose right-hand window is open. Highlights that row (or the measure that opened it). */
   openGoalId?: string | null
+  /** Measure that opened the window — keeps the metric row highlighted. */
+  openMeasureKey?: string | null
   /** Set-level Action required — sits behind the table, peeking above. */
   banner?: ReactNode
   /** Sent back notice — wraps the action banner and table, peeking above both. */
@@ -310,17 +305,6 @@ export function GoalsTable({
   cascadeRecipientsFor?: (goalId: string) => CascadeRecipient[]
   status?: SubmissionStatus
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
-  canLogProgress?: boolean
-  onRecordMetricProgress?: (
-    goalId: string,
-    metricId: string,
-    nextValue: number | undefined,
-  ) => void
-  onToggleMilestone?: (
-    goalId: string,
-    milestoneId: string,
-    complete: boolean,
-  ) => void
 }) {
   const showOwner = rows.some((row) => row.owner)
   const showActions = hasGoalActions({
@@ -331,7 +315,11 @@ export function GoalsTable({
     onViewActivity: Boolean(cycleId),
   })
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set())
-  const [selectedMeasureKey, setSelectedMeasureKey] = useState<string | null>(null)
+  const [selectedMeasureKey, setSelectedMeasureKey] = useState<string | null>(
+    () => openMeasureKey ?? null,
+  )
+  const activeMeasureKey =
+    openMeasureKey !== undefined ? openMeasureKey : selectedMeasureKey
   const allocatedWeight = sumGoalWeights(rows.map((row) => row.goal))
   const unassignedWeight = hasUnassignedGoalWeight(rows.map((row) => row.goal))
   const weightIssue = goalWeightIssue(rows.map((row) => row.goal))
@@ -372,8 +360,15 @@ export function GoalsTable({
     .join('|')
 
   useEffect(() => {
-    if (!openGoalId) setSelectedMeasureKey(null)
-  }, [openGoalId])
+    if (!openGoalId) {
+      setSelectedMeasureKey(null)
+      return
+    }
+    if (openMeasureKey) {
+      setSelectedMeasureKey(openMeasureKey)
+      setExpandedIds((ids) => new Set(ids).add(openGoalId))
+    }
+  }, [openGoalId, openMeasureKey])
 
   useEffect(() => {
     const persistMeasureWeights = onMeasureWeightChangeRef.current
@@ -471,7 +466,9 @@ export function GoalsTable({
         }
         const panels = measurementPanels(goal.measurements)
         const isOpen = expandedIds.has(goal.id)
-        const isGoalSelected = Boolean(onOpen && openGoalId === goal.id && !selectedMeasureKey)
+        const isGoalSelected = Boolean(
+          onOpen && openGoalId === goal.id && !activeMeasureKey,
+        )
         const openRow = onOpen
           ? {
             tabIndex: 0 as const,
@@ -643,35 +640,8 @@ export function GoalsTable({
                   canEditWeight &&
                   Boolean(onMeasureWeightChange) &&
                   canEditMeasurementWeights(goal.measurements)
-                const logHover = {
-                  measureName,
-                  entries: measurePanelProgressLog(panel),
-                  metric:
-                    panel.kind === 'metric' ? panel.metric : undefined,
-                  lists:
-                    panel.kind === 'todo_measure' ? panel.lists : undefined,
-                  canLog:
-                    canLogProgress &&
-                    (panel.kind === 'metric'
-                      ? Boolean(onRecordMetricProgress)
-                      : Boolean(onToggleMilestone)),
-                  onRecord:
-                    panel.kind === 'metric' && onRecordMetricProgress
-                      ? (nextValue: number | undefined) =>
-                        onRecordMetricProgress(
-                          goal.id,
-                          panel.metric.id,
-                          nextValue,
-                        )
-                      : undefined,
-                  onToggleTodo:
-                    panel.kind === 'todo_measure' && onToggleMilestone
-                      ? (todoId: string, complete: boolean) =>
-                        onToggleMilestone(goal.id, todoId, complete)
-                      : undefined,
-                }
                 const isMeasureSelected = Boolean(
-                  onOpen && openGoalId === goal.id && selectedMeasureKey === panel.key,
+                  onOpen && openGoalId === goal.id && activeMeasureKey === panel.key,
                 )
                 const measureOpenRow = onOpen
                   ? {
@@ -705,7 +675,6 @@ export function GoalsTable({
                       <MeasureNameCell
                         name={measureName}
                         panel={panel}
-                        logAction={<GoalMeasureLogHover {...logHover} />}
                       />
                     </div>
                     <div className="pd-goals-table__weight" role="cell">

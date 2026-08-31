@@ -16,8 +16,9 @@ describe('GoalSummaryCards', () => {
   it('shows goal weight without cycle capacity copy', () => {
     render(<GoalSummaryCards goal={goal} />)
 
-    expect(screen.getByText('Goal weight')).toBeInTheDocument()
-    expect(screen.getByText('40%')).toBeInTheDocument()
+    expect(screen.getByText('Goal Weight %')).toBeInTheDocument()
+    expect(screen.getByText('40')).toBeInTheDocument()
+    expect(screen.queryByText('40%')).not.toBeInTheDocument()
     expect(screen.queryByText(/used/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/left/i)).not.toBeInTheDocument()
   })
@@ -28,7 +29,7 @@ describe('GoalSummaryCards', () => {
       <GoalSummaryCards goal={goal} onWeightChange={onWeightChange} />,
     )
 
-    const field = screen.getByRole('textbox', { name: 'Goal weight' })
+    const field = screen.getByRole('textbox', { name: 'Goal Weight %' })
     fireEvent.change(field, {
       target: { value: '55' },
     })
@@ -43,7 +44,7 @@ describe('GoalSummaryCards', () => {
       <GoalSummaryCards goal={goal} onWeightChange={onWeightChange} />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Increase Goal weight' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Goal Weight %' }))
     expect(onWeightChange).toHaveBeenCalledWith(45)
   })
 })

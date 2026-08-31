@@ -157,6 +157,7 @@ export function ScorecardGoalsCard({
             title: goalTitle(goal, index),
           }))}
           openGoalId={openGoalId}
+          openMeasureKey={openMeasureKey}
           onOpen={(id, measureKey) => {
             setOpenGoalId(id)
             setOpenMeasureKey(measureKey ?? null)

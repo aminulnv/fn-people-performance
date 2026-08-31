@@ -136,6 +136,7 @@ describe('GoalDetailView', () => {
     ).toBeTruthy()
     expect(screen.getByLabelText('Add Comment')).toBeInTheDocument()
     expect(screen.getByText('Description')).toBeInTheDocument()
+    expect(screen.queryByText('No description')).not.toBeInTheDocument()
     const description = screen.getByText('Ship fewer defects')
     expect(description.closest('details')).not.toHaveAttribute('open')
     fireEvent.click(screen.getByText('Description'))
@@ -156,6 +157,23 @@ describe('GoalDetailView', () => {
     expect(document.querySelector('.pd-goal-view__approval')).toBeNull()
   })
 
+  it('shows a description placeholder when none is saved', () => {
+    renderView(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('Description')).toBeInTheDocument()
+    expect(screen.getByText('No description')).toHaveClass('is-empty')
+  })
+
   it('keeps goal weight beside the owner name', () => {
     renderView(
       <GoalDetailView
@@ -171,7 +189,7 @@ describe('GoalDetailView', () => {
 
     const owner = screen.getByText('Aminul Islam Borhan')
     const byline = owner.closest('.pd-goal-view__byline')
-    expect(byline).toHaveTextContent('Goal weight')
+    expect(byline).toHaveTextContent('Goal Weight %')
     expect(byline).toHaveTextContent('100%')
     expect(byline).not.toHaveTextContent('Q3 2026')
     expect(byline).not.toHaveTextContent('No updates yet')
@@ -1692,8 +1710,25 @@ describe('GoalDetailView', () => {
     )
 
     expect(screen.getByLabelText('NPS')).toHaveClass('is-highlighted')
-    expect(screen.getByLabelText('Defects closed')).not.toHaveClass(
+    expect(screen.getByLabelText('NPS')).toHaveAttribute('open')
+    expect(screen.queryByLabelText('Defects closed')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'All Metrics' }))
+
+    expect(screen.getByLabelText('NPS')).toHaveClass('is-highlighted')
+    expect(screen.getByLabelText('Defects closed')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'All Metrics' }),
+    ).not.toBeInTheDocument()
+
+    fireEvent.doubleClick(
+      screen.getByRole('heading', { name: 'Defects closed' }),
+    )
+
+    expect(screen.queryByLabelText('NPS')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Defects closed')).toHaveClass(
       'is-highlighted',
     )
+    expect(screen.getByRole('button', { name: 'All Metrics' })).toBeInTheDocument()
   })
 })

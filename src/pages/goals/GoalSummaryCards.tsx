@@ -1,5 +1,5 @@
 import type { Goal } from '@/lib/goals/types'
-import { WeightHoverField, formatWeightReadout } from './GoalMeasurementReadout'
+import { WeightHoverField } from './GoalMeasurementReadout'
 
 type GoalSummaryCardsProps = {
   goal: Goal
@@ -12,16 +12,17 @@ export function GoalSummaryCards({
 }: GoalSummaryCardsProps) {
   return (
     <div className="pd-goal-view__weight-row">
-      <p className="pd-goal-view__weight-label">Goal weight</p>
+      <p className="pd-goal-view__weight-label">Goal Weight %</p>
       {onWeightChange ? (
         <WeightHoverField
           weight={goal.weight}
-          ariaLabel="Goal weight"
+          ariaLabel="Goal Weight %"
+          showSuffix={false}
           onChange={onWeightChange}
         />
       ) : (
         <span className="pd-goals-table__weight-pill">
-          {formatWeightReadout(goal.weight)}
+          {goal.weight}
         </span>
       )}
     </div>

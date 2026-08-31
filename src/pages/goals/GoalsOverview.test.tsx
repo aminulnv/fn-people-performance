@@ -246,15 +246,11 @@ describe('Goals overview cycle eligibility', () => {
     expect(screen.getByRole('img', { name: 'Metric' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Milestone' })).toBeInTheDocument()
     expect(
-      screen.getByRole('button', {
-        name: 'Log progress for Defects closed, 2 updates',
-      }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: /Log progress/ }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('button', {
-        name: 'Update checklist for Quality process',
-      }),
-    ).toBeInTheDocument()
+      screen.queryByRole('button', { name: /Update checklist/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('hides the Metrics column from the overview table', async () => {

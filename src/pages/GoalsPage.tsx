@@ -85,10 +85,6 @@ import {
   speakGoalEditLockSegments,
 } from "@/lib/goals/editWindow";
 import {
-  recordMetricProgress,
-  recordMilestoneProgress,
-} from "@/lib/goals/progressLog";
-import {
   isGoalWindowOpenForPerson,
   resolveGoalDeadline,
 } from "@/lib/goals/goalExtensions";
@@ -115,13 +111,11 @@ import {
   GoalsTable,
   MeasureNameCell,
 } from "./goals/GoalsTable";
-import { GoalMeasureLogHover } from "./goals/GoalMeasureLogHover";
 import { formatWeightReadout } from "./goals/GoalMeasurementReadout";
 import {
   measurePanelLatestProgressAt,
   measurePanelName,
   measurePanelProgress,
-  measurePanelProgressLog,
   measurePanelTableWeight,
 } from "./goals/measurePanelDisplay";
 import { GoalSendBackNotice } from "./goals/GoalSendBackNotice";
@@ -1511,22 +1505,6 @@ function GoalsOverview() {
                                 <MeasureNameCell
                                   name={measureName}
                                   panel={panel}
-                                  logAction={
-                                    <GoalMeasureLogHover
-                                      measureName={measureName}
-                                      entries={measurePanelProgressLog(panel)}
-                                      metric={
-                                        panel.kind === "metric"
-                                          ? panel.metric
-                                          : undefined
-                                      }
-                                      lists={
-                                        panel.kind === "todo_measure"
-                                          ? panel.lists
-                                          : undefined
-                                      }
-                                    />
-                                  }
                                 />
                               </td>
                               <td data-col="weight">
@@ -1632,7 +1610,16 @@ export function GoalsPersonDetail({
       ? "mine"
       : managerTabFromHash(location.hash) ?? "mine";
   const [embeddedGoalId, setEmbeddedGoalId] = useState<string | null>(null);
-  const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(null);
+  const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(() =>
+    new URLSearchParams(location.search).get("measure"),
+  );
+
+  useEffect(() => {
+    if (embedded) return;
+    setOpenMeasureKey(
+      goalId ? new URLSearchParams(location.search).get("measure") : null,
+    );
+  }, [embedded, goalId, location.search]);
 
   useEffect(() => {
     if (embedded) return;
@@ -1907,7 +1894,14 @@ export function GoalsPersonDetail({
       return;
     }
     if (nextGoalId) {
-      navigate(goalsGoalPath(snapshot.cycle.id, personId, nextGoalId));
+      const params = new URLSearchParams(location.search);
+      if (measureKey) params.set("measure", measureKey);
+      else params.delete("measure");
+      const search = params.toString();
+      navigate({
+        pathname: goalsGoalPath(snapshot.cycle.id, personId, nextGoalId),
+        search: search ? `?${search}` : "",
+      });
       return;
     }
     navigate({
@@ -2215,6 +2209,7 @@ function ManagerReportGoalsTable({
   goalCountPolicy,
   lockMessage,
   openGoalId,
+  openMeasureKey,
   onOpen,
   onSaveGoals,
   onGoalDeleted,
@@ -2232,6 +2227,7 @@ function ManagerReportGoalsTable({
   goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
   lockMessage?: string | null;
   openGoalId: string | null;
+  openMeasureKey?: string | null;
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
   onGoalDeleted?: () => void;
@@ -2354,6 +2350,7 @@ function ManagerReportGoalsTable({
             : undefined,
         }))}
         openGoalId={openGoalId}
+        openMeasureKey={openMeasureKey}
         onOpen={onOpen}
         canEditWeight={canEditStructure}
         canRemove={canEditStructure}
@@ -2550,6 +2547,7 @@ function ManagerPanel({
               goalCountPolicy={snapshot.cycle.goalCountPolicy}
               lockMessage={lock.spoken}
               openGoalId={openGoalId}
+              openMeasureKey={openMeasureKey}
               onOpen={setOpenGoalId}
               onSaveGoals={onSaveGoals}
               onGoalDeleted={() => showSuccessToast("Goal deleted.")}
@@ -3207,6 +3205,7 @@ function EmployeePanel({
             : undefined,
         }))}
         openGoalId={openGoalId}
+        openMeasureKey={highlightMeasureKey}
         status={row.status}
         postWindowApprovalStage={row.postWindowApprovalStage}
         cycleId={cycleId}
@@ -3283,69 +3282,6 @@ function EmployeePanel({
                 void persistThenNotify(() => onPersistGoals(next), () => {
                   showSuccessToast("Goal saved.");
                 });
-              });
-            }
-            : undefined
-        }
-        canLogProgress={canUpdateProgress || canEditDraft}
-        onRecordMetricProgress={
-          canUpdateProgress || canEditDraft
-            ? (goalId, metricId, nextValue) => {
-              const author = {
-                id: commentAuthorId,
-                name: commentAuthorName,
-              };
-              setGoals((current) => {
-                const next = current.map((goal) => {
-                  if (goal.id !== goalId) return goal;
-                  return {
-                    ...goal,
-                    measurements: goal.measurements.map((item) =>
-                      item.kind === "metric" && item.id === metricId
-                        ? recordMetricProgress(item, nextValue, author)
-                        : item,
-                    ),
-                  };
-                });
-                const progressGoals = progressOnlyGoals(row.goals, next);
-                if (progressGoals) {
-                  void persistThenNotify(
-                    () => onPersistProgress(progressGoals),
-                    () => showSuccessToast("Progress saved."),
-                  );
-                }
-                return next;
-              });
-            }
-            : undefined
-        }
-        onToggleMilestone={
-          canUpdateProgress || canEditDraft
-            ? (goalId, milestoneId, complete) => {
-              const author = {
-                id: commentAuthorId,
-                name: commentAuthorName,
-              };
-              setGoals((current) => {
-                const next = current.map((goal) => {
-                  if (goal.id !== goalId) return goal;
-                  return {
-                    ...goal,
-                    measurements: goal.measurements.map((item) =>
-                      item.kind === "milestone" && item.id === milestoneId
-                        ? recordMilestoneProgress(item, complete, author)
-                        : item,
-                    ),
-                  };
-                });
-                const progressGoals = progressOnlyGoals(row.goals, next);
-                if (progressGoals) {
-                  void persistThenNotify(
-                    () => onPersistProgress(progressGoals),
-                    () => showSuccessToast("Progress saved."),
-                  );
-                }
-                return next;
               });
             }
             : undefined

@@ -121,7 +121,9 @@ describe('GoalsTable nested measures', () => {
     fireEvent.click(screen.getByText('Primary outcome completion'))
 
     expect(onOpen).toHaveBeenCalledWith('g1', 'm1')
-    rerender(<GoalsTable {...props} openGoalId="g1" />)
+    rerender(
+      <GoalsTable {...props} openGoalId="g1" openMeasureKey="m1" />,
+    )
 
     expect(
       screen.getByText('Primary outcome completion').closest('[role="row"]'),
@@ -157,12 +159,10 @@ describe('GoalsTable nested measures', () => {
     ).toHaveClass('is-selected')
   })
 
-  it('puts the log count inside the Log button next to the measure name', () => {
+  it('hides the measure Log button from metric and milestone rows', () => {
     render(
       <GoalsTable
         rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
-        canLogProgress
-        onRecordMetricProgress={vi.fn()}
       />,
     )
 
@@ -172,102 +172,15 @@ describe('GoalsTable nested measures', () => {
       }),
     )
 
-    const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion, 1 update',
-    })
-    expect(log).toHaveTextContent('Log')
-    expect(log.querySelector('.pd-count-badge')).toHaveTextContent('1')
-    expect(log.closest('.pd-goals-table__goal')).toBeTruthy()
-    expect(log.closest('.pd-goals-table__metric')).toBeNull()
+    expect(screen.getByText('Primary outcome completion')).toBeInTheDocument()
+    expect(screen.getByText('Quality process')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Log progress/ }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Update checklist/ }),
+    ).not.toBeInTheDocument()
     expect(screen.queryByText('Progress Logs')).not.toBeInTheDocument()
-    expect(
-      screen.getByRole('button', {
-        name: 'Update checklist for Quality process',
-      }),
-    ).toBeInTheDocument()
-
-    fireEvent.mouseEnter(log.parentElement!)
-    expect(
-      screen.getByText(
-        (_, node) =>
-          node?.classList.contains('pd-goal-progress-log__change') === true &&
-          node.textContent === '0 → 60',
-      ),
-    ).toBeInTheDocument()
-  })
-
-  it('lets a metric Log button record progress from the hover menu', () => {
-    const onRecordMetricProgress = vi.fn()
-    render(
-      <GoalsTable
-        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
-        canLogProgress
-        onRecordMetricProgress={onRecordMetricProgress}
-      />,
-    )
-
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Expand Deliver the core People & Culture outcomes',
-      }),
-    )
-
-    const measureName = screen.getByText('Primary outcome completion')
-    const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion, 1 update',
-    })
-    expect(log.closest('.pd-goals-table__goal')).toBeTruthy()
-    expect(log.closest('.pd-goals-table__metric')).toBeNull()
-    expect(
-      measureName.compareDocumentPosition(log) &
-      Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-
-    fireEvent.click(log)
-    fireEvent.change(
-      screen.getByLabelText('Current progress for Primary outcome completion'),
-      { target: { value: '80' } },
-    )
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Add Update For Primary outcome completion',
-      }),
-    )
-
-    expect(onRecordMetricProgress).toHaveBeenCalledWith('g1', 'm1', 80)
-  })
-
-  it('lets a milestone Log button toggle tasks from the hover menu', () => {
-    const onToggleMilestone = vi.fn()
-    render(
-      <GoalsTable
-        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
-        canLogProgress
-        onToggleMilestone={onToggleMilestone}
-      />,
-    )
-
-    fireEvent.click(
-      screen.getByRole('button', {
-        name: 'Expand Deliver the core People & Culture outcomes',
-      }),
-    )
-
-    const log = screen.getByRole('button', {
-      name: 'Update checklist for Quality process',
-    })
-    expect(log.closest('.pd-goals-table__goal')).toBeTruthy()
-
-    fireEvent.click(log)
-    expect(
-      screen.getByRole('heading', { name: 'Progress Logs None yet' }),
-    ).toBeInTheDocument()
-    fireEvent.click(
-      screen.getByRole('checkbox', {
-        name: 'Mark Triage incoming defects complete',
-      }),
-    )
-    expect(onToggleMilestone).toHaveBeenCalledWith('g1', 't1', true)
   })
 
   it('shows the total weight allocated across goal rows', () => {
