@@ -15,6 +15,7 @@ export function ActivitySettingsPanel() {
     events,
     isLoading,
     error,
+    refetch,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
@@ -47,7 +48,16 @@ export function ActivitySettingsPanel() {
       <div className="pd-activity-settings__feed">
         {isLoading ? <p className="pd-activity-log__empty">Loading…</p> : null}
         {error ? (
-          <p className="pd-activity-log__empty">Could not load activity.</p>
+          <div className="pd-activity-log__status" role="alert">
+            <p className="pd-activity-log__empty">Could not load activity.</p>
+            <button
+              type="button"
+              className="pd-activity-link"
+              onClick={() => void refetch()}
+            >
+              Try again
+            </button>
+          </div>
         ) : null}
         {!isLoading && !error ? (
           <>

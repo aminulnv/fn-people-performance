@@ -4,10 +4,16 @@ import {
   type MouseEvent,
   type PointerEvent,
 } from "react";
-import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Copy, Search } from "lucide-react";
-import { Avatar, SegmentedControl, Tooltip } from "@/components/ui";
+import {
+  Check,
+  ChevronDown,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  Copy,
+  Search,
+} from "lucide-react";
+import { Avatar, SegmentedControl } from "@/components/ui";
 import { ApiError } from "@/lib/apiClient";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { useEmployees } from "@/lib/employees/useEmployees";
@@ -19,22 +25,19 @@ import { fetchEmployeeOkrs } from "@/lib/okr/performance";
 import { queryKeys } from "@/lib/queryClient";
 import {
   formatOkrMeasure,
-  formatOkrRole,
   formatOkrTrackingKind,
-  okrStatusTone,
   okrTrackingKind,
   raciSearchText,
   resolveRaciParty,
   type OkrDirectoryPerson,
-  type OkrLastCheckIn,
   type OkrRaci,
-  type OkrRaciParty,
   type OkrReferenceLevel,
   type OkrReferenceScope,
   type OkrWindowData,
   type OkrWorkItem,
   type ResolvedOkrRaciParty,
 } from "@/lib/okr/reference";
+import { GoalOkrKrDetail } from "./GoalOkrKrDetail";
 
 type OkrLevelTab = OkrReferenceLevel | "all";
 
@@ -89,15 +92,6 @@ function directoryForRaci(
   ).join(" ");
 }
 
-function formatCheckInDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "short",
-  }).format(date);
-}
-
 function progressLine(item: OkrWorkItem): string | null {
   const current = formatOkrMeasure(item.currentValue, item.unit);
   const target = formatOkrMeasure(item.targetValue, item.unit);
@@ -106,15 +100,45 @@ function progressLine(item: OkrWorkItem): string | null {
   return current ?? target;
 }
 
-function checkInLine(checkIn: OkrLastCheckIn): string {
-  return [
-    checkIn.weekNumber != null ? `Week ${checkIn.weekNumber}` : "",
-    checkIn.statusLabel,
-    checkIn.authorName,
-    checkIn.submittedAt ? formatCheckInDate(checkIn.submittedAt) : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+function progressTone(
+  percent: number | null,
+): "ok" | "warn" | "danger" | "muted" {
+  if (percent == null) return "muted";
+  if (percent < 35) return "danger";
+  if (percent < 70) return "warn";
+  return "ok";
+}
+
+function rowOwners(
+  item: OkrWorkItem,
+  directory: OkrDirectoryPerson[],
+  viewer: OkrDirectoryPerson | null,
+): ResolvedOkrRaciParty[] {
+  const fromRaci = item.raci.responsible
+    .map((party) => resolveRaciParty(party, directory))
+    .filter((person) => person.name.trim());
+  if (fromRaci.length > 0) return fromRaci.slice(0, 2);
+  if (viewer) {
+    return [
+      {
+        employeeId: viewer.employeeId,
+        name: viewer.fullName,
+        avatarUrl: viewer.avatarUrl,
+        linked: true,
+      },
+    ];
+  }
+  if (item.ownerLabel.trim()) {
+    return [
+      {
+        employeeId: null,
+        name: item.ownerLabel,
+        avatarUrl: "",
+        linked: false,
+      },
+    ];
+  }
+  return [];
 }
 
 function clusterByObjective(items: OkrWorkItem[]) {
@@ -128,203 +152,6 @@ function clusterByObjective(items: OkrWorkItem[]) {
     else clusters.push({ key, objective, items: [item] });
   }
   return clusters;
-}
-
-function RaciPerson({ person }: { person: ResolvedOkrRaciParty }) {
-  const inner = (
-    <>
-      <Avatar
-        name={person.name}
-        src={person.avatarUrl || undefined}
-        size="sm"
-        className="pd-okr-ref__raci-avatar"
-        alt=""
-        style={avatarStyle(person.name)}
-      />
-      <span className="pd-okr-ref__raci-name">{person.name}</span>
-    </>
-  );
-
-  if (person.linked && person.employeeId != null) {
-    return (
-      <Link to={`/people/${person.employeeId}`} className="pd-okr-ref__raci-person">
-        {inner}
-      </Link>
-    );
-  }
-
-  return <span className="pd-okr-ref__raci-person">{inner}</span>;
-}
-
-function OkrRaciList({
-  raci,
-  directory,
-}: {
-  raci: OkrRaci;
-  directory: OkrDirectoryPerson[];
-}) {
-  const rows = RACI_ROWS.filter((row) => raci[row.key].length > 0);
-  if (rows.length === 0) return null;
-
-  return (
-    <div className="pd-okr-ref__raci">
-      <p className="pd-okr-ref__raci-title">RACI</p>
-      {rows.map((row) => (
-        <section
-          key={row.key}
-          className={`pd-okr-ref__raci-row pd-okr-ref__raci-row--${row.letter.toLowerCase()}`}
-          aria-label={`${row.label}, ${raci[row.key].length}`}
-        >
-          <h4>
-            {row.letter} · {row.label}
-            <span>{raci[row.key].length}</span>
-          </h4>
-          <ul>
-            {raci[row.key].map((party: OkrRaciParty, index) => {
-              const person = resolveRaciParty(party, directory);
-              return (
-                <li key={`${row.key}-${person.employeeId ?? person.name}-${index}`}>
-                  <RaciPerson person={person} />
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function TrackingKindChip({ item }: { item: OkrWorkItem }) {
-  const kind = okrTrackingKind(item);
-  return (
-    <span className={`pd-okr-ref__type pd-okr-ref__type--${kind}`}>
-      {formatOkrTrackingKind(kind)}
-    </span>
-  );
-}
-
-function RoleChip({
-  role,
-  viewer,
-}: {
-  role: string;
-  viewer: OkrDirectoryPerson | null;
-}) {
-  if (!role) return null;
-  return (
-    <span className="pd-okr-ref__role">
-      {viewer ? (
-        <Avatar
-          name={viewer.fullName}
-          src={viewer.avatarUrl || undefined}
-          size="sm"
-          className="pd-okr-ref__role-avatar"
-          alt=""
-          style={avatarStyle(viewer.fullName)}
-        />
-      ) : null}
-      {role}
-    </span>
-  );
-}
-
-function OkrWorkDetail({
-  item,
-  directory,
-  viewer,
-}: {
-  item: OkrWorkItem;
-  directory: OkrDirectoryPerson[];
-  viewer: OkrDirectoryPerson | null;
-}) {
-  const role = item.roles.map(formatOkrRole).join(", ");
-  const measure = progressLine(item);
-  const tone = okrStatusTone(item.status);
-  const checkIn = item.lastCheckIn;
-  const kindLabel =
-    item.kind === "special_project" ? "Special project" : "Key result";
-
-  return (
-    <div className="pd-okr-ref__detail">
-      <header className="pd-okr-ref__detail-head">
-        <p className="pd-okr-ref__detail-kind">
-          {kindLabel}
-          <TrackingKindChip item={item} />
-        </p>
-        <h3>{item.shortTitle}</h3>
-        {item.description ? (
-          <p className="pd-okr-ref__detail-desc">{item.description}</p>
-        ) : null}
-      </header>
-
-      {item.objectiveTitle ? (
-        <p className="pd-okr-ref__obj">
-          <span>OBJ</span>
-          {item.objectiveTitle}
-        </p>
-      ) : null}
-
-      <dl className="pd-okr-ref__detail-facts">
-        {role ? (
-          <div>
-            <dt>Role</dt>
-            <dd>
-              <RoleChip role={role} viewer={viewer} />
-            </dd>
-          </div>
-        ) : null}
-        {item.statusLabel ? (
-          <div>
-            <dt>Status</dt>
-            <dd>
-              <span className={`pd-okr-ref__status pd-okr-ref__status--${tone}`}>
-                {item.statusLabel}
-              </span>
-            </dd>
-          </div>
-        ) : null}
-        {measure ? (
-          <div>
-            <dt>Progress</dt>
-            <dd className="pd-okr-ref__measure">{measure}</dd>
-          </div>
-        ) : null}
-        {item.quarterLabel || item.quarter ? (
-          <div>
-            <dt>Quarter</dt>
-            <dd>{item.quarterLabel || item.quarter}</dd>
-          </div>
-        ) : null}
-      </dl>
-
-      {checkIn ? (
-        <section className="pd-okr-ref__detail-section">
-          <h4>Last Check-In</h4>
-          <p>{checkInLine(checkIn)}</p>
-          {checkIn.note ? (
-            <p className="pd-okr-ref__detail-note">{checkIn.note}</p>
-          ) : null}
-        </section>
-      ) : null}
-
-      {item.milestones.length > 0 ? (
-        <section className="pd-okr-ref__detail-section">
-          <h4>Milestones</h4>
-          <ul>
-            {item.milestones.map((milestone) => (
-              <li key={milestone.id}>
-                {milestone.title}
-                {milestone.status ? ` · ${formatOkrRole(milestone.status)}` : ""}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <OkrRaciList raci={item.raci} directory={directory} />
-    </div>
-  );
 }
 
 function CopyOkrTitle({ title }: { title: string }) {
@@ -370,56 +197,115 @@ function CopyOkrTitle({ title }: { title: string }) {
   );
 }
 
+function OkrRowProgress({ item }: { item: OkrWorkItem }) {
+  const current =
+    formatOkrMeasure(item.currentValue, item.unit) ??
+    (item.progressPercent != null
+      ? `${Math.round(item.progressPercent)}%`
+      : null);
+  const target = formatOkrMeasure(item.targetValue, item.unit);
+  const percent =
+    item.progressPercent != null
+      ? Math.min(100, Math.max(0, Math.round(item.progressPercent)))
+      : null;
+  if (!current && !target && percent == null) return null;
+
+  const tone = progressTone(percent);
+  const trail = progressLine(item);
+
+  return (
+    <div
+      className={`pd-okr-ref__score pd-okr-ref__score--${tone}`}
+      aria-label={trail ?? undefined}
+    >
+      <div className="pd-okr-ref__score-side">
+        <span className="pd-okr-ref__score-value">{current ?? "—"}</span>
+        {trail ? <span className="pd-okr-ref__score-trail">{trail}</span> : null}
+      </div>
+      <div
+        className="pd-okr-ref__score-bar"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percent ?? 0}
+        aria-label="Progress"
+      >
+        <span
+          className="pd-okr-ref__score-fill"
+          style={{ height: `${percent ?? 0}%` }}
+        />
+      </div>
+      <div className="pd-okr-ref__score-side pd-okr-ref__score-side--target">
+        <span className="pd-okr-ref__score-value">{target ?? "—"}</span>
+      </div>
+    </div>
+  );
+}
+
 function WorkItem({
   item,
   directory,
   viewer,
+  selected,
+  onSelect,
 }: {
   item: OkrWorkItem;
   directory: OkrDirectoryPerson[];
   viewer: OkrDirectoryPerson | null;
+  selected: boolean;
+  onSelect: (item: OkrWorkItem) => void;
 }) {
-  const role = item.roles.map(formatOkrRole).join(", ");
-  const hasRaci = RACI_ROWS.some((row) => item.raci[row.key].length > 0);
+  const owners = rowOwners(item, directory, viewer);
 
   return (
-    <Tooltip
-      className="pd-okr-ref__item-tip"
-      side="left"
-      portal
-      interactive
-      delayMs={80}
-      content={
-        <OkrWorkDetail item={item} directory={directory} viewer={viewer} />
-      }
+    <div
+      className={`pd-okr-ref__item${selected ? " is-selected" : ""}`}
+      draggable
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      onClick={() => onSelect(item)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onSelect(item);
+        }
+      }}
+      onDragStart={(event) => {
+        event.dataTransfer.setData(
+          OKR_GOAL_DRAG_TYPE,
+          JSON.stringify(okrGoalDropPayload(item)),
+        );
+        event.dataTransfer.setData("text/plain", item.shortTitle);
+        event.dataTransfer.effectAllowed = "copy";
+      }}
     >
-      <div
-        className="pd-okr-ref__item"
-        draggable
-        onDragStart={(event) => {
-          event.dataTransfer.setData(
-            OKR_GOAL_DRAG_TYPE,
-            JSON.stringify(okrGoalDropPayload(item)),
-          );
-          event.dataTransfer.setData("text/plain", item.shortTitle);
-          event.dataTransfer.effectAllowed = "copy";
-        }}
-      >
-        <div className="pd-okr-ref__item-head">
-          <span className="pd-okr-ref__item-copy">
-            <span className="pd-okr-ref__title">
-              <strong>{item.shortTitle}</strong>
-              <CopyOkrTitle title={item.shortTitle} />
-            </span>
-            <span className="pd-okr-ref__meta">
-              <TrackingKindChip item={item} />
-              <RoleChip role={role} viewer={viewer} />
-              {hasRaci ? <span className="pd-okr-ref__raci-trigger">RACI</span> : null}
-            </span>
+        {owners.length > 0 ? (
+          <div className="pd-okr-ref__avatars" aria-hidden={owners.length > 1}>
+            {owners.map((person, index) => (
+              <Avatar
+                key={`${person.employeeId ?? person.name}-${index}`}
+                name={person.name}
+                src={person.avatarUrl || undefined}
+                size="sm"
+                className="pd-okr-ref__avatar"
+                alt={owners.length === 1 ? person.name : ""}
+                style={avatarStyle(person.name)}
+              />
+            ))}
+          </div>
+        ) : null}
+        <div className="pd-okr-ref__item-copy">
+          <span className="pd-okr-ref__title">
+            <strong>{item.shortTitle}</strong>
+            <CopyOkrTitle title={item.shortTitle} />
           </span>
+          {item.description ? (
+            <p className="pd-okr-ref__desc">{item.description}</p>
+          ) : null}
         </div>
-      </div>
-    </Tooltip>
+        <OkrRowProgress item={item} />
+    </div>
   );
 }
 
@@ -428,30 +314,57 @@ function ObjectiveCluster({
   items,
   directory,
   viewer,
+  open,
+  onToggle,
+  selectedItemId,
+  onSelect,
 }: {
   objective: string;
   items: OkrWorkItem[];
   directory: OkrDirectoryPerson[];
   viewer: OkrDirectoryPerson | null;
+  open: boolean;
+  onToggle: () => void;
+  selectedItemId: string | null;
+  onSelect: (item: OkrWorkItem) => void;
 }) {
+  const list = (
+    <div className="pd-okr-ref__list">
+      {items.map((item) => (
+        <WorkItem
+          key={item.id}
+          item={item}
+          directory={directory}
+          viewer={viewer}
+          selected={selectedItemId === item.id}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+
+  if (!objective) {
+    return <div className="pd-okr-ref__cluster">{list}</div>;
+  }
+
   return (
     <div className="pd-okr-ref__cluster">
-      {objective ? (
-        <p className="pd-okr-ref__obj">
-          <span>OBJ</span>
-          {objective}
-        </p>
-      ) : null}
-      <div className="pd-okr-ref__list">
-        {items.map((item) => (
-          <WorkItem
-            key={item.id}
-            item={item}
-            directory={directory}
-            viewer={viewer}
-          />
-        ))}
-      </div>
+      <button
+        type="button"
+        className="pd-okr-ref__obj"
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <ChevronDown
+          className="pd-okr-ref__obj-chevron"
+          size={14}
+          strokeWidth={2.25}
+          aria-hidden
+        />
+        <span>OBJ</span>
+        <span className="pd-okr-ref__obj-title">{objective}</span>
+      </button>
+      {open ? list : null}
     </div>
   );
 }
@@ -461,26 +374,74 @@ function KindGroup({
   items,
   directory,
   viewer,
+  selectedItemId,
+  onSelect,
 }: {
   title: string;
   items: OkrWorkItem[];
   directory: OkrDirectoryPerson[];
   viewer: OkrDirectoryPerson | null;
+  selectedItemId: string | null;
+  onSelect: (item: OkrWorkItem) => void;
 }) {
+  const clusters = clusterByObjective(items);
+  const expandableKeys = clusters
+    .filter((cluster) => cluster.objective)
+    .map((cluster) => cluster.key);
+  const [collapsedKeys, setCollapsedKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const allExpanded =
+    expandableKeys.length > 0 &&
+    expandableKeys.every((key) => !collapsedKeys.has(key));
+  const toggleExpandAll = () => {
+    setCollapsedKeys(
+      allExpanded ? new Set(expandableKeys) : new Set(),
+    );
+  };
+  const toggleCluster = (key: string) => {
+    setCollapsedKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   if (items.length === 0) return null;
   return (
     <section className="pd-okr-ref__group" aria-label={title}>
       <div className="pd-okr-ref__group-head">
         <h3>{title}</h3>
+        {expandableKeys.length > 0 ? (
+          <button
+            type="button"
+            className="pd-okr-ref__group-expand"
+            aria-expanded={allExpanded}
+            aria-label={allExpanded ? "Collapse all" : "Expand all"}
+            title={allExpanded ? "Collapse all" : "Expand all"}
+            onClick={toggleExpandAll}
+          >
+            {allExpanded ? (
+              <ChevronsDownUp size={14} strokeWidth={1.75} aria-hidden />
+            ) : (
+              <ChevronsUpDown size={14} strokeWidth={1.75} aria-hidden />
+            )}
+          </button>
+        ) : null}
         <span>{items.length}</span>
       </div>
-      {clusterByObjective(items).map((cluster) => (
+      {clusters.map((cluster) => (
         <ObjectiveCluster
           key={cluster.key}
           objective={cluster.objective}
           items={cluster.items}
           directory={directory}
           viewer={viewer}
+          open={!cluster.objective || !collapsedKeys.has(cluster.key)}
+          onToggle={() => toggleCluster(cluster.key)}
+          selectedItemId={selectedItemId}
+          onSelect={onSelect}
         />
       ))}
     </section>
@@ -510,6 +471,7 @@ export function GoalOkrReferenceList({
 }) {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<OkrLevelTab>("company");
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const lookupId = employeeId && employeeId > 0 ? employeeId : 0;
   const { employees } = useEmployees();
   const directory = employees;
@@ -550,6 +512,10 @@ export function GoalOkrReferenceList({
   const quarterGroups = window?.allQuarters
     ? [...new Set(filtered.map((item) => item.quarterLabel || item.quarter))]
     : [];
+  const selectedItem = useMemo(
+    () => items.find((item) => item.id === selectedItemId) ?? null,
+    [items, selectedItemId],
+  );
 
   if (windowProp == null && lookupId <= 0) {
     return <p className="pd-okr-ref__empty">No matching OKRs.</p>;
@@ -567,72 +533,91 @@ export function GoalOkrReferenceList({
 
   return (
     <div className="pd-okr-ref__content">
-      <SegmentedControl
-        className="pd-okr-ref__levels"
-        aria-label="OKR level"
-        value={level}
-        onChange={setLevel}
-        options={LEVEL_TABS}
-      />
-
-      <label className="pd-okr-ref__search">
-        <span className="pd-sr-only">Search reference OKRs</span>
-        <Search size={14} strokeWidth={2} aria-hidden />
-        <input
-          type="search"
-          value={query}
-          placeholder="Search OKRs"
-          onChange={(event) => setQuery(event.target.value)}
+      {selectedItem ? (
+        <GoalOkrKrDetail
+          item={selectedItem}
+          directory={directory}
+          viewer={viewer}
+          onClose={() => setSelectedItemId(null)}
         />
-      </label>
+      ) : (
+        <>
+          <SegmentedControl
+            className="pd-okr-ref__levels"
+            aria-label="OKR level"
+            value={level}
+            onChange={setLevel}
+            options={LEVEL_TABS}
+          />
 
-      {filtered.length > 0 ? (
-        quarterGroups.length > 0 ? (
-          quarterGroups.map((label) => {
-            const quarterItems = filtered.filter(
-              (item) => (item.quarterLabel || item.quarter) === label,
-            );
-            return (
-              <section key={label} className="pd-okr-ref__group" aria-label={label}>
-                <div className="pd-okr-ref__group-head">
-                  <h3>{label}</h3>
-                  <span>{quarterItems.length}</span>
-                </div>
+          <label className="pd-okr-ref__search">
+            <span className="pd-sr-only">Search reference OKRs</span>
+            <Search size={14} strokeWidth={2} aria-hidden />
+            <input
+              type="search"
+              value={query}
+              placeholder="Search OKRs"
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+
+          {filtered.length > 0 ? (
+            quarterGroups.length > 0 ? (
+              quarterGroups.map((label) => {
+                const quarterItems = filtered.filter(
+                  (item) => (item.quarterLabel || item.quarter) === label,
+                );
+                return (
+                  <section key={label} className="pd-okr-ref__group" aria-label={label}>
+                    <div className="pd-okr-ref__group-head">
+                      <h3>{label}</h3>
+                      <span>{quarterItems.length}</span>
+                    </div>
+                    <KindGroup
+                      title="Key results"
+                      items={quarterItems.filter((item) => item.kind === "key_result")}
+                      directory={directory}
+                      viewer={viewer}
+                      selectedItemId={selectedItemId}
+                      onSelect={(item) => setSelectedItemId(item.id)}
+                    />
+                    <KindGroup
+                      title="Special projects"
+                      items={quarterItems.filter(
+                        (item) => item.kind === "special_project",
+                      )}
+                      directory={directory}
+                      viewer={viewer}
+                      selectedItemId={selectedItemId}
+                      onSelect={(item) => setSelectedItemId(item.id)}
+                    />
+                  </section>
+                );
+              })
+            ) : (
+              <>
                 <KindGroup
                   title="Key results"
-                  items={quarterItems.filter((item) => item.kind === "key_result")}
+                  items={keyResults}
                   directory={directory}
                   viewer={viewer}
+                  selectedItemId={selectedItemId}
+                  onSelect={(item) => setSelectedItemId(item.id)}
                 />
                 <KindGroup
                   title="Special projects"
-                  items={quarterItems.filter(
-                    (item) => item.kind === "special_project",
-                  )}
+                  items={specialProjects}
                   directory={directory}
                   viewer={viewer}
+                  selectedItemId={selectedItemId}
+                  onSelect={(item) => setSelectedItemId(item.id)}
                 />
-              </section>
-            );
-          })
-        ) : (
-          <>
-            <KindGroup
-              title="Key results"
-              items={keyResults}
-              directory={directory}
-              viewer={viewer}
-            />
-            <KindGroup
-              title="Special projects"
-              items={specialProjects}
-              directory={directory}
-              viewer={viewer}
-            />
-          </>
-        )
-      ) : (
-        <p className="pd-okr-ref__empty">{emptyCopy(window, query)}</p>
+              </>
+            )
+          ) : (
+            <p className="pd-okr-ref__empty">{emptyCopy(window, query)}</p>
+          )}
+        </>
       )}
     </div>
   );

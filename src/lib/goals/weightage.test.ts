@@ -8,6 +8,8 @@ import {
   distributeGoalWeights,
   goalWeightIssue,
   hasUnassignedGoalWeight,
+  hasUnassignedMeasurementWeight,
+  measurementWeightIssue,
   goalCountWarning,
   isEvenGoalSplit,
   removeGoalKeepingWeights,
@@ -78,26 +80,26 @@ describe('distributeGoalWeights', () => {
 })
 
 describe('appendGoalWithWeight', () => {
-  it('fills the first goal at 100%', () => {
-    expect(appendGoalWithWeight([], { weight: 0 })).toEqual([{ weight: 100 }])
+  it('keeps a blank weight on the first goal', () => {
+    expect(appendGoalWithWeight([], { weight: 0 })).toEqual([{ weight: 0 }])
   })
 
-  it('re-splits an even set when another goal is added', () => {
+  it('appends with a blank weight and leaves existing weights alone', () => {
     expect(
       appendGoalWithWeight([{ weight: 100 }], { weight: 0 }),
-    ).toEqual([{ weight: 50 }, { weight: 50 }])
+    ).toEqual([{ weight: 100 }, { weight: 0 }])
     expect(
       appendGoalWithWeight([{ weight: 50 }, { weight: 50 }], { weight: 0 }),
-    ).toEqual([{ weight: 33 }, { weight: 33 }, { weight: 34 }])
+    ).toEqual([{ weight: 50 }, { weight: 50 }, { weight: 0 }])
   })
 
-  it('leaves a manual split alone and gives the new goal the leftover', () => {
+  it('keeps a blank weight even when capacity remains', () => {
     expect(
       appendGoalWithWeight([{ weight: 70 }, { weight: 30 }], { weight: 0 }),
     ).toEqual([{ weight: 70 }, { weight: 30 }, { weight: 0 }])
     expect(
       appendGoalWithWeight([{ weight: 60 }, { weight: 20 }], { weight: 0 }),
-    ).toEqual([{ weight: 60 }, { weight: 20 }, { weight: 20 }])
+    ).toEqual([{ weight: 60 }, { weight: 20 }, { weight: 0 }])
   })
 })
 
@@ -339,6 +341,54 @@ describe('canSubmitGoals', () => {
     expect(check.ok).toBe(false)
     expect(check.reasons).toEqual(['Every goal needs a weight.'])
     expect(check.reasons).not.toContain('Weights need to add up to 100%.')
+  })
+
+  it('flags blank metric weights even when the rest already total 100%', () => {
+    const measurements = [
+      {
+        id: 'm1',
+        kind: 'metric' as const,
+        title: 'OKR metric',
+        weight: 100,
+        unit: 'number' as const,
+        direction: 'increase' as const,
+        startValue: 0,
+        currentValue: 0,
+        targetValue: 100,
+      },
+      {
+        id: 'm2',
+        kind: 'metric' as const,
+        title: 'test',
+        weight: 0,
+        unit: 'number' as const,
+        direction: 'increase' as const,
+        startValue: 0,
+        currentValue: 0,
+        targetValue: 100,
+      },
+    ]
+    expect(hasUnassignedMeasurementWeight(measurements)).toBe(true)
+    expect(measurementWeightIssue(measurements)).toBe(
+      'Every metric needs a weight.',
+    )
+
+    const check = canSubmitGoals(
+      [
+        readyGoal({
+          description: 'Quality',
+          weight: 50,
+          measurements,
+        }),
+        readyGoal({ description: 'Delivery', weight: 50 }),
+      ],
+      POLICY,
+    )
+
+    expect(check.ok).toBe(false)
+    expect(check.reasons.some((reason) => /weight on each metric/i.test(reason))).toBe(
+      true,
+    )
   })
 
   it('does not ask for weights when there are no goals yet', () => {

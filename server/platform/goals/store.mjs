@@ -1396,16 +1396,26 @@ export async function cascadeGoalToEmployees(
           `Goal is already cascaded to employee ${recipientEmployeeId}.`,
         )
       }
+      const sourceTitle = String(sourceGoal.description ?? '').trim()
       const childGoal = {
         id: newId('goal'),
-        description: '',
-        details: undefined,
+        description: sourceTitle ? `[Cascaded] ${sourceTitle}` : '[Cascaded]',
+        details: sourceGoal.details,
         weight: 0,
         ownerId: String(recipientEmployeeId),
         cascadedFromGoalId: sourceGoalId,
-        linkedGoalLabel: String(sourceGoal.description ?? '').trim(),
-        measurements: [],
+        linkedGoalLabel: sourceTitle,
         comments: [],
+        measurements: (sourceGoal.measurements ?? []).map((measurement) => ({
+          ...measurement,
+          id: newId('measurement'),
+          currentValue:
+            measurement.kind === 'metric' ? measurement.startValue : undefined,
+          complete: measurement.kind === 'milestone' ? false : undefined,
+          proofUrl: undefined,
+          comment: undefined,
+          progressLog: [],
+        })),
       }
       await replaceGoals(
         client,

@@ -180,3 +180,23 @@ export function dataTransferHasOkrGoal(dataTransfer: DataTransfer | null) {
   if (!types) return false;
   return Array.from(types).includes(OKR_GOAL_DRAG_TYPE);
 }
+
+/** Dispatched when the OKR sheet asks the open goal form to apply a KR fill. */
+export const OKR_APPLY_TO_GOAL_EVENT = "pd-okr-apply-to-goal";
+
+export function requestApplyOkrToGoal(payload: OkrGoalDropPayload) {
+  window.dispatchEvent(
+    new CustomEvent(OKR_APPLY_TO_GOAL_EVENT, { detail: payload }),
+  );
+}
+
+export function isOkrApplyToGoalEvent(
+  event: Event,
+): event is CustomEvent<OkrGoalDropPayload> {
+  return (
+    event instanceof CustomEvent &&
+    event.type === OKR_APPLY_TO_GOAL_EVENT &&
+    event.detail != null &&
+    typeof event.detail === "object"
+  );
+}

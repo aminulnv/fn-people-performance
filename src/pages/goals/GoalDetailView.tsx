@@ -22,7 +22,6 @@ import {
   appendMilestoneList,
   blankMetric,
   measurementPanels,
-  rebalanceMeasurementWeights,
   withMeasureProof,
 } from "@/lib/goals/measurements";
 import type {
@@ -40,7 +39,10 @@ import { editorGoalTitle, isBlankGoalTitle } from "@/lib/goals/weightage";
 import {
   applyOkrPayloadToGoal,
   dataTransferHasOkrGoal,
+  isOkrApplyToGoalEvent,
+  OKR_APPLY_TO_GOAL_EVENT,
   readOkrGoalDropPayload,
+  type OkrGoalDropPayload,
 } from "@/lib/okr/applyToGoal";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
@@ -59,6 +61,7 @@ import {
   type CascadeGoalHref,
 } from "./GoalCascadeField";
 import { GoalActionsMenu, hasGoalActions } from "./GoalActionsMenu";
+import type { DuplicateCycleOption } from "./GoalDuplicateCycleDialog";
 import type { CascadeTarget } from "./GoalCascadeTargetDialog";
 import { GoalEmptyMeasures } from "./GoalEmptyMeasures";
 import { GoalProgressEditor } from "./GoalProgressEditor";
@@ -267,7 +270,10 @@ type GoalDetailViewProps = {
   onRemoveComment?: (commentId: string) => void;
   /** Persist a named structural commit (field blur or discrete action). */
   onSave?: (goal: Goal) => void;
-  onDuplicate?: () => void;
+  onDuplicate?: (cycleId: string) => void;
+  /** Cycles the duplicate can be placed into. */
+  duplicateCycles?: DuplicateCycleOption[];
+  defaultDuplicateCycleId?: string;
   onCascade?: (reportIds: string[]) => void;
   onLinkCascadeTo?: (option: CascadeToOption) => void;
   onUnlinkCascadeTo?: (recipient: CascadeRecipient) => void;
@@ -310,6 +316,8 @@ export function GoalDetailView({
   onRemoveComment,
   onSave,
   onDuplicate,
+  duplicateCycles = [],
+  defaultDuplicateCycleId,
   onCascade,
   onLinkCascadeTo,
   onUnlinkCascadeTo,
@@ -434,6 +442,10 @@ export function GoalDetailView({
     if (!payload) return;
     event.preventDefault();
     setOkrDropActive(false);
+    applyOkrPayload(payload);
+  };
+
+  const applyOkrPayload = (payload: OkrGoalDropPayload) => {
     onRequestEdit(() => {
       const next = applyOkrPayloadToGoal(goalRef.current, payload);
       setTitleDraft(next.description);
@@ -442,6 +454,18 @@ export function GoalDetailView({
       persistStructure(next);
     });
   };
+  const applyOkrPayloadRef = useRef(applyOkrPayload);
+  applyOkrPayloadRef.current = applyOkrPayload;
+
+  useEffect(() => {
+    if (!canEdit) return;
+    const onApply = (event: Event) => {
+      if (!isOkrApplyToGoalEvent(event)) return;
+      applyOkrPayloadRef.current(event.detail);
+    };
+    window.addEventListener(OKR_APPLY_TO_GOAL_EVENT, onApply);
+    return () => window.removeEventListener(OKR_APPLY_TO_GOAL_EVENT, onApply);
+  }, [canEdit]);
 
   const startEditing = () => {
     setTitleDraft(editorGoalTitle(goalRef.current));
@@ -696,6 +720,8 @@ export function GoalDetailView({
           : undefined
       }
       onDuplicate={goalNamed ? onDuplicate : undefined}
+      duplicateCycles={duplicateCycles}
+      defaultDuplicateCycleId={defaultDuplicateCycleId ?? cycleId}
       onRemove={onRemove}
     />
   ) : null;
@@ -856,76 +882,76 @@ export function GoalDetailView({
 
       <div className="pd-goal-view__panel">
         <details
-            key={isEditing ? "edit" : "view"}
-            className="pd-goal-view__note"
-            open={isEditing || undefined}
+          key={isEditing ? "edit" : "view"}
+          className="pd-goal-view__note"
+          open={isEditing || undefined}
+        >
+          <summary
+            className={
+              isEditing
+                ? "pd-goal-view__note-label is-static"
+                : "pd-goal-view__note-label"
+            }
+            onClick={
+              isEditing
+                ? (event) => {
+                  event.preventDefault();
+                }
+                : undefined
+            }
           >
-            <summary
+            Description
+            {isEditing ? null : (
+              <ChevronRight
+                size={12}
+                strokeWidth={2.25}
+                className="pd-goal-view__note-chevron"
+                aria-hidden
+              />
+            )}
+          </summary>
+          {isEditing ? (
+            <textarea
+              id={detailsFieldId}
+              className="pd-goal-view__description-input"
+              value={detailsDraft}
+              placeholder="Add a description (optional)"
+              rows={3}
+              aria-label="Description"
+              disabled={!goalNamed}
+              onFocus={() => {
+                detailsFocusedRef.current = true;
+              }}
+              onChange={(event) => setDetailsDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  skipDetailsCommitRef.current = true;
+                  setDetailsDraft(goalRef.current.details ?? "");
+                  detailsFocusedRef.current = false;
+                  event.currentTarget.blur();
+                }
+              }}
+              onBlur={() => {
+                detailsFocusedRef.current = false;
+                if (skipDetailsCommitRef.current) {
+                  skipDetailsCommitRef.current = false;
+                  return;
+                }
+                commitDetailsDraft();
+              }}
+            />
+          ) : (
+            <p
               className={
-                isEditing
-                  ? "pd-goal-view__note-label is-static"
-                  : "pd-goal-view__note-label"
-              }
-              onClick={
-                isEditing
-                  ? (event) => {
-                    event.preventDefault();
-                  }
-                  : undefined
+                goal.details?.trim()
+                  ? "pd-goal-view__description"
+                  : "pd-goal-view__description is-empty"
               }
             >
-              Description
-              {isEditing ? null : (
-                <ChevronRight
-                  size={12}
-                  strokeWidth={2.25}
-                  className="pd-goal-view__note-chevron"
-                  aria-hidden
-                />
-              )}
-            </summary>
-            {isEditing ? (
-              <textarea
-                id={detailsFieldId}
-                className="pd-goal-view__description-input"
-                value={detailsDraft}
-                placeholder="Add a description (optional)"
-                rows={3}
-                aria-label="Description"
-                disabled={!goalNamed}
-                onFocus={() => {
-                  detailsFocusedRef.current = true;
-                }}
-                onChange={(event) => setDetailsDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") {
-                    skipDetailsCommitRef.current = true;
-                    setDetailsDraft(goalRef.current.details ?? "");
-                    detailsFocusedRef.current = false;
-                    event.currentTarget.blur();
-                  }
-                }}
-                onBlur={() => {
-                  detailsFocusedRef.current = false;
-                  if (skipDetailsCommitRef.current) {
-                    skipDetailsCommitRef.current = false;
-                    return;
-                  }
-                  commitDetailsDraft();
-                }}
-              />
-            ) : (
-              <p
-                className={
-                  goal.details?.trim()
-                    ? "pd-goal-view__description"
-                    : "pd-goal-view__description is-empty"
-                }
-              >
-                {goal.details?.trim() || "No description"}
-              </p>
-            )}
-          </details>
+              {goal.details?.trim() || "No description"}
+            </p>
+          )}
+        </details>
 
         {isEditing ? (
           <div className="pd-goal-create">
@@ -962,12 +988,10 @@ export function GoalDetailView({
                     )
                   }
                   onAddNumber={() =>
-                    beginEditingWithMeasures(
-                      rebalanceMeasurementWeights([
-                        ...goalRef.current.measurements,
-                        blankMetric("increase"),
-                      ]),
-                    )
+                    beginEditingWithMeasures([
+                      ...goalRef.current.measurements,
+                      blankMetric("increase"),
+                    ])
                   }
                 />
               ) : (

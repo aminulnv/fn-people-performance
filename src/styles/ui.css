@@ -1976,6 +1976,11 @@ a.pd-btn--secondary:visited {
   right: 0;
 }
 
+.pd-menu__panel--above {
+  top: auto;
+  bottom: calc(100% + 0.35rem);
+}
+
 .pd-menu__item {
   display: flex;
   align-items: center;
@@ -2837,6 +2842,7 @@ a.pd-btn--secondary:visited {
 .pd-home-banner,
 .pd-btn,
 .pd-people__ghost-btn,
+.pd-people__create-btn,
 .pd-people__icon-btn,
 .pd-people__search,
 .pd-people__chip,

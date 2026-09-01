@@ -169,7 +169,7 @@ describe('GoalProgressEditor', () => {
     })
 
     expect(screen.queryByText(/Weights total/)).toBeNull()
-    expect(screen.queryByText('Metric weights must total 100%')).toBeNull()
+    expect(screen.queryByText('Must total 100%')).toBeNull()
     expect(
       screen.queryByRole('button', { name: 'Distribute Evenly' }),
     ).toBeNull()
@@ -223,11 +223,25 @@ describe('GoalProgressEditor', () => {
     const heading = screen.getByRole('heading', { name: 'Metrics' })
     const ribbon = heading.parentElement
     expect(ribbon).toHaveTextContent('95%')
-    expect(ribbon).toHaveTextContent('Metric weights must total 100%')
+    expect(ribbon).toHaveTextContent('Must total 100%')
     expect(
       ribbon?.querySelector('.pd-goal-create__distribute'),
     ).toHaveTextContent('Distribute Evenly')
     expect(screen.queryByText(/Weights total/)).toBeNull()
+  })
+
+  it('flags blank metric weights in the metrics header even when others total 100%', () => {
+    renderEditor({
+      id: 'g1',
+      description: 'Ship quality',
+      weight: 100,
+      measurements: [numberMeasure(100), milestoneMeasure(0)],
+    })
+
+    const heading = screen.getByRole('heading', { name: 'Metrics' })
+    const ribbon = heading.parentElement
+    expect(ribbon).toHaveTextContent('Every metric needs a weight.')
+    expect(ribbon).not.toHaveTextContent('Must total 100%')
   })
 
   it('hides the task-list chrome when there is only one list', () => {
@@ -246,19 +260,19 @@ describe('GoalProgressEditor', () => {
     expect(screen.getByRole('button', { name: 'Add Task List' })).toBeInTheDocument()
   })
 
-  it('locks the only measure weight at 100%', () => {
+  it('lets the only measure weight stay editable and blank', () => {
     renderEditor({
       id: 'g1',
       description: 'Ship quality',
       weight: 100,
-      measurements: [numberMeasure(100)],
+      measurements: [numberMeasure(0)],
     })
 
-    expect(screen.queryByLabelText('Weight for CSAT')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('100 percent')).toBeInTheDocument()
+    expect(screen.getByLabelText('Weight for CSAT')).toBeInTheDocument()
+    expect(screen.getByLabelText('Weight for CSAT')).toHaveValue('')
   })
 
-  it('splits weight evenly when a second measure is added', () => {
+  it('keeps a blank weight when a second measure is added', () => {
     const onChange = vi.fn()
     render(
       <GoalProgressEditor
@@ -277,8 +291,8 @@ describe('GoalProgressEditor', () => {
     expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         measurements: [
-          expect.objectContaining({ kind: 'milestone', weight: 50 }),
-          expect.objectContaining({ kind: 'metric', weight: 50 }),
+          expect.objectContaining({ kind: 'milestone', weight: 100 }),
+          expect.objectContaining({ kind: 'metric', weight: 0 }),
         ],
       }),
     )

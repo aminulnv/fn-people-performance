@@ -43,9 +43,9 @@ describe('GoalProgressLog', () => {
   it('shows a metric change as from → to, not a completion icon', () => {
     render(<GoalProgressLog entries={[metricEntry]} />)
 
-    fireEvent.click(screen.getByText('Log'))
+    fireEvent.click(screen.getByText('Progress'))
     expect(
-      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Updates 1 update' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -72,9 +72,9 @@ describe('GoalProgressLog', () => {
       />,
     )
 
-    fireEvent.click(screen.getByText('Log'))
+    fireEvent.click(screen.getByText('Progress'))
     expect(
-      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Updates 1 update' }),
     ).toBeInTheDocument()
     const change = screen.getByText(
       (_, node) =>
@@ -93,9 +93,9 @@ describe('GoalProgressLog', () => {
   it('uses a completion icon instead of the status wording', async () => {
     render(<GoalProgressLog entries={[completed, incomplete]} />)
 
-    fireEvent.click(screen.getByText('Log'))
+    fireEvent.click(screen.getByText('Progress'))
     expect(
-      screen.getByRole('heading', { name: 'Progress Logs 2 updates' }),
+      screen.getByRole('heading', { name: 'Progress Updates 2 updates' }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Marked Completed')).not.toBeInTheDocument()
     expect(screen.queryByText('Marked Incomplete')).not.toBeInTheDocument()

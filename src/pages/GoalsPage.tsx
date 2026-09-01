@@ -105,12 +105,17 @@ import {
 } from "@/lib/goals/useSharedGoalsSnapshot";
 import { DEMO_PHASES } from "@/lib/goals/phases";
 import {
-  GoalCascadeIndicator,
+  GoalCascadeName,
   GoalIssueIcon,
   GoalProgressAge,
   GoalsTable,
+  GoalWeightTree,
   MeasureNameCell,
 } from "./goals/GoalsTable";
+import {
+  GoalProgressInfo,
+  GoalProgressInfoTip,
+} from "./goals/GoalProgressInfo";
 import { formatWeightReadout } from "./goals/GoalMeasurementReadout";
 import {
   measurePanelLatestProgressAt,
@@ -154,6 +159,7 @@ import {
   goalSectionLabels,
   goalsDetailPath,
   goalsGoalPath,
+  duplicateCycleOptions,
   canViewPersonGoals,
   GOALS_MY_GOALS_HASH,
   hashForManagerTab,
@@ -350,7 +356,7 @@ function GoalsOverviewGoalPanel({
   goalId: string;
   highlightMeasureKey?: string | null;
   onClose: () => void;
-  onGoalChange: (nextGoalId: string) => void;
+  onGoalChange: (nextGoalId: string, nextCycleId?: string) => void;
 }) {
   const {
     snapshot,
@@ -598,17 +604,21 @@ function GoalsOverviewGoalPanel({
           onSave={(next) => requestGoalEdit(() => saveGoal(next))}
           onDuplicate={
             canDuplicate
-              ? () => {
+              ? (targetCycleId) => {
                 requestGoalEdit(() => {
-                  void actions.duplicateGoal(personId, selectedGoal.id).then((copy) => {
-                    if (!copy) return;
-                    onGoalChange(copy.id);
-                    showOverviewGoalToast("Goal duplicated.");
-                  });
+                  void actions
+                    .duplicateGoal(personId, selectedGoal.id, targetCycleId)
+                    .then((copy) => {
+                      if (!copy) return;
+                      onGoalChange(copy.id, targetCycleId);
+                      showOverviewGoalToast("Goal duplicated.");
+                    });
                 });
               }
               : undefined
           }
+          duplicateCycles={duplicateCycleOptions(snapshot.availableCycles)}
+          defaultDuplicateCycleId={cycleId}
           onCascade={
             canCascade
               ? (reportIds) => {
@@ -1385,42 +1395,58 @@ function GoalsOverview() {
                               className="pd-goals-overview__goal"
                               title={row.title}
                             >
-                              <GoalCascadeIndicator
+                              <GoalCascadeName
                                 goal={row}
                                 cascadeFrom={row.cascadeFrom}
                                 cascadedTo={row.cascadedTo}
-                                place="before"
-                              />
-                              <span
-                                className={
-                                  titleIssue
-                                    ? "pd-goals-overview__goal-text pd-goals-overview__goal-text--error"
-                                    : "pd-goals-overview__goal-text"
-                                }
                               >
-                                {row.title}
-                              </span>
-                              <GoalCascadeIndicator
-                                goal={row}
-                                cascadeFrom={row.cascadeFrom}
-                                cascadedTo={row.cascadedTo}
-                                place="after"
-                              />
-                              {titleIssue ? (
-                                <GoalIssueIcon issue={titleIssue} />
-                              ) : null}
+                                <span
+                                  className={
+                                    titleIssue
+                                      ? "pd-goals-overview__goal-text pd-goals-overview__goal-text--error"
+                                      : "pd-goals-overview__goal-text"
+                                  }
+                                >
+                                  {row.title}
+                                </span>
+                                {titleIssue ? (
+                                  <GoalIssueIcon issue={titleIssue} />
+                                ) : null}
+                              </GoalCascadeName>
                             </span>
                           </div>
                         </td>
                         <td data-col="weight">
-                          <span className="pd-goals-overview__weight">
-                            {row.weight}%
-                          </span>
+                          <GoalWeightTree
+                            limb={
+                              panels.length > 0
+                                ? isOpen
+                                  ? "stem"
+                                  : "spacer"
+                                : undefined
+                            }
+                          >
+                            <span className="pd-goals-overview__weight">
+                              {row.weight}%
+                            </span>
+                          </GoalWeightTree>
                         </td>
                         <td data-col="progress">
                           <div className="pd-goals-overview__progress">
                             <div className="pd-goals-overview__progress-meta">
                               <GoalProgressAge at={row.lastUpdatedAt} />
+                              <GoalProgressInfo
+                                label={`Progress details for ${row.title}`}
+                              >
+                                <GoalProgressInfoTip
+                                  goal={{
+                                    id: row.goalId,
+                                    description: row.title,
+                                    weight: row.weight,
+                                    measurements: row.measurements,
+                                  }}
+                                />
+                              </GoalProgressInfo>
                               <span className="pd-goals-overview__progress-label">
                                 {row.completion}%
                               </span>
@@ -1508,9 +1534,11 @@ function GoalsOverview() {
                                 />
                               </td>
                               <td data-col="weight">
-                                <span className="pd-goals-table__weight-pill">
-                                  {formatWeightReadout(measureWeight)}
-                                </span>
+                                <GoalWeightTree limb="branch">
+                                  <span className="pd-goals-table__weight-pill">
+                                    {formatWeightReadout(measureWeight)}
+                                  </span>
+                                </GoalWeightTree>
                               </td>
                               <td data-col="progress">
                                 <div className="pd-goals-table__progress">
@@ -1518,6 +1546,11 @@ function GoalsOverview() {
                                     <GoalProgressAge
                                       at={measurePanelLatestProgressAt(panel)}
                                     />
+                                    <GoalProgressInfo
+                                      label={`Progress details for ${measureName}`}
+                                    >
+                                      <GoalProgressInfoTip panel={panel} />
+                                    </GoalProgressInfo>
                                     <span className="pd-goals-table__progress-label">
                                       {measureProgress}%
                                     </span>
@@ -1545,9 +1578,9 @@ function GoalsOverview() {
           goalId={panelSelection.goalId}
           highlightMeasureKey={panelSelection.measureKey}
           onClose={() => setPanelSelection(null)}
-          onGoalChange={(nextGoalId) =>
+          onGoalChange={(nextGoalId, nextCycleId) =>
             setPanelSelection({
-              cycleId: panelSelection.cycleId,
+              cycleId: nextCycleId ?? panelSelection.cycleId,
               personId: panelSelection.personId,
               goalId: nextGoalId,
             })
@@ -1887,9 +1920,17 @@ export function GoalsPersonDetail({
     />
   );
 
-  const openGoal = (nextGoalId: string | null, measureKey?: string) => {
+  const openGoal = (
+    nextGoalId: string | null,
+    measureKey?: string,
+    nextCycleId?: string,
+  ) => {
     setOpenMeasureKey(nextGoalId ? (measureKey ?? null) : null);
+    const activeCycleId = nextCycleId ?? snapshot.cycle.id;
     if (embedded) {
+      if (nextCycleId && nextCycleId !== snapshot.cycle.id) {
+        void selectGoalCycle(nextCycleId);
+      }
       setEmbeddedGoalId(nextGoalId);
       return;
     }
@@ -1899,13 +1940,13 @@ export function GoalsPersonDetail({
       else params.delete("measure");
       const search = params.toString();
       navigate({
-        pathname: goalsGoalPath(snapshot.cycle.id, personId, nextGoalId),
+        pathname: goalsGoalPath(activeCycleId, personId, nextGoalId),
         search: search ? `?${search}` : "",
       });
       return;
     }
     navigate({
-      pathname: goalsDetailPath(snapshot.cycle.id, personId),
+      pathname: goalsDetailPath(activeCycleId, personId),
       hash: hashForManagerTab(managerTab),
     });
   };
@@ -2016,7 +2057,9 @@ export function GoalsPersonDetail({
       onRemoveComment={(goalId, commentId) =>
         actions.removeComment(active.id, goalId, commentId)
       }
-      onDuplicateGoal={(goalId) => actions.duplicateGoal(active.id, goalId)}
+      onDuplicateGoal={(goalId, targetCycleId) =>
+        actions.duplicateGoal(active.id, goalId, targetCycleId)
+      }
       previousCycleLabel={previousCycle?.label}
       onCopyPreviousGoals={() => actions.copyPreviousGoals(active.id)}
       cascadeTargets={reports.map(({ person }) => ({
@@ -2025,6 +2068,7 @@ export function GoalsPersonDetail({
         title: person.title,
         avatarUrl: person.avatarUrl,
       }))}
+      duplicateCycles={duplicateCycleOptions(snapshot.availableCycles)}
       onCascadeGoal={(goalId, reportIds) =>
         actions.cascadeGoal(active.id, goalId, reportIds)
       }
@@ -2272,11 +2316,12 @@ function ManagerReportGoalsTable({
     canEditStructure &&
     (row.status === "draft" || row.status === "sent_back");
   const submitCheck = canSubmitGoals(goals, goalCountPolicy);
+  const submitBlockers = submitSetBlockers(submitCheck.blockers);
   const submitBlockNotice =
-    showSubmitIssues && !submitCheck.ok ? (
+    showSubmitIssues && !submitCheck.ok && submitBlockers.length > 0 ? (
       <GoalSubmitBlockNotice
         layout="ribbon"
-        blockers={submitSetBlockers(submitCheck.blockers)}
+        blockers={submitBlockers}
         onOpenGoal={(goalId) => onOpen(goalId)}
         onAddGoal={canEditStructure ? addGoal : undefined}
         addGoalLabel={goals.length > 0 ? "Add Another Goal" : "Add A Goal"}
@@ -2632,6 +2677,7 @@ function EmployeePanel({
   previousCycleLabel,
   onCopyPreviousGoals,
   onDuplicateGoal,
+  duplicateCycles,
   onCascadeGoal,
   onLinkCascadeTo,
   onUnlinkCascadeTo,
@@ -2682,7 +2728,11 @@ function EmployeePanel({
     avatarUrl?: string;
   };
   highlightMeasureKey?: string | null;
-  onOpenGoal: (goalId: string | null, measureKey?: string) => void;
+  onOpenGoal: (
+    goalId: string | null,
+    measureKey?: string,
+    cycleId?: string,
+  ) => void;
   onPersistGoals: (goals: Goal[]) => void | Promise<boolean | void>;
   /** Progress-only updates never send goals back for approval. */
   onPersistProgress: (goals: Goal[]) => Promise<boolean> | boolean | void;
@@ -2691,13 +2741,17 @@ function EmployeePanel({
   onRemoveComment?: (goalId: string, commentId: string) => void;
   previousCycleLabel?: string;
   onCopyPreviousGoals: () => Promise<Goal | null>;
-  onDuplicateGoal: (goalId: string) => Promise<Goal | null>;
+  onDuplicateGoal: (
+    goalId: string,
+    targetCycleId: string,
+  ) => Promise<Goal | null>;
   cascadeTargets: {
     id: string;
     name: string;
     title?: string;
     avatarUrl?: string;
   }[];
+  duplicateCycles: ReturnType<typeof duplicateCycleOptions>;
   onCascadeGoal: (goalId: string, reportIds: string[]) => Promise<void>;
   onLinkCascadeTo: (goalId: string, option: CascadeToOption) => Promise<void>;
   onUnlinkCascadeTo: (
@@ -2960,16 +3014,20 @@ function EmployeePanel({
           onDuplicate={
             isNew || !canDuplicate
               ? undefined
-              : () => {
+              : (targetCycleId) => {
                 requestGoalEdit(() => {
-                  void onDuplicateGoal(selectedGoal.id).then((copy) => {
-                    if (!copy) return;
-                    onOpenGoal(copy.id);
-                    showSuccessToast("Goal duplicated.");
-                  });
+                  void onDuplicateGoal(selectedGoal.id, targetCycleId).then(
+                    (copy) => {
+                      if (!copy) return;
+                      onOpenGoal(copy.id, undefined, targetCycleId);
+                      showSuccessToast("Goal duplicated.");
+                    },
+                  );
                 });
               }
           }
+          duplicateCycles={duplicateCycles}
+          defaultDuplicateCycleId={cycleId}
           onCascade={
             isNew || !canCascade
               ? undefined
@@ -3107,11 +3165,12 @@ function EmployeePanel({
       </div>
     ) : undefined;
 
+  const submitBlockers = submitSetBlockers(submitCheck.blockers);
   const submitBlockNotice =
-    canSubmitBatch && !submitCheck.ok ? (
+    canSubmitBatch && !submitCheck.ok && submitBlockers.length > 0 ? (
       <GoalSubmitBlockNotice
         layout="ribbon"
-        blockers={submitSetBlockers(submitCheck.blockers)}
+        blockers={submitBlockers}
         onOpenGoal={onOpenGoal}
         onAddGoal={
           canEditDraft
@@ -3219,11 +3278,16 @@ function EmployeePanel({
         canCascade={canCascade}
         canRemove={canEditDraft}
         cascadeTargets={cascadeTargets}
+        duplicateCycles={duplicateCycles}
         onDuplicate={
           canDuplicate
-            ? (goalId) => {
+            ? (goalId, targetCycleId) => {
               requestGoalEdit(() => {
-                void onDuplicateGoal(goalId);
+                void onDuplicateGoal(goalId, targetCycleId).then((copy) => {
+                  if (!copy) return;
+                  onOpenGoal(copy.id, undefined, targetCycleId);
+                  showSuccessToast("Goal duplicated.");
+                });
               });
             }
             : undefined

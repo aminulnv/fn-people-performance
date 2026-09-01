@@ -4,6 +4,8 @@
   --people-radius: 999px;
   --people-radius-sm: 999px;
   --people-radius-panel: 16px;
+  /* Same lift as the ⋯ icon control — not the tinted .pd-btn / danger glow */
+  --people-control-shadow: var(--shadow-card);
   --people-table-person-gap: 0.55rem;
 
   display: grid;
@@ -261,6 +263,7 @@
   color: var(--color-text);
   cursor: pointer;
   text-decoration: none;
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
 a.pd-people__icon-btn,
@@ -294,6 +297,7 @@ a.pd-people__icon-btn:visited {
   cursor: pointer;
   text-decoration: none;
   box-sizing: border-box;
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
 .pd-people__ghost-btn:hover:not(:disabled) {
@@ -309,6 +313,7 @@ a.pd-people__icon-btn:visited {
   background: var(--color-cta);
   border-color: var(--color-cta);
   color: var(--color-on-cta);
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
 .pd-people__ghost-btn--primary:hover:not(:disabled) {
@@ -339,6 +344,7 @@ a.pd-people__ghost-btn--outline:hover {
   background: var(--color-success);
   border-color: var(--color-success);
   color: var(--color-on-success);
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
 .pd-people__ghost-btn--success:hover:not(:disabled) {
@@ -386,6 +392,7 @@ a.pd-people__ghost-btn--outline:hover {
   line-height: 1.2;
   text-decoration: none;
   cursor: pointer;
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
 .pd-people__create-btn:hover:not(:disabled) {

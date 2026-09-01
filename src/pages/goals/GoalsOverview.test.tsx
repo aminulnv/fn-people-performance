@@ -242,11 +242,13 @@ describe('Goals overview cycle eligibility', () => {
     ).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('Defects closed')).toBeInTheDocument()
     expect(screen.getByText('Quality process')).toBeInTheDocument()
-    expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(2)
+    expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(4)
+    expect(document.querySelectorAll('.pd-goals-table__branch--weight')).toHaveLength(2)
+    expect(document.querySelector('.pd-goals-table__weight-cell--stem')).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Metric' })).toBeInTheDocument()
     expect(screen.getByRole('img', { name: 'Milestone' })).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /Log progress/ }),
+      screen.queryByRole('button', { name: /Progress for/ }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Update checklist/ }),

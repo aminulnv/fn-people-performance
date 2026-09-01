@@ -46,6 +46,43 @@ const goalWithMeasures: Goal = {
 }
 
 describe('GoalsTable nested measures', () => {
+  it('expands and collapses all measure rows from the header button', () => {
+    const second: Goal = {
+      ...goalWithMeasures,
+      id: 'g2',
+      description: 'Grow manager coaching coverage',
+      weight: 60,
+    }
+    render(
+      <GoalsTable
+        rows={[
+          { goal: goalWithMeasures, title: goalWithMeasures.description },
+          { goal: second, title: second.description },
+        ]}
+      />,
+    )
+
+    expect(
+      screen.queryByText('Primary outcome completion'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand all' }))
+
+    expect(screen.getAllByText('Primary outcome completion')).toHaveLength(2)
+    expect(
+      screen.getByRole('button', { name: 'Collapse all' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }))
+
+    expect(
+      screen.queryByText('Primary outcome completion'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Expand all' }),
+    ).toBeInTheDocument()
+  })
+
   it('nests metric and milestone rows under the goal with type icons', () => {
     render(
       <GoalsTable
@@ -65,7 +102,9 @@ describe('GoalsTable nested measures', () => {
     expect(screen.getByText('Quality process')).toBeInTheDocument()
     expect(screen.queryByText('Metric')).not.toBeInTheDocument()
     expect(screen.queryByText('Milestone')).not.toBeInTheDocument()
-    expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(2)
+    expect(document.querySelectorAll('.pd-goals-table__branch')).toHaveLength(4)
+    expect(document.querySelectorAll('.pd-goals-table__branch--weight')).toHaveLength(2)
+    expect(document.querySelector('.pd-goals-table__weight-cell--stem')).toBeTruthy()
   })
 
   it('shows a proof link on the nested measure when one is saved', () => {
@@ -159,7 +198,7 @@ describe('GoalsTable nested measures', () => {
     ).toHaveClass('is-selected')
   })
 
-  it('hides the measure Log button from metric and milestone rows', () => {
+  it('hides the measure Progress button from metric and milestone rows', () => {
     render(
       <GoalsTable
         rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
@@ -175,12 +214,67 @@ describe('GoalsTable nested measures', () => {
     expect(screen.getByText('Primary outcome completion')).toBeInTheDocument()
     expect(screen.getByText('Quality process')).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: /Log progress/ }),
+      screen.queryByRole('button', { name: /Progress for/ }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Update checklist/ }),
     ).not.toBeInTheDocument()
-    expect(screen.queryByText('Progress Logs')).not.toBeInTheDocument()
+    expect(screen.queryByText('Progress Updates')).not.toBeInTheDocument()
+  })
+
+  it('shows a goal metrics summary and update history on progress info hover', async () => {
+    render(
+      <GoalsTable
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    const goalInfo = screen.getByRole('button', {
+      name: 'Progress details for Deliver the core People & Culture outcomes',
+    })
+    fireEvent.mouseEnter(goalInfo.closest('.pd-tooltip')!)
+    const tip = await screen.findByRole('tooltip')
+    expect(tip).toHaveTextContent('Goal summary')
+    expect(tip).toHaveTextContent('Overall progress')
+    expect(tip).toHaveTextContent('2 metrics')
+    expect(tip).toHaveTextContent('Primary outcome completion')
+    expect(tip).toHaveTextContent('Quality process')
+    const metricLog = tip.querySelector(
+      '[aria-label="Progress updates for Primary outcome completion"]',
+    )
+    expect(metricLog).toBeInstanceOf(HTMLDetailsElement)
+    expect(metricLog).not.toHaveAttribute('open')
+    expect(
+      tip.querySelector('[aria-label="Progress updates for Quality process"]'),
+    ).toBeNull()
+    fireEvent.click(metricLog!.querySelector('summary')!)
+    expect(metricLog).toHaveAttribute('open')
+    expect(tip).toHaveTextContent('0 →')
+    expect(tip).toHaveTextContent('60')
+  })
+
+  it('shows the single-metric tip on nested measure progress info hover', async () => {
+    render(
+      <GoalsTable
+        rows={[{ goal: goalWithMeasures, title: goalWithMeasures.description }]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+
+    const measureInfo = screen.getByRole('button', {
+      name: 'Progress details for Primary outcome completion',
+    })
+    fireEvent.mouseEnter(measureInfo.closest('.pd-tooltip')!)
+    const measureTip = await screen.findByRole('tooltip')
+    expect(measureTip).toHaveTextContent('Increase metric')
+    expect(measureTip).toHaveTextContent('Primary outcome completion')
+    expect(measureTip).not.toHaveTextContent('Goal summary')
+    expect(measureTip).not.toHaveTextContent('Quality process')
   })
 
   it('shows the total weight allocated across goal rows', () => {
@@ -315,11 +409,11 @@ describe('GoalsTable nested measures', () => {
     ])
   })
 
-  it('locks a lone measure at 100% in the expanded table row', () => {
+  it('lets a lone measure weight be edited in the expanded table row', () => {
     const onMeasureWeightChange = vi.fn()
     const soloGoal: Goal = {
       ...goalWithMeasures,
-      measurements: [goalWithMeasures.measurements[0]!],
+      measurements: [{ ...goalWithMeasures.measurements[0]!, weight: 0 }],
     }
     render(
       <GoalsTable
@@ -335,10 +429,18 @@ describe('GoalsTable nested measures', () => {
       }),
     )
 
-    expect(
-      screen.queryByLabelText('Weight for Primary outcome completion'),
-    ).not.toBeInTheDocument()
-    expect(screen.getByText('100%')).toBeInTheDocument()
+    const weightInput = screen.getByLabelText(
+      'Weight for Primary outcome completion',
+    )
+    expect(weightInput).toHaveValue('')
+    fireEvent.change(weightInput, { target: { value: '100' } })
+    fireEvent.blur(weightInput)
+    expect(onMeasureWeightChange).toHaveBeenCalledWith(
+      soloGoal.id,
+      expect.arrayContaining([
+        expect.objectContaining({ weight: 100 }),
+      ]),
+    )
   })
 
   it('lets a measure weight be edited from the expanded table row', () => {
@@ -371,6 +473,205 @@ describe('GoalsTable nested measures', () => {
         }),
       ]),
     )
+  })
+
+  it('marks measure weight cells red when metrics for that goal do not total 100%', () => {
+    const unbalanced: Goal = {
+      ...goalWithMeasures,
+      weight: 100,
+      measurements: [
+        { ...goalWithMeasures.measurements[0]!, weight: 10 },
+        {
+          id: 'm2',
+          kind: 'metric',
+          title: 'Second metric',
+          weight: 15,
+          unit: 'number',
+          direction: 'increase',
+          startValue: 0,
+          currentValue: 0,
+          targetValue: 100,
+        },
+        {
+          id: 'm3',
+          kind: 'metric',
+          title: 'Third metric',
+          weight: 35,
+          unit: 'number',
+          direction: 'increase',
+          startValue: 0,
+          currentValue: 0,
+          targetValue: 100,
+        },
+        {
+          id: 'm4',
+          kind: 'metric',
+          title: 'Fourth metric',
+          weight: 20,
+          unit: 'number',
+          direction: 'increase',
+          startValue: 0,
+          currentValue: 0,
+          targetValue: 100,
+        },
+      ],
+    }
+    const balanced: Goal = {
+      ...goalWithMeasures,
+      id: 'g2',
+      description: 'Balanced goal',
+      weight: 0,
+      measurements: [
+        {
+          ...goalWithMeasures.measurements[0]!,
+          id: 'm-ok',
+          title: 'Balanced metric',
+          weight: 100,
+        },
+      ],
+    }
+    render(
+      <GoalsTable
+        rows={[
+          { goal: unbalanced, title: unbalanced.description },
+          { goal: balanced, title: balanced.description },
+        ]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Balanced goal' }))
+
+    expect(
+      document.querySelectorAll('.pd-goals-table__row--measure-weight-error'),
+    ).toHaveLength(4)
+    expect(
+      screen.getByText('Second metric').closest('.pd-goals-table__row'),
+    ).toHaveClass('pd-goals-table__row--measure-weight-error')
+    expect(
+      screen.getByText('Balanced metric').closest('.pd-goals-table__row'),
+    ).not.toHaveClass('pd-goals-table__row--measure-weight-error')
+  })
+
+  it('marks measure weight cells red when a metric weight is blank even if others total 100%', () => {
+    const withBlank: Goal = {
+      ...goalWithMeasures,
+      weight: 100,
+      measurements: [
+        { ...goalWithMeasures.measurements[0]!, weight: 100 },
+        {
+          id: 'm2',
+          kind: 'metric',
+          title: 'Blank metric',
+          weight: 0,
+          unit: 'number',
+          direction: 'increase',
+          startValue: 0,
+          currentValue: 0,
+          targetValue: 100,
+        },
+      ],
+    }
+    render(
+      <GoalsTable rows={[{ goal: withBlank, title: withBlank.description }]} />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+
+    expect(
+      document.querySelectorAll('.pd-goals-table__row--measure-weight-error'),
+    ).toHaveLength(2)
+  })
+
+  it('marks a lone blank measure weight cell red', () => {
+    const soloBlank: Goal = {
+      ...goalWithMeasures,
+      weight: 100,
+      measurements: [{ ...goalWithMeasures.measurements[0]!, weight: 0 }],
+    }
+    render(
+      <GoalsTable rows={[{ goal: soloBlank, title: soloBlank.description }]} />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'Expand Deliver the core People & Culture outcomes',
+      }),
+    )
+
+    expect(
+      document.querySelector('.pd-goals-table__row--measure-weight-error'),
+    ).toBeTruthy()
+  })
+
+  it('keeps measure weight cells neutral when only goal weights are short', () => {
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              weight: 40,
+              measurements: [
+                { ...goalWithMeasures.measurements[0]!, weight: 100 },
+              ],
+            },
+            title: 'Quality',
+          },
+        ]}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Quality' }))
+
+    expect(document.querySelector('.pd-goals-table--weight-error')).toBeTruthy()
+    expect(
+      document.querySelector('.pd-goals-table__row--measure-weight-error'),
+    ).toBeNull()
+    expect(
+      screen
+        .getByText('Primary outcome completion')
+        .closest('.pd-goals-table__row--measure'),
+    ).not.toHaveClass('pd-goals-table__row--measure-weight-error')
+  })
+
+  it('marks both goal and measure weight cells red when both totals are short', () => {
+    const unbalanced: Goal = {
+      ...goalWithMeasures,
+      weight: 40,
+      measurements: [
+        { ...goalWithMeasures.measurements[0]!, weight: 40 },
+        {
+          id: 'm2',
+          kind: 'metric',
+          title: 'Second metric',
+          weight: 40,
+          unit: 'number',
+          direction: 'increase',
+          startValue: 0,
+          currentValue: 0,
+          targetValue: 100,
+        },
+      ],
+    }
+    render(
+      <GoalsTable rows={[{ goal: unbalanced, title: 'Quality' }]} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand Quality' }))
+
+    expect(document.querySelector('.pd-goals-table--weight-error')).toBeTruthy()
+    expect(
+      document.querySelectorAll('.pd-goals-table__row--measure-weight-error'),
+    ).toHaveLength(2)
   })
 
   it('steps a goal weight with the hover plus control', () => {
@@ -410,7 +711,7 @@ describe('GoalsTable nested measures', () => {
     expect(onWeightChange).toHaveBeenCalledWith('g1', 65)
   })
 
-  it('marks cascaded-from goals with a down-right arrow before the name', async () => {
+  it('marks cascaded-from goals with a tiny label above the name', async () => {
     render(
       <GoalsTable
         rows={[
@@ -440,7 +741,11 @@ describe('GoalsTable nested measures', () => {
     const icon = screen.getByRole('img', {
       name: 'Cascaded from Raise quality bar',
     })
+    expect(icon).toHaveTextContent('Cascaded from')
     expect(icon).not.toHaveAttribute('title')
+    expect(
+      icon.closest('.pd-goals-table__cascade-name'),
+    ).toHaveTextContent('Ship reviews')
     expect(
       icon.compareDocumentPosition(screen.getByText('Ship reviews')) &
       Node.DOCUMENT_POSITION_FOLLOWING,
@@ -502,7 +807,7 @@ describe('GoalsTable nested measures', () => {
     expect(tip).not.toHaveTextContent('NPS')
   })
 
-  it('marks a source goal with a sent-to icon after the name when it already has copies', async () => {
+  it('marks a source goal with a cascaded-to label below the name when it already has copies', async () => {
     render(
       <GoalsTable
         rows={[
@@ -511,13 +816,13 @@ describe('GoalsTable nested measures', () => {
         cascadeRecipientsFor={(goalId) =>
           goalId === 'g1'
             ? [
-                {
-                  goalId: 'c1',
-                  goalTitle: 'Cut defects',
-                  personId: 'r1',
-                  personName: 'Saif Ivna Alam',
-                },
-              ]
+              {
+                goalId: 'c1',
+                goalTitle: 'Cut defects',
+                personId: 'r1',
+                personName: 'Saif Ivna Alam',
+              },
+            ]
             : []
         }
       />,
@@ -525,7 +830,8 @@ describe('GoalsTable nested measures', () => {
 
     const toIcon = screen.getByRole('img', { name: 'Cascaded to Saif Ivna Alam' })
     expect(toIcon).toBeInTheDocument()
-    expect(toIcon.closest('.pd-goals-table__title')).toHaveTextContent(
+    expect(toIcon).toHaveTextContent('Cascaded to')
+    expect(toIcon.closest('.pd-goals-table__cascade-name')).toHaveTextContent(
       goalWithMeasures.description,
     )
     expect(
@@ -731,6 +1037,10 @@ describe('GoalsTable nested measures', () => {
         <GoalsTable
           rows={[{ goal: goalWithMeasures, title: 'Quality' }]}
           onDuplicate={vi.fn()}
+          duplicateCycles={[
+            { id: 'cycle-1', label: 'Q3 2026', statusLabel: 'Current' },
+          ]}
+          cycleId="cycle-1"
         />
       </MemoryRouter>,
     )

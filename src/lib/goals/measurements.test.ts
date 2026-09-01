@@ -116,18 +116,16 @@ describe('measurement factories', () => {
     expect(balanced.map((m) => m.weight)).toEqual([33, 33, 34])
   })
 
-  it('locks a single measure at 100% and ignores weight edits', () => {
+  it('allows weight edits on a single measure and leaves blank alone', () => {
     const metricA = { ...blankMetric('increase', 40), id: 'm-a' }
-    expect(canEditMeasurementWeights([metricA])).toBe(false)
-    expect(lockSoloMeasurementWeights([metricA])).toEqual([
-      expect.objectContaining({ id: 'm-a', weight: 100 }),
-    ])
+    expect(canEditMeasurementWeights([metricA])).toBe(true)
+    expect(lockSoloMeasurementWeights([metricA])).toEqual([metricA])
     expect(setMeasurementPanelWeight([metricA], 'm-a', 25)).toEqual([
-      expect.objectContaining({ id: 'm-a', weight: 100 }),
+      expect.objectContaining({ id: 'm-a', weight: 25 }),
     ])
   })
 
-  it('splits 100% when a second top-level measure is added', () => {
+  it('keeps blank weight when a second top-level measure is added', () => {
     const first = { ...blankMetric('increase', 100), id: 'm-a' }
     const next = appendMilestoneList([first])
     expect(canEditMeasurementWeights(next)).toBe(true)
@@ -136,7 +134,7 @@ describe('measurement factories', () => {
       measurementPanels(next).map((panel) =>
         panel.kind === 'metric' ? panel.metric.weight : panel.weight,
       ),
-    ).toEqual([50, 50])
+    ).toEqual([100, 0])
   })
 
   it('sets a metric panel weight without touching sibling measures', () => {
@@ -200,7 +198,7 @@ describe('measurement factories', () => {
     const goal = blankGoal({ withDefaultMetric: true })
     expect(goal.measurements).toHaveLength(1)
     expect(goal.measurements[0]?.kind).toBe('milestone')
-    expect(goal.measurements[0]?.weight).toBe(100)
+    expect(goal.measurements[0]?.weight).toBe(0)
   })
 })
 

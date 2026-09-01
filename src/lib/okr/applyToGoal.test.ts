@@ -9,6 +9,8 @@ import type { OkrWorkItem } from "./reference";
 
 const item: OkrWorkItem = {
   id: "key_result:kr-1",
+  keyResultId: "kr-1",
+  objectiveId: "obj-1",
   kind: "key_result",
   level: "company",
   quarter: "2026-Q3",
@@ -28,6 +30,7 @@ const item: OkrWorkItem = {
   lastCheckIn: null,
   raci: { accountable: [], responsible: [], consulted: [], informed: [] },
   milestones: [],
+  tierLabel: "T1",
 };
 
 describe("apply OKR to goal", () => {

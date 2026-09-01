@@ -1,8 +1,16 @@
 import type { ReactNode } from 'react'
-import { Circle, CircleCheck, CircleDot, Minus, Plus, Target } from 'lucide-react'
+import {
+  ArrowRight,
+  Circle,
+  CircleCheck,
+  CircleDot,
+  Minus,
+  Plus,
+  Target,
+} from 'lucide-react'
 import { useFocusSafeDraft } from './useFocusSafeDraft'
-import { Tooltip } from '@/components/ui'
-import type { Goal, Metric, ProgressLogEntry } from '@/lib/goals/types'
+import { Progress, Tooltip } from '@/components/ui'
+import type { Goal, Metric } from '@/lib/goals/types'
 import {
   measurementPanels,
   metricLowerLabel,
@@ -18,16 +26,106 @@ import {
   measurePanelName,
   measurePanelProgress,
 } from '@/pages/goals/measurePanelDisplay'
-import { formatProgressTimestamp } from '@/lib/goals/progressLog'
 import { proofLinkLabel, proofParts } from '@/lib/goals/proof'
 import {
   formatMetricNumber,
-  formatRefreshAge,
   metricSummary,
   metricTipFromMetric,
 } from './goalHelpers'
+import { GoalTodoCheck } from './GoalTodoCheck'
 
-function Fact({
+function MetricScore({
+  current,
+  target,
+  progress,
+  gap,
+  unit,
+}: {
+  current: string
+  target: string
+  progress: number
+  gap: string | null
+  unit: string
+}) {
+  return (
+    <div className="pd-okr-ref__detail-score">
+      <div className="pd-okr-ref__detail-score-pair" aria-label={`${current} of ${target} ${unit}`}>
+        <div className="pd-okr-ref__detail-score-side">
+          <span className="pd-okr-ref__detail-score-value">{current}</span>
+          <span className="pd-okr-ref__detail-score-label">Current</span>
+        </div>
+        <ArrowRight
+          className="pd-okr-ref__detail-score-arrow"
+          size={16}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <div className="pd-okr-ref__detail-score-side pd-okr-ref__detail-score-side--target">
+          <span className="pd-okr-ref__detail-score-value">{target}</span>
+          <span className="pd-okr-ref__detail-score-label">Target</span>
+        </div>
+      </div>
+      <div className="pd-okr-ref__detail-score-progress">
+        <Progress value={progress} showValue label="Progress" />
+        {gap ? (
+          <p className="pd-okr-ref__detail-score-gap">{gap}</p>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+function ChecklistScore({
+  complete,
+  total,
+  remaining,
+  progress,
+}: {
+  complete: number
+  total: number
+  remaining: number
+  progress: number
+}) {
+  return (
+    <div className="pd-okr-ref__detail-score">
+      <div
+        className="pd-okr-ref__detail-score-pair"
+        aria-label={`${complete} of ${total} tasks done, ${remaining} left`}
+      >
+        <div className="pd-okr-ref__detail-score-side">
+          <span className="pd-okr-ref__detail-score-value">{complete}</span>
+          <span className="pd-okr-ref__detail-score-label">Done</span>
+        </div>
+        <ArrowRight
+          className="pd-okr-ref__detail-score-arrow"
+          size={16}
+          strokeWidth={2}
+          aria-hidden
+        />
+        <div className="pd-okr-ref__detail-score-side pd-okr-ref__detail-score-side--target">
+          <span className="pd-okr-ref__detail-score-value">{total}</span>
+          <span className="pd-okr-ref__detail-score-label">Items</span>
+        </div>
+      </div>
+      <div className="pd-okr-ref__detail-score-progress">
+        <Progress value={progress} showValue label="Progress" />
+        <p className="pd-okr-ref__detail-score-gap">
+          {remaining === 0
+            ? 'All tasks done'
+            : remaining === 1
+              ? '1 task left'
+              : `${remaining} tasks left`}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+function DetailMeta({ children }: { children: ReactNode }) {
+  return <ul className="pd-okr-ref__detail-meta">{children}</ul>
+}
+
+function DetailMetaItem({
   label,
   value,
 }: {
@@ -35,18 +133,11 @@ function Fact({
   value: ReactNode
 }) {
   return (
-    <div>
-      <dt>{label}</dt>
-      <dd>{value}</dd>
-    </div>
+    <li>
+      <span className="pd-okr-ref__detail-meta-label">{label}</span>
+      <span className="pd-okr-ref__detail-meta-value">{value}</span>
+    </li>
   )
-}
-
-function latestLog(entries: ProgressLogEntry[]): ProgressLogEntry | undefined {
-  return entries.reduce<ProgressLogEntry | undefined>((latest, entry) => {
-    if (!latest || entry.recordedAt > latest.recordedAt) return entry
-    return latest
-  }, undefined)
 }
 
 function metricGapLabel(metric: Metric): string | null {
@@ -73,14 +164,6 @@ function metricGapLabel(metric: Metric): string | null {
     : `${formatMetricNumber(Math.abs(remaining))} past target`
 }
 
-function lastUpdateLine(entries: ProgressLogEntry[]): string | null {
-  const last = latestLog(entries)
-  if (!last) return null
-  const age = formatRefreshAge(last.recordedAt)
-  const who = last.authorName.trim()
-  return who ? `${who} · ${age}` : age
-}
-
 export function GoalMetricTip({
   metric,
 }: {
@@ -93,8 +176,6 @@ export function GoalMetricTip({
   const progress = Math.round(measurementProgress(metric))
   const name = metric.title.trim() || 'Metric'
   const gap = metricGapLabel(metric)
-  const lastUpdate = lastUpdateLine(metric.progressLog ?? [])
-  const last = latestLog(metric.progressLog ?? [])
 
   return (
     <div className="pd-okr-ref__detail">
@@ -107,28 +188,31 @@ export function GoalMetricTip({
           <p className="pd-okr-ref__detail-desc">{proof.note}</p>
         ) : null}
       </header>
-      <dl className="pd-okr-ref__detail-facts">
-        <Fact label="Current" value={tip.current} />
-        <Fact label="Target" value={tip.target} />
-        <Fact label="Initial" value={tip.initial} />
-        <Fact label="Unit" value={tip.unit} />
+      <MetricScore
+        current={tip.current}
+        target={tip.target}
+        progress={progress}
+        gap={gap}
+        unit={tip.unit}
+      />
+      <DetailMeta>
+        <DetailMetaItem label="Initial" value={tip.initial} />
+        <DetailMetaItem label="Unit" value={tip.unit} />
+        <DetailMetaItem label="Weight" value={`${metric.weight}%`} />
         {usesRange ? (
-          <Fact
+          <DetailMetaItem
             label={metricLowerLabel(strategy)}
             value={formatMetricNumber(metric.rangeMin)}
           />
         ) : null}
         {usesRange ? (
-          <Fact
+          <DetailMetaItem
             label={metricUpperLabel(strategy)}
             value={formatMetricNumber(metric.rangeMax)}
           />
         ) : null}
-        {gap ? <Fact label="Gap" value={gap} /> : null}
-        <Fact label="Weight" value={`${metric.weight}%`} />
-        <Fact label="Progress" value={`${progress}%`} />
         {proof.href ? (
-          <Fact
+          <DetailMetaItem
             label="Proof"
             value={
               <a
@@ -142,13 +226,7 @@ export function GoalMetricTip({
             }
           />
         ) : null}
-      </dl>
-      {lastUpdate && last ? (
-        <section className="pd-okr-ref__detail-section">
-          <h4>Last update</h4>
-          <p title={formatProgressTimestamp(last.recordedAt)}>{lastUpdate}</p>
-        </section>
-      ) : null}
+      </DetailMeta>
     </div>
   )
 }
@@ -170,9 +248,6 @@ export function GoalTodoMeasureTip({
   const proof = proofParts(proofSource?.proofUrl, proofSource?.comment)
   const preview = todos.slice(0, 6)
   const extra = Math.max(0, todos.length - preview.length)
-  const entries = todos.flatMap((todo) => todo.progressLog ?? [])
-  const lastUpdate = lastUpdateLine(entries)
-  const last = latestLog(entries)
 
   return (
     <div className="pd-okr-ref__detail">
@@ -183,14 +258,16 @@ export function GoalTodoMeasureTip({
           <p className="pd-okr-ref__detail-desc">{proof.note}</p>
         ) : null}
       </header>
-      <dl className="pd-okr-ref__detail-facts">
-        <Fact label="Done" value={complete} />
-        <Fact label="Left" value={remaining} />
-        <Fact label="Items" value={total} />
-        <Fact label="Progress" value={`${progress}%`} />
-        <Fact label="Weight" value={`${panel.weight}%`} />
+      <ChecklistScore
+        complete={complete}
+        total={total}
+        remaining={remaining}
+        progress={progress}
+      />
+      <DetailMeta>
+        <DetailMetaItem label="Weight" value={`${panel.weight}%`} />
         {proof.href ? (
-          <Fact
+          <DetailMetaItem
             label="Proof"
             value={
               <a
@@ -204,17 +281,34 @@ export function GoalTodoMeasureTip({
             }
           />
         ) : null}
-      </dl>
+      </DetailMeta>
       {preview.length > 0 ? (
         <section className="pd-okr-ref__detail-section">
           <h4>Tasks</h4>
-          <ul>
-            {preview.map((todo) => (
-              <li key={todo.id}>
-                {todo.title.trim() || 'Untitled task'}
-                {todo.complete ? ' · Done' : ''}
-              </li>
-            ))}
+          <ul className="pd-okr-ref__detail-tasks">
+            {preview.map((todo) => {
+              const taskName = todo.title.trim() || 'Untitled task'
+              return (
+                <li
+                  key={todo.id}
+                  className={
+                    todo.complete
+                      ? 'pd-okr-ref__detail-task is-done'
+                      : 'pd-okr-ref__detail-task'
+                  }
+                >
+                  <GoalTodoCheck
+                    checked={todo.complete}
+                    disabled
+                    ariaLabel={
+                      todo.complete ? `${taskName}, done` : `${taskName}, not done`
+                    }
+                    onChange={() => {}}
+                  />
+                  <span className="pd-okr-ref__detail-task-title">{taskName}</span>
+                </li>
+              )
+            })}
           </ul>
           {extra > 0 ? (
             <p>+{extra} more {extra === 1 ? 'task' : 'tasks'}</p>
@@ -226,12 +320,6 @@ export function GoalTodoMeasureTip({
           <p>No tasks yet</p>
         </section>
       )}
-      {lastUpdate && last ? (
-        <section className="pd-okr-ref__detail-section">
-          <h4>Last update</h4>
-          <p title={formatProgressTimestamp(last.recordedAt)}>{lastUpdate}</p>
-        </section>
-      ) : null}
     </div>
   )
 }

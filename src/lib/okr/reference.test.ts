@@ -5,6 +5,7 @@ import {
   levelFromTier,
   mapEmployeeOkrPayload,
   okrHrEmployeeId,
+  okrWorkItemPlatformUrl,
   okrStatusTone,
   okrTrackingKind,
   partyLabel,
@@ -48,6 +49,7 @@ const payload = {
             informed: [],
           },
           objective: {
+            id: "obj-hr-1",
             shortTitle: "HR Digital Transformation",
             owner: { name: "Api Singha" },
           },
@@ -108,8 +110,11 @@ describe("OKR window mapping", () => {
       { employeeId: null, email: "", label: "Legal" },
     ]);
     expect(keyResult?.objectiveTitle).toBe("HR Digital Transformation");
+    expect(keyResult?.objectiveId).toBe("obj-hr-1");
+    expect(keyResult?.keyResultId).toBe("kr-1");
     expect(keyResult?.lastCheckIn?.authorName).toBe("Api Singha");
     expect(keyResult?.level).toBe("wing");
+    expect(keyResult?.tierLabel).toBe("T4");
   });
 
   it("maps special projects onto the same list", () => {
@@ -119,6 +124,7 @@ describe("OKR window mapping", () => {
       "Establish the DAR Operating Model by end of Q3 — longer",
     );
     expect(special?.level).toBe("company");
+    expect(special?.tierLabel).toBe("T1");
     expect(special?.milestones).toEqual([
       {
         id: "ms-1",
@@ -182,5 +188,13 @@ describe("OKR display helpers", () => {
     ).toBe("milestone");
     expect(formatOkrTrackingKind("numeric")).toBe("Numeric");
     expect(formatOkrTrackingKind("milestone")).toBe("Milestone");
+  });
+
+  it("builds the OKR platform workspace URL for a work item", () => {
+    const [item] = mapEmployeeOkrPayload(payload).items;
+    expect(item).toBeDefined();
+    expect(okrWorkItemPlatformUrl(item!)).toBe(
+      "https://okr.nextventures.io/wing/workspace?objectiveId=obj-hr-1&keyResultId=kr-1&year=2026&quarter=3",
+    );
   });
 });

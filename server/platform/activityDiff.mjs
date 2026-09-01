@@ -136,8 +136,14 @@ export function classifyGoalUpdate(previous, next) {
   for (const measure of next.measurements ?? []) {
     const before = previousById.get(measure.id)
     const name = measureName(measure)
+    const sameAsGoal = name.trim().toLowerCase() === title.toLowerCase()
+    const measureLabel = sameAsGoal
+      ? measure.kind === 'milestone'
+        ? 'Milestone'
+        : 'Metric'
+      : name
     if (!before) {
-      pushChange(changes, kinds, 'measure_added', name, null, 'Added')
+      pushChange(changes, kinds, 'measure_added', measureLabel, null, 'Added')
       continue
     }
 
@@ -145,7 +151,7 @@ export function classifyGoalUpdate(previous, next) {
       changes,
       kinds,
       'structure',
-      `${name} · title`,
+      `${measureLabel} · title`,
       before.title ?? '',
       measure.title ?? '',
     )
@@ -153,7 +159,7 @@ export function classifyGoalUpdate(previous, next) {
       changes,
       kinds,
       'structure',
-      `${name} · weight`,
+      `${measureLabel} · weight`,
       Number(before.weight ?? 0),
       Number(measure.weight ?? 0),
     )
@@ -161,7 +167,7 @@ export function classifyGoalUpdate(previous, next) {
       changes,
       kinds,
       'structure',
-      `${name} · target`,
+      `${measureLabel} · target`,
       before.targetValue ?? null,
       measure.targetValue ?? null,
     )
@@ -169,7 +175,7 @@ export function classifyGoalUpdate(previous, next) {
       changes,
       kinds,
       'structure',
-      `${name} · start`,
+      `${measureLabel} · start`,
       before.startValue ?? null,
       measure.startValue ?? null,
     )
@@ -177,7 +183,7 @@ export function classifyGoalUpdate(previous, next) {
       changes,
       kinds,
       'structure',
-      `${name} · direction`,
+      `${measureLabel} · direction`,
       before.direction ?? null,
       measure.direction ?? null,
     )
@@ -189,7 +195,7 @@ export function classifyGoalUpdate(previous, next) {
         changes,
         kinds,
         previousProof ? 'proof_updated' : 'proof',
-        `${name} · proof`,
+        `${measureLabel} · proof`,
         previousProof,
         nextProof,
       )
@@ -203,7 +209,7 @@ export function classifyGoalUpdate(previous, next) {
           changes,
           kinds,
           isComplete ? 'milestone_done' : 'milestone_reopen',
-          `${name} · complete`,
+          `${measureLabel} · complete`,
           wasComplete,
           isComplete,
         )
@@ -219,7 +225,7 @@ export function classifyGoalUpdate(previous, next) {
           changes,
           kinds,
           'progress',
-          name,
+          sameAsGoal ? 'progress' : name,
           entry.from ?? before.currentValue ?? null,
           entry.to ?? measure.currentValue ?? null,
         )
@@ -229,7 +235,7 @@ export function classifyGoalUpdate(previous, next) {
         changes,
         kinds,
         'progress',
-        name,
+        sameAsGoal ? 'progress' : name,
         before.currentValue ?? null,
         measure.currentValue ?? null,
       )
@@ -280,8 +286,11 @@ function resolveSummary(eventKey, title, changes) {
       return `Completed ${measureFromField(firstField)} on ${quoted}`
     case 'goal.milestone_reopened':
       return `Reopened ${measureFromField(firstField)} on ${quoted}`
-    case 'goal.metric_progress_updated':
-      return `Updated ${measureFromField(firstField)} on ${quoted}`
+    case 'goal.metric_progress_updated': {
+      const measure = measureFromField(firstField)
+      if (measure === 'progress') return `Updated progress on ${quoted}`
+      return `Updated ${measure} on ${quoted}`
+    }
     case 'goal.proof_added':
       return `Added proof on ${quoted}`
     case 'goal.proof_updated':
@@ -292,7 +301,8 @@ function resolveSummary(eventKey, title, changes) {
 }
 
 function measureFromField(field) {
-  if (!field) return 'a metric'
-  const name = String(field).split(' · ')[0]
-  return name ? `“${name}”` : 'a metric'
+  if (!field) return 'progress'
+  const name = String(field).split(' · ')[0].trim()
+  if (!name || /^(progress|metric)$/i.test(name)) return 'progress'
+  return `“${name}”`
 }

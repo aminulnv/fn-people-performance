@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -75,14 +75,97 @@ describe("GoalOkrReferenceList", () => {
     expect(
       screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item"),
     ).toHaveAttribute("draggable", "true");
-    const roleChip = screen.getAllByText("Responsible")[0]?.closest(".pd-okr-ref__role");
-    expect(roleChip?.querySelector(".pd-okr-ref__role-avatar")).toBeTruthy();
     expect(
       screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item"),
-    ).toHaveTextContent("Numeric");
+    ).toHaveTextContent("20%");
+    expect(
+      screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item"),
+    ).toHaveTextContent("100%");
+    expect(
+      screen.getByText("Build Performance Platform Phase 1").closest(".pd-okr-ref__item")
+        ?.querySelector(".pd-okr-ref__avatar"),
+    ).toBeTruthy();
+    expect(
+      screen.getByText("Q3 Build, Q4 Testing, Q1 2027 Launch"),
+    ).toBeInTheDocument();
   });
 
-  it("keeps tracking details off the card until hover", () => {
+  it("collapses key results under an objective", () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    const objective = screen.getByRole("button", {
+      name: /People Foundation — Build leadership and structure that scales/,
+    });
+    expect(objective).toHaveAttribute("aria-expanded", "true");
+    expect(
+      screen.getByText("Build Performance Platform Phase 1"),
+    ).toBeInTheDocument();
+
+    fireEvent.click(objective);
+    expect(objective).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByText("Build Performance Platform Phase 1"),
+    ).toBeNull();
+
+    fireEvent.click(objective);
+    expect(
+      screen.getByText("Build Performance Platform Phase 1"),
+    ).toBeInTheDocument();
+  });
+
+  it("expands and collapses every objective from the key results title", () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Company" }));
+    fireEvent.click(screen.getByRole("button", { name: "All" }));
+
+    const collapseAll = screen.getByRole("button", { name: "Collapse all" });
+    expect(collapseAll).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(collapseAll);
+
+    expect(screen.getByRole("button", { name: "Expand all" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(
+      screen.queryByText("Build Performance Platform Phase 1"),
+    ).toBeNull();
+    expect(
+      screen.queryByText("Improve customer outcomes across Engineering"),
+    ).toBeNull();
+    expect(
+      screen.queryByText("Keep dependencies and delivery risks visible"),
+    ).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Expand all" }));
+    expect(screen.getByRole("button", { name: "Collapse all" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(
+      screen.getByText("Build Performance Platform Phase 1"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Improve customer outcomes across Engineering"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Keep dependencies and delivery risks visible"),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps status and check-in details off the row until opened", () => {
     renderList(
       <GoalOkrReferenceList
         employeeId={871}
@@ -92,12 +175,11 @@ describe("GoalOkrReferenceList", () => {
     );
 
     expect(screen.queryByText("On Track")).toBeNull();
-    expect(screen.queryByText("20% → 100%")).toBeNull();
     expect(screen.queryByText(/Week 9/)).toBeNull();
-    expect(screen.queryByText("Q3 Build, Q4 Testing, Q1 2027 Launch")).toBeNull();
+    expect(screen.queryByText("Numeric")).toBeNull();
   });
 
-  it("shows the full KR in an organized hover panel", async () => {
+  it("opens the OKR-platform-style detail panel when a key result is clicked", () => {
     renderList(
       <GoalOkrReferenceList
         employeeId={871}
@@ -106,24 +188,52 @@ describe("GoalOkrReferenceList", () => {
       />,
     );
 
-    fireEvent.mouseEnter(
-      screen.getByText("Build Performance Platform Phase 1").closest(".pd-tooltip")!,
-    );
+    fireEvent.click(screen.getByText("Build Performance Platform Phase 1"));
 
-    const tip = await screen.findByRole("tooltip");
-    expect(within(tip).getByText("Key result")).toBeInTheDocument();
-    expect(within(tip).getByText("Q3 Build, Q4 Testing, Q1 2027 Launch")).toBeInTheDocument();
-    expect(within(tip).getByText("On Track")).toBeInTheDocument();
-    expect(within(tip).getByText("20% → 100%")).toBeInTheDocument();
-    expect(within(tip).getByText("Week 9 · On Track · S.M. Fahim · 21 Aug")).toBeInTheDocument();
-    expect(within(tip).getByText("Weekly update")).toBeInTheDocument();
-    const profile = within(tip).getByRole("link", { name: "Saif from Directory" });
-    expect(profile).toHaveAttribute("href", "/people/871");
-    expect(within(profile).getByRole("img")).toBeInTheDocument();
-    expect(within(tip).queryByText("Saif Ivna Alam")).toBeNull();
+    expect(
+      screen.getByRole("complementary", { name: "Key result details" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Info" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getAllByText("Build Performance Platform Phase 1").length).toBeGreaterThan(0);
+    expect(
+      screen.getByText("People Foundation — Build leadership and structure that scales"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Q3 Build, Q4 Testing, Q1 2027 Launch").length).toBeGreaterThan(0);
+    expect(screen.getByText("On Track")).toBeInTheDocument();
+    expect(screen.getByText("T1")).toBeInTheDocument();
+    expect(screen.getByText("Numeric")).toBeInTheDocument();
+    expect(screen.getAllByText("S.M. Fahim").length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "Apply to goal" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open in OKRs" })).toHaveAttribute(
+      "href",
+      "https://okr.nextventures.io/company/workspace?objectiveId=c2a30c75-0e03-4e3c-bbcd-49fab62b6c1a&keyResultId=5e569c65-60a0-4216-948b-a3010a023655&year=2026&quarter=3",
+    );
   });
 
-  it("keeps the KR hover panel open while the pointer is over it", async () => {
+  it("returns to the OKR list from the detail back button", () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Build Performance Platform Phase 1"));
+    fireEvent.click(screen.getByRole("button", { name: "Back to All" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Key results" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "Key result details" }),
+    ).toBeNull();
+  });
+
+  it("shows milestones in the detail info tab", () => {
     renderList(
       <GoalOkrReferenceList
         employeeId={871}
@@ -133,18 +243,18 @@ describe("GoalOkrReferenceList", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Wings" }));
-    const trigger = screen
-      .getByText("Keep dependencies and delivery risks visible")
-      .closest(".pd-tooltip")!;
-    fireEvent.mouseEnter(trigger);
-    const tip = await screen.findByRole("tooltip");
-    fireEvent.mouseEnter(tip);
-    fireEvent.mouseLeave(trigger);
+    fireEvent.click(
+      screen.getByText("Keep dependencies and delivery risks visible"),
+    );
 
-    expect(within(tip).getByText("Platform delivery")).toBeInTheDocument();
-    expect(
-      within(tip).getByRole("heading", { name: /R · Responsible/ }),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Risk register live")).toBeInTheDocument();
+    expect(screen.getByText("Weekly risk review")).toBeInTheDocument();
+    expect(screen.getAllByText("50%").length).toBeGreaterThan(0);
+    expect(screen.getByText("RACI")).toBeInTheDocument();
+    expect(screen.getByText("Accountable")).toBeInTheDocument();
+    expect(screen.getByText("Responsible")).toBeInTheDocument();
+    expect(screen.getAllByText("Platform delivery").length).toBeGreaterThan(0);
+    expect(screen.getByText("PMO")).toBeInTheDocument();
   });
 
   it("filters references by title and key result", () => {
@@ -223,7 +333,7 @@ describe("GoalOkrReferenceList", () => {
       screen
         .getByText("Keep dependencies and delivery risks visible")
         .closest(".pd-okr-ref__item"),
-    ).toHaveTextContent("Milestone");
+    ).toHaveTextContent("40%");
 
     fireEvent.click(screen.getByRole("button", { name: "All" }));
     expect(

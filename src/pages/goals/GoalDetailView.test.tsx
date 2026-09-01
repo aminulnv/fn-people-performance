@@ -190,7 +190,8 @@ describe('GoalDetailView', () => {
     const owner = screen.getByText('Aminul Islam Borhan')
     const byline = owner.closest('.pd-goal-view__byline')
     expect(byline).toHaveTextContent('Goal Weight %')
-    expect(byline).toHaveTextContent('100%')
+    expect(byline).toHaveTextContent('100')
+    expect(byline).not.toHaveTextContent('100%')
     expect(byline).not.toHaveTextContent('Q3 2026')
     expect(byline).not.toHaveTextContent('No updates yet')
     expect(byline).not.toHaveTextContent('Draft')
@@ -330,8 +331,8 @@ describe('GoalDetailView', () => {
     const from = screen.getByRole('region', { name: 'Cascading from' })
     expect(from).toHaveTextContent('Raise quality bar')
     expect(from).not.toHaveTextContent('Line Manager')
-    expect(from).not.toHaveTextContent('Cascading from')
-    expect(screen.getByRole('img', { name: 'Cascading from' })).toBeInTheDocument()
+    expect(from).toHaveTextContent('Cascading from')
+    expect(screen.queryByRole('img', { name: 'Cascading from' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Line Manager' })).not.toBeInTheDocument()
     expect(
       from.compareDocumentPosition(screen.getByRole('heading', { name: goal.description })) &
@@ -587,8 +588,8 @@ describe('GoalDetailView', () => {
     )
 
     const to = screen.getByRole('region', { name: 'Cascaded to' })
-    expect(to).not.toHaveTextContent('Cascaded to')
-    expect(screen.getByRole('img', { name: 'Cascaded to' })).toBeInTheDocument()
+    expect(to).toHaveTextContent('Cascaded to')
+    expect(screen.queryByRole('img', { name: 'Cascaded to' })).not.toBeInTheDocument()
     expect(to).toHaveTextContent('Raise quality bar')
     expect(to).not.toHaveTextContent('Direct Report')
     expect(to).toHaveTextContent('Cut defects')
@@ -1127,17 +1128,17 @@ describe('GoalDetailView', () => {
       />,
     )
 
-    const updates = screen.getByLabelText('Progress Logs')
+    const updates = screen.getByLabelText('Progress Updates')
     expect(updates).not.toHaveAttribute('open')
-    expect(updates).toHaveTextContent('Log')
+    expect(updates).toHaveTextContent('Progress')
     expect(updates.querySelector('.pd-count-badge')).toHaveTextContent('1')
     expect(updates.querySelector('.pd-count-badge')).toHaveClass(
       'pd-count-badge--muted',
     )
-    fireEvent.click(screen.getByText('Log'))
+    fireEvent.click(screen.getByText('Progress'))
     expect(updates).toHaveAttribute('open')
     expect(
-      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Updates 1 update' }),
     ).toBeInTheDocument()
     expect(updates).toHaveTextContent('0 → 2')
     expect(updates).not.toHaveTextContent('Aminul')
@@ -1268,7 +1269,7 @@ describe('GoalDetailView', () => {
     expect(screen.getByText('Metrics')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Edit metric name' }))
     expect(screen.getByLabelText('Metric name')).toHaveValue('NPS')
-    expect(screen.getByText('Log update')).toBeInTheDocument()
+    expect(screen.getByText('Progress update')).toBeInTheDocument()
     expect(
       screen.getByLabelText('Current progress for NPS'),
     ).toBeInTheDocument()

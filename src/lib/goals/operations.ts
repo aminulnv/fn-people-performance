@@ -1,4 +1,3 @@
-import { blankGoal } from './measurements'
 import { displayGoalTitle, newId } from './weightage'
 import type {
   DemoPerson,
@@ -416,7 +415,7 @@ export function duplicateGoal(
   }
 }
 
-/** Placeholder child linked to a parent — title only; recipient sets measures. */
+/** Child linked to a parent — same title/matrix, progress cleared. */
 export function cascadeGoal(
   source: Goal,
   targetPersonId: string,
@@ -425,12 +424,16 @@ export function cascadeGoal(
     sourcePersonName: string
   },
 ): Goal {
+  const sourceTitle = options.sourceTitle.trim()
+  const reset = resetGoalProgress(source)
   return {
-    ...blankGoal({ ownerId: targetPersonId }),
-    description: '',
+    ...reset,
+    description: sourceTitle ? `[Cascaded] ${sourceTitle}` : '[Cascaded]',
+    details: source.details,
+    weight: 0,
+    ownerId: targetPersonId,
     cascadedFromGoalId: source.id,
-    linkedGoalLabel: options.sourceTitle,
+    linkedGoalLabel: sourceTitle,
     comments: [],
-    updatedAt: new Date().toISOString(),
   }
 }

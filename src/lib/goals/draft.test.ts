@@ -264,17 +264,17 @@ describe('shared draft helpers (V1/V2 contract)', () => {
     ).toBe(true)
   })
 
-  it('does not prompt for auto-filled weights on a blank new goal', () => {
+  it('does not prompt for blank weights on a blank new goal', () => {
     const existing = { ...goal, weight: 100 }
     const blank = {
       id: 'new',
       description: '',
-      weight: 50,
+      weight: 0,
       measurements: [],
     }
     expect(
       hasPromptableUnsavedGoalDraft(
-        [{ ...existing, weight: 50 }, blank],
+        [existing, blank],
         [existing],
       ),
     ).toBe(false)

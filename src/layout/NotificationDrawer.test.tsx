@@ -88,6 +88,16 @@ describe('NotificationDrawer', () => {
     expect(
       await screen.findByText('Aminul’s goals are ready for approval'),
     ).toBeInTheDocument()
-    expect(screen.getByText('To do')).toBeInTheDocument()
+    expect(screen.getByText('Now')).toBeInTheDocument()
+    expect(screen.getAllByText('To do').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: 'Open' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Reviews' }))
+    expect(screen.getByText('Nothing in this filter.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Goals' }))
+    expect(
+      screen.getByText('Aminul’s goals are ready for approval'),
+    ).toBeInTheDocument()
   })
 })

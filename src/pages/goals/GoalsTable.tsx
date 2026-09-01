@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { ChevronDown, ChevronRight, CircleAlert, CornerDownRight, CornerRightDown, History, Scale } from 'lucide-react'
+import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
+  CircleAlert,
+  CornerDownRight,
+  CornerLeftDown,
+  History,
+  Scale,
+} from 'lucide-react'
 import { Avatar, CountBadge, Progress, Tooltip } from '@/components/ui'
 import {
   distributeGoalWeights,
   goalCompletion,
   goalWeightIssue,
   hasUnassignedGoalWeight,
+  measurementWeightIssue,
   sumGoalWeights,
   isMeasureGoalIssue,
   measureIssueLabel,
@@ -15,7 +26,6 @@ import {
 } from '@/lib/goalsApi'
 import {
   canEditMeasurementWeights,
-  lockSoloMeasurementWeights,
   measurementPanels,
   setMeasurementPanelWeight,
   sumPanelWeights,
@@ -34,10 +44,15 @@ import {
   formatWeightReadout,
 } from '@/pages/goals/GoalMeasurementReadout'
 import {
+  GoalProgressInfo,
+  GoalProgressInfoTip,
+} from '@/pages/goals/GoalProgressInfo'
+import {
   CascadeGoalTip,
   selectedCascadePerson,
 } from '@/pages/goals/GoalCascadeField'
 import type { CascadeTarget } from '@/pages/goals/GoalCascadeTargetDialog'
+import type { DuplicateCycleOption } from '@/pages/goals/GoalDuplicateCycleDialog'
 import { batchStatusLabel } from '@/pages/goals/approvalDisplay'
 import type {
   CascadeRecipient,
@@ -81,13 +96,14 @@ function CascadeIconTip({
   children: ReactNode
 }) {
   return (
-    <Tooltip content={content} side="top" portal delayMs={80}>
-      <span
-        className={className}
-        role="img"
-        aria-label={label}
-        tabIndex={0}
-      >
+    <Tooltip
+      content={content}
+      side="top"
+      portal
+      delayMs={80}
+      className={className}
+    >
+      <span role="img" aria-label={label} tabIndex={0}>
         {children}
       </span>
     </Tooltip>
@@ -107,60 +123,76 @@ function cascadedToTip(recipients: CascadeRecipient[]) {
   return <section className="pd-goal-cascade-tip-stack">{tips}</section>
 }
 
-export function GoalCascadeIndicator({
+/**
+ * Tiny “Cascaded from / to” labels above and below the goal name — same
+ * language as the goals window — without shifting the name in the layout.
+ */
+export function GoalCascadeName({
   goal,
   cascadeFrom,
   cascadedTo = [],
-  place = 'before',
+  children,
 }: {
   goal: Pick<Goal, 'cascadedFromGoalId' | 'linkedGoalLabel'>
   cascadeFrom?: LineManagerCascade
   cascadedTo?: CascadeRecipient[]
-  /** From stays before the name; to sits after it. */
-  place?: 'before' | 'after'
+  children: ReactNode
 }) {
   const fromLabel = isCascadedGoal(goal) ? cascadeTableLabel(goal) : null
   const toLabel = cascadedTo.length > 0 ? cascadeToTableLabel(cascadedTo) : null
-  if (place === 'before' && fromLabel) {
-    const selected = cascadeFrom
-      ? selectedCascadePerson(goal, cascadeFrom)
-      : null
-    return (
-      <CascadeIconTip
-        label={fromLabel}
-        className="pd-goals-table__cascade"
-        content={
-          <CascadeGoalTip
-            title={
-              selected?.title ||
-              goal.linkedGoalLabel?.trim() ||
-              'Manager goal'
-            }
-            ownerName={
-              selected?.managerName || cascadeFrom?.managerName || undefined
-            }
-            ownerAvatarUrl={
-              selected?.managerAvatarUrl || cascadeFrom?.managerAvatarUrl
-            }
-          />
-        }
-      >
-        <CornerDownRight size={13} strokeWidth={2.25} aria-hidden />
-      </CascadeIconTip>
-    )
-  }
-  if (place === 'after' && toLabel) {
-    return (
-      <CascadeIconTip
-        label={toLabel}
-        className="pd-goals-table__cascade pd-goals-table__cascade--to"
-        content={cascadedToTip(cascadedTo)}
-      >
-        <CornerRightDown size={13} strokeWidth={2.25} aria-hidden />
-      </CascadeIconTip>
-    )
-  }
-  return null
+  if (!fromLabel && !toLabel) return <>{children}</>
+
+  const selected = cascadeFrom
+    ? selectedCascadePerson(goal, cascadeFrom)
+    : null
+
+  return (
+    <span
+      className={[
+        'pd-goals-table__cascade-name',
+        fromLabel ? 'pd-goals-table__cascade-name--from' : '',
+        toLabel ? 'pd-goals-table__cascade-name--to' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {fromLabel ? (
+        <CascadeIconTip
+          label={fromLabel}
+          className="pd-goals-table__cascade-line pd-goals-table__cascade-line--from"
+          content={
+            <CascadeGoalTip
+              title={
+                selected?.title ||
+                goal.linkedGoalLabel?.trim() ||
+                'Manager goal'
+              }
+              ownerName={
+                selected?.managerName || cascadeFrom?.managerName || undefined
+              }
+              ownerAvatarUrl={
+                selected?.managerAvatarUrl || cascadeFrom?.managerAvatarUrl
+              }
+            />
+          }
+        >
+          <CornerLeftDown size={10} strokeWidth={2.25} aria-hidden />
+          Cascaded from
+        </CascadeIconTip>
+      ) : null}
+      <span className="pd-goals-table__cascade-name-core">{children}</span>
+      {toLabel ? (
+        <CascadeIconTip
+          label={toLabel}
+          className="pd-goals-table__cascade-line pd-goals-table__cascade-line--to"
+          content={cascadedToTip(cascadedTo)}
+        >
+          <CornerDownRight size={10} strokeWidth={2.25} aria-hidden />
+          Cascaded to
+        </CascadeIconTip>
+      ) : null}
+    </span>
+  )
 }
 
 function compactUpdateAge(iso?: string): string | null {
@@ -181,6 +213,39 @@ export function GoalProgressAge({ at }: { at?: string }) {
       <History size={12} strokeWidth={1.75} aria-hidden />
       {age}
     </span>
+  )
+}
+
+export function GoalWeightTree({
+  limb,
+  children,
+}: {
+  limb?: 'stem' | 'branch' | 'spacer'
+  children: ReactNode
+}) {
+  return (
+    <div
+      className={[
+        'pd-goals-table__weight-cell',
+        limb === 'stem'
+          ? 'pd-goals-table__weight-cell--stem'
+          : limb === 'branch'
+            ? 'pd-goals-table__weight-cell--branch'
+            : limb === 'spacer'
+              ? 'pd-goals-table__weight-cell--spacer'
+              : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
+      {limb === 'branch' ? (
+        <span
+          className="pd-goals-table__branch pd-goals-table__branch--weight"
+          aria-hidden
+        />
+      ) : null}
+      {children}
+    </div>
   )
 }
 
@@ -266,6 +331,7 @@ export function GoalsTable({
   canCascade = false,
   canRemove = false,
   cascadeTargets = [],
+  duplicateCycles = [],
   onDuplicate,
   onCascade,
   onRemove,
@@ -295,7 +361,8 @@ export function GoalsTable({
   canCascade?: boolean
   canRemove?: boolean
   cascadeTargets?: CascadeTarget[]
-  onDuplicate?: (goalId: string) => void
+  duplicateCycles?: DuplicateCycleOption[]
+  onDuplicate?: (goalId: string, cycleId: string) => void
   onCascade?: (goalId: string, reportIds: string[]) => void
   onRemove?: (goalId: string) => void
   onWeightChange?: (goalId: string, weight: number) => void
@@ -347,17 +414,15 @@ export function GoalsTable({
       return next
     })
   }
-
-  const onMeasureWeightChangeRef = useRef(onMeasureWeightChange)
-  onMeasureWeightChangeRef.current = onMeasureWeightChange
-  const rowsRef = useRef(rows)
-  rowsRef.current = rows
-  const measurementLockKey = rows
-    .map((row) => {
-      const panels = measurementPanels(row.goal.measurements)
-      return `${row.goal.id}:${panels.length}:${sumPanelWeights(row.goal.measurements)}`
-    })
-    .join('|')
+  const expandableIds = rows
+    .filter((row) => measurementPanels(row.goal.measurements).length > 0)
+    .map((row) => row.goal.id)
+  const allExpanded =
+    expandableIds.length > 0 &&
+    expandableIds.every((id) => expandedIds.has(id))
+  const toggleExpandAll = () => {
+    setExpandedIds(allExpanded ? new Set() : new Set(expandableIds))
+  }
 
   useEffect(() => {
     if (!openGoalId) {
@@ -370,16 +435,6 @@ export function GoalsTable({
     }
   }, [openGoalId, openMeasureKey])
 
-  useEffect(() => {
-    const persistMeasureWeights = onMeasureWeightChangeRef.current
-    if (!canEditWeight || !persistMeasureWeights) return
-    for (const row of rowsRef.current) {
-      const locked = lockSoloMeasurementWeights(row.goal.measurements)
-      if (locked !== row.goal.measurements) {
-        persistMeasureWeights(row.goal.id, locked)
-      }
-    }
-  }, [canEditWeight, measurementLockKey])
   const table = (
     <div
       className={`pd-goals-table${showOwner ? ' pd-goals-table--with-owner' : ''}${showActions ? ' pd-goals-table--with-actions' : ''
@@ -390,11 +445,31 @@ export function GoalsTable({
       <div className="pd-goals-table__head" role="row">
         {showOwner ? <div role="columnheader">Owner</div> : null}
         <div
-          className={statusChip ? 'pd-goals-table__goals-head' : undefined}
+          className={
+            statusChip || expandableIds.length > 0
+              ? 'pd-goals-table__goals-head'
+              : undefined
+          }
           role="columnheader"
           aria-label={statusChip ? `Goals ${statusChip}` : undefined}
         >
           Goals
+          {expandableIds.length > 0 ? (
+            <button
+              type="button"
+              className="pd-goals-table__expand"
+              aria-expanded={allExpanded}
+              aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
+              title={allExpanded ? 'Collapse all' : 'Expand all'}
+              onClick={toggleExpandAll}
+            >
+              {allExpanded ? (
+                <ChevronsDownUp size={16} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <ChevronsUpDown size={16} strokeWidth={1.75} aria-hidden />
+              )}
+            </button>
+          ) : null}
           {status && statusChip ? (
             <GoalStatusBadge status={status}>{statusChip}</GoalStatusBadge>
           ) : null}
@@ -466,6 +541,10 @@ export function GoalsTable({
         }
         const panels = measurementPanels(goal.measurements)
         const isOpen = expandedIds.has(goal.id)
+        const allocatedMeasureWeight = sumPanelWeights(goal.measurements)
+        const measureWeightError = Boolean(
+          measurementWeightIssue(goal.measurements),
+        )
         const isGoalSelected = Boolean(
           onOpen && openGoalId === goal.id && !activeMeasureKey,
         )
@@ -525,57 +604,64 @@ export function GoalsTable({
                   ) : (
                     <span className="pd-goals-table__expand-spacer" aria-hidden />
                   )}
-                  <GoalCascadeIndicator
+                  <GoalCascadeName
                     goal={goal}
                     cascadeFrom={cascadeFrom}
                     cascadedTo={cascadeRecipientsFor?.(goal.id)}
-                    place="before"
-                  />
-                  <span
-                    className={
-                      titleIssue
-                        ? 'pd-goals-table__title pd-goals-table__title--error'
-                        : 'pd-goals-table__title'
-                    }
-                    title={title}
                   >
-                    {title}
-                    <GoalCascadeIndicator
-                      goal={goal}
-                      cascadeFrom={cascadeFrom}
-                      cascadedTo={cascadeRecipientsFor?.(goal.id)}
-                      place="after"
-                    />
-                    {titleIssue ? <GoalIssueIcon issue={titleIssue} /> : null}
-                  </span>
+                    <span
+                      className={
+                        titleIssue
+                          ? 'pd-goals-table__title pd-goals-table__title--error'
+                          : 'pd-goals-table__title'
+                      }
+                      title={title}
+                    >
+                      {title}
+                      {titleIssue ? <GoalIssueIcon issue={titleIssue} /> : null}
+                    </span>
+                  </GoalCascadeName>
                 </div>
               </div>
               <div className="pd-goals-table__weight" role="cell">
-                {canEditWeight && onWeightChange ? (
-                  <WeightHoverField
-                    weight={goal.weight}
-                    ariaLabel={`Weight for ${title}`}
-                    maxWeight={Math.max(
-                      0,
-                      100 - (allocatedWeight - goal.weight),
-                    )}
-                    onChange={(weight) => {
-                      const maxWeight = Math.max(
+                <GoalWeightTree
+                  limb={
+                    panels.length > 0
+                      ? isOpen
+                        ? 'stem'
+                        : 'spacer'
+                      : undefined
+                  }
+                >
+                  {canEditWeight && onWeightChange ? (
+                    <WeightHoverField
+                      weight={goal.weight}
+                      ariaLabel={`Weight for ${title}`}
+                      maxWeight={Math.max(
                         0,
                         100 - (allocatedWeight - goal.weight),
-                      )
-                      onWeightChange(goal.id, Math.min(weight, maxWeight))
-                    }}
-                  />
-                ) : (
-                  <span className="pd-goals-table__weight-pill">
-                    {formatWeightReadout(goal.weight)}
-                  </span>
-                )}
+                      )}
+                      onChange={(weight) => {
+                        const maxWeight = Math.max(
+                          0,
+                          100 - (allocatedWeight - goal.weight),
+                        )
+                        onWeightChange(goal.id, Math.min(weight, maxWeight))
+                      }}
+                    />
+                  ) : (
+                    <span className="pd-goals-table__weight-pill">
+                      {formatWeightReadout(goal.weight)}
+                    </span>
+                  )}
+                </GoalWeightTree>
               </div>
               <div className="pd-goals-table__progress" role="cell">
                 <div className="pd-goals-table__progress-meta">
                   <GoalProgressAge at={goalLastUpdatedAt(goal)} />
+                  <GoalProgressInfo label={`Progress details for ${title}`}>
+                    <GoalProgressInfoTip goal={goal} />
+                  </GoalProgressInfo>
                   <span className="pd-goals-table__progress-label">
                     {completion}%
                   </span>
@@ -609,8 +695,12 @@ export function GoalsTable({
                         : undefined
                     }
                     onDuplicate={
-                      onDuplicate ? () => onDuplicate(goal.id) : undefined
+                      onDuplicate
+                        ? (targetCycleId) => onDuplicate(goal.id, targetCycleId)
+                        : undefined
                     }
+                    duplicateCycles={duplicateCycles}
+                    defaultDuplicateCycleId={cycleId}
                     onCascade={
                       onCascade
                         ? (reportIds) => onCascade(goal.id, reportIds)
@@ -628,9 +718,6 @@ export function GoalsTable({
                 const measureWeight = measurePanelTableWeight(
                   panel,
                   panels.length,
-                )
-                const allocatedMeasureWeight = sumPanelWeights(
-                  goal.measurements,
                 )
                 const maxMeasureWeight = Math.max(
                   0,
@@ -661,6 +748,9 @@ export function GoalsTable({
                     className={[
                       'pd-goals-table__row',
                       'pd-goals-table__row--measure',
+                      measureWeightError
+                        ? 'pd-goals-table__row--measure-weight-error'
+                        : '',
                       isMeasureSelected ? 'is-selected' : '',
                     ]
                       .filter(Boolean)
@@ -678,33 +768,40 @@ export function GoalsTable({
                       />
                     </div>
                     <div className="pd-goals-table__weight" role="cell">
-                      {canEditThisMeasure ? (
-                        <WeightHoverField
-                          weight={measureWeight}
-                          ariaLabel={`Weight for ${measureName}`}
-                          maxWeight={maxMeasureWeight}
-                          onChange={(weight) => {
-                            onMeasureWeightChange?.(
-                              goal.id,
-                              setMeasurementPanelWeight(
-                                goal.measurements,
-                                panel.key,
-                                Math.min(weight, maxMeasureWeight),
-                              ),
-                            )
-                          }}
-                        />
-                      ) : (
-                        <span className="pd-goals-table__weight-pill">
-                          {formatWeightReadout(measureWeight)}
-                        </span>
-                      )}
+                      <GoalWeightTree limb="branch">
+                        {canEditThisMeasure ? (
+                          <WeightHoverField
+                            weight={measureWeight}
+                            ariaLabel={`Weight for ${measureName}`}
+                            maxWeight={maxMeasureWeight}
+                            onChange={(weight) => {
+                              onMeasureWeightChange?.(
+                                goal.id,
+                                setMeasurementPanelWeight(
+                                  goal.measurements,
+                                  panel.key,
+                                  Math.min(weight, maxMeasureWeight),
+                                ),
+                              )
+                            }}
+                          />
+                        ) : (
+                          <span className="pd-goals-table__weight-pill">
+                            {formatWeightReadout(measureWeight)}
+                          </span>
+                        )}
+                      </GoalWeightTree>
                     </div>
                     <div className="pd-goals-table__progress" role="cell">
                       <div className="pd-goals-table__progress-meta">
                         <GoalProgressAge
                           at={measurePanelLatestProgressAt(panel)}
                         />
+                        <GoalProgressInfo
+                          label={`Progress details for ${measureName}`}
+                        >
+                          <GoalProgressInfoTip panel={panel} />
+                        </GoalProgressInfo>
                         <span className="pd-goals-table__progress-label">
                           {measureProgress}%
                         </span>

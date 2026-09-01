@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -8,6 +9,11 @@ import {
 } from 'react'
 import { cx } from '@/lib/cx'
 import { useHoverMenu } from '@/layout/useHoverMenu'
+import {
+  resolveDropdownMenuPlacement,
+  visibleMenuBounds,
+  type MenuPlacement,
+} from './dropdownMenuPlacement'
 
 export type DropdownMenuItem = {
   id: string
@@ -37,10 +43,32 @@ export function DropdownMenu({
 }: DropdownMenuProps) {
   const menuId = useId()
   const [activeIndex, setActiveIndex] = useState(0)
+  const [placement, setPlacement] = useState<MenuPlacement>({
+    vertical: 'below',
+    horizontal: align,
+  })
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const panelRef = useRef<HTMLDivElement>(null)
   const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
     closeOnEscape: true,
   })
+
+  useLayoutEffect(() => {
+    if (!open) return
+    const container = containerRef.current
+    const panel = panelRef.current
+    if (!container || !panel) return
+    const triggerRect = container.getBoundingClientRect()
+    const panelRect = panel.getBoundingClientRect()
+    setPlacement(
+      resolveDropdownMenuPlacement(
+        triggerRect,
+        { width: panelRect.width, height: panelRect.height },
+        visibleMenuBounds(),
+        align,
+      ),
+    )
+  }, [open, align, items, containerRef])
 
   const enabledItems = items.filter((item) => !item.disabled)
 
@@ -85,10 +113,15 @@ export function DropdownMenu({
       </button>
       {open ? (
         <div
+          ref={panelRef}
           id={menuId}
           role="menu"
           aria-label={label}
-          className={cx('pd-menu__panel', `pd-menu__panel--${align}`)}
+          className={cx(
+            'pd-menu__panel',
+            `pd-menu__panel--${placement.horizontal}`,
+            placement.vertical === 'above' && 'pd-menu__panel--above',
+          )}
         >
           {items.map((item, index) => (
             <button

@@ -23,6 +23,35 @@ const baseGoal = {
 }
 
 describe('classifyGoalUpdate', () => {
+  it('uses a generic progress label when the metric name repeats the goal', () => {
+    const previous = {
+      ...baseGoal,
+      description: 'Build Performance Platform Phase 1',
+      measurements: [
+        {
+          id: 'm1',
+          kind: 'metric',
+          title: 'Build Performance Platform Phase 1',
+          currentValue: 20,
+          progressLog: [],
+        },
+      ],
+    }
+    const result = classifyGoalUpdate(previous, {
+      ...previous,
+      measurements: [
+        {
+          ...previous.measurements[0],
+          currentValue: 50,
+          progressLog: [{ id: 'p1', from: 20, to: 50 }],
+        },
+      ],
+    })
+    assert.equal(result.eventKey, 'goal.metric_progress_updated')
+    assert.equal(result.summary, 'Updated progress on “Build Performance Platform Phase 1”')
+    assert.deepEqual(result.changes, [{ field: 'progress', from: 20, to: 50 }])
+  })
+
   it('emits a progress event when only the metric value changes', () => {
     const next = {
       ...baseGoal,

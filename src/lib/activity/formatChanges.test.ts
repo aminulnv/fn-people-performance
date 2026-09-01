@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  activityDisplaySummary,
   activityHeadline,
   formatActivityChanges,
 } from './formatChanges'
@@ -55,6 +56,16 @@ describe('formatActivityChanges', () => {
     ])
   })
 
+  it('labels a repeated goal title as Progress', () => {
+    const title =
+      'Build Performance Platform Phase 1 | Q3 Build, Q4 Testing, Q1 2027 Launch'
+    const rows = formatActivityChanges(
+      [{ field: title, from: 20, to: 50 }],
+      { goalTitle: title },
+    )
+    expect(rows).toEqual([{ field: 'Progress', from: '20', to: '50' }])
+  })
+
   it('never prints raw JSON for nested cycle settings', () => {
     const rows = formatActivityChanges([
       {
@@ -72,6 +83,18 @@ describe('formatActivityChanges', () => {
     ])
     expect(rows.every((row) => !row.from.includes('{') && !row.to.includes('{'))).toBe(
       true,
+    )
+  })
+})
+
+describe('activityDisplaySummary', () => {
+  it('collapses a metric name that repeats the goal title', () => {
+    const event = {
+      summary:
+        'Updated “Build Performance Platform Phase 1” on “Build Performance Platform Phase 1”',
+    } as ActivityEvent
+    expect(activityDisplaySummary(event)).toBe(
+      'Updated progress on “Build Performance Platform Phase 1”',
     )
   })
 })

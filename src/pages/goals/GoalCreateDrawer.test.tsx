@@ -163,7 +163,7 @@ describe('GoalCreateDrawer', () => {
       { key: 'ArrowLeft' },
     )
 
-    expect(sheet).toHaveStyle({ width: '400px' })
+    expect(sheet).toHaveStyle({ width: '584px' })
   })
 
   it('keeps the side sheet closed until its tab is pulled', () => {

@@ -115,7 +115,7 @@ export function GoalsSettingsEditPage({
           <section className="pd-reviews-edit-card pd-reviews-edit-card--window">
             <header className="pd-reviews-edit-card__head">
               <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">Goal Window</h3>
+              <h3 className="pd-reviews-edit-card__title">Goal Setting Window</h3>
             </header>
             <StageWindowFields
               startLabel="Opens"

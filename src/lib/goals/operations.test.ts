@@ -220,19 +220,27 @@ describe('duplicateGoal / cascadeGoal', () => {
     expect(copy.comments).toEqual([])
   })
 
-  it('creates a child goal linked to the parent with a blank title', () => {
+  it('creates a child goal with the parent title, matrix, and no progress', () => {
     const child = cascadeGoal(source, 'p2', {
       sourceTitle: 'Ship quality',
       sourcePersonName: 'Ada',
     })
     expect(child.ownerId).toBe('p2')
-    expect(child.description).toBe('')
-    expect(child.details).toBeUndefined()
+    expect(child.description).toBe('[Cascaded] Ship quality')
     expect(child.cascadedFromGoalId).toBe('g1')
     expect(child.linkedGoalLabel).toBe('Ship quality')
     expect(child.comments).toEqual([])
-    expect(child.measurements).toEqual([])
     expect(child.weight).toBe(0)
+    expect(child.measurements).toHaveLength(source.measurements.length)
+    expect(child.measurements[0]).toMatchObject({
+      kind: 'metric',
+      title: 'Defects',
+      startValue: 0,
+      targetValue: 80,
+      currentValue: 0,
+      progressLog: [],
+    })
+    expect(child.measurements[0].id).not.toBe(source.measurements[0].id)
   })
 })
 
@@ -327,7 +335,7 @@ describe('lineManagerCascade', () => {
     ).toEqual([
       {
         goalId: copy.id,
-        goalTitle: 'Ship quality',
+        goalTitle: '[Cascaded] Ship quality',
         personId: 'p1',
         personName: 'Ada',
         avatarUrl: undefined,

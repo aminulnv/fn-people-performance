@@ -146,13 +146,15 @@ describe('GoalTableMetricReadout', () => {
 
     expect(screen.getByText('Increase metric')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'NPS' })).toBeInTheDocument()
-    expect(screen.getByText('Initial')).toBeInTheDocument()
+    expect(screen.getByLabelText('38 of 95 Number')).toBeInTheDocument()
+    expect(screen.getByText('Current')).toBeInTheDocument()
+    expect(screen.getByText('Target')).toBeInTheDocument()
     expect(screen.getByText('38')).toBeInTheDocument()
     expect(screen.getByText('95')).toBeInTheDocument()
     expect(screen.getByText('57 to go')).toBeInTheDocument()
+    expect(screen.getByText('Initial')).toBeInTheDocument()
     expect(screen.getByText('dash.fn/nps')).toBeInTheDocument()
     expect(screen.getByText('Track weekly from the survey')).toBeInTheDocument()
-    expect(screen.getByText(/Ada/)).toBeInTheDocument()
   })
 
   it('lists checklist tasks in the milestone glance', () => {
@@ -172,6 +174,11 @@ describe('GoalTableMetricReadout', () => {
 
     expect(screen.getByRole('heading', { name: 'Quality process' })).toBeInTheDocument()
     expect(screen.getByText('Triage incoming defects')).toBeInTheDocument()
+    expect(
+      screen.getByRole('checkbox', {
+        name: 'Triage incoming defects, not done',
+      }),
+    ).toBeDisabled()
     expect(screen.getByText('Items')).toBeInTheDocument()
   })
 })

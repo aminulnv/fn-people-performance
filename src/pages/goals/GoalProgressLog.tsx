@@ -28,7 +28,7 @@ export function ProgressLogHeading({
 }) {
   return (
     <h3 className="pd-goal-progress-log__heading" id={headingId}>
-      Progress Logs{' '}
+      Progress Updates{' '}
       <span className="pd-goal-progress-log__heading-count">
         {progressLogCountLabel(count)}
       </span>
@@ -131,7 +131,7 @@ function ProgressLogTable({
 export function GoalProgressLog({
   entries,
   kind,
-  label = 'Progress Logs',
+  label = 'Progress Updates',
   className,
   variant = 'fold',
 }: {
@@ -168,7 +168,7 @@ export function GoalProgressLog({
         />
         <span className="pd-goals-table__log-add">
           <History size={11} strokeWidth={2} aria-hidden />
-          Log
+          Progress
           <CountBadge
             count={sorted.length}
             tone="muted"

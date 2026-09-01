@@ -44,9 +44,8 @@ export function CascadeLabel({
       : direction === 'from'
         ? 'Cascading from'
         : 'Cascaded to'
-  const classNames = `pd-goal-cascade__heading${
-    iconOnly ? ' pd-goal-cascade__heading--icon' : ''
-  }${className ? ` ${className}` : ''}`
+  const classNames = `pd-goal-cascade__heading${iconOnly ? ' pd-goal-cascade__heading--icon' : ''
+    }${className ? ` ${className}` : ''}`
 
   if (iconOnly) {
     return (
@@ -191,9 +190,7 @@ export function GoalCascadeFromReadout({
       : undefined
   return (
     <div className="pd-goal-cascade">
-      <CascadeLabel iconOnly direction="from">
-        Cascading from
-      </CascadeLabel>
+      <CascadeLabel direction="from">Cascading from</CascadeLabel>
       <CascadeGoalRef
         href={href}
         title={selected.title}
@@ -233,13 +230,13 @@ export function GoalCascadeToField({
     })),
     ...(canCreate
       ? [
-          {
-            value: CREATE_CASCADE_VALUE,
-            label: 'Create New Cascading Goal',
-            description: 'Blank child for selected reports',
-            className: 'pd-listbox__option--action',
-          },
-        ]
+        {
+          value: CREATE_CASCADE_VALUE,
+          label: 'Create New Cascading Goal',
+          description: 'Copy title and metrics for selected reports',
+          className: 'pd-listbox__option--action',
+        },
+      ]
       : []),
   ]
 
@@ -321,9 +318,7 @@ export function GoalCascadedTo({
   if (recipients.length === 0) return null
   return (
     <div className="pd-goal-cascade pd-goal-cascade--to">
-      <CascadeLabel iconOnly direction="to">
-        Cascaded to
-      </CascadeLabel>
+      <CascadeLabel direction="to">Cascaded to</CascadeLabel>
       <ul className="pd-goal-cascade__people">
         {recipients.map((item) => (
           <li key={item.goalId}>

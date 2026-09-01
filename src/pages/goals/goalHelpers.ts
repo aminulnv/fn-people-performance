@@ -1,13 +1,15 @@
 import { hashMatches, normalizeUrlHash } from '@/lib/routing/urlHash'
-import type { DemoPerson, Goal, Metric } from '@/lib/goals/types'
+import type { DemoPerson, Goal, GoalsCycleOption, Metric } from '@/lib/goals/types'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { listActiveDelegatedManagerIds } from '@/lib/delegations/store'
+import { cycleStatusLabel } from '@/lib/goals/cyclesFromReviews'
 import {
   METRIC_UNITS,
   measurementPanels,
   strategyLabel,
 } from '@/lib/goals/measurements'
+import type { DuplicateCycleOption } from '@/pages/goals/GoalDuplicateCycleDialog'
 
 export const GOALS_MY_GOALS_HASH = 'my-goals'
 export const GOALS_MY_REPORTS_HASH = 'my-reports'
@@ -71,6 +73,19 @@ export function goalsGoalPath(
   goalId: string,
 ): string {
   return `${goalsDetailPath(cycleId, personId)}/${encodeURIComponent(goalId)}`
+}
+
+/** Cycles a duplicated goal can be written into (current cycles, else all). */
+export function duplicateCycleOptions(
+  cycles: GoalsCycleOption[],
+): DuplicateCycleOption[] {
+  const writable = cycles.filter((cycle) => cycle.status === 'current')
+  const list = writable.length > 0 ? writable : cycles
+  return list.map((cycle) => ({
+    id: cycle.id,
+    label: cycle.label,
+    statusLabel: cycleStatusLabel(cycle.status),
+  }))
 }
 
 export function goalTitle(goal: Goal, index: number): string {

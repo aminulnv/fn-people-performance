@@ -27,6 +27,32 @@ export function goalWeightIssue(
   return null
 }
 
+function panelWeight(panel: ReturnType<typeof measurementPanels>[number]): number {
+  return panel.kind === 'metric' ? panel.metric.weight : panel.weight
+}
+
+/** True when at least one top-level metric has no weight — 0 and empty both count. */
+export function hasUnassignedMeasurementWeight(
+  measurements: Measurement[],
+): boolean {
+  const panels = measurementPanels(measurements)
+  return panels.some((panel) => !(Number(panelWeight(panel)) || 0))
+}
+
+export function measurementWeightIssue(
+  measurements: Measurement[],
+): string | null {
+  const panels = measurementPanels(measurements)
+  if (panels.length === 0) return null
+  if (hasUnassignedMeasurementWeight(measurements)) {
+    return 'Every metric needs a weight.'
+  }
+  if (sumPanelWeights(measurements) !== 100) {
+    return 'Weights need to add up to 100%.'
+  }
+  return null
+}
+
 /** How much of the 100% set is still free. Negative when the set is over. */
 export function remainingGoalWeight(allocated: number): number {
   return 100 - allocated
@@ -53,10 +79,6 @@ export function distributeGoalWeights<T extends { weight: number }>(
   }))
 }
 
-function goalWeightTotal<T extends { weight: number }>(goals: T[]): number {
-  return goals.reduce((sum, goal) => sum + (Number(goal.weight) || 0), 0)
-}
-
 /** True when weights still match an even 100% split (or have never been set). */
 export function isEvenGoalSplit<T extends { weight: number }>(goals: T[]): boolean {
   if (goals.length === 0) return true
@@ -66,19 +88,14 @@ export function isEvenGoalSplit<T extends { weight: number }>(goals: T[]): boole
 }
 
 /**
- * Add a goal and fill its weight. Even sets are re-split; a manual split keeps
- * its numbers and the new goal takes whatever is left of 100%.
+ * Add a goal with a blank weight. People set their own weights — nothing is
+ * auto-filled or re-split on create.
  */
 export function appendGoalWithWeight<T extends { weight: number }>(
   goals: T[],
   next: T,
 ): T[] {
-  if (goals.length === 0) return [{ ...next, weight: 100 }]
-  if (isEvenGoalSplit(goals)) return distributeGoalWeights([...goals, next])
-  return [
-    ...goals,
-    { ...next, weight: Math.max(0, remainingGoalWeight(goalWeightTotal(goals))) },
-  ]
+  return [...goals, { ...next, weight: 0 }]
 }
 
 /** Drop a goal. Even sets re-split; a manual split is left as the user typed it. */
@@ -185,6 +202,12 @@ export function collectGoalSubmitBlockers(goals: Goal[]): SubmitGoalBlocker[] {
       blockers.push(goalBlocker(goal, index, ' still needs a name on each metric.'))
       continue
     }
+    if (hasUnassignedMeasurementWeight(goal.measurements)) {
+      blockers.push(
+        goalBlocker(goal, index, ' still needs a weight on each metric.'),
+      )
+      continue
+    }
     if (sumMeasurementWeights(goal.measurements) !== 100) {
       blockers.push(
         goalBlocker(goal, index, ' metrics need to add up to 100%.'),
@@ -224,7 +247,7 @@ export function submitIssueForGoal(
 
 /** Metric problems belong in the Metrics cell, not on the goal title. */
 export function isMeasureGoalIssue(issue: string): boolean {
-  return /needs a (measure|metric)|name on each (measure|metric)|(measures|metrics) need to add up/i.test(
+  return /needs a (measure|metric)|name on each (measure|metric)|weight on each (measure|metric)|(measures|metrics) need to add up/i.test(
     issue,
   )
 }
@@ -239,6 +262,7 @@ export function sentenceFromSuffix(suffix: string): string {
 const MEASURE_ISSUE_TAILS = [
   /still needs a (?:measure|metric) — or remove it\.?$/i,
   /still needs a name on each (?:measure|metric)\.?$/i,
+  /still needs a weight on each (?:measure|metric)\.?$/i,
   /still needs a (?:measure|metric)\.?$/i,
   /(?:measures|metrics) need to add up to \d+%\.$/i,
   /(?:measures|metrics) need to add up\.?$/i,

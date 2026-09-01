@@ -48,12 +48,12 @@ describe('MetricProgressUpdate', () => {
     expect(onCommit).not.toHaveBeenCalled()
   })
 
-  it('hides the Log update heading in the compact popover', () => {
+  it('hides the Progress update heading in the compact popover', () => {
     render(
       <MetricProgressUpdate metric={metric} compact onCommit={vi.fn()} />,
     )
 
-    expect(screen.queryByText('Log update')).not.toBeInTheDocument()
+    expect(screen.queryByText('Progress update')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Current value')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Add Update For NPS' })).toBeInTheDocument()
   })

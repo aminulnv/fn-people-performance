@@ -76,6 +76,8 @@ export {
   goalCompletion,
   goalWeightIssue,
   hasUnassignedGoalWeight,
+  measurementWeightIssue,
+  hasUnassignedMeasurementWeight,
   isEvenGoalSplit,
   overallCompletion,
   remainingGoalWeight,

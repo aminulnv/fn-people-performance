@@ -71,7 +71,7 @@ export function MetricProgressUpdate({
   return (
     <div className={cx('pd-goal-log-update', compact && 'pd-goal-log-update--compact')}>
       {compact ? null : (
-        <p className="pd-goal-log-update__label">Log update</p>
+        <p className="pd-goal-log-update__label">Progress update</p>
       )}
       <div className="pd-goal-log-update__row">
         <input

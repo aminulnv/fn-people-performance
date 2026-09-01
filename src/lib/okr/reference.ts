@@ -1,4 +1,7 @@
 export const COMPANY_OKR_NAME = "FundedNext";
+export const OKR_PLATFORM_ORIGIN =
+  import.meta.env.VITE_OKR_PLATFORM_URL?.trim().replace(/\/$/, "") ||
+  "https://okr.nextventures.io";
 
 export type OkrReferenceLevel = "company" | "department" | "wing";
 
@@ -53,6 +56,8 @@ export type OkrWorkKind = "key_result" | "special_project";
 
 export type OkrWorkItem = {
   id: string;
+  keyResultId: string;
+  objectiveId: string;
   kind: OkrWorkKind;
   level: OkrReferenceLevel;
   quarter: string;
@@ -72,6 +77,7 @@ export type OkrWorkItem = {
   lastCheckIn: OkrLastCheckIn | null;
   raci: OkrRaci;
   milestones: OkrMilestone[];
+  tierLabel: string;
 };
 
 export type OkrWindowData = {
@@ -129,6 +135,7 @@ type OkrItemLike = {
   raci?: OkrRaciLike;
   lastCheckIn?: OkrCheckInLike | null;
   objective?: {
+    id?: string;
     title?: string;
     longTitle?: string;
     shortTitle?: string;
@@ -232,11 +239,46 @@ export function resolveRaciParty(
   };
 }
 
+export function formatOkrTierLabel(tier?: string): string {
+  const value = tier?.trim().toLowerCase() ?? "";
+  const numbered = value.match(/^t(\d+)/);
+  if (numbered) return `T${numbered[1]}`;
+  if (value.includes("company")) return "T1";
+  if (value.includes("department")) return "T2";
+  if (value.includes("wing")) return "T4";
+  return "";
+}
+
 export function levelFromTier(tier?: string): OkrReferenceLevel {
   const value = tier?.trim().toLowerCase() ?? "";
   if (value.includes("company") || value.startsWith("t1")) return "company";
   if (value.includes("wing") || value.startsWith("t4")) return "wing";
   return "department";
+}
+
+/** Parse OKR quarter labels like `2026-Q3` or `Q3 2026`. */
+export function parseOkrYearQuarter(
+  value: string,
+): { year: string; quarter: string } | null {
+  const iso = value.trim().match(/^(\d{4})-Q([1-4])$/i);
+  if (iso) return { year: iso[1], quarter: iso[2] };
+  const label = value.trim().match(/^Q([1-4])\s+(\d{4})$/i);
+  if (label) return { year: label[2], quarter: label[1] };
+  return null;
+}
+
+/** Open the OKR platform workspace for one reference work item. */
+export function okrWorkItemPlatformUrl(item: OkrWorkItem): string {
+  const url = new URL(`/${item.level}/workspace`, OKR_PLATFORM_ORIGIN);
+  if (item.objectiveId) url.searchParams.set("objectiveId", item.objectiveId);
+  url.searchParams.set("keyResultId", item.keyResultId);
+  const period =
+    parseOkrYearQuarter(item.quarter) ?? parseOkrYearQuarter(item.quarterLabel);
+  if (period) {
+    url.searchParams.set("year", period.year);
+    url.searchParams.set("quarter", period.quarter);
+  }
+  return url.toString();
 }
 
 export function formatOkrMeasure(
@@ -324,6 +366,8 @@ function mapWorkItem(
   const longTitle = item.longTitle?.trim() || item.title?.trim() || "";
   return {
     id: `${kind}:${id}`,
+    keyResultId: id,
+    objectiveId: item.objective?.id?.trim() || "",
     kind,
     level: levelFromTier(item.tier),
     quarter: quarterKey,
@@ -362,6 +406,7 @@ function mapWorkItem(
         };
       })
       .filter((milestone): milestone is OkrMilestone => milestone !== null),
+    tierLabel: formatOkrTierLabel(item.tier),
   };
 }
 

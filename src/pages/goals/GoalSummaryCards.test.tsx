@@ -23,6 +23,13 @@ describe('GoalSummaryCards', () => {
     expect(screen.queryByText(/left/i)).not.toBeInTheDocument()
   })
 
+  it('keeps an unset weight blank instead of showing 0', () => {
+    render(<GoalSummaryCards goal={{ ...goal, weight: 0 }} />)
+
+    expect(screen.getByLabelText('Weight not set')).toBeInTheDocument()
+    expect(screen.queryByText('0')).not.toBeInTheDocument()
+  })
+
   it('lets weight be edited when the cards are on the write view', () => {
     const onWeightChange = vi.fn()
     render(

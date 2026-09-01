@@ -7,7 +7,9 @@ export const okrWindowFixture: OkrWindowData = {
   total: 3,
   items: [
     {
-      id: "key_result:company-1",
+      id: "key_result:5e569c65-60a0-4216-948b-a3010a023655",
+      keyResultId: "5e569c65-60a0-4216-948b-a3010a023655",
+      objectiveId: "c2a30c75-0e03-4e3c-bbcd-49fab62b6c1a",
       kind: "key_result",
       level: "company",
       quarter: "2026-Q3",
@@ -38,9 +40,12 @@ export const okrWindowFixture: OkrWindowData = {
         informed: [],
       },
       milestones: [],
+      tierLabel: "T1",
     },
     {
       id: "key_result:dept-1",
+      keyResultId: "dept-1",
+      objectiveId: "obj-dept-1",
       kind: "key_result",
       level: "department",
       quarter: "2026-Q3",
@@ -67,9 +72,12 @@ export const okrWindowFixture: OkrWindowData = {
         informed: [],
       },
       milestones: [],
+      tierLabel: "T2",
     },
     {
       id: "key_result:wing-1",
+      keyResultId: "wing-1",
+      objectiveId: "obj-wing-1",
       kind: "key_result",
       level: "wing",
       quarter: "2026-Q3",
@@ -99,6 +107,7 @@ export const okrWindowFixture: OkrWindowData = {
         { id: "wing-ms-1", title: "Risk register live", status: "completed", weight: 50 },
         { id: "wing-ms-2", title: "Weekly risk review", status: "in_progress", weight: 50 },
       ],
+      tierLabel: "T4",
     },
   ],
 };

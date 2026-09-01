@@ -2,6 +2,10 @@ import { useMemo } from 'react'
 import type { ActivityEvent } from '@/lib/activity/types'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { ActivityLogEntry } from './ActivityLogEntry'
+import {
+  bundleActivityEvents,
+  bundleActorKey,
+} from './activityLogGrouping'
 
 function dayKey(iso?: string): string {
   if (!iso) return 'Unknown date'
@@ -23,9 +27,11 @@ function dayLabel(key: string): string {
 export function ActivityLog({
   events,
   emptyLabel = 'No activity yet.',
+  scoped = false,
 }: {
   events: ActivityEvent[]
   emptyLabel?: string
+  scoped?: boolean
 }) {
   const { employees } = useEmployees({ load: false })
   const avatarByEmployeeId = useMemo(() => {
@@ -53,25 +59,40 @@ export function ActivityLog({
 
   return (
     <div className="pd-activity-log">
-      {groups.map(([key, items]) => (
-        <section key={key} className="pd-activity-log__group">
-          <h3>{dayLabel(key)}</h3>
-          <div className="pd-activity-log__list">
-            {items.map((event) => (
-              <ActivityLogEntry
-                key={event.id}
-                event={event}
-                actorAvatarUrl={
-                  event.actorAvatarUrl ||
-                  (event.actorEmployeeId != null
-                    ? avatarByEmployeeId.get(event.actorEmployeeId)
-                    : undefined)
-                }
-              />
-            ))}
-          </div>
-        </section>
-      ))}
+      {groups.map(([key, items]) => {
+        const bundles = bundleActivityEvents(items)
+        let previousActorKey = ''
+
+        return (
+          <section key={key} className="pd-activity-log__group">
+            <h3>{dayLabel(key)}</h3>
+            <div className="pd-activity-log__list">
+              {bundles.map((bundle) => {
+                const event = bundle.events[0]
+                const actorKey = bundleActorKey(bundle)
+                const showActor = actorKey !== previousActorKey
+                previousActorKey = actorKey
+
+                return (
+                  <ActivityLogEntry
+                    key={bundle.events.map((item) => item.id).join(':')}
+                    events={bundle.events}
+                    timeOnly
+                    hideEntityTag={scoped}
+                    showActor={showActor}
+                    actorAvatarUrl={
+                      event.actorAvatarUrl ||
+                      (event.actorEmployeeId != null
+                        ? avatarByEmployeeId.get(event.actorEmployeeId)
+                        : undefined)
+                    }
+                  />
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }

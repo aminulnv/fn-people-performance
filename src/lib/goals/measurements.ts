@@ -482,10 +482,10 @@ export function replaceMilestoneList(
 
 /** Adds a new top-level milestone measure with one empty todo list. */
 export function appendMilestoneList(measurements: Measurement[]): Measurement[] {
-  return rebalanceMeasurementWeights([
+  return [
     ...normalizeMilestoneListIds(measurements),
     blankMilestone(0, { listTitle: DEFAULT_TASK_LIST_TITLE }),
-  ])
+  ]
 }
 
 /** Adds another named todo list inside an existing milestone measure. */
@@ -555,11 +555,7 @@ export function appendTodoListToMeasure(
 
   const next = [...nextMeasurements]
   next.splice(insertAt, 0, newList)
-  return stampMeasureGroup(
-    rebalanceMeasurementWeights(next),
-    measureGroupId,
-    sample.measureTitle,
-  )
+  return stampMeasureGroup(next, measureGroupId, sample.measureTitle)
 }
 
 export function appendMilestoneToList(
@@ -670,16 +666,14 @@ export function removeMilestoneFromList(
 }
 
 export function canEditMeasurementWeights(measurements: Measurement[]): boolean {
-  return measurementPanels(measurements).length > 1
+  return measurementPanels(measurements).length > 0
 }
 
-/** A lone measure always owns the full 100%. */
+/** No-op kept for call sites — weights stay blank until the owner sets them. */
 export function lockSoloMeasurementWeights(
   measurements: Measurement[],
 ): Measurement[] {
-  if (measurementPanels(measurements).length !== 1) return measurements
-  if (sumPanelWeights(measurements) === 100) return measurements
-  return rebalanceMeasurementWeights(measurements)
+  return measurements
 }
 
 export function setMeasurementPanelWeight(
@@ -687,9 +681,6 @@ export function setMeasurementPanelWeight(
   panelKey: string,
   nextWeight: number,
 ): Measurement[] {
-  if (!canEditMeasurementWeights(measurements)) {
-    return lockSoloMeasurementWeights(measurements)
-  }
   const panel = measurementPanels(measurements).find((entry) => entry.key === panelKey)
   if (!panel) return measurements
   const clamped = Math.max(0, Math.min(100, Math.round(nextWeight)))

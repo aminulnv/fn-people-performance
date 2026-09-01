@@ -9,6 +9,7 @@ import {
   linkExistingGoalAsCascade,
   unlinkCascadedGoal,
   copyPreviousGoals as copyPreviousGoalsFromCycle,
+  ensureGoalCycleHydrated,
   saveGoals,
   saveProgress,
   selectGoalCycle,
@@ -80,7 +81,11 @@ export type GoalsControllerActions = {
   ) => Promise<void>;
   removeGoal: (subjectId: string, goalId: string) => Promise<void>;
   copyPreviousGoals: (subjectId: string) => Promise<Goal | null>;
-  duplicateGoal: (subjectId: string, goalId: string) => Promise<Goal | null>;
+  duplicateGoal: (
+    subjectId: string,
+    goalId: string,
+    targetCycleId?: string,
+  ) => Promise<Goal | null>;
   cascadeGoal: (
     subjectId: string,
     goalId: string,
@@ -450,11 +455,20 @@ export function useGoalsController({
         );
         return result?.byPerson[targetSubjectId]?.goals[0] ?? null;
       },
-      async duplicateGoal(targetSubjectId, goalId) {
-        const row = snapshot?.byPerson[targetSubjectId];
-        if (!row) throw new Error("Unknown goals subject.");
-        const source = row.goals.find((goal) => goal.id === goalId);
+      async duplicateGoal(targetSubjectId, goalId, targetCycleId) {
+        if (!actor || !snapshot) throw new Error("Goals are still loading.");
+        const sourceCycleId = cycleId ?? snapshot.cycle.id;
+        await ensureGoalCycleHydrated(sourceCycleId);
+        const sourceRow =
+          getGoalsSnapshotForCycle(sourceCycleId).byPerson[targetSubjectId];
+        if (!sourceRow) throw new Error("Unknown goals subject.");
+        const source = sourceRow.goals.find((goal) => goal.id === goalId);
         if (!source) return null;
+        const destCycleId = targetCycleId ?? sourceCycleId;
+        await ensureGoalCycleHydrated(destCycleId);
+        const destRow =
+          getGoalsSnapshotForCycle(destCycleId).byPerson[targetSubjectId];
+        if (!destRow) throw new Error("Unknown goals subject.");
         const sourceTitle =
           source.description.trim() || source.linkedGoalLabel?.trim() || 'Goal';
         const copy = duplicateGoal(source, {
@@ -462,7 +476,14 @@ export function useGoalsController({
           sourceTitle,
         });
         await run(() =>
-          saveGoals(mutationContext(targetSubjectId), [...row.goals, copy]),
+          saveGoals(
+            {
+              cycleId: destCycleId,
+              actorId: actor.id,
+              subjectId: targetSubjectId,
+            },
+            [...destRow.goals, copy],
+          ),
         );
         return copy;
       },
@@ -544,7 +565,7 @@ export function useGoalsController({
         );
       },
     };
-  }, [actor, mutationContext, run, snapshot]);
+  }, [actor, cycleId, mutationContext, run, snapshot]);
 
   return {
     snapshot,

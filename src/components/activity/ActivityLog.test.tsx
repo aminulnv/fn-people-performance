@@ -95,6 +95,33 @@ describe('ActivityLog', () => {
     expect(screen.getByLabelText('Ada Manager')).toBeInTheDocument()
   })
 
+  it('shows progress as a short label and from-to values', () => {
+    const title =
+      'Build Performance Platform Phase 1 | Q3 Build, Q4 Testing, Q1 2027 Launch'
+    const events: ActivityEvent[] = [
+      {
+        id: '6',
+        eventKey: 'goal.metric_progress_updated',
+        entityType: 'goal',
+        entityId: 'g1',
+        actorType: 'user',
+        actorName: 'Aminul Islam Borhan',
+        source: 'api',
+        summary: `Updated “${title}” on “${title}”`,
+        changes: [{ field: title, from: 20, to: 50 }],
+        metadata: { title },
+        occurredAt: '2026-09-01T04:45:00.000Z',
+      },
+    ]
+    render(<ActivityLog events={events} />)
+    expect(screen.queryByText('Updated metric progress')).not.toBeInTheDocument()
+    expect(screen.getByText('Progress')).toBeInTheDocument()
+    expect(screen.getByText('20')).toBeInTheDocument()
+    expect(screen.getByText('50')).toBeInTheDocument()
+    expect(screen.queryByText(title)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Updated progress on/)).not.toBeInTheDocument()
+  })
+
   it('shows human field changes instead of raw JSON', () => {
     const events: ActivityEvent[] = [
       {
@@ -126,10 +153,62 @@ describe('ActivityLog', () => {
       },
     ]
     render(<ActivityLog events={events} />)
+    expect(screen.queryByText('Updated a goal')).not.toBeInTheDocument()
     expect(screen.getByText('Weight')).toBeInTheDocument()
     expect(screen.getByText('0%')).toBeInTheDocument()
     expect(screen.getByText('100%')).toBeInTheDocument()
     expect(screen.queryByText(/\{"weight"/)).not.toBeInTheDocument()
+  })
+
+  it('bundles rapid goal edits and hides repeated actor rows', () => {
+    const events: ActivityEvent[] = [
+      {
+        id: '3',
+        eventKey: 'goal.updated',
+        entityType: 'goal',
+        entityId: 'g1',
+        actorType: 'user',
+        actorName: 'Aminul Islam Borhan',
+        actorEmployeeId: 12,
+        source: 'api',
+        summary: 'Updated goal',
+        changes: [
+          {
+            field: 'goal',
+            from: { description: 'Grow NPS', weight: 7, measurements: [] },
+            to: { description: 'Grow NPS', weight: 16, measurements: [] },
+          },
+        ],
+        metadata: {},
+        occurredAt: '2026-09-01T05:09:12.000Z',
+      },
+      {
+        id: '2',
+        eventKey: 'goal.updated',
+        entityType: 'goal',
+        entityId: 'g1',
+        actorType: 'user',
+        actorName: 'Aminul Islam Borhan',
+        actorEmployeeId: 12,
+        source: 'api',
+        summary: 'Updated goal',
+        changes: [
+          {
+            field: 'goal',
+            from: { description: 'Grow NPS', weight: 7, measurements: [] },
+            to: { description: 'Grow NPS', weight: 11, measurements: [] },
+          },
+        ],
+        metadata: {},
+        occurredAt: '2026-09-01T05:09:40.000Z',
+      },
+    ]
+    render(<ActivityLog events={events} scoped />)
+    expect(screen.getByText('2 edits')).toBeInTheDocument()
+    expect(screen.getByText('16%')).toBeInTheDocument()
+    expect(screen.getByText('11%')).toBeInTheDocument()
+    expect(screen.queryByText('Goal')).not.toBeInTheDocument()
+    expect(screen.getAllByText('Aminul Islam Borhan')).toHaveLength(1)
   })
 
   it('names a late submission in plain language', () => {

@@ -196,7 +196,7 @@ export function GoalMeasureLogHover({
 
   const logLabel = isChecklist
     ? `Update checklist for ${measureName}`
-    : `Log progress for ${measureName}`
+    : `Progress for ${measureName}`
   const triggerLabel =
     entries.length === 0
       ? logLabel
@@ -272,7 +272,7 @@ export function GoalMeasureLogHover({
         onClick={() => show(canAddMetric)}
       >
         <History size={11} strokeWidth={2} aria-hidden />
-        Log
+        Progress
         <CountBadge
           count={entries.length}
           tone="muted"

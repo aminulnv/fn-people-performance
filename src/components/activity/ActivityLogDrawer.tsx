@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { History, X } from 'lucide-react'
 import type { ActivityListFilters } from '@/lib/activity/types'
 import { ActivityLog } from './ActivityLog'
+import { isActivityFeedScoped } from './activityLogDisplay'
 import { useActivityFeed } from './useActivityFeed'
 
 function ActivityLogDrawerPanel({
@@ -22,6 +23,7 @@ function ActivityLogDrawerPanel({
     events,
     isLoading,
     error,
+    refetch,
     hasNextPage,
     fetchNextPage,
     isFetchingNextPage,
@@ -60,10 +62,7 @@ function ActivityLogDrawerPanel({
         <header className="pd-activity-drawer__head">
           <div>
             <p className="pd-activity-drawer__eyebrow">Activity Log</p>
-            <h2>
-              <History size={20} strokeWidth={2.25} aria-hidden />
-              {title}
-            </h2>
+            <h2>{title}</h2>
             {description ? <p>{description}</p> : null}
           </div>
           <button
@@ -78,20 +77,31 @@ function ActivityLogDrawerPanel({
         <div className="pd-activity-drawer__body">
           {isLoading ? <p className="pd-activity-log__empty">Loading…</p> : null}
           {error ? (
-            <p className="pd-activity-log__empty">Could not load activity.</p>
+            <div className="pd-activity-log__status" role="alert">
+              <p className="pd-activity-log__empty">Could not load activity.</p>
+              <button
+                type="button"
+                className="pd-activity-link"
+                onClick={() => void refetch()}
+              >
+                Try again
+              </button>
+            </div>
           ) : null}
           {!isLoading && !error ? (
             <>
-              <ActivityLog events={events} />
+              <ActivityLog events={events} scoped={isActivityFeedScoped(filters)} />
               {hasNextPage ? (
-                <button
-                  type="button"
-                  className="pd-activity-link"
-                  disabled={isFetchingNextPage}
-                  onClick={() => void fetchNextPage()}
-                >
-                  {isFetchingNextPage ? 'Loading…' : 'Load Older Activity'}
-                </button>
+                <div className="pd-activity-log__more">
+                  <button
+                    type="button"
+                    className="pd-activity-link"
+                    disabled={isFetchingNextPage}
+                    onClick={() => void fetchNextPage()}
+                  >
+                    {isFetchingNextPage ? 'Loading…' : 'Load older activity'}
+                  </button>
+                </div>
               ) : null}
             </>
           ) : null}

@@ -40,6 +40,7 @@ const FIELD_LABELS: Record<string, string> = {
   ownerId: 'Owner',
   postWindowGoalPolicy: 'After-deadline policy',
   profileKey: 'Access profile',
+  progress: 'Progress',
   proof: 'Proof',
   proofUrl: 'Proof',
   reason: 'Reason',
@@ -119,6 +120,73 @@ function excerpt(value: string, max = 140): string {
   const text = value.trim().replace(/\s+/g, ' ')
   if (text.length <= max) return text
   return `${text.slice(0, max - 1).trimEnd()}…`
+}
+
+function normalizeTitle(value: string): string {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase()
+}
+
+function isNumericChange(from: string, to: string): boolean {
+  const numeric = /^-?\d+(?:\.\d+)?%?$/
+  return numeric.test(from) && numeric.test(to)
+}
+
+/** Measure names that just repeat the goal title add no information. */
+function isRedundantSubject(subject: string, goalTitle?: string): boolean {
+  const name = normalizeTitle(subject)
+  if (!name) return true
+  if (name === 'metric' || name === 'milestone' || name === 'progress') return true
+  const goal = goalTitle ? normalizeTitle(goalTitle) : ''
+  return Boolean(goal && name === goal)
+}
+
+/** Prefer “Progress” over repeating the goal title as a field name. */
+export function activityChangeFieldLabel(
+  field: string,
+  options?: { goalTitle?: string; from?: string; to?: string },
+): string {
+  const [subject, attribute] = field.split(' · ')
+  if (attribute) {
+    const attrLabel = activityFieldLabel(attribute)
+    if (isRedundantSubject(subject, options?.goalTitle)) return attrLabel
+    return `${excerpt(subject, 42)} · ${attrLabel}`
+  }
+  if (isRedundantSubject(field, options?.goalTitle)) {
+    return isNumericChange(options?.from ?? '', options?.to ?? '')
+      ? 'Progress'
+      : activityFieldLabel(field)
+  }
+  return excerpt(activityFieldLabel(field), 42)
+}
+
+/** Goal title from metadata, or the last quoted title in the summary. */
+export function activityGoalTitle(event: ActivityEvent): string {
+  const metaTitle = event.metadata?.title
+  if (typeof metaTitle === 'string' && metaTitle.trim()) return metaTitle.trim()
+  const quoted = [...event.summary.matchAll(/[“"]([^”"]+)[”"]/g)].map((match) =>
+    match[1].trim(),
+  )
+  if (quoted.length >= 2 && normalizeTitle(quoted[0]) === normalizeTitle(quoted[1])) {
+    return quoted[1]
+  }
+  if (quoted.length > 0) return quoted[quoted.length - 1]
+  return ''
+}
+
+/** One readable sentence. Collapses “Updated title on title” and shortens quotes. */
+export function activityDisplaySummary(event: ActivityEvent): string {
+  const raw = event.summary.trim()
+  if (!raw) return ''
+  const match = raw.match(/^Updated [“"](.+?)[”"] on [“"](.+?)[”"]$/)
+  if (match) {
+    const metric = match[1].trim()
+    const goal = excerpt(match[2].trim(), 72)
+    if (normalizeTitle(metric) === normalizeTitle(match[2])) {
+      return `Updated progress on “${goal}”`
+    }
+    return `Updated “${excerpt(metric, 42)}” on “${goal}”`
+  }
+  return raw.replace(/[“"]([^”"]{73,})[”"]/g, (_, title: string) => `“${excerpt(title, 72)}”`)
 }
 
 function formatScalar(field: string, value: unknown): string {
@@ -276,13 +344,21 @@ function expandObjectPair(
 /** Turn stored changes into short, human rows. Never surfaces raw JSON. */
 export function formatActivityChanges(
   changes: ActivityChange[],
+  options?: { goalTitle?: string },
 ): FormattedActivityChange[] {
   const rows: FormattedActivityChange[] = []
   for (const change of changes) {
     const expanded = expandObjectPair(change.field, change.from, change.to)
     for (const row of expanded) {
       if (row.from === row.to) continue
-      rows.push(row)
+      rows.push({
+        ...row,
+        field: activityChangeFieldLabel(row.field, {
+          goalTitle: options?.goalTitle,
+          from: row.from,
+          to: row.to,
+        }),
+      })
     }
   }
   return rows

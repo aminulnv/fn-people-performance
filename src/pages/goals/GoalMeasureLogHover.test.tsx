@@ -32,9 +32,9 @@ describe('GoalMeasureLogHover', () => {
     )
 
     const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion',
+      name: 'Progress for Primary outcome completion',
     })
-    expect(log).toHaveTextContent('Log')
+    expect(log).toHaveTextContent('Progress')
     expect(log.querySelector('.pd-count-badge')).toBeNull()
   })
 
@@ -50,14 +50,14 @@ describe('GoalMeasureLogHover', () => {
     )
 
     const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion',
+      name: 'Progress for Primary outcome completion',
     })
-    expect(log).toHaveTextContent('Log')
+    expect(log).toHaveTextContent('Progress')
     expect(log.querySelector('svg')).toBeTruthy()
     expect(log.querySelector('.pd-count-badge')).toBeNull()
   })
 
-  it('uses the same Log button when history is read-only', () => {
+  it('uses the same Progress button when history is read-only', () => {
     render(
       <GoalMeasureLogHover
         measureName="Primary outcome completion"
@@ -66,23 +66,23 @@ describe('GoalMeasureLogHover', () => {
     )
 
     const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion, 1 update',
+      name: 'Progress for Primary outcome completion, 1 update',
     })
-    expect(log).toHaveTextContent('Log')
+    expect(log).toHaveTextContent('Progress')
     expect(log.querySelector('svg')).toBeTruthy()
     expect(log.querySelector('.pd-count-badge')).toHaveClass(
       'pd-count-badge--muted',
     )
     expect(
       screen.queryByRole('button', {
-        name: '1 progress log for Primary outcome completion',
+        name: '1 progress update for Primary outcome completion',
       }),
     ).not.toBeInTheDocument()
 
     fireEvent.mouseEnter(log.parentElement!)
 
     expect(
-      screen.getByRole('dialog', { name: 'Progress Logs 1 update' }),
+      screen.getByRole('dialog', { name: 'Progress Updates 1 update' }),
     ).toBeInTheDocument()
     expect(
       screen.getByText(
@@ -98,7 +98,7 @@ describe('GoalMeasureLogHover', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('puts the log count inside the Log button', () => {
+  it('puts the log count inside the Progress button', () => {
     render(
       <GoalMeasureLogHover
         measureName="Primary outcome completion"
@@ -110,9 +110,9 @@ describe('GoalMeasureLogHover', () => {
     )
 
     const log = screen.getByRole('button', {
-      name: 'Log progress for Primary outcome completion, 1 update',
+      name: 'Progress for Primary outcome completion, 1 update',
     })
-    expect(log).toHaveTextContent('Log')
+    expect(log).toHaveTextContent('Progress')
     expect(log.querySelector('svg')).toBeTruthy()
     expect(log.querySelector('.pd-count-badge')).toHaveTextContent('1')
     expect(log.querySelector('.pd-count-badge')).toHaveClass(
@@ -120,12 +120,12 @@ describe('GoalMeasureLogHover', () => {
     )
     expect(
       screen.queryByRole('button', {
-        name: '1 progress log for Primary outcome completion',
+        name: '1 progress update for Primary outcome completion',
       }),
     ).not.toBeInTheDocument()
   })
 
-  it('lets the Log button open the add field and commit a value', () => {
+  it('lets the Progress button open the add field and commit a value', () => {
     const onRecord = vi.fn()
     render(
       <GoalMeasureLogHover
@@ -139,16 +139,16 @@ describe('GoalMeasureLogHover', () => {
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: 'Log progress for Primary outcome completion, 1 update',
+        name: 'Progress for Primary outcome completion, 1 update',
       }),
     )
 
     expect(
-      screen.getByRole('heading', { name: 'Progress Logs 1 update' }),
+      screen.getByRole('heading', { name: 'Progress Updates 1 update' }),
     ).toBeInTheDocument()
 
-    const heading = screen.getByRole('heading', { name: 'Progress Logs 1 update' })
-    const dialog = screen.getByRole('dialog', { name: 'Progress Logs 1 update' })
+    const heading = screen.getByRole('heading', { name: 'Progress Updates 1 update' })
+    const dialog = screen.getByRole('dialog', { name: 'Progress Updates 1 update' })
     const field = screen.getByLabelText(
       'Current progress for Primary outcome completion',
     )
@@ -199,7 +199,7 @@ describe('GoalMeasureLogHover', () => {
       }),
     )
 
-    const heading = screen.getByRole('heading', { name: 'Progress Logs None yet' })
+    const heading = screen.getByRole('heading', { name: 'Progress Updates None yet' })
     const checkbox = screen.getByRole('checkbox', {
       name: 'Mark Triage incoming defects complete',
     })
@@ -209,7 +209,7 @@ describe('GoalMeasureLogHover', () => {
     fireEvent.click(checkbox)
     expect(onToggleTodo).toHaveBeenCalledWith('t1', true)
     expect(
-      screen.getByRole('dialog', { name: 'Progress Logs None yet' }).parentElement,
+      screen.getByRole('dialog', { name: 'Progress Updates None yet' }).parentElement,
     ).toBe(document.body)
   })
 
@@ -245,7 +245,7 @@ describe('GoalMeasureLogHover', () => {
       }),
     )
 
-    const heading = screen.getByRole('heading', { name: 'Progress Logs 1 update' })
+    const heading = screen.getByRole('heading', { name: 'Progress Updates 1 update' })
     const checkbox = screen.getByRole('checkbox', {
       name: 'Mark Triage incoming defects incomplete',
     })

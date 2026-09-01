@@ -246,7 +246,7 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Goals' }))
 
     expect(screen.getByRole('switch', { name: 'Enable Goals' })).not.toBeChecked()
-    expect(screen.getByText('Goal Window')).toBeInTheDocument()
+    expect(screen.getByText('Goal Setting Window')).toBeInTheDocument()
     expect(screen.getByLabelText('Opens')).toBeDisabled()
 
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Goals' }))

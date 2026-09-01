@@ -168,7 +168,7 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
       ? 'Add at least one metric'
       : measureWeight === 100
         ? undefined
-        : 'Metric weights must total 100%'
+        : 'Must total 100%'
 
   return {
     ok: !nameError && !measurementNameError && !measurementWeightError,

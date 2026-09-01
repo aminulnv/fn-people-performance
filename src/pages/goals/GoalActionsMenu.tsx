@@ -6,8 +6,14 @@ import {
   GoalCascadeTargetDialog,
   type CascadeTarget,
 } from './GoalCascadeTargetDialog'
+import {
+  GoalDuplicateCycleDialog,
+  type DuplicateCycleOption,
+} from './GoalDuplicateCycleDialog'
 import { ActivityLogDrawer } from '@/components/activity/ActivityLogDrawer'
 import '@/styles/layout-activity.css'
+
+export type { DuplicateCycleOption }
 
 export function hasGoalActions({
   onDuplicate,
@@ -73,6 +79,8 @@ export function GoalActionsMenu({
   canCascade = false,
   canRemove = false,
   cascadeTargets = [],
+  duplicateCycles = [],
+  defaultDuplicateCycleId,
   activityFilters,
   fullViewHref,
   extraItems = [],
@@ -85,6 +93,9 @@ export function GoalActionsMenu({
   canCascade?: boolean
   canRemove?: boolean
   cascadeTargets?: CascadeTarget[]
+  /** Cycles the duplicated goal can be placed into. */
+  duplicateCycles?: DuplicateCycleOption[]
+  defaultDuplicateCycleId?: string
   activityFilters?: {
     goalId?: string
     cycleId?: string
@@ -93,15 +104,21 @@ export function GoalActionsMenu({
   /** Opens the unified goal detail page in the main window. */
   fullViewHref?: string
   extraItems?: DropdownMenuItem[]
-  onDuplicate?: () => void
+  onDuplicate?: (cycleId: string) => void
   onCascade?: (reportIds: string[]) => void
   onRemove?: () => void
 }) {
   const navigate = useNavigate()
+  const [duplicateOpen, setDuplicateOpen] = useState(false)
   const [cascadeOpen, setCascadeOpen] = useState(false)
   const [activityOpen, setActivityOpen] = useState(false)
   const [removeOpen, setRemoveOpen] = useState(false)
   const canViewActivity = Boolean(activityFilters)
+  const defaultCycleId =
+    defaultDuplicateCycleId ??
+    duplicateCycles[0]?.id ??
+    activityFilters?.cycleId ??
+    ''
 
   if (
     !hasGoalActions({
@@ -117,8 +134,26 @@ export function GoalActionsMenu({
     return null
   }
 
+  const openDuplicate = () => {
+    if (!onDuplicate) return
+    if (duplicateCycles.length === 0) {
+      if (defaultCycleId) onDuplicate(defaultCycleId)
+      return
+    }
+    setDuplicateOpen(true)
+  }
+
   const dialogs = (
     <>
+      {onDuplicate && duplicateCycles.length > 0 ? (
+        <GoalDuplicateCycleDialog
+          open={duplicateOpen}
+          cycles={duplicateCycles}
+          defaultCycleId={defaultCycleId}
+          onClose={() => setDuplicateOpen(false)}
+          onConfirm={onDuplicate}
+        />
+      ) : null}
       {onCascade ? (
         <GoalCascadeTargetDialog
           open={cascadeOpen}
@@ -161,7 +196,7 @@ export function GoalActionsMenu({
             id: 'duplicate',
             label: 'Duplicate',
             icon: <Copy size={16} strokeWidth={1.75} />,
-            onSelect: onDuplicate,
+            onSelect: openDuplicate,
           }
         : null,
       onCascade
@@ -225,7 +260,7 @@ export function GoalActionsMenu({
   return (
     <>
       {onDuplicate ? (
-        <ToolbarButton label="Duplicate" onClick={onDuplicate}>
+        <ToolbarButton label="Duplicate" onClick={openDuplicate}>
           <Copy size={16} strokeWidth={1.75} aria-hidden />
         </ToolbarButton>
       ) : null}

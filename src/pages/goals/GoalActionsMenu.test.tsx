@@ -1,7 +1,34 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { ReactNode } from 'react'
 import { GoalActionsMenu } from './GoalActionsMenu'
+
+vi.mock('@/components/ui', async () => {
+  const actual = await vi.importActual<typeof import('@/components/ui')>(
+    '@/components/ui',
+  )
+  return {
+    ...actual,
+    Modal: ({
+      open,
+      title,
+      children,
+      actions,
+    }: {
+      open: boolean
+      title: string
+      children?: ReactNode
+      actions?: ReactNode
+    }) =>
+      open ? (
+        <div role="dialog" aria-label={title}>
+          {children}
+          {actions}
+        </div>
+      ) : null,
+  }
+})
 
 afterEach(cleanup)
 
@@ -14,6 +41,10 @@ function renderMenu(
         variant="menu"
         label="More Actions For Ship quality"
         onDuplicate={vi.fn()}
+        duplicateCycles={[
+          { id: 'cycle-1', label: 'Q3 2026', statusLabel: 'Current' },
+        ]}
+        defaultDuplicateCycleId="cycle-1"
         onCascade={vi.fn()}
         canCascade
         canRemove
@@ -28,7 +59,13 @@ describe('GoalActionsMenu', () => {
   it('keeps labeled toolbar actions on the default layout', () => {
     render(
       <MemoryRouter>
-        <GoalActionsMenu onDuplicate={vi.fn()} />
+        <GoalActionsMenu
+          onDuplicate={vi.fn()}
+          duplicateCycles={[
+            { id: 'cycle-1', label: 'Q3 2026', statusLabel: 'Current' },
+          ]}
+          defaultDuplicateCycleId="cycle-1"
+        />
       </MemoryRouter>,
     )
 
@@ -68,6 +105,8 @@ describe('GoalActionsMenu', () => {
         .closest('.pd-menu')!,
     )
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Duplicate' }))
     expect(onDuplicate).toHaveBeenCalledTimes(1)
+    expect(onDuplicate).toHaveBeenCalledWith('cycle-1')
   })
 })

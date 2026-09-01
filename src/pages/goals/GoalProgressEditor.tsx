@@ -7,7 +7,6 @@ import {
   blankMetric,
   canEditMeasurementWeights,
   hasMeasurePanelName,
-  lockSoloMeasurementWeights,
   measurementPanels,
   readMeasureGroupTitle,
   rebalanceMeasurementWeights,
@@ -28,7 +27,7 @@ import { MeasureTypeAddButtons } from '@/pages/goals/MeasureTypeSwitch'
 import { NumberMeasureEditCard } from '@/pages/goals/NumberMeasureEditCard'
 import { TodoMeasureEditCard } from '@/pages/goals/TodoMeasureEditCard'
 import type { Goal, Measurement, Milestone } from '@/lib/goals/types'
-import { sumMeasurementWeights } from '@/lib/goals/weightage'
+import { sumMeasurementWeights, measurementWeightIssue } from '@/lib/goals/weightage'
 
 function panelWeights(measurements: Measurement[]): number[] {
   return measurementPanels(measurements).map((panel) =>
@@ -99,26 +98,7 @@ export function GoalProgressEditor({
 
   const currentMeasurements = () => goalRef.current.measurements
 
-  /** Seed empty weights, and keep a lone measure locked at 100%. */
-  useEffect(() => {
-    const current = goalRef.current.measurements
-    if (current.length === 0) return
-    const allocated = sumMeasurementWeights(current)
-    const locked = lockSoloMeasurementWeights(current)
-    if (locked !== current) {
-      onChangeRef.current({
-        ...goalRef.current,
-        measurements: locked,
-      })
-      return
-    }
-    if (allocated > 0) return
-    onChangeRef.current({
-      ...goalRef.current,
-      measurements: rebalanceMeasurementWeights(current),
-    })
-  }, [goal.id])
-
+  /** Keep measure name prompts in sync when switching goals. */
   useEffect(() => {
     setPendingNameKeys(
       new Set(
@@ -130,12 +110,12 @@ export function GoalProgressEditor({
   }, [goal.id])
 
   /**
-   * Adding or removing a measurement re-splits evenly; per-measurement edits keep
-   * whatever the user typed.
+   * New measures keep a blank weight. Use Distribute Evenly when the owner
+   * wants an automatic split.
    */
   const setMeasurements = (next: Measurement[]) =>
     patch({
-      measurements: rebalanceMeasurementWeights(next),
+      measurements: next,
     })
 
   const distributeWeightsEvenly = () =>
@@ -171,10 +151,11 @@ export function GoalProgressEditor({
   const panelCount = measurementPanels(measurements).length
   const canEditMeasureWeight = canEditMeasurementWeights(measurements)
   const canDistribute =
-    panelCount > 1 && !isEvenMeasurementSplit(measurements)
+    panelCount > 0 && !isEvenMeasurementSplit(measurements)
   const hasUnnamedPanel = panels.some((panel) => !hasMeasurePanelName(panel))
+  const measureWeightIssueText = measurementWeightIssue(measurements)
   const weightError =
-    panelCount > 0 && !hasUnnamedPanel && measureWeight !== 100
+    panelCount > 0 && !hasUnnamedPanel && Boolean(measureWeightIssueText)
   const canShowWeightRibbon = !hasUnnamedPanel && (weightError || canDistribute)
   const panelNameError = (named: boolean) =>
     named ? undefined : 'Each metric needs a name'
@@ -199,10 +180,16 @@ export function GoalProgressEditor({
           >
             {weightError ? (
               <p className="pd-goal-create__weight-ribbon-copy" role="alert">
-                <span className="pd-goal-create__weight-ribbon-total">
-                  {measureWeight}%
-                </span>
-                Metric weights must total 100%
+                {measureWeightIssueText === 'Every metric needs a weight.' ? (
+                  measureWeightIssueText
+                ) : (
+                  <>
+                    <span className="pd-goal-create__weight-ribbon-total">
+                      {measureWeight}%
+                    </span>
+                    Must total 100%
+                  </>
+                )}
               </p>
             ) : null}
             {canDistribute ? (

@@ -101,7 +101,7 @@ describe('measurePanelProgressLog', () => {
 })
 
 describe('measurePanelTableWeight', () => {
-  it('locks a solo measure at 100 percent', () => {
+  it('shows the stored weight for a solo measure', () => {
     expect(
       measurePanelTableWeight(
         {
@@ -111,7 +111,7 @@ describe('measurePanelTableWeight', () => {
         },
         1,
       ),
-    ).toBe(100)
+    ).toBe(40)
   })
 
   it('keeps the panel weight when several measures share the goal', () => {
