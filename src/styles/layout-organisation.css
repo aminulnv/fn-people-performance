@@ -139,7 +139,7 @@
   color: var(--color-text-secondary);
 }
 
-/* —— Department / team detail —— */
+/* -- Department / team detail -- */
 
 .pd-org-detail {
   gap: 1rem;
@@ -300,7 +300,7 @@
   }
 }
 
-/* —— Org chart (aligned with NEXT-Performance dashboard) —— */
+/* -- Org chart (aligned with NEXT-Performance dashboard) -- */
 
 /* The chart owns the whole content pane: negative margins cancel the
    padding of .pd-app-main so the canvas bleeds to the pane edges. */
@@ -321,7 +321,7 @@
   --org-pane-pad-inline: 1rem;
 }
 
-/* The field is its own floating panel — no surrounding container. */
+/* The field is its own floating panel - no surrounding container. */
 .pd-org-search {
   width: min(22rem, 100%);
   pointer-events: auto;

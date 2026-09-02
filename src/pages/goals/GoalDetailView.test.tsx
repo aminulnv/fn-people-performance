@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, act } from '@testing-library/react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import type { Goal } from '@/lib/goals/types'
 import { GoalDetailView } from './GoalDetailView'
@@ -1322,7 +1322,7 @@ describe('GoalDetailView', () => {
       screen.getByRole('img', { name: 'Milestone' }),
     )
     expect(
-      screen.getByLabelText('Current — of target 50').closest('.pd-goal-view__fold-title'),
+      screen.getByLabelText('Current - of target 50').closest('.pd-goal-view__fold-title'),
     ).toBeTruthy()
     expect(nps.querySelector('h2')).toHaveTextContent('NPS')
     expect(nps.querySelector('h2')).not.toHaveTextContent('60%')
@@ -1417,6 +1417,7 @@ describe('GoalDetailView', () => {
   })
 
   it('uses the same form for a new goal without discuss or approval chrome', () => {
+    const onChange = vi.fn()
     const onSave = vi.fn()
     renderView(
       <GoalDetailView
@@ -1435,7 +1436,7 @@ describe('GoalDetailView', () => {
         cycleLabel="Q3 2026"
         status="draft"
         commentAuthorName="Aminul"
-        onChange={vi.fn()}
+        onChange={onChange}
         onSave={onSave}
       />,
     )
@@ -1461,8 +1462,8 @@ describe('GoalDetailView', () => {
       target: { value: 'Ship the launch' },
     })
     fireEvent.blur(screen.getByPlaceholderText('Name this goal'))
-    expect(onSave).toHaveBeenCalledOnce()
-    expect(onSave).toHaveBeenCalledWith(
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({ description: 'Ship the launch' }),
     )
     expect(screen.queryByRole('menuitem', { name: 'Save' })).not.toBeInTheDocument()
@@ -1597,6 +1598,7 @@ describe('GoalDetailView', () => {
   })
 
   it('fills title, description, and metric when a key result is dropped', () => {
+    const onChange = vi.fn()
     const onSave = vi.fn()
     renderView(
       <GoalDetailView
@@ -1614,7 +1616,7 @@ describe('GoalDetailView', () => {
         cycleLabel="Q3 2026"
         status="draft"
         commentAuthorName="Aminul"
-        onChange={vi.fn()}
+        onChange={onChange}
         onSave={onSave}
       />,
     )
@@ -1653,7 +1655,8 @@ describe('GoalDetailView', () => {
     expect(screen.getByLabelText('Description')).toHaveValue(
       'Q3 Build, Q4 Testing, Q1 2027 Launch',
     )
-    expect(onSave).toHaveBeenCalledWith(
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledWith(
       expect.objectContaining({
         description: 'Build Performance Platform Phase 1',
         details: 'Q3 Build, Q4 Testing, Q1 2027 Launch',
@@ -1731,5 +1734,134 @@ describe('GoalDetailView', () => {
       'is-highlighted',
     )
     expect(screen.getByRole('button', { name: 'All Metrics' })).toBeInTheDocument()
+  })
+
+  it('asks before applying an OKR key result onto a filled goal', () => {
+    const onChange = vi.fn()
+    const onApplyOkrAsNewGoal = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        canEdit
+        onChange={onChange}
+        onApplyOkrAsNewGoal={onApplyOkrAsNewGoal}
+      />,
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('pd-okr-apply-to-goal', {
+          detail: {
+            title: 'Build Performance Platform Phase 1',
+            description: 'Q3 Build, Q4 Testing',
+            unit: '%',
+            trackType: 'percent',
+            currentValue: 20,
+            targetValue: 100,
+            progressPercent: 20,
+            milestones: [],
+          },
+        }),
+      )
+    })
+
+    expect(
+      screen.getByRole('dialog', { name: 'Replace this goal?' }),
+    ).toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add new goal' }))
+    expect(onApplyOkrAsNewGoal).toHaveBeenCalledOnce()
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('replaces the open goal when the overwrite is confirmed', () => {
+    const onChange = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={goal}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        canEdit
+        onChange={onChange}
+      />,
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('pd-okr-apply-to-goal', {
+          detail: {
+            title: 'Build Performance Platform Phase 1',
+            description: 'Q3 Build, Q4 Testing',
+            unit: '%',
+            trackType: 'percent',
+            currentValue: 20,
+            targetValue: 100,
+            progressPercent: 20,
+            milestones: [],
+          },
+        }),
+      )
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Replace goal' }))
+
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Build Performance Platform Phase 1',
+        details: 'Q3 Build, Q4 Testing',
+      }),
+    )
+  })
+
+  it('applies an OKR key result immediately onto a blank goal', () => {
+    const onChange = vi.fn()
+    renderView(
+      <GoalDetailView
+        goal={{ id: 'goal-blank', description: '', weight: 0, measurements: [] }}
+        index={0}
+        owner={{ name: 'Aminul Islam Borhan' }}
+        cycleLabel="Q3 2026"
+        status="draft"
+        commentAuthorName="Aminul"
+        canEdit
+        isNew
+        onChange={onChange}
+      />,
+    )
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('pd-okr-apply-to-goal', {
+          detail: {
+            title: 'Build Performance Platform Phase 1',
+            description: 'Q3 Build, Q4 Testing',
+            unit: '%',
+            trackType: 'percent',
+            currentValue: 20,
+            targetValue: 100,
+            progressPercent: 20,
+            milestones: [],
+          },
+        }),
+      )
+    })
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Replace this goal?' }),
+    ).toBeNull()
+    expect(onChange).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Build Performance Platform Phase 1',
+      }),
+    )
   })
 })

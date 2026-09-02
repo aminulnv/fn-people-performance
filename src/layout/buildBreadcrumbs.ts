@@ -234,7 +234,7 @@ export function buildBreadcrumbs({
   return [{ label: 'App' }]
 }
 
-/** Section icon for the top bar — first matching nav / account item. */
+/** Section icon for the top bar - first matching nav / account item. */
 export function resolveTopBarIcon(
   pathname: string,
   navItems: NavItem[],

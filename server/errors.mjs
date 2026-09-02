@@ -1,6 +1,6 @@
 /**
  * Minimal HTTP error helpers for the standalone platform API.
- * Intentionally small — do not pull dashboard monitoring/audit deps.
+ * Intentionally small - do not pull dashboard monitoring/audit deps.
  */
 
 export class HttpError extends Error {

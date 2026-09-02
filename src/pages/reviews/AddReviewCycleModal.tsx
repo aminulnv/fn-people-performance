@@ -101,7 +101,7 @@ export function AddReviewCycleModal({
     setEndDate('')
     setError(null)
     setSaving(false)
-    // Reset only when the panel opens — not when period lists recompute.
+    // Reset only when the panel opens - not when period lists recompute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 

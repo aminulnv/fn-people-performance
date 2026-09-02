@@ -310,7 +310,7 @@ export function measureGroupTitle(items: Milestone[]): string {
   return items[0]?.measureTitle?.trim() ?? ''
 }
 
-/** Read the stored measure name directly — use this for inputs, not panel.title. */
+/** Read the stored measure name directly - use this for inputs, not panel.title. */
 export function readMeasureGroupTitle(
   measurements: Measurement[],
   measureGroupId: string,
@@ -390,7 +390,7 @@ export function withMeasureProof(
   })
 }
 
-/** Read a checklist item title from stored measurements — not derived panels. */
+/** Read a checklist item title from stored measurements - not derived panels. */
 export function readMilestoneTitle(
   measurements: Measurement[],
   milestoneId: string,
@@ -402,7 +402,7 @@ export function readMilestoneTitle(
   return item?.title ?? ''
 }
 
-/** Read a todo list name from stored measurements — not derived panels. */
+/** Read a todo list name from stored measurements - not derived panels. */
 export function readMilestoneListTitle(
   measurements: Measurement[],
   listKey: string,
@@ -669,7 +669,7 @@ export function canEditMeasurementWeights(measurements: Measurement[]): boolean 
   return measurementPanels(measurements).length > 0
 }
 
-/** No-op kept for call sites — weights stay blank until the owner sets them. */
+/** No-op kept for call sites - weights stay blank until the owner sets them. */
 export function lockSoloMeasurementWeights(
   measurements: Measurement[],
 ): Measurement[] {

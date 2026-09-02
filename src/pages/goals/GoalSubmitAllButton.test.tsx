@@ -39,10 +39,10 @@ describe('GoalSubmitAllButton', () => {
         busy={false}
         blockers={[
           {
-            reason: 'The goal cascaded from Ada still needs a metric — or remove it.',
+            reason: 'The goal cascaded from Ada still needs a metric - or remove it.',
             goalId: 'goal-1',
             goalTitle: 'The goal cascaded from Ada',
-            suffix: ' still needs a metric — or remove it.',
+            suffix: ' still needs a metric - or remove it.',
           },
         ]}
         onSubmit={vi.fn()}
@@ -54,7 +54,7 @@ describe('GoalSubmitAllButton', () => {
     fireEvent.mouseEnter(button.closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent(
-      'The goal cascaded from Ada: Still needs a metric — or remove it.',
+      'The goal cascaded from Ada: Still needs a metric - or remove it.',
     )
   })
 
@@ -125,13 +125,13 @@ describe('GoalSubmitAllButton', () => {
 
     expect(onSubmit).not.toHaveBeenCalled()
     const dialog = screen.getByRole('dialog')
-    expect(dialog).toHaveTextContent('Submit after the deadline?')
-    expect(screen.getByRole('button', { name: 'Submit Late Goals' })).toBeDisabled()
+    expect(dialog).toHaveTextContent('Submit late?')
+    expect(screen.getByRole('button', { name: 'Submit Late' })).toBeDisabled()
 
-    fireEvent.change(screen.getByLabelText('Why are these goals late?'), {
+    fireEvent.change(screen.getByLabelText('Reason for delay'), {
       target: { value: 'I was on leave until last week.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Late Goals' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Late' }))
 
     expect(onSubmit).toHaveBeenCalledTimes(1)
     expect(onSubmit).toHaveBeenCalledWith('I was on leave until last week.')

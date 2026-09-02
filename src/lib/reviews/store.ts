@@ -194,7 +194,7 @@ export function areReviewCyclesHydrated(): boolean {
   return useLocalReviews() || remoteHydrated;
 }
 
-/** Test helper — clears in-memory + session state. */
+/** Test helper - clears in-memory + session state. */
 export function resetReviewsStoreForTests(): void {
   memory = null;
   remoteHydrated = false;
@@ -210,7 +210,7 @@ export function resetReviewsStoreForTests(): void {
   }
 }
 
-/** Test helper — force the remote persist path without leaving Vitest. */
+/** Test helper - force the remote persist path without leaving Vitest. */
 export function setReviewsLocalModeForTests(local: boolean | null): void {
   localModeOverride = local;
 }
@@ -222,7 +222,7 @@ export function clearReviewsMutationError(): void {
 }
 
 /**
- * Stable snapshot for `useSyncExternalStore` — same reference until `commit`.
+ * Stable snapshot for `useSyncExternalStore` - same reference until `commit`.
  * Do not mutate the returned object; use the update helpers instead.
  */
 export function getReviewsSnapshot(): ReviewsSnapshot {

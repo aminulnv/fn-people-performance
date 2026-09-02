@@ -26,7 +26,7 @@ import {
 } from './goalHelpers'
 import { ownGoalsEmptyCopy } from './statusLabels'
 
-/** One row per goal — a person with three goals appears on three rows. */
+/** One row per goal - a person with three goals appears on three rows. */
 export type GoalRow = {
   key: string
   cycleId: string

@@ -258,9 +258,9 @@ describe('canSubmitGoals', () => {
     )
     expect(
       measureIssueLabel(
-        'Ada’s quality goal still needs a metric — or remove it.',
+        'Ada’s quality goal still needs a metric - or remove it.',
       ),
-    ).toBe('Still needs a metric — or remove it.')
+    ).toBe('Still needs a metric - or remove it.')
     expect(measureIssueLabel('test still needs a name on each metric.')).toBe(
       'Still needs a name on each metric.',
     )

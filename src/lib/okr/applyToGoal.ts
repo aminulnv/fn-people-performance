@@ -18,6 +18,7 @@ export type OkrGoalDropPayload = {
   title: string;
   description: string;
   unit: string;
+  trackType: string;
   currentValue: number | null;
   targetValue: number | null;
   progressPercent: number | null;
@@ -34,6 +35,7 @@ export function okrGoalDropPayload(item: OkrWorkItem): OkrGoalDropPayload {
     title: item.shortTitle.trim() || item.title.trim(),
     description: item.description.trim() || item.objectiveTitle.trim(),
     unit: item.unit,
+    trackType: item.trackType,
     currentValue: item.currentValue,
     targetValue: item.targetValue,
     progressPercent: item.progressPercent,
@@ -89,7 +91,10 @@ export function metricFromOkrPayload(payload: OkrGoalDropPayload): Metric {
 
 function measurementsFromOkrPayload(payload: OkrGoalDropPayload): Measurement[] {
   const milestones = payload.milestones.filter((item) => item.title.trim());
-  if (milestones.length === 0) {
+  const wantsMilestone =
+    milestones.length > 0 ||
+    payload.trackType.trim().toLowerCase() === "milestone";
+  if (!wantsMilestone) {
     return rebalanceMeasurementWeights([metricFromOkrPayload(payload)]);
   }
 
@@ -100,8 +105,12 @@ function measurementsFromOkrPayload(payload: OkrGoalDropPayload): Measurement[] 
   });
   const listId = seed.listId;
   const measureGroupId = seed.measureGroupId;
+  const rows =
+    milestones.length > 0
+      ? milestones
+      : [{ title: measureTitle || "Milestone", status: "" }];
   return rebalanceMeasurementWeights(
-    milestones.map((milestone, index) => ({
+    rows.map((milestone, index) => ({
       ...(index === 0
         ? seed
         : blankMilestone(0, {
@@ -131,6 +140,17 @@ export function applyOkrPayloadToGoal(
   };
 }
 
+/** True when applying a KR would replace existing name, details, or measures. */
+export function okrApplyWouldOverwriteGoal(
+  goal: Pick<Goal, "description" | "details" | "measurements">,
+): boolean {
+  return (
+    Boolean(goal.description.trim()) ||
+    Boolean((goal.details ?? "").trim()) ||
+    goal.measurements.length > 0
+  );
+}
+
 export function readOkrGoalDropPayload(
   dataTransfer: DataTransfer | null,
 ): OkrGoalDropPayload | null {
@@ -146,6 +166,7 @@ export function readOkrGoalDropPayload(
       description:
         typeof parsed.description === "string" ? parsed.description : "",
       unit: typeof parsed.unit === "string" ? parsed.unit : "",
+      trackType: typeof parsed.trackType === "string" ? parsed.trackType : "",
       currentValue:
         typeof parsed.currentValue === "number" ? parsed.currentValue : null,
       targetValue:

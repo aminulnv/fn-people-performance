@@ -9,13 +9,13 @@ describe("GoalApprovalStatus", () => {
     render(<GoalApprovalStatus status="sent_back" />);
     expect(screen.getByText("Sent back")).toBeInTheDocument();
     expect(screen.getByText("Sent back").closest(".pd-badge")?.querySelector("svg")).toBeTruthy();
-    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(screen.queryByText("-")).not.toBeInTheDocument();
   });
 
   it("shows Draft as a status chip", () => {
     render(<GoalApprovalStatus status="draft" />);
     expect(screen.getByText("Draft")).toBeInTheDocument();
-    expect(screen.queryByText("—")).not.toBeInTheDocument();
+    expect(screen.queryByText("-")).not.toBeInTheDocument();
   });
 
   it("shows pending and approved marks", () => {

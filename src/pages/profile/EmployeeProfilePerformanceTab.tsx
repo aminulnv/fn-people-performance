@@ -145,7 +145,7 @@ function ScorecardHistoryRow({
     : ''
   const cycleWindow = cycle ? resolveCycleStatus(cycle) : null
   const reviewer =
-    row.reviewerName && row.reviewerName !== '—' ? row.reviewerName : ''
+    row.reviewerName && row.reviewerName !== '-' ? row.reviewerName : ''
   const grade = gradeCopy(row)
   const statusLabel = SCORECARD_STATUS_LIST_LABEL[row.status]
   const meta = [

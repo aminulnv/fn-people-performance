@@ -114,9 +114,9 @@ const DirectoryRow = memo(function DirectoryRow({
           onSelect={openProfile}
         />
       </td>
-      <td>{employee.jobTitle || '—'}</td>
-      <td>{employee.department || '—'}</td>
-      <td>{employee.team || '—'}</td>
+      <td>{employee.jobTitle || '-'}</td>
+      <td>{employee.department || '-'}</td>
+      <td>{employee.team || '-'}</td>
       <td>
         {employee.reportsToName ? (
           <PersonCell
@@ -128,7 +128,7 @@ const DirectoryRow = memo(function DirectoryRow({
             }
           />
         ) : (
-          '—'
+          '-'
         )}
       </td>
       <td>

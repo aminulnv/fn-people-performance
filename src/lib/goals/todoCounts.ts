@@ -15,7 +15,7 @@ import type { DemoPerson, GoalsCycle, GoalsSnapshot, PersonGoals } from '@/lib/g
  * - Action required / submit blockers
  * - Each submission waiting on this manager (My Reports only)
  *
- * Not counted — visible but not a to-do for the viewer
+ * Not counted - visible but not a to-do for the viewer
  * - Goal-count recommendation (non-blocking info)
  * - Late-submission / two-tier copy (the set already has a counted item)
  * - Edit-lock notices (the window is closed)

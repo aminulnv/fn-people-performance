@@ -33,7 +33,7 @@ const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
 const GroupSettingsPage = lazy(() => import('@/pages/reviews/GroupSettingsPage'))
 const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
-/** Canonical People directory — same pill controls as Organisation. */
+/** Canonical People directory - same pill controls as Organisation. */
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
 /** Soft-rect radius preview (optional). */
 const PeopleV3Page = lazy(() => import('@/pages/PeopleV3Page'))

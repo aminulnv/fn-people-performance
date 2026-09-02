@@ -17,7 +17,7 @@ type GoalReviewActionsProps = {
 
 /**
  * Batch approve / send-back for one person's goals. Approval is per employee,
- * not per goal — same actions on the reports list and on that person's page.
+ * not per goal - same actions on the reports list and on that person's page.
  */
 export function GoalReviewActions({
   personName,
@@ -104,14 +104,10 @@ export function GoalReviewActions({
       <div className="pd-goals-approval__head">
         <div className="pd-goals-approval__text">
           <span className="pd-goals-approval__name">
-            {canApprove
-              ? 'Awaiting your approval'
-              : 'Approved — you can still send back'}
+            Awaiting your approval
           </span>
           <span className="pd-goals-approval__sub">
-            {canApprove
-              ? `Approve all of ${personName}'s goals, or send the batch back.`
-              : `Send ${personName}'s goals back if they need changes.`}
+            Approve all of {personName}&apos;s goals, or send the batch back.
           </span>
         </div>
         {buttons}

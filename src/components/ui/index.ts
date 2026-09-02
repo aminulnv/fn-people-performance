@@ -146,3 +146,9 @@ export type {
   AttributeFiltersProps,
   AttributeFilterOption,
 } from './AttributeFilters'
+
+export { ColumnVisibility } from './ColumnVisibility'
+export type {
+  ColumnVisibilityProps,
+  ColumnVisibilityOption,
+} from './ColumnVisibility'

@@ -73,6 +73,7 @@ import {
 } from "@/lib/goals/operations";
 import {
   deriveGoalCapabilities,
+  isComposableGoalStatus,
   type GoalCapabilities,
 } from "@/lib/goals/permissions";
 import {
@@ -97,6 +98,7 @@ import {
 } from "@/lib/delegations/store";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
+import { applyOkrPayloadToGoal, type OkrGoalDropPayload } from "@/lib/okr/applyToGoal";
 import { okrQuarterFromLabel } from "@/lib/okr/quarter";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
 import {
@@ -200,12 +202,12 @@ import "@/styles/layout-goals.css";
 function phaseLabel(phase: DemoPhase): string {
   return DEMO_PHASES.find((p) => p.id === phase)?.label ?? phase;
 }
-/** Designation and department — one line under the owner name in the goals table. */
+/** Designation and department - one line under the owner name in the goals table. */
 function personOwnerMeta(person: GoalsSnapshot["people"][number]): string {
   return [person.title, person.department].filter(Boolean).join(", ");
 }
 
-/** Single-line role summary — mirrors the employee profile hero. */
+/** Single-line role summary - mirrors the employee profile hero. */
 function personMeta(person: GoalsSnapshot["people"][number]): string {
   const division = getEmployee(Number(person.id))?.division;
   return [person.title, person.department, division].filter(Boolean).join(" · ");
@@ -415,7 +417,10 @@ function GoalsOverviewGoalPanel({
   const canEditDraft = Boolean(capabilities?.canEditStructure);
   const canManualSave =
     canEditDraft &&
-    (subjectGoals?.status === "draft" || subjectGoals?.status === "sent_back");
+    isComposableGoalStatus(
+      subjectGoals?.status ?? "draft",
+      personCycle ?? snapshot?.cycle,
+    );
   const persistDraft = () => {
     void actions.saveGoals(personId, goals);
   };
@@ -491,7 +496,10 @@ function GoalsOverviewGoalPanel({
   };
   const canSubmitBatch =
     Boolean(capabilities?.canSubmit) &&
-    (subjectGoals.status === "draft" || subjectGoals.status === "sent_back");
+    isComposableGoalStatus(
+      subjectGoals.status,
+      personCycle ?? snapshot.cycle,
+    );
   const submitCheck = canSubmitGoals(
     goals,
     (personCycle ?? snapshot.cycle).goalCountPolicy,
@@ -680,6 +688,30 @@ function GoalsOverviewGoalPanel({
                     () => showOverviewGoalToast("Goal deleted."),
                   );
                   onClose();
+                });
+              }
+              : undefined
+          }
+          onApplyOkrAsNewGoal={
+            canEditDraft
+              ? (payload) => {
+                requestGoalEdit(() => {
+                  unsavedClose.requestLeave(() => {
+                    const created = applyOkrPayloadToGoal(
+                      blankGoal({ ownerId: personId }),
+                      payload,
+                    );
+                    const updated = appendGoalWithWeight(goals, created);
+                    setGoals(updated);
+                    persistBaselineRef.current = updated;
+                    void persistThenNotify(
+                      () => actions.saveGoals(personId, updated),
+                      () => {
+                        showOverviewGoalToast("Goal created.");
+                        onGoalChange(created.id);
+                      },
+                    );
+                  });
                 });
               }
               : undefined
@@ -2314,7 +2346,9 @@ function ManagerReportGoalsTable({
   };
   const showSubmitIssues =
     canEditStructure &&
-    (row.status === "draft" || row.status === "sent_back");
+    (row.status === "draft" ||
+      row.status === "sent_back" ||
+      (row.status === "incomplete" && deadlinePassed));
   const submitCheck = canSubmitGoals(goals, goalCountPolicy);
   const submitBlockers = submitSetBlockers(submitCheck.blockers);
   const submitBlockNotice =
@@ -2349,11 +2383,6 @@ function ManagerReportGoalsTable({
     <div className="pd-goals__notices">
       {goals.length === 0 ? sendBackNotice : null}
       {goals.length === 0 ? submitBlockNotice : null}
-      {row.status === "incomplete" ? (
-        <Notice tone="danger">
-          No submission by Day 30 — flagged incomplete. Quarter score is 0.
-        </Notice>
-      ) : null}
     </div>
   );
 
@@ -2796,7 +2825,10 @@ function EmployeePanel({
   );
 
   const canManualSave =
-    canEditDraft && (row.status === "draft" || row.status === "sent_back");
+    canEditDraft &&
+    (row.status === "draft" ||
+      row.status === "sent_back" ||
+      (row.status === "incomplete" && allowLateSubmissions));
   const hasUnsavedChanges =
     canManualSave && hasPromptableUnsavedGoalDraft(goals, row.goals);
   const persistDraft = () => {
@@ -2820,7 +2852,10 @@ function EmployeePanel({
 
   const submitCheck = canSubmitGoals(goals, goalCountPolicy);
   const canSubmitBatch =
-    canSubmit && (row.status === "draft" || row.status === "sent_back");
+    canSubmit &&
+    (row.status === "draft" ||
+      row.status === "sent_back" ||
+      (row.status === "incomplete" && allowLateSubmissions));
   const creatingGoalId = [...creatingIds][0] ?? null;
   const selectedGoalId = openGoalId ?? creatingGoalId;
   const selectedIndex = selectedGoalId
@@ -2852,10 +2887,29 @@ function EmployeePanel({
     );
   };
 
-  const addGoal = () => {
-    const next = blankGoal({ ownerId: personId });
+  const addGoal = (okrPayload?: OkrGoalDropPayload) => {
+    const next = okrPayload
+      ? applyOkrPayloadToGoal(blankGoal({ ownerId: personId }), okrPayload)
+      : blankGoal({ ownerId: personId });
+    const updated = appendGoalWithWeight(goals, next);
+    // OKR fill already has a name + measures — save immediately so close
+    // does not ask to save draft (create mode has no Save button).
+    if (okrPayload) {
+      setGoals(updated);
+      persistBaselineRef.current = updated;
+      void persistThenNotify(() => onPersistGoals(updated), () => {
+        showSuccessToast("Goal created.");
+      });
+      onOpenGoal(next.id);
+      return;
+    }
     startCreating(next.id);
-    setGoals(appendGoalWithWeight(goals, next));
+    setGoals(updated);
+  };
+
+  const requestAddGoal = (okrPayload?: OkrGoalDropPayload) => {
+    if (busy) return;
+    requestGoalEdit(() => unsavedClose.requestLeave(() => addGoal(okrPayload)));
   };
 
   const copyPreviousGoals = async () => {
@@ -2986,30 +3040,30 @@ function EmployeePanel({
             isNew || !onAddComment
               ? undefined
               : (text) => {
-                  void persistThenNotify(
-                    () => onAddComment(selectedGoal.id, text),
-                    () => showSuccessToast("Comment added."),
-                  );
-                }
+                void persistThenNotify(
+                  () => onAddComment(selectedGoal.id, text),
+                  () => showSuccessToast("Comment added."),
+                );
+              }
           }
           onUpdateComment={
             isNew || !onUpdateComment
               ? undefined
               : (commentId, text) =>
-                  void persistThenNotify(
-                    () =>
-                      onUpdateComment(selectedGoal.id, commentId, text),
-                    () => showSuccessToast("Comment updated."),
-                  )
+                void persistThenNotify(
+                  () =>
+                    onUpdateComment(selectedGoal.id, commentId, text),
+                  () => showSuccessToast("Comment updated."),
+                )
           }
           onRemoveComment={
             isNew || !onRemoveComment
               ? undefined
               : (commentId) =>
-                  void persistThenNotify(
-                    () => onRemoveComment(selectedGoal.id, commentId),
-                    () => showSuccessToast("Comment deleted."),
-                  )
+                void persistThenNotify(
+                  () => onRemoveComment(selectedGoal.id, commentId),
+                  () => showSuccessToast("Comment deleted."),
+                )
           }
           onDuplicate={
             isNew || !canDuplicate
@@ -3114,6 +3168,9 @@ function EmployeePanel({
                 }
               : undefined
           }
+          onApplyOkrAsNewGoal={
+            canEditDraft ? (payload) => requestAddGoal(payload) : undefined
+          }
         />
       </GoalCreateDrawer>
     );
@@ -3154,9 +3211,7 @@ function EmployeePanel({
             type="button"
             className="pd-people__create-btn"
             disabled={busy}
-            onClick={() =>
-              requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
-            }
+            onClick={() => requestAddGoal()}
           >
             <Plus size={18} strokeWidth={2} aria-hidden />
             Add Goal
@@ -3172,11 +3227,7 @@ function EmployeePanel({
         layout="ribbon"
         blockers={submitBlockers}
         onOpenGoal={onOpenGoal}
-        onAddGoal={
-          canEditDraft
-            ? () => requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
-            : undefined
-        }
+        onAddGoal={canEditDraft ? () => requestAddGoal() : undefined}
         addGoalLabel={goals.length > 0 ? 'Add Another Goal' : 'Add A Goal'}
       />
     ) : null;
@@ -3213,11 +3264,6 @@ function EmployeePanel({
     <div className="pd-goals__notices">
       {goals.length === 0 ? sendBackNotice : null}
       {goals.length === 0 ? submitBlockNotice : null}
-      {row.status === "incomplete" ? (
-        <Notice tone="danger">
-          No submission by Day 30 — flagged incomplete. Quarter score is 0.
-        </Notice>
-      ) : null}
     </div>
   ) : null;
 
@@ -3244,9 +3290,7 @@ function EmployeePanel({
             <GoalEmptyActions
               busy={busy}
               previousCycleLabel={previousCycleLabel}
-              onAdd={() =>
-                requestGoalEdit(() => unsavedClose.requestLeave(addGoal))
-              }
+              onAdd={() => requestAddGoal()}
               onCopyPrevious={() => void copyPreviousGoals()}
             />
           ) : undefined

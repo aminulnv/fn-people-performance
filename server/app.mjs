@@ -1,5 +1,5 @@
 /**
- * Standalone Express app — /api/platform/* only.
+ * Standalone Express app - /api/platform/* only.
  * Neighbor to NEXT-Performance on the same EC2; not mounted inside their container.
  */
 import cors from 'cors'

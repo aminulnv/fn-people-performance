@@ -266,24 +266,24 @@ DEFAULT_TEAM = "People Experience"
 
 SEND_BACK_REASONS = [
     "Please tighten metric targets and rebalance weightage to 100%.",
-    "Goal descriptions need more specificity — add measurable outcomes.",
+    "Goal descriptions need more specificity - add measurable outcomes.",
     "One goal reads like a task list. Reframe it as a measurable result.",
     "Metric weights within a goal must total 100%. Please fix before resubmitting.",
-    "The goal weight mix looks off — adjust to reflect your real focus areas this quarter.",
+    "The goal weight mix looks off - adjust to reflect your real focus areas this quarter.",
     "Add proof links or clearer milestones for the output goals before resubmitting.",
 ]
 
 MANAGER_NOTES = [
-    "Solid set — approved for Q3.",
+    "Solid set - approved for Q3.",
     "Good goals. Keep an eye on the at-risk metric through mid-quarter.",
     "Approved. Strong alignment with team priorities.",
-    "Clear outcomes and sensible weighting — good to go.",
+    "Clear outcomes and sensible weighting - good to go.",
     "Approved after our 1:1 tweaks. Execute with focus.",
 ]
 
 RATING_COMMENTS = [
     "Strong goal clarity going into the quarter.",
-    "Ambitious but achievable — well structured.",
+    "Ambitious but achievable - well structured.",
     "Good mix of outcomes and outputs.",
     "Needs close check-ins on the at-risk goal.",
     "Excellent progress on milestones so far.",
@@ -404,8 +404,8 @@ PROFILES: list[dict] = [
         "rating_comment_idx": 1,
     },
     {
-        "label": "incomplete_late",
-        "status": "incomplete",
+        "label": "late_draft",
+        "status": "draft",
         "fractions": [0.05, 0.0, 0.1],
         "milestones": [[False, False], [False, False], [False]],
     },
@@ -654,7 +654,7 @@ def render_employee_goals(
     manager_name: str | None,
 ) -> str:
     lines = [
-        f"-- Employee {employee_id} ({team or DEFAULT_TEAM}) — profile {profile['label']}",
+        f"-- Employee {employee_id} ({team or DEFAULT_TEAM}) - profile {profile['label']}",
         render_submission(employee_id, profile, manager_id, manager_name),
     ]
 

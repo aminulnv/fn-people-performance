@@ -86,7 +86,7 @@ describe('NotificationDrawer', () => {
     fireEvent.click(button)
 
     expect(
-      await screen.findByText('Aminul’s goals are ready for approval'),
+      await screen.findByText('Aminul’s goals need approval'),
     ).toBeInTheDocument()
     expect(screen.getByText('Now')).toBeInTheDocument()
     expect(screen.getAllByText('To do').length).toBeGreaterThan(0)
@@ -97,7 +97,7 @@ describe('NotificationDrawer', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'Goals' }))
     expect(
-      screen.getByText('Aminul’s goals are ready for approval'),
+      screen.getByText('Aminul’s goals need approval'),
     ).toBeInTheDocument()
   })
 })

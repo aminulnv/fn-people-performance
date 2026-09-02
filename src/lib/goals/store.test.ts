@@ -376,21 +376,16 @@ describe("goal approval mutations", () => {
     expect(submitted.byPerson["1"].status).toBe("submitted");
   });
 
-  it("allows a manager to send approved goals back for revision", () => {
+  it("blocks a manager from sending approved goals back", () => {
     approveSubmission(ctx("1", "2"));
 
-    const snapshot = sendBackSubmission(ctx("1", "2"), "Revise the target.");
-
-    expect(snapshot.byPerson["1"].status).toBe("sent_back");
-    expect(snapshot.byPerson["1"].sendBackReason).toBe("Revise the target.");
-    expect(snapshot.byPerson["1"].sendBackBy).toEqual({
-      id: "2",
-      name: "Line Manager",
-    });
+    expect(() =>
+      sendBackSubmission(ctx("1", "2"), "Revise the target."),
+    ).toThrow("You do not have permission to send these goals back.");
+    expect(getGoalsSnapshot().byPerson["1"].status).toBe("approved");
   });
 
   it("lets the owner resubmit after a send-back", () => {
-    approveSubmission(ctx("1", "2"));
     sendBackSubmission(ctx("1", "2"), "Revise the target.");
 
     const snapshot = submitPersonGoals(ctx("1", "1"));
@@ -399,7 +394,7 @@ describe("goal approval mutations", () => {
     expect(snapshot.byPerson["1"].sendBackReason).toBeUndefined();
     expect(snapshot.byPerson["1"].sendBackBy).toBeUndefined();
     expect(getNotificationFeed("2").items[0]).toMatchObject({
-      title: "Aminul Islam Borhan resubmitted their goals",
+      title: "Aminul Islam Borhan resubmitted goals",
       kind: "action",
       state: "unread",
     });
@@ -441,7 +436,7 @@ describe("goal approval mutations", () => {
       "manager_manager",
     );
     expect(getNotificationFeed("4").items[0]).toMatchObject({
-      title: "Final goal approval needed for Aminul Islam Borhan",
+      title: "Final approval needed for Aminul Islam Borhan",
       kind: "action",
     });
 
@@ -449,7 +444,7 @@ describe("goal approval mutations", () => {
     expect(final.byPerson["1"].status).toBe("approved");
     expect(final.byPerson["1"].postWindowApprovalStage).toBeUndefined();
     expect(getNotificationFeed("1").items[0].title).toBe(
-      "Your goals received final approval",
+      "Goals fully approved",
     );
   });
 
@@ -470,6 +465,45 @@ describe("goal approval mutations", () => {
     expect(() => submitPersonGoals(ctx("1", "1"))).toThrow(
       "permission to submit",
     );
+  });
+
+  it("lets incomplete rows edit and submit under two-tier late policy", async () => {
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id);
+    const group = cycle?.groups?.[0];
+    if (!cycle || !group) {
+      throw new Error("Expected the active cycle group");
+    }
+    const stages = structuredClone(group.stagesConfig);
+    stages.goals.employee.endDate = "2026-06-10";
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: stages,
+      settings: { postWindowGoalPolicy: "two_tier_approval" },
+    });
+
+    const snapshot = getGoalsSnapshot();
+    const goals = structuredClone(snapshot.byPerson["1"].goals);
+    mergeRemotePersonGoals(snapshot.cycle.id, "1", {
+      ...snapshot.byPerson["1"],
+      status: "incomplete",
+      goals,
+    });
+
+    expect(getGoalsSnapshot().byPerson["1"].status).toBe("draft");
+
+    const next = structuredClone(getGoalsSnapshot().byPerson["1"].goals);
+    firstGoal(next).description = "Late catch-up goal";
+    const saved = savePersonGoals(ctx("1", "1"), next);
+    expect(saved.byPerson["1"].status).toBe("draft");
+    expect(firstGoal(saved.byPerson["1"].goals).description).toBe(
+      "Late catch-up goal",
+    );
+
+    const submitted = submitPersonGoals(
+      ctx("1", "1"),
+      "Missed the window while covering for a teammate.",
+    );
+    expect(submitted.byPerson["1"].status).toBe("submitted");
+    expect(submitted.byPerson["1"].postWindowApprovalStage).toBe("manager");
   });
 
   it("keeps pending goals pending when progress changes", () => {
@@ -512,7 +546,7 @@ describe("goal approval mutations", () => {
 
     const feed = getNotificationFeed("3");
     expect(feed.unreadCount).toBe(1);
-    expect(feed.items[0].title).toBe("Line Manager mentioned you on a goal");
+    expect(feed.items[0].title).toBe("Line Manager mentioned you");
     expect(
       getNotificationFeed("2").items.some((item) =>
         item.title.includes("mentioned you"),

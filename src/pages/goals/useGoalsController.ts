@@ -116,7 +116,7 @@ export type GoalsController = {
   subject: DemoPerson | null;
   subjectGoals: PersonGoals | null;
   subjectCycle: GoalsSnapshot["cycle"] | null;
-  /** False until review groups are loaded — do not treat unknown as eligible. */
+  /** False until review groups are loaded - do not treat unknown as eligible. */
   cycleMembershipReady: boolean;
   previousCycle: { id: string; label: string; goalCount: number } | null;
   /** Direct reports of `subject`, not of the signed-in actor. */

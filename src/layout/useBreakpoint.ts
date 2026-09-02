@@ -6,7 +6,7 @@ function readIsMobile() {
   return window.matchMedia(MOBILE_QUERY).matches
 }
 
-/** Updates only when the mobile breakpoint is crossed — not on every resize pixel. */
+/** Updates only when the mobile breakpoint is crossed - not on every resize pixel. */
 export function useBreakpoint() {
   const [isMobile, setIsMobile] = useState(readIsMobile)
 

@@ -1,6 +1,6 @@
 /**
  * Field-level goal diffs for the activity ledger.
- * Never persist a whole goal object — only readable { field, from, to } rows.
+ * Never persist a whole goal object - only readable { field, from, to } rows.
  */
 
 function excerpt(value, max = 140) {

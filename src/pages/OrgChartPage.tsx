@@ -56,14 +56,14 @@ function empKey(id: number): string {
 }
 
 function titleFor(employee: PlatformEmployee): string {
-  return employee.jobTitle.trim() || '—'
+  return employee.jobTitle.trim() || '-'
 }
 
 function metaFor(employee: PlatformEmployee): string {
   const parts = [employee.department, employee.team, employee.division].filter(
     Boolean,
   )
-  return parts.join(' · ') || '—'
+  return parts.join(' · ') || '-'
 }
 
 function clampZoom(value: number): number {

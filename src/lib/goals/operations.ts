@@ -45,7 +45,7 @@ export type LineManagerCascade = {
   managerId?: string | null
   managerName: string | null
   managerAvatarUrl?: string
-  /** Manager's manager — used when a late submission needs skip-level approval. */
+  /** Manager's manager - used when a late submission needs skip-level approval. */
   skipLevelManagerId?: string | null
   skipLevelManagerName?: string | null
   skipLevelManagerAvatarUrl?: string
@@ -96,7 +96,7 @@ function cascadeGoalTitle(goal: Goal, index: number): string {
   return displayGoalTitle(goal, index)
 }
 
-/** Goals of the subject's line manager only — one level up the tree. */
+/** Goals of the subject's line manager only - one level up the tree. */
 export function lineManagerCascade(
   subject: DemoPerson | null,
   snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
@@ -166,7 +166,7 @@ export type CascadeRecipient = {
   measurements?: Measurement[]
 }
 
-/** Child goals already cascaded from this one — live title + owner. */
+/** Child goals already cascaded from this one - live title + owner. */
 export function indexCascadeRecipients(
   snapshot: Pick<GoalsSnapshot, 'people' | 'byPerson'> | null,
 ): Map<string, CascadeRecipient[]> {
@@ -374,7 +374,7 @@ function resetMeasurement(measurement: Measurement): Measurement {
   }
 }
 
-/** Fresh copy of a goal for duplicate/cascade — no progress or comments. */
+/** Fresh copy of a goal for duplicate/cascade - no progress or comments. */
 export function resetGoalProgress(goal: Goal): Goal {
   return {
     ...goal,
@@ -415,7 +415,7 @@ export function duplicateGoal(
   }
 }
 
-/** Child linked to a parent — same title/matrix, progress cleared. */
+/** Child linked to a parent - same title/matrix, progress cleared. */
 export function cascadeGoal(
   source: Goal,
   targetPersonId: string,

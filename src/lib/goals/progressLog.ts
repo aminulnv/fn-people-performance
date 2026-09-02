@@ -72,7 +72,7 @@ export function progressLogStatusLabel(entry: ProgressLogEntry): string {
 }
 
 export function numericProgressSummary(entry: ProgressLogEntry): string {
-  const from = entry.from == null ? '—' : String(entry.from)
+  const from = entry.from == null ? '-' : String(entry.from)
   return `${from} → ${entry.to}`
 }
 
@@ -98,7 +98,7 @@ const progressTimeFormat = new Intl.DateTimeFormat('en-US', {
 
 export function formatProgressTimestamp(iso: string): string {
   const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
+  if (Number.isNaN(date.getTime())) return '-'
   const time = progressTimeFormat
     .format(date)
     .replace(/\u202f/g, ' ')

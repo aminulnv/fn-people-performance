@@ -1,5 +1,5 @@
 /**
- * Platform-only auth — separate from dashboard Google / pd.sid.
+ * Platform-only auth - separate from dashboard Google / pd.sid.
  * Cookie: pd_platform_sid
  *
  * Google OAuth:
@@ -7,7 +7,7 @@
  *   GET  /api/platform/auth/google/callback
  *
  * Requires PLATFORM_GOOGLE_CLIENT_ID + PLATFORM_GOOGLE_CLIENT_SECRET
- * (separate Google Cloud project / OAuth client — never the dashboard's).
+ * (separate Google Cloud project / OAuth client - never the dashboard's).
  *
  * Authorized redirect URIs (Google Cloud Console):
  *   https://performance.nextventures.io/api/platform/auth/google/callback
@@ -26,7 +26,7 @@ const OAUTH_STATE_COOKIE = 'pd_platform_oauth'
 const MAX_AGE_MS = 1000 * 60 * 60 * 24 * 14 // 14 days
 const OAUTH_STATE_MAX_AGE_MS = 1000 * 60 * 10 // 10 minutes
 
-/** Vite DEV origin — only these may override production getAppUrl via X-Forwarded-*. */
+/** Vite DEV origin - only these may override production getAppUrl via X-Forwarded-*. */
 const LOCAL_DEV_HOSTS = new Set(['localhost:8001', '127.0.0.1:8001'])
 
 function forwardedHeader(req, name) {
@@ -67,7 +67,7 @@ function allowedDomain() {
   )
 }
 
-/** Shared temporary password for email login — set PLATFORM_DEFAULT_PASSWORD on the server only. */
+/** Shared temporary password for email login - set PLATFORM_DEFAULT_PASSWORD on the server only. */
 function defaultPassword() {
   const password = process.env.PLATFORM_DEFAULT_PASSWORD?.trim()
   if (!password) {
@@ -192,7 +192,7 @@ function getPlatformOAuthClient(req) {
   const clientSecret = process.env.PLATFORM_GOOGLE_CLIENT_SECRET?.trim()
   if (!clientId || !clientSecret) {
     throw new Error(
-      'Set PLATFORM_GOOGLE_CLIENT_ID and PLATFORM_GOOGLE_CLIENT_SECRET in the server .env (platform OAuth only — do not reuse dashboard Google credentials).',
+      'Set PLATFORM_GOOGLE_CLIENT_ID and PLATFORM_GOOGLE_CLIENT_SECRET in the server .env (platform OAuth only - do not reuse dashboard Google credentials).',
     )
   }
   return new OAuth2Client(clientId, clientSecret, platformCallbackUrl(req))

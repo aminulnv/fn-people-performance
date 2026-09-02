@@ -11,7 +11,7 @@ export function sumGoalWeights(goals: { weight?: number }[]): number {
   return goals.reduce((sum, g) => sum + (Number(g.weight) || 0), 0)
 }
 
-/** True when at least one goal has no weight — 0 and empty both count. */
+/** True when at least one goal has no weight - 0 and empty both count. */
 export function hasUnassignedGoalWeight(
   goals: { weight?: number }[],
 ): boolean {
@@ -31,7 +31,7 @@ function panelWeight(panel: ReturnType<typeof measurementPanels>[number]): numbe
   return panel.kind === 'metric' ? panel.metric.weight : panel.weight
 }
 
-/** True when at least one top-level metric has no weight — 0 and empty both count. */
+/** True when at least one top-level metric has no weight - 0 and empty both count. */
 export function hasUnassignedMeasurementWeight(
   measurements: Measurement[],
 ): boolean {
@@ -88,7 +88,7 @@ export function isEvenGoalSplit<T extends { weight: number }>(goals: T[]): boole
 }
 
 /**
- * Add a goal with a blank weight. People set their own weights — nothing is
+ * Add a goal with a blank weight. People set their own weights - nothing is
  * auto-filled or re-split on create.
  */
 export function appendGoalWithWeight<T extends { weight: number }>(
@@ -153,7 +153,7 @@ export function displayGoalTitle(goal: Goal, index: number): string {
   return `Untitled goal ${index + 1}`
 }
 
-/** Value for the name field — strip the old untitled cascade placeholder. */
+/** Value for the name field - strip the old untitled cascade placeholder. */
 export function editorGoalTitle(goal: Pick<Goal, 'description'>): string {
   return isBlankGoalTitle(goal) ? '' : goal.description
 }
@@ -176,7 +176,7 @@ function goalBlocker(
   }
 }
 
-/** Per-goal submit problems — used for the table icon and named banner links. */
+/** Per-goal submit problems - used for the table icon and named banner links. */
 export function collectGoalSubmitBlockers(goals: Goal[]): SubmitGoalBlocker[] {
   const blockers: SubmitGoalBlocker[] = []
   for (const [index, goal] of goals.entries()) {
@@ -190,7 +190,7 @@ export function collectGoalSubmitBlockers(goals: Goal[]): SubmitGoalBlocker[] {
           goal,
           index,
           goal.cascadedFromGoalId
-            ? ' still needs a metric — or remove it.'
+            ? ' still needs a metric - or remove it.'
             : ' still needs a metric.',
         ),
       )
@@ -252,7 +252,7 @@ export function isMeasureGoalIssue(issue: string): boolean {
   )
 }
 
-/** Standalone sentence from a blocker suffix — no goal name. */
+/** Standalone sentence from a blocker suffix - no goal name. */
 export function sentenceFromSuffix(suffix: string): string {
   const trimmed = suffix.trim()
   if (!trimmed) return trimmed
@@ -260,7 +260,7 @@ export function sentenceFromSuffix(suffix: string): string {
 }
 
 const MEASURE_ISSUE_TAILS = [
-  /still needs a (?:measure|metric) — or remove it\.?$/i,
+  /still needs a (?:measure|metric) - or remove it\.?$/i,
   /still needs a name on each (?:measure|metric)\.?$/i,
   /still needs a weight on each (?:measure|metric)\.?$/i,
   /still needs a (?:measure|metric)\.?$/i,
@@ -268,7 +268,7 @@ const MEASURE_ISSUE_TAILS = [
   /(?:measures|metrics) need to add up\.?$/i,
 ]
 
-/** Metrics-cell tooltip — the goal name is already on the row. */
+/** Metrics-cell tooltip - the goal name is already on the row. */
 export function measureIssueLabel(issue: string): string {
   for (const pattern of MEASURE_ISSUE_TAILS) {
     const match = issue.match(pattern)
@@ -277,7 +277,7 @@ export function measureIssueLabel(issue: string): string {
   return issue
 }
 
-/** Submit-button hover — same table wording, with the goal named when it helps. */
+/** Submit-button hover - same table wording, with the goal named when it helps. */
 export function submitHoverHint(blocker: SubmitGoalBlocker): string {
   if (blocker.goalTitle && blocker.suffix) {
     const what = isMeasureGoalIssue(blocker.reason)

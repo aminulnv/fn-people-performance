@@ -49,7 +49,7 @@ function PersonCell({
   size?: 'sm' | 'md'
 }) {
   if (!person) {
-    return <span className="pd-org__muted">—</span>
+    return <span className="pd-org__muted">-</span>
   }
 
   const label = person.employeeId != null ? (

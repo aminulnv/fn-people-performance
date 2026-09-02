@@ -787,8 +787,8 @@ function CalibrationBlock({
     <section className="pd-reviews-edit-card">
       <h2 className="pd-reviews-edit-card__title">Calibration</h2>
       <p className="pd-reviews-flow__hint">
-        Manager grade: {packet.managerOverallGrade ?? '—'} · Self grade:{' '}
-        {packet.selfOverallGrade ?? '—'}
+        Manager grade: {packet.managerOverallGrade ?? '-'} · Self grade:{' '}
+        {packet.selfOverallGrade ?? '-'}
       </p>
       <GradeField
         id="packet-grade-calibrated"

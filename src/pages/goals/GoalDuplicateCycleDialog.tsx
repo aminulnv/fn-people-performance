@@ -4,7 +4,7 @@ import { Button, Modal, Select } from '@/components/ui'
 export type DuplicateCycleOption = {
   id: string
   label: string
-  /** e.g. Current / Previous — shown beside the cycle name. */
+  /** e.g. Current / Previous - shown beside the cycle name. */
   statusLabel?: string
 }
 

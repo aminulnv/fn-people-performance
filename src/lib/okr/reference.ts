@@ -52,6 +52,18 @@ export type OkrMilestone = {
   weight: number;
 };
 
+/** One linked / child KR shown under a key result’s Info tab. */
+export type OkrLinkedKr = {
+  keyResultId: string;
+  objectiveId: string;
+  title: string;
+  objectiveTitle: string;
+  ownerLabel: string;
+  weight: number | null;
+  tierLabel: string;
+  level: OkrReferenceLevel;
+};
+
 export type OkrWorkKind = "key_result" | "special_project";
 
 export type OkrWorkItem = {
@@ -76,7 +88,11 @@ export type OkrWorkItem = {
   progressPercent: number | null;
   lastCheckIn: OkrLastCheckIn | null;
   raci: OkrRaci;
+  /** OKR platform track type: milestone | percent | linked | … */
+  trackType: string;
+  direction: string;
   milestones: OkrMilestone[];
+  linkedKrs: OkrLinkedKr[];
   tierLabel: string;
 };
 
@@ -115,8 +131,19 @@ type OkrCheckInLike = {
 type OkrMilestoneLike = {
   id?: string;
   title?: string;
+  name?: string;
   status?: string;
-  weight?: number;
+  weight?: number | string;
+};
+
+type OkrMeasurementLike = {
+  trackType?: string;
+  direction?: string;
+  unit?: string;
+  currentValue?: number | null;
+  targetValue?: number | null;
+  progressPercent?: number | null;
+  milestones?: OkrMilestoneLike[];
 };
 
 type OkrItemLike = {
@@ -129,9 +156,13 @@ type OkrItemLike = {
   statusLabel?: string;
   roles?: string[];
   unit?: string;
+  trackType?: string;
+  direction?: string;
+  weight?: number | string | null;
   currentValue?: number | null;
   targetValue?: number | null;
   progressPercent?: number | null;
+  measurement?: OkrMeasurementLike | null;
   raci?: OkrRaciLike;
   lastCheckIn?: OkrCheckInLike | null;
   objective?: {
@@ -143,6 +174,7 @@ type OkrItemLike = {
   } | null;
   owner?: OkrPersonLike | null;
   milestones?: OkrMilestoneLike[];
+  linkedKrs?: OkrItemLike[];
 };
 
 type OkrQuarterLike = {
@@ -267,18 +299,43 @@ export function parseOkrYearQuarter(
   return null;
 }
 
-/** Open the OKR platform workspace for one reference work item. */
-export function okrWorkItemPlatformUrl(item: OkrWorkItem): string {
-  const url = new URL(`/${item.level}/workspace`, OKR_PLATFORM_ORIGIN);
-  if (item.objectiveId) url.searchParams.set("objectiveId", item.objectiveId);
-  url.searchParams.set("keyResultId", item.keyResultId);
+/** Open the OKR platform workspace for one key result / linked KR. */
+export function okrPlatformWorkspaceUrl(opts: {
+  level: OkrReferenceLevel;
+  objectiveId: string;
+  keyResultId: string;
+  quarter: string;
+  quarterLabel: string;
+}): string {
+  const url = new URL(`/${opts.level}/workspace`, OKR_PLATFORM_ORIGIN);
+  if (opts.objectiveId) url.searchParams.set("objectiveId", opts.objectiveId);
+  url.searchParams.set("keyResultId", opts.keyResultId);
   const period =
-    parseOkrYearQuarter(item.quarter) ?? parseOkrYearQuarter(item.quarterLabel);
+    parseOkrYearQuarter(opts.quarter) ?? parseOkrYearQuarter(opts.quarterLabel);
   if (period) {
     url.searchParams.set("year", period.year);
     url.searchParams.set("quarter", period.quarter);
   }
   return url.toString();
+}
+
+/** Open the OKR platform workspace for one reference work item. */
+export function okrWorkItemPlatformUrl(item: OkrWorkItem): string {
+  return okrPlatformWorkspaceUrl(item);
+}
+
+/** Open the OKR platform tracker for a linked KR in the parent’s quarter. */
+export function okrLinkedKrPlatformUrl(
+  link: OkrLinkedKr,
+  parent: Pick<OkrWorkItem, "quarter" | "quarterLabel">,
+): string {
+  return okrPlatformWorkspaceUrl({
+    level: link.level,
+    objectiveId: link.objectiveId,
+    keyResultId: link.keyResultId,
+    quarter: parent.quarter,
+    quarterLabel: parent.quarterLabel,
+  });
 }
 
 export function formatOkrMeasure(
@@ -301,16 +358,127 @@ export function formatOkrRole(role: string): string {
 
 export type OkrTrackingKind = "milestone" | "numeric";
 
+export function formatOkrDirection(direction: string): string {
+  const value = direction.trim().toLowerCase();
+  if (value === "increase" || value === "up") return "Increase";
+  if (value === "decrease" || value === "down") return "Decrease";
+  return "·";
+}
+
+/** Prefer checklist presence, then the OKR platform trackType field. */
 export function okrTrackingKind(item: {
+  trackType?: string;
   milestones: Array<{ title: string }>;
 }): OkrTrackingKind {
-  return item.milestones.some((milestone) => milestone.title.trim())
-    ? "milestone"
-    : "numeric";
+  if (item.milestones.some((milestone) => milestone.title.trim())) {
+    return "milestone";
+  }
+  const track = item.trackType?.trim().toLowerCase() ?? "";
+  return track === "milestone" ? "milestone" : "numeric";
 }
 
 export function formatOkrTrackingKind(kind: OkrTrackingKind): string {
   return kind === "milestone" ? "Milestone" : "Numeric";
+}
+
+/** Human label for OKR milestone checklist status. */
+export function formatOkrMilestoneStatus(status: string): string {
+  const value = status.trim().toLowerCase();
+  if (value === "completed" || value === "complete" || value === "done") {
+    return "Completed";
+  }
+  if (value === "in_progress" || value === "in-progress" || value === "active") {
+    return "In progress";
+  }
+  if (
+    value === "not_started" ||
+    value === "not-started" ||
+    value === "pending" ||
+    value === "todo"
+  ) {
+    return "Not started";
+  }
+  if (!value) return "";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+export function okrMilestoneStatusTone(
+  status: string,
+): "ok" | "warn" | "muted" {
+  const value = status.trim().toLowerCase();
+  if (value === "completed" || value === "complete" || value === "done") {
+    return "ok";
+  }
+  if (value === "in_progress" || value === "in-progress" || value === "active") {
+    return "warn";
+  }
+  return "muted";
+}
+
+function mapOkrMilestones(
+  milestones: OkrMilestoneLike[] | undefined,
+  fallbackId: string,
+): OkrMilestone[] {
+  return (milestones ?? [])
+    .map((milestone, index) => {
+      const milestoneId = milestone.id?.trim() || `${fallbackId}-ms-${index}`;
+      const milestoneTitle =
+        milestone.title?.trim() || milestone.name?.trim() || "";
+      if (!milestoneTitle) return null;
+      const weight =
+        typeof milestone.weight === "number"
+          ? milestone.weight
+          : Number(milestone.weight);
+      return {
+        id: milestoneId,
+        title: milestoneTitle,
+        status: milestone.status?.trim() || "",
+        weight: Number.isFinite(weight) ? weight : 0,
+      };
+    })
+    .filter((milestone): milestone is OkrMilestone => milestone !== null);
+}
+
+function coerceOkrWeight(value: number | string | null | undefined): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+/** Map one level of linked KRs (ignore nested `linkedKrs`). */
+function mapLinkedKrs(items: OkrItemLike[] | undefined): OkrLinkedKr[] {
+  return (items ?? [])
+    .map((item) => {
+      const keyResultId = item.id?.trim();
+      const title = item.shortTitle?.trim() || item.title?.trim();
+      if (!keyResultId || !title) return null;
+      const accountable = item.raci?.accountable?.[0];
+      return {
+        keyResultId,
+        objectiveId: item.objective?.id?.trim() || "",
+        title,
+        objectiveTitle:
+          item.objective?.shortTitle?.trim() ||
+          item.objective?.title?.trim() ||
+          "",
+        ownerLabel:
+          partyLabel(item.objective?.owner) ||
+          partyLabel(accountable) ||
+          partyLabel(item.owner) ||
+          "",
+        weight: coerceOkrWeight(item.weight),
+        tierLabel: formatOkrTierLabel(item.tier),
+        level: levelFromTier(item.tier),
+      };
+    })
+    .filter((item): item is OkrLinkedKr => item !== null);
 }
 
 export function okrStatusTone(
@@ -364,6 +532,34 @@ function mapWorkItem(
   if (!id || !title) return null;
   const quarterKey = quarter.quarter?.trim() || quarter.name?.trim() || "";
   const longTitle = item.longTitle?.trim() || item.title?.trim() || "";
+  const measurement = item.measurement;
+  const trackType =
+    item.trackType?.trim() || measurement?.trackType?.trim() || "";
+  const direction =
+    item.direction?.trim() || measurement?.direction?.trim() || "";
+  const unit = item.unit?.trim() || measurement?.unit?.trim() || "";
+  const currentValue =
+    typeof item.currentValue === "number"
+      ? item.currentValue
+      : typeof measurement?.currentValue === "number"
+        ? measurement.currentValue
+        : null;
+  const targetValue =
+    typeof item.targetValue === "number"
+      ? item.targetValue
+      : typeof measurement?.targetValue === "number"
+        ? measurement.targetValue
+        : null;
+  const progressPercent =
+    typeof item.progressPercent === "number"
+      ? item.progressPercent
+      : typeof measurement?.progressPercent === "number"
+        ? measurement.progressPercent
+        : null;
+  const milestones = mapOkrMilestones(
+    item.milestones ?? measurement?.milestones,
+    id,
+  );
   return {
     id: `${kind}:${id}`,
     keyResultId: id,
@@ -384,28 +580,16 @@ function mapWorkItem(
     status: item.status?.trim() || "",
     statusLabel: item.statusLabel?.trim() || item.status?.trim() || "",
     roles: Array.isArray(item.roles) ? item.roles.filter(Boolean) : [],
-    unit: item.unit?.trim() || "",
-    currentValue:
-      typeof item.currentValue === "number" ? item.currentValue : null,
-    targetValue:
-      typeof item.targetValue === "number" ? item.targetValue : null,
-    progressPercent:
-      typeof item.progressPercent === "number" ? item.progressPercent : null,
+    unit,
+    trackType,
+    direction,
+    currentValue,
+    targetValue,
+    progressPercent,
     lastCheckIn: mapCheckIn(item.lastCheckIn),
     raci: mapRaci(item.raci),
-    milestones: (item.milestones ?? [])
-      .map((milestone, index) => {
-        const milestoneId = milestone.id?.trim() || `${id}-ms-${index}`;
-        const milestoneTitle = milestone.title?.trim();
-        if (!milestoneTitle) return null;
-        return {
-          id: milestoneId,
-          title: milestoneTitle,
-          status: milestone.status?.trim() || "",
-          weight: typeof milestone.weight === "number" ? milestone.weight : 0,
-        };
-      })
-      .filter((milestone): milestone is OkrMilestone => milestone !== null),
+    milestones,
+    linkedKrs: mapLinkedKrs(item.linkedKrs),
     tierLabel: formatOkrTierLabel(item.tier),
   };
 }

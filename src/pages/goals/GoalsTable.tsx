@@ -124,8 +124,8 @@ function cascadedToTip(recipients: CascadeRecipient[]) {
 }
 
 /**
- * Tiny “Cascaded from / to” labels above and below the goal name — same
- * language as the goals window — without shifting the name in the layout.
+ * Tiny “Cascaded from / to” labels above and below the goal name - same
+ * language as the goals window - without shifting the name in the layout.
  */
 export function GoalCascadeName({
   goal,
@@ -138,13 +138,20 @@ export function GoalCascadeName({
   cascadedTo?: CascadeRecipient[]
   children: ReactNode
 }) {
-  const fromLabel = isCascadedGoal(goal) ? cascadeTableLabel(goal) : null
-  const toLabel = cascadedTo.length > 0 ? cascadeToTableLabel(cascadedTo) : null
-  if (!fromLabel && !toLabel) return <>{children}</>
-
   const selected = cascadeFrom
     ? selectedCascadePerson(goal, cascadeFrom)
     : null
+  const fromPerson =
+    selected?.managerName?.trim() ||
+    cascadeFrom?.managerName?.trim() ||
+    ''
+  const fromLabel = isCascadedGoal(goal)
+    ? fromPerson
+      ? `Cascaded from ${fromPerson}`
+      : cascadeTableLabel(goal)
+    : null
+  const toLabel = cascadedTo.length > 0 ? cascadeToTableLabel(cascadedTo) : null
+  if (!fromLabel && !toLabel) return <>{children}</>
 
   return (
     <span
@@ -177,7 +184,7 @@ export function GoalCascadeName({
           }
         >
           <CornerLeftDown size={10} strokeWidth={2.25} aria-hidden />
-          Cascaded from
+          {fromLabel}
         </CascadeIconTip>
       ) : null}
       <span className="pd-goals-table__cascade-name-core">{children}</span>
@@ -188,7 +195,7 @@ export function GoalCascadeName({
           content={cascadedToTip(cascadedTo)}
         >
           <CornerDownRight size={10} strokeWidth={2.25} aria-hidden />
-          Cascaded to
+          {toLabel}
         </CascadeIconTip>
       ) : null}
     </span>
@@ -198,7 +205,7 @@ export function GoalCascadeName({
 function compactUpdateAge(iso?: string): string | null {
   if (!iso) return null
   const age = formatRefreshAge(iso)
-  return age === '—' ? null : age
+  return age === '-' ? null : age
 }
 
 export function GoalProgressAge({ at }: { at?: string }) {
@@ -292,7 +299,7 @@ export type GoalsTableRow = {
   title: string
   /** Set only when the table spans several people, e.g. a manager's reports. */
   owner?: { id: string; name: string; avatarUrl?: string }
-  /** Submit blocker for this goal — shown on the goal name. */
+  /** Submit blocker for this goal - shown on the goal name. */
   issue?: string
 }
 
@@ -348,11 +355,11 @@ export function GoalsTable({
   onOpen?: (id: string, measureKey?: string) => void
   /** Goal whose right-hand window is open. Highlights that row (or the measure that opened it). */
   openGoalId?: string | null
-  /** Measure that opened the window — keeps the metric row highlighted. */
+  /** Measure that opened the window - keeps the metric row highlighted. */
   openMeasureKey?: string | null
-  /** Set-level Action required — sits behind the table, peeking above. */
+  /** Set-level Action required - sits behind the table, peeking above. */
   banner?: ReactNode
-  /** Sent back notice — wraps the action banner and table, peeking above both. */
+  /** Sent back notice - wraps the action banner and table, peeking above both. */
   leadBanner?: ReactNode
   label?: string
   cycleId?: string
@@ -457,16 +464,16 @@ export function GoalsTable({
           {expandableIds.length > 0 ? (
             <button
               type="button"
-              className="pd-goals-table__expand"
+              className="pd-goals-table__expand pd-goals-table__expand--all"
               aria-expanded={allExpanded}
               aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
               title={allExpanded ? 'Collapse all' : 'Expand all'}
               onClick={toggleExpandAll}
             >
               {allExpanded ? (
-                <ChevronsDownUp size={16} strokeWidth={1.75} aria-hidden />
+                <ChevronsDownUp size={12} strokeWidth={2} aria-hidden />
               ) : (
-                <ChevronsUpDown size={16} strokeWidth={1.75} aria-hidden />
+                <ChevronsUpDown size={12} strokeWidth={2} aria-hidden />
               )}
             </button>
           ) : null}

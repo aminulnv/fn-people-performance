@@ -137,7 +137,7 @@ export function ActivityLogDrawer({
   )
 }
 
-/** Quiet text/link trigger — never styled like a primary CTA. */
+/** Quiet text/link trigger - never styled like a primary CTA. */
 export function ActivityLogTrigger({
   label = 'View Activity',
   onClick,

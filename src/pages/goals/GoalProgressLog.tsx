@@ -78,7 +78,7 @@ function newestFirst(entries: ProgressLogEntry[]) {
 }
 
 function NumericChange({ entry }: { entry: ProgressLogEntry }) {
-  const from = entry.from == null ? '—' : String(entry.from)
+  const from = entry.from == null ? '-' : String(entry.from)
   return (
     <span className="pd-goal-progress-log__change">
       {from}

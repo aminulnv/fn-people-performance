@@ -46,7 +46,7 @@ describe('goal comment mentions', () => {
   it('resolves tokens and bare @names', () => {
     expect(
       resolveMentionedPeople(
-        'Hey @[Line Manager](2) and @HR Partner — thanks',
+        'Hey @[Line Manager](2) and @HR Partner - thanks',
         people,
       ).map((person) => person.id),
     ).toEqual(['2', '3'])

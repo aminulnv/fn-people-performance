@@ -7,6 +7,7 @@ import {
   type InputHTMLAttributes,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { CalendarDays } from 'lucide-react'
 import { cx } from '@/lib/cx'
 import { formatLocalTimestamp, localWallToUtcIso } from '@/lib/dates/timezone'
 import { parseDateTime } from '@/lib/dates/timestamp'
@@ -152,6 +153,9 @@ export function DateTimeInputControl({
         data-empty={!display || undefined}
       >
         {display || 'DD-MMM-YYYY, HH:MM'}
+      </span>
+      <span className="pd-date-input__icon" aria-hidden>
+        <CalendarDays size={16} strokeWidth={2.25} />
       </span>
       {open
         ? createPortal(

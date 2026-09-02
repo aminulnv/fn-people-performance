@@ -9,7 +9,7 @@ import {
 
 const MIN_COLUMN_WIDTH = 72
 const KEYBOARD_RESIZE_STEP = 16
-/** Header plus a short sample — enough to size columns without walking every row. */
+/** Header plus a short sample - enough to size columns without walking every row. */
 const MEASURE_ROW_CAP = 24
 const RESIZE_WIDTH_EPSILON = 2
 

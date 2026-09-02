@@ -52,7 +52,7 @@ npm run deploy:ec2
 
 That builds with `base: /platform/`, uploads to `/var/www/platform`, reloads nginx if needed.
 
-API (own Docker service — safe from dashboard deploys):
+API (own Docker service - safe from dashboard deploys):
 
 ```bash
 npm run deploy:platform-api

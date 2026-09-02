@@ -240,7 +240,7 @@ function DashboardBody({ dashboard }: { dashboard: AnalyticsDashboard }) {
           {dashboard.pipeline.length > 0 ? (
             <AnalyticsSection
               title="Review Pipeline"
-              copy="Where each packet sits right now — not a vanity completion score."
+              copy="Where each packet sits right now - not a vanity completion score."
               label="Review Pipeline"
             >
               <div className="pd-analytics__pipeline">

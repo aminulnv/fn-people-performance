@@ -31,7 +31,7 @@ import {
 } from "./peopleFromEmployees";
 import { copyGoalToNewCycle } from "./operations";
 import { delegationActingAs } from "@/lib/delegations/roles";
-import { deriveGoalCapabilities, isDirectManager } from "./permissions";
+import { deriveGoalCapabilities, isDirectManager, canMutateGoalStatus, isComposableGoalStatus, isPostWindowGoalInputOpen, normalizeGoalSubmissionStatus } from "./permissions";
 import type {
   DemoPerson,
   DemoPhase,
@@ -42,7 +42,7 @@ import type {
   SendBackAuthor,
 } from "./types";
 
-/** API snapshots store approver id/name only — fill photo from the live directory. */
+/** API snapshots store approver id/name only - fill photo from the live directory. */
 function enrichApprovalActor(
   actor: SendBackAuthor | undefined,
   people: DemoPerson[],
@@ -132,7 +132,7 @@ type GoalsPersisted = {
 let memory: GoalsPersisted | null = null;
 const listeners = new Set<() => void>();
 let bridgesReady = false;
-/** Pushed in by the auth layer — goals must not depend on auth. */
+/** Pushed in by the auth layer - goals must not depend on auth. */
 let signedInPersonId = "";
 /** Reused until persist/directory/reviews change. Do not mutate. */
 let snapshotCache: GoalsSnapshot | null = null;
@@ -390,9 +390,18 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
         person &&
         isEligibleForCycle(person, personCycle) &&
         (row.status === "draft" || row.status === "sent_back");
+      const projected = isIncomplete
+        ? { ...row, status: "incomplete" as const }
+        : row;
       return [
         personId,
-        isIncomplete ? { ...row, status: "incomplete" as const } : row,
+        {
+          ...projected,
+          status: normalizeGoalSubmissionStatus(
+            projected.status,
+            personCycle,
+          ),
+        },
       ];
     }),
   );
@@ -443,9 +452,18 @@ export function mergeRemotePersonGoals(
   personId: string,
   row: PersonGoals,
 ): GoalsSnapshot {
+  const snap = getGoalsSnapshotForCycle(cycleId);
+  const cycle =
+    resolveGoalsCycle(
+      cycleId,
+      snap.cycle.phase,
+      new Date(),
+      parseGoalsEmployeeId(personId),
+    ) ?? snap.cycle;
   return updatePersonGoals(cycleId, personId, () => ({
     ...row,
     personId,
+    status: normalizeGoalSubmissionStatus(row.status, cycle),
   }));
 }
 
@@ -466,9 +484,9 @@ function sameCycleRows(
 
 /**
  * Replace one cycle's goal rows from the authoritative API response.
- * Production path: memory cache only — never writes browser storage.
+ * Production path: memory cache only - never writes browser storage.
  *
- * An unchanged response must not notify — otherwise every subscriber re-renders
+ * An unchanged response must not notify - otherwise every subscriber re-renders
  * for a payload that did not change.
  */
 export function replaceCycleGoalsFromRemote(
@@ -478,6 +496,7 @@ export function replaceCycleGoalsFromRemote(
 ): GoalsSnapshot {
   const state = getPersisted();
   const existingBucket = state.byCycle[cycleId] ?? {};
+  const phase = state.phaseByCycle[cycleId] ?? FALLBACK_CYCLE.phase;
   const byPerson: Record<string, PersonGoals> = {};
   for (const submission of submissions) {
     const existing = existingBucket[submission.personId];
@@ -487,9 +506,17 @@ export function replaceCycleGoalsFromRemote(
       byPerson[submission.personId] = existing;
       continue;
     }
+    const personCycle =
+      resolveGoalsCycle(
+        cycleId,
+        phase,
+        new Date(),
+        parseGoalsEmployeeId(submission.personId),
+      ) ?? FALLBACK_CYCLE;
     byPerson[submission.personId] = {
       ...submission,
       personId: submission.personId,
+      status: normalizeGoalSubmissionStatus(submission.status, personCycle),
     };
   }
   for (const [personId, row] of Object.entries(existingBucket)) {
@@ -661,12 +688,7 @@ export function savePersonGoals(
   }
   const hasStructuralChanges = hasStructuralGoalChanges(row.goals, goals);
   const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (
-      current.status !== "draft" &&
-      current.status !== "sent_back" &&
-      current.status !== "submitted" &&
-      current.status !== "approved"
-    ) {
+    if (!canMutateGoalStatus(current.status, cycle)) {
       return null;
     }
     const ownerStartedRevision =
@@ -747,13 +769,19 @@ export function savePersonGoals(
 export function copyPreviousCycleGoals(
   context: GoalMutationContext,
 ): GoalsSnapshot {
-  const { snap, row, capabilities } = capabilitiesFor(context);
+  const { snap, row, cycle, capabilities } = capabilitiesFor(context);
   if (!capabilities.canEditStructure) {
     throw new Error(
       "You do not have permission to copy goals into this cycle.",
     );
   }
-  if (row.status !== "draft" || row.goals.length > 0) {
+  if (
+    !(
+      row.status === "draft" ||
+      (row.status === "incomplete" && isPostWindowGoalInputOpen(cycle))
+    ) ||
+    row.goals.length > 0
+  ) {
     throw new Error("Previous goals can only be copied into an empty draft.");
   }
 
@@ -804,7 +832,7 @@ export function submitPersonGoals(
       goals: [],
     }));
   }
-  if (row.status !== "draft" && row.status !== "sent_back") {
+  if (!isComposableGoalStatus(row.status, cycle)) {
     throw new Error("Goals are not in a submittable state.");
   }
   const check = canSubmitGoals(row.goals, cycle.goalCountPolicy);
@@ -847,7 +875,7 @@ export function sendBackSubmission(
   }
   const normalizedReason = reason.trim() || "Please revise and resubmit.";
   const next = updatePersonGoals(context.cycleId, context.subjectId, (current) => {
-    if (current.status !== "submitted" && current.status !== "approved") {
+    if (current.status !== "submitted") {
       return null;
     }
     return {

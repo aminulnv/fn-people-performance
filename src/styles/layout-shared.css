@@ -22,7 +22,7 @@
   height: 2.125rem;
 }
 
-/* On-page cycle picker — shared by Goals and Reviews toolbars */
+/* On-page cycle picker - shared by Goals and Reviews toolbars */
 .pd-cycle-select {
   position: relative;
   display: inline-flex;

@@ -401,7 +401,7 @@ export function buildAnalyticsDashboard(input: {
       id: 'ready_to_release',
       title: 'Waiting On Release',
       count: readyToRelease,
-      why: 'Manager review is in or past submit — still not with the employee.',
+      why: 'Manager review is in or past submit - still not with the employee.',
       href: reviewsHref,
     })
   }

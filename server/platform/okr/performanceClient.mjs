@@ -38,7 +38,7 @@ function readOkrErrorMessage(body, fallback) {
 
 /**
  * Machine-to-machine lookup of one employee's key results and special projects.
- * The API key stays on this server — never forwarded to the browser.
+ * The API key stays on this server - never forwarded to the browser.
  */
 export async function fetchPerformanceEmployeeKrs(
   { employeeId, email, quarter } = {},

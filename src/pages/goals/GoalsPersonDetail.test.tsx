@@ -186,6 +186,9 @@ describe('GoalsPersonDetail manager review', () => {
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')
     expect(notice).toHaveTextContent('Goals approved.')
+    expect(
+      screen.queryByRole('button', { name: 'Send Back' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows a success toast after cascading a goal', async () => {
@@ -642,13 +645,11 @@ describe('GoalsPersonDetail submission status', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Submit All' }))
 
-    expect(screen.getByRole('dialog')).toHaveTextContent(
-      'Submit after the deadline?',
-    )
-    fireEvent.change(screen.getByLabelText('Why are these goals late?'), {
+    expect(screen.getByRole('dialog')).toHaveTextContent('Submit late?')
+    fireEvent.change(screen.getByLabelText('Reason for delay'), {
       target: { value: 'I was on leave until last week.' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Late Goals' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Late' }))
 
     const notice = await screen.findByRole('status')
     expect(notice).toHaveTextContent('Success!')

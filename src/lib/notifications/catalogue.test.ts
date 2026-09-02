@@ -30,8 +30,8 @@ describe('notification catalogue', () => {
       },
     )
 
-    expect(first.title).toBe('Aminul’s goals are ready for approval')
-    expect(second.title).toBe('Rifat’s goals are ready for approval')
+    expect(first.title).toBe('Aminul’s goals need approval')
+    expect(second.title).toBe('Rifat’s goals need approval')
     expect(
       NOTIFICATION_CATALOGUE.get(NOTIFICATION_EVENTS.GOAL_SUBMITTED)?.title,
     ).toContain('{{employee}}')

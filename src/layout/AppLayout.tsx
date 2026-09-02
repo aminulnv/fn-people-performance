@@ -58,7 +58,7 @@ export function AppLayout({
     if (!isMobile) setIsMobileOpen(false)
   }, [isMobile])
 
-  // Pause shell glow while the tab is hidden — keeps compositor idle in background
+  // Pause shell glow while the tab is hidden - keeps compositor idle in background
   useEffect(() => {
     const syncMotionPause = () => {
       document.documentElement.classList.toggle(
@@ -141,10 +141,10 @@ export function AppLayout({
     cycleGroupMatch?.params.cycleId ?? cycleDetailMatch?.params.cycleId
   const cycle = cycleIdParam
     ? (cycles.find(
-        (item) =>
-          item.id === cycleIdParam ||
-          item.id === decodeURIComponent(cycleIdParam),
-      ) ?? getReviewCycle(cycleIdParam))
+      (item) =>
+        item.id === cycleIdParam ||
+        item.id === decodeURIComponent(cycleIdParam),
+    ) ?? getReviewCycle(cycleIdParam))
     : undefined
   const cycleName = cycle?.name
   const cycleGroupName = (() => {
@@ -231,45 +231,45 @@ export function AppLayout({
           .filter(Boolean)
           .join(' ')}
       >
-      <div className="pd-app-shell__main">
-        <Sidebar
-          navItems={visibleNavItems}
-          brand={brand}
-          isMobile={isMobile}
-          isMobileOpen={isMobileOpen}
-          onMobileClose={() => setIsMobileOpen(false)}
-        />
-        <div className="pd-app-content">
-          <div className="pd-app-content-card">
-            <TopBar
-              breadcrumbs={breadcrumbs}
-              titleIcon={titleIcon}
-              onSignOut={onSignOut}
-              onMobileMenuOpen={() => setIsMobileOpen(true)}
-              isMobile={isMobile}
-            />
-            {/*
+        <div className="pd-app-shell__main">
+          <Sidebar
+            navItems={visibleNavItems}
+            brand={brand}
+            isMobile={isMobile}
+            isMobileOpen={isMobileOpen}
+            onMobileClose={() => setIsMobileOpen(false)}
+          />
+          <div className="pd-app-content">
+            <div className="pd-app-content-card">
+              <TopBar
+                breadcrumbs={breadcrumbs}
+                titleIcon={titleIcon}
+                onSignOut={onSignOut}
+                onMobileMenuOpen={() => setIsMobileOpen(true)}
+                isMobile={isMobile}
+              />
+              {/*
              * The only scroll container for page content. It sits below the top
              * bar, so page-level `position: sticky` chrome pins to this box and
              * can never paint over the top bar, whatever z-index a page uses.
              */}
-            <div className="pd-app-scroll">
-              <main className="pd-app-main">
-                <Suspense fallback={null}>
-                  <SuspenseRouteContent />
-                </Suspense>
-              </main>
+              <div className="pd-app-scroll">
+                <main className="pd-app-main">
+                  <Suspense fallback={null}>
+                    <SuspenseRouteContent />
+                  </Suspense>
+                </main>
+              </div>
+              {/* Outside the scroller: the version label floats so it costs no page height. */}
+              <footer
+                className="pd-app-footer"
+                title={`App version ${APP_VERSION_LABEL}`}
+              >
+                <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
+              </footer>
             </div>
-            {/* Outside the scroller: the version label floats so it costs no page height. */}
-            <footer
-              className="pd-app-footer"
-              title={`App version ${APP_VERSION_LABEL}`}
-            >
-              <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
-            </footer>
           </div>
         </div>
-      </div>
         {assistantEnabled ? <WritingAssistant /> : null}
       </div>
     </GlobalSearchProvider>

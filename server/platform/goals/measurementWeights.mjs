@@ -44,7 +44,7 @@ export function redistributeMilestoneListWeights(items, nextTotal) {
   })
 }
 
-/** Split a checklist total evenly — used when persisting milestone measures. */
+/** Split a checklist total evenly - used when persisting milestone measures. */
 export function redistributeMilestoneListWeightsEvenly(items, nextTotal) {
   const clamped = Math.max(0, Math.min(100, Math.round(Number(nextTotal) || 0)))
   if (items.length === 0) return items

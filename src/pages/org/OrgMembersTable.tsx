@@ -82,12 +82,12 @@ export function OrgMembersTable({
                   </Link>
                 </div>
               </td>
-              <td>{member.jobTitle || '—'}</td>
+              <td>{member.jobTitle || '-'}</td>
               {extraColumn === 'team' ? (
-                <td>{member.team || '—'}</td>
+                <td>{member.team || '-'}</td>
               ) : null}
               {extraColumn === 'department' ? (
-                <td>{member.department || '—'}</td>
+                <td>{member.department || '-'}</td>
               ) : null}
               <td>
                 {member.reportsToName ? (
@@ -118,7 +118,7 @@ export function OrgMembersTable({
                     )}
                   </span>
                 ) : (
-                  '—'
+                  '-'
                 )}
               </td>
               <td>
@@ -127,7 +127,7 @@ export function OrgMembersTable({
                     {member.email}
                   </a>
                 ) : (
-                  '—'
+                  '-'
                 )}
               </td>
             </tr>

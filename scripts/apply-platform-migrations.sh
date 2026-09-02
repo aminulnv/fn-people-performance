@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Apply db/migrations/*.sql to shared RDS via the performance EC2 box.
-# RDS is VPC-private — runs psql on the host using next-performance/.env (DB_*).
+# RDS is VPC-private - runs psql on the host using next-performance/.env (DB_*).
 #
 # Usage (from repo root):
 #   ./scripts/apply-platform-migrations.sh

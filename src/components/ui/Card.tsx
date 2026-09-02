@@ -9,7 +9,7 @@ export type CardProps = Omit<HTMLAttributes<HTMLDivElement>, 'title'> & {
 }
 
 /**
- * Interactive / content group only — not decorative chrome.
+ * Interactive / content group only - not decorative chrome.
  * Use when removing border/background would hurt understanding.
  */
 export function Card({

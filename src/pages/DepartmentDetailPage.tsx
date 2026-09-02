@@ -229,7 +229,7 @@ export default function DepartmentDetailPage() {
                           )}
                         </span>
                       ) : (
-                        <span className="pd-org__muted">—</span>
+                        <span className="pd-org__muted">-</span>
                       )}
                     </td>
                     <td>{team.headcount}</td>

@@ -69,7 +69,7 @@ DASH_ENV="$DASHBOARD_DIR/.env"
 NGINX_SITE=/etc/nginx/sites-available/next-performance
 
 if [[ ! -f "$DASH_ENV" ]]; then
-  echo "Missing $DASH_ENV — need DB_* and PLATFORM_* from the dashboard host env." >&2
+  echo "Missing $DASH_ENV - need DB_* and PLATFORM_* from the dashboard host env." >&2
   exit 1
 fi
 

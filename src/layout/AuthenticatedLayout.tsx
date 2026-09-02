@@ -10,7 +10,7 @@ import '@/styles/layout-shell.css'
 import '@/styles/layout-assistant.css'
 import '@/styles/layout-search.css'
 
-/* Shell-only font weights — login already has Inter 400/500 + PJ 800 */
+/* Shell-only font weights - login already has Inter 400/500 + PJ 800 */
 import '@fontsource/inter/latin-600.css'
 import '@fontsource/inter/latin-700.css'
 

@@ -69,7 +69,7 @@ function mergeGoalMeasurements(
     if (persistedItem) {
       merged.push(mergeMeasurement(local, persistedItem))
     } else {
-      // New row added locally — keep it until the next save lands.
+      // New row added locally - keep it until the next save lands.
       merged.push(localItem)
     }
     persistedById.delete(localItem.id)
@@ -178,7 +178,7 @@ export function validateGoalDraft(goal: Goal): GoalDraftValidation {
   }
 }
 
-/** Compare editable goal fields — ignores progress logs, comments, and timestamps. */
+/** Compare editable goal fields - ignores progress logs, comments, and timestamps. */
 export function isGoalDraftDirty(baseline: Goal, draft: Goal): boolean {
   return (
     JSON.stringify(goalDraftSnapshot(baseline)) !==

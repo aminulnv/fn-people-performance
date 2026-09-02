@@ -115,11 +115,11 @@ export function GoalSubmitAllButton({
         <Modal
           open={dialogOpen}
           onClose={closeDialog}
-          title={`${isResubmit ? 'Resubmit' : 'Submit'} after the deadline?`}
+          title={`${isResubmit ? 'Resubmit' : 'Submit'} late?`}
           description={
             warning
-              ? `${warning} These goals are past the deadline. Explain why they are late — your manager and skip-level manager will see this.`
-              : 'These goals are past the deadline. Explain why they are late — your manager and skip-level manager will see this.'
+              ? `${warning} These goals missed the deadline. Add a brief reason - your managers will see it.`
+              : 'These goals missed the deadline. Add a brief reason - your managers will see it.'
           }
           actions={
             <>
@@ -131,16 +131,16 @@ export function GoalSubmitAllButton({
                 disabled={!canConfirmLate}
                 onClick={() => confirmSubmit(justification.trim())}
               >
-                {isResubmit ? 'Resubmit Late Goals' : 'Submit Late Goals'}
+                {isResubmit ? 'Resubmit Late' : 'Submit Late'}
               </Button>
             </>
           }
         >
           <Textarea
-            label="Why are these goals late?"
+            label="Reason for delay"
             value={justification}
             onChange={(event) => setJustification(event.target.value)}
-            placeholder="For example, I was on leave until last week"
+            placeholder="e.g. On leave until last week"
             rows={3}
             required
           />

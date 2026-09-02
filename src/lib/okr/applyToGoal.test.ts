@@ -3,6 +3,7 @@ import {
   applyOkrPayloadToGoal,
   mapOkrUnit,
   metricFromOkrPayload,
+  okrApplyWouldOverwriteGoal,
   okrGoalDropPayload,
 } from "./applyToGoal";
 import type { OkrWorkItem } from "./reference";
@@ -24,12 +25,15 @@ const item: OkrWorkItem = {
   statusLabel: "On Track",
   roles: ["responsible"],
   unit: "%",
+  trackType: "percent",
+  direction: "increase",
   currentValue: 20,
   targetValue: 100,
   progressPercent: 20,
   lastCheckIn: null,
   raci: { accountable: [], responsible: [], consulted: [], informed: [] },
   milestones: [],
+  linkedKrs: [],
   tierLabel: "T1",
 };
 
@@ -64,6 +68,7 @@ describe("apply OKR to goal", () => {
       title: "Coverage",
       description: "",
       unit: "%",
+      trackType: "percent",
       currentValue: null,
       targetValue: null,
       progressPercent: 40,
@@ -85,6 +90,7 @@ describe("apply OKR to goal", () => {
         shortTitle: "Establish the DAR Operating Model",
         description: "Stand up the operating model this quarter",
         unit: "",
+        trackType: "percent",
         currentValue: null,
         targetValue: null,
         progressPercent: 0,
@@ -113,17 +119,79 @@ describe("apply OKR to goal", () => {
     ]);
   });
 
+  it("uses trackType milestone when the checklist is empty", () => {
+    const next = applyOkrPayloadToGoal(
+      { id: "goal-1", description: "", weight: 0, measurements: [] },
+      okrGoalDropPayload({
+        ...item,
+        trackType: "milestone",
+        milestones: [],
+      }),
+    );
+
+    expect(next.measurements).toEqual([
+      expect.objectContaining({
+        kind: "milestone",
+        title: "Build Performance Platform Phase 1",
+        complete: false,
+      }),
+    ]);
+  });
+
   it("uses decrease when the target is below the current value", () => {
     expect(
       metricFromOkrPayload({
         title: "Defects",
         description: "",
         unit: "number",
+        trackType: "percent",
         currentValue: 12,
         targetValue: 4,
         progressPercent: null,
         milestones: [],
       }).direction,
     ).toBe("decrease");
+  });
+
+  it("detects when apply would overwrite existing goal content", () => {
+    expect(
+      okrApplyWouldOverwriteGoal({
+        description: "",
+        details: undefined,
+        measurements: [],
+      }),
+    ).toBe(false);
+    expect(
+      okrApplyWouldOverwriteGoal({
+        description: "Ship platform",
+        details: undefined,
+        measurements: [],
+      }),
+    ).toBe(true);
+    expect(
+      okrApplyWouldOverwriteGoal({
+        description: "",
+        details: "Notes",
+        measurements: [],
+      }),
+    ).toBe(true);
+    expect(
+      okrApplyWouldOverwriteGoal({
+        description: "",
+        details: undefined,
+        measurements: [
+          {
+            id: "m1",
+            kind: "metric",
+            title: "Progress",
+            weight: 100,
+            unit: "number",
+            direction: "increase",
+            startValue: 0,
+            currentValue: 0,
+          },
+        ],
+      }),
+    ).toBe(true);
   });
 });

@@ -77,7 +77,7 @@ export function assignMembersExclusively(
   })
 }
 
-/** Starting template for a new group — not a live default for ungrouped people. */
+/** Starting template for a new group - not a live default for ungrouped people. */
 export function cloneCycleSettingsIntoGroup(
   cycle: ReviewCycle,
   input: { id: string; name: string; memberIds?: number[] },

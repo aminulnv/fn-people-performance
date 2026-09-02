@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Independently deploy this platform UI to:
 #   https://performance.nextventures.io/platform/
-# Same EC2 as the dashboard — only updates /var/www/platform (+ nginx /platform if missing).
+# Same EC2 as the dashboard - only updates /var/www/platform (+ nginx /platform if missing).
 # Does NOT redeploy the dashboard, touch RDS, or need DB credentials.
 set -euo pipefail
 
@@ -71,7 +71,7 @@ echo "[platform] Ensuring nginx /platform/ …"
 set -euo pipefail
 NGINX_SITE=/etc/nginx/sites-available/next-performance
 if [[ ! -f "$NGINX_SITE" ]]; then
-  echo "Missing $NGINX_SITE — dashboard must already be on this EC2." >&2
+  echo "Missing $NGINX_SITE - dashboard must already be on this EC2." >&2
   exit 1
 fi
 

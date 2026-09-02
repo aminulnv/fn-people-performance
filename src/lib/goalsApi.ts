@@ -113,7 +113,7 @@ export function watchGoalsSnapshot(onChange: () => void): () => void {
   return subscribeGoalsStore(onChange)
 }
 
-/** Every mounted goals view refreshes on the same store change — share one request. */
+/** Every mounted goals view refreshes on the same store change - share one request. */
 const hydrationInFlight = new Map<string, Promise<GoalsSnapshot>>()
 
 export function isGoalCycleHydrationPending(cycleId: string): boolean {
@@ -179,7 +179,7 @@ export async function fetchGoalsSnapshot(): Promise<GoalsSnapshot> {
   return hydrateGoalsFromApi()
 }
 
-/** Live refresh — bypasses the first-hydrate cache so other sessions see writes. */
+/** Live refresh - bypasses the first-hydrate cache so other sessions see writes. */
 export async function refreshRemoteGoals(options?: {
   cycleId?: string
   employeeId?: string | number

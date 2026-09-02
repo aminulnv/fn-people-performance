@@ -54,7 +54,7 @@ export function approvalCopy(
   };
 }
 
-/** Who the approval card should name — skip-level when that stage is pending. */
+/** Who the approval card should name - skip-level when that stage is pending. */
 export function resolveApprovalPerson({
   status,
   postWindowApprovalStage,
@@ -93,7 +93,7 @@ export function goalCountLabel(goalCount: number): string {
   return `${goalCount} goal${goalCount === 1 ? "" : "s"}`;
 }
 
-/** Chip label for a person's goal batch — status only, no count. */
+/** Chip label for a person's goal batch - status only, no count. */
 export function batchStatusLabel(
   status: SubmissionStatus,
   goalCount: number,

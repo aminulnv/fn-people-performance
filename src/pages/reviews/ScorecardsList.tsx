@@ -19,11 +19,13 @@ import {
 import {
   AttributeFilters,
   Avatar,
+  ColumnVisibility,
   CycleSelect,
   EmptyState,
   ResizableTable,
   sanitizeCycleSelection,
   SegmentedControl,
+  type ColumnVisibilityOption,
   type CycleSelectOption,
   type ResizableColumn,
 } from '@/components/ui'
@@ -34,6 +36,10 @@ import {
   type AttributeFilterMap,
   type AttributeValue,
 } from '@/lib/filters/attributeFilters'
+import {
+  readVisibleColumnIds,
+  writeVisibleColumnIds,
+} from '@/lib/ui/columnVisibility'
 import { useAuth } from '@/lib/auth'
 import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
 import {
@@ -112,6 +118,46 @@ function statusClass(status: ScorecardStatus): string {
 
 type StatusFilter = 'all' | ScorecardStatus
 
+type ScorecardColumnId =
+  | 'employee'
+  | 'cycle'
+  | 'role'
+  | 'seniority'
+  | 'team'
+  | 'department'
+  | 'reviewer'
+  | 'grade'
+  | 'status'
+
+const SCORECARD_COLUMN_OPTIONS: readonly ColumnVisibilityOption[] = [
+  { id: 'employee', label: 'Employee', required: true },
+  { id: 'cycle', label: 'Cycle' },
+  { id: 'role', label: 'Role' },
+  { id: 'seniority', label: 'Seniority' },
+  { id: 'team', label: 'Team' },
+  { id: 'department', label: 'Department' },
+  { id: 'reviewer', label: 'Reviewer' },
+  { id: 'grade', label: 'Grade' },
+  { id: 'status', label: 'Status' },
+]
+
+const SCORECARD_COLUMN_IDS = SCORECARD_COLUMN_OPTIONS.map(
+  (column) => column.id,
+) as ScorecardColumnId[]
+
+/** Default view: skip Cycle + Seniority; users can turn them back on. */
+const SCORECARD_DEFAULT_VISIBLE_IDS: readonly ScorecardColumnId[] = [
+  'employee',
+  'role',
+  'team',
+  'department',
+  'reviewer',
+  'grade',
+  'status',
+]
+
+const SCORECARD_COLUMNS_STORAGE_KEY = 'reviews-scorecards-visible-columns-v2'
+
 export function ScorecardsList() {
   const { user } = useAuth()
   const { employees, loadState, loadError } = useEmployees()
@@ -122,6 +168,26 @@ export function ScorecardsList() {
     {},
   )
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(() =>
+    readVisibleColumnIds(
+      SCORECARD_COLUMNS_STORAGE_KEY,
+      SCORECARD_COLUMN_IDS,
+      ['employee'],
+      SCORECARD_DEFAULT_VISIBLE_IDS,
+    ),
+  )
+  const visibleColumnSet = useMemo(
+    () => new Set(visibleColumnIds),
+    [visibleColumnIds],
+  )
+
+  function handleVisibleColumnsChange(next: string[]) {
+    const allowed = new Set(next)
+    allowed.add('employee')
+    const ordered = SCORECARD_COLUMN_IDS.filter((id) => allowed.has(id))
+    setVisibleColumnIds(ordered)
+    writeVisibleColumnIds(SCORECARD_COLUMNS_STORAGE_KEY, ordered)
+  }
 
   const coversRevision = useManagerDelegationsRevision()
   useHydrateManagerDelegations(user?.employeeId ?? undefined)
@@ -389,9 +455,9 @@ export function ScorecardsList() {
     setStatusFilter((current) => (current === next ? 'all' : next))
   }
 
-  const scorecardColumns: ResizableColumn[] = useMemo(
-    () => [
-      { id: 'employee', label: 'Employee', grow: true },
+  const scorecardColumns: ResizableColumn[] = useMemo(() => {
+    const all: ResizableColumn[] = [
+      { id: 'employee', label: 'Employee' },
       { id: 'cycle', label: 'Cycle' },
       { id: 'role', label: 'Role' },
       { id: 'seniority', label: 'Seniority' },
@@ -424,9 +490,9 @@ export function ScorecardsList() {
         name: 'Grade',
       },
       { id: 'status', label: 'Status' },
-    ],
-    [allGradesVisible],
-  )
+    ]
+    return all.filter((column) => visibleColumnSet.has(column.id))
+  }, [allGradesVisible, visibleColumnSet])
 
   const summaryItems: {
     id: StatusFilter
@@ -527,6 +593,12 @@ export function ScorecardsList() {
           Object.keys(attributeFilters).length > 0 ? (
             <p className="pd-people__stat">{filtered.length} shown</p>
           ) : null}
+          <ColumnVisibility
+            columns={SCORECARD_COLUMN_OPTIONS}
+            visibleIds={visibleColumnIds}
+            onChange={handleVisibleColumnsChange}
+            defaultVisibleIds={SCORECARD_DEFAULT_VISIBLE_IDS}
+          />
           <AttributeFilters
             attributes={scorecardAttributes}
             valuesFor={(id) => scorecardAttributeValues[id] ?? []}
@@ -597,14 +669,16 @@ export function ScorecardsList() {
           <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-scorecards__table"
-              storageKey="reviews-scorecards-column-widths"
+              storageKey="reviews-scorecards-column-widths-v2"
               columns={scorecardColumns}
+              fitKey={`${visibleColumnIds.join('|')}:${filtered.length}`}
             >
               <tbody>
                 {filtered.map((row) => (
                   <ScorecardTableRow
                     key={row.id}
                     row={row}
+                    visibleColumnIds={visibleColumnSet}
                     gradeRevealed={isGradeRevealed(row)}
                     onToggleGrade={() =>
                       toggleRowGrade(row.id, isGradeRevealed(row))
@@ -622,10 +696,12 @@ export function ScorecardsList() {
 
 function ScorecardTableRow({
   row,
+  visibleColumnIds,
   gradeRevealed,
   onToggleGrade,
 }: {
   row: ScorecardRow
+  visibleColumnIds: ReadonlySet<string>
   gradeRevealed: boolean
   onToggleGrade: () => void
 }) {
@@ -647,69 +723,87 @@ function ScorecardTableRow({
         navigate(to)
       }}
     >
-      <td>
-        <PersonCell
-          name={row.employeeName}
-          avatarUrl={row.employeeAvatarUrl}
-          to={to}
-        />
-      </td>
-      <td className="pd-reviews-scorecards__muted">{row.cycleLabel}</td>
-      <td className="pd-reviews-scorecards__muted">{row.role}</td>
-      <td>
-        <span className="pd-reviews-seniority">{row.seniority}</span>
-      </td>
-      <td className="pd-reviews-scorecards__muted">{row.team}</td>
-      <td className="pd-reviews-scorecards__muted">{row.department}</td>
-      <td>
-        <PersonCell
-          name={row.reviewerName}
-          avatarUrl={row.reviewerAvatarUrl}
-          to={
-            row.reviewerId != null ? `/people/${row.reviewerId}` : undefined
-          }
-        />
-      </td>
-      <td>
-        {gradeRevealed ? (
-          <span className="pd-reviews-scorecards__grade">
-            <span className="pd-reviews-scorecards__grade-value">
-              {row.grade ? gradeLabel(row.grade) : '—'}
+      {visibleColumnIds.has('employee') ? (
+        <td>
+          <PersonCell
+            name={row.employeeName}
+            avatarUrl={row.employeeAvatarUrl}
+            to={to}
+          />
+        </td>
+      ) : null}
+      {visibleColumnIds.has('cycle') ? (
+        <td className="pd-reviews-scorecards__muted">{row.cycleLabel}</td>
+      ) : null}
+      {visibleColumnIds.has('role') ? (
+        <td className="pd-reviews-scorecards__muted">{row.role}</td>
+      ) : null}
+      {visibleColumnIds.has('seniority') ? (
+        <td>
+          <span className="pd-reviews-seniority">{row.seniority}</span>
+        </td>
+      ) : null}
+      {visibleColumnIds.has('team') ? (
+        <td className="pd-reviews-scorecards__muted">{row.team}</td>
+      ) : null}
+      {visibleColumnIds.has('department') ? (
+        <td className="pd-reviews-scorecards__muted">{row.department}</td>
+      ) : null}
+      {visibleColumnIds.has('reviewer') ? (
+        <td>
+          <PersonCell
+            name={row.reviewerName}
+            avatarUrl={row.reviewerAvatarUrl}
+            to={
+              row.reviewerId != null ? `/people/${row.reviewerId}` : undefined
+            }
+          />
+        </td>
+      ) : null}
+      {visibleColumnIds.has('grade') ? (
+        <td>
+          {gradeRevealed ? (
+            <span className="pd-reviews-scorecards__grade">
+              <span className="pd-reviews-scorecards__grade-value">
+                {row.grade ? gradeLabel(row.grade) : '-'}
+              </span>
+              {row.gradeHidden ? (
+                <button
+                  type="button"
+                  className="pd-reviews-scorecards__grade-toggle"
+                  aria-label="Hide Grade"
+                  title="Hide Grade"
+                  onClick={onToggleGrade}
+                >
+                  <Eye size={14} strokeWidth={1.75} aria-hidden />
+                </button>
+              ) : null}
             </span>
-            {row.gradeHidden ? (
-              <button
-                type="button"
-                className="pd-reviews-scorecards__grade-toggle"
-                aria-label="Hide Grade"
-                title="Hide Grade"
-                onClick={onToggleGrade}
-              >
-                <Eye size={14} strokeWidth={1.75} aria-hidden />
-              </button>
-            ) : null}
-          </span>
-        ) : (
-          <button
-            type="button"
-            className="pd-reviews-scorecards__grade-toggle"
-            aria-label="Show Grade"
-            title="Show Grade"
-            onClick={onToggleGrade}
+          ) : (
+            <button
+              type="button"
+              className="pd-reviews-scorecards__grade-toggle"
+              aria-label="Show Grade"
+              title="Show Grade"
+              onClick={onToggleGrade}
+            >
+              <EyeOff size={14} strokeWidth={1.75} aria-hidden />
+            </button>
+          )}
+        </td>
+      ) : null}
+      {visibleColumnIds.has('status') ? (
+        <td>
+          <span
+            className={[
+              'pd-reviews-score-status',
+              statusClass(row.status),
+            ].join(' ')}
           >
-            <EyeOff size={14} strokeWidth={1.75} aria-hidden />
-          </button>
-        )}
-      </td>
-      <td>
-        <span
-          className={[
-            'pd-reviews-score-status',
-            statusClass(row.status),
-          ].join(' ')}
-        >
-          {SCORECARD_STATUS_LIST_LABEL[row.status]}
-        </span>
-      </td>
+            {SCORECARD_STATUS_LIST_LABEL[row.status]}
+          </span>
+        </td>
+      ) : null}
     </tr>
   )
 }

@@ -34,7 +34,7 @@ export type UseOrganisationResult = UseEmployeesResult & {
  * Dedupes fetches via `loadEmployees`; AuthProvider already kicks off a load.
  */
 export function useEmployees(options?: {
-  /** When false, only subscribe — do not trigger a fetch. Default true. */
+  /** When false, only subscribe - do not trigger a fetch. Default true. */
   load?: boolean
 }): UseEmployeesResult {
   const shouldLoad = options?.load !== false

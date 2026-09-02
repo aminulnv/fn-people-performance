@@ -56,7 +56,7 @@ type GoalCreateDrawerProps = {
   label?: string
   closeLabel?: string
   sideSheet?: GoalDrawerSideSheet
-  /** Full-width strip above the padded body — e.g. Action required. */
+  /** Full-width strip above the padded body - e.g. Action required. */
   ribbon?: ReactNode
   onClose: () => void
 }

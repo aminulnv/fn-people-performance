@@ -360,7 +360,7 @@ function goalPack(employee, cycleId, progress) {
     [
       {
         description: 'Define the role outcomes for this cycle',
-        details: 'Still being scoped — this is an incomplete / early draft.',
+        details: 'Still being scoped - this is an incomplete / early draft.',
         weight: 100,
         measurements: [
           metric('tbd', 'Outcomes defined', 3, { weight: 50 }),
@@ -438,7 +438,9 @@ function submissionStatus(cycleId, employee) {
   if (roll <= 1) return 'draft'
   if (roll === 2 || roll === 3) return 'submitted'
   if (roll === 4) return 'sent_back'
-  if (roll === 5) return 'incomplete'
+  // Incomplete is only meaningful under hard_stop. Two-tier cycles keep a
+  // late draft so people can still submit with exception approval.
+  if (roll === 5) return cycleId === 'q4-2026' ? 'incomplete' : 'draft'
   return 'approved'
 }
 
@@ -537,7 +539,7 @@ async function seedGoals(client, cycleId, members, employeesById) {
       managerNote:
         status === 'approved'
           ? pick(employee.employee_id, 1, [
-              'Approved — keep the same altitude next cycle.',
+              'Approved - keep the same altitude next cycle.',
               'Clear outcomes. Watch the dependency risk.',
               'Approved for performance review.',
             ])
@@ -806,7 +808,7 @@ function questionBodies(cycleId) {
         ['delivered', 'Reliable owner. The team’s output is visibly better than last year.'],
         ['values', 'Models the standard. Does not hide bad news.'],
         ['improve', 'Delegate the status pack; stay on the two or three real decisions.'],
-        ['retain', 'Yes — this is someone we should fight to keep.'],
+        ['retain', 'Yes - this is someone we should fight to keep.'],
       ],
     }
   }

@@ -17,7 +17,7 @@ type CycleReviewSettingsPrototypeProps = {
   onEditCalibration: () => void;
 };
 
-/** Review and calibration settings restored for client demos — full edit UI, prototype scope. */
+/** Review and calibration settings restored for client demos - full edit UI, prototype scope. */
 export function CycleReviewSettingsPrototype({
   cycle,
   onEditReview,

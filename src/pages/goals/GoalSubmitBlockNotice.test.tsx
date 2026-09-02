@@ -11,10 +11,10 @@ describe('GoalSubmitBlockNotice', () => {
       <GoalSubmitBlockNotice
         blockers={[
           {
-            reason: 'Ada’s quality goal still needs a metric — or remove it.',
+            reason: 'Ada’s quality goal still needs a metric - or remove it.',
             goalId: 'goal-cascade',
             goalTitle: 'Ada’s quality goal',
-            suffix: ' still needs a metric — or remove it.',
+            suffix: ' still needs a metric - or remove it.',
           },
         ]}
         onOpenGoal={onOpenGoal}

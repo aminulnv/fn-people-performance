@@ -45,7 +45,7 @@ describe('notification store', () => {
     expect(feed.unreadCount).toBe(1)
     expect(feed.openActionCount).toBe(1)
     expect(feed.items[0]).toMatchObject({
-      title: 'Aminul’s goals are ready for approval',
+      title: 'Aminul’s goals need approval',
       destination: '/goals/q3/employee',
       state: 'unread',
     })
@@ -67,7 +67,7 @@ describe('notification store', () => {
     const feed = getNotificationFeed('manager')
     expect(feed.items).toHaveLength(1)
     expect(feed.items[0].state).toBe('unread')
-    expect(feed.items[0].title).toBe('Aminul resubmitted their goals')
+    expect(feed.items[0].title).toBe('Aminul resubmitted goals')
   })
 
   it('keeps read state separate from action completion', () => {

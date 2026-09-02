@@ -1,18 +1,29 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, ExternalLink, X } from "lucide-react";
+import {
+  ArrowDownRight,
+  ArrowLeft,
+  ClipboardPaste,
+  ExternalLink,
+  X,
+} from "lucide-react";
 import { Avatar, Button, SegmentedControl } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { okrGoalDropPayload, requestApplyOkrToGoal } from "@/lib/okr/applyToGoal";
 import {
+  formatOkrDirection,
   formatOkrMeasure,
+  formatOkrMilestoneStatus,
   formatOkrRole,
   formatOkrTrackingKind,
+  okrLinkedKrPlatformUrl,
+  okrMilestoneStatusTone,
   okrStatusTone,
   okrTrackingKind,
   okrWorkItemPlatformUrl,
   resolveRaciParty,
   type OkrDirectoryPerson,
+  type OkrLinkedKr,
   type OkrRaci,
   type OkrWorkItem,
   type ResolvedOkrRaciParty,
@@ -174,7 +185,7 @@ function RaciColumn({
     <div className="pd-okr-kr-detail__raci-col">
       <p className="pd-okr-kr-detail__raci-col-label">{label}</p>
       {people.length === 0 ? (
-        <p className="pd-okr-kr-detail__raci-empty">—</p>
+        <p className="pd-okr-kr-detail__raci-empty">-</p>
       ) : (
         <ul className="pd-okr-kr-detail__raci-people">
           {visible.map((person, index) => (
@@ -228,6 +239,71 @@ function KrRaciSection({
   );
 }
 
+function linkedKrMeta(link: OkrLinkedKr): string {
+  const weight =
+    link.weight != null && Number.isFinite(link.weight)
+      ? `${Math.round(link.weight)}% weight`
+      : "";
+  return [link.objectiveTitle, link.ownerLabel, weight]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function KrLinkedKrsSection({
+  item,
+}: {
+  item: OkrWorkItem;
+}) {
+  if (item.linkedKrs.length === 0) return null;
+
+  return (
+    <section className="pd-okr-kr-detail__section">
+      <p className="pd-okr-kr-detail__kicker">Linked KRs</p>
+      <ul className="pd-okr-kr-detail__linked-list">
+        {item.linkedKrs.map((link, index) => {
+          const meta = linkedKrMeta(link);
+          return (
+            <li key={link.keyResultId} className="pd-okr-kr-detail__linked-card">
+              <span className="pd-okr-kr-detail__linked-icon" aria-hidden>
+                <ArrowDownRight size={14} strokeWidth={2.25} />
+              </span>
+              <div className="pd-okr-kr-detail__linked-body">
+                <div className="pd-okr-kr-detail__linked-chips">
+                  <span className="pd-okr-kr-detail__linked-kr-badge">
+                    KR {index + 1}
+                  </span>
+                  {link.tierLabel ? (
+                    <span className="pd-okr-kr-detail__linked-tier">
+                      {link.tierLabel}
+                    </span>
+                  ) : null}
+                </div>
+                <p className="pd-okr-kr-detail__linked-title" title={link.title}>
+                  {link.title}
+                </p>
+                {meta ? (
+                  <p className="pd-okr-kr-detail__linked-meta" title={meta}>
+                    {meta}
+                  </p>
+                ) : null}
+              </div>
+              <a
+                className="pd-okr-kr-detail__linked-tracker"
+                href={okrLinkedKrPlatformUrl(link, item)}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Show in tracker
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function KrInfoTab({
   item,
   directory,
@@ -241,8 +317,8 @@ function KrInfoTab({
     item.description.trim() ||
     item.title.trim() ||
     item.shortTitle.trim() ||
-    "—";
-  const unitLabel = item.unit.trim() || "—";
+    "-";
+  const unitLabel = item.unit.trim() || "-";
 
   return (
     <div className="pd-okr-kr-detail__stack">
@@ -295,35 +371,64 @@ function KrInfoTab({
             </div>
             <div className="pd-okr-kr-detail__meta-cell">
               <p className="pd-okr-kr-detail__kicker">Direction</p>
-              <p>·</p>
+              <p>{formatOkrDirection(item.direction)}</p>
             </div>
           </div>
         </div>
 
-        {item.milestones.length > 0 ? (
+        {trackingKind === "milestone" || item.milestones.length > 0 ? (
           <div className="pd-okr-kr-detail__ms-wrap">
             <p className="pd-okr-kr-detail__kicker">Milestones</p>
-            <ul className="pd-okr-kr-detail__ms-list">
-              {item.milestones.map((milestone, index) => (
-                <li key={milestone.id}>
-                  <span className="pd-okr-kr-detail__ms-n">{index + 1}</span>
-                  <p className="pd-okr-kr-detail__ms-title">{milestone.title}</p>
-                  <div className="pd-okr-kr-detail__ms-w">
-                    <b>
-                      {milestone.weight > 0
-                        ? `${Math.round(milestone.weight)}%`
-                        : "—"}
-                    </b>
-                    <small>of KR</small>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {item.milestones.length > 0 ? (
+              <ul className="pd-okr-kr-detail__ms-list">
+                {item.milestones.map((milestone, index) => {
+                  const statusLabel = formatOkrMilestoneStatus(milestone.status);
+                  const statusTone = okrMilestoneStatusTone(milestone.status);
+                  return (
+                    <li
+                      key={milestone.id}
+                      className={
+                        statusTone === "ok"
+                          ? "pd-okr-kr-detail__ms-item pd-okr-kr-detail__ms-item--done"
+                          : "pd-okr-kr-detail__ms-item"
+                      }
+                    >
+                      <span className="pd-okr-kr-detail__ms-n">{index + 1}</span>
+                      <div className="pd-okr-kr-detail__ms-main">
+                        <p className="pd-okr-kr-detail__ms-title">
+                          {milestone.title}
+                        </p>
+                        {statusLabel ? (
+                          <span
+                            className={`pd-okr-kr-detail__ms-status pd-okr-kr-detail__ms-status--${statusTone}`}
+                          >
+                            {statusLabel}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="pd-okr-kr-detail__ms-w">
+                        <b>
+                          {milestone.weight > 0
+                            ? `${Math.round(milestone.weight)}%`
+                            : "-"}
+                        </b>
+                        <small>of KR</small>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="pd-okr-kr-detail__ms-empty">
+                No milestones listed for this key result.
+              </p>
+            )}
           </div>
         ) : null}
       </section>
 
       <KrRaciSection raci={item.raci} directory={directory} />
+      <KrLinkedKrsSection item={item} />
     </div>
   );
 }
@@ -410,6 +515,7 @@ export function GoalOkrKrDetail({
             className="pd-okr-kr-detail__apply"
             onClick={() => requestApplyOkrToGoal(okrGoalDropPayload(item))}
           >
+            <ClipboardPaste size={14} strokeWidth={2.25} aria-hidden />
             Apply to goal
           </Button>
         </div>

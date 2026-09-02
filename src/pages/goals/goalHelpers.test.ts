@@ -207,7 +207,7 @@ describe('metricCount', () => {
   })
 
   it('labels a compact count for the table badge', () => {
-    expect(metricCountLabel(0)).toBe('—')
+    expect(metricCountLabel(0)).toBe('-')
     expect(metricCountLabel(1)).toBe('1 metric')
     expect(metricCountLabel(2)).toBe('2 metrics')
   })
@@ -400,7 +400,7 @@ describe('canViewPersonGoals', () => {
 
 describe('formatRefreshAge', () => {
   it('returns a dash when no timestamp is stored', () => {
-    expect(formatRefreshAge()).toBe('—')
+    expect(formatRefreshAge()).toBe('-')
   })
 
   it('formats hours for recent updates', () => {

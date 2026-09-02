@@ -183,7 +183,7 @@ describe('ReportGoalsCard', () => {
     )
 
     const banner = screen.getByLabelText('Late Submission')
-    expect(banner).toHaveTextContent('Reason')
+    expect(banner).toHaveTextContent('Late reason')
     expect(banner).toHaveTextContent('I was on leave until last week.')
   })
 

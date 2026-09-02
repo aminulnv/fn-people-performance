@@ -1,4 +1,4 @@
-/* Goals page — loaded only with GoalsPage */
+/* Goals page - loaded only with GoalsPage */
 
 .pd-goals {
   /* Match People/Org pill CTAs without adopting .pd-people layout */
@@ -334,6 +334,20 @@ ul.pd-goals-sendback__reason {
   min-width: 0;
 }
 
+.pd-goals-banner__copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-goals-banner__headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+}
+
 .pd-goals-banner__icon {
   display: inline-grid;
   place-items: center;
@@ -365,8 +379,13 @@ ul.pd-goals-sendback__reason {
   color: var(--color-text);
 }
 
+.pd-goals-banner--late .pd-goals-banner__start {
+  align-items: flex-start;
+}
+
 .pd-goals-banner--late .pd-goals-banner__icon {
   background: var(--color-amber);
+  margin-top: 0.05rem;
 }
 
 .pd-goals-banner--late .pd-goals-banner__title {
@@ -378,12 +397,11 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-banner__reason {
-  flex: 1 1 100%;
   margin: 0;
   color: var(--color-text);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.3;
 }
 
 .pd-goals-banner__reason-label {
@@ -658,7 +676,7 @@ ul.pd-goals-sendback__reason {
 
 /*
  * The search shares the right cluster with the row actions, so the leftover
- * width belongs to that cluster and the search absorbs it by shrinking —
+ * width belongs to that cluster and the search absorbs it by shrinking -
  * otherwise the buttons wrap onto their own line.
  */
 .pd-goals-overview .pd-people__header--bar>.pd-people__bar-start {
@@ -749,7 +767,7 @@ ul.pd-goals-sendback__reason {
   text-align: center;
 }
 
-/* Do not set display:flex on this <td> — it drops table-cell layout and
+/* Do not set display:flex on this <td> - it drops table-cell layout and
    offsets the row lines under border-collapse:separate (sticky header). */
 .pd-goals-overview__metric>*+* {
   margin-inline-start: 0.35rem;
@@ -1033,7 +1051,7 @@ ul.pd-goals-sendback__reason {
 }
 
 /*
- * Goals list table — white goal rows, grey metric rows.
+ * Goals list table - white goal rows, grey metric rows.
  */
 .pd-goals-table {
   --pd-goals-col-name: minmax(15rem, 2.15fr);
@@ -1433,6 +1451,34 @@ ul.pd-goals-sendback__reason {
   color: var(--color-text);
 }
 
+.pd-goals-table__expand--all {
+  width: 1.35rem;
+  height: 1.35rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--color-theme-darker);
+  color: var(--color-on-theme-darker, var(--color-on-theme));
+  box-shadow: none;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+}
+
+.pd-goals-table__expand--all:hover {
+  background: var(--color-theme-darkest);
+  border-color: transparent;
+  color: var(--color-on-theme-darker, var(--color-on-theme));
+  box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--color-theme-darker) 22%, transparent);
+  transform: scale(1.08);
+}
+
+.pd-goals-table__expand--all:active {
+  transform: scale(0.96);
+  box-shadow: none;
+}
+
 .pd-goals-table__expand-spacer {
   width: 1.375rem;
   flex: 0 0 auto;
@@ -1465,20 +1511,29 @@ ul.pd-goals-sendback__reason {
 
 .pd-goals-table__cascade-line .pd-tooltip__trigger {
   display: inline-flex;
-  align-items: center;
-  gap: 0.2rem;
   max-width: 100%;
-  color: var(--color-theme);
+  color: var(--color-text-secondary);
   font-size: 0.5625rem;
-  font-weight: 600;
+  font-weight: 400;
   line-height: 1;
   letter-spacing: 0.01em;
   white-space: nowrap;
   cursor: default;
 }
 
+.pd-goals-table__cascade-line .pd-tooltip__trigger>span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .pd-goals-table__cascade-line .pd-tooltip__trigger svg {
   flex-shrink: 0;
+  display: block;
 }
 
 .pd-goals-table__cascade-line--from.pd-tooltip {
@@ -1489,7 +1544,7 @@ ul.pd-goals-sendback__reason {
   top: calc(100% + 0.05rem);
 }
 
-/* Labels sit in the row padding — keep the goal name’s box where it was. */
+/* Labels sit in the row padding - keep the goal name’s box where it was. */
 .pd-goals-table__cascade-name--from,
 .pd-goals-table__cascade-name--to {
   overflow: visible;
@@ -1556,7 +1611,7 @@ ul.pd-goals-sendback__reason {
 
 .pd-goals-table__weight-cell {
   --pd-goals-weight-tree-stub: 0.85rem;
-  /* ~40% of the goal weight control — shifts spine left of its center. */
+  /* ~40% of the goal weight control - shifts spine left of its center. */
   --pd-goals-weight-tree-nudge: 1.6rem;
   position: relative;
   display: flex;
@@ -1706,7 +1761,7 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-table__title--error .pd-goals-table__cascade-line .pd-tooltip__trigger {
-  color: var(--color-theme);
+  color: var(--color-text-secondary);
 }
 
 .pd-goals-table__goal-error-icon {
@@ -2757,7 +2812,7 @@ ul.pd-goals-sendback__reason {
   color: var(--color-text-muted);
 }
 
-/* Goal detail page — title is the page heading */
+/* Goal detail page - title is the page heading */
 .pd-goal-detail-page {
   display: flex;
   flex-direction: column;
@@ -2924,7 +2979,7 @@ ul.pd-goals-sendback__reason {
   min-width: 4.5rem;
 }
 
-/* Goal detail — main + aside */
+/* Goal detail - main + aside */
 .pd-goal-detail {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(15rem, 18rem);
@@ -3372,7 +3427,7 @@ a.pd-goals-approval__name:hover {
   color: var(--color-text-secondary);
 }
 
-/* Manager team — left name column + detail (Goals v2) */
+/* Manager team - left name column + detail (Goals v2) */
 .pd-goals-team {
   display: grid;
   grid-template-columns: 12.5rem minmax(0, 1fr);
@@ -4881,7 +4936,7 @@ summary.pd-goal-view__note-label.is-static:focus-visible {
   background: transparent;
 }
 
-/* Number target lists host unit/strategy menus — no todo scroll clipping. */
+/* Number target lists host unit/strategy menus - no todo scroll clipping. */
 .pd-goal-measure-card__list--number {
   overflow: visible;
 }
@@ -6183,7 +6238,7 @@ summary.pd-goal-view__note-label.is-static:focus-visible {
 /*
  * Bookmark rail: sits between the scrim and the goal panel and ends exactly at
  * the panel's left edge, so the sheet reads as sliding out from behind it.
- * Only its children take pointer events — the rest stays a scrim click.
+ * Only its children take pointer events - the rest stays a scrim click.
  */
 .pd-goals-drawer__rail {
   position: absolute;
@@ -6314,6 +6369,20 @@ summary.pd-goal-view__note-label.is-static:focus-visible {
 }
 
 /* Sheet framing for the reference content the rail carries. */
+.pd-okr-apply-modal {
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+
+.pd-okr-apply-modal .pd-modal__actions {
+  flex-wrap: nowrap;
+}
+
+.pd-okr-apply-modal .pd-modal__actions .pd-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .pd-okr-sheet {
   display: flex;
   flex: 1;
@@ -9042,9 +9111,27 @@ a.pd-okr-ref__raci-person:hover .pd-okr-ref__raci-name {
 .pd-okr-kr-detail__nav {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 0.65rem;
   margin-bottom: 0.55rem;
+}
+
+.pd-okr-kr-detail__apply {
+  margin-left: auto;
+  flex-shrink: 0;
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-success) 22%, transparent);
+}
+
+.pd-okr-kr-detail__apply:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 90%, black);
+  border-color: color-mix(in srgb, var(--color-success) 90%, black);
+}
+
+.pd-okr-kr-detail__apply:focus-visible {
+  outline-color: color-mix(in srgb, var(--color-success) 55%, transparent);
 }
 
 .pd-okr-kr-detail__back {
@@ -9504,13 +9591,51 @@ a.pd-okr-ref__raci-person:hover .pd-okr-ref__raci-name {
   color: var(--color-text-muted);
 }
 
-.pd-okr-kr-detail__ms-title {
+.pd-okr-kr-detail__ms-main {
   min-width: 0;
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.pd-okr-kr-detail__ms-title {
+  min-width: 0;
   margin: 0;
   font-size: 0.75rem;
   font-weight: 500;
   line-height: 1.35;
+}
+
+.pd-okr-kr-detail__ms-item--done .pd-okr-kr-detail__ms-title {
+  color: var(--color-text-secondary);
+}
+
+.pd-okr-kr-detail__ms-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.56rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+.pd-okr-kr-detail__ms-status--ok {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+}
+
+.pd-okr-kr-detail__ms-status--warn {
+  color: var(--color-amber);
+  background: color-mix(in srgb, var(--color-amber) 14%, transparent);
+}
+
+.pd-okr-kr-detail__ms-status--muted {
+  color: var(--color-text-muted);
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
 }
 
 .pd-okr-kr-detail__ms-w {
@@ -9635,6 +9760,110 @@ a.pd-okr-kr-detail__raci-person:hover .pd-okr-kr-detail__raci-name {
   text-decoration: underline;
 }
 
+.pd-okr-kr-detail__linked-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd-okr-kr-detail__linked-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: start;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-button, 0.375rem);
+  background: var(--color-surface);
+}
+
+.pd-okr-kr-detail__linked-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.1rem;
+  border-radius: 0.3rem;
+  color: var(--color-theme);
+  background: color-mix(in srgb, var(--color-theme) 12%, transparent);
+}
+
+.pd-okr-kr-detail__linked-body {
+  min-width: 0;
+}
+
+.pd-okr-kr-detail__linked-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.3rem;
+}
+
+.pd-okr-kr-detail__linked-kr-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid color-mix(in srgb, var(--color-theme) 45%, transparent);
+  border-radius: 999px;
+  color: var(--color-theme);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.pd-okr-kr-detail__linked-tier {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.58rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.pd-okr-kr-detail__linked-title {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.3;
+  color: var(--color-text);
+}
+
+.pd-okr-kr-detail__linked-meta {
+  margin: 0.2rem 0 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  line-height: 1.35;
+  color: var(--color-text-muted);
+}
+
+.pd-okr-kr-detail__linked-tracker {
+  align-self: center;
+  flex: 0 0 auto;
+  color: var(--color-theme);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.3;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.pd-okr-kr-detail__linked-tracker:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 40rem) {
   .pd-okr-kr-detail__raci-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -9650,6 +9879,15 @@ a.pd-okr-kr-detail__raci-person:hover .pd-okr-kr-detail__raci-name {
 
   .pd-okr-kr-detail__raci-col:nth-child(2n) {
     border-left: 1px solid var(--color-divider);
+  }
+
+  .pd-okr-kr-detail__linked-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pd-okr-kr-detail__linked-tracker {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 

@@ -121,7 +121,7 @@ export function AnnualGoalsQuarters({
       </header>
       {isProgress ? (
         <p className="pd-reviews-flow__hint">
-          Progress only — the manager sets this grade in the annual review.
+          Progress only - the manager sets this grade in the annual review.
         </p>
       ) : null}
       <ScorecardGoalsCard

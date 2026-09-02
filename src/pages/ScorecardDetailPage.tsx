@@ -274,7 +274,7 @@ export default function ScorecardDetailPage() {
               {packet?.calibrationEvents.map((event) => (
                 <li key={event.id}>
                   {event.actorName || 'Calibrator'} changed{' '}
-                  {event.fromGrade ?? '—'} to {event.toGrade}
+                  {event.fromGrade ?? '-'} to {event.toGrade}
                   {event.reason ? `: ${event.reason}` : ''}
                 </li>
               ))}

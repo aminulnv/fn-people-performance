@@ -1,6 +1,6 @@
 /**
  * Public origin helpers for OAuth redirects.
- * Platform auth only needs getAppUrl — not dashboard Google / pd.sid.
+ * Platform auth only needs getAppUrl - not dashboard Google / pd.sid.
  */
 
 function isLocalhostUrl(value) {

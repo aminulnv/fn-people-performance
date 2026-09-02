@@ -1,6 +1,6 @@
 /**
- * /api/platform/* — People Performance on shared RDS.
- * Auth is platform-only (pd_platform_sid) — not dashboard Google / pd.sid.
+ * /api/platform/* - People Performance on shared RDS.
+ * Auth is platform-only (pd_platform_sid) - not dashboard Google / pd.sid.
  */
 import { asyncHandler, HttpError } from '../errors.mjs'
 import {

@@ -13,7 +13,7 @@
   --background: var(--color-surface);
   --foreground: var(--color-text-primary);
 
-  /* App aliases used by layout — follow surface/text tokens (flip in .dark) */
+  /* App aliases used by layout - follow surface/text tokens (flip in .dark) */
   --color-bg: color-mix(in srgb, var(--color-text) 4.5%, var(--color-surface));
   --color-bg-muted: var(--color-muted-bg);
   --color-surface-subtle: var(--color-neutral-hover);
@@ -48,7 +48,7 @@
 }
 
 /*
- * Dark elevation — black-only shadows vanish on dark canvases.
+ * Dark elevation - black-only shadows vanish on dark canvases.
  * A hairline rim restores edge separation; soft depth still sits underneath.
  */
 .dark {

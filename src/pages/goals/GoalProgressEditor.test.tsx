@@ -65,7 +65,7 @@ describe('GoalProgressEditor', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Remove CSAT' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /metric 1/i })).toBeNull()
-    const values = within(number).getByLabelText('Current — of target 5')
+    const values = within(number).getByLabelText('Current - of target 5')
     expect(values.closest('.pd-goal-view__fold-title')).toBeTruthy()
     expect(values.closest('.pd-goal-view__fold-meta')).toBeNull()
     expect(number).toHaveAttribute('open')

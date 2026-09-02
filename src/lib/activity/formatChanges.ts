@@ -190,7 +190,7 @@ export function activityDisplaySummary(event: ActivityEvent): string {
 }
 
 function formatScalar(field: string, value: unknown): string {
-  if (value == null || value === '') return '—'
+  if (value == null || value === '') return '-'
   if (typeof value === 'boolean') {
     if (field === 'late') return value ? 'Yes' : 'No'
     return value ? 'Yes' : 'No'
@@ -243,7 +243,7 @@ function expandMeasurements(
     const previous = fromById.get(id)
     const name = measureName(measure)
     if (!previous) {
-      rows.push({ field: name, from: '—', to: 'Added' })
+      rows.push({ field: name, from: '-', to: 'Added' })
       continue
     }
     const fields: Array<[string, string]> = [
@@ -270,7 +270,7 @@ function expandMeasurements(
   for (const measure of fromItems) {
     const id = String(measure.id ?? '')
     if (toById.has(id)) continue
-    rows.push({ field: measureName(measure), from: 'Removed', to: '—' })
+    rows.push({ field: measureName(measure), from: 'Removed', to: '-' })
   }
 
   return rows

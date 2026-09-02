@@ -307,7 +307,7 @@ export function buildDefaultStagesConfig(
   });
 }
 
-/** @deprecated Prefer buildDefaultStagesConfig — kept name for call-site clarity. */
+/** @deprecated Prefer buildDefaultStagesConfig - kept name for call-site clarity. */
 export function buildDefaultStages(startDate: string, endDate: string) {
   return buildDefaultStagesConfig(startDate, endDate);
 }

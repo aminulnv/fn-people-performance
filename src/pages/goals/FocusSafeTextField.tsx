@@ -69,7 +69,7 @@ export function FocusSafeTextField({
 }
 
 /**
- * Multiline variant — wraps like static text for inline heading edits.
+ * Multiline variant - wraps like static text for inline heading edits.
  */
 export function FocusSafeTextArea({
   value,

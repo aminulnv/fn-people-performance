@@ -253,7 +253,7 @@ async function ensureTeam(client, departmentId, name, actor) {
   return inserted.rows[0].id
 }
 
-/** Resolve division by name only — does not create unknown divisions. */
+/** Resolve division by name only - does not create unknown divisions. */
 async function resolveDivisionId(client, name) {
   const trimmed = name.trim()
   if (!trimmed) return null

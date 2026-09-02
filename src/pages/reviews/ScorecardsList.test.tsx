@@ -105,6 +105,7 @@ beforeEach(async () => {
 afterEach(() => {
   cleanup()
   employeesState.employees = []
+  window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
 })
 
 function renderList(hash = '') {
@@ -153,7 +154,7 @@ describe('ScorecardsList', () => {
     expect(scorecardLink('Riley Report')).toBeInTheDocument()
     expect(scorecardLink('Alex Manager')).toBeInTheDocument()
     expect(
-      screen.getByRole('columnheader', { name: /^Cycle/ }),
+      screen.getByRole('columnheader', { name: /^Role/ }),
     ).toBeInTheDocument()
   })
 
@@ -176,6 +177,27 @@ describe('ScorecardsList', () => {
       await screen.findByRole('button', { name: /and 1 more/ }),
     ).toBeInTheDocument()
     expect(screen.getAllByText(extra.name).length).toBeGreaterThan(0)
+  })
+
+  it('hides optional columns from the Columns menu', async () => {
+    window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
+    renderList('#everyone')
+
+    await screen.findByRole('link', { name: 'Casey Peer' })
+    expect(screen.getByRole('columnheader', { name: /^Role/ })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /^Cycle/ })).toBeNull()
+    expect(screen.queryByRole('columnheader', { name: /^Seniority/ })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Columns, 2 hidden' }),
+    ).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Columns, 2 hidden' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Role' }))
+
+    expect(screen.queryByRole('columnheader', { name: /^Role/ })).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Columns, 3 hidden' }),
+    ).toBeInTheDocument()
   })
 })
 

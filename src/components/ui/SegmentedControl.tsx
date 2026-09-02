@@ -35,7 +35,7 @@ type IndicatorStyle = {
 }
 
 /**
- * Sliding segmented control — same motion as NEXT-Performance top-bar sub-nav
+ * Sliding segmented control - same motion as NEXT-Performance top-bar sub-nav
  * (`translate3d` + width), with optimistic selection so a heavy parent re-render
  * (e.g. expanding the people table) cannot stall the thumb.
  */
@@ -50,7 +50,7 @@ export function SegmentedControl<T extends string>({
 }: SegmentedControlProps<T>) {
   const rootRef = useRef<HTMLDivElement>(null)
   const buttonRefs = useRef(new Map<T, HTMLButtonElement>())
-  /** Optimistic selection — moves the thumb immediately on click. */
+  /** Optimistic selection - moves the thumb immediately on click. */
   const [visualValue, setVisualValue] = useState(value)
   const [indicator, setIndicator] = useState<IndicatorStyle | null>(null)
   const [indicatorReady, setIndicatorReady] = useState(false)

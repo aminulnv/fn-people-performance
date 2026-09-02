@@ -103,7 +103,7 @@ export function buildClosedGoalHeadline(cycleLabel: string): string {
 
 export type GoalDeadlineUrgency = 'default' | 'warning' | 'critical'
 
-/** Yellow at ≤5 days, red at <3 days — including due today and overdue. */
+/** Yellow at ≤5 days, red at <3 days - including due today and overdue. */
 export function resolveGoalDeadlineUrgency(
   signedDays: number,
 ): GoalDeadlineUrgency {

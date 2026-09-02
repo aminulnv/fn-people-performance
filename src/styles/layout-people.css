@@ -4,7 +4,7 @@
   --people-radius: 999px;
   --people-radius-sm: 999px;
   --people-radius-panel: 16px;
-  /* Same lift as the ⋯ icon control — not the tinted .pd-btn / danger glow */
+  /* Same lift as the ⋯ icon control - not the tinted .pd-btn / danger glow */
   --people-control-shadow: var(--shadow-card);
   --people-table-person-gap: 0.55rem;
 
@@ -90,7 +90,7 @@
   cursor: default;
 }
 
-/* Accents only on hover / selected — rest state stays neutral. */
+/* Accents only on hover / selected - rest state stays neutral. */
 .pd-people__summary--stretch .pd-people__summary-btn {
   --summary-accent: var(--color-theme);
 }
@@ -623,6 +623,34 @@ a.pd-people__ghost-btn--outline:hover {
 .pd-people-filters__value:hover,
 .pd-people-filters__value.is-selected {
   background: var(--color-neutral-hover, var(--color-bg-muted));
+}
+
+.pd-people-filters__value:disabled,
+.pd-people-filters__value.is-required {
+  cursor: default;
+  color: var(--color-text);
+}
+
+.pd-people-filters__value:disabled:hover,
+.pd-people-filters__value.is-required:hover {
+  background: transparent;
+}
+
+.pd-people-filters__value:disabled.is-selected,
+.pd-people-filters__value:disabled.is-selected:hover,
+.pd-people-filters__value.is-required.is-selected,
+.pd-people-filters__value.is-required.is-selected:hover {
+  background: var(--color-neutral-hover, var(--color-bg-muted));
+}
+
+.pd-people-filters__value:disabled .pd-people-filters__value-label,
+.pd-people-filters__value.is-required .pd-people-filters__value-label {
+  color: var(--color-text);
+}
+
+.pd-people-filters__value:disabled .pd-check__box,
+.pd-people-filters__value.is-required .pd-check__box {
+  opacity: 0.72;
 }
 
 .pd-people-filters__item-icon,
@@ -1324,7 +1352,7 @@ a.pd-people__ghost-btn--outline:hover {
 /*
  * On `.pd-page--pane` pages the table owns the vertical scroll, which is what
  * keeps the header row on screen while the rows move under it. Separate borders
- * let the sticky header carry its own divider — a collapsed border belongs to
+ * let the sticky header carry its own divider - a collapsed border belongs to
  * the table and stays behind. Phone widths keep document scrolling, where a
  * viewport-height table would leave too little room for rows.
  */
@@ -1332,7 +1360,7 @@ a.pd-people__ghost-btn--outline:hover {
 
   /*
    * A column of sections where only the table panel grows. The pane class is
-   * repeated to outbid each page family's own `display: grid` — those live in
+   * repeated to outbid each page family's own `display: grid` - those live in
    * per-page stylesheets whose load order varies by route.
    */
   .pd-page.pd-page--pane.pd-page--pane {
@@ -1547,7 +1575,7 @@ a.pd-people__ghost-btn--outline:hover {
   }
 }
 
-/* —— Employee profile —— */
+/* -- Employee profile -- */
 .pd-profile {
   gap: 0.85rem;
 }
@@ -1688,10 +1716,10 @@ a.pd-people__ghost-btn--outline:hover {
   gap: 0.45rem;
 }
 
-/* —— WYSIWYG create / edit (profile layout) —— */
+/* -- WYSIWYG create / edit (profile layout) -- */
 .pd-profile--editing .pd-profile__name-input {
   /* Pull the frame off the text box so the name sits exactly where the
-     read-only <h1> does — padding + border would otherwise shift it. */
+     read-only <h1> does - padding + border would otherwise shift it. */
   margin: calc(-1 * (0.15rem + 1px)) calc(-1 * (0.35rem + 1px));
   min-width: 12rem;
   max-width: min(100%, 22rem);
@@ -1997,7 +2025,30 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile__cover-modal .pd-modal__body {
   display: grid;
-  gap: 1rem;
+  gap: var(--spacing-5, 1.25rem);
+}
+
+.pd-delegation-modal__section {
+  display: grid;
+  gap: var(--spacing-2, 0.5rem);
+}
+
+.pd-delegation-modal__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2, 0.4rem);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pd-delegation-modal__label svg {
+  flex-shrink: 0;
+  color: var(--color-theme, var(--color-primary));
+}
+
+.pd-profile__cover-modal .pd-field__hint {
+  margin: 0;
 }
 
 .pd-profile__cover-modal .pd-listbox.is-open {
@@ -2008,11 +2059,40 @@ a.pd-people__ghost-btn--outline:hover {
 .pd-profile__cover-modal .pd-field--notch {
   border-radius: 999px;
   padding-inline: 0.85rem;
+  min-height: 2.75rem;
+  background: var(--color-surface, var(--color-bg));
+  border-color: color-mix(in srgb, var(--color-border) 80%, var(--color-text));
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    background 120ms ease;
+}
+
+.pd-profile__cover-modal .pd-listbox__trigger:hover:not(:disabled),
+.pd-profile__cover-modal .pd-field--notch:hover {
+  border-color: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
+  background: var(--color-surface-raised, var(--color-bg));
+}
+
+.pd-profile__cover-modal .pd-listbox__trigger:focus-visible,
+.pd-profile__cover-modal .pd-listbox__trigger--combobox:focus-within,
+.pd-profile__cover-modal .pd-field--notch:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.pd-profile__cover-modal .pd-field--notch > .pd-field__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+  background: var(--color-surface-raised, var(--color-surface, var(--color-bg)));
 }
 
 .pd-profile__cover-modal .pd-listbox__panel {
   padding: 0.25rem 0;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-3, 0.75rem);
+  box-shadow: var(--elevation-med, 0 8px 24px color-mix(in srgb, black 12%, transparent));
 }
 
 .pd-profile__cover-modal .pd-listbox__option {
@@ -2029,9 +2109,10 @@ a.pd-people__ghost-btn--outline:hover {
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
   grid-template-rows: auto auto;
-  column-gap: 0.55rem;
-  row-gap: 0.4rem;
+  column-gap: var(--spacing-3, 0.65rem);
+  row-gap: var(--spacing-2, 0.4rem);
   max-width: none;
+  align-items: center;
 }
 
 .pd-profile__cover-modal .pd-reviews-window--notch {
@@ -2041,10 +2122,22 @@ a.pd-people__ghost-btn--outline:hover {
 .pd-profile__cover-modal .pd-reviews-window--notch .pd-reviews-window__date {
   display: block;
   grid-row: auto;
+  min-width: max-content;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__date {
   min-width: max-content;
+}
+
+.pd-profile__cover-modal .pd-reviews-window__arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  color: var(--color-theme, var(--color-primary));
+  background: color-mix(in srgb, var(--color-theme, var(--color-primary)) 10%, transparent);
 }
 
 .pd-profile__cover-modal .pd-reviews-window__label {
@@ -2057,6 +2150,12 @@ a.pd-people__ghost-btn--outline:hover {
 
 .pd-profile__cover-modal .pd-reviews-window .pd-field__control {
   font-variant-numeric: tabular-nums;
+}
+
+.pd-profile__cover-modal .pd-modal__actions {
+  margin-top: var(--spacing-5, 1.25rem);
+  padding-top: var(--spacing-4, 1rem);
+  border-top: 1px solid var(--color-border);
 }
 
 @media (max-width: 560px) {

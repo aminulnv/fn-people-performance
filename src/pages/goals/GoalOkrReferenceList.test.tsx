@@ -62,7 +62,7 @@ describe("GoalOkrReferenceList", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        "People Foundation — Build leadership and structure that scales",
+        "People Foundation - Build leadership and structure that scales",
       ),
     ).toBeInTheDocument();
     expect(
@@ -100,7 +100,7 @@ describe("GoalOkrReferenceList", () => {
     );
 
     const objective = screen.getByRole("button", {
-      name: /People Foundation — Build leadership and structure that scales/,
+      name: /People Foundation - Build leadership and structure that scales/,
     });
     expect(objective).toHaveAttribute("aria-expanded", "true");
     expect(
@@ -199,12 +199,16 @@ describe("GoalOkrReferenceList", () => {
     );
     expect(screen.getAllByText("Build Performance Platform Phase 1").length).toBeGreaterThan(0);
     expect(
-      screen.getByText("People Foundation — Build leadership and structure that scales"),
+      screen.getByText("People Foundation - Build leadership and structure that scales"),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Q3 Build, Q4 Testing, Q1 2027 Launch").length).toBeGreaterThan(0);
     expect(screen.getByText("On Track")).toBeInTheDocument();
     expect(screen.getByText("T1")).toBeInTheDocument();
-    expect(screen.getByText("Numeric")).toBeInTheDocument();
+    expect(screen.getByText("Milestone")).toBeInTheDocument();
+    expect(screen.getByText("Increase")).toBeInTheDocument();
+    expect(
+      screen.getByText("No milestones listed for this key result."),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("S.M. Fahim").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Apply to goal" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open in OKRs" })).toHaveAttribute(

@@ -47,7 +47,7 @@ export function GoalSubmitBlockNotice({
   addGoalLabel?: string
   /** `ribbon` is a flush strip; `card` is the inset notice. */
   layout?: 'card' | 'ribbon'
-  /** False inside a goal window — the name is already the context. */
+  /** False inside a goal window - the name is already the context. */
   nameTheGoal?: boolean
 }) {
   if (blockers.length === 0) return null

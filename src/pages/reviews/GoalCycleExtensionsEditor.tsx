@@ -33,7 +33,7 @@ type GoalCycleExtensionsEditorProps = {
   extensions: GoalCycleExtension[];
   baseEndDate: string;
   performanceStartDate: string;
-  /** People already on this group — search and scopes stay inside this set. */
+  /** People already on this group - search and scopes stay inside this set. */
   memberIds: number[];
   onChange: (extensions: GoalCycleExtension[]) => void;
 };

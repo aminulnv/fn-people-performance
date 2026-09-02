@@ -71,7 +71,7 @@
   animation-play-state: paused;
 }
 
-/* Soft grain — static layer (no animation) over the moving glow */
+/* Soft grain - static layer (no animation) over the moving glow */
 .pd-app-shell::after,
 .pd-app-sidebar--mobile::after {
   content: '';
@@ -93,7 +93,7 @@
 /*
  * Slow counterclockwise drift. Eight waypoints on a circle (radius 12%
  * of the layer, ≈18% of the viewport) with equal chord lengths, so
- * linear timing gives constant speed and each turn is a gentle 45° —
+ * linear timing gives constant speed and each turn is a gentle 45° -
  * no visible corners, no stop-start pulsing. The glow never fully
  * leaves the top-left chrome.
  */
@@ -101,7 +101,7 @@
 
   0%,
   100% {
-    /* West — must match --shell-glow-pose */
+    /* West - must match --shell-glow-pose */
     transform: var(--shell-glow-pose);
   }
 
@@ -185,7 +185,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 /*
  * The card itself never scrolls: it stacks the top bar above `.pd-app-scroll`.
  * Keeping the two in separate boxes is what makes page chrome structurally
- * unable to overlap the top bar — sticky content is clipped by its scroller.
+ * unable to overlap the top bar - sticky content is clipped by its scroller.
  */
 .pd-app-content-card {
   position: relative;
@@ -275,7 +275,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   --sidebar-duration: 0.32s;
   /* Centers the 2.125rem logo/icon column in the 4rem collapsed rail */
   --rail-pad: 0.9375rem;
-  /* Active/hover pill inset from sidebar edges — same collapsed + expanded */
+  /* Active/hover pill inset from sidebar edges - same collapsed + expanded */
   --rail-pill-inset: 0.5rem;
   --rail-pill-grow: calc(var(--rail-pad) - var(--rail-pill-inset));
 
@@ -581,7 +581,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-sidebar-nav {
   flex: 1;
-  /* Same horizontal inset as brand — icon column stays put on expand */
+  /* Same horizontal inset as brand - icon column stays put on expand */
   padding: 0.5rem var(--rail-pad) 0;
   display: flex;
   flex-direction: column;
@@ -632,7 +632,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   white-space: nowrap;
 }
 
-/* Logo-sized column — stays under the brand mark in collapsed + expanded */
+/* Logo-sized column - stays under the brand mark in collapsed + expanded */
 .pd-sidebar-nav__icon {
   width: 2.125rem;
   height: 100%;
@@ -753,7 +753,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 /* ── Top bar ──────────────────────────────────────────────────────── */
 
 .pd-topbar {
-  /* Outside the scroll region, so it needs no sticky offset — only a stacking
+  /* Outside the scroll region, so it needs no sticky offset - only a stacking
      context high enough for its own dropdowns to clear page content. */
   position: relative;
   z-index: 20;
@@ -855,7 +855,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   min-width: 0;
 }
 
-/* Give up space on the intermediate crumbs first — the section root and the
+/* Give up space on the intermediate crumbs first - the section root and the
    current page stay readable instead of every crumb truncating at once. The
    factor is deliberately large so the current page keeps its exact text width
    (a sub-pixel shrink is enough to trigger the ellipsis). */
@@ -1252,7 +1252,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-topbar__notif-tab.is-active {
   background: var(--color-theme-subtle);
-  color: var(--color-theme);
+  color: var(--color-theme-darker);
   font-weight: 600;
 }
 
@@ -1292,16 +1292,16 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   box-sizing: border-box;
 }
 
-.pd-topbar__notif-item-main:hover {
+.pd-topbar__notif-item:hover {
   background: var(--color-neutral-hover);
 }
 
-.pd-topbar__notif-item--unread .pd-topbar__notif-item-main {
-  background: color-mix(in srgb, var(--color-theme) 5%, var(--color-bg));
+.pd-topbar__notif-item--unread {
+  background: color-mix(in srgb, var(--color-theme-darker) 5%, var(--color-bg));
 }
 
-.pd-topbar__notif-item--unread .pd-topbar__notif-item-main:hover {
-  background: color-mix(in srgb, var(--color-theme) 9%, var(--color-bg));
+.pd-topbar__notif-item--unread:hover {
+  background: color-mix(in srgb, var(--color-theme-darker) 9%, var(--color-bg));
 }
 
 .pd-topbar__notif-item--completed {
@@ -1322,11 +1322,11 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 }
 
 .pd-topbar__notif-icon--target {
-  color: var(--color-theme);
+  color: var(--color-theme-darker);
 }
 
 .pd-topbar__notif-icon--clipboard-check {
-  color: var(--color-theme);
+  color: var(--color-theme-darker);
 }
 
 .pd-topbar__notif-icon--clock {
@@ -1385,7 +1385,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
   background: var(--color-theme-subtle);
-  color: var(--color-theme);
+  color: var(--color-theme-darker);
   font-size: 0.625rem;
   font-weight: 600;
   line-height: 1.3;
@@ -1429,15 +1429,15 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-topbar__notif-action--primary {
   border: 0.0625rem solid transparent;
-  background: var(--color-theme);
-  color: var(--color-on-theme);
+  background: var(--color-theme-darker);
+  color: var(--color-on-theme-darker, var(--color-on-theme));
 }
 
 .pd-topbar__notif-dot {
   width: 0.375rem;
   height: 0.375rem;
   border-radius: 50%;
-  background: var(--color-theme);
+  background: var(--color-theme-darker);
   flex-shrink: 0;
   margin-top: 0.375rem;
 }
@@ -1530,12 +1530,12 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   box-sizing: border-box;
 }
 
-/* Readable / form surfaces — tighter column within the main pane */
+/* Readable / form surfaces - tighter column within the main pane */
 .pd-page--narrow {
   max-width: min(100%, 72rem);
 }
 
-/* Table-heavy pages — wider column for dense data (matches Goals overview) */
+/* Table-heavy pages - wider column for dense data (matches Goals overview) */
 .pd-page--wide {
   max-width: min(100%, 100rem);
 }
@@ -1548,8 +1548,8 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 }
 
 /*
- * Pages that scroll a region of their own — a table body under a pinned header,
- * for instance — need a pane-height box to scroll inside, so the pane stops
+ * Pages that scroll a region of their own - a table body under a pinned header,
+ * for instance - need a pane-height box to scroll inside, so the pane stops
  * growing with the page content. Phone widths keep document flow, where a
  * viewport-height scroll region leaves too little space for the rows.
  */
@@ -1587,7 +1587,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   gap: 0;
 }
 
-/* Unbuilt modules — centered empty state only (title lives in top bar) */
+/* Unbuilt modules - centered empty state only (title lives in top bar) */
 .pd-page--coming-soon {
   display: flex;
   flex-direction: column;

@@ -219,7 +219,7 @@ function OkrRowProgress({ item }: { item: OkrWorkItem }) {
       aria-label={trail ?? undefined}
     >
       <div className="pd-okr-ref__score-side">
-        <span className="pd-okr-ref__score-value">{current ?? "—"}</span>
+        <span className="pd-okr-ref__score-value">{current ?? "-"}</span>
         {trail ? <span className="pd-okr-ref__score-trail">{trail}</span> : null}
       </div>
       <div
@@ -236,7 +236,7 @@ function OkrRowProgress({ item }: { item: OkrWorkItem }) {
         />
       </div>
       <div className="pd-okr-ref__score-side pd-okr-ref__score-side--target">
-        <span className="pd-okr-ref__score-value">{target ?? "—"}</span>
+        <span className="pd-okr-ref__score-value">{target ?? "-"}</span>
       </div>
     </div>
   );

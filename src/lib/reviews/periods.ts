@@ -99,7 +99,7 @@ export function findPeriod(key: string): CyclePeriodOption | undefined {
   return buildPeriod(year, quarter)
 }
 
-/** Quarter periods only — used by the quarterly create picker. */
+/** Quarter periods only - used by the quarterly create picker. */
 export function listQuarterPeriods(referenceDate = new Date()): CyclePeriodOption[] {
   return listSelectablePeriods(referenceDate).filter((period) =>
     /^q[1-4]-/i.test(period.key),

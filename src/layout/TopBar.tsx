@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Menu } from 'lucide-react'
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui'
+import { TopBarDarkMode } from './TopBarDarkMode'
 import { TopBarSearch } from './TopBarSearch'
 import { NotificationDrawer } from './NotificationDrawer'
 import { ProfileDropdown } from './ProfileDropdown'
@@ -9,7 +10,7 @@ import { ProfileDropdown } from './ProfileDropdown'
 interface TopBarProps {
   breadcrumbs: BreadcrumbItem[]
   titleIcon?: LucideIcon
-  /** Section links (e.g. Reviews subpages) — centered on desktop, own row on mobile. */
+  /** Section links (e.g. Reviews subpages) - centered on desktop, own row on mobile. */
   centerSlot?: ReactNode
   onSignOut?: () => void
   onMobileMenuOpen: () => void
@@ -26,6 +27,7 @@ export function TopBar({
 }: TopBarProps) {
   const actions = (
     <div className="pd-topbar__actions">
+      <TopBarDarkMode />
       <TopBarSearch />
       <NotificationDrawer isMobile={isMobile} />
       <ProfileDropdown onSignOut={onSignOut} isMobile={isMobile} />

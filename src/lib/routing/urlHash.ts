@@ -25,7 +25,7 @@ type UseUrlHashTabOptions<T extends string> = {
   defaultTab: T
   tabFromHash: (hash: string) => T | null
   hashFromTab: (tab: T) => string
-  /** When false, read/write nothing — used inside overlays that must not own the hash. */
+  /** When false, read/write nothing - used inside overlays that must not own the hash. */
   enabled?: boolean
 }
 

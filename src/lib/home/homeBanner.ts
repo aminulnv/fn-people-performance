@@ -61,9 +61,9 @@ export type HomeBannerContent = {
   aside: HomeBannerAside
   icon: HomeBannerIcon
   ariaLabel: string
-  /** Goal-setting countdown urgency — drives yellow/red gradients. */
+  /** Goal-setting countdown urgency - drives yellow/red gradients. */
   urgency?: GoalDeadlineUrgency
-  /** Calendar state of the deadline — due later, due today, or already past. */
+  /** Calendar state of the deadline - due later, due today, or already past. */
   timing?: GoalDeadlineTiming
 }
 
@@ -135,7 +135,7 @@ function isGoalInputPhase(cycle: GoalsCycle): boolean {
   return false
 }
 
-/** Only a submitted or approved batch counts — drafts never satisfy this. */
+/** Only a submitted or approved batch counts - drafts never satisfy this. */
 export function hasCommittedGoalSubmission(row: PersonGoals): boolean {
   if (row.status !== 'submitted' && row.status !== 'approved') return false
   // Stale rows can carry submitted/approved status with no goals attached.

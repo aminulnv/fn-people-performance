@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react'
-import { CircleHelp } from 'lucide-react'
+import {
+  CalendarClock,
+  CircleHelp,
+  UserRound,
+  UserRoundCog,
+} from 'lucide-react'
 import {
   Avatar,
   Button,
-  Field,
   ListboxSelect,
   Modal,
   Tooltip,
@@ -35,7 +39,7 @@ function formatDelegationRange(startsOn: string, endsOn: string): string {
 }
 
 const DELEGATION_HINT =
-  'The delegate acts as this manager for their reports — goals, reviews, and their queue. The reporting line does not change.'
+  'The delegate acts as this manager for their reports - goals, reviews, and their queue. The reporting line does not change.'
 
 function DelegationHintIcon() {
   return (
@@ -261,7 +265,7 @@ export function ManagerDelegationAssignModal({
       titleHintLabel="What a delegation does"
       actions={
         <>
-          <Button variant="ghost" pill onClick={editor.closeModal}>
+          <Button variant="secondary" pill onClick={editor.closeModal}>
             Cancel
           </Button>
           <Button
@@ -270,12 +274,17 @@ export function ManagerDelegationAssignModal({
             disabled={!editor.delegateEmployeeId}
             onClick={() => void editor.onAssign()}
           >
+            <UserRoundCog size={16} strokeWidth={2} aria-hidden />
             Assign Delegation
           </Button>
         </>
       }
     >
-      <Field label="Delegate to" hint="Search by name, title, or department.">
+      <section className="pd-delegation-modal__section">
+        <span className="pd-delegation-modal__label">
+          <UserRound size={15} strokeWidth={2} aria-hidden />
+          Delegate to
+        </span>
         <ListboxSelect
           aria-label="Delegate to"
           value={editor.delegateEmployeeId}
@@ -287,16 +296,25 @@ export function ManagerDelegationAssignModal({
           noResultsText="No people found"
           allowEmpty={false}
         />
-      </Field>
-      <StageWindowFields
-        startLabel="Starts"
-        endLabel="Ends"
-        startValue={editor.startsOn}
-        endValue={editor.endsOn}
-        onStartChange={editor.setStartsOn}
-        onEndChange={editor.setEndsOn}
-        labelPlacement="notch"
-      />
+        <p className="pd-field__hint">
+          Search by name, title, or department.
+        </p>
+      </section>
+      <section className="pd-delegation-modal__section">
+        <span className="pd-delegation-modal__label">
+          <CalendarClock size={15} strokeWidth={2} aria-hidden />
+          Delegation window
+        </span>
+        <StageWindowFields
+          startLabel="Starts"
+          endLabel="Ends"
+          startValue={editor.startsOn}
+          endValue={editor.endsOn}
+          onStartChange={editor.setStartsOn}
+          onEndChange={editor.setEndsOn}
+          labelPlacement="notch"
+        />
+      </section>
     </Modal>
   )
 }

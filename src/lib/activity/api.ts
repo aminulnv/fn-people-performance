@@ -34,7 +34,7 @@ function writeLocal(events: ActivityEvent[]): void {
   }
 }
 
-/** Test/demo helper — append-only local facade, not authoritative. */
+/** Test/demo helper - append-only local facade, not authoritative. */
 export function appendLocalActivityEvent(
   input: Omit<ActivityEvent, 'id' | 'occurredAt'> & {
     id?: string

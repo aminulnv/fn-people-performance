@@ -139,7 +139,7 @@ export function ScorecardHero({
                     {detail.employeeName}
                   </Link>
                 </h1>
-                {detail.cycleLabel && detail.cycleLabel !== '—' ? (
+                {detail.cycleLabel && detail.cycleLabel !== '-' ? (
                   <span className="pd-reviews-score-status pd-reviews-score-status--pending">
                     {detail.cycleLabel}
                   </span>
@@ -147,9 +147,9 @@ export function ScorecardHero({
               </div>
               <p className="pd-reviews-scorecard__meta">
                 {[detail.role, detail.department]
-                  .filter((value) => value && value !== '—')
+                  .filter((value) => value && value !== '-')
                   .join(' · ')}
-                {detail.reviewerName && detail.reviewerName !== '—' ? (
+                {detail.reviewerName && detail.reviewerName !== '-' ? (
                   <>
                     <span aria-hidden> · </span>
                     Reviewer {detail.reviewerName}

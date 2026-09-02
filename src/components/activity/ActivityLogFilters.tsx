@@ -15,7 +15,7 @@ const ENTITY_OPTIONS = [
 
 /**
  * Filter bar for the organisation-wide Activity log.
- * Kept visible — this page is a search surface, not a workflow CTA.
+ * Kept visible - this page is a search surface, not a workflow CTA.
  */
 export function ActivityLogFilters({
   value,

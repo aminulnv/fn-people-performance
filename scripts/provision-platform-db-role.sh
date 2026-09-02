@@ -88,7 +88,7 @@ else
   fi
   {
     echo ""
-    echo "# Platform API only — not used by the dashboard. Written by provision-platform-db-role.sh"
+    echo "# Platform API only - not used by the dashboard. Written by provision-platform-db-role.sh"
     echo "PLATFORM_DB_USERNAME=$ROLE_NAME"
     echo "PLATFORM_DB_PASS=$ROLE_PASS"
   } >> .env

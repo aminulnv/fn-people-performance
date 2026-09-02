@@ -75,12 +75,12 @@ type ReportGoalsCardProps = {
   postWindowApprovalStage?: PersonGoals['postWindowApprovalStage']
   /** Named when a late submission still needs skip-level sign-off after this manager. */
   skipLevelManager?: GoalsCardPerson | null
-  /** Direct manager — shown on the owner's card as the first approver. */
+  /** Direct manager - shown on the owner's card as the first approver. */
   lineManager?: GoalsCardPerson | null
   goalCount: number
   /** Reviewer sees Approve / Send Back. Owner sees Submit All / Add Goal. */
   perspective?: 'reviewer' | 'owner'
-  /** Drafting after the window closed — two-tier approval will apply. */
+  /** Drafting after the window closed - two-tier approval will apply. */
   allowLateSubmissions?: boolean
   /** Goal-window end used for “Deadline Missed: 5d ago”. */
   deadlineMissedAt?: string
@@ -95,15 +95,15 @@ type ReportGoalsCardProps = {
   onSendBackReason?: (value: string) => void
   onApprove?: () => void
   onSendBack?: () => void
-  /** Replaces Approve / Send Back — Submit All and Add Goal for the owner. */
+  /** Replaces Approve / Send Back - Submit All and Add Goal for the owner. */
   actions?: ReactNode
-  /** Quiet overflow destination — never beside Approve / Send Back. */
+  /** Quiet overflow destination - never beside Approve / Send Back. */
   activityFilters?: {
     cycleId?: string
     subjectEmployeeId?: number
     entityType?: string
   }
-  /** Closed-cycle / ineligibility ribbon — same slot as Late Submission. */
+  /** Closed-cycle / ineligibility ribbon - same slot as Late Submission. */
   lockBanner?: ReactNode
   /** Cycle ineligibility should not be hidden by a late-submission trail. */
   preferLockBanner?: boolean
@@ -154,7 +154,7 @@ function deadlineMissedCopy(deadline?: string): string | null {
   if (!deadline) return null
   const iso = deadline.includes('T') ? deadline : `${deadline}T12:00:00.000Z`
   const age = formatRefreshAge(iso)
-  if (age === '—' || age === 'Just now') return 'Deadline missed'
+  if (age === '-' || age === 'Just now') return 'Deadline missed'
   return `Deadline Missed: ${age} ago`
 }
 
@@ -231,20 +231,24 @@ function LateSubmissionBanner({
         <span className="pd-goals-banner__icon" aria-hidden>
           <History size={13} strokeWidth={2.25} />
         </span>
-        <p className="pd-goals-banner__title">Late Submission</p>
-        {missed ? <p className="pd-goals-banner__detail">{missed}</p> : null}
+        <div className="pd-goals-banner__copy">
+          <div className="pd-goals-banner__headline">
+            <p className="pd-goals-banner__title">Late Submission</p>
+            {missed ? <p className="pd-goals-banner__detail">{missed}</p> : null}
+          </div>
+          {lateJustification ? (
+            <p className="pd-goals-banner__reason">
+              <span className="pd-goals-banner__reason-label">Late reason</span>
+              {lateJustification}
+            </p>
+          ) : null}
+        </div>
       </div>
       {approvers.length > 0 ? (
         <div className="pd-goals-banner__end">
           <p className="pd-goals-banner__detail">{approvalLabel}</p>
           <ApprovalTrailSteps model={model} stages={approvers} />
         </div>
-      ) : null}
-      {lateJustification ? (
-        <p className="pd-goals-banner__reason">
-          <span className="pd-goals-banner__reason-label">Reason</span>
-          {lateJustification}
-        </p>
       ) : null}
     </aside>
   )

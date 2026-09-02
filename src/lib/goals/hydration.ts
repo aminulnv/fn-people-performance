@@ -1,4 +1,4 @@
-/** Which goal-cycle payloads have landed — empty local rows are not a real empty list. */
+/** Which goal-cycle payloads have landed - empty local rows are not a real empty list. */
 
 const ownReadyCycles = new Set<string>()
 const cycleReadyCycles = new Set<string>()
@@ -27,7 +27,7 @@ export function markOwnGoalsHydrated(cycleId: string): void {
   emit()
 }
 
-/** Cycles already pulled from the API — live refresh only reloads these. */
+/** Cycles already pulled from the API - live refresh only reloads these. */
 export function listHydratedGoalCycleIds(): string[] {
   return [...cycleReadyCycles]
 }

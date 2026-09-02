@@ -2,12 +2,12 @@ type IconProps = {
   className?: string
 }
 
-/** Shared canvas — every banner icon draws into this box. */
+/** Shared canvas - every banner icon draws into this box. */
 const ICON_SIZE = 64
-/** Artwork fill — matches the progress mark (48px circle in a 64px frame). */
+/** Artwork fill - matches the progress mark (48px circle in a 64px frame). */
 const ARTWORK_SIZE = 48
 
-/** Shared stroke — matches Figma banner icons (#635CFF etc. at 2px). */
+/** Shared stroke - matches Figma banner icons (#635CFF etc. at 2px). */
 function iconStroke(scale = 1) {
   return {
     stroke: 'currentColor' as const,
@@ -28,7 +28,7 @@ function artworkTransform(x: number, y: number, width: number, height: number) {
   return { transform: `translate(${tx} ${ty}) scale(${scale})`, scale }
 }
 
-/** Goal-setting mark — flag with target rings (Figma reference). */
+/** Goal-setting mark - flag with target rings (Figma reference). */
 export function HomeGoalsIcon({ className = 'pd-home-banner__icon-svg' }: IconProps) {
   const { transform, scale } = artworkTransform(28, 42, 92, 102)
   const stroke = iconStroke(scale)
@@ -52,7 +52,7 @@ export function HomeGoalsIcon({ className = 'pd-home-banner__icon-svg' }: IconPr
   )
 }
 
-/** Check-in progress mark — circle with check (Figma reference). */
+/** Check-in progress mark - circle with check (Figma reference). */
 export function HomeProgressIcon({ className = 'pd-home-banner__icon-svg' }: IconProps) {
   const { transform, scale } = artworkTransform(8, 8, 48, 48)
   const stroke = iconStroke(scale)
@@ -66,7 +66,7 @@ export function HomeProgressIcon({ className = 'pd-home-banner__icon-svg' }: Ico
   )
 }
 
-/** Sent-back mark — undo arrow (Figma reference). */
+/** Sent-back mark - undo arrow (Figma reference). */
 export function HomeSentBackIcon({ className = 'pd-home-banner__icon-svg' }: IconProps) {
   const { transform, scale } = artworkTransform(55.5, 45.5, 78, 78)
   const stroke = iconStroke(scale)
@@ -83,7 +83,7 @@ export function HomeSentBackIcon({ className = 'pd-home-banner__icon-svg' }: Ico
   )
 }
 
-/** Manager approval mark — notification bell (Figma reference). */
+/** Manager approval mark - notification bell (Figma reference). */
 export function HomeApproveIcon({ className = 'pd-home-banner__icon-svg' }: IconProps) {
   const { transform, scale } = artworkTransform(15, 10, 34, 40)
   const stroke = iconStroke(scale)

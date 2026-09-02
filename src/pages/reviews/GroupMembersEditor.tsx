@@ -31,7 +31,7 @@ type GroupMembersEditorProps = {
   onChange: (memberIds: number[]) => void
   searchLabel?: string
   placeholder?: string
-  /** People only — no department or team bulk add. */
+  /** People only - no department or team bulk add. */
   peopleOnly?: boolean
 }
 

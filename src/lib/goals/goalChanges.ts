@@ -42,8 +42,8 @@ function structuralGoal(goal: Goal) {
 }
 
 /**
- * Progress can change without another approval. Everything else—including
- * adding, removing, or reordering goals and measurements—is structural.
+ * Progress can change without another approval. Everything else-including
+ * adding, removing, or reordering goals and measurements-is structural.
  */
 export function hasStructuralGoalChanges(
   currentGoals: Goal[],

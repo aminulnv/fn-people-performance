@@ -5,6 +5,7 @@ import {
   isDirectManager,
   countPendingGoalApprovals,
   countPendingGoalApprovalsForManager,
+  normalizeGoalSubmissionStatus,
   orderManagerReports,
   selectActorApprovalQueue,
   selectManagerApprovalQueue,
@@ -111,6 +112,18 @@ describe("deriveGoalCapabilities", () => {
     });
     expect(caps.canApprove).toBe(true);
     expect(caps.canSendBack).toBe(true);
+  });
+
+  it("hides send back after goals are approved", () => {
+    const caps = deriveGoalCapabilities({
+      actor,
+      subject,
+      row: row("e1", "approved"),
+      cycle,
+      cycleStatus: "current",
+    });
+    expect(caps.canApprove).toBe(false);
+    expect(caps.canSendBack).toBe(false);
   });
 
   it("blocks structural edits on previous cycles", () => {
@@ -225,6 +238,56 @@ describe("deriveGoalCapabilities", () => {
 
     expect(caps.canEditStructure).toBe(true);
     expect(caps.canSubmit).toBe(true);
+  });
+
+  it("lets incomplete rows resume when two-tier late submission is open", () => {
+    const lateCycle = {
+      ...cycle,
+      phase: "hard_lock" as const,
+      postWindowGoalPolicy: "two_tier_approval" as const,
+    };
+    const caps = deriveGoalCapabilities({
+      actor: subject,
+      subject,
+      row: row("e1", "incomplete"),
+      cycle: lateCycle,
+      cycleStatus: "current",
+    });
+
+    expect(caps.canCreate).toBe(true);
+    expect(caps.canEditStructure).toBe(true);
+    expect(caps.canSubmit).toBe(true);
+  });
+
+  it("keeps incomplete rows locked under hard_stop", () => {
+    const caps = deriveGoalCapabilities({
+      actor: subject,
+      subject,
+      row: row("e1", "incomplete"),
+      cycle: {
+        ...cycle,
+        phase: "hard_lock",
+        postWindowGoalPolicy: "hard_stop",
+      },
+      cycleStatus: "current",
+    });
+
+    expect(caps.canCreate).toBe(false);
+    expect(caps.canEditStructure).toBe(false);
+    expect(caps.canSubmit).toBe(false);
+  });
+
+  it("normalizes stored incomplete to draft under two-tier policy", () => {
+    expect(
+      normalizeGoalSubmissionStatus("incomplete", {
+        postWindowGoalPolicy: "two_tier_approval",
+      }),
+    ).toBe("draft");
+    expect(
+      normalizeGoalSubmissionStatus("incomplete", {
+        postWindowGoalPolicy: "hard_stop",
+      }),
+    ).toBe("incomplete");
   });
 
   it("routes final exception approval to the manager’s manager", () => {

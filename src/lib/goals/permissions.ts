@@ -46,6 +46,52 @@ const MUTABLE_STATUSES: SubmissionStatus[] = [
   "approved",
 ];
 
+/** Late goal input after Day 30 when the cycle allows two-tier exception approval. */
+export function isPostWindowGoalInputOpen(cycle: GoalsCycle): boolean {
+  return (
+    cycle.phase === "hard_lock" &&
+    cycle.postWindowGoalPolicy === "two_tier_approval"
+  );
+}
+
+/**
+ * Incomplete only applies under hard_stop. Stored incomplete rows on two-tier
+ * cycles (bad seed / old data) are treated as draft.
+ */
+export function normalizeGoalSubmissionStatus(
+  status: SubmissionStatus,
+  cycle: Pick<GoalsCycle, "postWindowGoalPolicy">,
+): SubmissionStatus {
+  if (
+    status === "incomplete" &&
+    cycle.postWindowGoalPolicy === "two_tier_approval"
+  ) {
+    return "draft";
+  }
+  return status;
+}
+
+/**
+ * Incomplete is terminal under hard_stop. Under two-tier late input it stays
+ * editable so people can still create, fix, and submit for exception approval.
+ */
+export function canMutateGoalStatus(
+  status: SubmissionStatus,
+  cycle?: GoalsCycle,
+): boolean {
+  if (MUTABLE_STATUSES.includes(status)) return true;
+  return status === "incomplete" && Boolean(cycle && isPostWindowGoalInputOpen(cycle));
+}
+
+/** Still composing goals (not yet in the approval queue). */
+export function isComposableGoalStatus(
+  status: SubmissionStatus,
+  cycle?: GoalsCycle,
+): boolean {
+  if (status === "draft" || status === "sent_back") return true;
+  return status === "incomplete" && Boolean(cycle && isPostWindowGoalInputOpen(cycle));
+}
+
 export function isDirectManager(
   actor: DemoPerson,
   subject: DemoPerson,
@@ -67,10 +113,6 @@ export function isManagerManager(
   );
 }
 
-export function canMutateGoalStatus(status: SubmissionStatus): boolean {
-  return MUTABLE_STATUSES.includes(status);
-}
-
 function isSelfOrManager(actor: DemoPerson, subject: DemoPerson): boolean {
   return actor.id === subject.id || isDirectManager(actor, subject);
 }
@@ -84,15 +126,13 @@ export function deriveGoalCapabilities(
 ): GoalCapabilities {
   const { actor, subject, row, cycle, cycleStatus } = context;
   const eligible = isEligibleForCycle(subject, cycle);
-  const mutable = canMutateGoalStatus(row.status);
+  const mutable = canMutateGoalStatus(row.status, cycle);
   const currentCycle = cycleStatus === "current";
   const windowOpen =
     cycle.phase === "window_open" ||
     (cycle.phase === "hard_lock" &&
       isGoalWindowOpenForPerson(cycle, subject));
-  const postWindowInputOpen =
-    cycle.phase === "hard_lock" &&
-    cycle.postWindowGoalPolicy === "two_tier_approval";
+  const postWindowInputOpen = isPostWindowGoalInputOpen(cycle);
   const goalInputOpen = windowOpen || postWindowInputOpen;
   const delegationRole =
     context.delegationAsDirectManager != null ||
@@ -149,7 +189,7 @@ export function deriveGoalCapabilities(
       (isSelf || canWriteAll) &&
       eligible &&
       goalInputOpen &&
-      (row.status === "draft" || row.status === "sent_back"),
+      isComposableGoalStatus(row.status, cycle),
     canApprove:
       row.status === "submitted" &&
       (canWriteAll ||
@@ -159,14 +199,14 @@ export function deriveGoalCapabilities(
     canSendBack:
       (canWriteAll ||
         (isPostWindowManagerManagerApproval ? managerManager : manager)) &&
-      (row.status === "submitted" || row.status === "approved"),
+      row.status === "submitted",
     canViewAsManager:
       manager || delegationRole.asSkipLevel || canReadAll || canWriteAll,
   };
 }
 
 /**
- * Direct reports of `manager` — the person whose Reports section is on screen,
+ * Direct reports of `manager` - the person whose Reports section is on screen,
  * which is not always the signed-in actor.
  */
 export function selectManagerReports(

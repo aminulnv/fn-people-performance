@@ -5,7 +5,7 @@ import { resolveHomeBanners } from './homeBanner'
 
 /**
  * Home banners need a hydrated goals snapshot. Before the API responds, the
- * store projects placeholder draft rows for every employee — those must not
+ * store projects placeholder draft rows for every employee - those must not
  * drive banner CTAs or they flash away once real submissions load.
  */
 export function useHomeBanners() {

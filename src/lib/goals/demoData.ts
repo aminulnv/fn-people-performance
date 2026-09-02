@@ -3,7 +3,7 @@ import type { DemoPerson, GoalsCycle, GoalsSnapshot, SubmissionStatus } from "./
 import { listGoalCycleOptions, pickDefaultCycleId } from "./cyclesFromReviews";
 
 /**
- * Fallback when Reviews has no cycles yet — Goals still needs a shape.
+ * Fallback when Reviews has no cycles yet - Goals still needs a shape.
  * Prefer real cycles via cyclesFromReviews.
  */
 export const FALLBACK_CYCLE: GoalsCycle = {
@@ -15,7 +15,7 @@ export const FALLBACK_CYCLE: GoalsCycle = {
   postWindowGoalPolicy: DEFAULT_CYCLE_SETTINGS.postWindowGoalPolicy,
 };
 
-/** @deprecated Use cycles — kept for migration of old session data. */
+/** @deprecated Use cycles - kept for migration of old session data. */
 export const DEMO_CYCLES: GoalsCycle[] = [FALLBACK_CYCLE];
 
 export const DEMO_CYCLE: GoalsCycle = FALLBACK_CYCLE;

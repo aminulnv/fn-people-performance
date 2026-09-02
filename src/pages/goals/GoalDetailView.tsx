@@ -41,9 +41,11 @@ import {
   dataTransferHasOkrGoal,
   isOkrApplyToGoalEvent,
   OKR_APPLY_TO_GOAL_EVENT,
+  okrApplyWouldOverwriteGoal,
   readOkrGoalDropPayload,
   type OkrGoalDropPayload,
 } from "@/lib/okr/applyToGoal";
+import { GoalOkrApplyConfirmDialog } from "./GoalOkrApplyConfirmDialog";
 import { formatRefreshAge, goalTitle } from "./goalHelpers";
 import {
   latestProgressAt,
@@ -244,7 +246,7 @@ type GoalDetailViewProps = {
   commentAuthorName: string;
   commentAuthorId?: string;
   commentAuthors?: CommentAuthor[];
-  /** New unsaved goal — same form as edit, without comments or approval chrome. */
+  /** New unsaved goal - same form as edit, without comments or approval chrome. */
   isNew?: boolean;
   canEdit?: boolean;
   canUpdateProgress?: boolean;
@@ -278,7 +280,12 @@ type GoalDetailViewProps = {
   onLinkCascadeTo?: (option: CascadeToOption) => void;
   onUnlinkCascadeTo?: (recipient: CascadeRecipient) => void;
   onRemove?: () => void;
-  /** Measure that opened this window — keeps that card highlighted. */
+  /**
+   * Same Add Goal pipeline, then fill the new goal from the OKR key result.
+   * Shown as an alternate path in the apply confirmation.
+   */
+  onApplyOkrAsNewGoal?: (payload: OkrGoalDropPayload) => void;
+  /** Measure that opened this window - keeps that card highlighted. */
   highlightMeasureKey?: string | null;
 };
 
@@ -322,6 +329,7 @@ export function GoalDetailView({
   onLinkCascadeTo,
   onUnlinkCascadeTo,
   onRemove,
+  onApplyOkrAsNewGoal,
   highlightMeasureKey,
 }: GoalDetailViewProps) {
   const [measureWindowKey, setMeasureWindowKey] = useState<string | null>(
@@ -335,6 +343,8 @@ export function GoalDetailView({
   const [titleDraft, setTitleDraft] = useState(() => editorGoalTitle(goal));
   const [detailsDraft, setDetailsDraft] = useState(goal.details ?? "");
   const [okrDropActive, setOkrDropActive] = useState(false);
+  const [pendingOkrApply, setPendingOkrApply] =
+    useState<OkrGoalDropPayload | null>(null);
   const titleRef = useRef<HTMLTextAreaElement>(null);
   const titleFocusedRef = useRef(false);
   const detailsFocusedRef = useRef(false);
@@ -344,6 +354,10 @@ export function GoalDetailView({
     null,
   );
   const goalRef = useRef(goal);
+  const titleDraftRef = useRef(titleDraft);
+  const detailsDraftRef = useRef(detailsDraft);
+  titleDraftRef.current = titleDraft;
+  detailsDraftRef.current = detailsDraft;
   const commentFieldId = useId();
   const titleFieldId = useId();
   const detailsFieldId = useId();
@@ -359,7 +373,7 @@ export function GoalDetailView({
     setTitleDraft(editorGoalTitle(goal));
     setDetailsDraft(goal.details ?? "");
     setEditing(isNew);
-    // First persist flips isNew on the same id — stay in the edit session.
+    // First persist flips isNew on the same id - stay in the edit session.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- goal.id
   }, [goal.id]);
 
@@ -429,7 +443,9 @@ export function GoalDetailView({
   const persistStructure = (next: Goal) => {
     goalRef.current = next;
     const named = !isBlankGoalTitle({ description: next.description });
-    if (named && onSave) {
+    // New goals stay local until Save As Draft on close — blur must not
+    // persist early or Discard cannot undo the create.
+    if (named && onSave && !isNew) {
       onSave(next);
       return;
     }
@@ -442,10 +458,10 @@ export function GoalDetailView({
     if (!payload) return;
     event.preventDefault();
     setOkrDropActive(false);
-    applyOkrPayload(payload);
+    requestOkrApply(payload);
   };
 
-  const applyOkrPayload = (payload: OkrGoalDropPayload) => {
+  const commitOkrPayload = (payload: OkrGoalDropPayload) => {
     onRequestEdit(() => {
       const next = applyOkrPayloadToGoal(goalRef.current, payload);
       setTitleDraft(next.description);
@@ -454,14 +470,28 @@ export function GoalDetailView({
       persistStructure(next);
     });
   };
-  const applyOkrPayloadRef = useRef(applyOkrPayload);
-  applyOkrPayloadRef.current = applyOkrPayload;
+
+  const requestOkrApply = (payload: OkrGoalDropPayload) => {
+    if (
+      okrApplyWouldOverwriteGoal({
+        description: titleDraftRef.current,
+        details: detailsDraftRef.current,
+        measurements: goalRef.current.measurements,
+      })
+    ) {
+      setPendingOkrApply(payload);
+      return;
+    }
+    commitOkrPayload(payload);
+  };
+  const requestOkrApplyRef = useRef(requestOkrApply);
+  requestOkrApplyRef.current = requestOkrApply;
 
   useEffect(() => {
     if (!canEdit) return;
     const onApply = (event: Event) => {
       if (!isOkrApplyToGoalEvent(event)) return;
-      applyOkrPayloadRef.current(event.detail);
+      requestOkrApplyRef.current(event.detail);
     };
     window.addEventListener(OKR_APPLY_TO_GOAL_EVENT, onApply);
     return () => window.removeEventListener(OKR_APPLY_TO_GOAL_EVENT, onApply);
@@ -1154,6 +1184,25 @@ export function GoalDetailView({
           </GoalCommentField>
         </section>
       ) : null}
+
+      <GoalOkrApplyConfirmDialog
+        open={pendingOkrApply != null}
+        onClose={() => setPendingOkrApply(null)}
+        onReplace={() => {
+          const payload = pendingOkrApply;
+          setPendingOkrApply(null);
+          if (payload) commitOkrPayload(payload);
+        }}
+        onCreateNew={
+          onApplyOkrAsNewGoal && pendingOkrApply
+            ? () => {
+                const payload = pendingOkrApply;
+                setPendingOkrApply(null);
+                onApplyOkrAsNewGoal(payload);
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

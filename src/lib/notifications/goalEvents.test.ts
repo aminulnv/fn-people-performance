@@ -93,8 +93,8 @@ describe('notifyGoalCommentMentions', () => {
     })
 
     const mention = getNotificationFeed('3').items[0]
-    expect(mention.title).toBe('Line Manager mentioned you on a goal')
-    expect(mention.body).toContain('Improve delivery quality')
+    expect(mention.title).toBe('Line Manager mentioned you')
+    expect(mention.body).toContain('Hey @HR Partner and @Line Manager')
     expect(mention.destination).toBe('/goals/q3-2026/1/g1')
     expect(getNotificationFeed('2').items).toHaveLength(0)
   })
@@ -125,7 +125,7 @@ describe('notifyGoalCommentMentions', () => {
           comments: [
             {
               ...commented.comments![0],
-              text: 'Hey @[HR Partner](3) — still waiting',
+              text: 'Hey @[HR Partner](3) - still waiting',
             },
           ],
         },

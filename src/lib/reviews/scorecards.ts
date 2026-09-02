@@ -203,7 +203,7 @@ export function gradeFromGoalProgress(
   return 'exceptional'
 }
 
-/** Assigned Goals pillar grade only — never inferred from completion. */
+/** Assigned Goals pillar grade only - never inferred from completion. */
 export function goalsGradeFromPacket(
   packet: ReviewPacket | null | undefined,
 ): GradeBandId | null {
@@ -299,14 +299,14 @@ function toScorecardRow(
     employeeName: employee.fullName,
     employeeAvatarUrl: employee.avatarUrl,
     reviewerId: reviewer?.employeeId ?? null,
-    reviewerName: reviewer?.fullName ?? '—',
+    reviewerName: reviewer?.fullName ?? '-',
     reviewerAvatarUrl: reviewer?.avatarUrl ?? '',
     gradeHidden,
     grade,
-    role: employee.jobTitle || '—',
-    seniority: employee.jobGrade || '—',
-    team: employee.team || '—',
-    department: employee.department || '—',
+    role: employee.jobTitle || '-',
+    seniority: employee.jobGrade || '-',
+    team: employee.team || '-',
+    department: employee.department || '-',
     status,
     isMine,
   }

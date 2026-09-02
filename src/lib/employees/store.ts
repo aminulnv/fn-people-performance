@@ -46,7 +46,7 @@ let loadPromise: Promise<void> | null = null
 /** Profile-sized extras keyed by subject employee id. */
 const profileExtras = new Map<number, EmployeeProfilePayload>()
 const profileLoadPromises = new Map<number, Promise<EmployeeProfilePayload | null>>()
-/** Bumps on every store change — stable snapshot for useSyncExternalStore. */
+/** Bumps on every store change - stable snapshot for useSyncExternalStore. */
 let storeVersion = 0
 
 function notify() {
@@ -263,7 +263,7 @@ export async function loadEmployees(options?: {
       loadState = 'ready'
       loadError = null
     } catch (err) {
-      // VITE_AUTH_MODE=local has no platform cookie — empty directory is fine.
+      // VITE_AUTH_MODE=local has no platform cookie - empty directory is fine.
       if (
         err instanceof ApiError &&
         err.status === 401 &&
@@ -357,7 +357,7 @@ export async function updateEmployee(
   }
 }
 
-/** Test / local helper — clears the in-memory directory only. */
+/** Test / local helper - clears the in-memory directory only. */
 export function clearEmployees(): void {
   if (!useMemoryBackend()) return
   clearMemoryEmployees()
@@ -495,7 +495,7 @@ export async function createDepartment(
 /** Extra teams created in the local/test backend. */
 let memoryTeams: PlatformTeam[] = []
 
-/** Test helper — replace the in-memory team catalog. */
+/** Test helper - replace the in-memory team catalog. */
 export function replaceTeams(teams: PlatformTeam[]): void {
   if (!useMemoryBackend()) return
   memoryTeams = teams.map((team) => ({ ...team }))

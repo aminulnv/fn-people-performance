@@ -203,7 +203,7 @@
   outline-offset: 0.1rem;
 }
 
-/* Character paints — brand hue only; contrast clamped for every theme/mode */
+/* Character paints - brand hue only; contrast clamped for every theme/mode */
 .pd-assistant-char {
   display: block;
   width: 5.25rem;
@@ -211,21 +211,21 @@
   overflow: visible;
 
   /*
-   * Clamp lightness only — keep the seed’s real chroma/hue.
+   * Clamp lightness only - keep the seed’s real chroma/hue.
    * Pale seeds become a readable mid-tone; neon seeds get toned down.
    */
   --pd-pip-chrome: oklch(from var(--color-theme) clamp(0.38, l, 0.58) c h);
   --pd-pip-chrome-deep: oklch(from var(--pd-pip-chrome) clamp(0.28, calc(l - 0.1), 0.48) c h);
   --pd-pip-chrome-lit: oklch(from var(--pd-pip-chrome) clamp(0.46, calc(l + 0.1), 0.66) c h);
 
-  /* Fixed compass face — always a light dial object */
+  /* Fixed compass face - always a light dial object */
   --pd-pip-dial: #f3f5f7;
   --pd-pip-dial-edge: #d9dee5;
   --pd-pip-dial-ring: color-mix(in srgb, var(--pd-pip-chrome) 22%, #c5ccd6);
   --pd-pip-tick: color-mix(in srgb, var(--pd-pip-chrome-deep) 45%, #6b7280);
   --pd-pip-needle-s: #7b8494;
 
-  /* Fixed face ink — never follows --color-text-primary (light in .dark) */
+  /* Fixed face ink - never follows --color-text-primary (light in .dark) */
   --pd-pip-ink: #141820;
   --pd-pip-eye: #ffffff;
   --pd-pip-shadow: rgb(0 0 0 / 0.18);

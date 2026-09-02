@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatOkrDirection,
+  formatOkrMilestoneStatus,
   formatOkrRole,
   formatOkrTrackingKind,
   levelFromTier,
   mapEmployeeOkrPayload,
   okrHrEmployeeId,
+  okrLinkedKrPlatformUrl,
+  okrMilestoneStatusTone,
   okrWorkItemPlatformUrl,
   okrStatusTone,
   okrTrackingKind,
@@ -31,6 +35,9 @@ const payload = {
           status: "on_track",
           statusLabel: "On Track",
           roles: ["responsible"],
+          trackType: "milestone",
+          direction: "increase",
+          unit: "%",
           progressPercent: 50,
           raci: {
             accountable: [
@@ -60,13 +67,37 @@ const payload = {
             submittedAt: "2026-08-21T09:18:42.548Z",
             author: { name: "Api Singha" },
           },
+          linkedKrs: [
+            {
+              id: "linked-1",
+              shortTitle: "Critical Hiring",
+              tier: "t3_department",
+              weight: 100,
+              objective: {
+                id: "obj-linked-1",
+                title: "Build a High-Performance Organisation",
+                owner: { name: "bhaskar" },
+              },
+            },
+            {
+              id: "linked-2",
+              shortTitle: "Maintain 90% Workforce Capacity",
+              tier: "t4_wing",
+              weight: 100,
+              objective: {
+                id: "obj-linked-2",
+                title: "Workforce & Capability Building",
+                owner: { name: "Ong Choon Khai" },
+              },
+            },
+          ],
         },
       ],
       specialProjects: [
         {
           id: "sp-1",
           shortTitle: "Establish the DAR Operating Model by end of Q3",
-          title: "Establish the DAR Operating Model by end of Q3 — longer",
+          title: "Establish the DAR Operating Model by end of Q3 - longer",
           tier: "t1_company",
           status: "at_risk",
           statusLabel: "At Risk",
@@ -121,7 +152,7 @@ describe("OKR window mapping", () => {
     const special = mapEmployeeOkrPayload(payload).items[1];
     expect(special?.kind).toBe("special_project");
     expect(special?.description).toBe(
-      "Establish the DAR Operating Model by end of Q3 — longer",
+      "Establish the DAR Operating Model by end of Q3 - longer",
     );
     expect(special?.level).toBe("company");
     expect(special?.tierLabel).toBe("T1");
@@ -186,8 +217,60 @@ describe("OKR display helpers", () => {
     expect(
       okrTrackingKind({ milestones: [{ title: "Draft operating model" }] }),
     ).toBe("milestone");
+    expect(
+      okrTrackingKind({ trackType: "milestone", milestones: [] }),
+    ).toBe("milestone");
     expect(formatOkrTrackingKind("numeric")).toBe("Numeric");
     expect(formatOkrTrackingKind("milestone")).toBe("Milestone");
+    expect(formatOkrDirection("increase")).toBe("Increase");
+    expect(formatOkrDirection("")).toBe("·");
+    expect(formatOkrMilestoneStatus("completed")).toBe("Completed");
+    expect(formatOkrMilestoneStatus("in_progress")).toBe("In progress");
+    expect(formatOkrMilestoneStatus("not_started")).toBe("Not started");
+    expect(okrMilestoneStatusTone("completed")).toBe("ok");
+    expect(okrMilestoneStatusTone("in_progress")).toBe("warn");
+    expect(okrMilestoneStatusTone("not_started")).toBe("muted");
+  });
+
+  it("maps trackType and milestones from the employee-krs payload", () => {
+    const window = mapEmployeeOkrPayload(payload);
+    expect(window.items[0]?.trackType).toBe("milestone");
+    expect(window.items[0]?.direction).toBe("increase");
+    expect(okrTrackingKind(window.items[0]!)).toBe("milestone");
+    expect(window.items[1]?.milestones).toEqual([
+      {
+        id: "ms-1",
+        title: "Draft operating model",
+        status: "completed",
+        weight: 20,
+      },
+    ]);
+  });
+
+  it("maps linked KRs for the Info tab list", () => {
+    const [keyResult] = mapEmployeeOkrPayload(payload).items;
+    expect(keyResult?.linkedKrs).toEqual([
+      {
+        keyResultId: "linked-1",
+        objectiveId: "obj-linked-1",
+        title: "Critical Hiring",
+        objectiveTitle: "Build a High-Performance Organisation",
+        ownerLabel: "bhaskar",
+        weight: 100,
+        tierLabel: "T3",
+        level: "department",
+      },
+      {
+        keyResultId: "linked-2",
+        objectiveId: "obj-linked-2",
+        title: "Maintain 90% Workforce Capacity",
+        objectiveTitle: "Workforce & Capability Building",
+        ownerLabel: "Ong Choon Khai",
+        weight: 100,
+        tierLabel: "T4",
+        level: "wing",
+      },
+    ]);
   });
 
   it("builds the OKR platform workspace URL for a work item", () => {
@@ -195,6 +278,9 @@ describe("OKR display helpers", () => {
     expect(item).toBeDefined();
     expect(okrWorkItemPlatformUrl(item!)).toBe(
       "https://okr.nextventures.io/wing/workspace?objectiveId=obj-hr-1&keyResultId=kr-1&year=2026&quarter=3",
+    );
+    expect(okrLinkedKrPlatformUrl(item!.linkedKrs[0]!, item!)).toBe(
+      "https://okr.nextventures.io/department/workspace?objectiveId=obj-linked-1&keyResultId=linked-1&year=2026&quarter=3",
     );
   });
 });

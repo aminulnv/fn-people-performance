@@ -739,10 +739,14 @@ const SUBMISSION_FROM = `
     ON send_back_by.employee_id = gs.send_back_by_employee_id
 `
 
-function mapSubmission(row, goals, rating) {
+function mapSubmission(row, goals, rating, postWindowGoalPolicy = null) {
+  const status =
+    row.status === 'incomplete' && postWindowGoalPolicy === 'two_tier_approval'
+      ? 'draft'
+      : row.status
   return {
     personId: String(row.employee_id),
-    status: row.status,
+    status,
     postWindowApprovalStage: row.post_window_approval_stage ?? undefined,
     lateJustification: row.late_justification ?? undefined,
     sendBackReason: row.send_back_reason ?? undefined,
@@ -759,6 +763,24 @@ function mapSubmission(row, goals, rating) {
       : undefined,
     version: Number(row.version),
   }
+}
+
+/** Rewrite stale incomplete rows when the group allows late two-tier submit. */
+async function repairIncompleteUnderTwoTier(
+  client,
+  cycleId,
+  employeeId,
+  status,
+  policy,
+) {
+  if (status !== 'incomplete' || policy !== 'two_tier_approval') return status
+  await client.query(
+    `UPDATE platform.goal_submissions
+     SET status = 'draft', updated_at = now()
+     WHERE cycle_id = $1 AND employee_id = $2 AND status = 'incomplete'`,
+    [cycleId, employeeId],
+  )
+  return 'draft'
 }
 
 function activityGoalShape(goal) {
@@ -897,13 +919,27 @@ export async function getPersonGoals(cycleId, employeeId) {
        WHERE cycle_id = $1 AND employee_id = $2`,
       [cycleId, employeeId],
     )
-    return mapSubmission(rows[0], goals, ratingRows[0])
+    let policy = null
+    try {
+      const { cycle } = await postWindowApprovalStage(client, cycleId, employeeId)
+      policy = cycle.post_window_goal_policy
+      rows[0].status = await repairIncompleteUnderTwoTier(
+        client,
+        cycleId,
+        employeeId,
+        rows[0].status,
+        policy,
+      )
+    } catch {
+      // No group membership - leave status as stored.
+    }
+    return mapSubmission(rows[0], goals, ratingRows[0], policy)
   } finally {
     client.release()
   }
 }
 
-/** All submissions for a cycle — used to hydrate the Goals SPA from RDS. */
+/** All submissions for a cycle - used to hydrate the Goals SPA from RDS. */
 export async function listCycleGoalSubmissions(cycleId, subjectEmployeeIds = null) {
   const client = await getPool().connect()
   try {
@@ -912,9 +948,21 @@ export async function listCycleGoalSubmissions(cycleId, subjectEmployeeIds = nul
     }
     const { rows } = await client.query(
       `SELECT gs.*,
+              grp.post_window_goal_policy AS post_window_goal_policy,
               approved_by.avatar_url AS approved_by_avatar_url,
               send_back_by.avatar_url AS send_back_by_avatar_url
-       ${SUBMISSION_FROM}
+       FROM platform.goal_submissions gs
+       LEFT JOIN platform.employees approved_by
+         ON approved_by.employee_id = gs.approved_by_employee_id
+       LEFT JOIN platform.employees send_back_by
+         ON send_back_by.employee_id = gs.send_back_by_employee_id
+       LEFT JOIN platform.review_cycle_group_members membership
+         ON membership.cycle_id = gs.cycle_id
+        AND membership.employee_id = gs.employee_id
+       LEFT JOIN platform.review_cycle_groups grp
+         ON grp.id = membership.group_id
+        AND grp.cycle_id = gs.cycle_id
+        AND grp.deleted_at IS NULL
        WHERE gs.cycle_id = $1
          AND ($2::int[] IS NULL OR gs.employee_id = ANY($2::int[]))
        ORDER BY gs.employee_id`,
@@ -925,13 +973,26 @@ export async function listCycleGoalSubmissions(cycleId, subjectEmployeeIds = nul
       loadGoalsForEmployees(client, cycleId, employeeIds),
       loadRatingsForEmployees(client, cycleId, employeeIds),
     ])
-    return rows.map((row) =>
-      mapSubmission(
-        row,
-        goalsByEmployee.get(Number(row.employee_id)) ?? [],
-        ratingsByEmployee.get(Number(row.employee_id)),
-      ),
-    )
+    const repaired = []
+    for (const row of rows) {
+      const policy = row.post_window_goal_policy ?? null
+      row.status = await repairIncompleteUnderTwoTier(
+        client,
+        cycleId,
+        row.employee_id,
+        row.status,
+        policy,
+      )
+      repaired.push(
+        mapSubmission(
+          row,
+          goalsByEmployee.get(Number(row.employee_id)) ?? [],
+          ratingsByEmployee.get(Number(row.employee_id)),
+          policy,
+        ),
+      )
+    }
+    return repaired
   } finally {
     client.release()
   }
@@ -1107,7 +1168,11 @@ export async function submitPersonGoals(
       assertVersion(submission, requiredVersion)
     }
     const previousStatus = submission.status
-    if (previousStatus !== 'draft' && previousStatus !== 'sent_back') {
+    if (
+      previousStatus !== 'draft' &&
+      previousStatus !== 'sent_back' &&
+      previousStatus !== 'incomplete'
+    ) {
       throw new HttpError(
         409,
         `Cannot submit goals while status is ${previousStatus}.`,
@@ -1124,6 +1189,15 @@ export async function submitPersonGoals(
       await postWindowApprovalStage(client, cycleId, employeeId)
     if (isLate && cycle.post_window_goal_policy === 'hard_stop') {
       throw new HttpError(409, 'The goal submission window is closed.')
+    }
+    if (
+      previousStatus === 'incomplete' &&
+      cycle.post_window_goal_policy !== 'two_tier_approval'
+    ) {
+      throw new HttpError(
+        409,
+        `Cannot submit goals while status is ${previousStatus}.`,
+      )
     }
     const justification = isLate
       ? requireLateJustification(lateJustification)
@@ -1236,7 +1310,15 @@ export async function copyPreviousCycleGoals(
     } else {
       assertVersion(submission, requiredVersion)
     }
-    if (submission.status !== 'draft') {
+    if (
+      submission.status !== 'draft' &&
+      !(
+        submission.status === 'incomplete' &&
+        (
+          await postWindowApprovalStage(client, cycleId, employeeId)
+        ).cycle.post_window_goal_policy === 'two_tier_approval'
+      )
+    ) {
       throw new HttpError(409, 'Previous goals can only be copied into a draft.')
     }
     const currentGoals = await loadGoalsForSubmission(
@@ -1291,7 +1373,8 @@ export async function copyPreviousCycleGoals(
     )
     const { rows: submissionRows } = await client.query(
       `UPDATE platform.goal_submissions
-       SET version = version + 1,
+       SET status = CASE WHEN status = 'incomplete' THEN 'draft' ELSE status END,
+           version = version + 1,
            updated_at = now()
        WHERE cycle_id = $1 AND employee_id = $2
        RETURNING *`,
@@ -1633,10 +1716,7 @@ export async function sendBackPersonGoals(
     )
     if (!locked[0]) throw new HttpError(404, 'Goal submission not found')
     assertVersion(locked[0], expectedVersion)
-    if (
-      locked[0].status !== 'submitted' &&
-      locked[0].status !== 'approved'
-    ) {
+    if (locked[0].status !== 'submitted') {
       throw new HttpError(
         409,
         `Cannot send back goals while status is ${locked[0].status}.`,

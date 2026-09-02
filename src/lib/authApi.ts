@@ -234,7 +234,7 @@ function platformReturnTo(): string {
 }
 
 /**
- * Platform Google OAuth — separate from the HR dashboard session.
+ * Platform Google OAuth - separate from the HR dashboard session.
  * Redirects to /api/platform/auth/google (sets pd_platform_sid).
  */
 export async function signInWithGoogle(): Promise<AuthSession> {
@@ -249,7 +249,7 @@ export async function signInWithGoogle(): Promise<AuthSession> {
   window.location.assign(
     `/api/platform/auth/google?returnTo=${encodeURIComponent(returnTo)}`,
   )
-  // Navigation away — callers should not expect this to resolve.
+  // Navigation away - callers should not expect this to resolve.
   return new Promise(() => {})
 }
 
@@ -265,7 +265,7 @@ export function normalizePlatformEmail(identity: string): string {
 
 /**
  * Platform email + password login (temporary shared default password).
- * Pass username only — @nextventures.io is appended automatically.
+ * Pass username only - @nextventures.io is appended automatically.
  */
 export async function signInWithEmailPassword(
   identity: string,

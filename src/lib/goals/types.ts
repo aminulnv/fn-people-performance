@@ -158,7 +158,7 @@ export type DemoPerson = {
   teamId?: number;
   /** Explicit platform-wide access. Org relationships remain separate. */
   permissions?: SystemPermission[];
-  /** ISO date — eligible if on/before quarter Day 1 */
+  /** ISO date - eligible if on/before quarter Day 1 */
   joinDate: string;
   managerId?: string;
   reportIds: string[];
@@ -176,7 +176,7 @@ export type GoalWindow = {
 export type GoalsCycle = {
   id: string;
   label: string;
-  /** YYYY-MM-DD — eligibility Day 1 (cycle start) */
+  /** YYYY-MM-DD - eligibility Day 1 (cycle start) */
   day1: string;
   phase: DemoPhase;
   goalCountPolicy: GoalCountPolicy;

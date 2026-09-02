@@ -126,7 +126,7 @@ export function WritingAssistant() {
       if (cancelled) return
 
       setEnterStage('done')
-      // Keep HOME on the animate prop permanently — gesture props exit to this
+      // Keep HOME on the animate prop permanently - gesture props exit to this
       goTo(HOME_POSE, SNAP)
       setMood('celebrate')
       await wait(420)

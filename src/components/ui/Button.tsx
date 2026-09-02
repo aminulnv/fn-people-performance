@@ -11,7 +11,7 @@ export type ButtonSize = 'sm' | 'md' | 'lg'
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant
   size?: ButtonSize
-  /** Fully rounded ends — matches People/Org action chrome. */
+  /** Fully rounded ends - matches People/Org action chrome. */
   pill?: boolean
   loading?: boolean
   children?: ReactNode

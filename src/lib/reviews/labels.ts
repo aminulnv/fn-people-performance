@@ -78,7 +78,7 @@ export const GRADE_BAND_META: Record<
   performing: {
     label: 'Performing',
     description:
-      'The expected band — reliably achieves goals and consistently lives company values.',
+      'The expected band - reliably achieves goals and consistently lives company values.',
   },
   developing: {
     label: 'Developing',
@@ -118,7 +118,7 @@ export const GRADE_BAND_CRITERIA: Record<GradeBandId, readonly [string, string, 
   developing: [
     'Partially achieves goals; requires regular support.',
     'Some gaps in key competencies needing targeted improvement.',
-    'Inconsistent alignment with company values — improvement expected.',
+    'Inconsistent alignment with company values - improvement expected.',
   ],
   performing: [
     'Reliably achieves goals with minimal guidance.',
@@ -133,7 +133,7 @@ export const GRADE_BAND_CRITERIA: Record<GradeBandId, readonly [string, string, 
   exceptional: [
     'Consistently exceeds all goals.',
     'Operates at a skill level significantly above their grade.',
-    'Embodies and actively elevates the company culture — recognised as a role model for both performance and values.',
+    'Embodies and actively elevates the company culture - recognised as a role model for both performance and values.',
   ],
 }
 

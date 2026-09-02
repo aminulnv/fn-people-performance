@@ -15,7 +15,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/dashboard': {
     title: 'Your pulse check',
-    body: 'Dashboard tiles summarize progress at a glance — drill into any metric that looks off.',
+    body: 'Dashboard tiles summarize progress at a glance - drill into any metric that looks off.',
   },
   '/people': {
     title: 'Find your people',
@@ -23,7 +23,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/people/new': {
     title: 'Fill the profile you see',
-    body: 'Add someone in the same layout as their profile — name, work details, and reporting line update live as you type.',
+    body: 'Add someone in the same layout as their profile - name, work details, and reporting line update live as you type.',
   },
   '/people/:employeeId/edit': {
     title: 'Edit in place',
@@ -39,7 +39,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/goals': {
     title: 'Keep goals alive',
-    body: 'Update goal progress often — small check-ins beat big end-of-cycle surprises.',
+    body: 'Update goal progress often - small check-ins beat big end-of-cycle surprises.',
   },
   '/cycles': {
     title: 'Plan the cycle',
@@ -63,7 +63,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/organisation/departments/:departmentId': {
     title: 'Department view',
-    body: 'See the owner, teams, and everyone in this department — click a team to go deeper.',
+    body: 'See the owner, teams, and everyone in this department - click a team to go deeper.',
   },
   '/organisation/teams/:teamId': {
     title: 'Team view',

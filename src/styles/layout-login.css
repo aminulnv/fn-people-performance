@@ -12,7 +12,7 @@
   border: 0;
 }
 
-/* Login — lean glass (one modest blur, no JS style objects / load state) */
+/* Login - lean glass (one modest blur, no JS style objects / load state) */
 .pd-login {
   --login-ink: #f5f7fb;
   --login-ink-muted: color-mix(in srgb, white 72%, transparent);

@@ -96,7 +96,7 @@ export function resetSharedGoalsSnapshotForTests() {
   resetGoalsHydrationForTests()
 }
 
-/** Subscribe to a snapshot that is already hydrated — does not start a fetch. */
+/** Subscribe to a snapshot that is already hydrated - does not start a fetch. */
 export function subscribeHydratedGoalsSnapshot(
   onChange: (snapshot: GoalsSnapshot) => void,
 ): () => void {
@@ -117,7 +117,7 @@ export function useSharedGoalsSnapshot(): GoalsSnapshot {
 }
 
 /**
- * Null until the first shared fetch lands — Home banners must not flash
+ * Null until the first shared fetch lands - Home banners must not flash
  * placeholder draft rows.
  */
 export function useHydratedGoalsSnapshot(): GoalsSnapshot | null {

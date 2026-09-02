@@ -127,7 +127,7 @@ export function profileTabOptions(goalTodoCount = 0) {
 export const PROFILE_TAB_OPTIONS = profileTabOptions()
 
 function formatStartDate(iso: string): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return formatLocalTimestamp(iso) || iso
 }
 
@@ -249,7 +249,7 @@ function PersonLink({
       </span>
     )
   }
-  return '—'
+  return '-'
 }
 
 function OrgUnitLink({
@@ -259,7 +259,7 @@ function OrgUnitLink({
   href: string | null
   children: string
 }) {
-  if (!children) return '—'
+  if (!children) return '-'
   if (!href) return children
   return (
     <Link to={href} className="pd-profile__link">
@@ -566,7 +566,7 @@ export function EmployeeProfileView({
                   {employee.email ? (
                     <CopyEmail email={employee.email} />
                   ) : (
-                    '—'
+                    '-'
                   )}
                 </DetailRow>
                 <DetailRow label="Employee ID" icon={Hash}>
@@ -576,10 +576,10 @@ export function EmployeeProfileView({
                   {employee.isActive ? 'Active' : 'Inactive'}
                 </DetailRow>
                 <DetailRow label="Role" icon={Briefcase}>
-                  {employee.jobTitle || '—'}
+                  {employee.jobTitle || '-'}
                 </DetailRow>
                 <DetailRow label="Seniority" icon={Award}>
-                  {employee.jobGrade || '—'}
+                  {employee.jobGrade || '-'}
                 </DetailRow>
                 <DetailRow label="Department" icon={Building2}>
                   <OrgUnitLink
@@ -605,10 +605,10 @@ export function EmployeeProfileView({
                   />
                 </DetailRow>
                 <DetailRow label="Division" icon={GitBranch}>
-                  {employee.division || '—'}
+                  {employee.division || '-'}
                 </DetailRow>
                 <DetailRow label="Site" icon={MapPin}>
-                  {employee.site || '—'}
+                  {employee.site || '-'}
                 </DetailRow>
                 <DetailRow label="Line Manager" icon={UserRound}>
                   <PersonLink person={manager} fallbackName={managerName} />

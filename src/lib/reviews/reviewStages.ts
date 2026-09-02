@@ -39,7 +39,7 @@ export function isPublishStage(id: ReviewStageId): boolean {
   return id === 'publish_managers' || id === 'publish_employees'
 }
 
-/** Employee publish is the review close-out — not optional. */
+/** Employee publish is the review close-out - not optional. */
 export function isRequiredReviewStage(id: ReviewStageId): boolean {
   return id === 'publish_employees'
 }
@@ -139,7 +139,7 @@ export function presetCycleModules(
 
 /**
  * Stages to turn on when the Reviews module is enabled.
- * Q4's goals-only preset is Reviews off — turning Reviews on uses the
+ * Q4's goals-only preset is Reviews off - turning Reviews on uses the
  * normal quarterly check-in (manager only), not a second Q4 lock.
  */
 export function presetReviewFlowStages(

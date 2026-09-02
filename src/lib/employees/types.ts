@@ -32,7 +32,7 @@ export type PlatformEmployee = {
   updatedAt: string
 }
 
-/** One-person profile payload — avoids downloading the full directory. */
+/** One-person profile payload - avoids downloading the full directory. */
 export type EmployeeProfilePayload = {
   employee: PlatformEmployee
   related: PlatformEmployee[]

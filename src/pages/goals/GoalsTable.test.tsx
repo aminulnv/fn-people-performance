@@ -728,20 +728,30 @@ describe('GoalsTable nested measures', () => {
             title: 'Grow capability',
           },
         ]}
+        cascadeFrom={{
+          managerName: 'Aminul Islam',
+          options: [
+            {
+              id: 'mgr-1',
+              title: 'Raise quality bar',
+              managerName: 'Aminul Islam',
+            },
+          ],
+        }}
       />,
     )
 
     expect(
-      screen.getByRole('img', { name: 'Cascaded from Raise quality bar' }),
+      screen.getByRole('img', { name: 'Cascaded from Aminul Islam' }),
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('img', { name: 'Cascaded from a manager goal' }),
     ).not.toBeInTheDocument()
 
     const icon = screen.getByRole('img', {
-      name: 'Cascaded from Raise quality bar',
+      name: 'Cascaded from Aminul Islam',
     })
-    expect(icon).toHaveTextContent('Cascaded from')
+    expect(icon).toHaveTextContent('Cascaded from Aminul Islam')
     expect(icon).not.toHaveAttribute('title')
     expect(
       icon.closest('.pd-goals-table__cascade-name'),
@@ -798,7 +808,7 @@ describe('GoalsTable nested measures', () => {
     )
 
     fireEvent.mouseEnter(
-      screen.getByRole('img', { name: 'Cascaded from Raise quality bar' })
+      screen.getByRole('img', { name: 'Cascaded from Line Manager' })
         .closest('.pd-tooltip')!,
     )
     const tip = await screen.findByRole('tooltip')
@@ -830,7 +840,7 @@ describe('GoalsTable nested measures', () => {
 
     const toIcon = screen.getByRole('img', { name: 'Cascaded to Saif Ivna Alam' })
     expect(toIcon).toBeInTheDocument()
-    expect(toIcon).toHaveTextContent('Cascaded to')
+    expect(toIcon).toHaveTextContent('Cascaded to Saif Ivna Alam')
     expect(toIcon.closest('.pd-goals-table__cascade-name')).toHaveTextContent(
       goalWithMeasures.description,
     )

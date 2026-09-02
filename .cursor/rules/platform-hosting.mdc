@@ -1,5 +1,5 @@
 ---
-description: Shared EC2/RDS with Revolut dashboard — isolation + /platform deploy
+description: Shared EC2/RDS with Revolut dashboard - isolation + /platform deploy
 alwaysApply: false
 ---
 # Shared infra

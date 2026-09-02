@@ -162,7 +162,6 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
               <span className="pd-topbar__dropdown-title">Notifications</span>
               <CountBadge
                 count={feedCount}
-                tone="theme"
                 className="pd-topbar__notif-count"
                 aria-label={
                   unreadCount > 0

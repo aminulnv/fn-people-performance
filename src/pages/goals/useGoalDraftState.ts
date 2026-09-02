@@ -16,7 +16,7 @@ export type GoalDraftState = {
  * Editing state for one person's goals, kept in step with the persisted rows.
  *
  * A refresh hands back a brand new `persistedGoals` array, and a goal the user
- * just added is not in it until the first save — so that goal is carried over
+ * just added is not in it until the first save - so that goal is carried over
  * instead of being replaced away mid-edit.
  */
 export function useGoalDraftState({

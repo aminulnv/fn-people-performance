@@ -118,7 +118,7 @@ export function cascadeToTableLabel(
 }
 
 export function formatMetricNumber(value: number | undefined): string {
-  if (value == null || Number.isNaN(Number(value))) return '—'
+  if (value == null || Number.isNaN(Number(value))) return '-'
   return String(value)
 }
 
@@ -176,7 +176,7 @@ export function metricCount(goal: Goal): number {
 }
 
 export function metricCountLabel(count: number): string {
-  if (count === 0) return '—'
+  if (count === 0) return '-'
   return count === 1 ? '1 metric' : `${count} metrics`
 }
 
@@ -258,9 +258,9 @@ export function canViewPersonGoals(
 }
 
 export function formatRefreshAge(iso?: string, now = Date.now()): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   const then = new Date(iso).getTime()
-  if (Number.isNaN(then)) return '—'
+  if (Number.isNaN(then)) return '-'
   const minutes = Math.max(0, Math.floor((now - then) / 60_000))
   if (minutes < 1) return 'Just now'
   if (minutes < 60) return `${minutes}m`
