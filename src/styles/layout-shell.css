@@ -994,8 +994,25 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   background: var(--color-neutral-hover);
 }
 
-.pd-topbar__search-btn {
+.pd-topbar__search-btn,
+.pd-topbar__dark-btn,
+.pd-topbar__notif-btn {
   border-radius: 50%;
+}
+
+/* Circular light↔dark reveal from the top-bar toggle (View Transitions API). */
+html[data-theme-transition='circle']::view-transition-old(root),
+html[data-theme-transition='circle']::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+html[data-theme-transition='circle']::view-transition-old(root) {
+  z-index: 1;
+}
+
+html[data-theme-transition='circle']::view-transition-new(root) {
+  z-index: 2;
 }
 
 .pd-topbar__actions {
@@ -1012,13 +1029,7 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-topbar__notif-btn {
   position: relative;
-  border: none;
-  background: transparent;
   outline: none;
-}
-
-.pd-topbar__notif-btn:hover {
-  background: var(--color-neutral-hover);
 }
 
 .pd-topbar__notif-btn:focus,

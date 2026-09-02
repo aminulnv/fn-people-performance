@@ -83,6 +83,7 @@ export type OkrWorkItem = {
   statusLabel: string;
   roles: string[];
   unit: string;
+  startValue: number | null;
   currentValue: number | null;
   targetValue: number | null;
   progressPercent: number | null;
@@ -140,6 +141,7 @@ type OkrMeasurementLike = {
   trackType?: string;
   direction?: string;
   unit?: string;
+  startValue?: number | null;
   currentValue?: number | null;
   targetValue?: number | null;
   progressPercent?: number | null;
@@ -159,6 +161,7 @@ type OkrItemLike = {
   trackType?: string;
   direction?: string;
   weight?: number | string | null;
+  startValue?: number | null;
   currentValue?: number | null;
   targetValue?: number | null;
   progressPercent?: number | null;
@@ -522,6 +525,15 @@ function mapRaci(raci: OkrRaciLike | undefined): OkrRaci {
   };
 }
 
+function pickOkrNumber(
+  primary: number | null | undefined,
+  fallback: number | null | undefined,
+): number | null {
+  if (typeof primary === "number" && Number.isFinite(primary)) return primary;
+  if (typeof fallback === "number" && Number.isFinite(fallback)) return fallback;
+  return null;
+}
+
 function mapWorkItem(
   item: OkrItemLike,
   kind: OkrWorkKind,
@@ -538,24 +550,16 @@ function mapWorkItem(
   const direction =
     item.direction?.trim() || measurement?.direction?.trim() || "";
   const unit = item.unit?.trim() || measurement?.unit?.trim() || "";
-  const currentValue =
-    typeof item.currentValue === "number"
-      ? item.currentValue
-      : typeof measurement?.currentValue === "number"
-        ? measurement.currentValue
-        : null;
-  const targetValue =
-    typeof item.targetValue === "number"
-      ? item.targetValue
-      : typeof measurement?.targetValue === "number"
-        ? measurement.targetValue
-        : null;
-  const progressPercent =
-    typeof item.progressPercent === "number"
-      ? item.progressPercent
-      : typeof measurement?.progressPercent === "number"
-        ? measurement.progressPercent
-        : null;
+  const startValue = pickOkrNumber(item.startValue, measurement?.startValue);
+  const currentValue = pickOkrNumber(
+    item.currentValue,
+    measurement?.currentValue,
+  );
+  const targetValue = pickOkrNumber(item.targetValue, measurement?.targetValue);
+  const progressPercent = pickOkrNumber(
+    item.progressPercent,
+    measurement?.progressPercent,
+  );
   const milestones = mapOkrMilestones(
     item.milestones ?? measurement?.milestones,
     id,
@@ -583,6 +587,7 @@ function mapWorkItem(
     unit,
     trackType,
     direction,
+    startValue,
     currentValue,
     targetValue,
     progressPercent,

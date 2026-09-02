@@ -27,6 +27,7 @@ const item: OkrWorkItem = {
   unit: "%",
   trackType: "percent",
   direction: "increase",
+  startValue: 0,
   currentValue: 20,
   targetValue: 100,
   progressPercent: 20,
@@ -69,6 +70,7 @@ describe("apply OKR to goal", () => {
       description: "",
       unit: "%",
       trackType: "percent",
+      startValue: null,
       currentValue: null,
       targetValue: null,
       progressPercent: 40,
@@ -76,8 +78,28 @@ describe("apply OKR to goal", () => {
     });
     expect(metric).toMatchObject({
       unit: "%",
+      startValue: 0,
       currentValue: 40,
       targetValue: 100,
+    });
+  });
+
+  it("carries the OKR start value onto numeric metrics", () => {
+    const metric = metricFromOkrPayload({
+      title: "NPS",
+      description: "",
+      unit: "number",
+      trackType: "percent",
+      startValue: 35,
+      currentValue: 48,
+      targetValue: 60,
+      progressPercent: null,
+      milestones: [],
+    });
+    expect(metric).toMatchObject({
+      startValue: 35,
+      currentValue: 48,
+      targetValue: 60,
     });
   });
 
@@ -145,6 +167,7 @@ describe("apply OKR to goal", () => {
         description: "",
         unit: "number",
         trackType: "percent",
+        startValue: null,
         currentValue: 12,
         targetValue: 4,
         progressPercent: null,

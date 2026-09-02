@@ -19,6 +19,7 @@ export type OkrGoalDropPayload = {
   description: string;
   unit: string;
   trackType: string;
+  startValue: number | null;
   currentValue: number | null;
   targetValue: number | null;
   progressPercent: number | null;
@@ -36,6 +37,7 @@ export function okrGoalDropPayload(item: OkrWorkItem): OkrGoalDropPayload {
     description: item.description.trim() || item.objectiveTitle.trim(),
     unit: item.unit,
     trackType: item.trackType,
+    startValue: item.startValue,
     currentValue: item.currentValue,
     targetValue: item.targetValue,
     progressPercent: item.progressPercent,
@@ -75,6 +77,7 @@ export function metricFromOkrPayload(payload: OkrGoalDropPayload): Metric {
     current = payload.progressPercent;
     target = unit === "%" ? 100 : null;
   }
+  const start = payload.startValue ?? 0;
   const direction =
     current != null && target != null && target < current
       ? "decrease"
@@ -83,8 +86,8 @@ export function metricFromOkrPayload(payload: OkrGoalDropPayload): Metric {
     ...blankMetric(direction, 100),
     title: payload.title,
     unit,
-    startValue: 0,
-    currentValue: current ?? 0,
+    startValue: start,
+    currentValue: current ?? start,
     targetValue: target ?? undefined,
   };
 }
@@ -167,6 +170,8 @@ export function readOkrGoalDropPayload(
         typeof parsed.description === "string" ? parsed.description : "",
       unit: typeof parsed.unit === "string" ? parsed.unit : "",
       trackType: typeof parsed.trackType === "string" ? parsed.trackType : "",
+      startValue:
+        typeof parsed.startValue === "number" ? parsed.startValue : null,
       currentValue:
         typeof parsed.currentValue === "number" ? parsed.currentValue : null,
       targetValue:

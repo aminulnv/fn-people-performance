@@ -1267,6 +1267,7 @@ ul.pd-goals-sendback__reason {
 }
 
 .pd-goals-table--weight-error .pd-goals-table__weight-head {
+  justify-content: center;
   margin-block: -0.5rem;
   padding-block: 0.5rem;
 }
@@ -1611,39 +1612,21 @@ ul.pd-goals-sendback__reason {
 
 .pd-goals-table__weight-cell {
   --pd-goals-weight-tree-stub: 0.85rem;
-  /* ~40% of the goal weight control - shifts spine left of its center. */
-  --pd-goals-weight-tree-nudge: 1.6rem;
   position: relative;
   display: flex;
   align-items: center;
+  /* Center weight controls; tree stubs sit outside the flex width. */
   justify-content: center;
   min-width: 0;
   width: 100%;
   height: 100%;
 }
 
-.pd-goals-table__weight-cell--stem,
-.pd-goals-table__weight-cell--spacer {
-  display: inline-flex;
-  width: auto;
-  margin-inline: auto;
-}
-
 .pd-goals-table__weight-cell--branch {
-  display: grid;
-  grid-template-columns:
-    calc(50% - var(--pd-goals-weight-tree-nudge)) var(--pd-goals-weight-tree-stub) auto;
-  justify-content: start;
   align-items: stretch;
-  width: 100%;
-}
-
-.pd-goals-table__weight-cell--branch>.pd-goals-table__branch--weight {
-  grid-column: 2;
 }
 
 .pd-goals-table__weight-cell--branch> :last-child {
-  grid-column: 3;
   align-self: center;
 }
 
@@ -9538,6 +9521,14 @@ a.pd-okr-ref__raci-person:hover .pd-okr-ref__raci-name {
 
 .pd-okr-kr-detail__meta-cell+.pd-okr-kr-detail__meta-cell {
   border-left: 1px solid var(--color-divider);
+}
+
+.pd-okr-kr-detail__meta-cell:nth-child(3n + 1) {
+  border-left: 0;
+}
+
+.pd-okr-kr-detail__meta-cell:nth-child(n + 4) {
+  border-top: 1px solid var(--color-divider);
 }
 
 .pd-okr-kr-detail__meta-cell .pd-okr-kr-detail__kicker {

@@ -38,6 +38,7 @@ const payload = {
           trackType: "milestone",
           direction: "increase",
           unit: "%",
+          startValue: 0,
           progressPercent: 50,
           raci: {
             accountable: [
@@ -245,6 +246,33 @@ describe("OKR display helpers", () => {
         weight: 20,
       },
     ]);
+  });
+
+  it("maps start, current, and target values from the payload", () => {
+    const window = mapEmployeeOkrPayload({
+      ...payload,
+      quarters: [
+        {
+          ...payload.quarters![0]!,
+          keyResults: [
+            {
+              ...payload.quarters![0]!.keyResults![0]!,
+              startValue: 0,
+              currentValue: 20,
+              targetValue: 100,
+              measurement: {
+                startValue: 5,
+                currentValue: 25,
+                targetValue: 90,
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(window.items[0]?.startValue).toBe(0);
+    expect(window.items[0]?.currentValue).toBe(20);
+    expect(window.items[0]?.targetValue).toBe(100);
   });
 
   it("maps linked KRs for the Info tab list", () => {

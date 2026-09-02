@@ -373,6 +373,18 @@ function KrInfoTab({
               <p className="pd-okr-kr-detail__kicker">Direction</p>
               <p>{formatOkrDirection(item.direction)}</p>
             </div>
+            <div className="pd-okr-kr-detail__meta-cell">
+              <p className="pd-okr-kr-detail__kicker">Start</p>
+              <p>{formatOkrMeasure(item.startValue, item.unit) ?? "·"}</p>
+            </div>
+            <div className="pd-okr-kr-detail__meta-cell">
+              <p className="pd-okr-kr-detail__kicker">Current</p>
+              <p>{formatOkrMeasure(item.currentValue, item.unit) ?? "·"}</p>
+            </div>
+            <div className="pd-okr-kr-detail__meta-cell">
+              <p className="pd-okr-kr-detail__kicker">Target</p>
+              <p>{formatOkrMeasure(item.targetValue, item.unit) ?? "·"}</p>
+            </div>
           </div>
         </div>
 
