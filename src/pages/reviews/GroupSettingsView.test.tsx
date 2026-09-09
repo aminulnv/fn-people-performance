@@ -1,10 +1,36 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { GroupSettingsView } from './GroupSettingsView'
+
+vi.mock('./GroupMembersEditor', () => ({
+  GroupMembersEditor: ({
+    onDirtyChange,
+    searchLabel,
+  }: {
+    onDirtyChange?: (dirty: boolean) => void
+    searchLabel?: string
+  }) => (
+    <>
+      <button type="button" onClick={() => onDirtyChange?.(true)}>
+        Stage people change
+      </button>
+      {searchLabel ? <input type="search" aria-label={searchLabel} /> : null}
+    </>
+  ),
+}))
+
+if (typeof HTMLDialogElement !== 'undefined') {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
+  }
+}
 
 afterEach(() => {
   cleanup()
@@ -84,6 +110,57 @@ describe('GroupSettingsView', () => {
     expect(screen.getByLabelText('Group name')).toHaveValue('Everyone')
     expect(screen.getByText('0 people')).toBeInTheDocument()
     expect(screen.queryByText('Needs people')).not.toBeInTheDocument()
+  })
+
+  it('warns before leaving unsaved people changes', () => {
+    const { cycle, group } = sample()
+    render(
+      <MemoryRouter>
+        <GroupSettingsView cycle={cycle} group={group} onClose={() => {}} />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stage people change' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Discard people changes?' }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'People' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+
+    expect(screen.getByRole('button', { name: 'Reviews' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('warns before closing with unsaved people changes', () => {
+    const { cycle, group } = sample()
+    const onClose = vi.fn()
+    render(
+      <MemoryRouter>
+        <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stage people change' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Discard people changes?' }),
+    ).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('opens review settings without a full-view link', () => {

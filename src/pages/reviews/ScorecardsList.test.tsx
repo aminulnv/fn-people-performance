@@ -5,11 +5,13 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   createCycleGroup,
   createReviewCycle,
+  listReviewCycles,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
+import type { ReviewPacket } from '@/lib/reviews/types'
 import { ScorecardsList } from './ScorecardsList'
 
-const { employeesState, authState } = vi.hoisted(() => ({
+const { employeesState, authState, packetsState } = vi.hoisted(() => ({
   employeesState: {
     employees: [] as PlatformEmployee[],
     loadState: 'ready' as 'idle' | 'loading' | 'ready' | 'error',
@@ -24,6 +26,9 @@ const { employeesState, authState } = vi.hoisted(() => ({
       name: 'Alex Manager',
       personId: '1',
     } as { email: string; name: string } | null,
+  },
+  packetsState: {
+    packets: [] as ReviewPacket[],
   },
 }))
 
@@ -40,7 +45,7 @@ vi.mock('@/lib/useAuth', () => ({
 }))
 
 vi.mock('@/lib/reviews/packetsApi', () => ({
-  fetchReviewPackets: async () => [],
+  fetchReviewPackets: async () => packetsState.packets,
 }))
 
 function employee(
@@ -100,11 +105,13 @@ beforeEach(async () => {
     name: 'Everyone',
     memberIds: [1, 2, 3],
   })
+  packetsState.packets = []
 })
 
 afterEach(() => {
   cleanup()
   employeesState.employees = []
+  packetsState.packets = []
   window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
 })
 
@@ -117,6 +124,47 @@ function renderList(hash = '') {
 }
 
 describe('ScorecardsList', () => {
+  it('uses the header eye to hide and show every grade', async () => {
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('expected a seeded cycle')
+    packetsState.packets = [
+      {
+        cycleId: cycle.id,
+        employeeId: 2,
+        status: 'released_to_employees',
+        publishedOverallGrade: 'performing',
+        calibratedOverallGrade: null,
+        managerOverallGrade: null,
+        selfOverallGrade: null,
+      } as ReviewPacket,
+      {
+        cycleId: cycle.id,
+        employeeId: 3,
+        status: 'manager_submitted',
+        publishedOverallGrade: null,
+        calibratedOverallGrade: null,
+        managerOverallGrade: 'exceeding',
+        selfOverallGrade: null,
+      } as ReviewPacket,
+    ]
+
+    renderList('#everyone')
+
+    const showAll = await screen.findByRole('button', {
+      name: 'Show All Grades',
+    })
+    expect(screen.queryByText('Performing')).toBeNull()
+    expect(screen.queryByText('Exceeding')).toBeNull()
+
+    fireEvent.click(showAll)
+    expect(screen.getByText('Performing')).toBeInTheDocument()
+    expect(screen.getByText('Exceeding')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide All Grades' }))
+    expect(screen.queryByText('Performing')).toBeNull()
+    expect(screen.queryByText('Exceeding')).toBeNull()
+  })
+
   it('filters scorecards from the Filters menu', async () => {
     renderList('#everyone')
 

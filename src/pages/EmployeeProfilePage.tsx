@@ -476,7 +476,7 @@ export function EmployeeProfileView({
                 </button>
                 {canManageAccess ? (
                   <Link
-                    to="/settings?section=access"
+                    to="/settings#access"
                     role="menuitem"
                     className="pd-profile__more-menu-item"
                     onClick={() => setMoreOpen(false)}
@@ -530,7 +530,11 @@ export function EmployeeProfileView({
       />
 
       {tab === 'goals' ? (
-        <GoalsPersonDetail personId={String(employee.employeeId)} embedded />
+        <GoalsPersonDetail
+          personId={String(employee.employeeId)}
+          embedded
+          syncManagerTabHash={!embedded}
+        />
       ) : tab === 'performance' ? (
         <EmployeeProfilePerformanceTab
           employee={employee}

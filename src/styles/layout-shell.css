@@ -987,11 +987,16 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   cursor: pointer;
   flex-shrink: 0;
   color: var(--color-text);
-  transition: background-color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .pd-topbar__icon-btn:hover {
-  background: var(--color-neutral-hover);
+  border-color: var(--color-cta);
+  background: var(--color-cta);
+  color: var(--color-on-cta);
 }
 
 .pd-topbar__search-btn,
@@ -1308,11 +1313,11 @@ html[data-theme-transition='circle']::view-transition-new(root) {
 }
 
 .pd-topbar__notif-item--unread {
-  background: color-mix(in srgb, var(--color-theme-darker) 5%, var(--color-bg));
+  background: var(--color-status-pending-surface);
 }
 
 .pd-topbar__notif-item--unread:hover {
-  background: color-mix(in srgb, var(--color-theme-darker) 9%, var(--color-bg));
+  background: color-mix(in srgb, var(--color-amber) 18%, var(--color-surface));
 }
 
 .pd-topbar__notif-item--completed {

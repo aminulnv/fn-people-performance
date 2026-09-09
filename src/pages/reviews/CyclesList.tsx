@@ -10,6 +10,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Building2,
   CalendarDays,
+  CalendarFold,
   ChevronDown,
   ChevronRight,
   CircleCheck,
@@ -704,7 +705,7 @@ function ModuleFlag({ on }: { on: boolean }) {
 function iconForCycle(cycle: ReviewCycle) {
   const purpose = cyclePurposeOf(cycle)
   if (purpose === 'annual_appraisal') return Layers
-  if (purpose === 'custom') return Building2
+  if (purpose === 'custom') return CalendarFold
   return CalendarDays
 }
 

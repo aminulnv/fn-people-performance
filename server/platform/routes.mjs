@@ -36,6 +36,7 @@ import {
   assignManagerDelegation,
   canViewManagerDelegations,
   listManagerDelegations,
+  listVisibleActiveManagerDelegations,
   revokeManagerDelegation,
 } from './delegations.mjs'
 
@@ -178,7 +179,7 @@ export function registerPlatformRoutes(app) {
         return
       }
       res.json({
-        delegations: await listManagerDelegations({ delegateEmployeeId }),
+        delegations: await listVisibleActiveManagerDelegations(req.platformUser),
       })
     }),
   )

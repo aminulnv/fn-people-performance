@@ -8,6 +8,7 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import type { SystemPermission } from '@/lib/accessControl/types'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import {
   createCycleGroup,
@@ -25,6 +26,7 @@ const {
   saveReviewPacket,
   calibrateReviewPacket,
   appealReviewPacket,
+  resolveReviewAppeal,
 } = vi.hoisted(() => ({
   employeesState: {
     employees: [] as PlatformEmployee[],
@@ -40,6 +42,7 @@ const {
       name: 'Alex Manager',
       personId: '1',
       employeeId: 1,
+      permissions: [] as SystemPermission[],
     },
   },
   packetState: {
@@ -48,6 +51,7 @@ const {
   saveReviewPacket: vi.fn(),
   calibrateReviewPacket: vi.fn(),
   appealReviewPacket: vi.fn(),
+  resolveReviewAppeal: vi.fn(),
 }))
 
 vi.mock('@/lib/employees/useEmployees', () => ({
@@ -79,6 +83,7 @@ vi.mock('@/lib/reviews/packetsApi', () => ({
   saveReviewPacket,
   calibrateReviewPacket,
   appealReviewPacket,
+  resolveReviewAppeal,
 }))
 
 beforeAll(() => {
@@ -162,6 +167,7 @@ beforeEach(async () => {
     name: 'Alex Manager',
     personId: '1',
     employeeId: 1,
+    permissions: [],
   }
   const cycle = listReviewCycles()[0]
   if (!cycle) throw new Error('expected a seeded cycle')
@@ -174,6 +180,7 @@ beforeEach(async () => {
   saveReviewPacket.mockReset()
   calibrateReviewPacket.mockReset()
   appealReviewPacket.mockReset()
+  resolveReviewAppeal.mockReset()
   saveReviewPacket.mockImplementation(async (_id: string, body: { submit?: boolean }) => ({
     ...packetState.packet!,
     status: body.submit ? 'manager_submitted' : 'manager_in_progress',
@@ -474,6 +481,7 @@ describe('ReviewPacketView', () => {
       name: 'Riley Report',
       personId: '2',
       employeeId: 2,
+      permissions: [],
     }
     packetState.packet = packet(cycleId, {
       status: 'released_to_employees',
@@ -496,7 +504,7 @@ describe('ReviewPacketView', () => {
     render(
       <MemoryRouter
         initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=publish_employees`,
+          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
         ]}
       >
         <Routes>
@@ -520,5 +528,83 @@ describe('ReviewPacketView', () => {
       'pkt-1',
       'The grade missed shipped work.',
     )
+  })
+
+  it('lets an admin override the final rating with a required justification', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group) throw new Error('expected a seeded group')
+    await updateCycleGroup(cycle.id, group.id, {
+      stagesConfig: {
+        ...group.stagesConfig,
+        reviewStages: [
+          ...(group.stagesConfig.reviewStages ?? []).filter(
+            (stage) => stage.id !== 'appeal',
+          ),
+          {
+            id: 'appeal',
+            enabled: true,
+            start: { date: '2026-10-01', time: '00:00' },
+            end: { date: '2026-10-15', time: '00:00' },
+          },
+        ],
+      },
+    })
+    authState.user = {
+      id: '1',
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      personId: '1',
+      employeeId: 1,
+      permissions: ['platform.write_all'],
+    }
+    packetState.packet = packet(cycleId, {
+      status: 'appealed',
+      publishedOverallGrade: 'performing',
+      appeals: [
+        {
+          id: 'appeal-1',
+          body: 'The grade missed shipped work.',
+          status: 'open',
+          createdAt: '2026-08-27T00:00:00.000Z',
+          createdByEmployeeId: 2,
+        },
+      ],
+    })
+    resolveReviewAppeal.mockResolvedValue({
+      ...packetState.packet,
+      publishedOverallGrade: 'exceeding',
+      appeals: [{ ...packetState.packet.appeals[0], status: 'resolved' }],
+    })
+
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByLabelText('Final rating'))
+    fireEvent.click(screen.getByRole('option', { name: 'Exceeding' }))
+    fireEvent.change(screen.getByLabelText('Override justification'), {
+      target: { value: 'Verified evidence supports the higher rating.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Resolve Appeal' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Appeal resolved and final rating updated.',
+    )
+    expect(resolveReviewAppeal).toHaveBeenCalledWith('pkt-1', 'appeal-1', {
+      toGrade: 'exceeding',
+      justification: 'Verified evidence supports the higher rating.',
+    })
   })
 })

@@ -125,6 +125,48 @@ export async function listManagerDelegations({ employeeId, delegateEmployeeId })
   return rows.map((row) => mapDelegation(row))
 }
 
+/**
+ * Active delegations a signed-in employee needs so approver chips can name the
+ * delegate: their own covers, plus any active cover for their line manager.
+ * Admins get every currently active row.
+ */
+export async function listVisibleActiveManagerDelegations(user) {
+  const actorId = employeeIdFor(user)
+  const permissions = new Set(await permissionsForPlatformUser(user))
+  if (
+    permissions.has('platform.write_all') ||
+    permissions.has('platform.read_all')
+  ) {
+    const { rows } = await getPool().query(
+      `${DELEGATION_SELECT}
+       WHERE delegation.revoked_at IS NULL
+         AND delegation.starts_at <= now()
+         AND delegation.ends_at >= now()
+       ORDER BY delegation.starts_at DESC, delegation.id DESC`,
+    )
+    return rows.map((row) => mapDelegation(row))
+  }
+
+  const { rows } = await getPool().query(
+    `${DELEGATION_SELECT}
+     WHERE delegation.revoked_at IS NULL
+       AND delegation.starts_at <= now()
+       AND delegation.ends_at >= now()
+       AND (
+         delegation.absent_employee_id = $1
+         OR delegation.delegate_employee_id = $1
+         OR delegation.absent_employee_id = (
+           SELECT reports_to_employee_id
+           FROM platform.employees
+           WHERE employee_id = $1
+         )
+       )
+     ORDER BY delegation.starts_at DESC, delegation.id DESC`,
+    [actorId],
+  )
+  return rows.map((row) => mapDelegation(row))
+}
+
 export async function canViewManagerDelegations(user, employeeId) {
   const actorId = employeeIdFor(user)
   if (actorId === employeeId) return true
@@ -137,13 +179,22 @@ export async function canViewManagerDelegations(user, employeeId) {
   }
   const { rows } = await getPool().query(
     `SELECT 1
+     FROM platform.employees
+     WHERE employee_id = $1
+       AND reports_to_employee_id = $2
+     LIMIT 1`,
+    [actorId, employeeId],
+  )
+  if (rows[0]) return true
+  const { rows: partyRows } = await getPool().query(
+    `SELECT 1
      FROM platform.manager_delegations
      WHERE (absent_employee_id = $1 OR delegate_employee_id = $1)
        AND (absent_employee_id = $2 OR delegate_employee_id = $2)
      LIMIT 1`,
     [actorId, employeeId],
   )
-  return Boolean(rows[0])
+  return Boolean(partyRows[0])
 }
 
 export async function assignManagerDelegation(

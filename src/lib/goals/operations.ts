@@ -1,3 +1,7 @@
+import {
+  actingApprover,
+  type ActingApprover,
+} from '@/lib/delegations/actingApprover'
 import { displayGoalTitle, newId } from './weightage'
 import type {
   DemoPerson,
@@ -52,24 +56,14 @@ export type LineManagerCascade = {
   options: CascadeGoalOption[]
 }
 
-export type CascadeApprover = {
-  id?: string
-  name: string
-  avatarUrl?: string
-}
+export type CascadeApprover = ActingApprover
 
 export function cascadeApprover(
   id?: string | null,
   name?: string | null,
   avatarUrl?: string,
 ): CascadeApprover | null {
-  const trimmed = name?.trim()
-  if (!trimmed) return null
-  return {
-    ...(id ? { id } : {}),
-    name: trimmed,
-    ...(avatarUrl ? { avatarUrl } : {}),
-  }
+  return actingApprover({ id, name, avatarUrl })
 }
 
 export function cascadeApprovers(cascade: LineManagerCascade): {

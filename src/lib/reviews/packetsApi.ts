@@ -1,6 +1,8 @@
 import { apiFetch } from '@/lib/apiClient'
 import { readSession } from '@/lib/authApi'
+import { resolveCyclePolicyForPerson } from './cycleGroups'
 import { packetForViewer, packetsForViewer } from './packetVisibility'
+import { getReviewCycle } from './store'
 import type { ReviewPacket } from './types'
 import {
   appealLocalPacket,
@@ -8,6 +10,7 @@ import {
   getLocalPacket,
   listLocalPackets,
   releaseLocalPackets,
+  resolveLocalAppeal,
   saveLocalPacket,
   useLocalReviewPackets,
 } from './packetsLocal'
@@ -18,11 +21,22 @@ function sessionEmployeeId(): number | null {
 }
 
 function visiblePacket(packet: ReviewPacket): ReviewPacket {
-  return packetForViewer(packet, sessionEmployeeId())
+  const cycle = getReviewCycle(packet.cycleId)
+  const questions = cycle
+    ? resolveCyclePolicyForPerson(cycle, packet.employeeId).settings.reviewPolicy
+        ?.scorecard.questions ?? []
+    : []
+  return packetForViewer(packet, sessionEmployeeId(), questions)
 }
 
 function visiblePackets(packets: ReviewPacket[]): ReviewPacket[] {
-  return packetsForViewer(packets, sessionEmployeeId())
+  return packetsForViewer(packets, sessionEmployeeId(), (packet) => {
+    const cycle = getReviewCycle(packet.cycleId)
+    return cycle
+      ? resolveCyclePolicyForPerson(cycle, packet.employeeId).settings.reviewPolicy
+          ?.scorecard.questions ?? []
+      : []
+  })
 }
 
 export async function fetchReviewPackets(cycleId: string): Promise<ReviewPacket[]> {
@@ -112,6 +126,24 @@ export async function appealReviewPacket(
   const response = await apiFetch<{ packet: ReviewPacket }>(
     `/api/platform/review-packets/${encodeURIComponent(packetId)}/appeals`,
     { method: 'POST', body: { body } },
+  )
+  return visiblePacket(response.packet)
+}
+
+export async function resolveReviewAppeal(
+  packetId: string,
+  appealId: string,
+  body: {
+    toGrade: NonNullable<ReviewPacket['publishedOverallGrade']>
+    justification: string
+  },
+): Promise<ReviewPacket> {
+  if (useLocalReviewPackets()) {
+    return visiblePacket(resolveLocalAppeal(packetId, appealId, body))
+  }
+  const response = await apiFetch<{ packet: ReviewPacket }>(
+    `/api/platform/review-packets/${encodeURIComponent(packetId)}/appeals/${encodeURIComponent(appealId)}/resolve`,
+    { method: 'POST', body },
   )
   return visiblePacket(response.packet)
 }

@@ -162,6 +162,51 @@ describe('GoalsPersonDetail manager review', () => {
     expect(screen.getByText('/people?employee=1#everyone')).toBeInTheDocument()
   })
 
+  it('uses separate profile hash links for My Goals and My Reports', async () => {
+    setActivePerson(MANAGER_ID)
+    render(
+      <MemoryRouter initialEntries={['/profile#my-goals']}>
+        <AuthProvider>
+          <GoalsPersonDetail
+            personId={MANAGER_ID}
+            embedded
+            syncManagerTabHash
+          />
+          <LocationReadout />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('/profile#my-reports')).toBeInTheDocument()
+    })
+    expect(screen.getByRole('button', { name: /My Reports/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('opens My Reports from the profile hash', async () => {
+    setActivePerson(MANAGER_ID)
+    render(
+      <MemoryRouter initialEntries={['/profile#my-reports']}>
+        <AuthProvider>
+          <GoalsPersonDetail
+            personId={MANAGER_ID}
+            embedded
+            syncManagerTabHash
+          />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('button', { name: /My Reports/i }),
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('nests the report goals under the same review card as My Reports', async () => {
     renderReportGoals()
 
@@ -283,6 +328,41 @@ describe('GoalsPersonDetail manager review', () => {
     ).toBeInTheDocument()
   })
 
+  it('filters My Reports by search query', async () => {
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+
+    expect(
+      await screen.findByRole('region', { name: 'Direct Report goals' }),
+    ).toBeInTheDocument()
+
+    const search = screen.getByRole('searchbox', { name: 'Search reports' })
+    expect(
+      screen.getByRole('button', { name: 'Status: All statuses' }),
+    ).toBeInTheDocument()
+    fireEvent.change(search, { target: { value: 'zzzz-no-match' } })
+
+    expect(screen.getByText('No Matches')).toBeInTheDocument()
+    expect(
+      screen.queryByRole('region', { name: 'Direct Report goals' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByText('0 shown')).toBeInTheDocument()
+
+    fireEvent.change(search, { target: { value: 'Direct' } })
+
+    expect(
+      await screen.findByRole('region', { name: 'Direct Report goals' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('1 shown')).toBeInTheDocument()
+  })
+
   it('keeps edit actions when a report goal is opened from an embedded profile', async () => {
     render(
       <MemoryRouter>
@@ -305,6 +385,41 @@ describe('GoalsPersonDetail manager review', () => {
     expect(screen.getByRole('menuitem', { name: 'Edit' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeInTheDocument()
+  })
+
+  it('shows Duplicate in the My Reports table menu when structure edits are allowed', async () => {
+    const snapshot = getGoalsSnapshot()
+    sendBackSubmission(
+      {
+        cycleId: snapshot.cycle.id,
+        actorId: MANAGER_ID,
+        subjectId: REPORT_ID,
+      },
+      'Please revise before resubmitting.',
+    )
+    const goal = getGoalsSnapshot().byPerson[REPORT_ID]?.goals[0]
+    expect(goal).toBeTruthy()
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+    await screen.findByRole('region', { name: 'Direct Report goals' })
+
+    fireEvent.mouseEnter(
+      screen
+        .getByRole('button', { name: `More Actions For ${goal.description}` })
+        .closest('.pd-menu')!,
+    )
+
+    expect(screen.getByRole('menuitem', { name: 'Duplicate' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Remove' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add Goal' })).toBeInTheDocument()
   })
 
   it('persists a sent-back report goal when a task is added', async () => {
@@ -710,7 +825,8 @@ describe('GoalsPersonDetail submission status', () => {
     const submitTip = await screen.findByRole('tooltip')
     expect(submitTip).toHaveTextContent('Add at least 2 goals.')
     expect(submitTip).toHaveTextContent('Weights need to add up to 100%.')
-    expect(submitTip).toHaveTextContent('test: Still needs a metric.')
+    expect(submitTip).toHaveTextContent('Still needs a metric.')
+    expect(submitTip).not.toHaveTextContent('test:')
 
     fireEvent.click(screen.getByTitle('test'))
     const drawer = await screen.findByRole('dialog', { name: 'View test' })

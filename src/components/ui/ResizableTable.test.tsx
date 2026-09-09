@@ -12,7 +12,7 @@ const columns: ResizableColumn[] = [
   { id: 'team', label: 'Team' },
 ]
 
-const STORAGE_KEY = 'resizable-table-test:v4'
+const STORAGE_KEY = 'resizable-table-test:v5'
 
 function renderTable() {
   return render(
@@ -51,6 +51,12 @@ describe('ResizableTable', () => {
       'pd-table-resize--laid-out',
     )
     expect(handleFor('Name')).toHaveAttribute('aria-valuenow')
+    expect(
+      screen.queryByRole('separator', { name: 'Resize Team column' }),
+    ).not.toBeInTheDocument()
+    expect(
+      document.querySelectorAll<HTMLTableColElement>('col')[1].style.width,
+    ).not.toBe('')
   })
 
   it('changes a column width with the keyboard and persists it', () => {
@@ -60,6 +66,10 @@ describe('ResizableTable', () => {
 
     const width = handleFor('Name').getAttribute('aria-valuenow')
     expect(width).not.toBeNull()
+    expect(document.querySelector('table')).toHaveStyle({ width: '100%' })
+    expect(
+      document.querySelectorAll<HTMLTableColElement>('col')[1].style.width,
+    ).toBe('')
     expect(window.localStorage.getItem(STORAGE_KEY)).toContain(
       `"name":${width}`,
     )
@@ -70,22 +80,16 @@ describe('ResizableTable', () => {
     expect(handleFor('Name')).toHaveAttribute('aria-valuenow', width as string)
   })
 
-  it('fits one column to its content on double click and leaves the rest', () => {
+  it('fits a resizable column to its content on double click', () => {
     renderTable()
 
     fireEvent.keyDown(handleFor('Name'), { key: 'ArrowRight' })
-    fireEvent.keyDown(handleFor('Team'), { key: 'ArrowRight' })
-    const nameWidth = handleFor('Name').getAttribute('aria-valuenow')
-    const widenedTeam = Number(handleFor('Team').getAttribute('aria-valuenow'))
+    const widenedName = Number(handleFor('Name').getAttribute('aria-valuenow'))
 
-    fireEvent.doubleClick(handleFor('Team'))
+    fireEvent.doubleClick(handleFor('Name'))
 
-    expect(
-      Number(handleFor('Team').getAttribute('aria-valuenow')),
-    ).toBeLessThan(widenedTeam)
-    expect(handleFor('Name')).toHaveAttribute(
-      'aria-valuenow',
-      nameWidth as string,
+    expect(Number(handleFor('Name').getAttribute('aria-valuenow'))).toBeLessThan(
+      widenedName,
     )
   })
 })
@@ -141,20 +145,20 @@ describe('distributeAutoWidths', () => {
     { id: 'status', label: 'Status' },
   ]
 
-  it('gives leftover width only to the grow column', () => {
+  it('gives leftover width to the final column', () => {
     const layout = distributeAutoWidths(
       layoutColumns,
       { name: 120, status: 80 },
       400,
     )
 
-    expect(layout.widths.status).toBe(80)
-    expect(layout.widths.name).toBe(320)
+    expect(layout.widths.status).toBe(280)
+    expect(layout.widths.name).toBe(120)
     expect(layout.tableWidth).toBe(400)
     expect(layout.overflows).toBe(false)
   })
 
-  it('does not stretch columns when none are marked to grow', () => {
+  it('stretches the final column when none are marked to grow', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name' },
@@ -164,12 +168,12 @@ describe('distributeAutoWidths', () => {
       400,
     )
 
-    expect(layout.widths).toEqual({ name: 120, status: 80 })
-    expect(layout.tableWidth).toBe(200)
+    expect(layout.widths).toEqual({ name: 120, status: 280 })
+    expect(layout.tableWidth).toBe(400)
     expect(layout.overflows).toBe(false)
   })
 
-  it('shares leftover width across every grow column', () => {
+  it('does not spread leftover width across earlier grow columns', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name', grow: true },
@@ -180,12 +184,12 @@ describe('distributeAutoWidths', () => {
       401,
     )
 
-    expect(layout.widths).toEqual({ name: 170, purpose: 151, status: 80 })
+    expect(layout.widths).toEqual({ name: 120, purpose: 100, status: 181 })
     expect(layout.tableWidth).toBe(401)
     expect(layout.overflows).toBe(false)
   })
 
-  it('gives more leftover width to heavier grow columns', () => {
+  it('ignores earlier grow weights so the final column remains fluid', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name', grow: true, growWeight: 3 },
@@ -198,10 +202,10 @@ describe('distributeAutoWidths', () => {
     )
 
     expect(layout.widths).toEqual({
-      name: 180,
-      purpose: 120,
-      timeframe: 120,
-      status: 80,
+      name: 120,
+      purpose: 100,
+      timeframe: 100,
+      status: 180,
     })
     expect(layout.tableWidth).toBe(500)
   })

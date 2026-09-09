@@ -570,6 +570,22 @@ describe("reviews store", () => {
     ).toEqual([101]);
   });
 
+  it("keeps publication exclusions shared between the group and cycle", async () => {
+    const cycle = createInitialReviewsSnapshot().cycles[0];
+    if (!cycle) throw new Error("Expected seeded cycle");
+    const group = await createCycleGroup(cycle.id, { name: "Everyone" });
+
+    const updated = await updateCycleGroup(cycle.id, group.id, {
+      settings: { excludedEmployeeIds: [101, 202] },
+    });
+
+    expect(updated.settings.excludedEmployeeIds).toEqual([101, 202]);
+    expect(getReviewCycle(cycle.id)?.settings.excludedEmployeeIds).toEqual([
+      101,
+      202,
+    ]);
+  });
+
   it("copies groups onto a test cycle with new ids", async () => {
     const source = await createReviewCycle({
       type: "custom",

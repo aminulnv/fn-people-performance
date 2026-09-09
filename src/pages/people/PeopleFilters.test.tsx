@@ -87,6 +87,27 @@ describe('PeopleFilters', () => {
     expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument()
   })
 
+  it('selects all attribute values from one checkbox', () => {
+    const onAttributeFiltersChange = vi.fn()
+    render(
+      <PeopleFilters
+        employees={employees}
+        statusFilter={null}
+        onStatusFilterChange={vi.fn()}
+        attributeFilters={{}}
+        onAttributeFiltersChange={onAttributeFiltersChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Filters' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Department' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Select All' }))
+
+    expect(onAttributeFiltersChange).toHaveBeenCalledWith({
+      department: ['Finance', 'Product'],
+    })
+  })
+
   it('shows how many values are selected on an attribute', () => {
     render(
       <PeopleFilters

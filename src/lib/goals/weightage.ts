@@ -277,13 +277,12 @@ export function measureIssueLabel(issue: string): string {
   return issue
 }
 
-/** Submit-button hover - same table wording, with the goal named when it helps. */
+/** Submit-button hover - generic fix wording without individual goal names. */
 export function submitHoverHint(blocker: SubmitGoalBlocker): string {
-  if (blocker.goalTitle && blocker.suffix) {
-    const what = isMeasureGoalIssue(blocker.reason)
+  if (blocker.suffix) {
+    return isMeasureGoalIssue(blocker.reason)
       ? measureIssueLabel(blocker.reason)
       : sentenceFromSuffix(blocker.suffix)
-    return `${blocker.goalTitle}: ${what}`
   }
   return blocker.reason
 }

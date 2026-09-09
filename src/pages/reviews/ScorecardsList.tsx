@@ -431,18 +431,18 @@ export function ScorecardsList() {
   }, [cycleKeys])
 
   const isGradeRevealed = (row: ScorecardRow) => {
-    if (!row.gradeHidden) return true
     return gradeOverrides[row.id] ?? gradesRevealed
   }
 
+  const gradedRows = filtered.filter((row) => row.grade != null)
   const allGradesVisible =
-    filtered.length > 0 && filtered.every((row) => isGradeRevealed(row))
+    gradedRows.length > 0 && gradedRows.every((row) => isGradeRevealed(row))
 
-  const toggleAllGrades = () => {
+  const toggleAllGrades = useCallback(() => {
     const next = !allGradesVisible
     setGradesRevealed(next)
     setGradeOverrides({})
-  }
+  }, [allGradesVisible])
 
   const toggleRowGrade = (rowId: string, currentlyRevealed: boolean) => {
     setGradeOverrides((prev) => ({
@@ -492,7 +492,7 @@ export function ScorecardsList() {
       { id: 'status', label: 'Status' },
     ]
     return all.filter((column) => visibleColumnSet.has(column.id))
-  }, [allGradesVisible, visibleColumnSet])
+  }, [allGradesVisible, toggleAllGrades, visibleColumnSet])
 
   const summaryItems: {
     id: StatusFilter
@@ -762,22 +762,22 @@ function ScorecardTableRow({
       ) : null}
       {visibleColumnIds.has('grade') ? (
         <td>
-          {gradeRevealed ? (
+          {!row.grade ? (
+            '-'
+          ) : gradeRevealed ? (
             <span className="pd-reviews-scorecards__grade">
               <span className="pd-reviews-scorecards__grade-value">
-                {row.grade ? gradeLabel(row.grade) : '-'}
+                {gradeLabel(row.grade)}
               </span>
-              {row.gradeHidden ? (
-                <button
-                  type="button"
-                  className="pd-reviews-scorecards__grade-toggle"
-                  aria-label="Hide Grade"
-                  title="Hide Grade"
-                  onClick={onToggleGrade}
-                >
-                  <Eye size={14} strokeWidth={1.75} aria-hidden />
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="pd-reviews-scorecards__grade-toggle"
+                aria-label="Hide Grade"
+                title="Hide Grade"
+                onClick={onToggleGrade}
+              >
+                <Eye size={14} strokeWidth={1.75} aria-hidden />
+              </button>
             </span>
           ) : (
             <button

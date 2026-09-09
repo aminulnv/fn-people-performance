@@ -462,11 +462,13 @@ function emptyCopy(window: OkrWindowData | undefined, query: string): string {
 export function GoalOkrReferenceList({
   employeeId,
   quarter,
+  applyToGoalDisabledReason,
   window: windowProp,
 }: {
   employeeId?: number;
   quarter?: string;
   scope?: OkrReferenceScope;
+  applyToGoalDisabledReason?: string;
   window?: OkrWindowData;
 }) {
   const [query, setQuery] = useState("");
@@ -538,6 +540,7 @@ export function GoalOkrReferenceList({
           item={selectedItem}
           directory={directory}
           viewer={viewer}
+          applyToGoalDisabledReason={applyToGoalDisabledReason}
           onClose={() => setSelectedItemId(null)}
         />
       ) : (

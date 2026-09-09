@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { CountBadge } from '@/components/ui/CountBadge'
+import { Tooltip } from '@/components/ui/Tooltip'
 import { VirtualList } from '@/components/VirtualList'
 import {
   fetchNotifications,
@@ -131,25 +132,35 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
       className="pd-topbar__notifications"
       {...hoverHandlers}
     >
-      <button
-        type="button"
-        className="pd-topbar__icon-btn pd-topbar__notif-btn"
-        onClick={toggle}
-        aria-label={
+      <Tooltip
+        content={
           unreadCount > 0
             ? `Notifications, ${unreadCount} unread`
             : 'Notifications'
         }
-        aria-expanded={open}
-        aria-controls={panelId}
+        side="bottom"
+        portal
       >
-        <Bell size={16} strokeWidth={2} />
-        {unreadCount > 0 && (
-          <span className="pd-topbar__notif-badge" aria-hidden>
-            {unreadCount > 9 ? '9+' : unreadCount}
-          </span>
-        )}
-      </button>
+        <button
+          type="button"
+          className="pd-topbar__icon-btn pd-topbar__notif-btn"
+          onClick={toggle}
+          aria-label={
+            unreadCount > 0
+              ? `Notifications, ${unreadCount} unread`
+              : 'Notifications'
+          }
+          aria-expanded={open}
+          aria-controls={panelId}
+        >
+          <Bell size={16} strokeWidth={2} />
+          {unreadCount > 0 && (
+            <span className="pd-topbar__notif-badge" aria-hidden>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
+        </button>
+      </Tooltip>
       {open && (
         <div
           id={panelId}

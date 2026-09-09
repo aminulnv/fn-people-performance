@@ -8,6 +8,7 @@ import {
   SCORECARD_TEMPLATES,
   moveReviewQuestion,
   removeReviewQuestion,
+  toggleQuestionOutputVisibility,
   toggleQuestionVisibility,
 } from './scorecardTemplates'
 
@@ -118,6 +119,30 @@ describe('review form edits', () => {
       still.scorecard.questions.find((question) => question.id === 'delivered')
         ?.visibility,
     ).toEqual(['calibrators'])
+  })
+
+  it('toggles employee and manager output visibility independently', () => {
+    const policy = defaultReviewPolicy('annual_appraisal')
+    const next = toggleQuestionOutputVisibility(
+      policy,
+      'delivered',
+      'employee',
+      false,
+    )
+    expect(
+      next.scorecard.questions.find((question) => question.id === 'delivered')
+        ?.outputVisibility,
+    ).toEqual(['manager'])
+    const blocked = toggleQuestionOutputVisibility(
+      next,
+      'delivered',
+      'manager',
+      false,
+    )
+    expect(
+      blocked.scorecard.questions.find((question) => question.id === 'delivered')
+        ?.outputVisibility,
+    ).toEqual(['manager'])
   })
 
   it('adds a custom grading area', () => {

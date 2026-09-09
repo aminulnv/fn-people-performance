@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  assignManagerDelegationLocal,
+  resetManagerDelegationsForTests,
+} from '@/lib/delegations/store'
+import {
   buildOwnerOptions,
   cascadeGoal,
   cascadeRecipients,
@@ -277,6 +281,58 @@ describe('lineManagerCascade', () => {
     const result = lineManagerCascade(people[0], snapshot)
     expect(cascadeApprovers(result)).toEqual({
       lineManager: { id: 'p2', name: 'Ben' },
+      skipLevelManager: null,
+    })
+  })
+
+  it('names the active delegate as the line approver', () => {
+    resetManagerDelegationsForTests()
+    assignManagerDelegationLocal({
+      absentEmployeeId: 2,
+      delegateEmployeeId: 4,
+      startsOn: '2020-01-01',
+      endsOn: '2099-12-31',
+      delegateName: 'Fahim',
+      delegateAvatarUrl: '/fahim.png',
+      absentName: 'Aminul',
+      assignedByEmployeeId: 1,
+      assignedByName: 'Admin',
+    })
+    const report: DemoPerson = {
+      id: '1',
+      name: 'Report',
+      email: 'report@example.com',
+      title: 'Engineer',
+      department: 'Product',
+      joinDate: '2025-01-01',
+      managerId: '2',
+      reportIds: [],
+      avatarHue: 1,
+      blurb: '',
+    }
+    const manager: DemoPerson = {
+      id: '2',
+      name: 'Aminul',
+      email: 'aminul@example.com',
+      title: 'Manager',
+      department: 'Product',
+      joinDate: '2024-01-01',
+      reportIds: ['1'],
+      avatarHue: 2,
+      blurb: '',
+      avatarUrl: '/aminul.png',
+    }
+    const result = lineManagerCascade(report, {
+      people: [report, manager],
+      byPerson: {},
+    })
+    expect(cascadeApprovers(result)).toEqual({
+      lineManager: {
+        id: '4',
+        name: 'Fahim',
+        avatarUrl: '/fahim.png',
+        delegated: true,
+      },
       skipLevelManager: null,
     })
   })

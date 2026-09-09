@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { packetForViewer } from './packetVisibility'
 import type { ReviewPacket } from './types'
 
+const questions = [
+  {
+    id: 'delivered',
+    prompt: 'What was delivered?',
+    enabled: true,
+    required: true,
+    visibility: ['employee', 'manager', 'calibrators'] as const,
+    outputVisibility: ['manager'] as const,
+  },
+]
+
 function packet(partial: Partial<ReviewPacket> = {}): ReviewPacket {
   return {
     id: 'pkt-1',
@@ -71,6 +82,18 @@ describe('packetForViewer', () => {
   it('shows the official review after it is published to employees', () => {
     const source = packet({ status: 'released_to_employees' })
     expect(packetForViewer(source, 754)).toEqual(source)
+  })
+
+  it('removes answers hidden from the employee output', () => {
+    const source = packet({ status: 'released_to_employees' })
+    expect(packetForViewer(source, 754, questions as never).answers).toEqual([])
+  })
+
+  it('keeps answers enabled for the manager output', () => {
+    const source = packet({ status: 'released_to_managers' })
+    expect(packetForViewer(source, 1, questions as never).answers).toEqual(
+      source.answers,
+    )
   })
 
   it('does not redact the packet for a manager or calibrator', () => {

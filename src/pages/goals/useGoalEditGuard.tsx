@@ -24,29 +24,27 @@ export function goalEditGuardDescription({
   );
 
   if (deadlinePassed) {
-    return isSelf ? (
+    return (
       <>
-        These changes will return the goal set to draft. Submit it again for
-        approval from {approvers} when ready.
-      </>
-    ) : (
-      <>
-        Changing this approved or submitted goal set will require approval from{" "}
-        {approvers} again.
+        Making changes will set the status back to Draft.
+        <br />
+        <strong>2 Level Approval:</strong>
+        <br />
+        <br />
+        {approvers}
       </>
     );
   }
 
   if (lineManager || skipLevelManager) {
-    return isSelf ? (
+    return (
       <>
-        These changes will return the goal set to draft. Submit it again for
-        approval from {approvers} when ready.
-      </>
-    ) : (
-      <>
-        Changing this approved or submitted goal set will require approval from{" "}
-        {approvers} again.
+        Making changes will set the status back to Draft.
+        <br />
+        <strong>2 Level Approval:</strong>
+        <br />
+        <br />
+        {approvers}
       </>
     );
   }

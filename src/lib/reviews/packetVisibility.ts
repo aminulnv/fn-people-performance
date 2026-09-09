@@ -1,4 +1,4 @@
-import type { ReviewPacket, ReviewPacketStatus } from './types'
+import type { ReviewPacket, ReviewPacketStatus, ReviewQuestion } from './types'
 
 /** Official manager / calibration result is visible to the subject after this. */
 export function officialReviewReleasedToEmployee(
@@ -20,6 +20,38 @@ function stripUnpublishedOfficialReview(packet: ReviewPacket): ReviewPacket {
   }
 }
 
+function outputReleasedToManager(status: ReviewPacketStatus): boolean {
+  return (
+    status === 'released_to_managers' ||
+    status === 'released_to_employees' ||
+    status === 'appealed'
+  )
+}
+
+function filterAnswersForAudience(
+  packet: ReviewPacket,
+  questions: ReviewQuestion[],
+  audience: ReviewQuestion['outputVisibility'][number],
+): ReviewPacket {
+  const hiddenQuestionIds = new Set(
+    questions
+      .filter(
+        (question) =>
+          !(question.outputVisibility ?? ['employee', 'manager']).includes(
+            audience,
+          ),
+      )
+      .map((question) => question.id),
+  )
+  if (hiddenQuestionIds.size === 0) return packet
+  return {
+    ...packet,
+    answers: packet.answers.filter(
+      (answer) => !hiddenQuestionIds.has(answer.questionId),
+    ),
+  }
+}
+
 /**
  * The subject may only see their self-review until results are published
  * to employees. Managers and calibrators still get the full packet.
@@ -27,22 +59,34 @@ function stripUnpublishedOfficialReview(packet: ReviewPacket): ReviewPacket {
 export function packetForViewer(
   packet: ReviewPacket,
   viewerEmployeeId?: number | null,
+  questions?: ReviewQuestion[],
 ): ReviewPacket
 export function packetForViewer(
   packet: ReviewPacket | null | undefined,
   viewerEmployeeId?: number | null,
+  questions?: ReviewQuestion[],
 ): ReviewPacket | null
 export function packetForViewer(
   packet: ReviewPacket | null | undefined,
   viewerEmployeeId?: number | null,
+  questions: ReviewQuestion[] = [],
 ): ReviewPacket | null {
   if (!packet) return null
+  const isSubject =
+    viewerEmployeeId != null &&
+    viewerEmployeeId === packet.employeeId
+  if (isSubject && !officialReviewReleasedToEmployee(packet.status)) {
+    return stripUnpublishedOfficialReview(packet)
+  }
+  if (isSubject) {
+    return filterAnswersForAudience(packet, questions, 'employee')
+  }
   if (
     viewerEmployeeId != null &&
-    viewerEmployeeId === packet.employeeId &&
-    !officialReviewReleasedToEmployee(packet.status)
+    viewerEmployeeId === packet.managerEmployeeId &&
+    outputReleasedToManager(packet.status)
   ) {
-    return stripUnpublishedOfficialReview(packet)
+    return filterAnswersForAudience(packet, questions, 'manager')
   }
   return packet
 }
@@ -50,6 +94,13 @@ export function packetForViewer(
 export function packetsForViewer(
   packets: ReviewPacket[],
   viewerEmployeeId?: number | null,
+  questionsForPacket?: (packet: ReviewPacket) => ReviewQuestion[],
 ): ReviewPacket[] {
-  return packets.map((packet) => packetForViewer(packet, viewerEmployeeId))
+  return packets.map((packet) =>
+    packetForViewer(
+      packet,
+      viewerEmployeeId,
+      questionsForPacket?.(packet) ?? [],
+    ),
+  )
 }

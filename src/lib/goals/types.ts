@@ -178,8 +178,11 @@ export type GoalsCycle = {
   label: string;
   /** YYYY-MM-DD - eligibility Day 1 (cycle start) */
   day1: string;
+  /** Quarter end used to close the late progress-update window. */
+  quarterEndDate?: string;
   phase: DemoPhase;
   goalCountPolicy: GoalCountPolicy;
+  lateProgressUpdateDays?: number;
   postWindowGoalPolicy: PostWindowGoalPolicy;
   /** Explains to the employee when goal editing opens and closes. */
   goalWindow?: GoalWindow;

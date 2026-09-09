@@ -26,6 +26,15 @@ type CycleSettingsViewProps = {
 
 type EditTarget = 'cycle-details' | { groupId: string } | null
 
+function nextCycleGroupName(groups: CycleGroup[]): string {
+  const usedNumbers = groups
+    .map((group) => /^(?:New )?group(?: (\d+))?$/i.exec(group.name.trim()))
+    .filter((match): match is RegExpExecArray => match != null)
+    .map((match) => (match[1] ? Number(match[1]) : 1))
+  if (usedNumbers.length === 0) return 'Group 1'
+  return `Group ${Math.max(...usedNumbers) + 1}`
+}
+
 export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
   const [editing, setEditing] = useState<EditTarget>(null)
   const [openedGroup, setOpenedGroup] = useState<CycleGroup | null>(null)
@@ -40,7 +49,7 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     if (skipEmptyGroupProvision.current || groups.length > 0) return
     const latest = getReviewCycle(cycle.id)
     if (!latest || (latest.groups?.length ?? 0) > 0) return
-    void createCycleGroup(cycle.id, { name: 'New group' }).catch(() => {})
+    void createCycleGroup(cycle.id, { name: 'Group 1' }).catch(() => { })
   }, [cycle.id, groups.length])
 
   const editingGroup =
@@ -125,11 +134,11 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
       <CycleGroupsSection
         cycle={cycle}
         onAddGroup={() => {
-          void createCycleGroup(cycle.id, { name: 'New group' })
+          void createCycleGroup(cycle.id, { name: nextCycleGroupName(groups) })
             .then((group) => {
               openGroup(group)
             })
-            .catch(() => {})
+            .catch(() => { })
         }}
         onDelete={(groupId) => {
           skipEmptyGroupProvision.current = true
@@ -137,7 +146,7 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
             .then(() => {
               showSuccessToast('Group deleted.')
             })
-            .catch(() => {})
+            .catch(() => { })
         }}
         onOpenGroup={(groupId) => {
           const group = groups.find((item) => item.id === groupId)

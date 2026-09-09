@@ -24,6 +24,7 @@ import {
   Avatar,
   Button,
   CountBadge,
+  CycleSelect,
   Divider,
   EmptyState,
   PageHeader,
@@ -72,6 +73,7 @@ import {
   type LineManagerCascade,
 } from "@/lib/goals/operations";
 import {
+  canMutateGoalStatus,
   deriveGoalCapabilities,
   isComposableGoalStatus,
   type GoalCapabilities,
@@ -94,8 +96,10 @@ import { hasSystemPermission } from "@/lib/accessControl/types";
 import {
   hydrateManagerDelegations,
   listActiveDelegatedManagerIds,
+  listManagerDelegations,
   subscribeManagerDelegations,
 } from "@/lib/delegations/store";
+import { approverDisplayName } from "@/lib/delegations/actingApprover";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
 import { applyOkrPayloadToGoal, type OkrGoalDropPayload } from "@/lib/okr/applyToGoal";
@@ -190,6 +194,7 @@ import {
   cycleIneligibilityEmptyState,
   ownGoalsEmptyCopy,
   statusLabel,
+  submissionStatusLabel,
 } from "./goals/statusLabels";
 import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
 import { cycleIneligibilityReason } from "@/lib/goals/demoData";
@@ -233,8 +238,54 @@ function persistThenNotify(
   });
 }
 
+function goalApplyDisabledReason({
+  canEdit,
+  loading,
+  ineligible,
+  cycle,
+  cycleStatus,
+  status,
+  subject,
+}: {
+  canEdit: boolean;
+  loading: boolean;
+  ineligible: boolean;
+  cycle: GoalsSnapshot["cycle"];
+  cycleStatus: GoalsSnapshot["cycleStatus"];
+  status: PersonGoals["status"];
+  subject: GoalsSnapshot["people"][number];
+}): string | undefined {
+  if (canEdit) return undefined;
+  if (loading) return "Checking edit access.";
+  if (ineligible || status === "not_eligible") {
+    return "Not eligible for this cycle.";
+  }
+  if (cycleStatus === "future" || cycle.phase === "not_open") {
+    return "This cycle hasn’t opened.";
+  }
+  if (cycleStatus === "previous" || cycle.phase === "closed") {
+    return "This cycle is closed.";
+  }
+  const goalInputOpen =
+    cycle.phase === "window_open" ||
+    (cycle.phase === "hard_lock" &&
+      (isGoalWindowOpenForPerson(cycle, subject) ||
+        cycle.postWindowGoalPolicy === "two_tier_approval"));
+  if (!goalInputOpen) {
+    return cycle.phase === "check_in"
+      ? "Locked during review."
+      : "Goal editing is closed.";
+  }
+  if (!canMutateGoalStatus(status, cycle)) return "This goal is locked.";
+  return "You don’t have edit access.";
+}
+
 /** Bookmark tab that pulls the read-only OKRs out from behind the goal drawer. */
-function okrSideSheetFor(personId: string, cycleLabel?: string) {
+function okrSideSheetFor(
+  personId: string,
+  cycleLabel?: string,
+  applyToGoalDisabledReason?: string,
+) {
   const employeeId = Number(personId);
   if (!Number.isInteger(employeeId) || employeeId <= 0) return undefined;
   return {
@@ -247,6 +298,7 @@ function okrSideSheetFor(personId: string, cycleLabel?: string) {
         quarter={okrQuarterFromLabel(cycleLabel)}
         cycleLabel={cycleLabel}
         scope={okrScopeFor(personId)}
+        applyToGoalDisabledReason={applyToGoalDisabledReason}
       />
     ),
   };
@@ -457,8 +509,12 @@ function GoalsOverviewGoalPanel({
     status: subjectGoals.status,
     postWindowApprovalStage: subjectGoals.postWindowApprovalStage,
     subject,
-    lineManagerName: drawerApprovers.lineManager?.name,
-    skipLevelManagerName: drawerApprovers.skipLevelManager?.name ?? null,
+    lineManagerName: drawerApprovers.lineManager
+      ? approverDisplayName(drawerApprovers.lineManager)
+      : undefined,
+    skipLevelManagerName: drawerApprovers.skipLevelManager
+      ? approverDisplayName(drawerApprovers.skipLevelManager)
+      : null,
   };
   const editLockSegments = goalEditLockSegments(editLockArgs);
   const editLock = editLockSegments
@@ -477,6 +533,15 @@ function GoalsOverviewGoalPanel({
           />
         )
         : editLock;
+  const applyToGoalDisabledReason = goalApplyDisabledReason({
+    canEdit: canEditDraft,
+    loading: !cycleMembershipReady,
+    ineligible: Boolean(ineligibility),
+    cycle: personCycle ?? snapshot.cycle,
+    cycleStatus: snapshot.cycleStatus,
+    status: subjectGoals.status,
+    subject,
+  });
   const owner = resolveOwner(selectedGoal, subject.id) ?? {
     id: subject.id,
     name: subject.name,
@@ -509,7 +574,11 @@ function GoalsOverviewGoalPanel({
     <GoalCreateDrawer
       label={`View ${goalTitle(selectedGoal, selectedIndex)}`}
       closeLabel="Close Goal"
-      sideSheet={okrSideSheetFor(personId, snapshot.cycle.label)}
+      sideSheet={okrSideSheetFor(
+        personId,
+        snapshot.cycle.label,
+        applyToGoalDisabledReason,
+      )}
       onClose={() => unsavedClose.requestLeave(onClose)}
       ribbon={
         canSubmitBatch ? (
@@ -835,9 +904,12 @@ function GoalsOverview() {
   const coverVersion = useSyncExternalStore(
     subscribeManagerDelegations,
     () =>
-      me
-        ? listActiveDelegatedManagerIds(me.id).join(",")
-        : "",
+      listManagerDelegations()
+        .map(
+          (item) =>
+            `${item.id}:${item.status}:${item.absentEmployeeId}:${item.delegateEmployeeId}`,
+        )
+        .join("|"),
     () => "",
   );
   const coveredManagerIds = useMemo(
@@ -1628,11 +1700,14 @@ export function GoalsPersonDetail({
   personId,
   goalId,
   embedded = false,
+  /** When embedded on My Profile / full profile, keep My Goals vs My Reports in the URL hash. */
+  syncManagerTabHash = false,
 }: {
   cycleId?: string;
   personId: string;
   goalId?: string;
   embedded?: boolean;
+  syncManagerTabHash?: boolean;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -1669,11 +1744,12 @@ export function GoalsPersonDetail({
   const [sendBackReason, setSendBackReason] = useState("");
   const [embeddedManagerTab, setEmbeddedManagerTab] =
     useState<ManagerTab>("mine");
-  const managerTab: ManagerTab = embedded
-    ? embeddedManagerTab
-    : goalId
-      ? "mine"
-      : managerTabFromHash(location.hash) ?? "mine";
+  const managerTab: ManagerTab =
+    embedded && !syncManagerTabHash
+      ? embeddedManagerTab
+      : goalId && !syncManagerTabHash
+        ? "mine"
+        : managerTabFromHash(location.hash) ?? "mine";
   const [embeddedGoalId, setEmbeddedGoalId] = useState<string | null>(null);
   const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(() =>
     new URLSearchParams(location.search).get("measure"),
@@ -1718,7 +1794,7 @@ export function GoalsPersonDetail({
   }, [cycleId, embedded, goalId, navigate, personId, snapshot]);
 
   const setManagerTab = (tab: ManagerTab) => {
-    if (embedded) {
+    if (embedded && !syncManagerTabHash) {
       setEmbeddedManagerTab(tab);
       return;
     }
@@ -1731,12 +1807,18 @@ export function GoalsPersonDetail({
   const coverVersion = useSyncExternalStore(
     subscribeManagerDelegations,
     () =>
-      active
-        ? listActiveDelegatedManagerIds(active.id).join(",")
-        : "",
+      listManagerDelegations()
+        .map(
+          (item) =>
+            `${item.id}:${item.status}:${item.absentEmployeeId}:${item.delegateEmployeeId}`,
+        )
+        .join("|"),
     () => "",
   );
-  const coveredManagerIds = coverVersion ? coverVersion.split(",") : [];
+  const coveredManagerIds = useMemo(
+    () => (active ? listActiveDelegatedManagerIds(active.id) : []),
+    [active, coverVersion],
+  );
   const hasReports = Boolean(
     active && (active.reportIds.length > 0 || coveredManagerIds.length > 0),
   );
@@ -2009,8 +2091,12 @@ export function GoalsPersonDetail({
     status: activeGoals.status,
     postWindowApprovalStage: activeGoals.postWindowApprovalStage,
     subject: active,
-    lineManagerName: myGoalsApprovers.lineManager?.name,
-    skipLevelManagerName: myGoalsApprovers.skipLevelManager?.name ?? null,
+    lineManagerName: myGoalsApprovers.lineManager
+      ? approverDisplayName(myGoalsApprovers.lineManager)
+      : undefined,
+    skipLevelManagerName: myGoalsApprovers.skipLevelManager
+      ? approverDisplayName(myGoalsApprovers.skipLevelManager)
+      : null,
   };
   const myGoalsLockSegments = ineligibility
     ? null
@@ -2020,6 +2106,15 @@ export function GoalsPersonDetail({
     : myGoalsLockSegments
       ? speakGoalEditLockSegments(myGoalsLockSegments, myGoalsLockArgs)
       : null;
+  const myGoalsApplyDisabledReason = goalApplyDisabledReason({
+    canEdit: canEditDraft,
+    loading: !cycleMembershipReady || !goalsReady,
+    ineligible: Boolean(ineligibility),
+    cycle: personCycle,
+    cycleStatus: snapshot.cycleStatus,
+    status: activeGoals.status,
+    subject: active,
+  });
 
   const myGoalsPanel = (
     <EmployeePanel
@@ -2055,6 +2150,7 @@ export function GoalsPersonDetail({
       }
       ineligibility={ineligibility}
       canEditDraft={canEditDraft}
+      applyToGoalDisabledReason={myGoalsApplyDisabledReason}
       canUpdateProgress={Boolean(capabilities?.canUpdateProgress)}
       canDuplicate={Boolean(capabilities?.canDuplicate)}
       canCascade={Boolean(capabilities?.canCascade)}
@@ -2186,13 +2282,22 @@ export function GoalsPersonDetail({
         <ManagerPanel
           snapshot={snapshot}
           reports={managerPanelReports}
+          directoryFilters={showsReports}
           cascadeFromFor={cascadeFromFor}
           commentAuthorId={actor?.id}
           capabilitiesFor={capabilitiesFor}
           sendBackReason={sendBackReason}
           onSendBackReason={setSendBackReason}
           busy={busy}
+          previousCycleLabel={previousCycle?.label}
+          duplicateCycles={duplicateCycleOptions(snapshot.availableCycles)}
           onSaveGoals={(id, goals) => void actions.saveGoals(id, goals)}
+          onDuplicateGoal={(personId, goalId, targetCycleId) =>
+            actions.duplicateGoal(personId, goalId, targetCycleId)
+          }
+          onCopyPreviousGoals={(personId) =>
+            actions.copyPreviousGoals(personId)
+          }
           onApprove={(id) => actions.approve(id)}
           onSendBack={(id) =>
             actions.sendBack(id, sendBackReason).then(() => {
@@ -2223,8 +2328,18 @@ function reportCycleLock({
   row: PersonGoals;
   canEditDraft: boolean;
   canUpdateProgress: boolean;
-  lineManager?: { id?: string | null; name: string; avatarUrl?: string } | null;
-  skipLevelManager?: { id?: string | null; name: string; avatarUrl?: string } | null;
+  lineManager?: {
+    id?: string | null;
+    name: string;
+    avatarUrl?: string;
+    delegated?: boolean;
+  } | null;
+  skipLevelManager?: {
+    id?: string | null;
+    name: string;
+    avatarUrl?: string;
+    delegated?: boolean;
+  } | null;
 }): { banner: ReactNode; spoken: string | null; preferLockBanner?: boolean } {
   const ineligibility = cycleIneligibilityReason(person, cycle, row.status);
   if (ineligibility) {
@@ -2249,8 +2364,12 @@ function reportCycleLock({
     status: row.status,
     postWindowApprovalStage: row.postWindowApprovalStage,
     subject: person,
-    lineManagerName: lineManager?.name,
-    skipLevelManagerName: skipLevelManager?.name ?? null,
+    lineManagerName: lineManager
+      ? approverDisplayName(lineManager)
+      : undefined,
+    skipLevelManagerName: skipLevelManager
+      ? approverDisplayName(skipLevelManager)
+      : null,
   };
   const segments = goalEditLockSegments(args);
   if (!segments) return { banner: null, spoken: null };
@@ -2278,37 +2397,92 @@ function ManagerReportGoalsTable({
   person,
   row,
   canEditStructure,
+  canDuplicate,
+  canApprove = false,
+  canSendBack = false,
   cascadeFromFor,
   cascadeRecipientsFor,
   actorId,
   deadlinePassed,
   goalCountPolicy,
   lockMessage,
+  previousCycleLabel,
+  duplicateCycles,
   openGoalId,
   openMeasureKey,
   onOpen,
   onSaveGoals,
+  onDuplicateGoal,
+  onCopyPreviousGoals,
   onGoalDeleted,
   onGoalsSaved,
+  onGoalCreated,
   busy = false,
+  allowLateSubmissions = false,
+  deadlineMissedAt,
+  lateJustification,
+  lineManager,
+  skipLevelManager,
+  sendBackOpen = false,
+  sendBackReason = "",
+  onToggleSendBack,
+  onSendBackReason,
+  onApprove,
+  onSendBack,
+  activityFilters,
+  lockBanner,
+  preferLockBanner = false,
 }: {
   cycleId: string;
   person: GoalsSnapshot["people"][number];
   row: PersonGoals;
   canEditStructure: boolean;
+  canDuplicate: boolean;
+  canApprove?: boolean;
+  canSendBack?: boolean;
   cascadeFromFor: (subjectId: string) => LineManagerCascade;
   cascadeRecipientsFor: (goalId: string) => CascadeRecipient[];
   actorId?: string;
   deadlinePassed: boolean;
   goalCountPolicy: GoalsSnapshot["cycle"]["goalCountPolicy"];
   lockMessage?: string | null;
+  previousCycleLabel?: string;
+  duplicateCycles: ReturnType<typeof duplicateCycleOptions>;
   openGoalId: string | null;
   openMeasureKey?: string | null;
   onOpen: (goalId: string | null, measureKey?: string) => void;
   onSaveGoals: (id: string, goals: Goal[]) => void;
+  onDuplicateGoal: (
+    goalId: string,
+    targetCycleId: string,
+  ) => Promise<Goal | null>;
+  onCopyPreviousGoals: () => Promise<Goal | null>;
   onGoalDeleted?: () => void;
   onGoalsSaved?: () => void;
+  onGoalCreated?: () => void;
   busy?: boolean;
+  allowLateSubmissions?: boolean;
+  deadlineMissedAt?: string;
+  lateJustification?: string;
+  lineManager?: { id?: string | null; name: string; avatarUrl?: string } | null;
+  skipLevelManager?: {
+    id?: string | null;
+    name: string;
+    avatarUrl?: string;
+  } | null;
+  sendBackOpen?: boolean;
+  sendBackReason?: string;
+  onToggleSendBack?: () => void;
+  onSendBackReason?: (value: string) => void;
+  onApprove?: () => void;
+  onSendBack?: () => void;
+  activityFilters?: {
+    cycleId?: string;
+    subjectEmployeeId?: number;
+    entityType?: string;
+  };
+  lockBanner?: ReactNode;
+  preferLockBanner?: boolean;
 }) {
   const reportApprovers = cascadeApprovers(cascadeFromFor(person.id));
   const { requestGoalEdit, goalEditGuard } = useGoalEditGuard({
@@ -2342,6 +2516,7 @@ function ManagerReportGoalsTable({
       const next = appendGoalWithWeight(goals, blankGoal({ ownerId: person.id }));
       persistNow(next);
       onOpen(next[next.length - 1]?.id ?? null);
+      onGoalCreated?.();
     });
   };
   const showSubmitIssues =
@@ -2385,27 +2560,42 @@ function ManagerReportGoalsTable({
       {goals.length === 0 ? submitBlockNotice : null}
     </div>
   );
+  const addGoalAction =
+    canEditStructure && goals.length > 0 ? (
+      <button
+        type="button"
+        className="pd-people__create-btn"
+        disabled={busy}
+        onClick={addGoal}
+      >
+        <Plus size={18} strokeWidth={2} aria-hidden />
+        Add Goal
+      </button>
+    ) : null;
 
-  if (goals.length === 0) {
-    return (
-      <>
-        {goalEditGuard}
-        {viewerNotices}
-        <ReportGoalsEmpty
-          personName={person.name}
-          canAdd={canEditStructure}
-          busy={busy}
-          lockMessage={lockMessage}
-          onAdd={canEditStructure ? addGoal : undefined}
-        />
-      </>
-    );
-  }
-
-  return (
-    <>
-      {goalEditGuard}
-      {viewerNotices}
+  const body =
+    goals.length === 0 ? (
+      <ReportGoalsEmpty
+        personName={person.name}
+        canAdd={canEditStructure}
+        busy={busy}
+        lockMessage={lockMessage}
+        previousCycleLabel={previousCycleLabel}
+        onAdd={canEditStructure ? addGoal : undefined}
+        onCopyPrevious={
+          canEditStructure
+            ? () => {
+              requestGoalEdit(() => {
+                void onCopyPreviousGoals().then((first) => {
+                  if (!first) return;
+                  onOpen(first.id);
+                });
+              });
+            }
+            : undefined
+        }
+      />
+    ) : (
       <GoalsTable
         label={`${person.name} goals`}
         leadBanner={sendBackNotice}
@@ -2428,6 +2618,19 @@ function ManagerReportGoalsTable({
         onOpen={onOpen}
         canEditWeight={canEditStructure}
         canRemove={canEditStructure}
+        duplicateCycles={duplicateCycles}
+        onDuplicate={
+          canDuplicate
+            ? (goalId, targetCycleId) => {
+              requestGoalEdit(() => {
+                void onDuplicateGoal(goalId, targetCycleId).then((copy) => {
+                  if (!copy) return;
+                  onOpen(copy.id);
+                });
+              });
+            }
+            : undefined
+        }
         onWeightChange={
           canEditStructure
             ? (goalId, weight) => {
@@ -2477,6 +2680,39 @@ function ManagerReportGoalsTable({
             : undefined
         }
       />
+    );
+
+  return (
+    <>
+      {goalEditGuard}
+      <ReportGoalsCard
+        person={person}
+        cycleId={cycleId}
+        status={row.status}
+        postWindowApprovalStage={row.postWindowApprovalStage}
+        allowLateSubmissions={allowLateSubmissions}
+        deadlineMissedAt={deadlineMissedAt}
+        lateJustification={lateJustification}
+        lineManager={lineManager}
+        skipLevelManager={skipLevelManager}
+        goalCount={goals.length}
+        canApprove={canApprove}
+        canSendBack={canSendBack}
+        busy={busy}
+        sendBackOpen={sendBackOpen}
+        sendBackReason={sendBackReason}
+        onToggleSendBack={onToggleSendBack}
+        onSendBackReason={onSendBackReason}
+        onApprove={onApprove}
+        onSendBack={onSendBack}
+        actions={addGoalAction}
+        activityFilters={activityFilters}
+        lockBanner={lockBanner}
+        preferLockBanner={preferLockBanner}
+      >
+        {viewerNotices}
+        {body}
+      </ReportGoalsCard>
     </>
   );
 }
@@ -2484,38 +2720,54 @@ function ManagerReportGoalsTable({
 function ManagerPanel({
   snapshot,
   reports,
+  directoryFilters = false,
   cascadeFromFor,
   commentAuthorId,
   capabilitiesFor,
   sendBackReason,
   onSendBackReason,
   busy,
+  previousCycleLabel,
+  duplicateCycles,
   onApprove,
   onSendBack,
   onSaveGoals,
+  onDuplicateGoal,
+  onCopyPreviousGoals,
   openedGoalId,
   onOpenedGoalChange,
 }: {
   snapshot: GoalsSnapshot;
   reports: { person: GoalsSnapshot["people"][number]; row: PersonGoals }[];
+  /** Search + attribute filters for My Reports (hidden on single-person review). */
+  directoryFilters?: boolean;
   cascadeFromFor: (subjectId: string) => LineManagerCascade;
   commentAuthorId?: string;
   capabilitiesFor: (subjectId: string) => GoalCapabilities | null;
   sendBackReason: string;
   onSendBackReason: (v: string) => void;
   busy: boolean;
+  previousCycleLabel?: string;
+  duplicateCycles: ReturnType<typeof duplicateCycleOptions>;
   onApprove: (id: string) => void | Promise<void>;
   onSendBack: (id: string) => void | Promise<void>;
   onSaveGoals: (id: string, goals: Goal[]) => void;
+  onDuplicateGoal: (
+    personId: string,
+    goalId: string,
+    targetCycleId: string,
+  ) => Promise<Goal | null>;
+  onCopyPreviousGoals: (personId: string) => Promise<Goal | null>;
   openedGoalId?: string | null;
   onOpenedGoalChange?: (goalId: string | null) => void;
 }) {
-  const orderedReports = reports;
   const cascadeRecipientsFor = useMemo(() => {
     const recipientsBySource = indexCascadeRecipients(snapshot);
     return (goalId: string) => recipientsBySource.get(goalId) ?? [];
   }, [snapshot]);
 
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [localOpenGoalId, setLocalOpenGoalId] = useState<string | null>(null);
   const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(null);
   const openGoalId =
@@ -2530,7 +2782,60 @@ function ManagerPanel({
   const showSuccessToast = (message: string) => {
     setToastNotice(successNotice(message));
   };
+
+  const statusOptions = useMemo(() => {
+    const values = uniqueLabeledAttributeValues(
+      reports.map(({ row }) => {
+        const id =
+          row.goals.length === 0 && row.status === "draft"
+            ? "not_started"
+            : row.status;
+        return {
+          value: id,
+          label: submissionStatusLabel(row.status, row.goals.length),
+        };
+      }),
+    );
+    return values.map((entry) => ({
+      id: entry.value,
+      label: entry.label,
+    }));
+  }, [reports]);
+
+  const orderedReports = useMemo(() => {
+    if (!directoryFilters) return reports;
+    const normalizedQuery = query.trim().toLowerCase();
+    return reports.filter(({ person, row }) => {
+      const statusKey =
+        row.goals.length === 0 && row.status === "draft"
+          ? "not_started"
+          : row.status;
+      if (statusFilter.length > 0 && !statusFilter.includes(statusKey)) {
+        return false;
+      }
+      if (!normalizedQuery) return true;
+      return [
+        person.name,
+        person.title,
+        person.department,
+        person.team,
+        submissionStatusLabel(row.status, row.goals.length),
+        ...row.goals.map((goal) => goal.description),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(normalizedQuery);
+    });
+  }, [directoryFilters, query, reports, statusFilter]);
+
+  const hasActiveFilters =
+    query.trim().length > 0 || statusFilter.length > 0;
+
   const active =
+    orderedReports.find((r) =>
+      r.row.goals.some((goal) => goal.id === openGoalId),
+    ) ??
     reports.find((r) => r.row.goals.some((goal) => goal.id === openGoalId)) ??
     null;
 
@@ -2544,12 +2849,54 @@ function ManagerPanel({
     );
   }
 
+  const filterToolbar = directoryFilters ? (
+    <div className="pd-goals-toolbar pd-goals-reports-toolbar">
+      <div className="pd-people__toolbar">
+        <label className="pd-people__search">
+          <Search size={16} strokeWidth={1.75} aria-hidden />
+          <span className="pd-sr-only">Search reports</span>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search people…"
+            className="pd-people__search-input"
+          />
+        </label>
+        <CycleSelect
+          className="pd-goals-reports-toolbar__filter"
+          label="Status"
+          multiple
+          options={statusOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          allowEmpty
+          emptyLabel="All statuses"
+          searchPlaceholder="Search statuses"
+          noResultsText="No statuses match"
+        />
+      </div>
+      {hasActiveFilters || orderedReports.length !== reports.length ? (
+        <p className="pd-people__stat">{orderedReports.length} shown</p>
+      ) : null}
+    </div>
+  ) : null;
+
   const goals = active?.row.goals ?? [];
   const selectedIndex = goals.findIndex((goal) => goal.id === openGoalId);
   const selectedGoal = selectedIndex >= 0 ? goals[selectedIndex] : null;
 
   const table = (
     <>
+      {filterToolbar}
+      {directoryFilters && orderedReports.length === 0 ? (
+        <EmptyState
+          className="pd-goals__empty"
+          icon={Users}
+          title="No Matches"
+          description="Try a different search or clear filters."
+        />
+      ) : null}
       {orderedReports.map(({ person, row }) => {
         const reportCaps = capabilitiesFor(person.id);
         const skipLevel = cascadeFromFor(person.id);
@@ -2559,6 +2906,7 @@ function ManagerPanel({
           !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
           snapshot.cycle.postWindowGoalPolicy === "two_tier_approval";
         const canEditDraft = Boolean(reportCaps?.canEditStructure);
+        const canDuplicate = Boolean(reportCaps?.canDuplicate);
         const lock = reportCycleLock({
           cycle: snapshot.cycle,
           cycleStatus: snapshot.cycleStatus,
@@ -2570,21 +2918,48 @@ function ManagerPanel({
           skipLevelManager: reportApprovers.skipLevelManager,
         });
         return (
-          <ReportGoalsCard
+          <ManagerReportGoalsTable
             key={person.id}
-            person={person}
             cycleId={snapshot.cycle.id}
-            status={row.status}
-            postWindowApprovalStage={row.postWindowApprovalStage}
+            person={person}
+            row={row}
+            canEditStructure={canEditDraft}
+            canDuplicate={canDuplicate}
+            canApprove={Boolean(reportCaps?.canApprove)}
+            canSendBack={Boolean(reportCaps?.canSendBack)}
+            cascadeFromFor={cascadeFromFor}
+            cascadeRecipientsFor={cascadeRecipientsFor}
+            actorId={commentAuthorId}
+            deadlinePassed={allowLateSubmissions}
+            goalCountPolicy={snapshot.cycle.goalCountPolicy}
+            lockMessage={lock.spoken}
+            previousCycleLabel={previousCycleLabel}
+            duplicateCycles={duplicateCycles}
+            openGoalId={openGoalId}
+            openMeasureKey={openMeasureKey}
+            onOpen={setOpenGoalId}
+            onSaveGoals={onSaveGoals}
+            onDuplicateGoal={(goalId, targetCycleId) =>
+              onDuplicateGoal(person.id, goalId, targetCycleId).then((copy) => {
+                if (copy) showSuccessToast("Goal duplicated.");
+                return copy;
+              })
+            }
+            onCopyPreviousGoals={() =>
+              onCopyPreviousGoals(person.id).then((first) => {
+                if (first) showSuccessToast("Goals copied.");
+                return first;
+              })
+            }
+            onGoalDeleted={() => showSuccessToast("Goal deleted.")}
+            onGoalsSaved={() => showSuccessToast("Goal saved.")}
+            onGoalCreated={() => showSuccessToast("Goal created.")}
+            busy={busy}
             allowLateSubmissions={allowLateSubmissions}
             deadlineMissedAt={resolveGoalDeadline(snapshot.cycle, person)}
             lateJustification={row.lateJustification}
             lineManager={reportApprovers.lineManager}
             skipLevelManager={reportApprovers.skipLevelManager}
-            goalCount={row.goals.length}
-            canApprove={Boolean(reportCaps?.canApprove)}
-            canSendBack={Boolean(reportCaps?.canSendBack)}
-            busy={busy}
             sendBackOpen={sendBackFor === person.id}
             sendBackReason={sendBackReason}
             onToggleSendBack={() =>
@@ -2608,27 +2983,7 @@ function ManagerPanel({
             }}
             lockBanner={lock.banner}
             preferLockBanner={lock.preferLockBanner}
-          >
-            <ManagerReportGoalsTable
-              cycleId={snapshot.cycle.id}
-              person={person}
-              row={row}
-              canEditStructure={canEditDraft}
-              cascadeFromFor={cascadeFromFor}
-              cascadeRecipientsFor={cascadeRecipientsFor}
-              actorId={commentAuthorId}
-              deadlinePassed={allowLateSubmissions}
-              goalCountPolicy={snapshot.cycle.goalCountPolicy}
-              lockMessage={lock.spoken}
-              openGoalId={openGoalId}
-              openMeasureKey={openMeasureKey}
-              onOpen={setOpenGoalId}
-              onSaveGoals={onSaveGoals}
-              onGoalDeleted={() => showSuccessToast("Goal deleted.")}
-              onGoalsSaved={() => showSuccessToast("Goal saved.")}
-              busy={busy}
-            />
-          </ReportGoalsCard>
+          />
         );
       })}
     </>
@@ -2677,6 +3032,7 @@ function EmployeePanel({
   membershipPending = false,
   ineligibility,
   canEditDraft,
+  applyToGoalDisabledReason,
   canUpdateProgress,
   canDuplicate,
   canCascade,
@@ -2728,6 +3084,7 @@ function EmployeePanel({
   membershipPending?: boolean;
   ineligibility: ReturnType<typeof cycleIneligibilityReason>;
   canEditDraft: boolean;
+  applyToGoalDisabledReason?: string;
   canUpdateProgress: boolean;
   canDuplicate: boolean;
   canCascade: boolean;
@@ -2980,7 +3337,11 @@ function EmployeePanel({
       <GoalCreateDrawer
         label={isNew ? undefined : `View ${goalTitle(selectedGoal, selectedIndex)}`}
         closeLabel="Close Goal"
-        sideSheet={okrSideSheetFor(personId, cycleLabel)}
+        sideSheet={okrSideSheetFor(
+          personId,
+          cycleLabel,
+          applyToGoalDisabledReason,
+        )}
         onClose={requestCloseGoal}
         ribbon={
           canSubmitBatch ? (

@@ -2,12 +2,14 @@ import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { Avatar } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
+import { approverDisplayName } from "@/lib/delegations/actingApprover";
 import type { GoalEditLockSegment } from "@/lib/goals/editWindow";
 
 export type MentionPerson = {
   id?: string | null;
   name: string;
   avatarUrl?: string;
+  delegated?: boolean;
 };
 
 export function PersonMention({
@@ -17,6 +19,7 @@ export function PersonMention({
   person: MentionPerson;
   className?: string;
 }) {
+  const label = approverDisplayName(person);
   const inner = (
     <>
       <Avatar
@@ -27,7 +30,7 @@ export function PersonMention({
         alt=""
         style={avatarStyle(person.name)}
       />
-      <span className="pd-goals-late__person-name">{person.name}</span>
+      <span className="pd-goals-late__person-name">{label}</span>
     </>
   );
 

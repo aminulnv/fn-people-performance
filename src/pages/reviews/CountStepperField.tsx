@@ -6,6 +6,7 @@ type CountStepperFieldProps = {
   label: string
   value: number | null
   min?: number
+  max?: number
   allowEmpty?: boolean
   emptyStepTo?: number
   placeholder?: string
@@ -23,6 +24,7 @@ export function CountStepperField({
   label,
   value,
   min = 1,
+  max,
   allowEmpty = false,
   emptyStepTo,
   placeholder,
@@ -30,13 +32,14 @@ export function CountStepperField({
 }: CountStepperFieldProps) {
   const inputId = useId()
   const canDecrease = allowEmpty ? value != null : (value ?? 0) > min
+  const canIncrease = max == null || value == null || value < max
 
   const commit = (next: number | null) => {
     if (next == null) {
       if (allowEmpty) onChange(null)
       return
     }
-    onChange(Math.max(min, next))
+    onChange(Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min, next)))
   }
 
   return (
@@ -78,6 +81,7 @@ export function CountStepperField({
           type="button"
           className="pd-reviews-stepper"
           aria-label={`Increase ${label}`}
+          disabled={!canIncrease}
           onClick={() => {
             commit(value == null ? (emptyStepTo ?? min) : value + 1)
           }}

@@ -88,6 +88,25 @@ describe('PublishStageControls', () => {
     )
   })
 
+  it('shows and confirms excluded employees', () => {
+    renderControls({
+      target: 'employees',
+      dateLabel: 'Publish to everyone from',
+      releaseLabel: 'Publish to Everyone Now',
+      excludedEmployeeIds: [101, 202],
+      onExcludedEmployeeIdsChange: vi.fn(),
+    })
+
+    expect(screen.getByText('Everyone receives their review by default.', { exact: false }))
+      .toBeInTheDocument()
+    expect(screen.getByText('2 employees excluded')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Publish to Everyone Now' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Publish to Everyone Now?' }),
+    ).toHaveTextContent('2 employees excluded from automatic publication.')
+  })
+
   it('shows the API error when release fails', async () => {
     vi.spyOn(packetsApi, 'releaseReviewGroup').mockRejectedValue(
       new Error('Cycle is still in calibration.'),

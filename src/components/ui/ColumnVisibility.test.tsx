@@ -51,4 +51,34 @@ describe('ColumnVisibility', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reset Columns' }))
     expect(onChange).toHaveBeenCalledWith(['employee', 'role', 'team'])
   })
+
+  it('selects and deselects all optional columns', () => {
+    const onChange = vi.fn()
+    const columns = [
+      { id: 'employee', label: 'Employee', required: true },
+      { id: 'role', label: 'Role' },
+      { id: 'team', label: 'Team' },
+    ]
+    const { rerender } = render(
+      <ColumnVisibility
+        columns={columns}
+        visibleIds={['employee']}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Columns, 2 hidden' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Select All' }))
+    expect(onChange).toHaveBeenLastCalledWith(['employee', 'role', 'team'])
+
+    rerender(
+      <ColumnVisibility
+        columns={columns}
+        visibleIds={['employee', 'role', 'team']}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('option', { name: 'Deselect All' }))
+    expect(onChange).toHaveBeenLastCalledWith(['employee'])
+  })
 })

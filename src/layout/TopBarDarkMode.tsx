@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState, type MouseEvent } from 'react'
 import { Moon, Sun } from 'lucide-react'
+import { Tooltip } from '@/components/ui'
 import { applyAppearance } from '@/lib/brand'
 
 const THEME_TRANSITION_MS = 450
@@ -85,19 +86,25 @@ export function TopBarDarkMode() {
   )
 
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className="pd-topbar__icon-btn pd-topbar__dark-btn"
-      onClick={handleToggle}
-      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      aria-pressed={isDark}
+    <Tooltip
+      content={isDark ? 'Light mode' : 'Dark mode'}
+      side="bottom"
+      portal
     >
-      {isDark ? (
-        <Sun size={16} strokeWidth={2} aria-hidden />
-      ) : (
-        <Moon size={16} strokeWidth={2} aria-hidden />
-      )}
-    </button>
+      <button
+        ref={buttonRef}
+        type="button"
+        className="pd-topbar__icon-btn pd-topbar__dark-btn"
+        onClick={handleToggle}
+        aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+        aria-pressed={isDark}
+      >
+        {isDark ? (
+          <Sun size={16} strokeWidth={2} aria-hidden />
+        ) : (
+          <Moon size={16} strokeWidth={2} aria-hidden />
+        )}
+      </button>
+    </Tooltip>
   )
 }

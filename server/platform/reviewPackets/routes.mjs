@@ -7,13 +7,33 @@ import {
   listReviewPackets,
   markPacketViewed,
   releaseReviewPackets,
+  resolveReviewAppeal,
   saveReviewDraft,
 } from './store.mjs'
 import { packetForViewer, packetsForViewer } from './visibility.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
+import { getReviewCycle } from '../reviewCycles/store.mjs'
 
 function viewerEmployeeId(req) {
   return req.platformUser?.employeeId ?? null
+}
+
+function questionsForPacket(cycle, packet) {
+  const group = (cycle?.groups ?? []).find((item) => item.id === packet.groupId)
+  return (
+    group?.settings?.reviewPolicy?.scorecard?.questions ??
+    cycle?.settings?.reviewPolicy?.scorecard?.questions ??
+    []
+  )
+}
+
+async function visiblePacket(req, packet) {
+  const cycle = await getReviewCycle(packet.cycleId)
+  return packetForViewer(
+    packet,
+    viewerEmployeeId(req),
+    questionsForPacket(cycle, packet),
+  )
 }
 
 function toHttp(err) {
@@ -30,10 +50,12 @@ export function registerReviewPacketRoutes(app) {
     '/api/platform/review-cycles/:cycleId/packets',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
       res.json({
         packets: packetsForViewer(
           await listReviewPackets(req.params.cycleId),
           viewerEmployeeId(req),
+          (packet) => questionsForPacket(cycle, packet),
         ),
       })
     }),
@@ -54,7 +76,7 @@ export function registerReviewPacketRoutes(app) {
       ) {
         await markPacketViewed(packet.id)
       }
-      res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
+      res.json({ packet: await visiblePacket(req, packet) })
     }),
   )
 
@@ -72,7 +94,7 @@ export function registerReviewPacketRoutes(app) {
           cycleId: packet.cycleId,
           employeeId: packet.employeeId,
         })
-        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
+        res.json({ packet: await visiblePacket(req, packet) })
       } catch (err) {
         throw toHttp(err)
       }
@@ -94,7 +116,7 @@ export function registerReviewPacketRoutes(app) {
           cycleId: packet.cycleId,
           employeeId: packet.employeeId,
         })
-        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
+        res.json({ packet: await visiblePacket(req, packet) })
       } catch (err) {
         throw toHttp(err)
       }
@@ -116,7 +138,14 @@ export function registerReviewPacketRoutes(app) {
         await publishWrite(req, ['packets', 'notifications', 'activity'], {
           cycleId: req.params.cycleId,
         })
-        res.json({ packets: packetsForViewer(packets, viewerEmployeeId(req)) })
+        const cycle = await getReviewCycle(req.params.cycleId)
+        res.json({
+          packets: packetsForViewer(
+            packets,
+            viewerEmployeeId(req),
+            (packet) => questionsForPacket(cycle, packet),
+          ),
+        })
       } catch (err) {
         throw toHttp(err)
       }
@@ -137,7 +166,30 @@ export function registerReviewPacketRoutes(app) {
           cycleId: packet.cycleId,
           employeeId: packet.employeeId,
         })
-        res.json({ packet: packetForViewer(packet, viewerEmployeeId(req)) })
+        res.json({ packet: await visiblePacket(req, packet) })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-packets/:packetId/appeals/:appealId/resolve',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await resolveReviewAppeal(
+          req.params.packetId,
+          req.params.appealId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['packets', 'notifications', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
+        res.json({ packet: await visiblePacket(req, packet) })
       } catch (err) {
         throw toHttp(err)
       }

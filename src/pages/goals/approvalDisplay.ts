@@ -1,3 +1,4 @@
+import { cascadeApprovers } from "@/lib/goals/operations";
 import type { LineManagerCascade } from "@/lib/goals/operations";
 import type { PersonGoals, SubmissionStatus } from "@/lib/goals/types";
 import { statusLabel, submissionStatusLabel } from "./statusLabels";
@@ -5,6 +6,7 @@ import { statusLabel, submissionStatusLabel } from "./statusLabels";
 export type ApprovalPerson = {
   name: string;
   avatarUrl?: string;
+  delegated?: boolean;
 };
 
 export function approvalCopy(
@@ -72,21 +74,15 @@ export function resolveApprovalPerson({
   if (status === "approved" && approvedBy) return approvedBy;
   const approval = approvalCopy(status, postWindowApprovalStage);
   if (approval.tone === "draft") return null;
+  const { lineManager, skipLevelManager } = cascadeApprovers(cascadeFrom);
   if (
     status === "submitted" &&
     postWindowApprovalStage === "manager_manager" &&
-    cascadeFrom.skipLevelManagerName
+    skipLevelManager
   ) {
-    return {
-      name: cascadeFrom.skipLevelManagerName,
-      avatarUrl: cascadeFrom.skipLevelManagerAvatarUrl,
-    };
+    return skipLevelManager;
   }
-  if (!cascadeFrom.managerName) return null;
-  return {
-    name: cascadeFrom.managerName,
-    avatarUrl: cascadeFrom.managerAvatarUrl,
-  };
+  return lineManager;
 }
 
 export function goalCountLabel(goalCount: number): string {

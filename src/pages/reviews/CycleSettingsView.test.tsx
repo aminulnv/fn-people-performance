@@ -170,7 +170,7 @@ describe('CycleSettingsView', () => {
     const created = {
       ...cycle.groups![0],
       id: 'group-2',
-      name: 'New group',
+      name: 'Group 1',
       memberIds: [],
     }
     vi.spyOn(reviewsStore, 'createCycleGroup').mockResolvedValue(created)
@@ -180,11 +180,11 @@ describe('CycleSettingsView', () => {
 
     await waitFor(() => {
       expect(reviewsStore.createCycleGroup).toHaveBeenCalledWith(cycle.id, {
-        name: 'New group',
+        name: 'Group 1',
       })
     })
-    expect(screen.getByRole('dialog', { name: 'New group' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Group name')).toHaveValue('New group')
+    expect(screen.getByRole('dialog', { name: 'Group 1' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Group name')).toHaveValue('Group 1')
     expect(screen.getByText('0 people')).toBeInTheDocument()
     expect(screen.queryByText('Needs people')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'People' })).toHaveAttribute(
@@ -196,6 +196,37 @@ describe('CycleSettingsView', () => {
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
+  })
+
+  it('increments the default name for each new group', async () => {
+    const cycle = sampleCycle()
+    const firstGroup = {
+      ...cycle.groups![0],
+      id: 'group-1',
+      name: 'Group 1',
+    }
+    const secondGroup = {
+      ...firstGroup,
+      id: 'group-2',
+      name: 'Group 2',
+      memberIds: [],
+    }
+    const created = {
+      ...secondGroup,
+      id: 'group-3',
+      name: 'Group 3',
+    }
+    cycle.groups = [firstGroup, secondGroup]
+    vi.spyOn(reviewsStore, 'createCycleGroup').mockResolvedValue(created)
+
+    renderSettings(cycle)
+    fireEvent.click(screen.getByRole('button', { name: 'Add Group' }))
+
+    await waitFor(() => {
+      expect(reviewsStore.createCycleGroup).toHaveBeenCalledWith(cycle.id, {
+        name: 'Group 3',
+      })
+    })
   })
 
   it('renders a newly created annual cycle as a short identity, not a calendar', async () => {
@@ -216,7 +247,7 @@ describe('CycleSettingsView', () => {
     expect(screen.getByRole('button', { name: 'Create New Group' })).toBeInTheDocument()
   })
 
-  it('adds an empty New group so the cycle uses group cards, not an empty-state message', async () => {
+  it('adds an empty Group 1 so the cycle uses group cards, not an empty-state message', async () => {
     const cycle = await createReviewCycle({
       type: 'custom',
       name: 'Empty cycle',
@@ -232,7 +263,7 @@ describe('CycleSettingsView', () => {
     await waitFor(() => {
       expect(getReviewCycle(cycle.id)?.groups).toHaveLength(1)
     })
-    expect(getReviewCycle(cycle.id)?.groups?.[0]?.name).toBe('New group')
+    expect(getReviewCycle(cycle.id)?.groups?.[0]?.name).toBe('Group 1')
     expect(getReviewCycle(cycle.id)?.groups?.[0]?.memberIds).toEqual([])
   })
 

@@ -4,7 +4,7 @@ import {
   CalendarDays,
   Check,
   Search,
-  UserRoundSearch,
+  ShieldCheck,
   X,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui'
@@ -89,7 +89,7 @@ export function GradePublishingExclusionsDrawer({
       <button
         type="button"
         className="pd-reviews-drawer__scrim"
-        aria-label="Close Grade Publishing Exclusions"
+        aria-label="Close employee selection"
         onClick={onClose}
       />
       <aside
@@ -111,11 +111,11 @@ export function GradePublishingExclusionsDrawer({
           </button>
           <div className="pd-reviews-drawer__heading">
             <h2 id={titleId} className="pd-reviews-drawer__title">
-              Grade Publishing Exclusions
+              Hide Review From
             </h2>
             <p id={descriptionId} className="pd-reviews-drawer__subtitle">
-              Select individual employees who will not receive their grade
-              automatically when results are published.
+              Select employees whose review should remain hidden. Everyone else
+              will receive theirs as scheduled.
             </p>
             <span className="pd-reviews-drawer__cycle">
               <CalendarDays size={14} strokeWidth={1.75} aria-hidden />
@@ -127,39 +127,38 @@ export function GradePublishingExclusionsDrawer({
         <div className="pd-reviews-drawer__search">
           <Search size={16} strokeWidth={1.75} aria-hidden />
           <label className="pd-sr-only" htmlFor="grade-exclusion-search">
-            Search employees to exclude
+            Search employees
           </label>
           <input
             id="grade-exclusion-search"
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search employees to exclude."
+            placeholder="Search employees"
             className="pd-reviews-drawer__search-input"
           />
         </div>
 
         <div className="pd-reviews-drawer__body">
-          {selectedPeople.length === 0 && !query.trim() ? (
+          {isLoading ? (
+            <p className="pd-reviews-drawer__status">Loading employees…</p>
+          ) : employees.filter((person) => person.isActive).length === 0 ? (
             <div className="pd-reviews-drawer__empty">
               <span className="pd-reviews-drawer__empty-icon" aria-hidden>
-                <UserRoundSearch size={40} strokeWidth={1.5} />
+                <ShieldCheck size={40} strokeWidth={1.5} />
               </span>
               <p className="pd-reviews-drawer__empty-title">
-                No employee selected.
+                No active employees
               </p>
               <p className="pd-reviews-drawer__empty-hint">
-                Search above to find people to exclude from automatic grade
-                publishing.
+                Active employees will appear here when available.
               </p>
             </div>
-          ) : isLoading ? (
-            <p className="pd-reviews-drawer__status">Loading employees…</p>
           ) : filtered.length === 0 ? (
             <p className="pd-reviews-drawer__status">No employees match.</p>
           ) : (
             <ul className="pd-reviews-drawer__list">
-              {(query.trim() ? filtered : selectedPeople).map((person) => (
+              {filtered.map((person) => (
                 <ExclusionRow
                   key={person.employeeId}
                   person={person}
@@ -171,11 +170,13 @@ export function GradePublishingExclusionsDrawer({
           )}
         </div>
 
-        {selectedPeople.length > 0 ? (
-          <footer className="pd-reviews-drawer__footer">
-            <span>
-              {selectedPeople.length} excluded
-            </span>
+        <footer className="pd-reviews-drawer__footer">
+          <span>
+            {selectedPeople.length === 0
+              ? 'No employees excluded'
+              : `${selectedPeople.length} excluded`}
+          </span>
+          {selectedPeople.length > 0 ? (
             <button
               type="button"
               className="pd-reviews-edit-link"
@@ -183,8 +184,8 @@ export function GradePublishingExclusionsDrawer({
             >
               Clear All
             </button>
-          </footer>
-        ) : null}
+          ) : null}
+        </footer>
       </aside>
     </div>,
     document.body,
@@ -236,7 +237,7 @@ function ExclusionRow({
 }
 
 export function exclusionsLabel(count: number): string {
-  if (count <= 0) return 'No exclusions'
-  if (count === 1) return '1 exclusion'
-  return `${count} exclusions`
+  if (count <= 0) return 'No employees excluded'
+  if (count === 1) return '1 employee excluded'
+  return `${count} employees excluded`
 }

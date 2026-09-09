@@ -28,6 +28,8 @@ type ReviewStageListProps = {
     field: 'start' | 'end',
     date: string,
   ) => void
+  excludedEmployeeIds?: number[]
+  onExcludedEmployeeIdsChange?: (ids: number[]) => void
 }
 
 export function stageSectionId(id: ReviewStageId) {
@@ -43,6 +45,8 @@ export function ReviewStageList({
   highlightedId,
   setStageEnabled,
   setStageDate,
+  excludedEmployeeIds,
+  onExcludedEmployeeIdsChange,
 }: ReviewStageListProps) {
   return (
     <ul className="pd-reviews-stage-list">
@@ -104,6 +108,17 @@ export function ReviewStageList({
                         : 'Publish to Everyone Now'
                     }
                     onDateChange={(next) => setStageDate(id, 'start', next)}
+                    cycleName={cycle.name}
+                    excludedEmployeeIds={
+                      id === 'publish_employees'
+                        ? excludedEmployeeIds
+                        : undefined
+                    }
+                    onExcludedEmployeeIdsChange={
+                      id === 'publish_employees'
+                        ? onExcludedEmployeeIdsChange
+                        : undefined
+                    }
                   />
                 ) : (
                   <StageWindowFields

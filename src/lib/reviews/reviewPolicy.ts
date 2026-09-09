@@ -104,7 +104,12 @@ export function normalizeReviewPolicy(
       ),
       questions:
         policy.scorecard?.questions != null
-          ? policy.scorecard.questions
+          ? policy.scorecard.questions.map((question) => ({
+              ...question,
+              outputVisibility: question.outputVisibility?.length
+                ? question.outputVisibility
+                : ['employee', 'manager'],
+            }))
           : defaults.scorecard.questions,
       bands:
         policy.scorecard?.bands?.length
@@ -136,6 +141,17 @@ export function enabledQuestions(
     if (!visibility) return true
     return question.visibility.includes(visibility)
   })
+}
+
+export function enabledOutputQuestions(
+  policy: ReviewPolicy,
+  audience: ReviewQuestion['outputVisibility'][number],
+): ReviewQuestion[] {
+  return policy.scorecard.questions.filter(
+    (question) =>
+      question.enabled &&
+      (question.outputVisibility ?? ['employee', 'manager']).includes(audience),
+  )
 }
 
 export function pillarWeightTotal(policy: ReviewPolicy): number {

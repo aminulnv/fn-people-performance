@@ -24,7 +24,8 @@ export type SegmentedControlProps<T extends string = string> = Omit<
 > & {
   options: readonly SegmentedOption<T>[]
   value: T
-  onChange: (value: T) => void
+  /** Return false to reject a requested change and restore the controlled value. */
+  onChange: (value: T) => void | boolean
   /** Extra class on each segment button. */
   buttonClassName?: string
 }
@@ -96,7 +97,11 @@ export function SegmentedControl<T extends string>({
     const option = options.find((item) => item.id === id)
     if (!option || option.disabled || id === visualValue) return
     setVisualValue(id)
-    startTransition(() => onChange(id))
+    let accepted = true
+    startTransition(() => {
+      accepted = onChange(id) !== false
+    })
+    if (!accepted) setVisualValue(value)
   }
 
   return (

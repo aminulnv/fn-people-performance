@@ -21,6 +21,8 @@ type CycleSelectBaseProps = {
   /** Put a Clear choice first so the page can drop its cycle. */
   allowEmpty?: boolean
   emptyLabel?: string
+  searchPlaceholder?: string
+  noResultsText?: string
 }
 
 export type CycleSelectSingleProps = CycleSelectBaseProps & {
@@ -50,13 +52,15 @@ export function sanitizeCycleSelection(
   return availableIds[0] ? [availableIds[0]] : []
 }
 
-/** Toggle a cycle; the last remaining selection cannot be cleared. */
+/** Toggle a cycle. By default the last remaining selection cannot be cleared. */
 export function toggleCycleSelection(
   selected: string[],
   cycleId: string,
+  options: { requireSelection?: boolean } = {},
 ): string[] {
+  const requireSelection = options.requireSelection !== false
   if (selected.includes(cycleId)) {
-    if (selected.length === 1) return selected
+    if (requireSelection && selected.length === 1) return selected
     return selected.filter((id) => id !== cycleId)
   }
   return [...selected, cycleId]
@@ -82,9 +86,12 @@ export function CycleSelect(props: CycleSelectProps) {
     className,
     allowEmpty = false,
     emptyLabel = 'Clear',
+    searchPlaceholder = 'Search cycles',
+    noResultsText = 'No cycles match',
   } = props
   const multiple = props.multiple === true
   const canClear = allowEmpty && !multiple
+  const emptyMulti = allowEmpty && multiple
   const listOptions = canClear
     ? [{ id: CYCLE_SELECT_CLEAR_ID, label: emptyLabel }, ...options]
     : options
@@ -117,7 +124,9 @@ export function CycleSelect(props: CycleSelectProps) {
   const selected = selectedOptions(listOptions, selectedIds)
   const primary =
     selected[0] ??
-    (canClear ? { id: CYCLE_SELECT_CLEAR_ID, label: emptyLabel } : options[0])
+    (canClear || emptyMulti
+      ? { id: CYCLE_SELECT_CLEAR_ID, label: emptyLabel }
+      : options[0])
 
   const needle = query.trim().toLowerCase()
   const filtered = needle
@@ -134,12 +143,30 @@ export function CycleSelect(props: CycleSelectProps) {
 
   const selectCycle = (cycleId: string) => {
     if (props.multiple) {
-      props.onChange(toggleCycleSelection(selectedIds, cycleId))
+      props.onChange(
+        toggleCycleSelection(selectedIds, cycleId, {
+          requireSelection: !allowEmpty,
+        }),
+      )
       return
     }
     props.onChange(cycleId)
     setOpen(false)
     setQuery('')
+  }
+
+  const allOptionsSelected =
+    multiple &&
+    options.length > 0 &&
+    options.every((option) => selectedIds.includes(option.id))
+
+  const toggleAllOptions = () => {
+    if (!props.multiple) return
+    props.onChange(
+      allOptionsSelected
+        ? []
+        : options.map((option) => option.id),
+    )
   }
 
   return (
@@ -186,14 +213,45 @@ export function CycleSelect(props: CycleSelectProps) {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search cycles"
-              aria-label="Search cycles"
+              placeholder={searchPlaceholder}
+              aria-label={searchPlaceholder}
               autoFocus
             />
           </div>
           <div className="pd-cycle-select__list">
+            {multiple && options.length > 0 ? (
+              <button
+                type="button"
+                role="option"
+                aria-selected={allOptionsSelected}
+                className={[
+                  'pd-cycle-select__option',
+                  'pd-cycle-select__option--multi',
+                  allOptionsSelected ? 'is-active' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={toggleAllOptions}
+              >
+                <span className="pd-cycle-select__check" aria-hidden>
+                  <input
+                    type="checkbox"
+                    className="pd-check__input"
+                    checked={allOptionsSelected}
+                    readOnly
+                    tabIndex={-1}
+                  />
+                  <span className="pd-check__box" />
+                </span>
+                <span className="pd-cycle-select__option-main">
+                  <span className="pd-cycle-select__option-label">
+                    {allOptionsSelected ? 'Deselect All' : 'Select All'}
+                  </span>
+                </span>
+              </button>
+            ) : null}
             {filtered.length === 0 ? (
-              <p className="pd-cycle-select__empty">No cycles match</p>
+              <p className="pd-cycle-select__empty">{noResultsText}</p>
             ) : (
               filtered.map((option) => {
                 const isActive = selectedIds.includes(option.id)

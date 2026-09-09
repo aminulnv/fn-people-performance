@@ -25,11 +25,13 @@ export function GoalOkrReferenceSheet({
   quarter,
   cycleLabel,
   scope,
+  applyToGoalDisabledReason,
 }: {
   employeeId: number;
   quarter?: string;
   cycleLabel?: string;
   scope?: OkrReferenceScope;
+  applyToGoalDisabledReason?: string;
 }) {
   return (
     <div className="pd-okr-sheet">
@@ -44,6 +46,7 @@ export function GoalOkrReferenceSheet({
         employeeId={employeeId}
         quarter={quarter}
         scope={scope}
+        applyToGoalDisabledReason={applyToGoalDisabledReason}
       />
     </div>
   );

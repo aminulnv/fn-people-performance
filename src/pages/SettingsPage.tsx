@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Monitor,
   Moon,
@@ -28,16 +28,16 @@ import { SegmentedControl, Switch } from '@/components/ui'
 import { useAssistantPrefs } from '@/layout/useAssistantPrefs'
 import { useSidebarPrefs } from '@/layout/useSidebarPrefs'
 import { hasSystemPermission } from '@/lib/accessControl/types'
+import {
+  hashForSettingsSection,
+  settingsSectionFromHash,
+  settingsSectionFromQuery,
+  type SettingsSectionId,
+} from '@/lib/settings/sectionHashes'
+import { locationWithHash, useUrlHashTab } from '@/lib/routing/urlHash'
 import { useAuth } from '@/lib/useAuth'
 import { AccessControlPanel } from './settings/AccessControlPanel'
 import { ActivitySettingsPanel } from './settings/ActivitySettingsPanel'
-
-type SettingsSectionId =
-  | 'appearance'
-  | 'assistant'
-  | 'access'
-  | 'activity'
-  | 'about'
 
 const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
@@ -297,9 +297,8 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
 
 export default function SettingsPage() {
   const { user } = useAuth()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const [activeSection, setActiveSection] =
-    useState<SettingsSectionId>('appearance')
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const canReadAccess = hasSystemPermission(
     user?.permissions,
     'platform.read_all',
@@ -312,27 +311,33 @@ export default function SettingsPage() {
     if (section.id === 'activity') return canReadActivity
     return true
   })
+  const [activeSection, setActiveSection] = useUrlHashTab<SettingsSectionId>({
+    defaultTab: 'appearance',
+    tabFromHash: (hash) => {
+      const section = settingsSectionFromHash(hash)
+      if (section === 'access' && !canReadAccess) return null
+      if (section === 'activity' && !canReadActivity) return null
+      return section
+    },
+    hashFromTab: hashForSettingsSection,
+  })
 
   useEffect(() => {
-    const requested = searchParams.get('section')
-    if (requested === 'sidebar') {
-      setActiveSection('appearance')
-      setSearchParams({}, { replace: true })
-      return
-    }
-    if (
-      requested !== 'access' &&
-      requested !== 'activity' &&
-      requested !== 'appearance' &&
-      requested !== 'assistant' &&
-      requested !== 'about'
-    ) {
-      return
-    }
-    if (requested === 'access' && !canReadAccess) return
-    if (requested === 'activity' && !canReadActivity) return
-    setActiveSection(requested)
-  }, [searchParams, canReadAccess, canReadActivity, setSearchParams])
+    const raw = searchParams.get('section')
+    if (raw == null) return
+    const fromQuery = settingsSectionFromQuery(raw)
+    const allowed =
+      fromQuery &&
+      !(fromQuery === 'access' && !canReadAccess) &&
+      !(fromQuery === 'activity' && !canReadActivity)
+    navigate(
+      locationWithHash(
+        { pathname: '/settings', search: '' },
+        allowed ? fromQuery : 'appearance',
+      ),
+      { replace: true },
+    )
+  }, [canReadAccess, canReadActivity, navigate, searchParams])
 
   return (
     <div className="pd-page pd-settings" aria-label="Settings">
@@ -342,13 +347,7 @@ export default function SettingsPage() {
             className="pd-settings-nav__tabs"
             options={sections}
             value={activeSection}
-            onChange={(section) => {
-              setActiveSection(section)
-              setSearchParams(
-                section === 'appearance' ? {} : { section },
-                { replace: true },
-              )
-            }}
+            onChange={setActiveSection}
             aria-label="Settings section"
           />
         </nav>

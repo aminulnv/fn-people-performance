@@ -46,6 +46,10 @@ export function ColumnVisibility({
   const hiddenCount = columns.filter(
     (column) => !column.required && !visibleSet.has(column.id),
   ).length
+  const selectableColumns = columns.filter((column) => !column.required)
+  const allColumnsSelected =
+    selectableColumns.length > 0 &&
+    selectableColumns.every((column) => visibleSet.has(column.id))
   const isCustomized = !sameIds(visibleIds, defaults)
 
   useEffect(() => {
@@ -79,6 +83,16 @@ export function ColumnVisibility({
 
   function resetColumns() {
     onChange([...defaults])
+  }
+
+  function toggleAllColumns() {
+    onChange(
+      allColumnsSelected
+        ? columns
+            .filter((column) => column.required)
+            .map((column) => column.id)
+        : columns.map((column) => column.id),
+    )
   }
 
   return (
@@ -133,6 +147,32 @@ export function ColumnVisibility({
             aria-multiselectable
           >
             <p className="pd-people-filters__section">Show in table</p>
+            {selectableColumns.length > 0 ? (
+              <button
+                type="button"
+                role="option"
+                aria-selected={allColumnsSelected}
+                className={cx(
+                  'pd-people-filters__value',
+                  allColumnsSelected && 'is-selected',
+                )}
+                onClick={toggleAllColumns}
+              >
+                <span className="pd-people-filters__check" aria-hidden>
+                  <input
+                    type="checkbox"
+                    className="pd-check__input"
+                    checked={allColumnsSelected}
+                    readOnly
+                    tabIndex={-1}
+                  />
+                  <span className="pd-check__box" />
+                </span>
+                <span className="pd-people-filters__value-label">
+                  {allColumnsSelected ? 'Deselect All' : 'Select All'}
+                </span>
+              </button>
+            ) : null}
             {columns.map((column) => {
               const isVisible = visibleSet.has(column.id)
               const isRequired = Boolean(column.required)

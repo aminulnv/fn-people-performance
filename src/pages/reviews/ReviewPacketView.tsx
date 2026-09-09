@@ -5,6 +5,7 @@ import {
   ActivityLogTrigger,
 } from '@/components/activity/ActivityLogDrawer'
 import { Button, ConfirmDialog, Field, ListboxSelect, PageStatus } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/auth'
 import { useHydrateManagerDelegations } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -21,6 +22,7 @@ import {
   appealReviewPacket,
   calibrateReviewPacket,
   fetchReviewPacket,
+  resolveReviewAppeal,
   saveReviewPacket,
 } from '@/lib/reviews/packetsApi'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
@@ -28,6 +30,7 @@ import {
   defaultReviewPolicy,
   enabledPillars,
   enabledQuestions,
+  enabledOutputQuestions,
   gradesGoalsSeparately,
   gradesOverall,
 } from '@/lib/reviews/reviewPolicy'
@@ -40,6 +43,7 @@ import {
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { calibrationIsEditable } from '@/lib/reviews/scorecardStages'
+import { officialReviewReleasedToEmployee } from '@/lib/reviews/packetVisibility'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
@@ -264,14 +268,44 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   )
   const appealOn = Boolean(getReviewStage(stages, 'appeal')?.enabled)
   const pillars = enabledPillars(policy)
-  const selfQuestions = enabledQuestions(policy, 'employee')
-  const managerQuestions = enabledQuestions(policy, 'manager')
+  const employeeOutputReleased =
+    isSubject && officialReviewReleasedToEmployee(packet.status)
+  const managerOutputReleased =
+    isManager &&
+    (packet.status === 'released_to_managers' ||
+      packet.status === 'released_to_employees' ||
+      packet.status === 'appealed')
+  const outputAudience = employeeOutputReleased
+    ? 'employee'
+    : managerOutputReleased
+      ? 'manager'
+      : null
+  const outputQuestionIds = outputAudience
+    ? new Set(
+        enabledOutputQuestions(policy, outputAudience).map(
+          (question) => question.id,
+        ),
+      )
+    : null
+  const forCurrentAudience = (question: ReviewPolicy['scorecard']['questions'][number]) =>
+    outputQuestionIds == null || outputQuestionIds.has(question.id)
+  const selfQuestions = enabledQuestions(policy, 'employee').filter(
+    forCurrentAudience,
+  )
+  const managerQuestions = enabledQuestions(policy, 'manager').filter(
+    forCurrentAudience,
+  )
   const showSelfForm = selfOn && (isSubject || packet.status !== 'not_started')
-  const showManagerForm = managerOn && isManager
+  const showManagerForm = managerOn && (isManager || employeeOutputReleased)
   const showCalibrationForm =
     calOn && isManager && calibrationIsEditable(packet.status)
   const showAppealForm =
     appealOn && isSubject && packet.status === 'released_to_employees'
+  const openAppeal = packet.appeals.find((appeal) => appeal.status === 'open')
+  const canResolveAppeal = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
   const feedbackLocked =
     feedbackRole === 'manager'
       ? packet.status === 'released_to_employees' ||
@@ -302,8 +336,9 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     packet.status === 'manager_submitted'
   const goalsGradeLocked =
     goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked
-  const formLocked = showManagerForm ? managerFormLocked : selfFormLocked
-  const formActorRole = showManagerForm ? 'manager' : 'self'
+  const viewingManagerForm = stageView.viewing === 'manager_review'
+  const formLocked = viewingManagerForm ? managerFormLocked : selfFormLocked
+  const formActorRole = viewingManagerForm ? 'manager' : 'self'
 
   const viewHref = `${scorecardDetailPath(
     detail?.cycleKey ?? cycleId,
@@ -593,7 +628,8 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {showAppealForm ? (
+      {stageView.viewing === 'appeal' &&
+      (showAppealForm || packet.appeals.length > 0) ? (
         <AppealBlock
           packet={packet}
           onSave={async (body) => {
@@ -611,6 +647,35 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
                   err instanceof Error
                     ? err.message
                     : 'Could not submit this appeal.',
+                shownAt: Date.now(),
+              })
+            }
+          }}
+        />
+      ) : null}
+      {stageView.viewing === 'appeal' && canResolveAppeal && openAppeal ? (
+        <AppealOverrideBlock
+          packet={packet}
+          onSave={async (toGrade, justification) => {
+            try {
+              setPacket(
+                await resolveReviewAppeal(packet.id, openAppeal.id, {
+                  toGrade,
+                  justification,
+                }),
+              )
+              setSaveNotice({
+                variant: 'success',
+                message: 'Appeal resolved and final rating updated.',
+                shownAt: Date.now(),
+              })
+            } catch (err: unknown) {
+              setSaveNotice({
+                variant: 'error',
+                message:
+                  err instanceof Error
+                    ? err.message
+                    : 'Could not resolve this appeal.',
                 shownAt: Date.now(),
               })
             }
@@ -855,6 +920,54 @@ function AppealBlock({
         onClick={() => void onSave(body)}
       >
         Submit Appeal
+      </Button>
+    </section>
+  )
+}
+
+function AppealOverrideBlock({
+  packet,
+  onSave,
+}: {
+  packet: ReviewPacket
+  onSave: (toGrade: GradeBandId, justification: string) => Promise<void>
+}) {
+  const [grade, setGrade] = useState<GradeBandId | ''>(
+    packet.publishedOverallGrade ?? '',
+  )
+  const [justification, setJustification] = useState('')
+
+  return (
+    <section className="pd-reviews-edit-card" aria-label="Admin appeal override">
+      <h2 className="pd-reviews-edit-card__title">Admin Appeal Override</h2>
+      <p className="pd-reviews-flow__hint">
+        Current final rating: {packet.publishedOverallGrade ?? '-'}
+      </p>
+      <GradeField
+        id="packet-grade-appeal-override"
+        label="Final rating"
+        value={grade}
+        allowEmpty={false}
+        onChange={(next) => {
+          if (next) setGrade(next)
+        }}
+      />
+      <label className="pd-field">
+        <span className="pd-field__label">Override justification</span>
+        <textarea
+          className="pd-field__control"
+          rows={4}
+          value={justification}
+          onChange={(event) => setJustification(event.target.value)}
+        />
+      </label>
+      <Button
+        variant="primary"
+        pill
+        disabled={!grade || !justification.trim()}
+        onClick={() => grade && void onSave(grade, justification)}
+      >
+        Resolve Appeal
       </Button>
     </section>
   )

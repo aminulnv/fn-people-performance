@@ -7,8 +7,10 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search } from 'lucide-react'
 import { cx } from '@/lib/cx'
+import { useFloatingPanel } from './useFloatingPanel'
 
 export type ListboxOption = {
   value: string
@@ -35,6 +37,8 @@ export type ListboxSelectProps = {
   searchable?: boolean
   searchPlaceholder?: string
   noResultsText?: string
+  /** Render the options panel above clipping scroll containers. */
+  portal?: boolean
   /** Show the selected option’s description beside the label in the closed trigger. */
   showDescriptionInTrigger?: boolean
   'aria-label'?: string
@@ -54,6 +58,7 @@ export function ListboxSelect({
   searchable = false,
   searchPlaceholder = 'Search…',
   noResultsText = 'No options found',
+  portal = false,
   showDescriptionInTrigger = false,
   'aria-label': ariaLabel,
 }: ListboxSelectProps) {
@@ -64,7 +69,14 @@ export function ListboxSelect({
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const portalStyle = useFloatingPanel({
+    open: open && portal,
+    anchorRef: containerRef,
+    panelRef,
+    fitContent: true,
+  })
 
   const items = useMemo(() => {
     const next = [...options]
@@ -99,7 +111,8 @@ export function ListboxSelect({
     const onPointerDown = (event: MouseEvent) => {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
+        !containerRef.current.contains(event.target as Node) &&
+        !panelRef.current?.contains(event.target as Node)
       ) {
         setQuery('')
         setOpen(false)
@@ -215,6 +228,76 @@ export function ListboxSelect({
       ? `${listboxId}-opt-${activeIndex}`
       : undefined
 
+  const optionsPanel = open ? (
+    <div
+      ref={panelRef}
+      className={cx('pd-listbox__panel', portal && 'pd-listbox__panel--floating')}
+      style={
+        portal
+          ? {
+              ...portalStyle,
+              visibility: portalStyle ? 'visible' : 'hidden',
+            }
+          : undefined
+      }
+    >
+      <div
+        id={`${listboxId}-list`}
+        role="listbox"
+        aria-label={ariaLabel ?? placeholder}
+      >
+        {filteredItems.map((item, index) => {
+          const isSelected = item.value === value
+          const isActive = index === activeIndex
+          return (
+            <button
+              key={`${item.value || '__empty'}-${index}`}
+              id={`${listboxId}-opt-${index}`}
+              ref={(node) => {
+                optionRefs.current[index] = node
+              }}
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              disabled={item.disabled}
+              tabIndex={-1}
+              className={cx(
+                'pd-listbox__option',
+                item.className,
+                isSelected && 'is-selected',
+                isActive && 'is-active',
+                !item.value && 'pd-listbox__option--empty',
+              )}
+              onMouseEnter={() => {
+                if (!item.disabled) setActiveIndex(index)
+              }}
+              onClick={() => choose(item.value)}
+              onKeyDown={(event) => onOptionKeyDown(event, item.value)}
+            >
+              <span className="pd-listbox__option-content">
+                {item.leading}
+                <span className="pd-listbox__option-text">
+                  <span className="pd-listbox__option-label">{item.label}</span>
+                  {item.description ? (
+                    <span className="pd-listbox__option-description">
+                      {item.description}
+                    </span>
+                  ) : null}
+                </span>
+              </span>
+              {isSelected ? (
+                <Check size={14} strokeWidth={2.25} aria-hidden />
+              ) : null}
+            </button>
+          )
+        })}
+        {filteredItems.length === 0 ? (
+          <p className="pd-listbox__empty">{noResultsText}</p>
+        ) : null}
+      </div>
+    </div>
+  ) : null
+
   return (
     <div
       ref={containerRef}
@@ -305,64 +388,9 @@ export function ListboxSelect({
           />
         </button>
       )}
-      {open ? (
-        <div className="pd-listbox__panel">
-          <div
-            id={`${listboxId}-list`}
-            role="listbox"
-            aria-label={ariaLabel ?? placeholder}
-          >
-            {filteredItems.map((item, index) => {
-              const isSelected = item.value === value
-              const isActive = index === activeIndex
-              return (
-                <button
-                  key={`${item.value || '__empty'}-${index}`}
-                  id={`${listboxId}-opt-${index}`}
-                  ref={(node) => {
-                    optionRefs.current[index] = node
-                  }}
-                  type="button"
-                  role="option"
-                  aria-selected={isSelected}
-                  disabled={item.disabled}
-                  tabIndex={-1}
-                  className={cx(
-                    'pd-listbox__option',
-                    item.className,
-                    isSelected && 'is-selected',
-                    isActive && 'is-active',
-                    !item.value && 'pd-listbox__option--empty',
-                  )}
-                  onMouseEnter={() => {
-                    if (!item.disabled) setActiveIndex(index)
-                  }}
-                  onClick={() => choose(item.value)}
-                  onKeyDown={(event) => onOptionKeyDown(event, item.value)}
-                >
-                  <span className="pd-listbox__option-content">
-                    {item.leading}
-                    <span className="pd-listbox__option-text">
-                      <span className="pd-listbox__option-label">{item.label}</span>
-                      {item.description ? (
-                        <span className="pd-listbox__option-description">
-                          {item.description}
-                        </span>
-                      ) : null}
-                    </span>
-                  </span>
-                  {isSelected ? (
-                    <Check size={14} strokeWidth={2.25} aria-hidden />
-                  ) : null}
-                </button>
-              )
-            })}
-            {filteredItems.length === 0 ? (
-              <p className="pd-listbox__empty">{noResultsText}</p>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
+      {portal && optionsPanel
+        ? createPortal(optionsPanel, document.body)
+        : optionsPanel}
     </div>
   )
 }

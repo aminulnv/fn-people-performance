@@ -41,6 +41,7 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
     recommendedMinimum: 3,
     recommendedMaximum: 5,
     maximumAllowed: null,
+    lateProgressUpdateDays: 30,
   },
   postWindowGoalPolicy: "two_tier_approval",
   excludedEmployeeIds: [],

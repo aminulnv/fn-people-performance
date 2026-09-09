@@ -36,7 +36,12 @@ function uniqueEmployeeIds(employeeIds) {
   return [...new Set((employeeIds ?? []).map(Number).filter(Number.isInteger))]
 }
 
-export function mapCycleGroup(row, memberIds = [], quarter) {
+export function mapCycleGroup(
+  row,
+  memberIds = [],
+  quarter,
+  excludedEmployeeIds = [],
+) {
   const startDate = isoInstant(quarter?.startDate ?? row.start_date)
   const endDate = isoInstant(quarter?.endDate ?? row.end_date)
   const purpose = cyclePurposeOf({
@@ -57,7 +62,7 @@ export function mapCycleGroup(row, memberIds = [], quarter) {
       reviewTypes: row.review_types,
       goalCountPolicy: row.goal_count_policy,
       postWindowGoalPolicy: row.post_window_goal_policy,
-      excludedEmployeeIds: [],
+      excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
       reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose),
     },
@@ -98,6 +103,19 @@ export async function loadGroupsForCycles(client, cycleIds) {
     list.push(Number(row.employee_id))
     membersByGroup.set(row.group_id, list)
   }
+  const { rows: exclusionRows } = await client.query(
+    `SELECT cycle_id, employee_id
+     FROM platform.review_cycle_grade_exclusions
+     WHERE cycle_id = ANY($1::text[])
+     ORDER BY employee_id`,
+    [cycleIds],
+  )
+  const exclusionsByCycle = new Map()
+  for (const row of exclusionRows) {
+    const list = exclusionsByCycle.get(row.cycle_id) ?? []
+    list.push(Number(row.employee_id))
+    exclusionsByCycle.set(row.cycle_id, list)
+  }
 
   const groupsByCycle = new Map()
   for (const row of rows) {
@@ -106,7 +124,7 @@ export async function loadGroupsForCycles(client, cycleIds) {
       endDate: row.end_date,
       periodKey: row.period_key,
       type: row.cycle_type,
-    })
+    }, exclusionsByCycle.get(row.cycle_id) ?? [])
     const list = groupsByCycle.get(row.cycle_id) ?? []
     list.push(group)
     groupsByCycle.set(row.cycle_id, list)
@@ -247,6 +265,13 @@ async function loadGroup(client, cycleId, groupId) {
      ORDER BY employee_id`,
     [groupId],
   )
+  const { rows: exclusionRows } = await client.query(
+    `SELECT employee_id
+     FROM platform.review_cycle_grade_exclusions
+     WHERE cycle_id = $1
+     ORDER BY employee_id`,
+    [cycleId],
+  )
   return mapCycleGroup(
     row,
     rows.map((item) => Number(item.employee_id)),
@@ -256,6 +281,7 @@ async function loadGroup(client, cycleId, groupId) {
       periodKey: row.period_key,
       type: row.cycle_type,
     },
+    exclusionRows.map((item) => Number(item.employee_id)),
   )
 }
 
@@ -328,6 +354,8 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
       },
       postWindowGoalPolicy:
         patch.postWindowGoalPolicy ?? before.settings.postWindowGoalPolicy,
+      excludedEmployeeIds:
+        patch.excludedEmployeeIds ?? before.settings.excludedEmployeeIds,
       autoScorecardGeneration:
         patch.autoScorecardGeneration ??
         before.settings.autoScorecardGeneration,
@@ -401,10 +429,25 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
       patch.memberIds != null
         ? await replaceGroupMembers(client, cycleId, groupId, patch.memberIds)
         : before.memberIds
+    if (patch.excludedEmployeeIds != null) {
+      const excludedEmployeeIds = uniqueEmployeeIds(patch.excludedEmployeeIds)
+      await client.query(
+        `DELETE FROM platform.review_cycle_grade_exclusions WHERE cycle_id = $1`,
+        [cycleId],
+      )
+      if (excludedEmployeeIds.length > 0) {
+        await client.query(
+          `INSERT INTO platform.review_cycle_grade_exclusions (cycle_id, employee_id)
+           SELECT $1, unnest($2::int[])
+           ON CONFLICT DO NOTHING`,
+          [cycleId, excludedEmployeeIds],
+        )
+      }
+    }
     const group = mapCycleGroup(rows[0], memberIds, {
       startDate: row.start_date,
       endDate: row.end_date,
-    })
+    }, nextSettings.excludedEmployeeIds)
     await appendActivityEvent(client, {
       eventKey: 'review_cycle.group_updated',
       entityType: 'review_cycle',

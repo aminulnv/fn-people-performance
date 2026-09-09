@@ -1,4 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ChevronLeft,
   ChevronRight,
@@ -8,6 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { cx } from '@/lib/cx'
+import { useFloatingPanel } from './useFloatingPanel'
 import {
   attributeFilterCount,
   toggleAttributeFilter,
@@ -44,6 +46,12 @@ export function AttributeFilters({
   const [openAttribute, setOpenAttribute] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+  })
 
   const filterCount = count ?? attributeFilterCount(selected)
 
@@ -60,7 +68,10 @@ export function AttributeFilters({
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      if (
+        !containerRef.current?.contains(event.target as Node) &&
+        !panelRef.current?.contains(event.target as Node)
+      ) {
         closePanel()
       }
     }
@@ -126,6 +137,23 @@ export function AttributeFilters({
     onChange(toggleAttributeFilter(selected, openAttribute, option.value))
   }
 
+  const allValuesSelected =
+    Boolean(openAttribute) &&
+    valueOptions.length > 0 &&
+    valueOptions.every((option) =>
+      selectedValuesFor(openAttribute ?? '').includes(option.value),
+    )
+
+  function toggleAllValues() {
+    if (!openAttribute) return
+    onChange({
+      ...selected,
+      [openAttribute]: allValuesSelected
+        ? []
+        : valueOptions.map((option) => option.value),
+    })
+  }
+
   const heading = activeAttribute?.label ?? 'Filters'
   const searchPlaceholder = openAttribute
     ? 'Search values…'
@@ -158,12 +186,18 @@ export function AttributeFilters({
         ) : null}
       </button>
 
-      {open ? (
+      {open
+        ? createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           className="pd-people-filters__panel"
           role="dialog"
           aria-label="Filters"
+          style={{
+            ...panelStyle,
+            visibility: panelStyle ? 'visible' : 'hidden',
+          }}
         >
           <header className="pd-people-filters__header">
             {openAttribute ? (
@@ -210,6 +244,32 @@ export function AttributeFilters({
               aria-label={heading}
               aria-multiselectable
             >
+              {valueOptions.length > 0 ? (
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={allValuesSelected}
+                  className={cx(
+                    'pd-people-filters__value',
+                    allValuesSelected && 'is-selected',
+                  )}
+                  onClick={toggleAllValues}
+                >
+                  <span className="pd-people-filters__check" aria-hidden>
+                    <input
+                      type="checkbox"
+                      className="pd-check__input"
+                      checked={allValuesSelected}
+                      readOnly
+                      tabIndex={-1}
+                    />
+                    <span className="pd-check__box" />
+                  </span>
+                  <span className="pd-people-filters__value-label">
+                    {allValuesSelected ? 'Deselect All' : 'Select All'}
+                  </span>
+                </button>
+              ) : null}
               {visibleValues.length === 0 ? (
                 <p className="pd-people-filters__empty">No values match</p>
               ) : (
@@ -306,8 +366,10 @@ export function AttributeFilters({
               </button>
             </footer>
           ) : null}
-        </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </div>
   )
 }

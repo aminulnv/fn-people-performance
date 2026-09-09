@@ -188,9 +188,11 @@ export function ReviewSettingsEditPage({
   const owned = useReviewSettingsDraft(cycle, group, onClose, embedded)
   const editor = draft ?? owned
   const {
+    settings,
     policy,
     stagesConfig,
     error,
+    setSettings,
     setStageEnabled,
     setStageDate,
     patchPolicy,
@@ -288,6 +290,13 @@ export function ReviewSettingsEditPage({
               highlightedId={highlightedStageId}
               setStageEnabled={setStageEnabled}
               setStageDate={setStageDate}
+              excludedEmployeeIds={settings.excludedEmployeeIds}
+              onExcludedEmployeeIdsChange={(excludedEmployeeIds) =>
+                setSettings((current) => ({
+                  ...current,
+                  excludedEmployeeIds,
+                }))
+              }
             />
           </section>
 

@@ -36,6 +36,12 @@ describe('toggleCycleSelection', () => {
     ])
     expect(toggleCycleSelection(['q3-2026'], 'q3-2026')).toEqual(['q3-2026'])
   })
+
+  it('can clear the last selection when requireSelection is false', () => {
+    expect(
+      toggleCycleSelection(['q3-2026'], 'q3-2026', { requireSelection: false }),
+    ).toEqual([])
+  })
 })
 
 describe('CycleSelect', () => {
@@ -54,7 +60,7 @@ describe('CycleSelect', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cycle: Q3 2026' }))
 
     const boxes = screen.getAllByRole('checkbox', { hidden: true })
-    expect(boxes).toHaveLength(OPTIONS.length)
+    expect(boxes).toHaveLength(OPTIONS.length + 1)
     expect(boxes.filter((box) => (box as HTMLInputElement).checked)).toHaveLength(
       1,
     )
@@ -84,6 +90,59 @@ describe('CycleSelect', () => {
 
     fireEvent.click(options[0])
     expect(onChange).toHaveBeenCalledWith('')
+  })
+
+  it('lets multi filters clear every checkbox when empty is allowed', () => {
+    const onChange = vi.fn()
+    render(
+      <CycleSelect
+        label="Team"
+        multiple
+        allowEmpty
+        emptyLabel="All teams"
+        options={[
+          { id: 'core', label: 'Core' },
+          { id: 'platform', label: 'Platform' },
+        ]}
+        value={['core']}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Team: Core' }))
+    fireEvent.click(screen.getByRole('option', { name: /Core/ }))
+
+    expect(onChange).toHaveBeenCalledWith([])
+    expect(screen.getByRole('listbox')).toBeInTheDocument()
+  })
+
+  it('selects and deselects every option from one checkbox', () => {
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <CycleSelect
+        label="Cycle"
+        multiple
+        options={OPTIONS}
+        value={['q3-2026']}
+        onChange={onChange}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cycle: Q3 2026' }))
+    fireEvent.click(screen.getByRole('option', { name: 'Select All' }))
+    expect(onChange).toHaveBeenLastCalledWith(OPTIONS.map((option) => option.id))
+
+    rerender(
+      <CycleSelect
+        label="Cycle"
+        multiple
+        options={OPTIONS}
+        value={OPTIONS.map((option) => option.id)}
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('option', { name: 'Deselect All' }))
+    expect(onChange).toHaveBeenLastCalledWith([])
   })
 
   it('summarizes more than one selected cycle on the trigger', () => {

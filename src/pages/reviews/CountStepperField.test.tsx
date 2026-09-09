@@ -34,4 +34,25 @@ describe('CountStepperField', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Decrease Maximum' }))
     expect(onChange).toHaveBeenLastCalledWith(null)
   })
+
+  it('does not increase beyond the configured maximum', () => {
+    const onChange = vi.fn()
+    render(
+      <CountStepperField
+        label="Days"
+        value={30}
+        min={0}
+        max={30}
+        onChange={onChange}
+      />,
+    )
+
+    expect(
+      screen.getByRole('button', { name: 'Increase Days' }),
+    ).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Days'), {
+      target: { value: '45' },
+    })
+    expect(onChange).toHaveBeenLastCalledWith(30)
+  })
 })

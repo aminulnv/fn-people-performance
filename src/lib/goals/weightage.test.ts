@@ -268,11 +268,11 @@ describe('canSubmitGoals', () => {
       'Metrics need to add up to 100%.',
     )
     expect(submitHoverHints(check.blockers)).toEqual([
-      'test: Still needs a metric.',
+      'Still needs a metric.',
     ])
   })
 
-  it('names the goal next to the table wording for the submit hover', () => {
+  it('uses generic table wording for the submit hover', () => {
     const check = canSubmitGoals(
       [{ ...blankGoal({ withDefaultMetric: false }), description: 'test', weight: 50 }],
       POLICY,
@@ -280,7 +280,7 @@ describe('canSubmitGoals', () => {
     expect(submitHoverHints(check.blockers)).toEqual([
       'Add at least 2 goals.',
       'Weights need to add up to 100%.',
-      'test: Still needs a metric.',
+      'Still needs a metric.',
     ])
   })
 

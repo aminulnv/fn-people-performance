@@ -83,6 +83,36 @@ describe('GoalsTable nested measures', () => {
     ).toBeInTheDocument()
   })
 
+  it('expands a goal without a matrix to show an empty row', () => {
+    const goalWithoutMatrix = {
+      ...goalWithMeasures,
+      measurements: [],
+    }
+    render(
+      <GoalsTable
+        rows={[
+          {
+            goal: goalWithoutMatrix,
+            title: goalWithoutMatrix.description,
+          },
+        ]}
+      />,
+    )
+
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: `Expand ${goalWithoutMatrix.description}`,
+      }),
+    )
+
+    expect(screen.getByText('No metrics added yet')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: `Collapse ${goalWithoutMatrix.description}`,
+      }),
+    ).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('nests metric and milestone rows under the goal with type icons', () => {
     render(
       <GoalsTable

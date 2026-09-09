@@ -3,6 +3,7 @@ import type {
   GradeBandDefinition,
   ReviewPolicy,
   ReviewQuestion,
+  ReviewQuestionOutputVisibility,
   ReviewQuestionVisibility,
   ScorecardPillar,
   ScorecardPillarKind,
@@ -23,6 +24,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     enabled: true,
     required: true,
     visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   },
   {
     id: 'values',
@@ -30,6 +32,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     enabled: true,
     required: true,
     visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   },
   {
     id: 'improve',
@@ -37,6 +40,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     enabled: true,
     required: false,
     visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   },
   {
     id: 'support',
@@ -44,6 +48,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     enabled: true,
     required: false,
     visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   },
   {
     id: 'retain',
@@ -51,6 +56,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     enabled: true,
     required: false,
     visibility: ['calibrators'],
+    outputVisibility: ['manager'],
   },
 ]
 
@@ -162,6 +168,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         enabled: true,
         required: true,
         visibility: ['manager', 'calibrators'],
+        outputVisibility: ['employee', 'manager'],
       },
     ],
   },
@@ -180,6 +187,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         enabled: true,
         required: true,
         visibility: ['employee', 'manager', 'calibrators'],
+        outputVisibility: ['employee', 'manager'],
       },
       {
         id: 'lead-capability',
@@ -187,6 +195,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         enabled: true,
         required: true,
         visibility: ['employee', 'manager', 'calibrators'],
+        outputVisibility: ['employee', 'manager'],
       },
       {
         id: 'lead-retain',
@@ -194,6 +203,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         enabled: true,
         required: false,
         visibility: ['calibrators'],
+        outputVisibility: ['manager'],
       },
     ],
   },
@@ -261,6 +271,7 @@ export function addReviewQuestion(policy: ReviewPolicy): ReviewPolicy {
     enabled: true,
     required: false,
     visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   }
   return {
     ...policy,
@@ -300,6 +311,23 @@ export function toggleQuestionVisibility(
     : question.visibility.filter((item) => item !== visibility)
   return updateReviewQuestion(policy, questionId, {
     visibility: next.length > 0 ? next : question.visibility,
+  })
+}
+
+export function toggleQuestionOutputVisibility(
+  policy: ReviewPolicy,
+  questionId: string,
+  visibility: ReviewQuestionOutputVisibility,
+  on: boolean,
+): ReviewPolicy {
+  const question = policy.scorecard.questions.find((item) => item.id === questionId)
+  if (!question) return policy
+  const current = question.outputVisibility ?? ['employee', 'manager']
+  const next = on
+    ? [...new Set([...current, visibility])]
+    : current.filter((item) => item !== visibility)
+  return updateReviewQuestion(policy, questionId, {
+    outputVisibility: next.length > 0 ? next : current,
   })
 }
 

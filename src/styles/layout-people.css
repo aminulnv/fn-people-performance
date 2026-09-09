@@ -516,6 +516,13 @@ a.pd-people__ghost-btn--outline:hover {
   overflow: hidden;
 }
 
+body > .pd-people-filters__panel {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+}
+
 .pd-people-filters__header {
   display: flex;
   align-items: center;
@@ -1280,7 +1287,7 @@ a.pd-people__ghost-btn--outline:hover {
   font-weight: 400;
 }
 
-.pd-people__table:has(.pd-table-resize__handle) th {
+.pd-people__table:has(.pd-table-resize__handle) th:has(.pd-table-resize__handle) {
   position: relative;
   padding-right: 1.1rem;
 }

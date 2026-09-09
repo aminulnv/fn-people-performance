@@ -159,6 +159,16 @@ function validateGoalCountPolicy(
       "Maximum allowed must be at least the recommended maximum, or left empty.",
     );
   }
+  if (
+    policy.lateProgressUpdateDays != null &&
+    (!Number.isInteger(policy.lateProgressUpdateDays) ||
+      policy.lateProgressUpdateDays < 0 ||
+      policy.lateProgressUpdateDays > 30)
+  ) {
+    throw new Error(
+      "Late progress updates must be between 0 and 30 days.",
+    );
+  }
 }
 
 /** Production API still validates legacy department/team goal windows until redeployed. */
@@ -875,6 +885,16 @@ function applyCycleGroupUpdate(
     validateGoalCountPolicy(next.settings.goalCountPolicy);
   }
   if (patch.stagesConfig) validateCycleStagesConfig(next.stagesConfig);
+  const cycleWithSharedSettings =
+    patch.settings?.excludedEmployeeIds != null
+      ? {
+          ...cycle,
+          settings: {
+            ...cycle.settings,
+            excludedEmployeeIds: next.settings.excludedEmployeeIds,
+          },
+        }
+      : cycle;
 
   if (!useLocalReviews()) {
     const body: Record<string, unknown> = {
@@ -885,10 +905,10 @@ function applyCycleGroupUpdate(
     if (patch.settings) Object.assign(body, patch.settings);
     if (patch.stagesConfig) body.stagesConfig = next.stagesConfig;
     if (patch.calibration) body.calibration = patch.calibration;
-    replaceCycleInMemory(replaceGroupOnCycle(cycle, next));
+    replaceCycleInMemory(replaceGroupOnCycle(cycleWithSharedSettings, next));
     return updateCycleGroupRemote(cycleId, groupId, body)
       .then((remote) => {
-        const latest = getReviewCycle(cycleId) ?? cycle;
+        const latest = getReviewCycle(cycleId) ?? cycleWithSharedSettings;
         replaceCycleInMemory(replaceGroupOnCycle(latest, remote));
         return remote;
       })
@@ -905,7 +925,7 @@ function applyCycleGroupUpdate(
       });
   }
 
-  replaceCycleInMemory(replaceGroupOnCycle(cycle, next));
+  replaceCycleInMemory(replaceGroupOnCycle(cycleWithSharedSettings, next));
   return Promise.resolve(clone(next));
 }
 

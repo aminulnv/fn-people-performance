@@ -74,7 +74,7 @@ export function CycleReviewSettingsPrototype({
               <dd>{enabledReviewTypeLabels(cycle.settings)}</dd>
             </div>
             <div className="pd-reviews-kv__row">
-              <dt>Grade Publishing Exclusion</dt>
+              <dt>Rating Publication</dt>
               <dd>
                 {exclusionsLabel(cycle.settings.excludedEmployeeIds?.length ?? 0)}
               </dd>

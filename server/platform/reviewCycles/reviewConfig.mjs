@@ -332,6 +332,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
           enabled: true,
           required: true,
           visibility: ['employee', 'manager', 'calibrators'],
+          outputVisibility: ['employee', 'manager'],
         },
         {
           id: 'values',
@@ -339,6 +340,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
           enabled: true,
           required: true,
           visibility: ['employee', 'manager', 'calibrators'],
+          outputVisibility: ['employee', 'manager'],
         },
         {
           id: 'improve',
@@ -346,6 +348,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
           enabled: true,
           required: false,
           visibility: ['employee', 'manager', 'calibrators'],
+          outputVisibility: ['employee', 'manager'],
         },
         {
           id: 'support',
@@ -353,6 +356,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
           enabled: true,
           required: false,
           visibility: ['employee', 'manager', 'calibrators'],
+          outputVisibility: ['employee', 'manager'],
         },
         {
           id: 'retain',
@@ -360,6 +364,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
           enabled: true,
           required: false,
           visibility: ['calibrators'],
+          outputVisibility: ['manager'],
         },
       ],
       bands: [
@@ -412,7 +417,12 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin') {
         ? policy.scorecard.pillars
         : defaults.scorecard.pillars,
       questions: policy.scorecard?.questions?.length
-        ? policy.scorecard.questions
+        ? policy.scorecard.questions.map((question) => ({
+            ...question,
+            outputVisibility: question.outputVisibility?.length
+              ? question.outputVisibility
+              : ['employee', 'manager'],
+          }))
         : defaults.scorecard.questions,
       bands: policy.scorecard?.bands?.length
         ? policy.scorecard.bands

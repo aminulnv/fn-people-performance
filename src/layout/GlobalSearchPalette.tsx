@@ -384,7 +384,7 @@ export const GlobalSearchPalette = forwardRef<
                             className={cx(
                               'pd-global-search__status',
                               item.statusVariant &&
-                                `pd-global-search__status--${item.statusVariant}`,
+                              `pd-global-search__status--${item.statusVariant}`,
                             )}
                           >
                             {item.status}

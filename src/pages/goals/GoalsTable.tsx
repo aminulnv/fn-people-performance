@@ -421,12 +421,11 @@ export function GoalsTable({
       return next
     })
   }
-  const expandableIds = rows
-    .filter((row) => measurementPanels(row.goal.measurements).length > 0)
-    .map((row) => row.goal.id)
+  const expandableIds = rows.map((row) => row.goal.id)
   const allExpanded =
     expandableIds.length > 0 &&
     expandableIds.every((id) => expandedIds.has(id))
+  const expandAllLabel = allExpanded ? 'Collapse all' : 'Expand all'
   const toggleExpandAll = () => {
     setExpandedIds(allExpanded ? new Set() : new Set(expandableIds))
   }
@@ -462,20 +461,26 @@ export function GoalsTable({
         >
           Goals
           {expandableIds.length > 0 ? (
-            <button
-              type="button"
-              className="pd-goals-table__expand pd-goals-table__expand--all"
-              aria-expanded={allExpanded}
-              aria-label={allExpanded ? 'Collapse all' : 'Expand all'}
-              title={allExpanded ? 'Collapse all' : 'Expand all'}
-              onClick={toggleExpandAll}
+            <Tooltip
+              content={expandAllLabel}
+              side="top"
+              portal
+              delayMs={80}
             >
-              {allExpanded ? (
-                <ChevronsDownUp size={12} strokeWidth={2} aria-hidden />
-              ) : (
-                <ChevronsUpDown size={12} strokeWidth={2} aria-hidden />
-              )}
-            </button>
+              <button
+                type="button"
+                className="pd-goals-table__expand pd-goals-table__expand--all"
+                aria-expanded={allExpanded}
+                aria-label={expandAllLabel}
+                onClick={toggleExpandAll}
+              >
+                {allExpanded ? (
+                  <ChevronsDownUp size={12} strokeWidth={2} aria-hidden />
+                ) : (
+                  <ChevronsUpDown size={12} strokeWidth={2} aria-hidden />
+                )}
+              </button>
+            </Tooltip>
           ) : null}
           {status && statusChip ? (
             <GoalStatusBadge status={status}>{statusChip}</GoalStatusBadge>
@@ -588,29 +593,25 @@ export function GoalsTable({
               ) : null}
               <div className="pd-goals-table__goal" role="cell">
                 <div className="pd-goals-table__name-cell">
-                  {panels.length > 0 ? (
-                    <button
-                      type="button"
-                      className="pd-goals-table__expand"
-                      aria-expanded={isOpen}
-                      aria-label={
-                        isOpen ? `Collapse ${title}` : `Expand ${title}`
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        toggleExpanded(goal.id)
-                      }}
-                      onKeyDown={(event) => event.stopPropagation()}
-                    >
-                      {isOpen ? (
-                        <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
-                      ) : (
-                        <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
-                      )}
-                    </button>
-                  ) : (
-                    <span className="pd-goals-table__expand-spacer" aria-hidden />
-                  )}
+                  <button
+                    type="button"
+                    className="pd-goals-table__expand"
+                    aria-expanded={isOpen}
+                    aria-label={
+                      isOpen ? `Collapse ${title}` : `Expand ${title}`
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      toggleExpanded(goal.id)
+                    }}
+                    onKeyDown={(event) => event.stopPropagation()}
+                  >
+                    {isOpen ? (
+                      <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
+                    ) : (
+                      <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+                    )}
+                  </button>
                   <GoalCascadeName
                     goal={goal}
                     cascadeFrom={cascadeFrom}
@@ -718,6 +719,32 @@ export function GoalsTable({
                 </div>
               ) : null}
             </div>
+            {isOpen && panels.length === 0 ? (
+              <div
+                className="pd-goals-table__row pd-goals-table__row--measure pd-goals-table__row--measure-empty"
+                role="row"
+              >
+                {showOwner ? (
+                  <div className="pd-goals-table__owner" role="cell" />
+                ) : null}
+                <div className="pd-goals-table__goal" role="cell">
+                  <div className="pd-goals-table__name-cell pd-goals-table__name-cell--measure">
+                    <span
+                      className="pd-goals-table__branch pd-goals-table__branch--empty"
+                      aria-hidden
+                    />
+                    <span className="pd-goals-table__measure-empty">
+                      No metrics added yet
+                    </span>
+                  </div>
+                </div>
+                <div className="pd-goals-table__weight" role="cell" />
+                <div className="pd-goals-table__progress" role="cell" />
+                {showActions ? (
+                  <div className="pd-goals-table__actions" role="cell" />
+                ) : null}
+              </div>
+            ) : null}
             {isOpen
               ? panels.map((panel) => {
                 const measureName = measurePanelName(panel) || 'Metric'

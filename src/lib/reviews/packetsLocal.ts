@@ -196,6 +196,55 @@ export function appealLocalPacket(packetId: string, body: string): ReviewPacket 
   return structuredClone(next)
 }
 
+export function resolveLocalAppeal(
+  packetId: string,
+  appealId: string,
+  input: {
+    toGrade: NonNullable<ReviewPacket['publishedOverallGrade']>
+    justification: string
+  },
+): ReviewPacket {
+  const current = [...packets.values()].find((packet) => packet.id === packetId)
+  if (!current) throw new Error('Review not found')
+  if (current.status !== 'appealed') {
+    throw new Error('Only an appealed review can be overridden.')
+  }
+  if (!input.toGrade || !input.justification.trim()) {
+    throw new Error('A final rating and written justification are required.')
+  }
+  const appeal = current.appeals.find(
+    (item) => item.id === appealId && item.status === 'open',
+  )
+  if (!appeal) throw new Error('Open appeal not found')
+
+  const resolvedAt = new Date().toISOString()
+  const next: ReviewPacket = {
+    ...current,
+    publishedOverallGrade: input.toGrade,
+    appeals: current.appeals.map((item) =>
+      item.id === appealId
+        ? { ...item, status: 'resolved', resolvedAt }
+        : item,
+    ),
+    calibrationEvents: [
+      ...current.calibrationEvents,
+      {
+        id: `apl-override-${current.version + 1}`,
+        stageId: 'appeal',
+        fromGrade: current.publishedOverallGrade,
+        toGrade: input.toGrade,
+        reason: input.justification.trim(),
+        actorEmployeeId: null,
+        actorName: '',
+        createdAt: resolvedAt,
+      },
+    ],
+    version: current.version + 1,
+  }
+  packets.set(packetKey(current.cycleId, current.employeeId), next)
+  return structuredClone(next)
+}
+
 export function useLocalReviewPackets(): boolean {
   return (
     import.meta.env.MODE === 'test' ||

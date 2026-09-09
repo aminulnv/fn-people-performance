@@ -303,6 +303,16 @@ export function validateGoalCountPolicy(policy) {
       'Maximum allowed must be at least the recommended maximum, or left empty.',
     )
   }
+  if (
+    policy.lateProgressUpdateDays != null &&
+    (!Number.isInteger(policy.lateProgressUpdateDays) ||
+      policy.lateProgressUpdateDays < 0 ||
+      policy.lateProgressUpdateDays > 30)
+  ) {
+    throw validationError(
+      'Late progress updates must be between 0 and 30 days.',
+    )
+  }
 }
 
 export function validateCycleStagesConfig(config) {

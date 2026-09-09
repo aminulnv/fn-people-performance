@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   createCycleGroup,
   getReviewCycle,
@@ -117,5 +117,37 @@ describe('GoalsSettingsEditPage', () => {
     expect(
       heading.firstChild?.textContent?.trim().startsWith('Allow After Deadline'),
     ).toBe(true)
+  })
+
+  it('saves the progress update window for the group', async () => {
+    const { cycle, group } = seededGroup()
+    render(
+      <GoalsSettingsEditPage
+        cycle={cycle}
+        group={group}
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    )
+
+    expect(
+      screen.getByRole('heading', { name: /progress update window/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Days after deadline')).toHaveValue('30')
+    expect(
+      screen.getByRole('button', { name: 'Increase Days after deadline' }),
+    ).toBeDisabled()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Decrease Days after deadline' }),
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      const saved = getReviewCycle(cycle.id)?.groups?.find(
+        (item) => item.id === group.id,
+      )
+      expect(saved?.settings.goalCountPolicy.lateProgressUpdateDays).toBe(29)
+    })
   })
 })

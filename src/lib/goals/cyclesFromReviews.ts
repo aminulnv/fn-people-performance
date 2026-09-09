@@ -49,11 +49,14 @@ export function reviewCycleToGoalsCycle(
     id: cycle.id,
     label: cycle.name,
     day1: cycle.startDate,
+    quarterEndDate: cycle.endDate,
     phase:
       employeeId != null && !policy.groupId
         ? "not_open"
         : resolveGoalPhase(resolved, manualPhase, today),
     goalCountPolicy: policy.settings.goalCountPolicy,
+    lateProgressUpdateDays:
+      policy.settings.goalCountPolicy.lateProgressUpdateDays ?? 30,
     postWindowGoalPolicy: policy.settings.postWindowGoalPolicy,
     goalWindow: { ...policy.stagesConfig.goals.employee },
     goalExtensions: structuredClone(

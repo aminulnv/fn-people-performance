@@ -427,12 +427,11 @@ export default function AnalyticsPage() {
   const hasDepartment = Boolean(me?.department.trim())
 
   const scopeOptions = useMemo(() => {
-    const options: { id: AnalyticsScope; label: string }[] = [
-      { id: 'all', label: 'Everyone' },
-    ]
+    const options: { id: AnalyticsScope; label: string }[] = []
+    if (me) options.push({ id: 'mine', label: 'Me' })
     if (hasDirectReports) options.push({ id: 'reports', label: 'My Reports' })
     if (hasDepartment) options.push({ id: 'department', label: 'My Department' })
-    if (me) options.push({ id: 'mine', label: 'Me' })
+    options.push({ id: 'all', label: 'Everyone' })
     return options
   }, [hasDepartment, hasDirectReports, me])
 

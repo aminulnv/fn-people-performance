@@ -189,6 +189,12 @@ export function scorecardStageIsOpen(
     currentIndex,
     packet?.status ?? 'not_started',
   )
+  if (
+    step.id === 'appeal' &&
+    packet?.status === 'released_to_employees'
+  ) {
+    return viewerCanOpenStage(step.id, packet, viewerEmployeeId)
+  }
   if (state === 'upcoming') return false
   if (
     step.id === 'calibration_hod_hrbp' &&

@@ -85,6 +85,24 @@ describe('ScorecardFormEditor', () => {
     expect(
       screen.getByDisplayValue('Will we do what it takes to retain this person?'),
     ).toBeInTheDocument()
+    expect(screen.getAllByRole('group', { name: 'Input stages' })).not.toHaveLength(0)
+    expect(screen.getAllByRole('group', { name: 'Output audience' })).not.toHaveLength(0)
+  })
+
+  it('lets output visibility be toggled separately from input stages', () => {
+    const onChange = vi.fn()
+    render(
+      <ScorecardFormEditor
+        policy={defaultReviewPolicy('annual_appraisal')}
+        onChange={onChange}
+      />,
+    )
+
+    const output = screen.getAllByRole('group', { name: 'Output audience' })[0]!
+    fireEvent.click(output.querySelectorAll('button')[0]!)
+    const question = onChange.mock.calls[0]?.[0].scorecard.questions[0]
+    expect(question.visibility).toEqual(['employee', 'manager', 'calibrators'])
+    expect(question.outputVisibility).toEqual(['manager'])
   })
 
   it('keeps helper copy off the form', () => {

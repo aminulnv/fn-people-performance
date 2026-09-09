@@ -16,6 +16,7 @@ const REQUIRED_MIGRATIONS = [
   '00028_review_cycle_type_custom.sql',
   '00029_drop_review_cycle_purpose.sql',
   '00030_date_columns_to_timestamptz.sql',
+  '00032_revolut_team_identity.sql',
 ]
 
 export async function assertPlatformMigrations() {

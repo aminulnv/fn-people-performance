@@ -1,9 +1,11 @@
+import { approverDisplayName } from '@/lib/delegations/actingApprover'
 import type { PersonGoals, SubmissionStatus } from '@/lib/goals/types'
 
 export type ApprovalTrailPerson = {
   id?: string | null
   name: string
   avatarUrl?: string
+  delegated?: boolean
 }
 
 export type ApprovalTrailStage = {
@@ -55,7 +57,7 @@ function personStage(
   fallback: string,
 ): ApprovalTrailStage {
   return person
-    ? { key, label: person.name, person }
+    ? { key, label: approverDisplayName(person), person }
     : { key, label: fallback }
 }
 

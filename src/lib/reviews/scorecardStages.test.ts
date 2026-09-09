@@ -117,4 +117,20 @@ describe('scorecard stage viewing', () => {
       'exceptional',
     )
   })
+
+  it('opens the separate appeal stage after the final rating is released', () => {
+    const source = packet({
+      status: 'released_to_employees',
+      publishedOverallGrade: 'performing',
+    })
+    const steps = visibleScorecardSteps(stages, source)
+    expect(
+      resolveScorecardViewStage({
+        requested: 'appeal',
+        steps,
+        packet: source,
+        viewerEmployeeId: 871,
+      }),
+    ).toBe('appeal')
+  })
 })

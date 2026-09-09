@@ -2226,6 +2226,23 @@ a.pd-btn--secondary:visited {
   box-shadow: var(--shadow-deep, 0 12px 32px color-mix(in srgb, var(--color-text) 14%, transparent));
 }
 
+.pd-listbox__panel--floating {
+  top: auto;
+  left: auto;
+  right: auto;
+  width: max-content;
+  max-width: calc(100vw - 1rem);
+  overflow-x: hidden;
+}
+
+.pd-listbox__panel--floating .pd-listbox__option-content,
+.pd-listbox__panel--floating .pd-listbox__option-text,
+.pd-listbox__panel--floating .pd-listbox__option-label {
+  min-width: max-content;
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .pd-listbox__search {
   position: sticky;
   top: -0.28rem;

@@ -17,12 +17,18 @@ import {
   removeCustomPillar,
   removeReviewQuestion,
   SCORECARD_LIBRARY_TEMPLATES,
+  toggleQuestionOutputVisibility,
   toggleQuestionVisibility,
   updateReviewQuestion,
   updateScorecardPillar,
   type ScorecardTemplateId,
 } from '@/lib/reviews/scorecardTemplates'
-import type { ReviewPolicy, ReviewQuestion, ReviewQuestionVisibility } from '@/lib/reviews/types'
+import type {
+  ReviewPolicy,
+  ReviewQuestion,
+  ReviewQuestionOutputVisibility,
+  ReviewQuestionVisibility,
+} from '@/lib/reviews/types'
 
 type ScorecardFormEditorProps = {
   policy: ReviewPolicy
@@ -91,6 +97,14 @@ const SHOWN_ON: Record<ReviewQuestionVisibility, string> = {
   manager: 'Manager Review',
   calibrators: 'Calibration',
 }
+
+const OUTPUT_AUDIENCES: Array<{
+  id: ReviewQuestionOutputVisibility
+  label: string
+}> = [
+  { id: 'employee', label: 'Employee' },
+  { id: 'manager', label: 'Manager' },
+]
 
 export function ScorecardFormEditor({
   policy,
@@ -361,8 +375,8 @@ function FormQuestionCard({
       </div>
 
       <div className="pd-reviews-form-preview__tools">
-        <div className="pd-reviews-form-preview__shown" role="group" aria-label="Shown on">
-          <span className="pd-reviews-form-preview__shown-label">Shown on</span>
+        <div className="pd-reviews-form-preview__shown" role="group" aria-label="Input stages">
+          <span className="pd-reviews-form-preview__shown-label">Input</span>
           {QUESTION_VISIBILITY.map((option) => {
             const on = question.visibility.includes(option.id)
             return (
@@ -388,6 +402,38 @@ function FormQuestionCard({
                 }
               >
                 {SHOWN_ON[option.id]}
+              </button>
+            )
+          })}
+        </div>
+        <div className="pd-reviews-form-preview__shown" role="group" aria-label="Output audience">
+          <span className="pd-reviews-form-preview__shown-label">Output</span>
+          {OUTPUT_AUDIENCES.map((option) => {
+            const on = (question.outputVisibility ?? ['employee', 'manager']).includes(
+              option.id,
+            )
+            return (
+              <button
+                key={option.id}
+                type="button"
+                className={
+                  on
+                    ? 'pd-reviews-form-preview__chip is-on'
+                    : 'pd-reviews-form-preview__chip'
+                }
+                aria-pressed={on}
+                onClick={() =>
+                  onChange(
+                    toggleQuestionOutputVisibility(
+                      policy,
+                      question.id,
+                      option.id,
+                      !on,
+                    ),
+                  )
+                }
+              >
+                {option.label}
               </button>
             )
           })}

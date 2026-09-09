@@ -217,6 +217,30 @@ describe("GoalOkrReferenceList", () => {
     );
   });
 
+  it("disables Apply to goal and explains why on hover", async () => {
+    renderList(
+      <GoalOkrReferenceList
+        employeeId={871}
+        scope={{ department: "Engineering", wing: "Platform" }}
+        window={okrWindowFixture}
+        applyToGoalDisabledReason="This cycle is closed."
+      />,
+    );
+
+    fireEvent.click(screen.getByText("Build Performance Platform Phase 1"));
+
+    const applyButton = screen.getByRole("button", { name: "Apply to goal" });
+    expect(applyButton).toBeDisabled();
+
+    const tooltipTrigger = applyButton.closest(".pd-tooltip");
+    expect(tooltipTrigger).not.toBeNull();
+    fireEvent.mouseEnter(tooltipTrigger as HTMLElement);
+
+    expect(await screen.findByRole("tooltip")).toHaveTextContent(
+      "This cycle is closed.",
+    );
+  });
+
   it("returns to the OKR list from the detail back button", () => {
     renderList(
       <GoalOkrReferenceList

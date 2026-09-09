@@ -599,7 +599,7 @@ describe('V1 employee profiles', () => {
     )
     expect(
       screen.getByRole('menuitem', { name: 'Permissions' }),
-    ).toHaveAttribute('href', '/settings?section=access')
+    ).toHaveAttribute('href', '/settings#access')
   })
 
   it('shows scorecards on the Performance tab', async () => {

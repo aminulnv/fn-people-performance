@@ -1,12 +1,13 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Check, ChevronRight, History, MoreHorizontal, Plus, Target, Undo2 } from 'lucide-react'
+import { Check, ChevronRight, History, MoreHorizontal, Target, Undo2 } from 'lucide-react'
 import { useHoverMenu } from '@/layout/useHoverMenu'
 import {
   ActivityLogDrawer,
 } from '@/components/activity/ActivityLogDrawer'
-import { Avatar, Button, EmptyState, Textarea } from '@/components/ui'
+import { Avatar, EmptyState, Textarea } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { approverDisplayName } from '@/lib/delegations/actingApprover'
 import { cx } from '@/lib/cx'
 import type { PersonGoals } from '@/lib/goals/types'
 import '@/styles/layout-activity.css'
@@ -16,6 +17,7 @@ import {
   type ApprovalTrailModel,
   type ApprovalTrailPerson,
 } from './approvalTrail'
+import { GoalEmptyActions } from './GoalEmptyActions'
 import { GoalStatusBadge } from './GoalStatusBadge'
 import { formatRefreshAge, goalsDetailPath } from './goalHelpers'
 import {
@@ -28,14 +30,18 @@ export function ReportGoalsEmpty({
   canAdd = false,
   busy = false,
   lockMessage,
+  previousCycleLabel,
   onAdd,
+  onCopyPrevious,
 }: {
   personName: string
   canAdd?: boolean
   busy?: boolean
   /** Same closed / not-open copy My Goals uses when the set cannot start. */
   lockMessage?: string | null
+  previousCycleLabel?: string
   onAdd?: () => void
+  onCopyPrevious?: () => void
 }) {
   return (
     <EmptyState
@@ -49,16 +55,12 @@ export function ReportGoalsEmpty({
       }
       action={
         canAdd && onAdd ? (
-          <Button
-            variant="primary"
-            size="sm"
-            pill
-            disabled={busy}
-            onClick={onAdd}
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden />
-            Add Goal
-          </Button>
+          <GoalEmptyActions
+            busy={busy}
+            previousCycleLabel={previousCycleLabel}
+            onAdd={onAdd}
+            onCopyPrevious={onCopyPrevious ?? (() => {})}
+          />
         ) : undefined
       }
     />
@@ -117,6 +119,7 @@ function ApproverChip({
   person: ApprovalTrailPerson
   muted?: boolean
 }) {
+  const label = approverDisplayName(person)
   const inner = (
     <>
       <Avatar
@@ -127,7 +130,7 @@ function ApproverChip({
         alt=""
         style={avatarStyle(person.name)}
       />
-      <span className="pd-goals-approval__late-name">{person.name}</span>
+      <span className="pd-goals-approval__late-name">{label}</span>
     </>
   )
   const className = cx(

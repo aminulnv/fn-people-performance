@@ -140,6 +140,8 @@ export type GoalCountPolicy = {
   recommendedMaximum: number;
   /** Submission is blocked above this number. Null means no hard maximum. */
   maximumAllowed: number | null;
+  /** Days after the quarter ends when progress updates remain available. */
+  lateProgressUpdateDays?: number;
 };
 
 export type PostWindowGoalPolicy = "hard_stop" | "two_tier_approval";
@@ -161,13 +163,17 @@ export type ScorecardPillar = {
 };
 
 export type ReviewQuestionVisibility = "employee" | "manager" | "calibrators";
+export type ReviewQuestionOutputVisibility = "employee" | "manager";
 
 export type ReviewQuestion = {
   id: string;
   prompt: string;
   enabled: boolean;
   required: boolean;
+  /** Stages where an answer can be entered. */
   visibility: ReviewQuestionVisibility[];
+  /** Audiences that can read the question and its answers after publication. */
+  outputVisibility: ReviewQuestionOutputVisibility[];
 };
 
 export type GradeBandDefinition = {
@@ -327,6 +333,8 @@ export type ReviewAppeal = {
   status: "open" | "recorded" | "resolved";
   createdAt: string;
   createdByEmployeeId: number | null;
+  resolvedAt?: string;
+  resolvedByEmployeeId?: number | null;
 };
 
 export type ReviewPacket = {

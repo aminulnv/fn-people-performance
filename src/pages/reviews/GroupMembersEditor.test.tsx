@@ -1,6 +1,13 @@
 import { useState, type ReactElement } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { GroupMembersEditor } from './GroupMembersEditor'
@@ -25,6 +32,15 @@ vi.mock('@/lib/employees/useEmployees', async () => {
       ...employeesState,
       organisation: buildOrganisationFromEmployees(employeesState.employees),
     }),
+  }
+})
+
+beforeAll(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function close() {
+    this.removeAttribute('open')
   }
 })
 
@@ -59,8 +75,46 @@ function renderEditor(ui: ReactElement) {
   return render(<MemoryRouter>{ui}</MemoryRouter>)
 }
 
-function searchBox() {
-  return screen.getByRole('searchbox', { name: 'Search people in this group' })
+function filterBox(name = 'Search people') {
+  return screen.getByRole('searchbox', { name })
+}
+
+function chooseColumnFilter(label: string, option: string) {
+  fireEvent.click(screen.getByRole('button', { name: `Filter ${label}` }))
+  fireEvent.click(screen.getByRole('option', { name: option }))
+  fireEvent.keyDown(document, { key: 'Escape' })
+}
+
+function addPerson(name: string) {
+  fireEvent.click(
+    screen.getByRole('button', { name: new RegExp(`^select ${name}`, 'i') }),
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add people' }))
+}
+
+function openSelected() {
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'People selection view' })).getByRole(
+      'button',
+      { name: /^added/i },
+    ),
+  )
+}
+
+function openBrowse() {
+  fireEvent.click(
+    within(screen.getByRole('group', { name: 'People selection view' })).getByRole(
+      'button',
+      { name: /^not added/i },
+    ),
+  )
+}
+
+function addedTab() {
+  return within(
+    screen.getByRole('group', { name: 'People selection view' }),
+  ).getByRole('button', { name: /^added/i })
 }
 
 function Harness({ initialIds = [] }: { initialIds?: number[] }) {
@@ -70,66 +124,196 @@ function Harness({ initialIds = [] }: { initialIds?: number[] }) {
   )
 }
 
+function FailingSaveHarness() {
+  const [memberIds, setMemberIds] = useState<number[]>([])
+  return (
+    <GroupMembersEditor
+      memberIds={memberIds}
+      onChange={async (nextIds) => {
+        setMemberIds(nextIds)
+        await Promise.resolve()
+        setMemberIds([])
+        throw new Error('People could not be saved.')
+      }}
+    />
+  )
+}
+
 afterEach(() => {
   cleanup()
   employeesState.employees = []
 })
 
 describe('GroupMembersEditor', () => {
-  it('adds a person from one search that also lists teams and departments', () => {
+  it('shows people in a table with filterable name and department columns', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
     ]
 
     renderEditor(<Harness />)
+    expect(addedTab()).toHaveTextContent('0')
+    expect(
+      within(screen.getByRole('group', { name: 'People selection view' })).getByRole(
+        'button',
+        { name: /^not added/i },
+      ),
+    ).toBeInTheDocument()
 
-    expect(screen.queryByRole('group', { name: 'Browse people' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Team' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Person' })).not.toBeInTheDocument()
-    expect(screen.getByText('Search to add people, teams, or departments')).toBeInTheDocument()
+    openBrowse()
+    expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /department/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /team/i })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Filter Name' }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Filter Department' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Filter Team' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^select sheikh syed ahmed/i }),
+    ).toBeInTheDocument()
 
-    fireEvent.change(searchBox(), { target: { value: 'Core' } })
+    addPerson('Sheikh Syed Ahmed')
+    expect(addedTab()).toHaveTextContent('1')
 
-    expect(screen.getByRole('region', { name: 'People' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Departments' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Teams' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Add People' })).not.toBeInTheDocument()
+    openSelected()
+    expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select Sheikh Syed Ahmed' }))
+  it('selects all visible people from the header checkbox', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Sheikh Syed Ahmed' }),
+      person(2, { fullName: 'Tanzim Hasan Fahim' }),
+    ]
 
-    expect(screen.getByRole('button', { name: /add 1 person/i })).toBeInTheDocument()
+    renderEditor(<Harness />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select all people' }))
 
-    fireEvent.click(screen.getByRole('button', { name: /add 1 person/i }))
-    fireEvent.change(searchBox(), { target: { value: '' } })
+    expect(
+      screen.getByRole('checkbox', { name: 'Clear all people' }),
+    ).toBeChecked()
+    expect(screen.getByRole('button', { name: 'Add 2 people' })).toBeEnabled()
+  })
+
+  it('filters the people table by department', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Sheikh Syed Ahmed', team: 'Core' }),
+      person(2, {
+        fullName: 'Tanzim Hasan Fahim',
+        department: 'Operations',
+      }),
+    ]
+
+    renderEditor(<Harness />)
+    chooseColumnFilter('Department', 'Operations')
+
+    expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
+    expect(screen.queryByText('Sheikh Syed Ahmed')).not.toBeInTheDocument()
+  })
+
+  it('filters the people table by team', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Sheikh Syed Ahmed', team: 'Core' }),
+      person(2, { fullName: 'Tanzim Hasan Fahim', team: 'Platform' }),
+    ]
+
+    renderEditor(<Harness />)
+    chooseColumnFilter('Team', 'Platform')
+
+    expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
+    expect(screen.queryByText('Sheikh Syed Ahmed')).not.toBeInTheDocument()
+  })
+
+  it('searches column values and selects all matching options', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Sheikh Syed Ahmed', team: 'Core' }),
+      person(2, { fullName: 'Tanzim Hasan Fahim', team: 'Platform' }),
+    ]
+
+    renderEditor(<Harness />)
+    fireEvent.click(screen.getByRole('button', { name: 'Filter Team' }))
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search team' }), {
+      target: { value: 'Core' },
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Select all Team values' }),
+    )
+    fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
     expect(screen.queryByText('Tanzim Hasan Fahim')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /add 1 person/i })).not.toBeInTheDocument()
   })
 
-  it('adds every checked person from the search results', () => {
+  it('cancels an add from the confirmation modal', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
       person(3, { fullName: 'Tanvir Zaman' }),
     ]
+    const onChange = vi.fn()
 
-    renderEditor(<Harness />)
-    fireEvent.change(searchBox(), { target: { value: 'Engineer' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Select Sheikh Syed Ahmed' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Select Tanzim Hasan Fahim' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Select Tanvir Zaman' }))
-    fireEvent.click(screen.getByRole('button', { name: /add 3 people/i }))
-    fireEvent.change(searchBox(), { target: { value: '' } })
+    renderEditor(<GroupMembersEditor memberIds={[]} onChange={onChange} />)
+    fireEvent.click(screen.getByRole('button', { name: /^select sheikh syed ahmed/i }))
 
-    expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
-    expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
-    expect(screen.getByText('Tanvir Zaman')).toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
+    expect(screen.getByRole('dialog', { name: 'Add 1 person?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(addedTab()).toHaveTextContent('0')
+    expect(onChange).not.toHaveBeenCalled()
   })
 
-  it('ranks an exact department name above people in that department', () => {
+  it('saves an addition when the confirmation modal is confirmed', async () => {
+    employeesState.employees = [person(1, { fullName: 'Sheikh Syed Ahmed' })]
+    const onChange = vi.fn(async () => { })
+
+    renderEditor(<GroupMembersEditor memberIds={[]} onChange={onChange} />)
+    addPerson('Sheikh Syed Ahmed')
+
+    await waitFor(() => expect(onChange).toHaveBeenCalledWith([1]))
+    expect(
+      screen.queryByRole('dialog', { name: 'Add 1 person?' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('keeps the confirmation open and shows an error when adding fails', async () => {
+    employeesState.employees = [person(1, { fullName: 'Sheikh Syed Ahmed' })]
+
+    renderEditor(<FailingSaveHarness />)
+    addPerson('Sheikh Syed Ahmed')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'People could not be saved.',
+    )
+    expect(screen.getByRole('dialog', { name: 'Add 1 person?' })).toBeInTheDocument()
+    expect(addedTab()).toHaveTextContent('0')
+  })
+
+  it('warns in the confirmation when a person will move from another group', () => {
+    employeesState.employees = [person(1, { fullName: 'Sheikh Syed Ahmed' })]
+
+    renderEditor(
+      <GroupMembersEditor
+        memberIds={[]}
+        claimedIds={[1]}
+        otherGroups={[{ name: 'Existing group', memberIds: [1] }]}
+        onChange={() => { }}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: /^select sheikh syed ahmed/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
+
+    expect(
+      screen.getByText('1 person will move from another group.'),
+    ).toBeInTheDocument()
+  })
+
+  it('filters the name column', () => {
     employeesState.employees = [
       person(1, {
         fullName: 'Sheikh Syed Ahmed',
@@ -142,68 +326,77 @@ describe('GroupMembersEditor', () => {
     ]
 
     renderEditor(<Harness />)
-    fireEvent.change(searchBox(), { target: { value: 'People and Culture' } })
+    openBrowse()
+    fireEvent.change(filterBox(), { target: { value: 'Sheikh' } })
 
-    const department = screen.getByRole('region', { name: 'Departments' })
-    const people = screen.getByRole('region', { name: 'People' })
-    expect(
-      department.compareDocumentPosition(people) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
-    expect(within(department).getByText('People and Culture')).toBeInTheDocument()
+    expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
+    expect(screen.queryByText('Tanzim Hasan Fahim')).not.toBeInTheDocument()
   })
 
-  it('ranks an exact team name above people on that team', () => {
+  it('shows department values in a separate column', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed', team: 'Core' }),
       person(2, { fullName: 'Tanzim Hasan Fahim', team: 'Core' }),
     ]
 
     renderEditor(<Harness />)
-    fireEvent.change(searchBox(), { target: { value: 'Core' } })
-
-    const teams = screen.getByRole('region', { name: 'Teams' })
-    const people = screen.getByRole('region', { name: 'People' })
-    expect(
-      teams.compareDocumentPosition(people) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    openBrowse()
+    const row = screen.getByText('Sheikh Syed Ahmed').closest('tr')
+    expect(row).not.toBeNull()
+    expect(within(row as HTMLElement).getByText('Technology')).toBeInTheDocument()
+    expect(within(row as HTMLElement).getByText('Core')).toBeInTheDocument()
   })
 
-  it('adds remaining people when a department is checked', () => {
+  it('shows only people not already added in the Not added tab', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed', department: 'Technology' }),
       person(2, { fullName: 'Tanzim Hasan Fahim', department: 'Technology' }),
       person(3, { fullName: 'Tanvir Zaman', department: 'Operations' }),
     ]
 
-    renderEditor(<Harness />)
-    fireEvent.change(searchBox(), { target: { value: 'Technology' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Select Technology' }))
-    fireEvent.click(screen.getByRole('button', { name: /add 2 people/i }))
-    fireEvent.change(searchBox(), { target: { value: '' } })
+    renderEditor(<Harness initialIds={[1]} />)
+    openBrowse()
+    expect(screen.queryByText('Sheikh Syed Ahmed')).not.toBeInTheDocument()
+    addPerson('Tanzim Hasan Fahim')
 
+    openSelected()
     expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
     expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
     expect(screen.queryByText('Tanvir Zaman')).not.toBeInTheDocument()
   })
 
-  it('removes checked members with the remove action', () => {
+  it('removes checked members in the in-group pane', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
     ]
 
     renderEditor(<Harness initialIds={[1]} />)
-    expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()
-    expect(screen.queryByText('Tanzim Hasan Fahim')).not.toBeInTheDocument()
+    openSelected()
 
     fireEvent.click(screen.getByRole('button', { name: 'Select Sheikh Syed Ahmed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove 1 person' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove people' }))
 
-    expect(screen.getByText('Search to add people, teams, or departments')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Remove 1 person' })).not.toBeInTheDocument()
+    expect(screen.getByText('No one selected yet')).toBeInTheDocument()
   })
 
-  it('shows each department Core team with that team’s headcount', () => {
+  it('removes a member from the per-row remove control', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Sheikh Syed Ahmed' }),
+      person(2, { fullName: 'Tanzim Hasan Fahim' }),
+    ]
+
+    renderEditor(<Harness initialIds={[1, 2]} />)
+    openSelected()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Sheikh Syed Ahmed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove people' }))
+
+    expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
+    expect(screen.queryByText('Sheikh Syed Ahmed')).not.toBeInTheDocument()
+  })
+
+  it('shows each person’s department without team aggregation', () => {
     employeesState.employees = [
       person(1, {
         fullName: 'Syed Abdullah Jayed',
@@ -228,16 +421,13 @@ describe('GroupMembersEditor', () => {
     ]
 
     renderEditor(<Harness />)
-    fireEvent.change(searchBox(), { target: { value: 'Core' } })
-
-    const teams = screen.getByRole('region', { name: 'Teams' })
-    expect(within(teams).getByText('Management · 2 people')).toBeInTheDocument()
-    expect(within(teams).getByText('Technology · 1 person')).toBeInTheDocument()
-    expect(within(teams).getByText('Operations · 1 person')).toBeInTheDocument()
-    expect(screen.queryByText(/19 people/)).not.toBeInTheDocument()
+    openBrowse()
+    expect(screen.getAllByRole('cell', { name: 'Management' })).toHaveLength(2)
+    expect(screen.getByRole('cell', { name: 'Technology' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'Operations' })).toBeInTheDocument()
   })
 
-  it('does not offer departments when picking people only', () => {
+  it('keeps the people-only picker compatible with column filters', () => {
     employeesState.employees = [
       person(1, { fullName: 'Jayed Sarker', department: 'Leadership' }),
     ]
@@ -252,31 +442,46 @@ describe('GroupMembersEditor', () => {
       />,
     )
 
-    const search = screen.getByRole('searchbox', { name: 'Add Senior Leaders' })
-    expect(search).toBeInTheDocument()
-    expect(screen.getByText('Search to add people')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Add Senior Leaders' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /add 1 person/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Department' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Team' })).not.toBeInTheDocument()
+    openBrowse()
+    expect(screen.getByRole('searchbox', { name: 'Add Senior Leaders' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^select jayed sarker/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Filter Department' }),
+    ).toBeInTheDocument()
 
-    fireEvent.change(search, { target: { value: 'Jayed' } })
-    expect(screen.getByRole('button', { name: 'Select Jayed Sarker' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'People' })).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Departments' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Teams' })).not.toBeInTheDocument()
+    fireEvent.change(filterBox('Add Senior Leaders'), { target: { value: 'Nobody' } })
+    expect(screen.getByText('No results found')).toBeInTheDocument()
   })
 
-  it('filters members already in the group by search', () => {
+  it('filters members already in the group', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
     ]
 
     renderEditor(<Harness initialIds={[1, 2]} />)
-    fireEvent.change(searchBox(), { target: { value: 'Tanzim' } })
+    openSelected()
+    fireEvent.change(filterBox(), { target: { value: 'Tanzim' } })
 
     expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
     expect(screen.queryByText('Sheikh Syed Ahmed')).not.toBeInTheDocument()
+  })
+
+  it('shows a large people list directly without collapsed sections', () => {
+    employeesState.employees = Array.from({ length: 40 }, (_, index) =>
+      person(index + 1, {
+        fullName: `Bulk Person ${index + 1}`,
+        department: 'Technology',
+        team: 'Core',
+      }),
+    )
+
+    renderEditor(<Harness />)
+    openBrowse()
+
+    expect(
+      screen.getByRole('button', { name: /^select bulk person 1$/i }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show 40 people' })).not.toBeInTheDocument()
   })
 })

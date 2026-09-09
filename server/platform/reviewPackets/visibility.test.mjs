@@ -10,6 +10,7 @@ function packet(partial = {}) {
   return {
     id: 'pkt-1',
     employeeId: 754,
+    managerEmployeeId: 1,
     status: 'in_calibration',
     selfOverallGrade: 'performing',
     managerOverallGrade: 'exceeding',
@@ -57,4 +58,26 @@ test('calibration stays closed until the manager review is submitted', () => {
 test('managers still receive the full packet', () => {
   const source = packet()
   assert.deepEqual(packetForViewer(source, 1), source)
+})
+
+test('published question answers are filtered for each output audience', () => {
+  const questions = [
+    {
+      id: 'delivered',
+      outputVisibility: ['manager'],
+    },
+  ]
+  const employeePacket = packetForViewer(
+    packet({ status: 'released_to_employees' }),
+    754,
+    questions,
+  )
+  assert.deepEqual(employeePacket.answers, [])
+
+  const managerPacket = packetForViewer(
+    packet({ status: 'released_to_managers' }),
+    1,
+    questions,
+  )
+  assert.equal(managerPacket.answers.length, 2)
 })

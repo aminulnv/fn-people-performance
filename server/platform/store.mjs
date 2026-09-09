@@ -911,11 +911,18 @@ export async function listPlatformTeams(departmentId) {
        t.name,
        t.department_id,
        d.name AS department_name,
-      t.owner_employee_id,
-      own.name AS owner_name,
-      own.email AS owner_email,
-      (SELECT count(*)::int FROM platform.employees e
-        WHERE e.team_id = t.id AND e.status = 'active') AS headcount
+       t.owner_employee_id,
+       own.name AS owner_name,
+       own.email AS owner_email,
+       t.revolut_id,
+       t.revolut_department_id,
+       t.revolut_owner_id,
+       t.status,
+       t.team_function,
+       t.mission,
+       t.revolut_updated_at,
+       (SELECT count(*)::int FROM platform.employees e
+         WHERE e.team_id = t.id AND e.status = 'active') AS headcount
     FROM platform.teams t
     JOIN platform.departments d ON d.id = t.department_id
     LEFT JOIN platform.employees own ON own.employee_id = t.owner_employee_id
@@ -931,6 +938,15 @@ export async function listPlatformTeams(departmentId) {
     ownerEmployeeId: row.owner_employee_id,
     ownerName: row.owner_name,
     ownerEmail: row.owner_email,
+    revolutId: integerId(row.revolut_id),
+    revolutDepartmentId: integerId(row.revolut_department_id),
+    revolutOwnerId: integerId(row.revolut_owner_id),
+    status: row.status,
+    teamFunction: row.team_function,
+    mission: row.mission,
+    revolutUpdatedAt: row.revolut_updated_at
+      ? isoTimestamp(row.revolut_updated_at)
+      : undefined,
     headcount: row.headcount,
   }))
 }

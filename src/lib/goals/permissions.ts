@@ -1,5 +1,6 @@
 import { isEligibleForCycle } from "./demoData";
 import { isGoalWindowOpenForPerson } from "./goalExtensions";
+import { dayValue, todayDayValue } from "@/lib/reviews/periods";
 import { hasSystemPermission } from "@/lib/accessControl/types";
 import {
   delegationActingAs,
@@ -21,6 +22,7 @@ export type GoalActionContext = {
   row: PersonGoals;
   cycle: GoalsCycle;
   cycleStatus: GoalsCycleStatus;
+  now?: Date;
   people?: DemoPerson[];
   delegationAsDirectManager?: boolean;
   delegationAsSkipLevel?: boolean;
@@ -128,6 +130,15 @@ export function deriveGoalCapabilities(
   const eligible = isEligibleForCycle(subject, cycle);
   const mutable = canMutateGoalStatus(row.status, cycle);
   const currentCycle = cycleStatus === "current";
+  const lateProgressDays = Math.min(
+    30,
+    Math.max(0, cycle.lateProgressUpdateDays ?? 0),
+  );
+  const progressWindowOpen = cycle.quarterEndDate
+    ? cycleStatus !== "future" &&
+      todayDayValue(context.now ?? new Date()) <=
+        dayValue(cycle.quarterEndDate) + lateProgressDays * 86_400_000
+    : currentCycle;
   const windowOpen =
     cycle.phase === "window_open" ||
     (cycle.phase === "hard_lock" &&
@@ -172,7 +183,7 @@ export function deriveGoalCapabilities(
     (selfOrManager || canWriteAll);
 
   const canProgress =
-    eligible && mutable && currentCycle && (selfOrManager || canWriteAll);
+    eligible && mutable && progressWindowOpen && (selfOrManager || canWriteAll);
 
   return {
     canEditStructure: canStructure,

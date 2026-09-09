@@ -3,7 +3,16 @@ import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
+import { publicationExclusionClause } from './publicationFilter.mjs'
 import { calibrationIsEditable } from './visibility.mjs'
+
+const REVIEW_GRADES = new Set([
+  'exceptional',
+  'exceeding',
+  'performing',
+  'developing',
+  'unsatisfactory',
+])
 
 function actorFromUser(platformUser) {
   return {
@@ -135,6 +144,8 @@ async function loadChildren(client, packetIds) {
       status: row.status,
       createdAt: iso(row.created_at),
       createdByEmployeeId: row.created_by_employee_id,
+      resolvedAt: iso(row.resolved_at),
+      resolvedByEmployeeId: row.resolved_by_employee_id,
     })
     appeals.set(row.packet_id, list)
   }
@@ -410,6 +421,101 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
   }
 }
 
+export async function resolveReviewAppeal(
+  packetId,
+  appealId,
+  input,
+  platformUser,
+) {
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const row = await getPacketRow(client, packetId, { forUpdate: true })
+    if (!row) throw new HttpError(404, 'Review not found')
+    if (
+      platformUser?.employeeId &&
+      Number(platformUser.employeeId) === Number(row.employee_id)
+    ) {
+      throw new HttpError(403, 'You cannot resolve your own appeal.')
+    }
+    if (row.status !== 'appealed') {
+      throw new HttpError(409, 'Only an appealed review can be overridden.')
+    }
+
+    const toGrade = String(input.toGrade ?? '').trim()
+    const justification = String(input.justification ?? '').trim()
+    if (!REVIEW_GRADES.has(toGrade) || !justification) {
+      throw new HttpError(
+        400,
+        'A final rating and written justification are required.',
+      )
+    }
+
+    const { rows: appealRows } = await client.query(
+      `SELECT id
+       FROM platform.review_appeals
+       WHERE id = $1 AND packet_id = $2 AND status = 'open'
+       FOR UPDATE`,
+      [appealId, packetId],
+    )
+    if (!appealRows[0]) {
+      throw new HttpError(404, 'Open appeal not found')
+    }
+
+    const fromGrade = row.published_overall_grade
+    await client.query(
+      `INSERT INTO platform.review_calibration_events (
+         id, packet_id, stage_id, from_grade, to_grade, reason, actor_employee_id
+       ) VALUES ($1,$2,'appeal',$3,$4,$5,$6)`,
+      [
+        `apl-override-${crypto.randomUUID()}`,
+        packetId,
+        fromGrade,
+        toGrade,
+        justification,
+        platformUser?.employeeId ?? null,
+      ],
+    )
+    await client.query(
+      `UPDATE platform.review_appeals
+       SET status = 'resolved',
+           resolved_at = now(),
+           resolved_by_employee_id = $3
+       WHERE id = $1 AND packet_id = $2`,
+      [appealId, packetId, platformUser?.employeeId ?? null],
+    )
+    const { rows } = await client.query(
+      `UPDATE platform.review_packets
+       SET published_overall_grade = $2,
+           version = version + 1,
+           updated_at = now()
+       WHERE id = $1
+       RETURNING *`,
+      [packetId, toGrade],
+    )
+    await appendActivityEvent(client, {
+      eventKey: 'review_packet.appeal_resolved',
+      entityType: 'review_packet',
+      entityId: packetId,
+      ...actorFromUser(platformUser),
+      subjectEmployeeId: Number(row.employee_id),
+      cycleId: row.cycle_id,
+      summary: `Overrode final grade from ${fromGrade || 'unset'} to ${toGrade}`,
+      changes: [{ field: 'grade', from: fromGrade, to: toGrade }],
+      metadata: { appealId, justification: justification.slice(0, 500) },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    const children = await loadChildren(client, [packetId])
+    return withChildren(rows[0], children)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export async function releaseReviewPackets(
   cycleId,
   groupId,
@@ -438,7 +544,7 @@ export async function releaseReviewPackets(
            SELECT employee_id
            FROM platform.review_cycle_group_members
            WHERE group_id = $4 AND cycle_id = $1
-         )
+         )${publicationExclusionClause(target)}
        RETURNING id, employee_id, cycle_id, published_overall_grade`,
       [
         cycleId,

@@ -1,6 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { effectiveReportIds, isDelegatingForEmployee } from "@/lib/delegations/roles";
-import { hydrateManagerDelegations } from "@/lib/delegations/store";
+import {
+  hydrateManagerDelegations,
+  listManagerDelegations,
+  subscribeManagerDelegations,
+} from "@/lib/delegations/store";
 import { useReviewCyclesHydrated } from "@/lib/reviews/useReviews";
 import { goalsCycleForPerson } from "@/lib/goals/cyclesFromReviews";
 import {
@@ -169,6 +173,18 @@ export function useGoalsController({
     });
   }, []);
 
+  const delegationsRevision = useSyncExternalStore(
+    subscribeManagerDelegations,
+    () =>
+      listManagerDelegations()
+        .map(
+          (item) =>
+            `${item.id}:${item.status}:${item.absentEmployeeId}:${item.delegateEmployeeId}`,
+        )
+        .join("|"),
+    () => "",
+  );
+
   const subject = useMemo(() => {
     if (!snapshot) return null;
     return snapshot.people.find((person) => person.id === subjectId) ?? null;
@@ -223,6 +239,9 @@ export function useGoalsController({
     },
     [snapshot],
   );
+
+  // Keep the host subscribed so cascadeApprovers() re-reads after hydrate.
+  void delegationsRevision;
 
   const cascadeFrom = subject
     ? cascadeFromFor(subject.id)

@@ -5,6 +5,20 @@ import { GoalApprovalStatus } from "./GoalApprovalStatus";
 afterEach(cleanup);
 
 describe("GoalApprovalStatus", () => {
+  it.each([
+    ["not_eligible", "Not eligible"],
+    ["draft", "Draft"],
+    ["submitted", "Pending"],
+    ["sent_back", "Sent back"],
+    ["approved", "Approved"],
+    ["incomplete", "Incomplete"],
+  ] as const)("shows an icon with the %s chip", (status, label) => {
+    render(<GoalApprovalStatus status={status} />);
+    expect(
+      screen.getByText(label).closest(".pd-badge")?.querySelector("svg"),
+    ).toBeTruthy();
+  });
+
   it("shows Sent back instead of a blank dash", () => {
     render(<GoalApprovalStatus status="sent_back" />);
     expect(screen.getByText("Sent back")).toBeInTheDocument();
@@ -18,11 +32,11 @@ describe("GoalApprovalStatus", () => {
     expect(screen.queryByText("-")).not.toBeInTheDocument();
   });
 
-  it("shows pending and approved marks", () => {
+  it("shows pending and approved as text chips", () => {
     const { rerender } = render(<GoalApprovalStatus status="submitted" />);
     expect(screen.getByText("Pending")).toBeInTheDocument();
     rerender(<GoalApprovalStatus status="approved" />);
-    expect(screen.getByLabelText("Approved")).toBeInTheDocument();
+    expect(screen.getByText("Approved")).toBeInTheDocument();
   });
 
   it("labels approved when used as a chip", () => {

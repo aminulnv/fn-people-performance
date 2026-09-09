@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Scale, Star, Target, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Badge, SegmentedControl } from '@/components/ui'
+import { Badge, ConfirmDialog, SegmentedControl } from '@/components/ui'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
@@ -39,6 +39,7 @@ const GROUP_JOBS: {
 ]
 
 type GroupJob = (typeof GROUP_JOBS)[number]['id']
+type PendingPeopleLeave = GroupJob | 'close'
 
 function isGroupJob(value: string): value is GroupJob {
   return GROUP_JOBS.some((item) => item.id === value)
@@ -93,6 +94,9 @@ export function GroupSettingsView({
     ),
   )
   const [name, setName] = useState(group.name)
+  const [peopleDirty, setPeopleDirty] = useState(false)
+  const [pendingPeopleLeave, setPendingPeopleLeave] =
+    useState<PendingPeopleLeave | null>(null)
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
   const resolvedScreen = visibleScreen(screen, modules)
   const jobOptions = jobsForModules(modules)
@@ -126,11 +130,39 @@ export function GroupSettingsView({
     }
   }
 
-  const openScreen = (next: GroupJob) => {
+  const applyScreen = (next: GroupJob) => {
     const allowed = visibleScreen(next, modules)
     setScreen(allowed)
     if (variant === 'page') {
       navigate({ hash: allowed === 'people' ? '' : allowed }, { replace: true })
+    }
+  }
+
+  const openScreen = (next: GroupJob) => {
+    if (resolvedScreen === 'people' && peopleDirty && next !== 'people') {
+      setPendingPeopleLeave(next)
+      return false
+    }
+    applyScreen(next)
+    return true
+  }
+
+  const requestClose = () => {
+    if (resolvedScreen === 'people' && peopleDirty) {
+      setPendingPeopleLeave('close')
+      return
+    }
+    onClose()
+  }
+
+  const discardPeopleChangesAndLeave = () => {
+    const pending = pendingPeopleLeave
+    setPendingPeopleLeave(null)
+    setPeopleDirty(false)
+    if (pending === 'close') {
+      onClose()
+    } else if (pending) {
+      applyScreen(pending)
     }
   }
 
@@ -199,11 +231,12 @@ export function GroupSettingsView({
               name: item.name,
               memberIds: item.memberIds,
             }))}
-          onChange={(memberIds) => {
-            void updateCycleGroup(cycle.id, group.id, { memberIds }).catch(
-              () => {},
-            )
-          }}
+          onChange={(memberIds) =>
+            updateCycleGroup(cycle.id, group.id, { memberIds }).then(() => {
+              onSuccess?.('People updated.')
+            })
+          }
+          onDirtyChange={setPeopleDirty}
         />
       ) : null}
 
@@ -254,7 +287,7 @@ export function GroupSettingsView({
               <button
                 type="button"
                 className="pd-reviews-edit__back"
-                onClick={onClose}
+                onClick={requestClose}
                 aria-label="Back To Cycle"
               >
                 <ChevronLeft size={20} strokeWidth={2} aria-hidden />
@@ -271,6 +304,16 @@ export function GroupSettingsView({
         ) : (
           body
         )}
+        <ConfirmDialog
+          open={pendingPeopleLeave !== null}
+          onClose={() => setPendingPeopleLeave(null)}
+          onConfirm={discardPeopleChangesAndLeave}
+          title="Discard people changes?"
+          description="Your unsaved people selections will be lost."
+          confirmLabel="Discard changes"
+          cancelLabel="Keep editing"
+          confirmVariant="danger"
+        />
       </div>
     )
   }
@@ -279,12 +322,22 @@ export function GroupSettingsView({
     <SettingsSidePanel
       label={name.trim() || group.name}
       closeLabel="Close Group Settings"
-      onClose={onClose}
+      onClose={requestClose}
       title={title}
       subnav={nav}
       sideSheet={reviewFormSheet}
     >
       {body}
+      <ConfirmDialog
+        open={pendingPeopleLeave !== null}
+        onClose={() => setPendingPeopleLeave(null)}
+        onConfirm={discardPeopleChangesAndLeave}
+        title="Discard people changes?"
+        description="Your unsaved people selections will be lost."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        confirmVariant="danger"
+      />
     </SettingsSidePanel>
   )
 }

@@ -138,6 +138,52 @@ describe("deriveGoalCapabilities", () => {
     expect(caps.canUpdateProgress).toBe(false);
   });
 
+  it("allows progress updates for 30 days after the quarter ends", () => {
+    const lateCycle = {
+      ...cycle,
+      quarterEndDate: "2027-06-30",
+      lateProgressUpdateDays: 30,
+    };
+
+    expect(
+      deriveGoalCapabilities({
+        actor: subject,
+        subject,
+        row: row("e1", "approved"),
+        cycle: lateCycle,
+        cycleStatus: "previous",
+        now: new Date("2027-07-30T12:00:00Z"),
+      }).canUpdateProgress,
+    ).toBe(true);
+    expect(
+      deriveGoalCapabilities({
+        actor: subject,
+        subject,
+        row: row("e1", "approved"),
+        cycle: lateCycle,
+        cycleStatus: "previous",
+        now: new Date("2027-07-31T12:00:00Z"),
+      }).canUpdateProgress,
+    ).toBe(false);
+  });
+
+  it("honours a disabled late progress update setting", () => {
+    const caps = deriveGoalCapabilities({
+      actor: subject,
+      subject,
+      row: row("e1", "approved"),
+      cycle: {
+        ...cycle,
+        quarterEndDate: "2027-06-30",
+        lateProgressUpdateDays: 0,
+      },
+      cycleStatus: "previous",
+      now: new Date("2027-07-01T12:00:00Z"),
+    });
+
+    expect(caps.canUpdateProgress).toBe(false);
+  });
+
   it("does not grant peer edit rights from a forged subject role", () => {
     const peer = person({ id: "e2", name: "Peer" });
     const caps = deriveGoalCapabilities({

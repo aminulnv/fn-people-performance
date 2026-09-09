@@ -7,7 +7,7 @@ import {
   ExternalLink,
   X,
 } from "lucide-react";
-import { Avatar, Button, SegmentedControl } from "@/components/ui";
+import { Avatar, Button, SegmentedControl, Tooltip } from "@/components/ui";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { okrGoalDropPayload, requestApplyOkrToGoal } from "@/lib/okr/applyToGoal";
 import {
@@ -485,11 +485,13 @@ function KrActivityTab({ item }: { item: OkrWorkItem }) {
 export function GoalOkrKrDetail({
   item,
   directory,
+  applyToGoalDisabledReason,
   onClose,
 }: {
   item: OkrWorkItem;
   directory: OkrDirectoryPerson[];
   viewer: OkrDirectoryPerson | null;
+  applyToGoalDisabledReason?: string;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<KrDetailTab>("info");
@@ -520,16 +522,36 @@ export function GoalOkrKrDetail({
             </span>
             Back to All
           </button>
-          <Button
-            type="button"
-            size="sm"
-            pill
-            className="pd-okr-kr-detail__apply"
-            onClick={() => requestApplyOkrToGoal(okrGoalDropPayload(item))}
-          >
-            <ClipboardPaste size={14} strokeWidth={2.25} aria-hidden />
-            Apply to goal
-          </Button>
+          {applyToGoalDisabledReason ? (
+            <Tooltip
+              content={applyToGoalDisabledReason}
+              side="bottom"
+              portal
+              delayMs={80}
+            >
+              <Button
+                type="button"
+                size="sm"
+                pill
+                className="pd-okr-kr-detail__apply"
+                disabled
+              >
+                <ClipboardPaste size={14} strokeWidth={2.25} aria-hidden />
+                Apply to goal
+              </Button>
+            </Tooltip>
+          ) : (
+            <Button
+              type="button"
+              size="sm"
+              pill
+              className="pd-okr-kr-detail__apply"
+              onClick={() => requestApplyOkrToGoal(okrGoalDropPayload(item))}
+            >
+              <ClipboardPaste size={14} strokeWidth={2.25} aria-hidden />
+              Apply to goal
+            </Button>
+          )}
         </div>
 
         <div className="pd-okr-kr-detail__hero-shell pd-okr-kr-detail__surface-wash">

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send } from 'lucide-react'
+import { Send, UserRoundMinus } from 'lucide-react'
 import { Button, ConfirmDialog, Input } from '@/components/ui'
 import {
   ReviewSaveBanner,
@@ -7,6 +7,10 @@ import {
   type ReviewSaveNotice,
 } from './ReviewSaveBanner'
 import { releaseReviewGroup } from '@/lib/reviews/packetsApi'
+import {
+  exclusionsLabel,
+  GradePublishingExclusionsDrawer,
+} from './GradePublishingExclusionsDrawer'
 
 type ReleaseTarget = 'managers' | 'employees'
 
@@ -34,6 +38,9 @@ type PublishStageControlsProps = {
   dateLabel: string
   releaseLabel: string
   onDateChange: (date: string) => void
+  cycleName?: string
+  excludedEmployeeIds?: number[]
+  onExcludedEmployeeIdsChange?: (ids: number[]) => void
 }
 
 export function PublishStageControls({
@@ -44,12 +51,20 @@ export function PublishStageControls({
   dateLabel,
   releaseLabel,
   onDateChange,
+  cycleName = '',
+  excludedEmployeeIds = [],
+  onExcludedEmployeeIdsChange,
 }: PublishStageControlsProps) {
   const [pending, setPending] = useState(false)
+  const [exceptionsOpen, setExceptionsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
   const confirm = CONFIRM[target]
+  const confirmationDescription =
+    target === 'employees' && excludedEmployeeIds.length > 0
+      ? `${confirm.description} ${exclusionsLabel(excludedEmployeeIds.length)} from automatic publication.`
+      : confirm.description
 
   const runRelease = () => {
     setBusy(true)
@@ -114,6 +129,34 @@ export function PublishStageControls({
           </div>
         </div>
       </div>
+      {target === 'employees' && onExcludedEmployeeIdsChange ? (
+        <div className="pd-reviews-publish-row">
+          <span className="pd-reviews-publish-row__icon" aria-hidden>
+            <UserRoundMinus size={17} strokeWidth={1.75} />
+          </span>
+          <div>
+            <p className="pd-reviews-publish-row__title">
+              Hide Review From
+            </p>
+            <p className="pd-reviews-publish-row__desc">
+              Everyone receives their review by default. Choose employees whose
+              review should remain hidden.
+            </p>
+          </div>
+          <div className="pd-reviews-publish-row__meta">
+            <span className="pd-reviews-publish-row__value">
+              {exclusionsLabel(excludedEmployeeIds.length)}
+            </span>
+            <button
+              type="button"
+              className="pd-reviews-edit-link"
+              onClick={() => setExceptionsOpen(true)}
+            >
+              Choose
+            </button>
+          </div>
+        </div>
+      ) : null}
       {error ? (
         <p className="pd-reviews-modal__error" role="alert">
           {error}
@@ -130,10 +173,19 @@ export function PublishStageControls({
           runRelease()
         }}
         title={confirm.title}
-        description={confirm.description}
+        description={confirmationDescription}
         confirmLabel="Publish Now"
         cancelLabel="Cancel"
       />
+      {target === 'employees' && onExcludedEmployeeIdsChange ? (
+        <GradePublishingExclusionsDrawer
+          open={exceptionsOpen}
+          cycleName={cycleName}
+          selectedIds={excludedEmployeeIds}
+          onChange={onExcludedEmployeeIdsChange}
+          onClose={() => setExceptionsOpen(false)}
+        />
+      ) : null}
     </div>
   )
 }

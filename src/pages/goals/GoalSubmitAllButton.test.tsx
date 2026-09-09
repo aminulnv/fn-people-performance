@@ -54,8 +54,9 @@ describe('GoalSubmitAllButton', () => {
     fireEvent.mouseEnter(button.closest('.pd-tooltip')!)
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent(
-      'The goal cascaded from Ada: Still needs a metric - or remove it.',
+      'Still needs a metric - or remove it.',
     )
+    expect(tip).not.toHaveTextContent('The goal cascaded from Ada')
   })
 
   it('lists every table fix on the disabled submit button', async () => {
@@ -83,7 +84,8 @@ describe('GoalSubmitAllButton', () => {
     const tip = await screen.findByRole('tooltip')
     expect(tip).toHaveTextContent('Add at least 2 goals.')
     expect(tip).toHaveTextContent('Every goal needs a weight.')
-    expect(tip).toHaveTextContent('test: Still needs a metric.')
+    expect(tip).toHaveTextContent('Still needs a metric.')
+    expect(tip).not.toHaveTextContent('test:')
   })
 
   it('asks for confirmation for a non-blocking goal-count warning', () => {

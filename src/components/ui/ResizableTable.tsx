@@ -19,9 +19,12 @@ export type ResizableColumn = {
   /** Spoken column name, for labels that are markup rather than plain text. */
   name?: string
   minWidth?: number
-  /** Shares leftover width once every column has what its content needs. */
+  /**
+   * Kept for compatibility. The final column now owns leftover width so it can
+   * reach the table edge without exposing a redundant resize control.
+   */
   grow?: boolean
-  /** Relative share of leftover width. Defaults to 1 when `grow` is set. */
+  /** Kept for compatibility with existing column definitions. */
   growWeight?: number
 }
 
@@ -66,12 +69,6 @@ function minWidthOf(column: ResizableColumn): number {
   return column.minWidth ?? MIN_COLUMN_WIDTH
 }
 
-function growWeightOf(column: ResizableColumn): number {
-  if (!column.grow) return 0
-  const weight = column.growWeight ?? 1
-  return weight > 0 ? weight : 1
-}
-
 function sumWidths(columns: ResizableColumn[], widths: ColumnWidths): number {
   return columns.reduce(
     (total, column) => total + (widths[column.id] ?? minWidthOf(column)),
@@ -81,7 +78,7 @@ function sumWidths(columns: ResizableColumn[], widths: ColumnWidths): number {
 
 /** Widths saved before content-fit shipped used a different scheme, so start fresh. */
 function storageKeyFor(storageKey: string): string {
-  return `${storageKey}:v4`
+  return `${storageKey}:v5`
 }
 
 function readStoredWidths(storageKey: string): ColumnWidths {
@@ -97,7 +94,7 @@ function readStoredWidths(storageKey: string): ColumnWidths {
           columnId.length > 0 &&
           typeof width === 'number' &&
           Number.isFinite(width) &&
-          width >= MIN_COLUMN_WIDTH,
+          width >= 24,
       ),
     )
   } catch {
@@ -181,9 +178,8 @@ export function distributeAutoWidths(
 ): AutoLayout {
   const fitted = { ...natural }
   const total = sumWidths(columns, fitted)
-  const growColumns = columns.filter((column) => column.grow)
 
-  if (growColumns.length === 0 || total >= availableWidth) {
+  if (columns.length === 0 || total >= availableWidth) {
     return {
       widths: fitted,
       tableWidth: total,
@@ -192,18 +188,9 @@ export function distributeAutoWidths(
   }
 
   const slack = availableWidth - total
-  const weights = growColumns.map(growWeightOf)
-  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0)
-  let assigned = 0
-
-  growColumns.forEach((column, index) => {
-    const extra =
-      index === growColumns.length - 1
-        ? slack - assigned
-        : Math.floor((slack * weights[index]) / weightTotal)
-    assigned += extra
-    fitted[column.id] = (fitted[column.id] ?? minWidthOf(column)) + extra
-  })
+  const lastColumn = columns[columns.length - 1]
+  fitted[lastColumn.id] =
+    (fitted[lastColumn.id] ?? minWidthOf(lastColumn)) + slack
 
   return {
     widths: fitted,
@@ -222,8 +209,8 @@ function columnSignature(columns: ResizableColumn[]): string {
 }
 
 /**
- * Columns auto-fit to their content. Grow columns share leftover width so
- * short columns stay tight; manual drags still stick.
+ * Columns auto-fit to their content. The final column fills leftover width and
+ * has no resize handle; earlier columns can still be resized manually.
  */
 export function ResizableTable({
   storageKey,
@@ -248,6 +235,8 @@ export function ResizableTable({
   const columnsRef = useRef(columns)
   columnsRef.current = columns
   const columnsKey = columnSignature(columns)
+  const resizableColumns = columns.slice(0, -1)
+  const lastColumn = columns[columns.length - 1]
 
   const activeWidths = hasManualLayout ? manualWidths : (autoLayout?.widths ?? {})
   const isAutoLaidOut = !hasManualLayout && autoLayout != null
@@ -280,6 +269,15 @@ export function ResizableTable({
       )
     })
     return measured
+  }
+
+  function resizableWidths(widths: ColumnWidths): ColumnWidths {
+    return Object.fromEntries(
+      resizableColumns.flatMap((column) => {
+        const width = widths[column.id]
+        return width == null ? [] : [[column.id, width]]
+      }),
+    )
   }
 
   function requestAutoFit() {
@@ -351,7 +349,7 @@ export function ResizableTable({
 
     const natural = currentWidths()
     const fitted: ColumnWidths = { ...refit.keep }
-    columns
+    resizableColumns
       .filter((column) => refit.columnIds.includes(column.id))
       .forEach((column) => {
         fitted[column.id] = natural[column.id] ?? minWidthOf(column)
@@ -362,18 +360,14 @@ export function ResizableTable({
   useLayoutEffect(() => {
     if (!hasManualLayout) return
 
-    const sizedCount = columns.filter(
-      (column) => manualWidths[column.id] != null,
-    ).length
-    const isPartiallySized = sizedCount > 0 && sizedCount < columns.length
-    if (!isPartiallySized) return
+    const missing = resizableColumns
+      .filter((column) => manualWidths[column.id] == null)
+      .map((column) => column.id)
+    if (missing.length === 0) return
+    if (Object.keys(manualWidths).length === 0) return
 
-    refitColumns(
-      columns
-        .filter((column) => manualWidths[column.id] == null)
-        .map((column) => column.id),
-    )
-  })
+    refitColumns(missing)
+  }, [columnsKey, hasManualLayout, manualWidths])
 
   function refitColumns(columnIds: string[]) {
     if (!hasManualLayout) {
@@ -397,7 +391,7 @@ export function ResizableTable({
     const baseline = baselineWidths()
     if (!hasManualLayout) {
       setHasManualLayout(true)
-      setManualWidths(baseline)
+      setManualWidths(resizableWidths(baseline))
       setAutoLayout(null)
     }
     return baseline[column.id] ?? minWidthOf(column)
@@ -423,10 +417,12 @@ export function ResizableTable({
     )
   }
 
-  const manualFixedWidth = sumWidths(columns, manualWidths)
+  const manualMinimumWidth =
+    sumWidths(resizableColumns, manualWidths) +
+    (lastColumn ? minWidthOf(lastColumn) : 0)
 
   const tableStyle = hasManualLayout
-    ? { width: manualFixedWidth, minWidth: '100%' }
+    ? { width: '100%', minWidth: manualMinimumWidth }
     : isAutoLaidOut && autoLayout
       ? {
           width: autoLayout.tableWidth,
@@ -450,57 +446,70 @@ export function ResizableTable({
     >
       <colgroup>
         {columns.map((column) => (
-          <col key={column.id} style={{ width: activeWidths[column.id] }} />
+          <col
+            key={column.id}
+            style={{
+              width:
+                hasManualLayout && column === lastColumn
+                  ? undefined
+                  : activeWidths[column.id],
+            }}
+          />
         ))}
       </colgroup>
       <thead>
         <tr ref={headerRowRef}>
-          {columns.map((column) => (
+          {columns.map((column, columnIndex) => (
             <th key={column.id} data-col={column.id}>
               <span className="pd-table-resize__heading">{column.label}</span>
-              <span
-                className="pd-table-resize__handle"
-                role="separator"
-                aria-label={`Resize ${columnName(column)} column`}
-                aria-orientation="vertical"
-                aria-valuemin={minWidthOf(column)}
-                aria-valuenow={activeWidths[column.id]}
-                title="Drag to resize, double click to fit content"
-                tabIndex={0}
-                onDoubleClick={() => refitColumns([column.id])}
-                onKeyDown={(event) => {
-                  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') {
-                    return
-                  }
-                  event.preventDefault()
-                  setColumnWidth(
-                    column,
-                    startResize(column) +
-                      (event.key === 'ArrowRight'
-                        ? KEYBOARD_RESIZE_STEP
-                        : -KEYBOARD_RESIZE_STEP),
-                  )
-                }}
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  event.stopPropagation()
-                  resizeStartRef.current = {
-                    columnId: column.id,
-                    pointerX: event.clientX,
-                    width: startResize(column),
-                  }
-                  event.currentTarget.setPointerCapture(event.pointerId)
-                }}
-                onPointerMove={(event) => resizeFromPointer(column, event)}
-                onPointerUp={(event) => {
-                  resizeFromPointer(column, event)
-                  resizeStartRef.current = null
-                  event.currentTarget.releasePointerCapture(event.pointerId)
-                }}
-                onPointerCancel={() => {
-                  resizeStartRef.current = null
-                }}
-              />
+              {columnIndex < columns.length - 1 && column.id !== 'select' ? (
+                <span
+                  className="pd-table-resize__handle"
+                  role="separator"
+                  aria-label={`Resize ${columnName(column)} column`}
+                  aria-orientation="vertical"
+                  aria-valuemin={minWidthOf(column)}
+                  aria-valuenow={activeWidths[column.id]}
+                  title="Drag to resize, double click to fit content"
+                  tabIndex={0}
+                  onDoubleClick={() => refitColumns([column.id])}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key !== 'ArrowLeft' &&
+                      event.key !== 'ArrowRight'
+                    ) {
+                      return
+                    }
+                    event.preventDefault()
+                    setColumnWidth(
+                      column,
+                      startResize(column) +
+                        (event.key === 'ArrowRight'
+                          ? KEYBOARD_RESIZE_STEP
+                          : -KEYBOARD_RESIZE_STEP),
+                    )
+                  }}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    resizeStartRef.current = {
+                      columnId: column.id,
+                      pointerX: event.clientX,
+                      width: startResize(column),
+                    }
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                  }}
+                  onPointerMove={(event) => resizeFromPointer(column, event)}
+                  onPointerUp={(event) => {
+                    resizeFromPointer(column, event)
+                    resizeStartRef.current = null
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                  }}
+                  onPointerCancel={() => {
+                    resizeStartRef.current = null
+                  }}
+                />
+              ) : null}
             </th>
           ))}
         </tr>

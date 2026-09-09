@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarRange, Target } from "lucide-react";
+import { CalendarRange, Clock3, Target } from "lucide-react";
 import { Switch } from "@/components/ui";
 import { hasExplicitTime, toTimestamp } from "@/lib/dates/timestamp";
 import { toUtcIso } from "@/lib/dates/timezone";
@@ -273,6 +273,36 @@ export function GoalsSettingsEditPage({
                   }
                 />
               </h4>
+            </div>
+          </section>
+
+          <section className="pd-reviews-edit-card">
+            <header className="pd-reviews-edit-card__head">
+              <Clock3 size={16} strokeWidth={1.75} aria-hidden />
+              <h3 className="pd-reviews-edit-card__title">
+                Progress Update Window
+                <HintIcon
+                  content="Set how many days after the quarter deadline people can continue updating progress. Goal details remain locked."
+                  label="About Progress Update Window"
+                />
+              </h3>
+            </header>
+            <div className="pd-reviews-policy-grid">
+              <CountStepperField
+                label="Days after deadline"
+                min={0}
+                max={30}
+                value={settings.goalCountPolicy.lateProgressUpdateDays ?? 30}
+                onChange={(lateProgressUpdateDays) =>
+                  setSettings((prev) => ({
+                    ...prev,
+                    goalCountPolicy: {
+                      ...prev.goalCountPolicy,
+                      lateProgressUpdateDays: lateProgressUpdateDays ?? 0,
+                    },
+                  }))
+                }
+              />
             </div>
           </section>
         </div>
