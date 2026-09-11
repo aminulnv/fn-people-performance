@@ -3,13 +3,13 @@ import { Link } from 'react-router-dom'
 import {
   AlertCircle,
   Info,
-  Loader2,
   SearchX,
   ShieldOff,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from './Button'
 import { cx } from '@/lib/cx'
+import { PageSkeleton } from './PageSkeleton'
 
 export type PageStatusVariant =
   | 'forbidden'
@@ -23,7 +23,7 @@ type VariantConfig = {
   defaultTitle: string
 }
 
-const VARIANTS: Record<PageStatusVariant, VariantConfig> = {
+const VARIANTS: Record<Exclude<PageStatusVariant, 'loading'>, VariantConfig> = {
   forbidden: {
     icon: ShieldOff,
     defaultTitle: 'Access restricted',
@@ -35,10 +35,6 @@ const VARIANTS: Record<PageStatusVariant, VariantConfig> = {
   error: {
     icon: AlertCircle,
     defaultTitle: 'Something went wrong',
-  },
-  loading: {
-    icon: Loader2,
-    defaultTitle: 'Loading…',
   },
   info: {
     icon: Info,
@@ -63,12 +59,24 @@ export function PageStatus({
   className,
   ...props
 }: PageStatusProps) {
+  if (variant === 'loading') {
+    const label =
+      (typeof props['aria-label'] === 'string' && props['aria-label']) ||
+      description ||
+      title ||
+      'Loading'
+    return (
+      <PageSkeleton
+        className={className}
+        pageClassName={pageClassName}
+        aria-label={label}
+        {...props}
+      />
+    )
+  }
+
   const { icon: Icon, defaultTitle } = VARIANTS[variant]
-  const isLoading = variant === 'loading'
-  const resolvedTitle = isLoading ? undefined : (title ?? defaultTitle)
-  const resolvedDescription = isLoading
-    ? (description ?? title ?? defaultTitle)
-    : description
+  const resolvedTitle = title ?? defaultTitle
 
   return (
     <div
@@ -78,38 +86,23 @@ export function PageStatus({
         pageClassName,
         className,
       )}
-      aria-busy={isLoading ? true : undefined}
       {...props}
     >
-      <div
-        className={cx(
-          'pd-page-status',
-          isLoading && 'pd-page-status--loading',
-        )}
-      >
-        {isLoading ? (
-          <Icon
-            size={28}
-            strokeWidth={1.75}
-            className="pd-page-status__spin"
-            aria-hidden
-          />
-        ) : (
-          <div
-            className={cx(
-              'pd-page-status__icon',
-              `pd-page-status__icon--${variant}`,
-            )}
-            aria-hidden
-          >
-            <Icon size={28} strokeWidth={1.75} />
-          </div>
-        )}
+      <div className="pd-page-status">
+        <div
+          className={cx(
+            'pd-page-status__icon',
+            `pd-page-status__icon--${variant}`,
+          )}
+          aria-hidden
+        >
+          <Icon size={28} strokeWidth={1.75} />
+        </div>
         {resolvedTitle ? (
           <h1 className="pd-page-status__title">{resolvedTitle}</h1>
         ) : null}
-        {resolvedDescription ? (
-          <p className="pd-page-status__description">{resolvedDescription}</p>
+        {description ? (
+          <p className="pd-page-status__description">{description}</p>
         ) : null}
         {action ? <div className="pd-page-status__action">{action}</div> : null}
       </div>

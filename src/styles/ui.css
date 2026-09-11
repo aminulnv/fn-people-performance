@@ -215,7 +215,7 @@ a.pd-btn--secondary:visited {
   background: color-mix(in srgb, var(--color-bg) 55%, var(--color-surface));
 }
 
-.pd-field--notch > .pd-field__label {
+.pd-field--notch>.pd-field__label {
   position: absolute;
   top: 0;
   left: 0.55rem;
@@ -259,7 +259,7 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-field--notch .pd-datetime-input .pd-date-input__icon {
-  margin-right: 0.1rem;
+  right: 0.1rem;
 }
 
 .pd-field--notch:hover {
@@ -358,34 +358,52 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-datetime-input {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 0.35rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .pd-datetime-input .pd-date-input__native {
-  grid-column: 1 / -1;
+  grid-column: 1;
   grid-row: 1;
   min-width: 0;
+  width: 100%;
 }
 
 .pd-datetime-input .pd-date-input__display {
   grid-column: 1;
   grid-row: 1;
   min-width: 0;
-  padding-right: 0;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+.pd-datetime-input .pd-date-input__native.pd-field__control,
+.pd-datetime-input .pd-date-input__display.pd-field__control {
+  min-height: 2.25rem;
+  padding: 0 2.35rem 0 0.75rem;
+  line-height: 1.25;
+}
+
+.pd-datetime-input .pd-date-input__display.pd-field__control {
+  display: flex;
+  align-items: center;
+}
+
 .pd-date-input__icon {
-  grid-column: 2;
-  grid-row: 1;
+  position: absolute;
+  top: 0;
+  right: 0.65rem;
+  bottom: 0;
   z-index: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
+  width: 1rem;
+  margin: 0;
   pointer-events: none;
   color: var(--color-text-secondary);
 }
@@ -569,20 +587,16 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-datetime-picker__clock[data-sky='day'] {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-amber) 48%, var(--color-white)) 0%,
-    color-mix(in srgb, var(--color-amber) 28%, var(--color-white)) 55%,
-    color-mix(in srgb, var(--color-amber) 18%, var(--color-surface-raised, var(--color-bg))) 100%
-  );
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-amber) 48%, var(--color-white)) 0%,
+      color-mix(in srgb, var(--color-amber) 28%, var(--color-white)) 55%,
+      color-mix(in srgb, var(--color-amber) 18%, var(--color-surface-raised, var(--color-bg))) 100%);
 }
 
 .pd-datetime-picker__clock[data-sky='night'] {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-blue) 42%, var(--color-text)) 0%,
-    color-mix(in srgb, var(--color-text) 86%, var(--color-blue)) 100%
-  );
+  background: linear-gradient(180deg,
+      color-mix(in srgb, var(--color-blue) 42%, var(--color-text)) 0%,
+      color-mix(in srgb, var(--color-text) 86%, var(--color-blue)) 100%);
   color: var(--color-white);
   border-left-color: color-mix(in srgb, var(--color-white) 14%, transparent);
 }
@@ -605,10 +619,8 @@ a.pd-btn--secondary:visited {
   color: color-mix(in srgb, var(--color-white) 72%, transparent);
 }
 
-.pd-datetime-picker__clock[data-sky='night']
-  .pd-datetime-picker__period:hover:not(:disabled):not(.is-selected),
-.pd-datetime-picker__clock[data-sky='night']
-  .pd-datetime-picker__clock-tick:hover:not(:disabled):not(.is-selected) {
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__period:hover:not(:disabled):not(.is-selected),
+.pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-tick:hover:not(:disabled):not(.is-selected) {
   background: color-mix(in srgb, var(--color-white) 14%, transparent);
 }
 
@@ -774,21 +786,17 @@ a.pd-btn--secondary:visited {
 }
 
 .pd-datetime-picker__clock[data-sky='day'] .pd-datetime-picker__clock-face {
-  background: radial-gradient(
-    circle at 38% 32%,
-    color-mix(in srgb, var(--color-amber) 78%, var(--color-white)),
-    color-mix(in srgb, var(--color-amber) 42%, var(--color-white)) 58%,
-    color-mix(in srgb, var(--color-amber) 16%, var(--color-surface-raised, var(--color-bg))) 100%
-  );
+  background: radial-gradient(circle at 38% 32%,
+      color-mix(in srgb, var(--color-amber) 78%, var(--color-white)),
+      color-mix(in srgb, var(--color-amber) 42%, var(--color-white)) 58%,
+      color-mix(in srgb, var(--color-amber) 16%, var(--color-surface-raised, var(--color-bg))) 100%);
 }
 
 .pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-face {
-  background: radial-gradient(
-    circle at 64% 30%,
-    color-mix(in srgb, var(--color-white) 26%, var(--color-blue)),
-    color-mix(in srgb, var(--color-blue) 38%, var(--color-text)) 48%,
-    color-mix(in srgb, var(--color-text) 88%, var(--color-blue)) 100%
-  );
+  background: radial-gradient(circle at 64% 30%,
+      color-mix(in srgb, var(--color-white) 26%, var(--color-blue)),
+      color-mix(in srgb, var(--color-blue) 38%, var(--color-text)) 48%,
+      color-mix(in srgb, var(--color-text) 88%, var(--color-blue)) 100%);
 }
 
 .pd-datetime-picker__clock[data-sky='night'] .pd-datetime-picker__clock-face::before {
@@ -840,8 +848,7 @@ a.pd-btn--secondary:visited {
   color: var(--color-text);
   font-size: 0.6875rem;
   font-weight: 600;
-  transform: translate(-50%, -50%) rotate(var(--tick-deg)) translateY(-3.5rem)
-    rotate(calc(var(--tick-deg) * -1));
+  transform: translate(-50%, -50%) rotate(var(--tick-deg)) translateY(-3.5rem) rotate(calc(var(--tick-deg) * -1));
 }
 
 .pd-datetime-picker__clock-tick.is-selected {
@@ -1560,9 +1567,9 @@ a.pd-btn--secondary:visited {
 
 .pd-segmented__thumb {
   position: absolute;
-  top: var(--segmented-pad);
-  bottom: var(--segmented-pad);
+  top: 50%;
   left: 0;
+  height: calc(100% - (var(--segmented-pad) * 2));
   box-sizing: border-box;
   border-radius: max(0px,
       calc(var(--segmented-radius) - var(--segmented-pad)));
@@ -1571,6 +1578,7 @@ a.pd-btn--secondary:visited {
   z-index: 0;
   backface-visibility: hidden;
   will-change: transform, width;
+  transform: translate3d(var(--segmented-thumb-x, 0px), -50%, 0);
   transition:
     transform var(--segmented-duration) var(--segmented-ease),
     width var(--segmented-duration) var(--segmented-ease),
@@ -1861,6 +1869,59 @@ a.pd-btn--secondary:visited {
   .pd-skeleton {
     animation: none;
   }
+}
+
+/* Page-shaped loading placeholder (route + PageStatus loading). */
+.pd-page-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4, 1rem);
+  padding-block: var(--spacing-2, 0.5rem);
+}
+
+.pd-page-skeleton__chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3, 0.75rem);
+}
+
+.pd-page-skeleton__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2, 0.5rem);
+}
+
+.pd-page-skeleton__chip {
+  border-radius: var(--radius-button, 0.5rem);
+}
+
+.pd-page-skeleton__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card-lg, 0.75rem);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.pd-page-skeleton__row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3, 0.75rem);
+  padding: var(--spacing-3, 0.75rem) var(--spacing-4, 1rem);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pd-page-skeleton__row:last-child {
+  border-bottom: none;
+}
+
+.pd-page-skeleton__row .pd-skeleton--text:last-child {
+  margin-inline-start: auto;
+  flex: 0 0 auto;
 }
 
 /* ── Search field ─────────────────────────────────────────────────── */
@@ -2870,7 +2931,6 @@ a.pd-btn--secondary:visited {
 .pd-cycle-groups__subbar,
 .pd-cycle-groups__table-wrap,
 .pd-cycle-groups__empty,
-.pd-cycle-groups-members,
 .pd-goal-view__card,
 .pd-goal-view__facts,
 .pd-goal-view__approval,
@@ -2881,6 +2941,7 @@ a.pd-btn--secondary:visited {
 .pd-goal-todos,
 .pd-goal-create__group,
 .pd-goals-table,
+.pd-settings-stack,
 .pd-goals-table-wrap--action,
 .pd-goals-table-wrap--sendback,
 .pd-goals-banner,

@@ -103,6 +103,9 @@ export type { TooltipProps } from './Tooltip'
 export { Skeleton } from './Skeleton'
 export type { SkeletonProps } from './Skeleton'
 
+export { PageSkeleton } from './PageSkeleton'
+export type { PageSkeletonProps } from './PageSkeleton'
+
 export { SearchField } from './SearchField'
 export type { SearchFieldProps } from './SearchField'
 
@@ -127,6 +130,7 @@ export type { SpinnerProps } from './Spinner'
 export {
   GlobalRouteProgressComplete,
   NavigationProgressProvider,
+  RouteLoadingFallback,
   RouteProgressComplete,
   SuspenseRouteContent,
   useNavigationProgress,

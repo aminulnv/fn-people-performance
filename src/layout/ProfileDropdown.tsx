@@ -4,6 +4,7 @@ import { LogOut, Moon, Settings, Sun, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { settingsNavItem, profileNavItem } from '@/config/layout'
 import { applyAppearance } from '@/lib/brand'
+import { usableAvatarUrl } from '@/lib/employees/avatar'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { nameInitials } from './utils'
 import { useHoverMenu } from './useHoverMenu'
@@ -33,7 +34,7 @@ export function ProfileDropdown({
   const title = person?.title ?? ''
   const initials = nameInitials(name)
   const avatarHue = person?.avatarHue ?? 220
-  const avatarUrl = person?.avatarUrl?.trim() || ''
+  const avatarUrl = usableAvatarUrl(person?.avatarUrl)
   const showAvatarImage =
     Boolean(avatarUrl) && failedAvatarUrl !== avatarUrl
 

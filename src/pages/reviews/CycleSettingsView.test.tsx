@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
@@ -89,10 +90,17 @@ function sampleCycle(): ReviewCycle {
 }
 
 function renderSettings(cycle = sampleCycle()) {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+    },
+  })
   return render(
-    <MemoryRouter>
-      <CycleSettingsView cycle={cycle} />
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <CycleSettingsView cycle={cycle} />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 
@@ -132,7 +140,7 @@ describe('CycleSettingsView', () => {
     expect(details.queryByText('Year')).not.toBeInTheDocument()
   })
 
-  it('opens group settings on People with a top nav', () => {
+  it('opens group settings on People with a top nav', async () => {
     renderSettings()
 
     fireEvent.click(screen.getByRole('button', { name: 'Everyone' }))
@@ -150,6 +158,43 @@ describe('CycleSettingsView', () => {
     )
     expect(screen.queryByRole('link', { name: 'Full View' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Added/i }))
+    expect(screen.getByRole('button', { name: /^Added/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('hash-links group sections and the people panes', async () => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+      },
+    })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/cycles/cycle-1/settings']}>
+          <CycleSettingsView cycle={sampleCycle()} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Everyone' }))
+    expect(screen.getByRole('dialog', { name: 'Everyone' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Added/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Goals' }))
+    expect(screen.getByRole('button', { name: 'Goals' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'People' }))
+    expect(screen.getByRole('button', { name: /^Added/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
   })
 
   it('opens the review form on the left of group review settings', () => {
@@ -192,7 +237,7 @@ describe('CycleSettingsView', () => {
       'true',
     )
     expect(
-      screen.getByRole('searchbox', { name: 'Search people in this group' }),
+      screen.getByRole('searchbox', { name: 'Search people' }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Done' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'People In This Cycle' })).toBeInTheDocument()

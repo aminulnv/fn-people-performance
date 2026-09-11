@@ -190,14 +190,24 @@ export function SettingsSideSheetRail({
 type SettingsSideSheetPageHostProps = {
   sideSheet: SettingsSideSheet
   children: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 /** Full-page host: form sheet sits to the left of the settings column. */
 export function SettingsSideSheetPageHost({
   sideSheet,
   children,
+  open,
+  onOpenChange,
 }: SettingsSideSheetPageHostProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const controlled = open !== undefined
+  const isOpen = controlled ? open : uncontrolledOpen
+  const setIsOpen = (next: boolean) => {
+    onOpenChange?.(next)
+    if (!controlled) setUncontrolledOpen(next)
+  }
   const isOpenRef = useRef(isOpen)
   isOpenRef.current = isOpen
 

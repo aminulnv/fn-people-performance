@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
-import { ArrowRight, CalendarRange, LayoutGrid, Star, Target } from 'lucide-react'
+import {
+  ArrowRight,
+  ChevronDown,
+  ClipboardList,
+  LayoutGrid,
+  SlidersHorizontal,
+  Star,
+  Target,
+} from 'lucide-react'
 import { Switch } from '@/components/ui'
 import { parseDateTime } from '@/lib/dates/timestamp'
 import { normalizeCycleSettings } from '@/lib/reviews/demoData'
@@ -23,10 +31,8 @@ import type {
   ReviewPolicy,
   ReviewStageId,
 } from '@/lib/reviews/types'
-import { CycleModuleField, ModuleSettingsLock } from './CycleModulesFields'
+import { ModuleSettingsLock } from './CycleModulesFields'
 import { EditPageShell } from './EditPageShell'
-import { HintIcon } from './HintIcon'
-import { reviewFormSummary } from './ReviewFormSheet'
 import { ReviewStageList, stageSectionId } from './ReviewStageList'
 
 type ReviewSettingsEditPageProps = {
@@ -210,6 +216,7 @@ export function ReviewSettingsEditPage({
       ).filter((stage) => stage.id !== 'goals'),
     [stagesConfig.reviewStages],
   )
+  const [advancedOpen, setAdvancedOpen] = useState(false)
 
   useEffect(() => {
     if (!highlightedStageId) return
@@ -219,10 +226,28 @@ export function ReviewSettingsEditPage({
 
   const focusStage = (id: ReviewStageId) => {
     setHighlightedStageId(id)
-    document.getElementById(stageSectionId(id))?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    })
+    window.setTimeout(() => {
+      document.getElementById(stageSectionId(id))?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }, 40)
+  }
+
+  const stageListProps = {
+    cycle,
+    groupId: group.id,
+    stagesConfig,
+    moduleEnabled: enabled,
+    highlightedId: highlightedStageId,
+    setStageEnabled,
+    setStageDate,
+    excludedEmployeeIds: settings.excludedEmployeeIds,
+    onExcludedEmployeeIdsChange: (excludedEmployeeIds: number[]) =>
+      setSettings((current) => ({
+        ...current,
+        excludedEmployeeIds,
+      })),
   }
 
   return (
@@ -230,8 +255,8 @@ export function ReviewSettingsEditPage({
       title={`${group.name} · Reviews`}
       description={
         enabled
-          ? 'When reviews happen, and which grades appear on the scorecard. The form opens on the left.'
-          : 'Turn on Reviews to set when they happen and the form.'
+          ? 'Stages follow the review journey. Form grades are under Advanced.'
+          : 'Turn on Reviews to configure the path and form.'
       }
       onBack={onClose}
       onSave={() => {
@@ -244,7 +269,10 @@ export function ReviewSettingsEditPage({
       actionsPlacement="top"
     >
       {enabled && flowStages.length > 0 ? (
-        <ol className="pd-reviews-stage-preview" aria-label="Review path">
+        <ol
+          className="pd-reviews-stage-preview pd-reviews-stage-preview--above"
+          aria-label="Review path"
+        >
           {flowStages.map((stage, index) => (
             <li key={stage.id} className="pd-reviews-stage-preview__item">
               <button
@@ -257,7 +285,10 @@ export function ReviewSettingsEditPage({
                 {REVIEW_STAGE_LABEL[stage.id]}
               </button>
               {index < flowStages.length - 1 ? (
-                <span className="pd-reviews-stage-preview__arrow" aria-hidden>
+                <span
+                  className="pd-reviews-stage-preview__arrow"
+                  aria-hidden
+                >
                   <ArrowRight size={13} strokeWidth={1.75} />
                 </span>
               ) : null}
@@ -265,116 +296,118 @@ export function ReviewSettingsEditPage({
           ))}
         </ol>
       ) : null}
-      {onEnabledChange ? (
-        <section className="pd-reviews-edit-card pd-reviews-module-enable">
-          <CycleModuleField
-            id="reviews"
-            enabled={enabled}
-            onChange={onEnabledChange}
-          />
-        </section>
-      ) : null}
-      <ModuleSettingsLock locked={!enabled} label="Review settings">
-        <div className="pd-reviews-settings-edit pd-reviews-settings-edit--stacked">
-          <section className="pd-reviews-edit-card">
-            <header className="pd-reviews-edit-card__head">
-              <CalendarRange size={16} strokeWidth={1.75} aria-hidden />
-              <h3 className="pd-reviews-edit-card__title">When Reviews Happen</h3>
-            </header>
+
+      <div className="pd-settings-stack">
+        {onEnabledChange ? (
+          <div className="pd-settings-stack__row pd-settings-stack__row--master">
+            <div className="pd-settings-stack__copy">
+              <p className="pd-settings-stack__label">
+                <ClipboardList size={15} strokeWidth={1.75} aria-hidden />
+                Reviews
+              </p>
+            </div>
+            <Switch
+              label="Enable Reviews"
+              className="pd-reviews-type-list__switch"
+              checked={enabled}
+              onChange={(event) => onEnabledChange(event.target.checked)}
+            />
+          </div>
+        ) : null}
+
+        <ModuleSettingsLock locked={!enabled} label="Review settings">
+          <section className="pd-settings-stack__block pd-settings-stack__block--flush">
             <ReviewStageList
-              cycle={cycle}
-              groupId={group.id}
+              {...stageListProps}
               stageIds={REVIEW_ONLY_STAGE_ORDER}
-              stagesConfig={stagesConfig}
-              moduleEnabled={enabled}
-              highlightedId={highlightedStageId}
-              setStageEnabled={setStageEnabled}
-              setStageDate={setStageDate}
-              excludedEmployeeIds={settings.excludedEmployeeIds}
-              onExcludedEmployeeIdsChange={(excludedEmployeeIds) =>
-                setSettings((current) => ({
-                  ...current,
-                  excludedEmployeeIds,
-                }))
-              }
             />
           </section>
 
-          <section className="pd-reviews-edit-card">
-            <div className="pd-reviews-edit-card__heading">
-              <header className="pd-reviews-edit-card__head">
-                <Star size={16} strokeWidth={1.75} aria-hidden />
-                <h3 className="pd-reviews-edit-card__title">Grades On The Form</h3>
-                <HintIcon
-                  content={reviewFormSummary(policy)}
-                  label="About Grades On The Form"
-                />
-              </header>
-              <p className="pd-reviews-edit-card__lede">
-                Questions and areas open on the left. These switches only show
-                or hide grades on the scorecard.
-              </p>
-            </div>
-            <ul className="pd-reviews-type-list">
-              <li className="pd-reviews-type-list__item">
-                <Target
-                  size={16}
-                  strokeWidth={1.75}
-                  className="pd-reviews-type-list__icon"
-                  aria-hidden
-                />
-                <div>
-                  <p className="pd-reviews-type-list__label">Goals Grade</p>
-                  <p className="pd-reviews-type-list__desc">
-                    Managers pick a Goals grade on the goals card. Off keeps
-                    goals as progress only.
-                  </p>
-                </div>
-                <Switch
-                  label="Enable Goals Grade"
-                  className="pd-reviews-type-list__switch"
-                  checked={policy.managerReview.gradeGoals}
-                  onChange={(event) =>
-                    patchPolicy({
-                      managerReview: {
-                        ...policy.managerReview,
-                        gradeGoals: event.target.checked,
-                      },
-                    })
-                  }
-                />
-              </li>
-              <li className="pd-reviews-type-list__item">
-                <LayoutGrid
-                  size={16}
-                  strokeWidth={1.75}
-                  className="pd-reviews-type-list__icon"
-                  aria-hidden
-                />
-                <div>
-                  <p className="pd-reviews-type-list__label">Overall Grade</p>
-                  <p className="pd-reviews-type-list__desc">
-                    Show the overall grade grid on the scorecard. Off hides it.
-                  </p>
-                </div>
-                <Switch
-                  label="Enable Overall Grade"
-                  className="pd-reviews-type-list__switch"
-                  checked={policy.managerReview.gradeOverall}
-                  onChange={(event) =>
-                    patchPolicy({
-                      managerReview: {
-                        ...policy.managerReview,
-                        gradeOverall: event.target.checked,
-                      },
-                    })
-                  }
-                />
-              </li>
-            </ul>
-          </section>
-        </div>
-      </ModuleSettingsLock>
+          <div className="pd-settings-stack__advanced">
+            <button
+              type="button"
+              className="pd-settings-stack__advanced-toggle"
+              aria-expanded={advancedOpen}
+              onClick={() => setAdvancedOpen((open) => !open)}
+            >
+              <span className="pd-settings-stack__advanced-copy">
+                <span className="pd-settings-stack__advanced-label">
+                  <SlidersHorizontal size={15} strokeWidth={1.75} aria-hidden />
+                  Advanced
+                </span>
+                {!advancedOpen ? (
+                  <span className="pd-settings-stack__advanced-summary">
+                    Grades On The Form
+                  </span>
+                ) : null}
+              </span>
+              <ChevronDown
+                size={16}
+                strokeWidth={2}
+                className={
+                  advancedOpen
+                    ? 'pd-settings-stack__chevron is-open'
+                    : 'pd-settings-stack__chevron'
+                }
+                aria-hidden
+              />
+            </button>
+
+            {advancedOpen ? (
+              <div className="pd-settings-stack__advanced-body">
+                <section className="pd-settings-stack__block pd-settings-stack__block--flush">
+                  <div className="pd-settings-stack__block-head">
+                    <h3 className="pd-settings-stack__eyebrow">
+                      <Star size={14} strokeWidth={1.75} aria-hidden />
+                      Grades On The Form
+                    </h3>
+                  </div>
+
+                  <div className="pd-settings-stack__row pd-settings-stack__row--compact">
+                    <p className="pd-settings-stack__label">
+                      <Target size={15} strokeWidth={1.75} aria-hidden />
+                      Goals Grade
+                    </p>
+                    <Switch
+                      label="Enable Goals Grade"
+                      className="pd-reviews-type-list__switch"
+                      checked={policy.managerReview.gradeGoals}
+                      onChange={(event) =>
+                        patchPolicy({
+                          managerReview: {
+                            ...policy.managerReview,
+                            gradeGoals: event.target.checked,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="pd-settings-stack__row pd-settings-stack__row--compact">
+                    <p className="pd-settings-stack__label">
+                      <LayoutGrid size={15} strokeWidth={1.75} aria-hidden />
+                      Overall Grade
+                    </p>
+                    <Switch
+                      label="Enable Overall Grade"
+                      className="pd-reviews-type-list__switch"
+                      checked={policy.managerReview.gradeOverall}
+                      onChange={(event) =>
+                        patchPolicy({
+                          managerReview: {
+                            ...policy.managerReview,
+                            gradeOverall: event.target.checked,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </section>
+              </div>
+            ) : null}
+          </div>
+        </ModuleSettingsLock>
+      </div>
     </EditPageShell>
   )
 }

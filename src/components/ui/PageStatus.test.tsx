@@ -25,7 +25,7 @@ describe('PageStatus', () => {
     )
   })
 
-  it('shows a bare spinner and a single loading line', () => {
+  it('shows a page skeleton while loading', () => {
     const { container } = render(
       <PageStatus
         variant="loading"
@@ -37,8 +37,13 @@ describe('PageStatus', () => {
     expect(
       screen.queryByRole('heading', { name: 'Loading…' }),
     ).not.toBeInTheDocument()
-    expect(screen.getByText('Loading your profile…')).toBeInTheDocument()
-    expect(container.querySelector('.pd-page-status__icon')).toBeNull()
-    expect(container.querySelector('.pd-page-status__spin')).not.toBeNull()
+    expect(screen.queryByText('Loading your profile…')).not.toBeInTheDocument()
+    expect(container.querySelector('.pd-page-status__spin')).toBeNull()
+    expect(container.querySelector('.pd-page-skeleton')).not.toBeNull()
+    expect(container.querySelector('.pd-page-skeleton')).toHaveAttribute(
+      'aria-label',
+      'My profile',
+    )
+    expect(container.querySelectorAll('.pd-skeleton').length).toBeGreaterThan(0)
   })
 })

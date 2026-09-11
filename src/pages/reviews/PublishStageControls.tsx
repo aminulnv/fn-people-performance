@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Send, UserRoundMinus } from 'lucide-react'
+import { Send } from 'lucide-react'
 import { Button, ConfirmDialog, Input } from '@/components/ui'
 import {
   ReviewSaveBanner,
@@ -101,7 +101,7 @@ export function PublishStageControls({
       />
       <div className="pd-reviews-publish__row">
         <div className="pd-reviews-window__date">
-          <span className="pd-reviews-window__label">Visible from</span>
+          <span className="pd-reviews-window__label">Visible From</span>
           <Input
             type="datetime"
             aria-label={dateLabel}
@@ -110,7 +110,7 @@ export function PublishStageControls({
           />
         </div>
         <div className="pd-reviews-window__date pd-reviews-publish__now">
-          <span className="pd-reviews-window__label">Publish early</span>
+          <span className="pd-reviews-window__label">Publish Early</span>
           <div className="pd-field">
             <Button
               variant="primary"
@@ -130,19 +130,8 @@ export function PublishStageControls({
         </div>
       </div>
       {target === 'employees' && onExcludedEmployeeIdsChange ? (
-        <div className="pd-reviews-publish-row">
-          <span className="pd-reviews-publish-row__icon" aria-hidden>
-            <UserRoundMinus size={17} strokeWidth={1.75} />
-          </span>
-          <div>
-            <p className="pd-reviews-publish-row__title">
-              Hide Review From
-            </p>
-            <p className="pd-reviews-publish-row__desc">
-              Everyone receives their review by default. Choose employees whose
-              review should remain hidden.
-            </p>
-          </div>
+        <div className="pd-reviews-publish-row pd-reviews-publish-row--compact">
+          <p className="pd-reviews-publish-row__title">Hide From</p>
           <div className="pd-reviews-publish-row__meta">
             <span className="pd-reviews-publish-row__value">
               {exclusionsLabel(excludedEmployeeIds.length)}

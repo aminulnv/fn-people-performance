@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
 } from 'react'
@@ -116,11 +117,13 @@ export function SegmentedControl<T extends string>({
         <span
           className="pd-segmented__thumb"
           aria-hidden
-          style={{
-            width: indicator.width,
-            opacity: indicatorReady ? 1 : 0,
-            transform: `translate3d(${indicator.left}px, 0, 0)`,
-          }}
+          style={
+            {
+              width: indicator.width,
+              opacity: indicatorReady ? 1 : 0,
+              '--segmented-thumb-x': `${indicator.left}px`,
+            } as CSSProperties
+          }
         />
       ) : null}
 

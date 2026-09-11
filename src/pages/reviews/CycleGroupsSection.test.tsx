@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react'
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   cleanup,
@@ -7,6 +8,7 @@ import {
   waitFor,
   within,
 } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import type {
@@ -35,8 +37,19 @@ vi.mock('@/lib/employees/useEmployees', () => ({
 }))
 
 vi.mock('@/lib/reviews/packetsApi', () => ({
-  fetchReviewPackets: vi.fn(async () => packetsState.packets),
+  fetchReviewPacketSummaries: vi.fn(async () => packetsState.packets),
 }))
+
+function renderSection(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, staleTime: Infinity },
+    },
+  })
+  return render(
+    <QueryClientProvider client={client}>{ui}</QueryClientProvider>,
+  )
+}
 
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -162,7 +175,7 @@ function sampleCycle(groups: CycleGroup[]): ReviewCycle {
 
 describe('CycleGroupsSection', () => {
   it('lists groups as cards with people counts', () => {
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup(), sampleGroup({ id: 'group-2', name: 'New group', memberIds: [] })])}
         onAddGroup={() => {}}
@@ -191,7 +204,7 @@ describe('CycleGroupsSection', () => {
       }),
     ]
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -225,7 +238,7 @@ describe('CycleGroupsSection', () => {
   })
 
   it('lets people choose which columns are visible', () => {
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -257,7 +270,7 @@ describe('CycleGroupsSection', () => {
       person(2, { fullName: 'Growth Person', team: 'Growth' }),
     ]
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -301,7 +314,7 @@ describe('CycleGroupsSection', () => {
       .spyOn(reviewsStore, 'updateCycleGroup')
       .mockResolvedValue(updatedGroup)
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -344,7 +357,7 @@ describe('CycleGroupsSection', () => {
       .spyOn(reviewsStore, 'updateCycleGroup')
       .mockResolvedValue(updatedGroup)
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -371,7 +384,7 @@ describe('CycleGroupsSection', () => {
     employeesState.employees = [person(2, { fullName: 'Excluded Person' })]
     const onAddGroup = vi.fn()
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={onAddGroup}
@@ -416,7 +429,7 @@ describe('CycleGroupsSection', () => {
       } as ReviewPacket,
     ]
 
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -456,7 +469,7 @@ describe('CycleGroupsSection', () => {
 
   it('opens a group from its card', () => {
     const onOpenGroup = vi.fn()
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -471,7 +484,7 @@ describe('CycleGroupsSection', () => {
 
   it('adds a group from the dashed card', () => {
     const onAddGroup = vi.fn()
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={onAddGroup}
@@ -486,7 +499,7 @@ describe('CycleGroupsSection', () => {
 
   it('confirms before deleting a group', () => {
     const onDelete = vi.fn()
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([sampleGroup()])}
         onAddGroup={() => {}}
@@ -502,7 +515,7 @@ describe('CycleGroupsSection', () => {
 
   it('offers a first-group action when the cycle has none', () => {
     const onAddGroup = vi.fn()
-    render(
+    renderSection(
       <CycleGroupsSection
         cycle={sampleCycle([])}
         onAddGroup={onAddGroup}

@@ -12,3 +12,15 @@ export function avatarStyle(seed: string): { background: string; color: string }
     color: '#fff',
   }
 }
+
+/** ClickUp profile attachments expire/404; treat as missing so we never request them. */
+export function usableAvatarUrl(src?: string | null): string {
+  const trimmed = src?.trim() || ''
+  if (!trimmed) return ''
+  if (
+    /^https?:\/\/attachments\.clickup\.com\/profilePictures\//i.test(trimmed)
+  ) {
+    return ''
+  }
+  return trimmed
+}

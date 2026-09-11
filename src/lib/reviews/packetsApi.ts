@@ -47,6 +47,17 @@ export async function fetchReviewPackets(cycleId: string): Promise<ReviewPacket[
   return visiblePackets(response.packets)
 }
 
+/** Grades + status only — skips answers / events / appeals payloads. */
+export async function fetchReviewPacketSummaries(
+  cycleId: string,
+): Promise<ReviewPacket[]> {
+  if (useLocalReviewPackets()) return visiblePackets(listLocalPackets(cycleId))
+  const response = await apiFetch<{ packets: ReviewPacket[] }>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/packets?summary=1`,
+  )
+  return visiblePackets(response.packets)
+}
+
 export async function fetchReviewPacket(
   cycleId: string,
   employeeId: number,

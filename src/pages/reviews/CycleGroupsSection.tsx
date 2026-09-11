@@ -1,4 +1,6 @@
-import { Eye, EyeOff, Plus, Trash2, UsersRound } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import { ChevronDown, Eye, EyeOff, Plus, Trash2, UsersRound } from 'lucide-react'
 import {
   createContext,
   memo,
@@ -6,7 +8,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react'
@@ -24,9 +28,13 @@ import {
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { findCycleGroupForPerson } from '@/lib/reviews/cycleGroups'
+import { queryKeys } from '@/lib/queryClient'
+import {
+  cycleGroupByEmployeeId,
+  findCycleGroupForPerson,
+} from '@/lib/reviews/cycleGroups'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
-import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
+import { fetchReviewPacketSummaries } from '@/lib/reviews/packetsApi'
 import {
   gradeFromPacket,
   gradeLabel,
@@ -38,7 +46,6 @@ import { getReviewCycle, updateCycleGroup } from '@/lib/reviews/store'
 import type {
   CycleGroup,
   ReviewCycle,
-  ReviewPacket,
 } from '@/lib/reviews/types'
 import {
   readVisibleColumnIds,
@@ -48,6 +55,10 @@ import {
   ColumnMultiSelectFilter,
   type ColumnFilterOption,
 } from './GroupMembersEditor'
+
+const VIRTUALIZE_AFTER = 24
+const VIRTUAL_OVERSCAN = 8
+const VIRTUAL_ROW_ESTIMATE = 44
 
 type CyclePeopleColumnId =
   | 'employee'
@@ -254,7 +265,6 @@ function CyclePeopleTable({
   employees: PlatformEmployee[]
   onCreateGroup: () => void
 }) {
-  const [packets, setPackets] = useState<ReviewPacket[]>([])
   const [gradesRevealed, setGradesRevealed] = useState(false)
   const [gradeOverrides, setGradeOverrides] = useState<Record<number, boolean>>(
     {},
@@ -274,13 +284,24 @@ function CyclePeopleTable({
   const [savingEmployeeId, setSavingEmployeeId] = useState<number | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [groupChangeError, setGroupChangeError] = useState<string | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const visibleColumnSet = useMemo(
     () => new Set(visibleColumnIds),
     [visibleColumnIds],
   )
+  const { data: packets = [] } = useQuery({
+    queryKey: queryKeys.reviewPacketSummaries(cycle.id),
+    queryFn: () => fetchReviewPacketSummaries(cycle.id),
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
   const packetByEmployee = useMemo(
     () => new Map(packets.map((packet) => [packet.employeeId, packet])),
     [packets],
+  )
+  const groupByEmployeeId = useMemo(
+    () => cycleGroupByEmployeeId(cycle),
+    [cycle],
   )
   const employeesById = useMemo(
     () =>
@@ -311,20 +332,10 @@ function CyclePeopleTable({
     )
 
   useEffect(() => {
-    let active = true
-    setPackets([])
     setGradesRevealed(false)
     setGradeOverrides({})
-    void fetchReviewPackets(cycle.id)
-      .then((next) => {
-        if (active) setPackets(next)
-      })
-      .catch(() => {
-        if (active) setPackets([])
-      })
-    return () => {
-      active = false
-    }
+    setSelectedIds(new Set())
+    setGroupChangeError(null)
   }, [cycle.id])
 
   const changeCycleGroup = useCallback(
@@ -378,11 +389,13 @@ function CyclePeopleTable({
             beforeCount: group.memberIds.length,
           }))
           .filter((entry) => entry.memberIds.length !== entry.beforeCount)
-        for (const entry of removals) {
-          await updateCycleGroup(cycle.id, entry.groupId, {
-            memberIds: entry.memberIds,
-          })
-        }
+        await Promise.all(
+          removals.map((entry) =>
+            updateCycleGroup(cycle.id, entry.groupId, {
+              memberIds: entry.memberIds,
+            }),
+          ),
+        )
       } else {
         const targetGroup = groups.find((group) => group.id === nextGroupId)
         if (!targetGroup) return
@@ -409,7 +422,7 @@ function CyclePeopleTable({
 
   const valueForColumn = useCallback(
     (employee: PlatformEmployee, columnId: CyclePeopleColumnId): string => {
-      const group = findCycleGroupForPerson(cycle, employee.employeeId)
+      const group = groupByEmployeeId.get(employee.employeeId)
       const packet = packetByEmployee.get(employee.employeeId)
       const grade = packet ? gradeFromPacket(packet).grade : null
       const status = packet
@@ -441,7 +454,7 @@ function CyclePeopleTable({
           return group?.name ?? 'Not included'
       }
     },
-    [cycle, packetByEmployee],
+    [cycle.name, groupByEmployeeId, packetByEmployee],
   )
 
   const columnFilterOptions = useMemo(
@@ -675,6 +688,14 @@ function CyclePeopleTable({
     [cycle.groups],
   )
 
+  const groupAssignLabelById = useMemo(() => {
+    const labels = new Map<string, string>()
+    for (const option of groupAssignOptions) {
+      labels.set(option.value, option.label)
+    }
+    return labels
+  }, [groupAssignOptions])
+
   const visibleColumns = useMemo(
     () => ({
       employee: visibleColumnSet.has('employee'),
@@ -723,7 +744,7 @@ function CyclePeopleTable({
   const tableRows = useMemo(
     () =>
       filteredEmployees.map((employee) => {
-        const group = findCycleGroupForPerson(cycle, employee.employeeId)
+        const group = groupByEmployeeId.get(employee.employeeId)
         const packet = packetByEmployee.get(employee.employeeId)
         const grade = packet ? gradeFromPacket(packet) : null
         const reviewer =
@@ -747,13 +768,42 @@ function CyclePeopleTable({
         }
       }),
     [
-      cycle,
       employeesById,
       employeesByName,
       filteredEmployees,
+      groupByEmployeeId,
       packetByEmployee,
     ],
   )
+
+  const shouldVirtualize = tableRows.length >= VIRTUALIZE_AFTER
+  const virtualizer = useVirtualizer({
+    count: shouldVirtualize ? tableRows.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => VIRTUAL_ROW_ESTIMATE,
+    overscan: VIRTUAL_OVERSCAN,
+  })
+
+  useLayoutEffect(() => {
+    if (!shouldVirtualize) return
+    virtualizer.measure()
+  }, [shouldVirtualize, tableRows.length, virtualizer, columns.length])
+
+  const virtualRows = shouldVirtualize ? virtualizer.getVirtualItems() : null
+  const paddingTop = virtualRows?.[0]?.start ?? 0
+  const lastVirtualRow = virtualRows?.[virtualRows.length - 1]
+  const paddingBottom = virtualRows
+    ? virtualizer.getTotalSize() - (lastVirtualRow?.end ?? 0)
+    : 0
+  const visibleRows =
+    virtualRows && virtualRows.length > 0
+      ? virtualRows
+          .map((row) => tableRows[row.index])
+          .filter((row): row is (typeof tableRows)[number] => Boolean(row))
+      : tableRows.slice(
+          0,
+          shouldVirtualize ? VIRTUALIZE_AFTER : tableRows.length,
+        )
 
   return (
     <CyclePeopleSelectionContext.Provider value={selectionApi}>
@@ -817,7 +867,7 @@ function CyclePeopleTable({
           />
         </header>
         <div className="pd-people__panel pd-people__panel--table pd-cycle-setup__people-table-panel">
-          <div className="pd-people__table-wrap">
+          <div ref={scrollRef} className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-cycle-setup__eligibility-table"
               storageKey="cycle-people-eligibility-column-widths-v6"
@@ -825,12 +875,19 @@ function CyclePeopleTable({
               fitKey={`${cycle.id}:${visibleColumnIds.join('|')}`}
             >
               <tbody>
-                {tableRows.map((row) => (
+                <CyclePeopleSpacerRow
+                  height={paddingTop}
+                  columnCount={columns.length}
+                />
+                {visibleRows.map((row) => (
                   <CyclePeopleTableRow
                     key={row.employee.employeeId}
                     employee={row.employee}
                     cycleName={cycle.name}
                     groupId={row.groupId}
+                    groupLabel={
+                      groupAssignLabelById.get(row.groupId) ?? 'Not included'
+                    }
                     grade={row.grade}
                     gradeRevealed={
                       gradeOverrides[row.employee.employeeId] ?? gradesRevealed
@@ -847,6 +904,10 @@ function CyclePeopleTable({
                     onAssign={onAssignOne}
                   />
                 ))}
+                <CyclePeopleSpacerRow
+                  height={paddingBottom}
+                  columnCount={columns.length}
+                />
               </tbody>
             </ResizableTable>
           </div>
@@ -869,10 +930,93 @@ type CyclePeopleVisibleColumns = {
   cycleGroup: boolean
 }
 
+function CyclePeopleSpacerRow({
+  height,
+  columnCount,
+}: {
+  height: number
+  columnCount: number
+}) {
+  if (height <= 0) return null
+  return (
+    <tr className="pd-people__virtual-pad" aria-hidden>
+      <td colSpan={columnCount} style={{ height }} />
+    </tr>
+  )
+}
+
+const LazyCycleAssignSelect = memo(function LazyCycleAssignSelect({
+  groupId,
+  groupLabel,
+  options,
+  disabled,
+  ariaLabel,
+  onAssign,
+}: {
+  groupId: string
+  groupLabel: string
+  options: ListboxOption[]
+  disabled: boolean
+  ariaLabel: string
+  onAssign: (value: string) => void
+}) {
+  const [editing, setEditing] = useState(false)
+
+  if (!editing) {
+    return (
+      <div className="pd-listbox pd-cycle-setup__group-select">
+        <button
+          type="button"
+          className={[
+            'pd-listbox__trigger',
+            groupId ? '' : 'pd-listbox__trigger--placeholder',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-label={ariaLabel}
+          disabled={disabled}
+          onClick={() => setEditing(true)}
+        >
+          <span className="pd-listbox__value">
+            <span className="pd-listbox__value-text">
+              {groupId ? groupLabel : 'Not included'}
+            </span>
+          </span>
+          <ChevronDown
+            className="pd-listbox__chevron"
+            size={14}
+            strokeWidth={2}
+            aria-hidden
+          />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <ListboxSelect
+      className="pd-cycle-setup__group-select"
+      value={groupId}
+      options={options}
+      placeholder="Not included"
+      emptyLabel="Not included"
+      portal
+      defaultOpen
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onValueChange={(value) => {
+        setEditing(false)
+        onAssign(value)
+      }}
+    />
+  )
+})
+
 const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
   employee,
   cycleName,
   groupId,
+  groupLabel,
   grade,
   gradeRevealed,
   status,
@@ -889,6 +1033,7 @@ const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
   employee: PlatformEmployee
   cycleName: string
   groupId: string
+  groupLabel: string
   grade: ReturnType<typeof gradeFromPacket>['grade']
   gradeRevealed: boolean
   status: ScorecardStatus | null
@@ -902,6 +1047,18 @@ const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
   onToggleGrade: (employeeId: number, revealed: boolean) => void
   onAssign: (employeeId: number, value: string) => void
 }) {
+  const employeeAvatar = useMemo(
+    () => avatarStyle(employee.fullName),
+    [employee.fullName],
+  )
+  const reviewerAvatar = useMemo(
+    () =>
+      employee.reportsToName
+        ? avatarStyle(employee.reportsToName)
+        : undefined,
+    [employee.reportsToName],
+  )
+
   return (
     <tr className={selected ? 'is-selected' : undefined}>
       <td className="pd-cycle-setup__people-select-cell">
@@ -933,7 +1090,7 @@ const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
               src={employee.avatarUrl || undefined}
               size="md"
               className="pd-people__avatar"
-              style={avatarStyle(employee.fullName)}
+              style={employeeAvatar}
             />
             <span className="pd-people__person-name">{employee.fullName}</span>
           </span>
@@ -957,7 +1114,7 @@ const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
                 src={reviewerAvatarUrl}
                 size="sm"
                 className="pd-people__avatar"
-                style={avatarStyle(employee.reportsToName)}
+                style={reviewerAvatar}
               />
               <span className="pd-people__person-name">
                 {employee.reportsToName}
@@ -1018,16 +1175,13 @@ const CyclePeopleTableRow = memo(function CyclePeopleTableRow({
       ) : null}
       {visibleColumns.cycleGroup ? (
         <td className="pd-cycle-setup__people-table-nowrap">
-          <ListboxSelect
-            className="pd-cycle-setup__group-select"
-            value={groupId}
+          <LazyCycleAssignSelect
+            groupId={groupId}
+            groupLabel={groupLabel}
             options={groupAssignOptions}
-            placeholder="Not included"
-            emptyLabel="Not included"
-            portal
-            aria-label={`Cycle group for ${employee.fullName}`}
             disabled={bulkSaving || saving}
-            onValueChange={(value) => onAssign(employee.employeeId, value)}
+            ariaLabel={`Cycle group for ${employee.fullName}`}
+            onAssign={(value) => onAssign(employee.employeeId, value)}
           />
         </td>
       ) : null}

@@ -20,6 +20,7 @@ import {
 import {
   GlobalRouteProgressComplete,
   NavigationProgressProvider,
+  RouteLoadingFallback,
 } from '@/components/ui/NavigationProgress'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
@@ -29,6 +30,7 @@ const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
+const CalibrationPage = lazy(() => import('@/pages/CalibrationPage'))
 const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
 const GroupSettingsPage = lazy(() => import('@/pages/reviews/GroupSettingsPage'))
@@ -92,9 +94,9 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
 
 function App() {
   return (
-    <BrowserRouter basename={routerBasename}>
+    <BrowserRouter basename={routerBasename} useTransitions={false}>
       <NavigationProgressProvider>
-        <Suspense fallback={null}>
+        <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/" element={<AuthenticatedLayout />}>
@@ -154,6 +156,7 @@ function App() {
                 path="reviews/:tab"
                 element={<Navigate to="/reviews/scorecards" replace />}
               />
+              <Route path="calibration" element={<CalibrationPage />} />
               <Route
                 path="cycles"
                 element={

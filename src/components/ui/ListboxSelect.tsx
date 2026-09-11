@@ -39,6 +39,8 @@ export type ListboxSelectProps = {
   noResultsText?: string
   /** Render the options panel above clipping scroll containers. */
   portal?: boolean
+  /** Open the list when first mounted (e.g. after a lazy placeholder click). */
+  defaultOpen?: boolean
   /** Show the selected option’s description beside the label in the closed trigger. */
   showDescriptionInTrigger?: boolean
   'aria-label'?: string
@@ -59,12 +61,13 @@ export function ListboxSelect({
   searchPlaceholder = 'Search…',
   noResultsText = 'No options found',
   portal = false,
+  defaultOpen = false,
   showDescriptionInTrigger = false,
   'aria-label': ariaLabel,
 }: ListboxSelectProps) {
   const autoId = useId()
   const listboxId = id ?? autoId
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen)
   const [activeIndex, setActiveIndex] = useState(0)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)

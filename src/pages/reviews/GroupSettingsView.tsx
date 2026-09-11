@@ -3,6 +3,17 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Scale, Star, Target, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, ConfirmDialog, SegmentedControl } from '@/components/ui'
+import {
+  cycleOverlayFromHash,
+  groupSettingsFromHash,
+  hashForCycleOverlay,
+  hashForGroupSettings,
+  hashForPeoplePane,
+  peoplePaneFromHash,
+  type GroupSettingsHashState,
+  type GroupSettingsJob,
+} from '@/lib/reviews/groupSettingsHashes'
+import { locationWithHash } from '@/lib/routing/urlHash'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
@@ -28,7 +39,7 @@ type GroupSettingsViewProps = {
 }
 
 const GROUP_JOBS: {
-  id: 'people' | 'goals' | 'review' | 'calibration'
+  id: GroupSettingsJob
   label: string
   icon: LucideIcon
 }[] = [
@@ -38,17 +49,8 @@ const GROUP_JOBS: {
   { id: 'calibration', label: 'Calibration', icon: Scale },
 ]
 
-type GroupJob = (typeof GROUP_JOBS)[number]['id']
+type GroupJob = GroupSettingsJob
 type PendingPeopleLeave = GroupJob | 'close'
-
-function isGroupJob(value: string): value is GroupJob {
-  return GROUP_JOBS.some((item) => item.id === value)
-}
-
-function jobFromHash(hash: string): GroupJob {
-  const id = decodeURIComponent(hash.replace(/^#/, ''))
-  return isGroupJob(id) ? id : 'people'
-}
 
 function jobsForModules(modules: CycleModules) {
   return GROUP_JOBS.map((item) => {
@@ -76,6 +78,19 @@ function visibleScreen(requested: GroupJob, modules: CycleModules): GroupJob {
   return requested
 }
 
+function withVisibleJob(
+  state: GroupSettingsHashState,
+  modules: CycleModules,
+): GroupSettingsHashState {
+  const job = visibleScreen(state.job, modules)
+  if (job === state.job) return state
+  return {
+    job,
+    peoplePane: state.peoplePane,
+    reviewFormOpen: job === 'review' ? state.reviewFormOpen : false,
+  }
+}
+
 export function GroupSettingsView({
   cycle,
   group,
@@ -87,18 +102,45 @@ export function GroupSettingsView({
   const navigate = useNavigate()
   const storedModules = cycleModulesOf(group.stagesConfig.reviewStages)
   const [modules, setModules] = useState(storedModules)
-  const [screen, setScreen] = useState<GroupJob>(() =>
-    visibleScreen(
-      variant === 'page' ? jobFromHash(location.hash) : 'people',
-      storedModules,
-    ),
-  )
   const [name, setName] = useState(group.name)
   const [peopleDirty, setPeopleDirty] = useState(false)
   const [pendingPeopleLeave, setPendingPeopleLeave] =
     useState<PendingPeopleLeave | null>(null)
+  const [peoplePaneMemory, setPeoplePaneMemory] = useState(
+    () => readInitialPeoplePane(variant, location.hash, group.id),
+  )
+
+  const readHashState = (): GroupSettingsHashState => {
+    if (variant === 'page') {
+      return withVisibleJob(groupSettingsFromHash(location.hash), {
+        goals: modules.goals,
+        reviews: modules.reviews,
+      })
+    }
+    const overlay = cycleOverlayFromHash(location.hash)
+    if (overlay?.kind === 'group' && overlay.groupId === group.id) {
+      return withVisibleJob(overlay, {
+        goals: modules.goals,
+        reviews: modules.reviews,
+      })
+    }
+    return {
+      job: 'people',
+      peoplePane: peoplePaneMemory,
+      reviewFormOpen: false,
+    }
+  }
+
+  const parsedHash = readHashState()
+  const hashState: GroupSettingsHashState =
+    parsedHash.job === 'people'
+      ? parsedHash
+      : { ...parsedHash, peoplePane: peoplePaneMemory }
+  const resolvedScreen = hashState.job
+  const pageHash = hashForGroupSettings(
+    parsedHash.job === 'people' ? parsedHash : { ...parsedHash, peoplePane: 'added' },
+  )
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
-  const resolvedScreen = visibleScreen(screen, modules)
   const jobOptions = jobsForModules(modules)
   const reviewDraft = useReviewSettingsDraft(cycle, group, onClose, true)
   const reviewFormSheet =
@@ -116,13 +158,29 @@ export function GroupSettingsView({
   }, [group.id, storedModules.goals, storedModules.reviews])
 
   useEffect(() => {
+    if (parsedHash.job !== 'people') return
+    setPeoplePaneMemory(parsedHash.peoplePane)
+  }, [parsedHash.job, parsedHash.peoplePane])
+
+  const writeHash = (next: GroupSettingsHashState) => {
+    const allowed = withVisibleJob(next, modules)
+    const hash =
+      variant === 'page'
+        ? hashForGroupSettings(allowed)
+        : hashForCycleOverlay({
+            kind: 'group',
+            groupId: group.id,
+            ...allowed,
+          })
+    if (!normalizeMismatch(location.hash, hash)) return
+    navigate(locationWithHash(location, hash), { replace: true })
+  }
+
+  useEffect(() => {
     if (variant !== 'page') return
-    const next = visibleScreen(jobFromHash(location.hash), {
-      goals: modules.goals,
-      reviews: modules.reviews,
-    })
-    setScreen((current) => (current === next ? current : next))
-  }, [location.hash, modules.goals, modules.reviews, variant])
+    if (!normalizeMismatch(location.hash, pageHash)) return
+    navigate(locationWithHash(location, pageHash), { replace: true })
+  }, [location, navigate, pageHash, variant])
 
   const saveName = () => {
     if (name.trim() && name.trim() !== group.name) {
@@ -131,11 +189,11 @@ export function GroupSettingsView({
   }
 
   const applyScreen = (next: GroupJob) => {
-    const allowed = visibleScreen(next, modules)
-    setScreen(allowed)
-    if (variant === 'page') {
-      navigate({ hash: allowed === 'people' ? '' : allowed }, { replace: true })
-    }
+    writeHash({
+      job: next,
+      peoplePane: peoplePaneMemory,
+      reviewFormOpen: false,
+    })
   }
 
   const openScreen = (next: GroupJob) => {
@@ -213,70 +271,93 @@ export function GroupSettingsView({
     </nav>
   )
 
-  const body = (
-    <div
-      className={
-        variant === 'page'
-          ? 'pd-reviews-settings pd-group-settings pd-group-settings--page'
-          : 'pd-reviews-settings pd-group-settings'
+  const people = (
+    <GroupMembersEditor
+      memberIds={group.memberIds}
+      claimedIds={claimedIds}
+      otherGroups={(cycle.groups ?? [])
+        .filter((item) => item.id !== group.id)
+        .map((item) => ({
+          name: item.name,
+          memberIds: item.memberIds,
+        }))}
+      pane={peoplePaneFromHash(hashState.peoplePane)}
+      onPaneChange={(pane) => {
+        const peoplePane = hashForPeoplePane(pane)
+        setPeoplePaneMemory(peoplePane)
+        writeHash({
+          job: 'people',
+          peoplePane,
+          reviewFormOpen: false,
+        })
+      }}
+      onChange={(memberIds) =>
+        updateCycleGroup(cycle.id, group.id, { memberIds }).then(() => {
+          onSuccess?.('People updated.')
+        })
       }
-    >
-      {resolvedScreen === 'people' ? (
-        <GroupMembersEditor
-          memberIds={group.memberIds}
-          claimedIds={claimedIds}
-          otherGroups={(cycle.groups ?? [])
-            .filter((item) => item.id !== group.id)
-            .map((item) => ({
-              name: item.name,
-              memberIds: item.memberIds,
-            }))}
-          onChange={(memberIds) =>
-            updateCycleGroup(cycle.id, group.id, { memberIds }).then(() => {
-              onSuccess?.('People updated.')
-            })
-          }
-          onDirtyChange={setPeopleDirty}
-        />
-      ) : null}
-
-      {resolvedScreen === 'goals' ? (
-        <GoalsSettingsEditPage
-          cycle={cycle}
-          group={group}
-          enabled={modules.goals}
-          onEnabledChange={(goals) => saveModules({ ...modules, goals })}
-          embedded
-          onClose={onClose}
-          onSuccess={onSuccess}
-        />
-      ) : null}
-
-      {resolvedScreen === 'review' ? (
-        <ReviewSettingsEditPage
-          cycle={cycle}
-          group={group}
-          enabled={modules.reviews}
-          onEnabledChange={(reviews) => saveModules({ ...modules, reviews })}
-          embedded
-          draft={reviewDraft}
-          onClose={onClose}
-          onSuccess={onSuccess}
-        />
-      ) : null}
-
-      {modules.reviews && resolvedScreen === 'calibration' ? (
-        <CalibrationEditPage
-          cycle={cycle}
-          group={group}
-          embedded
-          stageDraft={reviewDraft}
-          onClose={onClose}
-          onSuccess={onSuccess}
-        />
-      ) : null}
-    </div>
+      onDirtyChange={setPeopleDirty}
+    />
   )
+
+  const body =
+    resolvedScreen === 'people' ? (
+      people
+    ) : (
+      <div
+        className={
+          variant === 'page'
+            ? 'pd-reviews-settings pd-group-settings pd-group-settings--page'
+            : 'pd-reviews-settings pd-group-settings'
+        }
+      >
+        {resolvedScreen === 'goals' ? (
+          <GoalsSettingsEditPage
+            cycle={cycle}
+            group={group}
+            enabled={modules.goals}
+            onEnabledChange={(goals) => saveModules({ ...modules, goals })}
+            embedded
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        ) : null}
+
+        {resolvedScreen === 'review' ? (
+          <ReviewSettingsEditPage
+            cycle={cycle}
+            group={group}
+            enabled={modules.reviews}
+            onEnabledChange={(reviews) => saveModules({ ...modules, reviews })}
+            embedded
+            draft={reviewDraft}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        ) : null}
+
+        {modules.reviews && resolvedScreen === 'calibration' ? (
+          <CalibrationEditPage
+            cycle={cycle}
+            group={group}
+            embedded
+            stageDraft={reviewDraft}
+            onClose={onClose}
+            onSuccess={onSuccess}
+          />
+        ) : null}
+      </div>
+    )
+
+  const reviewFormOpen = hashState.reviewFormOpen
+  const setReviewFormOpen = (open: boolean) => {
+    if (resolvedScreen !== 'review') return
+    writeHash({
+      job: 'review',
+      peoplePane: hashState.peoplePane,
+      reviewFormOpen: open,
+    })
+  }
 
   if (variant === 'page') {
     return (
@@ -298,7 +379,11 @@ export function GroupSettingsView({
           {nav}
         </header>
         {reviewFormSheet ? (
-          <SettingsSideSheetPageHost sideSheet={reviewFormSheet}>
+          <SettingsSideSheetPageHost
+            sideSheet={reviewFormSheet}
+            open={reviewFormOpen}
+            onOpenChange={setReviewFormOpen}
+          >
             {body}
           </SettingsSideSheetPageHost>
         ) : (
@@ -326,6 +411,8 @@ export function GroupSettingsView({
       title={title}
       subnav={nav}
       sideSheet={reviewFormSheet}
+      sideSheetOpen={reviewFormOpen}
+      onSideSheetOpenChange={setReviewFormOpen}
     >
       {body}
       <ConfirmDialog
@@ -340,4 +427,24 @@ export function GroupSettingsView({
       />
     </SettingsSidePanel>
   )
+}
+
+function normalizeMismatch(hash: string, expected: string): boolean {
+  const current = hash.startsWith('#') ? hash.slice(1) : hash
+  return current !== expected
+}
+
+function readInitialPeoplePane(
+  variant: 'panel' | 'page',
+  hash: string,
+  groupId: string,
+) {
+  if (variant === 'page') {
+    return groupSettingsFromHash(hash).peoplePane
+  }
+  const overlay = cycleOverlayFromHash(hash)
+  if (overlay?.kind === 'group' && overlay.groupId === groupId) {
+    return overlay.peoplePane
+  }
+  return 'added' as const
 }

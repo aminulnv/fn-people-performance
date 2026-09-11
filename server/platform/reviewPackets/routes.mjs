@@ -4,6 +4,7 @@ import {
   calibrateReviewPacket,
   createReviewAppeal,
   getReviewPacket,
+  listReviewPacketSummaries,
   listReviewPackets,
   markPacketViewed,
   releaseReviewPackets,
@@ -51,9 +52,16 @@ export function registerReviewPacketRoutes(app) {
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
       const cycle = await getReviewCycle(req.params.cycleId)
+      const summary =
+        req.query.summary === '1' ||
+        req.query.summary === 'true' ||
+        req.query.fields === 'summary'
+      const packets = summary
+        ? await listReviewPacketSummaries(req.params.cycleId)
+        : await listReviewPackets(req.params.cycleId)
       res.json({
         packets: packetsForViewer(
-          await listReviewPackets(req.params.cycleId),
+          packets,
           viewerEmployeeId(req),
           (packet) => questionsForPacket(cycle, packet),
         ),

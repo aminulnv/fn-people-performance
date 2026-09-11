@@ -87,7 +87,7 @@ function chooseColumnFilter(label: string, option: string) {
 
 function addPerson(name: string) {
   fireEvent.click(
-    screen.getByRole('button', { name: new RegExp(`^select ${name}`, 'i') }),
+    screen.getByRole('checkbox', { name: new RegExp(`^select ${name}`, 'i') }),
   )
   fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
   fireEvent.click(screen.getByRole('button', { name: 'Add people' }))
@@ -145,7 +145,7 @@ afterEach(() => {
 })
 
 describe('GroupMembersEditor', () => {
-  it('shows people in a table with filterable name and department columns', () => {
+  it('shows people in a table with the cycle people columns', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
@@ -161,12 +161,17 @@ describe('GroupMembersEditor', () => {
     ).toBeInTheDocument()
 
     openBrowse()
-    expect(screen.getByRole('columnheader', { name: /name/i })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: /department/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /employee/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /role/i })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /team/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /department/i })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: /reviewer/i })).toBeInTheDocument()
     expect(
-      screen.queryByRole('button', { name: 'Filter Name' }),
-    ).not.toBeInTheDocument()
+      screen.getByRole('button', { name: 'Filter Employee' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Filter Role' }),
+    ).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Filter Department' }),
     ).toBeInTheDocument()
@@ -174,7 +179,10 @@ describe('GroupMembersEditor', () => {
       screen.getByRole('button', { name: 'Filter Team' }),
     ).toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: /^select sheikh syed ahmed/i }),
+      screen.getByRole('button', { name: 'Filter Reviewer' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('checkbox', { name: /^select sheikh syed ahmed/i }),
     ).toBeInTheDocument()
 
     addPerson('Sheikh Syed Ahmed')
@@ -257,7 +265,7 @@ describe('GroupMembersEditor', () => {
     const onChange = vi.fn()
 
     renderEditor(<GroupMembersEditor memberIds={[]} onChange={onChange} />)
-    fireEvent.click(screen.getByRole('button', { name: /^select sheikh syed ahmed/i }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /^select sheikh syed ahmed/i }))
 
     expect(onChange).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
@@ -305,7 +313,7 @@ describe('GroupMembersEditor', () => {
         onChange={() => { }}
       />,
     )
-    fireEvent.click(screen.getByRole('button', { name: /^select sheikh syed ahmed/i }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /^select sheikh syed ahmed/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 person' }))
 
     expect(
@@ -374,14 +382,14 @@ describe('GroupMembersEditor', () => {
     renderEditor(<Harness initialIds={[1]} />)
     openSelected()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select Sheikh Syed Ahmed' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Sheikh Syed Ahmed' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove 1 person' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove people' }))
 
     expect(screen.getByText('No one selected yet')).toBeInTheDocument()
   })
 
-  it('removes a member from the per-row remove control', () => {
+  it('removes a single member via the selection controls', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
       person(2, { fullName: 'Tanzim Hasan Fahim' }),
@@ -389,7 +397,8 @@ describe('GroupMembersEditor', () => {
 
     renderEditor(<Harness initialIds={[1, 2]} />)
     openSelected()
-    fireEvent.click(screen.getByRole('button', { name: 'Remove Sheikh Syed Ahmed' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Sheikh Syed Ahmed' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Remove 1 person' }))
     fireEvent.click(screen.getByRole('button', { name: 'Remove people' }))
 
     expect(screen.getByText('Tanzim Hasan Fahim')).toBeInTheDocument()
@@ -444,7 +453,7 @@ describe('GroupMembersEditor', () => {
 
     openBrowse()
     expect(screen.getByRole('searchbox', { name: 'Add Senior Leaders' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^select jayed sarker/i })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /^select jayed sarker/i })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: 'Filter Department' }),
     ).toBeInTheDocument()
@@ -480,7 +489,7 @@ describe('GroupMembersEditor', () => {
     openBrowse()
 
     expect(
-      screen.getByRole('button', { name: /^select bulk person 1$/i }),
+      screen.getByRole('checkbox', { name: /^select bulk person 1$/i }),
     ).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Show 40 people' })).not.toBeInTheDocument()
   })

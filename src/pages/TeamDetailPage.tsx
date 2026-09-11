@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, Building2, Network, UsersRound } from 'lucide-react'
-import { Avatar, PageStatus, PageStatusLink } from '@/components/ui'
+import { Avatar, PageSkeleton, PageStatus, PageStatusLink } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee } from '@/lib/employees/store'
 import { useOrganisation } from '@/lib/employees/useEmployees'
@@ -36,9 +36,8 @@ export default function TeamDetailPage() {
 
   if (isLoading) {
     return (
-      <div
-        className="pd-page pd-people pd-org pd-org-detail"
-        aria-busy="true"
+      <PageSkeleton
+        pageClassName="pd-people pd-org pd-org-detail"
         aria-label="Team"
       />
     )

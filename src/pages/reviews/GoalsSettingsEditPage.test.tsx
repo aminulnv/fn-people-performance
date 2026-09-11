@@ -51,7 +51,37 @@ function seededGroup(): { cycle: ReviewCycle; group: CycleGroup } {
   return { cycle: updated, group: nextGroup }
 }
 
+function openAdvanced() {
+  const toggle = screen.getByRole('button', { name: /advanced/i })
+  if (toggle.getAttribute('aria-expanded') !== 'true') {
+    fireEvent.click(toggle)
+  }
+}
+
 describe('GoalsSettingsEditPage', () => {
+  it('keeps primary settings visible and hides advanced by default when clean', () => {
+    const { cycle, group } = seededGroup()
+    group.stagesConfig.goals.extensions = []
+    render(
+      <GoalsSettingsEditPage
+        cycle={cycle}
+        group={group}
+        onClose={() => {}}
+        onSuccess={() => {}}
+      />,
+    )
+
+    expect(screen.getByText('Window')).toBeInTheDocument()
+    expect(screen.getByText('Required Count')).toBeInTheDocument()
+    expect(screen.getByLabelText('Opens')).toBeInTheDocument()
+    expect(screen.getAllByLabelText('Min')).toHaveLength(1)
+    expect(screen.queryByText('Custom Deadlines')).not.toBeInTheDocument()
+
+    const toggle = screen.getByRole('button', { name: /advanced/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveTextContent(/Late OK/)
+  })
+
   it('shows deadline extensions and keeps them when settings are saved', () => {
     const { cycle, group } = seededGroup()
     const onSuccess = vi.fn()
@@ -64,6 +94,10 @@ describe('GoalsSettingsEditPage', () => {
       />,
     )
 
+    expect(screen.getByRole('button', { name: /advanced/i })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
     expect(screen.getByRole('heading', { name: 'Custom Deadlines' })).toBeInTheDocument()
     expect(screen.getByText('Product')).toBeInTheDocument()
     expect(screen.getByText(/Until 15-Aug-2026/)).toBeInTheDocument()
@@ -77,7 +111,7 @@ describe('GoalsSettingsEditPage', () => {
     expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
   })
 
-  it('shows recommended goal count without collapsing it', () => {
+  it('shows recommended goal count in advanced without collapsing it', () => {
     const { cycle, group } = seededGroup()
     render(
       <GoalsSettingsEditPage
@@ -88,15 +122,15 @@ describe('GoalsSettingsEditPage', () => {
       />,
     )
 
-    expect(
-      screen.getByRole('heading', { name: /recommended goal count/i }),
-    ).toBeInTheDocument()
+    openAdvanced()
+    expect(screen.getByRole('heading', { name: 'Recommended' })).toBeInTheDocument()
+    expect(screen.getByText('Required Count')).toBeInTheDocument()
     expect(screen.queryByText('Suggested range')).not.toBeInTheDocument()
     expect(screen.getAllByLabelText('Min')).toHaveLength(2)
     expect(screen.getAllByLabelText('Max')).toHaveLength(2)
   })
 
-  it('places the after-deadline toggle immediately after the heading', () => {
+  it('keeps the after-deadline toggle next to its label', () => {
     const { cycle, group } = seededGroup()
     render(
       <GoalsSettingsEditPage
@@ -109,14 +143,15 @@ describe('GoalsSettingsEditPage', () => {
       />,
     )
 
-    const heading = screen.getByRole('heading', { name: /allow after deadline/i })
+    openAdvanced()
+    expect(screen.getByText('Allow After Deadline')).toBeInTheDocument()
     const toggle = screen.getByRole('switch', {
       name: 'Allow submissions after deadline',
     })
-    expect(heading.contains(toggle)).toBe(true)
+    expect(toggle).toBeChecked()
     expect(
-      heading.firstChild?.textContent?.trim().startsWith('Allow After Deadline'),
-    ).toBe(true)
+      screen.getByText('Late edits need manager and skip-level approval.'),
+    ).toBeInTheDocument()
   })
 
   it('saves the progress update window for the group', async () => {
@@ -130,8 +165,9 @@ describe('GoalsSettingsEditPage', () => {
       />,
     )
 
+    openAdvanced()
     expect(
-      screen.getByRole('heading', { name: /progress update window/i }),
+      screen.getByRole('heading', { name: 'Progress Updates' }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Days after deadline')).toHaveValue('30')
     expect(

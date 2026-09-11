@@ -1,4 +1,13 @@
 import { Switch } from '@/components/ui'
+import {
+  ClipboardList,
+  Gavel,
+  Megaphone,
+  User,
+  UserCheck,
+  Users,
+  type LucideIcon,
+} from 'lucide-react'
 import { toUtcIso } from '@/lib/dates/timezone'
 import {
   isPublishStage,
@@ -14,6 +23,16 @@ import type {
 import { HintIcon } from './HintIcon'
 import { PublishStageControls } from './PublishStageControls'
 import { StageWindowFields } from './StageDateTable'
+
+const STAGE_ICONS: Partial<Record<ReviewStageId, LucideIcon>> = {
+  self_review: User,
+  manager_review: UserCheck,
+  publish_managers: Users,
+  publish_employees: Megaphone,
+  appeal: Gavel,
+  calibration_hod_hrbp: ClipboardList,
+  calibration_slt: ClipboardList,
+}
 
 type ReviewStageListProps = {
   cycle: ReviewCycle
@@ -55,34 +74,51 @@ export function ReviewStageList({
           (item) => item.id === id,
         )
         if (!stage) return null
+        const required = isRequiredReviewStage(id)
+        const active = stage.enabled || required || !moduleEnabled
+        const StageIcon = STAGE_ICONS[id]
         return (
           <li
             key={id}
             id={stageSectionId(id)}
-            className={`pd-reviews-stage-list__item${highlightedId === id ? ' is-highlighted' : ''}`}
+            className={[
+              'pd-reviews-stage-list__item',
+              highlightedId === id ? 'is-highlighted' : '',
+              active ? 'is-active' : 'is-off',
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             <div className="pd-reviews-stage-list__row">
-              <div className="pd-reviews-stage-list__copy pd-reviews-edit-card__head">
+              <div className="pd-reviews-stage-list__title-row">
                 <p className="pd-reviews-stage-list__title">
+                  {StageIcon ? (
+                    <StageIcon size={15} strokeWidth={1.75} aria-hidden />
+                  ) : null}
                   {REVIEW_STAGE_LABEL[id]}
                 </p>
                 <HintIcon
                   content={REVIEW_STAGE_HINT[id]}
                   label={`About ${REVIEW_STAGE_LABEL[id]}`}
                 />
-                {isRequiredReviewStage(id) ? null : (
-                  <Switch
-                    label={`Enable ${REVIEW_STAGE_LABEL[id]}`}
-                    className="pd-reviews-type-list__switch"
-                    checked={stage.enabled}
-                    onChange={(event) =>
-                      setStageEnabled(id, event.target.checked)
-                    }
-                  />
-                )}
+                {required ? (
+                  <span className="pd-reviews-chip pd-reviews-chip--required">
+                    Required
+                  </span>
+                ) : null}
               </div>
+              {required ? null : (
+                <Switch
+                  label={`Enable ${REVIEW_STAGE_LABEL[id]}`}
+                  className="pd-reviews-type-list__switch"
+                  checked={stage.enabled}
+                  onChange={(event) =>
+                    setStageEnabled(id, event.target.checked)
+                  }
+                />
+              )}
             </div>
-            {stage.enabled || isRequiredReviewStage(id) || !moduleEnabled ? (
+            {active ? (
               <div className="pd-reviews-stage-list__window">
                 {isPublishStage(id) ? (
                   <PublishStageControls

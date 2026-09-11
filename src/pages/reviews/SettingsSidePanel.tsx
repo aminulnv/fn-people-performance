@@ -42,6 +42,9 @@ type SettingsSidePanelProps = {
   subnav?: ReactNode
   /** Pull-out sheet on the left of the panel, like the goals OKR window. */
   sideSheet?: SettingsSideSheet
+  /** Controlled open state for the pull-out sheet (hash-linked). */
+  sideSheetOpen?: boolean
+  onSideSheetOpenChange?: (open: boolean) => void
   onClose: () => void
 }
 
@@ -57,6 +60,8 @@ export function SettingsSidePanel({
   tools,
   subnav,
   sideSheet,
+  sideSheetOpen,
+  onSideSheetOpenChange,
   onClose,
 }: SettingsSidePanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -67,7 +72,16 @@ export function SettingsSidePanel({
   const [panelWidth, setPanelWidth] = useState(() =>
     panelWidthWithinViewport(DEFAULT_PANEL_WIDTH),
   )
-  const [isSideSheetOpen, setIsSideSheetOpen] = useState(false)
+  const [uncontrolledSideSheetOpen, setUncontrolledSideSheetOpen] =
+    useState(false)
+  const sideSheetControlled = sideSheetOpen !== undefined
+  const isSideSheetOpen = sideSheetControlled
+    ? sideSheetOpen
+    : uncontrolledSideSheetOpen
+  const setIsSideSheetOpen = (open: boolean) => {
+    onSideSheetOpenChange?.(open)
+    if (!sideSheetControlled) setUncontrolledSideSheetOpen(open)
+  }
   const [actionsHost, setActionsHost] = useState<HTMLDivElement | null>(null)
   const isSideSheetOpenRef = useRef(isSideSheetOpen)
   onCloseRef.current = onClose
@@ -130,87 +144,87 @@ export function SettingsSidePanel({
           { '--pd-settings-panel-width': `${panelWidth}px` } as CSSProperties
         }
       >
-      <button
-        type="button"
-        className="pd-settings-panel__scrim"
-        aria-label={closeLabel}
-        onClick={onClose}
-      />
-      {sideSheet ? (
-        <SettingsSideSheetRail
-          sideSheet={sideSheet}
-          layout="overlay"
-          panelWidth={panelWidth}
-          isOpen={isSideSheetOpen}
-          onOpenChange={setIsSideSheetOpen}
+        <button
+          type="button"
+          className="pd-settings-panel__scrim"
+          aria-label={closeLabel}
+          onClick={onClose}
         />
-      ) : null}
-      <aside
-        ref={panelRef}
-        className="pd-settings-panel__sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={label}
-        tabIndex={-1}
-        style={{ width: panelWidth }}
-      >
-        <div
-          className="pd-settings-panel__resize"
-          role="separator"
-          aria-label="Resize settings panel"
-          aria-orientation="vertical"
-          aria-valuemin={MIN_PANEL_WIDTH}
-          aria-valuemax={Math.max(
-            MIN_PANEL_WIDTH,
-            window.innerWidth - VIEWPORT_GUTTER,
-          )}
-          aria-valuenow={Math.round(panelWidth)}
-          tabIndex={0}
-          onDoubleClick={() => applyPanelWidth(DEFAULT_PANEL_WIDTH)}
-          onKeyDown={resizeFromKeyboard}
-          onPointerDown={(event) => {
-            resizeStartRef.current = {
-              pointerX: event.clientX,
-              width: panelWidth,
-            }
-            event.currentTarget.setPointerCapture(event.pointerId)
-          }}
-          onPointerMove={resizeFromPointer}
-          onPointerUp={(event) => {
-            resizeStartRef.current = null
-            event.currentTarget.releasePointerCapture(event.pointerId)
-          }}
-          onPointerCancel={() => {
-            resizeStartRef.current = null
-          }}
-        />
-        <header className="pd-settings-panel__chrome">
-          <div className="pd-settings-panel__heading">
-            {title ?? <h2 className="pd-settings-panel__title">{label}</h2>}
-          </div>
-          <div className="pd-settings-panel__tools">
-            <div
-              ref={setActionsHost}
-              className="pd-settings-panel__actions"
-            />
-            {tools}
-            <button
-              type="button"
-              className="pd-people__icon-btn"
-              aria-label="Close"
-              title="Close"
-              onClick={onClose}
-            >
-              <X size={18} strokeWidth={1.75} aria-hidden />
-            </button>
-          </div>
-        </header>
-        {subnav ? (
-          <div className="pd-settings-panel__subnav">{subnav}</div>
+        {sideSheet ? (
+          <SettingsSideSheetRail
+            sideSheet={sideSheet}
+            layout="overlay"
+            panelWidth={panelWidth}
+            isOpen={isSideSheetOpen}
+            onOpenChange={setIsSideSheetOpen}
+          />
         ) : null}
-        <div className="pd-settings-panel__body">{children}</div>
-      </aside>
-    </div>
+        <aside
+          ref={panelRef}
+          className="pd-settings-panel__sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label={label}
+          tabIndex={-1}
+          style={{ width: panelWidth }}
+        >
+          <div
+            className="pd-settings-panel__resize"
+            role="separator"
+            aria-label="Resize settings panel"
+            aria-orientation="vertical"
+            aria-valuemin={MIN_PANEL_WIDTH}
+            aria-valuemax={Math.max(
+              MIN_PANEL_WIDTH,
+              window.innerWidth - VIEWPORT_GUTTER,
+            )}
+            aria-valuenow={Math.round(panelWidth)}
+            tabIndex={0}
+            onDoubleClick={() => applyPanelWidth(DEFAULT_PANEL_WIDTH)}
+            onKeyDown={resizeFromKeyboard}
+            onPointerDown={(event) => {
+              resizeStartRef.current = {
+                pointerX: event.clientX,
+                width: panelWidth,
+              }
+              event.currentTarget.setPointerCapture(event.pointerId)
+            }}
+            onPointerMove={resizeFromPointer}
+            onPointerUp={(event) => {
+              resizeStartRef.current = null
+              event.currentTarget.releasePointerCapture(event.pointerId)
+            }}
+            onPointerCancel={() => {
+              resizeStartRef.current = null
+            }}
+          />
+          <header className="pd-settings-panel__chrome">
+            <div className="pd-settings-panel__heading">
+              {title ?? <h2 className="pd-settings-panel__title">{label}</h2>}
+            </div>
+            <div className="pd-settings-panel__tools">
+              <div
+                ref={setActionsHost}
+                className="pd-settings-panel__actions"
+              />
+              {tools}
+              <button
+                type="button"
+                className="pd-people__icon-btn"
+                aria-label="Close"
+                title="Close"
+                onClick={onClose}
+              >
+                <X size={18} strokeWidth={1.75} aria-hidden />
+              </button>
+            </div>
+          </header>
+          {subnav ? (
+            <div className="pd-settings-panel__subnav">{subnav}</div>
+          ) : null}
+          <div className="pd-settings-panel__body">{children}</div>
+        </aside>
+      </div>
     </SettingsPanelActionsContext.Provider>,
     document.body,
   )

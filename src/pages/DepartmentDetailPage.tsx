@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  PageSkeleton,
   PageStatus,
   PageStatusLink,
   ResizableTable,
@@ -73,9 +74,8 @@ export default function DepartmentDetailPage() {
 
   if (isLoading || !catalogReady) {
     return (
-      <div
-        className="pd-page pd-people pd-org pd-org-detail"
-        aria-busy="true"
+      <PageSkeleton
+        pageClassName="pd-people pd-org pd-org-detail"
         aria-label="Department"
       />
     )

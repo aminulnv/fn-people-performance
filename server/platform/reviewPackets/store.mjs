@@ -190,7 +190,7 @@ async function ensurePacketsForCycle(client, cycle) {
   )
 }
 
-export async function listReviewPackets(cycleId) {
+async function listPacketRows(cycleId, { includeChildren = true } = {}) {
   const cycle = await getReviewCycle(cycleId)
   if (!cycle) throw new HttpError(404, 'Cycle not found')
   const client = await getPool().connect()
@@ -202,6 +202,9 @@ export async function listReviewPackets(cycleId) {
        ORDER BY employee_id`,
       [cycleId],
     )
+    if (!includeChildren) {
+      return rows.map((row) => mapPacket(row))
+    }
     const children = await loadChildren(client, rows.map((row) => row.id))
     return rows.map((row) => withChildren(row, children))
   } finally {
@@ -209,9 +212,38 @@ export async function listReviewPackets(cycleId) {
   }
 }
 
+/** Full packets with answers, pillar scores, calibration events, and appeals. */
+export async function listReviewPackets(cycleId) {
+  return listPacketRows(cycleId, { includeChildren: true })
+}
+
+/**
+ * Lightweight list for directory / eligibility views that only need grades + status.
+ * Skips answers, pillar scores, calibration events, and appeals.
+ */
+export async function listReviewPacketSummaries(cycleId) {
+  return listPacketRows(cycleId, { includeChildren: false })
+}
+
 export async function getReviewPacket(cycleId, employeeId) {
-  const packets = await listReviewPackets(cycleId)
-  return packets.find((packet) => packet.employeeId === Number(employeeId)) ?? null
+  const cycle = await getReviewCycle(cycleId)
+  if (!cycle) throw new HttpError(404, 'Cycle not found')
+  const client = await getPool().connect()
+  try {
+    await ensurePacketsForCycle(client, cycle)
+    const { rows } = await client.query(
+      `SELECT * FROM platform.review_packets
+       WHERE cycle_id = $1 AND employee_id = $2
+       LIMIT 1`,
+      [cycleId, Number(employeeId)],
+    )
+    const row = rows[0]
+    if (!row) return null
+    const children = await loadChildren(client, [row.id])
+    return withChildren(row, children)
+  } finally {
+    client.release()
+  }
 }
 
 async function getPacketRow(client, packetId, { forUpdate = false } = {}) {

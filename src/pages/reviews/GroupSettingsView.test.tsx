@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
@@ -10,11 +10,31 @@ vi.mock('./GroupMembersEditor', () => ({
   GroupMembersEditor: ({
     onDirtyChange,
     searchLabel,
+    pane = 'browse',
+    onPaneChange,
   }: {
     onDirtyChange?: (dirty: boolean) => void
     searchLabel?: string
+    pane?: 'browse' | 'selected'
+    onPaneChange?: (pane: 'browse' | 'selected') => void
   }) => (
     <>
+      <div role="group" aria-label="People selection view">
+        <button
+          type="button"
+          aria-pressed={pane === 'selected'}
+          onClick={() => onPaneChange?.('selected')}
+        >
+          Added
+        </button>
+        <button
+          type="button"
+          aria-pressed={pane === 'browse'}
+          onClick={() => onPaneChange?.('browse')}
+        >
+          Not added
+        </button>
+      </div>
       <button type="button" onClick={() => onDirtyChange?.(true)}>
         Stage people change
       </button>
@@ -103,7 +123,7 @@ describe('GroupSettingsView', () => {
 
     render(
       <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => {}} />
+        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
       </MemoryRouter>,
     )
 
@@ -116,7 +136,7 @@ describe('GroupSettingsView', () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => {}} />
+        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
       </MemoryRouter>,
     )
 
@@ -188,6 +208,9 @@ describe('GroupSettingsView', () => {
     expect(
       screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
     ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /advanced/i }))
+
     expect(
       screen.getByRole('switch', { name: 'Enable Goals Grade' }),
     ).not.toBeChecked()
@@ -208,7 +231,7 @@ describe('GroupSettingsView', () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => {}} />
+        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
       </MemoryRouter>,
     )
 
@@ -254,7 +277,7 @@ describe('GroupSettingsView', () => {
     expect(screen.queryByRole('button', { name: 'Review Form' })).toBeNull()
   })
 
-  it('opens the review form tab on the full page Reviews job', () => {
+  it('opens the review form tab on the full page Reviews job', async () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter initialEntries={['/cycles/cycle-1/groups/group-1#review']}>
@@ -277,6 +300,33 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.getByLabelText('Preset')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Reviews' })).toBeInTheDocument()
+  })
+
+  it('opens people panes from the hash on the full page', () => {
+    const { cycle, group } = sample()
+    render(
+      <MemoryRouter
+        initialEntries={['/cycles/cycle-1/groups/group-1#people/added']}
+      >
+        <GroupSettingsView
+          cycle={cycle}
+          group={group}
+          variant="page"
+          onClose={() => { }}
+        />
+      </MemoryRouter>,
+    )
+
+    const peopleView = screen.getByRole('group', {
+      name: 'People selection view',
+    })
+    expect(
+      within(peopleView).getByRole('button', { name: /^Added/i }),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      within(peopleView).getByRole('button', { name: /^Not added/i }),
+    ).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('opens a job from the hash on the full page', () => {
@@ -323,7 +373,7 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Goals' }))
 
     expect(screen.getByRole('switch', { name: 'Enable Goals' })).not.toBeChecked()
-    expect(screen.getByText('Goal Setting Window')).toBeInTheDocument()
+    expect(screen.getByText('Window')).toBeInTheDocument()
     expect(screen.getByLabelText('Opens')).toBeDisabled()
 
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Goals' }))
@@ -352,7 +402,8 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
 
     expect(screen.getByRole('switch', { name: 'Enable Reviews' })).not.toBeChecked()
-    expect(screen.getByText('When Reviews Happen')).toBeInTheDocument()
+    expect(screen.queryByText('When Reviews Happen')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Review path')).not.toBeInTheDocument()
     expect(
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeDisabled()

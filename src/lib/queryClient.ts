@@ -18,4 +18,6 @@ export const queryKeys = {
   goals: ['goals'] as const,
   activity: (filters: Record<string, unknown>) =>
     ['activity', filters] as const,
+  reviewPacketSummaries: (cycleId: string) =>
+    ['review-packet-summaries', cycleId] as const,
 }

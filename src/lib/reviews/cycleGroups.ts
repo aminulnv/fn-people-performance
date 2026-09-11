@@ -33,6 +33,20 @@ export function findCycleGroupForPerson(
   )
 }
 
+/** O(members) index for repeated eligibility / filter lookups. */
+export function cycleGroupByEmployeeId(
+  cycle: Pick<ReviewCycle, 'groups'>,
+): Map<number, CycleGroup> {
+  const byEmployee = new Map<number, CycleGroup>()
+  for (const group of cycleGroupsOf(cycle)) {
+    for (const memberId of group.memberIds) {
+      if (!Number.isInteger(memberId) || byEmployee.has(memberId)) continue
+      byEmployee.set(memberId, group)
+    }
+  }
+  return byEmployee
+}
+
 /** Group settings if the person is listed; otherwise they are not in this cycle. */
 export function resolveCyclePolicyForPerson(
   cycle: ReviewCycle,

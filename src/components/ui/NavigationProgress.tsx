@@ -9,6 +9,12 @@ import {
   type ReactNode,
 } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
+import { PageSkeleton } from './PageSkeleton'
+
+/** Shown while a lazy route chunk loads — replaces the previous page immediately. */
+export function RouteLoadingFallback() {
+  return <PageSkeleton aria-label="Loading page" />
+}
 
 type NavigationProgressContextValue = {
   complete: () => void

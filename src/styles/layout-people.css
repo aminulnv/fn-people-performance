@@ -516,7 +516,7 @@ a.pd-people__ghost-btn--outline:hover {
   overflow: hidden;
 }
 
-body > .pd-people-filters__panel {
+body>.pd-people-filters__panel {
   position: fixed;
   top: auto;
   right: auto;
@@ -1287,6 +1287,11 @@ body > .pd-people-filters__panel {
   font-weight: 400;
 }
 
+/*
+ * Absolute resize handles need a positioned th. Prefer sticky when the header
+ * row is pinned (pane tables / eligibility); relative only as the fallback so
+ * it cannot override sticky on every column that has a handle.
+ */
 .pd-people__table:has(.pd-table-resize__handle) th:has(.pd-table-resize__handle) {
   position: relative;
   padding-right: 1.1rem;
@@ -1400,7 +1405,13 @@ body > .pd-people-filters__panel {
     border-spacing: 0;
   }
 
-  .pd-page--pane .pd-people__table thead th {
+  /*
+   * Include :has(.pd-table-resize__handle) so sticky outranks the relative
+   * containing-block rule above - otherwise only the last column (no handle)
+   * stays pinned while the rest of the header scrolls away.
+   */
+  .pd-page--pane .pd-people__table thead th,
+  .pd-page--pane .pd-people__table thead th:has(.pd-table-resize__handle) {
     position: sticky;
     top: 0;
     /* Tables that also freeze a column raise this for their corner cell. */
@@ -1891,7 +1902,7 @@ body > .pd-people-filters__panel {
 }
 
 .pd-profile__tabs {
-  --segmented-pad: 0.2rem;
+  --segmented-pad: 3px;
   --segmented-radius: var(--people-radius);
   width: fit-content;
   max-width: 100%;
@@ -2088,7 +2099,7 @@ body > .pd-people-filters__panel {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
-.pd-profile__cover-modal .pd-field--notch > .pd-field__label {
+.pd-profile__cover-modal .pd-field--notch>.pd-field__label {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;

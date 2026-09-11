@@ -21,5 +21,5 @@ export function cycleGroupPath(
   section?: string,
 ): string {
   const path = `/cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`
-  return section ? `${path}#${encodeURIComponent(section)}` : path
+  return section ? `${path}#${section.startsWith('#') ? section.slice(1) : section}` : path
 }

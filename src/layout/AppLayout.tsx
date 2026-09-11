@@ -2,7 +2,10 @@ import { Suspense, useState, useEffect, useMemo } from 'react'
 import { useLocation, matchPath } from 'react-router-dom'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { installTableScrollbarReveal } from '@/lib/tableScrollbarReveal'
-import { SuspenseRouteContent } from '@/components/ui/NavigationProgress'
+import {
+  RouteLoadingFallback,
+  SuspenseRouteContent,
+} from '@/components/ui/NavigationProgress'
 import { getEmployee } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
@@ -255,7 +258,7 @@ export function AppLayout({
              */}
               <div className="pd-app-scroll">
                 <main className="pd-app-main">
-                  <Suspense fallback={null}>
+                  <Suspense fallback={<RouteLoadingFallback />}>
                     <SuspenseRouteContent />
                   </Suspense>
                 </main>

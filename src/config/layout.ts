@@ -5,6 +5,7 @@ import {
   Home,
   IdCard,
   Landmark,
+  Scale,
   Settings,
   Star,
   Target,
@@ -48,6 +49,7 @@ export const layoutConfig: AppLayoutConfig = {
     },
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
+    { path: '/calibration', label: 'Calibration', icon: Scale },
     {
       path: '/analytics',
       label: 'Analytics',

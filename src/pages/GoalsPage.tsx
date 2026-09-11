@@ -28,6 +28,7 @@ import {
   Divider,
   EmptyState,
   PageHeader,
+  PageSkeleton,
   Progress,
   ResizableTable,
   sanitizeCycleSelection,
@@ -1825,7 +1826,7 @@ export function GoalsPersonDetail({
 
   if (!snapshot) {
     return (
-      <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
+      <PageSkeleton pageClassName="pd-goals" aria-label="Goals" />
     );
   }
 
@@ -1872,7 +1873,7 @@ export function GoalsPersonDetail({
 
   if (cycleId && snapshot.cycle.id !== cycleId) {
     return (
-      <div className="pd-page pd-goals" aria-busy="true" aria-label="Goals" />
+      <PageSkeleton pageClassName="pd-goals" aria-label="Goals" />
     );
   }
 

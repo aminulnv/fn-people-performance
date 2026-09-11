@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { CalendarRange, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { formatLocalTimestamp } from '@/lib/dates/timezone'
+import {
+  cycleOverlayFromHash,
+  hashForCycleOverlay,
+} from '@/lib/reviews/groupSettingsHashes'
 import { includedCycleCount } from '@/lib/reviews/groupSummary'
+import { locationWithHash } from '@/lib/routing/urlHash'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   createCycleGroup,
@@ -35,8 +41,19 @@ function nextCycleGroupName(groups: CycleGroup[]): string {
   return `Group ${Math.max(...usedNumbers) + 1}`
 }
 
+function editingFromHash(hash: string): EditTarget {
+  const overlay = cycleOverlayFromHash(hash)
+  if (!overlay) return null
+  if (overlay.kind === 'cycle-details') return 'cycle-details'
+  return { groupId: overlay.groupId }
+}
+
 export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
-  const [editing, setEditing] = useState<EditTarget>(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [editing, setEditing] = useState<EditTarget>(() =>
+    editingFromHash(location.hash),
+  )
   const [openedGroup, setOpenedGroup] = useState<CycleGroup | null>(null)
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
   const skipEmptyGroupProvision = useRef(false)
@@ -52,6 +69,17 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     void createCycleGroup(cycle.id, { name: 'Group 1' }).catch(() => { })
   }, [cycle.id, groups.length])
 
+  // Follow hash for deep links and back/forward; local open sets state first.
+  useEffect(() => {
+    if (!location.hash) {
+      setEditing(null)
+      setOpenedGroup(null)
+      return
+    }
+    const fromHash = editingFromHash(location.hash)
+    if (fromHash) setEditing(fromHash)
+  }, [location.hash])
+
   const editingGroup =
     editing && typeof editing === 'object'
       ? (groups.find((item) => item.id === editing.groupId) ??
@@ -61,13 +89,40 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     editingGroup && !groups.some((group) => group.id === editingGroup.id)
       ? { ...cycle, groups: [...groups, editingGroup] }
       : cycle
+
   const closeEditor = () => {
     setEditing(null)
     setOpenedGroup(null)
+    if (location.hash) {
+      navigate(locationWithHash(location, ''), { replace: true })
+    }
   }
+
   const openGroup = (group: CycleGroup) => {
     setOpenedGroup(group)
     setEditing({ groupId: group.id })
+    navigate(
+      locationWithHash(
+        location,
+        hashForCycleOverlay({
+          kind: 'group',
+          groupId: group.id,
+          job: 'people',
+          peoplePane: 'added',
+          reviewFormOpen: false,
+        }),
+      ),
+      { replace: true },
+    )
+  }
+
+  const openCycleDetails = () => {
+    setOpenedGroup(null)
+    setEditing('cycle-details')
+    navigate(
+      locationWithHash(location, hashForCycleOverlay({ kind: 'cycle-details' })),
+      { replace: true },
+    )
   }
 
   const purpose = cyclePurposeOf(cycle)
@@ -100,7 +155,7 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
             variant="primary"
             size="sm"
             pill
-            onClick={() => setEditing('cycle-details')}
+            onClick={openCycleDetails}
           >
             <Pencil size={13} strokeWidth={2} aria-hidden />
             Edit
@@ -144,6 +199,13 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
           skipEmptyGroupProvision.current = true
           void deleteCycleGroup(cycle.id, groupId)
             .then(() => {
+              if (
+                editing &&
+                typeof editing === 'object' &&
+                editing.groupId === groupId
+              ) {
+                closeEditor()
+              }
               showSuccessToast('Group deleted.')
             })
             .catch(() => { })
@@ -186,4 +248,3 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     </div>
   )
 }
-

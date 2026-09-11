@@ -11,7 +11,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Avatar, Button, Input } from "@/components/ui";
-import { HintIcon } from "./HintIcon";
 import { addUtcDays, compareDateTime, datePart } from "@/lib/dates/timestamp";
 import { formatLocalTimestamp } from "@/lib/dates/timezone";
 import { avatarStyle } from "@/lib/employees/avatar";
@@ -447,14 +446,10 @@ export function GoalCycleExtensionsEditor({
   return (
     <div className="pd-cycle-extensions">
       <div className="pd-cycle-extensions__heading">
-        <header className="pd-reviews-edit-card__head">
-          <CalendarClock size={16} strokeWidth={1.75} aria-hidden />
-          <h3 className="pd-reviews-edit-card__title">Custom Deadlines</h3>
-          <HintIcon
-            content="Give selected teams, departments, or people in this group more time."
-            label="About Custom Deadlines"
-          />
-        </header>
+        <h4 className="pd-settings-stack__eyebrow">
+          <CalendarClock size={14} strokeWidth={1.75} aria-hidden />
+          Custom Deadlines
+        </h4>
         {!isAdding ? (
           <Button
             type="button"
@@ -513,9 +508,7 @@ export function GoalCycleExtensionsEditor({
             </li>
           ))}
         </ul>
-      ) : isAdding ? null : (
-        <p className="pd-cycle-extensions__empty">No custom deadlines.</p>
-      )}
+      ) : null}
 
       {isAdding ? (
         <div className="pd-cycle-extensions__composer">

@@ -45,6 +45,12 @@
   --pd-drawer-in-duration: 180ms;
   --pd-drawer-in-delay: 0s;
   --pd-drawer-in-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Page enter on navigation (SuspenseRouteContent remount). */
+  --pd-page-enter-duration: 280ms;
+  --pd-page-enter-stagger: 45ms;
+  --pd-page-enter-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --pd-page-enter-distance: 0.75rem;
 }
 
 /*

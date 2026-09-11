@@ -1,4 +1,5 @@
 import { memo, useState, type HTMLAttributes } from 'react'
+import { usableAvatarUrl } from '@/lib/employees/avatar'
 import { nameInitials } from '@/layout/utils'
 import { cx } from '@/lib/cx'
 
@@ -21,7 +22,7 @@ export const Avatar = memo(function Avatar({
 }: AvatarProps) {
   const initials = nameInitials(name)
   const label = alt ?? name ?? 'Avatar'
-  const trimmed = src?.trim() || ''
+  const trimmed = usableAvatarUrl(src)
   const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const showImage = Boolean(trimmed) && failedSrc !== trimmed
 

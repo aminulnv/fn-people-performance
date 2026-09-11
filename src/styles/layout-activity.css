@@ -194,7 +194,7 @@
   color: var(--color-text);
 }
 
-.pd-activity-entry + .pd-activity-entry {
+.pd-activity-entry+.pd-activity-entry {
   border-top: 1px solid color-mix(in srgb, var(--color-divider) 70%, transparent);
 }
 
@@ -343,7 +343,7 @@
   transition: transform 120ms ease;
 }
 
-.pd-activity-entry__changes[open] > summary .pd-activity-entry__changes-chevron {
+.pd-activity-entry__changes[open]>summary .pd-activity-entry__changes-chevron {
   transform: rotate(90deg);
 }
 

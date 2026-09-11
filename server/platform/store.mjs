@@ -77,6 +77,18 @@ function integerId(value) {
   return Number.isInteger(parsed) ? parsed : undefined
 }
 
+/** ClickUp profile attachments expire/404; treat as missing. */
+function usableAvatarUrl(src) {
+  const trimmed = String(src ?? '').trim()
+  if (!trimmed) return ''
+  if (
+    /^https?:\/\/attachments\.clickup\.com\/profilePictures\//i.test(trimmed)
+  ) {
+    return ''
+  }
+  return trimmed
+}
+
 /** Map a joined row to the SPA PlatformEmployee shape. */
 export function mapEmployeeRow(row) {
   return {
@@ -96,7 +108,7 @@ export function mapEmployeeRow(row) {
     teamOwnerName: row.team_owner_name ?? '',
     jobGrade: row.job_grade ?? '',
     site: row.site ?? '',
-    avatarUrl: row.avatar_url ?? '',
+    avatarUrl: usableAvatarUrl(row.avatar_url),
     managerEmail: row.manager_email ?? '',
     reportsToId: row.manager_id ?? undefined,
     departmentHeadId: row.department_head_id ?? undefined,
@@ -421,7 +433,7 @@ export async function upsertPlatformEmployee(input, options = {}) {
       'avatarUrl',
     )
     const avatarUrl = avatarUrlProvided
-      ? String(input.avatarUrl ?? '').trim()
+      ? usableAvatarUrl(input.avatarUrl)
       : null
 
     if (replaceId == null) {

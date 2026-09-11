@@ -1,18 +1,20 @@
 import {
+  startTransition,
   useDeferredValue,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   ListFilter,
   Search,
   UserCheck,
   UsersRound,
-  X,
 } from 'lucide-react'
 import {
   Avatar,
@@ -32,6 +34,10 @@ type PendingPeopleChange = {
   ids: number[]
 }
 
+const VIRTUALIZE_AFTER = 24
+const VIRTUAL_OVERSCAN = 8
+const VIRTUAL_ROW_ESTIMATE = 44
+
 type OtherGroup = {
   name: string
   memberIds: number[]
@@ -47,6 +53,9 @@ type GroupMembersEditorProps = {
   placeholder?: string
   /** People only - no department or team bulk add. */
   peopleOnly?: boolean
+  /** Controlled Added / Not added segment (hash-linked by the parent). */
+  pane?: Pane
+  onPaneChange?: (pane: Pane) => void
 }
 
 type ListRow = {
@@ -67,10 +76,19 @@ function personMatchesQuery(employee: PlatformEmployee, query: string): boolean 
     employee.jobTitle,
     employee.department,
     employee.team,
+    employee.reportsToName,
   ]
     .join(' ')
     .toLowerCase()
     .includes(query)
+}
+
+function uniqueSortedOptions(
+  values: Iterable<string>,
+): { value: string; label: string }[] {
+  return [...new Set([...values].filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right))
+    .map((value) => ({ value, label: value }))
 }
 
 function isAssignedOrgLabel(name: string): boolean {
@@ -103,48 +121,53 @@ function moveHint(
     : 'Will move from another group'
 }
 
-function personDescription(
-  employee: PlatformEmployee,
-  hint: string | null,
-): string {
-  return [employee.jobTitle, hint].filter(Boolean).join(' · ')
+function personDescription(hint: string | null): string {
+  return hint ?? ''
 }
 
-function RowAvatar({ row }: { row: ListRow }) {
+function RowAvatar({
+  name,
+  src,
+  size = 'md',
+}: {
+  name: string
+  src?: string
+  size?: 'sm' | 'md'
+}) {
   return (
     <Avatar
-      name={row.person.fullName}
-      src={row.person.avatarUrl || undefined}
-      size="sm"
-      style={avatarStyle(row.person.fullName)}
+      name={name}
+      src={src}
+      size={size}
+      className="pd-people__avatar"
+      style={avatarStyle(name)}
     />
   )
 }
 
 function PersonTableRow({
   row,
-  added,
   checked,
+  reviewerAvatarUrl,
   onToggle,
-  onRemove,
 }: {
   row: ListRow
-  added: boolean
   checked: boolean
+  reviewerAvatarUrl?: string
   onToggle: () => void
-  onRemove?: () => void
 }) {
-  const actionLabel = added ? row.actionLabel : `Select ${row.label}`
+  const reviewerName = row.person.reportsToName.trim()
   return (
-    <tr className="pd-cycle-groups-members__table-row">
-      <td className="pd-cycle-groups-members__select-cell">
-        <button
-          type="button"
-          className="pd-cycle-groups-members__check-button"
-          aria-label={actionLabel}
-          aria-pressed={checked}
-          onClick={onToggle}
-        >
+    <tr className={checked ? 'is-selected' : undefined}>
+      <td className="pd-cycle-setup__people-select-cell">
+        <label className="pd-cycle-setup__people-select">
+          <input
+            type="checkbox"
+            className="pd-sr-only"
+            checked={checked}
+            aria-label={`Select ${row.label}`}
+            onChange={onToggle}
+          />
           <span
             className={[
               'pd-cycle-extensions__search-check',
@@ -154,42 +177,52 @@ function PersonTableRow({
               .join(' ')}
             aria-hidden
           />
-        </button>
+        </label>
       </td>
-      <td className="pd-cycle-groups-members__person-cell">
-        <span className="pd-cycle-groups-members__person">
-          <RowAvatar row={row} />
-          <span className="pd-cycle-extensions__search-result-text">
-            <span className="pd-cycle-extensions__search-result-label">
-              {row.label}
+      <td className="pd-people__name-cell">
+        <span
+          className={
+            row.description
+              ? 'pd-people__person pd-people__person--stacked'
+              : 'pd-people__person'
+          }
+        >
+          <RowAvatar
+            name={row.person.fullName}
+            src={row.person.avatarUrl || undefined}
+          />
+          {row.description ? (
+            <span className="pd-people__person-identity">
+              <span className="pd-people__person-name">{row.label}</span>
+              <span className="pd-people__person-email">{row.description}</span>
             </span>
-            {row.description ? (
-              <span className="pd-cycle-extensions__search-result-description">
-                {row.description}
-              </span>
-            ) : null}
-          </span>
+          ) : (
+            <span className="pd-people__person-name">{row.label}</span>
+          )}
         </span>
       </td>
-      <td className="pd-cycle-groups-members__department-cell">
+      <td>{row.person.jobTitle || '-'}</td>
+      <td>
+        {isAssignedOrgLabel(row.person.team) ? row.person.team : '-'}
+      </td>
+      <td>
         {isAssignedOrgLabel(row.person.department)
           ? row.person.department
-          : 'Unassigned'}
+          : '-'}
       </td>
-      <td className="pd-cycle-groups-members__team-cell">
-        {isAssignedOrgLabel(row.person.team) ? row.person.team : 'Unassigned'}
-      </td>
-      <td className="pd-cycle-groups-members__remove-cell">
-        {onRemove ? (
-          <button
-            type="button"
-            className="pd-cycle-groups-members__remove"
-            aria-label={`Remove ${row.label}`}
-            onClick={onRemove}
-          >
-            <X size={14} strokeWidth={2} aria-hidden />
-          </button>
-        ) : null}
+      <td>
+        {reviewerName ? (
+          <span className="pd-people__person">
+            <RowAvatar
+              name={reviewerName}
+              src={reviewerAvatarUrl}
+              size="sm"
+            />
+            <span className="pd-people__person-name">{reviewerName}</span>
+          </span>
+        ) : (
+          '-'
+        )}
       </td>
     </tr>
   )
@@ -393,45 +426,87 @@ function PeopleTable({
   rows,
   added,
   checkedIds,
+  employeesById,
+  employeeFilters,
+  roleFilters,
   departmentFilters,
   teamFilters,
+  reviewerFilters,
+  employeeOptions,
+  roleOptions,
   departmentOptions,
   teamOptions,
+  reviewerOptions,
+  onEmployeeFiltersChange,
+  onRoleFiltersChange,
   onDepartmentFiltersChange,
   onTeamFiltersChange,
+  onReviewerFiltersChange,
   onToggleAll,
   onToggle,
-  onRemove,
 }: {
   rows: ListRow[]
   added: boolean
   checkedIds: Set<number>
+  employeesById: Map<number, PlatformEmployee>
+  employeeFilters: string[]
+  roleFilters: string[]
   departmentFilters: string[]
   teamFilters: string[]
+  reviewerFilters: string[]
+  employeeOptions: ColumnFilterOption[]
+  roleOptions: ColumnFilterOption[]
   departmentOptions: ColumnFilterOption[]
   teamOptions: ColumnFilterOption[]
+  reviewerOptions: ColumnFilterOption[]
+  onEmployeeFiltersChange: (values: string[]) => void
+  onRoleFiltersChange: (values: string[]) => void
   onDepartmentFiltersChange: (values: string[]) => void
   onTeamFiltersChange: (values: string[]) => void
+  onReviewerFiltersChange: (values: string[]) => void
   onToggleAll: () => void
   onToggle: (row: ListRow) => void
-  onRemove?: (row: ListRow) => void
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
   const checkedRowCount = rows.filter((row) =>
     row.ids.every((id) => checkedIds.has(id)),
   ).length
   const allRowsChecked = rows.length > 0 && checkedRowCount === rows.length
   const someRowsChecked = checkedRowCount > 0 && !allRowsChecked
+  const shouldVirtualize = rows.length >= VIRTUALIZE_AFTER
+  const virtualizer = useVirtualizer({
+    count: shouldVirtualize ? rows.length : 0,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => VIRTUAL_ROW_ESTIMATE,
+    overscan: VIRTUAL_OVERSCAN,
+  })
+
+  useLayoutEffect(() => {
+    if (!shouldVirtualize) return
+    virtualizer.measure()
+  }, [shouldVirtualize, rows.length, virtualizer])
+
+  const virtualRows = shouldVirtualize ? virtualizer.getVirtualItems() : null
+  const paddingTop = virtualRows?.[0]?.start ?? 0
+  const lastVirtualRow = virtualRows?.[virtualRows.length - 1]
+  const paddingBottom = virtualRows
+    ? virtualizer.getTotalSize() - (lastVirtualRow?.end ?? 0)
+    : 0
+  const visibleRows =
+    virtualRows && virtualRows.length > 0
+      ? virtualRows.map((item) => rows[item.index]!).filter(Boolean)
+      : rows
 
   return (
-    <div className="pd-cycle-groups-members__table-wrap">
+    <div className="pd-people__table-wrap" ref={scrollRef}>
       <table
-        className="pd-cycle-groups-members__people-table"
+        className="pd-people__table pd-cycle-setup__eligibility-table pd-cycle-groups-members__people-table"
         aria-label={added ? 'Added people' : 'People not added'}
       >
         <thead>
-          <tr className="pd-cycle-groups-members__header-row">
-            <th className="pd-cycle-groups-members__select-cell" scope="col">
-              <label className="pd-cycle-groups-members__check-button">
+          <tr>
+            <th className="pd-cycle-setup__people-select-cell" scope="col">
+              <label className="pd-cycle-setup__people-select">
                 <input
                   type="checkbox"
                   className="pd-sr-only"
@@ -453,15 +528,25 @@ function PeopleTable({
                 />
               </label>
             </th>
-            <th scope="col">Name</th>
             <th scope="col">
               <span className="pd-cycle-groups-members__column-heading">
-                Department
+                Employee
                 <ColumnMultiSelectFilter
-                  label="Department"
-                  options={departmentOptions}
-                  selected={departmentFilters}
-                  onChange={onDepartmentFiltersChange}
+                  label="Employee"
+                  options={employeeOptions}
+                  selected={employeeFilters}
+                  onChange={onEmployeeFiltersChange}
+                />
+              </span>
+            </th>
+            <th scope="col">
+              <span className="pd-cycle-groups-members__column-heading">
+                Role
+                <ColumnMultiSelectFilter
+                  label="Role"
+                  options={roleOptions}
+                  selected={roleFilters}
+                  onChange={onRoleFiltersChange}
                 />
               </span>
             </th>
@@ -476,22 +561,56 @@ function PeopleTable({
                 />
               </span>
             </th>
-            <th className="pd-cycle-groups-members__remove-cell" scope="col">
-              <span className="pd-sr-only">Actions</span>
+            <th scope="col">
+              <span className="pd-cycle-groups-members__column-heading">
+                Department
+                <ColumnMultiSelectFilter
+                  label="Department"
+                  options={departmentOptions}
+                  selected={departmentFilters}
+                  onChange={onDepartmentFiltersChange}
+                />
+              </span>
+            </th>
+            <th scope="col">
+              <span className="pd-cycle-groups-members__column-heading">
+                Reviewer
+                <ColumnMultiSelectFilter
+                  label="Reviewer"
+                  options={reviewerOptions}
+                  selected={reviewerFilters}
+                  onChange={onReviewerFiltersChange}
+                />
+              </span>
             </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <PersonTableRow
-              key={row.key}
-              row={row}
-              added={added}
-              checked={row.ids.every((id) => checkedIds.has(id))}
-              onToggle={() => onToggle(row)}
-              onRemove={onRemove ? () => onRemove(row) : undefined}
-            />
-          ))}
+          {paddingTop > 0 ? (
+            <tr aria-hidden>
+              <td colSpan={6} style={{ height: paddingTop, padding: 0 }} />
+            </tr>
+          ) : null}
+          {visibleRows.map((row) => {
+            const reviewer =
+              row.person.reportsToId != null
+                ? employeesById.get(row.person.reportsToId)
+                : undefined
+            return (
+              <PersonTableRow
+                key={row.key}
+                row={row}
+                checked={row.ids.every((id) => checkedIds.has(id))}
+                reviewerAvatarUrl={reviewer?.avatarUrl || undefined}
+                onToggle={() => onToggle(row)}
+              />
+            )
+          })}
+          {paddingBottom > 0 ? (
+            <tr aria-hidden>
+              <td colSpan={6} style={{ height: paddingBottom, padding: 0 }} />
+            </tr>
+          ) : null}
         </tbody>
       </table>
     </div>
@@ -506,12 +625,22 @@ export function GroupMembersEditor({
   onDirtyChange,
   searchLabel = 'Search people',
   placeholder = 'Search by name, department, team, or role…',
+  pane: paneProp,
+  onPaneChange,
 }: GroupMembersEditorProps) {
   const { employees } = useEmployees()
   const [query, setQuery] = useState('')
+  const [employeeFilters, setEmployeeFilters] = useState<string[]>([])
+  const [roleFilters, setRoleFilters] = useState<string[]>([])
   const [departmentFilters, setDepartmentFilters] = useState<string[]>([])
   const [teamFilters, setTeamFilters] = useState<string[]>([])
-  const [pane, setPane] = useState<Pane>('browse')
+  const [reviewerFilters, setReviewerFilters] = useState<string[]>([])
+  const [localPane, setLocalPane] = useState<Pane>('browse')
+  const pane = paneProp ?? localPane
+  const setPane = (next: Pane) => {
+    onPaneChange?.(next)
+    if (paneProp === undefined) setLocalPane(next)
+  }
   const [checkedIds, setCheckedIds] = useState<Set<number>>(() => new Set())
   const [draftIds, setDraftIds] = useState(() => new Set(memberIds))
   const [baselineIds, setBaselineIds] = useState(() => new Set(memberIds))
@@ -522,11 +651,21 @@ export function GroupMembersEditor({
   const deferredFilter = useDeferredValue(query.trim().toLowerCase())
   const filtering = Boolean(
     deferredFilter ||
+      employeeFilters.length ||
+      roleFilters.length ||
       departmentFilters.length ||
-      teamFilters.length,
+      teamFilters.length ||
+      reviewerFilters.length,
   )
 
   const selected = draftIds
+  const employeesById = useMemo(() => {
+    const map = new Map<number, PlatformEmployee>()
+    for (const employee of employees) {
+      map.set(employee.employeeId, employee)
+    }
+    return map
+  }, [employees])
   const claimedElsewhere = useMemo(
     () => new Set(claimedIds.filter((id) => !baselineIds.has(id))),
     [baselineIds, claimedIds],
@@ -546,56 +685,100 @@ export function GroupMembersEditor({
     return () => onDirtyChange?.(false)
   }, [onDirtyChange])
 
-  const departmentOptions = useMemo(
-    () =>
-      [...new Set(
-        employees
-          .filter(
-            (employee) =>
-              employee.isActive &&
-              isAssignedOrgLabel(employee.department),
-          )
-          .map((employee) => employee.department.trim()),
-      )]
-        .sort((left, right) => left.localeCompare(right))
-        .map((value) => ({ value, label: value })),
-    [employees],
-  )
+  const departmentOptions = useMemo(() => {
+    const source =
+      pane === 'browse'
+        ? employees
+        : employees.filter((employee) => selected.has(employee.employeeId))
+    return uniqueSortedOptions(
+      source
+        .filter(
+          (employee) =>
+            employee.isActive && isAssignedOrgLabel(employee.department),
+        )
+        .map((employee) => employee.department.trim()),
+    )
+  }, [employees, pane, selected])
 
-  const teamOptions = useMemo(
-    () =>
-      [...new Set(
-        employees
-          .filter(
-            (employee) =>
-              employee.isActive && isAssignedOrgLabel(employee.team),
-          )
-          .map((employee) => employee.team.trim()),
-      )]
-        .sort((left, right) => left.localeCompare(right))
-        .map((value) => ({ value, label: value })),
-    [employees],
-  )
+  const teamOptions = useMemo(() => {
+    const source =
+      pane === 'browse'
+        ? employees
+        : employees.filter((employee) => selected.has(employee.employeeId))
+    return uniqueSortedOptions(
+      source
+        .filter(
+          (employee) =>
+            employee.isActive && isAssignedOrgLabel(employee.team),
+        )
+        .map((employee) => employee.team.trim()),
+    )
+  }, [employees, pane, selected])
+
+  const employeeOptions = useMemo(() => {
+    const source =
+      pane === 'browse'
+        ? employees
+        : employees.filter((employee) => selected.has(employee.employeeId))
+    return uniqueSortedOptions(
+      source
+        .filter((employee) => employee.isActive)
+        .map((employee) => employee.fullName.trim()),
+    )
+  }, [employees, pane, selected])
+
+  const roleOptions = useMemo(() => {
+    const source =
+      pane === 'browse'
+        ? employees
+        : employees.filter((employee) => selected.has(employee.employeeId))
+    return uniqueSortedOptions(
+      source
+        .filter((employee) => employee.isActive && employee.jobTitle.trim())
+        .map((employee) => employee.jobTitle.trim()),
+    )
+  }, [employees, pane, selected])
+
+  const reviewerOptions = useMemo(() => {
+    const source =
+      pane === 'browse'
+        ? employees
+        : employees.filter((employee) => selected.has(employee.employeeId))
+    return uniqueSortedOptions(
+      source
+        .filter(
+          (employee) =>
+            employee.isActive && employee.reportsToName.trim(),
+        )
+        .map((employee) => employee.reportsToName.trim()),
+    )
+  }, [employees, pane, selected])
 
   const { availablePeople, members } = useMemo(() => {
       const nextPeople: ListRow[] = []
       const nextMembers: ListRow[] = []
+      const buildAvailable = pane === 'browse'
 
       for (const employee of employees) {
         const inGroup = selected.has(employee.employeeId)
         const matches =
           personMatchesQuery(employee, deferredFilter) &&
+          (employeeFilters.length === 0 ||
+            employeeFilters.includes(employee.fullName.trim())) &&
+          (roleFilters.length === 0 ||
+            roleFilters.includes(employee.jobTitle.trim())) &&
           (departmentFilters.length === 0 ||
             departmentFilters.includes(employee.department.trim())) &&
           (teamFilters.length === 0 ||
-            teamFilters.includes(employee.team.trim()))
+            teamFilters.includes(employee.team.trim())) &&
+          (reviewerFilters.length === 0 ||
+            reviewerFilters.includes(employee.reportsToName.trim()))
         if (inGroup) {
           if (matches) {
             nextMembers.push({
               key: `member:${employee.employeeId}`,
               label: employee.fullName,
               description: personDescription(
-                employee,
                 moveHint(employee.employeeId, claimedElsewhere, otherGroups),
               ),
               actionLabel: `Select ${employee.fullName}`,
@@ -609,15 +792,17 @@ export function GroupMembersEditor({
                     employee.jobTitle,
                     employee.department,
                     employee.team,
+                    employee.reportsToName,
                   ],
                   deferredFilter,
                 )
                 : 0,
             })
           }
+          continue
         }
 
-        if (!employee.isActive || inGroup || !matches) continue
+        if (!buildAvailable || !employee.isActive || !matches) continue
         const hint = moveHint(
           employee.employeeId,
           claimedElsewhere,
@@ -626,7 +811,7 @@ export function GroupMembersEditor({
         nextPeople.push({
           key: `person:${employee.employeeId}`,
           label: employee.fullName,
-          description: personDescription(employee, hint),
+          description: personDescription(hint),
           actionLabel: hint
             ? `Include ${employee.fullName}. ${hint}`
             : `Include ${employee.fullName}`,
@@ -640,6 +825,7 @@ export function GroupMembersEditor({
                 employee.jobTitle,
                 employee.department,
                 employee.team,
+                employee.reportsToName,
               ],
               deferredFilter,
             )
@@ -647,7 +833,7 @@ export function GroupMembersEditor({
         })
       }
 
-      nextPeople.sort(compareByNameRelevance)
+      if (buildAvailable) nextPeople.sort(compareByNameRelevance)
       nextMembers.sort(compareByNameRelevance)
 
       return {
@@ -658,9 +844,13 @@ export function GroupMembersEditor({
       claimedElsewhere,
       departmentFilters,
       deferredFilter,
+      employeeFilters,
       employees,
       filtering,
       otherGroups,
+      pane,
+      reviewerFilters,
+      roleFilters,
       selected,
       teamFilters,
     ])
@@ -812,8 +1002,10 @@ export function GroupMembersEditor({
           options={paneOptions}
           value={pane}
           onChange={(next) => {
-            setPane(next)
-            setCheckedIds(new Set())
+            startTransition(() => {
+              setPane(next)
+              setCheckedIds(new Set())
+            })
           }}
         />
         <label className="pd-cycle-extensions__search">
@@ -832,9 +1024,48 @@ export function GroupMembersEditor({
             className="pd-cycle-extensions__search-input"
           />
         </label>
-        {(pane === 'browse' ? selectedToAdd : selectedToRemove).length > 0 ? (
-          <div className="pd-cycle-groups-members__add-tools">
-            {pane === 'browse' && selectedToAdd.length > 0 ? (
+      </header>
+
+      <div className="pd-people__panel pd-people__panel--table pd-cycle-groups-members__table-panel">
+        <PeopleTable
+          rows={pane === 'browse' ? availablePeople : members}
+          added={pane === 'selected'}
+          checkedIds={checkedIds}
+          employeesById={employeesById}
+          employeeFilters={employeeFilters}
+          roleFilters={roleFilters}
+          departmentFilters={departmentFilters}
+          teamFilters={teamFilters}
+          reviewerFilters={reviewerFilters}
+          employeeOptions={employeeOptions}
+          roleOptions={roleOptions}
+          departmentOptions={departmentOptions}
+          teamOptions={teamOptions}
+          reviewerOptions={reviewerOptions}
+          onEmployeeFiltersChange={setEmployeeFilters}
+          onRoleFiltersChange={setRoleFilters}
+          onDepartmentFiltersChange={setDepartmentFilters}
+          onTeamFiltersChange={setTeamFilters}
+          onReviewerFiltersChange={setReviewerFilters}
+          onToggleAll={toggleAllVisible}
+          onToggle={(row) => {
+            toggleIds(row.ids)
+          }}
+        />
+        {(pane === 'browse' ? emptyAvailable : members.length === 0) ? (
+          <p className="pd-cycle-groups-members__add-empty">{emptyCopy}</p>
+        ) : null}
+      </div>
+
+      {(pane === 'browse' ? selectedToAdd : selectedToRemove).length > 0 ? (
+        <div className="pd-cycle-groups-members__footer" role="status">
+          <p className="pd-cycle-groups-members__footer-status">
+            {pane === 'browse'
+              ? `${peopleCountLabel(selectedToAdd.length)} selected`
+              : `${peopleCountLabel(selectedToRemove.length)} selected`}
+          </p>
+          <div className="pd-cycle-groups-members__footer-actions">
+            {pane === 'browse' ? (
               <Button
                 variant="primary"
                 size="sm"
@@ -844,7 +1075,7 @@ export function GroupMembersEditor({
                   ? 'Add 1 person'
                   : `Add ${selectedToAdd.length} people`}
               </Button>
-            ) : pane === 'selected' && selectedToRemove.length > 0 ? (
+            ) : (
               <Button
                 variant="danger"
                 size="sm"
@@ -856,33 +1087,9 @@ export function GroupMembersEditor({
                   ? 'Remove 1 person'
                   : `Remove ${selectedToRemove.length} people`}
               </Button>
-            ) : null}
+            )}
           </div>
-        ) : null}
-      </header>
-
-      <PeopleTable
-        rows={pane === 'browse' ? availablePeople : members}
-        added={pane === 'selected'}
-        checkedIds={checkedIds}
-        departmentFilters={departmentFilters}
-        teamFilters={teamFilters}
-        departmentOptions={departmentOptions}
-        teamOptions={teamOptions}
-        onDepartmentFiltersChange={setDepartmentFilters}
-        onTeamFiltersChange={setTeamFilters}
-        onToggleAll={toggleAllVisible}
-        onToggle={(row) => {
-          toggleIds(row.ids)
-        }}
-        onRemove={
-          pane === 'selected'
-            ? (row) => requestPeopleChange('remove', row.ids)
-            : undefined
-        }
-      />
-      {(pane === 'browse' ? emptyAvailable : members.length === 0) ? (
-        <p className="pd-cycle-groups-members__add-empty">{emptyCopy}</p>
+        </div>
       ) : null}
       <ConfirmDialog
         open={pendingChange !== null}
