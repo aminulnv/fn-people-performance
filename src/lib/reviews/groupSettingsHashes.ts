@@ -43,9 +43,10 @@ function parseSettingsParts(parts: string[]): GroupSettingsHashState | null {
   if (!isGroupJob(jobPart)) return null
 
   if (jobPart === 'people') {
+    const pane = subPart ?? ''
     return {
       job: 'people',
-      peoplePane: isPeoplePane(subPart ?? '') ? subPart : DEFAULT_PEOPLE_PANE,
+      peoplePane: isPeoplePane(pane) ? pane : DEFAULT_PEOPLE_PANE,
       reviewFormOpen: false,
     }
   }
