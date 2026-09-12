@@ -1114,6 +1114,14 @@ html[data-theme-transition='circle']::view-transition-new(root) {
   z-index: 1000;
 }
 
+body>.pd-topbar__dropdown-panel {
+  position: fixed;
+  top: auto;
+  right: auto;
+  left: auto;
+  margin-top: 0;
+}
+
 .pd-topbar__dropdown-panel--profile {
   min-width: 16.5rem;
   max-height: min(28rem, calc(100vh - 4rem));

@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
@@ -25,6 +26,7 @@ import {
 } from '@/lib/notificationsApi'
 import { queryKeys } from '@/lib/queryClient'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
+import { useFloatingPanel } from '@/components/ui/useFloatingPanel'
 import { useHoverMenu } from './useHoverMenu'
 
 type NotificationTab = 'all' | 'goals' | 'reviews' | 'actions'
@@ -82,9 +84,17 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
   const navigate = useNavigate()
   const recipient = useCurrentPerson()
   const panelId = useId()
+  const panelRef = useRef<HTMLDivElement>(null)
   const { open, containerRef, hoverHandlers, toggle } = useHoverMenu({
     isMobile,
     closeOnEscape: true,
+    panelRef,
+  })
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+    preferredAlign: 'end',
   })
   const recipientId = recipient?.id ?? ''
   const {
@@ -161,12 +171,19 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
           )}
         </button>
       </Tooltip>
-      {open && (
+      {open &&
+        createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           className="pd-topbar__dropdown-panel pd-topbar__dropdown-panel--notifications"
           role="region"
           aria-label="Notifications"
+          style={{
+            ...panelStyle,
+            visibility: panelStyle ? 'visible' : 'hidden',
+          }}
+          {...hoverHandlers}
         >
           <div className="pd-topbar__notif-header">
             <div className="pd-topbar__notif-header-text">
@@ -319,7 +336,8 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
               }}
             />
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

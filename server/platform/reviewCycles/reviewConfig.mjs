@@ -13,7 +13,9 @@ export const REVIEW_STAGE_ORDER = [
 
 export function inferPurpose(periodKey, fallback = 'custom') {
   if (!periodKey) return fallback
-  if (/^annual-\d{4}$/i.test(periodKey)) return 'annual_appraisal'
+  if (/^annual-\d{4}$/i.test(periodKey) || /^h[12]-\d{4}$/i.test(periodKey)) {
+    return 'annual_appraisal'
+  }
   if (/^q[1-4]-\d{4}$/i.test(periodKey)) return 'quarterly_checkin'
   return fallback
 }

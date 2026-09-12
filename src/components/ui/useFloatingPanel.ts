@@ -4,9 +4,12 @@ import {
   type CSSProperties,
   type RefObject,
 } from 'react'
+import {
+  resolveFloatingPanelBox,
+  visibleMenuBounds,
+  type MenuAlign,
+} from './dropdownMenuPlacement'
 
-const PANEL_GAP = 4
-const VIEWPORT_PADDING = 8
 const FALLBACK_PANEL_WIDTH = 288
 const FALLBACK_PANEL_HEIGHT = 320
 
@@ -19,6 +22,7 @@ type FloatingPanelOptions = {
    * When the right edge would overflow, align to the trigger’s right instead.
    */
   fitContent?: boolean
+  preferredAlign?: MenuAlign
 }
 
 /** Positions a portalled panel within the available browser viewport. */
@@ -27,6 +31,7 @@ export function useFloatingPanel({
   anchorRef,
   panelRef,
   fitContent = false,
+  preferredAlign = 'start',
 }: FloatingPanelOptions): CSSProperties | undefined {
   const [style, setStyle] = useState<CSSProperties>()
 
@@ -46,35 +51,23 @@ export function useFloatingPanel({
         fitContent ? anchor.width : 0,
       )
       const panelHeight = panel?.offsetHeight || FALLBACK_PANEL_HEIGHT
-      const spaceBelow =
-        window.innerHeight - VIEWPORT_PADDING - anchor.bottom - PANEL_GAP
-      const spaceAbove = anchor.top - VIEWPORT_PADDING - PANEL_GAP
-      const openAbove = spaceBelow < panelHeight && spaceAbove > spaceBelow
-      const availableHeight = Math.max(openAbove ? spaceAbove : spaceBelow, 0)
-      const visibleHeight = Math.min(panelHeight, availableHeight)
-      const top = openAbove
-        ? Math.max(VIEWPORT_PADDING, anchor.top - PANEL_GAP - visibleHeight)
-        : anchor.bottom + PANEL_GAP
-
-      const maxLeft = Math.max(
-        VIEWPORT_PADDING,
-        window.innerWidth - VIEWPORT_PADDING - panelWidth,
+      const box = resolveFloatingPanelBox(
+        anchor,
+        { width: panelWidth, height: panelHeight },
+        visibleMenuBounds(),
+        preferredAlign,
       )
-      let left = Math.min(Math.max(VIEWPORT_PADDING, anchor.left), maxLeft)
-      if (fitContent && anchor.left + panelWidth > window.innerWidth - VIEWPORT_PADDING) {
-        left = Math.min(Math.max(VIEWPORT_PADDING, anchor.right - panelWidth), maxLeft)
-      }
 
       const next: CSSProperties = {
         position: 'fixed',
-        top,
-        left,
+        top: box.top,
+        left: box.left,
         right: 'auto',
         bottom: 'auto',
         width: fitContent ? 'max-content' : undefined,
         minWidth: fitContent ? anchor.width : undefined,
-        maxWidth: `calc(100vw - ${VIEWPORT_PADDING * 2}px)`,
-        maxHeight: availableHeight,
+        maxWidth: `calc(100vw - ${16}px)`,
+        maxHeight: box.maxHeight,
         zIndex: 1000,
       }
 
@@ -105,7 +98,7 @@ export function useFloatingPanel({
       window.removeEventListener('scroll', positionPanel, true)
       observer?.disconnect()
     }
-  }, [anchorRef, fitContent, open, panelRef])
+  }, [anchorRef, fitContent, open, panelRef, preferredAlign])
 
   return style
 }

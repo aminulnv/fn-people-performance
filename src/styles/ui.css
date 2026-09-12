@@ -2083,6 +2083,14 @@ a.pd-btn--secondary:visited {
   bottom: calc(100% + 0.35rem);
 }
 
+.pd-menu__panel--floating {
+  position: fixed;
+  top: auto;
+  left: auto;
+  right: auto;
+  bottom: auto;
+}
+
 .pd-menu__item {
   display: flex;
   align-items: center;

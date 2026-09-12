@@ -1,6 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Columns3, X } from 'lucide-react'
 import { cx } from '@/lib/cx'
+import { useFloatingPanel } from './useFloatingPanel'
 
 export type ColumnVisibilityOption = {
   id: string
@@ -36,6 +38,13 @@ export function ColumnVisibility({
   const panelId = useId()
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+    preferredAlign: 'end',
+  })
 
   const defaults = defaultVisibleIds ?? columns.map((column) => column.id)
   const requiredIds = useMemo(
@@ -55,9 +64,14 @@ export function ColumnVisibility({
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false)
+      const target = event.target as Node
+      if (
+        containerRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
+      ) {
+        return
       }
+      setOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
@@ -121,12 +135,18 @@ export function ColumnVisibility({
         ) : null}
       </button>
 
-      {open ? (
+      {open
+        ? createPortal(
         <div
+          ref={panelRef}
           id={panelId}
           className="pd-people-filters__panel"
           role="dialog"
           aria-label="Columns"
+          style={{
+            ...panelStyle,
+            visibility: panelStyle ? 'visible' : 'hidden',
+          }}
         >
           <header className="pd-people-filters__header">
             <h3 className="pd-people-filters__title">Columns</h3>
@@ -227,7 +247,8 @@ export function ColumnVisibility({
               </button>
             </footer>
           ) : null}
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

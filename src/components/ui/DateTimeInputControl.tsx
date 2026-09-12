@@ -12,13 +12,12 @@ import { cx } from '@/lib/cx'
 import { formatLocalTimestamp, localWallToUtcIso } from '@/lib/dates/timezone'
 import { parseDateTime } from '@/lib/dates/timestamp'
 import { DateTimePicker, draftFromValue } from './DateTimePicker'
+import { useFloatingPanel } from './useFloatingPanel'
 
 export type DateTimeInputControlProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
   'type'
 >
-
-type PopoverPoint = { top: number; left: number }
 
 function emitChange(
   onChange: DateTimeInputControlProps['onChange'],
@@ -54,29 +53,16 @@ export function DateTimeInputControl({
   const rootRef = useRef<HTMLSpanElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
-  const [point, setPoint] = useState<PopoverPoint>({ top: 0, left: 0 })
   const [draft, setDraft] = useState(() => draftFromValue(committed))
-
-  const placePopover = () => {
-    const trigger = rootRef.current?.getBoundingClientRect()
-    if (!trigger) return
-    const width = 26.5 * 16
-    const height = 22 * 16
-    let left = trigger.left
-    let top = trigger.bottom + 8
-    if (left + width > window.innerWidth - 8) {
-      left = Math.max(8, window.innerWidth - width - 8)
-    }
-    if (top + height > window.innerHeight - 8) {
-      top = Math.max(8, trigger.top - height - 8)
-    }
-    setPoint({ top, left })
-  }
+  const popoverStyle = useFloatingPanel({
+    open,
+    anchorRef: rootRef,
+    panelRef: popoverRef,
+  })
 
   const openPicker = () => {
     if (disabled) return
     setDraft(draftFromValue(committed))
-    placePopover()
     setOpen(true)
   }
 
@@ -94,16 +80,11 @@ export function DateTimeInputControl({
       event.stopPropagation()
       setOpen(false)
     }
-    const onReposition = () => placePopover()
     document.addEventListener('pointerdown', onPointerDown)
     document.addEventListener('keydown', onKeyDown, true)
-    window.addEventListener('resize', onReposition)
-    window.addEventListener('scroll', onReposition, true)
     return () => {
       document.removeEventListener('pointerdown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown, true)
-      window.removeEventListener('resize', onReposition)
-      window.removeEventListener('scroll', onReposition, true)
     }
   }, [open])
 
@@ -162,7 +143,10 @@ export function DateTimeInputControl({
             <div
               ref={popoverRef}
               className="pd-datetime-popover"
-              style={{ top: point.top, left: point.left }}
+              style={{
+                ...popoverStyle,
+                visibility: popoverStyle ? 'visible' : 'hidden',
+              }}
             >
               <DateTimePicker
                 date={draft.date}

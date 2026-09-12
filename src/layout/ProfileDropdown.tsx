@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { LogOut, Moon, Settings, Sun, UserRound } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -7,6 +8,7 @@ import { applyAppearance } from '@/lib/brand'
 import { usableAvatarUrl } from '@/lib/employees/avatar'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { nameInitials } from './utils'
+import { useFloatingPanel } from '@/components/ui/useFloatingPanel'
 import { useHoverMenu } from './useHoverMenu'
 
 function readIsDark(): boolean {
@@ -22,9 +24,17 @@ export function ProfileDropdown({
   isMobile?: boolean
 }) {
   const person = useCurrentPerson()
+  const panelRef = useRef<HTMLDivElement>(null)
   const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
     isMobile,
     closeOnEscape: true,
+    panelRef,
+  })
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+    preferredAlign: 'end',
   })
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false)
   const [isDark, setIsDark] = useState(readIsDark)
@@ -88,11 +98,18 @@ export function ProfileDropdown({
       >
         {avatarFace}
       </button>
-      {open && (
+      {open &&
+        createPortal(
         <div
+          ref={panelRef}
           className="pd-topbar__dropdown-panel pd-topbar__dropdown-panel--profile"
           role="menu"
           aria-label="Profile menu"
+          style={{
+            ...panelStyle,
+            visibility: panelStyle ? 'visible' : 'hidden',
+          }}
+          {...hoverHandlers}
         >
           <div className="pd-topbar__dropdown-header">
             <span
@@ -157,7 +174,8 @@ export function ProfileDropdown({
             <LogOut size={14} strokeWidth={2} />
             Sign Out
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
       <ConfirmDialog
         open={showSignOutConfirm}

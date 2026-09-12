@@ -60,7 +60,7 @@ export function ListboxSelect({
   searchable = false,
   searchPlaceholder = 'Search…',
   noResultsText = 'No options found',
-  portal = false,
+  portal = true,
   defaultOpen = false,
   showDescriptionInTrigger = false,
   'aria-label': ariaLabel,

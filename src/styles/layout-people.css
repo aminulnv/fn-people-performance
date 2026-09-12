@@ -2037,8 +2037,15 @@ body>.pd-people-filters__panel {
 
 .pd-modal.pd-profile__cover-modal {
   overflow: visible;
-  max-width: min(32rem, calc(100vw - 2rem));
-  width: min(32rem, calc(100vw - 2rem));
+  max-width: min(26rem, calc(100vw - 2rem));
+  width: min(26rem, calc(100vw - 2rem));
+}
+
+.pd-profile__cover-modal .pd-modal__title {
+  font-family: var(--font-body);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.35;
 }
 
 .pd-profile__cover-modal .pd-modal__body {
@@ -2057,6 +2064,7 @@ body>.pd-people-filters__panel {
   gap: var(--spacing-2, 0.4rem);
   font-size: 0.8125rem;
   font-weight: 600;
+  letter-spacing: 0;
   color: var(--color-text);
 }
 
@@ -2073,125 +2081,48 @@ body>.pd-people-filters__panel {
   z-index: 60;
 }
 
-.pd-profile__cover-modal .pd-listbox__trigger,
-.pd-profile__cover-modal .pd-field--notch {
-  border-radius: 999px;
-  padding-inline: 0.85rem;
-  min-height: 2.75rem;
-  background: var(--color-surface, var(--color-bg));
-  border-color: color-mix(in srgb, var(--color-border) 80%, var(--color-text));
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease,
-    background 120ms ease;
-}
-
-.pd-profile__cover-modal .pd-listbox__trigger:hover:not(:disabled),
-.pd-profile__cover-modal .pd-field--notch:hover {
-  border-color: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
-  background: var(--color-surface-raised, var(--color-bg));
-}
-
-.pd-profile__cover-modal .pd-listbox__trigger:focus-visible,
-.pd-profile__cover-modal .pd-listbox__trigger--combobox:focus-within,
-.pd-profile__cover-modal .pd-field--notch:focus-within {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
-}
-
-.pd-profile__cover-modal .pd-field--notch>.pd-field__label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-weight: 600;
-  background: var(--color-surface-raised, var(--color-surface, var(--color-bg)));
-}
-
 .pd-profile__cover-modal .pd-listbox__panel {
   padding: 0.25rem 0;
   border-radius: var(--radius-3, 0.75rem);
   box-shadow: var(--elevation-med, 0 8px 24px color-mix(in srgb, black 12%, transparent));
 }
 
-.pd-profile__cover-modal .pd-listbox__option {
-  border-radius: 0;
-  padding-inline: 0.75rem;
-}
-
-.pd-profile__cover-modal .pd-listbox__option:hover,
-.pd-profile__cover-modal .pd-listbox__option.is-active {
-  background: var(--color-neutral-hover);
-}
-
 .pd-profile__cover-modal .pd-reviews-window {
   display: grid;
-  grid-template-columns: minmax(max-content, 1fr) auto minmax(max-content, 1fr);
-  grid-template-rows: auto auto;
-  column-gap: var(--spacing-3, 0.65rem);
-  row-gap: var(--spacing-2, 0.4rem);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: stretch;
   max-width: none;
-  align-items: center;
-}
-
-.pd-profile__cover-modal .pd-reviews-window--notch {
-  grid-template-rows: auto;
-}
-
-.pd-profile__cover-modal .pd-reviews-window--notch .pd-reviews-window__date {
-  display: block;
-  grid-row: auto;
-  min-width: max-content;
+  --review-date-width: 100%;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__date {
-  min-width: max-content;
+  width: 100%;
+  min-width: 0;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__arrow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 999px;
-  color: var(--color-theme, var(--color-primary));
-  background: color-mix(in srgb, var(--color-theme, var(--color-primary)) 10%, transparent);
+  display: none;
 }
 
 .pd-profile__cover-modal .pd-reviews-window__label {
   color: var(--color-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.pd-profile__cover-modal .pd-reviews-window .pd-field__control {
+.pd-profile__cover-modal .pd-reviews-window .pd-field__control,
+.pd-profile__cover-modal .pd-date-input__display {
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 
 .pd-profile__cover-modal .pd-modal__actions {
   margin-top: var(--spacing-5, 1.25rem);
   padding-top: var(--spacing-4, 1rem);
   border-top: 1px solid var(--color-border);
-}
-
-@media (max-width: 560px) {
-  .pd-profile__cover-modal .pd-reviews-window {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: none;
-  }
-
-  .pd-profile__cover-modal .pd-reviews-window__date {
-    display: grid;
-    grid-template-rows: none;
-    grid-row: auto;
-    gap: 0.4rem;
-  }
-
-  .pd-profile__cover-modal .pd-reviews-window__arrow {
-    display: none;
-  }
 }
 
 .pd-profile__details {

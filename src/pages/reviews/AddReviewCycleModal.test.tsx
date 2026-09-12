@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { annualPeriodKey, periodKey } from '@/lib/reviews/periods'
+import { annualPeriodKey, halfYearPeriodKey, periodKey } from '@/lib/reviews/periods'
 import * as reviewsStore from '@/lib/reviews/store'
 import { AddReviewCycleModal } from './AddReviewCycleModal'
 
@@ -27,8 +27,8 @@ describe('AddReviewCycleModal', () => {
       'true',
     )
     expect(screen.getByRole('dialog', { name: 'Add Cycle' })).toBeInTheDocument()
-    expect(screen.getByLabelText('Year')).toHaveValue(
-      annualPeriodKey(new Date().getFullYear()),
+    expect(screen.getByLabelText('Period')).toHaveValue(
+      annualPeriodKey(new Date().getFullYear() + 1),
     )
 
     rerender(
@@ -52,7 +52,7 @@ describe('AddReviewCycleModal', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByLabelText('Year')).toBeInTheDocument()
+    expect(screen.getByLabelText('Period')).toBeInTheDocument()
     expect(screen.queryByLabelText('Quarter')).not.toBeInTheDocument()
   })
 
@@ -77,7 +77,7 @@ describe('AddReviewCycleModal', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Annual' }))
-    fireEvent.change(screen.getByLabelText('Year'), {
+    fireEvent.change(screen.getByLabelText('Period'), {
       target: { value: annualPeriodKey(2026) },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
@@ -86,6 +86,43 @@ describe('AddReviewCycleModal', () => {
       expect(create).toHaveBeenCalledWith({
         type: 'regular',
         periodKey: annualPeriodKey(2026),
+        modules: { goals: false, reviews: true },
+        sourceLinks: [],
+      })
+    })
+    expect(onCreated).toHaveBeenCalledWith(created)
+  })
+
+  it('creates a half-year appraisal from the Annual period picker', async () => {
+    const created = {
+      id: halfYearPeriodKey(2025, 1),
+      name: 'H1 2025',
+      periodKey: halfYearPeriodKey(2025, 1),
+    }
+    const create = vi
+      .spyOn(reviewsStore, 'createReviewCycle')
+      .mockResolvedValue(created as never)
+    const onCreated = vi.fn()
+
+    render(
+      <AddReviewCycleModal
+        open
+        onClose={() => {}}
+        onCreated={onCreated}
+        existingPeriodKeys={new Set()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annual' }))
+    fireEvent.change(screen.getByLabelText('Period'), {
+      target: { value: halfYearPeriodKey(2025, 1) },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
+
+    await vi.waitFor(() => {
+      expect(create).toHaveBeenCalledWith({
+        type: 'regular',
+        periodKey: halfYearPeriodKey(2025, 1),
         modules: { goals: false, reviews: true },
         sourceLinks: [],
       })
@@ -191,7 +228,7 @@ describe('AddReviewCycleModal', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Annual' }))
-    fireEvent.change(screen.getByLabelText('Year'), {
+    fireEvent.change(screen.getByLabelText('Period'), {
       target: { value: annualPeriodKey(2026) },
     })
     expect(screen.getByRole('checkbox', { name: /Q3 2026/i })).toBeChecked()

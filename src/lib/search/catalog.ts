@@ -23,7 +23,7 @@ import {
 } from '@/lib/organisation/paths'
 import type { OrganisationSnapshot } from '@/lib/organisation/types'
 import { cycleDetailPath } from '@/lib/reviews/paths'
-import { PURPOSE_SHORT_LABEL, cyclePurposeOf } from '@/lib/reviews/purpose'
+import { cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   scorecardDetailPath,
@@ -352,7 +352,7 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
       keywords: uniqueKeywords([
         cycle.periodKey,
         cycle.yearKey,
-        PURPOSE_SHORT_LABEL[cyclePurposeOf(cycle)],
+        cycleTypeLabel(cycle),
         cycleStatusLabel(status),
       ]),
       path: write ? cycleDetailPath(cycle.id) : '/reviews/scorecards',

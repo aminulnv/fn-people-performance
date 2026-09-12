@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Check, ChevronDown, Search } from 'lucide-react'
+import { useFloatingPanel } from './useFloatingPanel'
 
 export type CycleSelectStatus = 'future' | 'current' | 'previous'
 
@@ -102,13 +104,25 @@ export function CycleSelect(props: CycleSelectProps) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+    fitContent: true,
+  })
 
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false)
+      const target = event.target as Node
+      if (
+        containerRef.current?.contains(target) ||
+        panelRef.current?.contains(target)
+      ) {
+        return
       }
+      setOpen(false)
     }
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false)
@@ -200,12 +214,18 @@ export function CycleSelect(props: CycleSelectProps) {
         />
       </button>
 
-      {open ? (
+      {open
+        ? createPortal(
         <div
-          className="pd-cycle-select__panel"
+          ref={panelRef}
+          className="pd-cycle-select__panel pd-cycle-select__panel--floating"
           role="listbox"
           aria-label={`Select ${label.toLowerCase()}`}
           aria-multiselectable={multiple || undefined}
+          style={{
+            ...panelStyle,
+            visibility: panelStyle ? 'visible' : 'hidden',
+          }}
         >
           <div className="pd-cycle-select__search">
             <Search size={14} strokeWidth={2} aria-hidden />
@@ -305,7 +325,8 @@ export function CycleSelect(props: CycleSelectProps) {
               })
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   )

@@ -103,7 +103,7 @@ describe('CyclesList', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.getByLabelText('Year')).toBeInTheDocument()
+    expect(screen.getByLabelText('Period')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Create Cycle' }))
 

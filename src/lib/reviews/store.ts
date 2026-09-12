@@ -14,7 +14,7 @@ import {
   cloneCycleSettingsIntoGroup,
   cycleGroupsOf,
 } from "./cycleGroups";
-import { findPeriod } from "./periods";
+import { findPeriod, isAnnualPeriodKey } from "./periods";
 import {
   applyCycleModules,
   isPublishStage,
@@ -382,7 +382,7 @@ export async function createReviewCycle(
       yearKey: input.yearKey ?? inferYearKey(period.key, period.startDate),
       sourceLinks:
         input.sourceLinks ??
-        (purpose === "annual_appraisal"
+        (purpose === "annual_appraisal" && isAnnualPeriodKey(period.key)
           ? suggestedSourceLinks(period.key.slice(-4), getState().cycles)
           : []),
       stagesConfig: applyCreateModules(

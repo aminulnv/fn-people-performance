@@ -109,6 +109,12 @@
   overflow: hidden;
 }
 
+.pd-cycle-select__panel--floating {
+  position: fixed;
+  top: auto;
+  left: auto;
+}
+
 .pd-cycle-select__search {
   display: flex;
   align-items: center;

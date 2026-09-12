@@ -177,6 +177,8 @@ export function cycleLabelFromKey(cycleKey: string): string {
   if (quarter) return `Q${quarter[1]} ${quarter[2]}`
   const annual = /^annual-(\d{4})$/i.exec(cycleKey)
   if (annual) return `Annual ${annual[1]}`
+  const halfYear = /^h([12])-(\d{4})$/i.exec(cycleKey)
+  if (halfYear) return `H${halfYear[1]} ${halfYear[2]}`
   return cycleKey
 }
 

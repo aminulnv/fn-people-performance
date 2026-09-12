@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { resolveDropdownMenuPlacement } from './dropdownMenuPlacement'
+import {
+  resolveDropdownMenuPlacement,
+  resolveFloatingPanelBox,
+} from './dropdownMenuPlacement'
 
 const viewport = { top: 0, right: 800, bottom: 700, left: 0 }
 
@@ -46,5 +49,30 @@ describe('resolveDropdownMenuPlacement', () => {
         'start',
       ),
     ).toEqual({ vertical: 'below', horizontal: 'end' })
+  })
+})
+
+describe('resolveFloatingPanelBox', () => {
+  it('aligns to the trigger’s right when the right edge does not fit', () => {
+    const box = resolveFloatingPanelBox(
+      { top: 80, bottom: 100, left: 720, right: 748 },
+      { width: 176, height: 120 },
+      viewport,
+      'start',
+    )
+    expect(box.placement).toEqual({ vertical: 'below', horizontal: 'end' })
+    expect(box.left).toBe(748 - 176)
+    expect(box.top).toBe(106)
+  })
+
+  it('opens above when the bottom does not fit', () => {
+    const box = resolveFloatingPanelBox(
+      { top: 620, bottom: 640, left: 200, right: 228 },
+      { width: 176, height: 180 },
+      viewport,
+      'start',
+    )
+    expect(box.placement.vertical).toBe('above')
+    expect(box.top).toBe(620 - 6 - 180)
   })
 })

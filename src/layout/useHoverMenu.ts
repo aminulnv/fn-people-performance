@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 
 const DEFAULT_CLOSE_DELAY_MS = 150
 
@@ -7,6 +7,8 @@ type UseHoverMenuOptions = {
   closeDelayMs?: number
   /** Close on Escape while open (desktop + mobile). */
   closeOnEscape?: boolean
+  /** Portalled panel that still counts as “inside” the menu. */
+  panelRef?: RefObject<HTMLElement | null>
 }
 
 /**
@@ -18,6 +20,7 @@ export function useHoverMenu({
   isMobile,
   closeDelayMs = DEFAULT_CLOSE_DELAY_MS,
   closeOnEscape = false,
+  panelRef,
 }: UseHoverMenuOptions = {}) {
   const [open, setOpenState] = useState(false)
   const [pinned, setPinned] = useState(false)
@@ -46,17 +49,15 @@ export function useHoverMenu({
     if (!open || isMobile) return
 
     const handleClick = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false)
-      }
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (panelRef?.current?.contains(target)) return
+      setOpen(false)
     }
 
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [open, isMobile, setOpen])
+  }, [open, isMobile, panelRef, setOpen])
 
   useEffect(() => {
     if (!open || !closeOnEscape) return

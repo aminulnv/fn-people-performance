@@ -1,4 +1,9 @@
-import { buildPeriod, findAnnualPeriod, findPeriod } from './periods'
+import {
+  buildPeriod,
+  findAnnualPeriod,
+  findPeriod,
+  isHalfYearPeriodKey,
+} from './periods'
 import {
   normalizeCycleType,
   type CyclePeriodOption,
@@ -18,12 +23,28 @@ export const PURPOSE_SHORT_LABEL: Record<CyclePurpose, string> = {
   custom: 'Custom',
 }
 
+export function cycleTypeLabel(
+  cycle: Pick<ReviewCycle, 'periodKey' | 'type'> | null | undefined,
+): string {
+  if (isHalfYearPeriodKey(cycle?.periodKey)) return 'Biannual'
+  return PURPOSE_SHORT_LABEL[cyclePurposeOf(cycle)]
+}
+
+export function cycleTypeFilterValue(
+  cycle: Pick<ReviewCycle, 'periodKey' | 'type'>,
+): string {
+  if (isHalfYearPeriodKey(cycle.periodKey)) return 'biannual_appraisal'
+  return cyclePurposeOf(cycle)
+}
+
 export function inferPurpose(
   periodKey?: string,
   fallback: CyclePurpose = 'custom',
 ): CyclePurpose {
   if (!periodKey) return fallback
-  if (/^annual-\d{4}$/i.test(periodKey)) return 'annual_appraisal'
+  if (/^annual-\d{4}$/i.test(periodKey) || isHalfYearPeriodKey(periodKey)) {
+    return 'annual_appraisal'
+  }
   if (/^q[1-4]-\d{4}$/i.test(periodKey)) return 'quarterly_checkin'
   return fallback
 }

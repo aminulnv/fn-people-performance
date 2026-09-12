@@ -24,6 +24,18 @@ export function annualPeriodKey(year: number): string {
   return `annual-${year}`
 }
 
+export function halfYearPeriodKey(year: number, half: 1 | 2): string {
+  return `h${half}-${year}`
+}
+
+export function isAnnualPeriodKey(key?: string): boolean {
+  return /^annual-\d{4}$/i.test(key ?? '')
+}
+
+export function isHalfYearPeriodKey(key?: string): boolean {
+  return /^h[12]-\d{4}$/i.test(key ?? '')
+}
+
 export function findAnnualPeriod(key: string): CyclePeriodOption | undefined {
   const match = /^annual-(\d{4})$/i.exec(key.trim())
   if (!match) return undefined
@@ -41,6 +53,59 @@ export function listAnnualPeriods(referenceDate = new Date()): CyclePeriodOption
   return [year, year + 1, year - 1]
     .map((value) => findAnnualPeriod(annualPeriodKey(value)))
     .filter((period): period is CyclePeriodOption => Boolean(period))
+}
+
+export function findHalfYearPeriod(key: string): CyclePeriodOption | undefined {
+  const match = /^h([12])-(\d{4})$/i.exec(key.trim())
+  if (!match) return undefined
+  const half = Number(match[1]) as 1 | 2
+  const year = Number(match[2])
+  return buildHalfYearPeriod(year, half)
+}
+
+export function buildHalfYearPeriod(
+  year: number,
+  half: 1 | 2,
+): CyclePeriodOption {
+  if (half === 1) {
+    return {
+      key: halfYearPeriodKey(year, 1),
+      label: `H1 ${year}`,
+      startDate: toIso(year, 0, 1),
+      endDate: toIso(year, 5, 30),
+    }
+  }
+  return {
+    key: halfYearPeriodKey(year, 2),
+    label: `H2 ${year}`,
+    startDate: toIso(year, 6, 1),
+    endDate: toIso(year, 11, 31),
+  }
+}
+
+/** 2026 onward is annual-only. Half-year periods are the prior cadence. */
+const FIRST_ANNUAL_ONLY_YEAR = 2026
+
+export function listHalfYearPeriods(
+  referenceDate = new Date(),
+): CyclePeriodOption[] {
+  const latest = Math.min(referenceDate.getFullYear(), FIRST_ANNUAL_ONLY_YEAR) - 1
+  const options: CyclePeriodOption[] = []
+  for (const value of [latest, latest - 1]) {
+    options.push(buildHalfYearPeriod(value, 2), buildHalfYearPeriod(value, 1))
+  }
+  return options
+}
+
+/** Next and current annual years, then the last biannual halves. */
+export function listAppraisalPeriods(
+  referenceDate = new Date(),
+): CyclePeriodOption[] {
+  const year = referenceDate.getFullYear()
+  const annuals = [year + 1, year]
+    .map((value) => findAnnualPeriod(annualPeriodKey(value)))
+    .filter((period): period is CyclePeriodOption => Boolean(period))
+  return [...annuals, ...listHalfYearPeriods(referenceDate)]
 }
 
 /** Nearby years for the cycle details picker, plus any year already in use. */
@@ -92,6 +157,8 @@ export function listSelectablePeriods(
 export function findPeriod(key: string): CyclePeriodOption | undefined {
   const annual = findAnnualPeriod(key)
   if (annual) return annual
+  const halfYear = findHalfYearPeriod(key)
+  if (halfYear) return halfYear
   const match = /^q([1-4])-(\d{4})$/i.exec(key.trim())
   if (!match) return undefined
   const quarter = Number(match[1]) as 1 | 2 | 3 | 4
@@ -107,7 +174,10 @@ export function listQuarterPeriods(referenceDate = new Date()): CyclePeriodOptio
 }
 
 export function listCreatePeriods(referenceDate = new Date()): CyclePeriodOption[] {
-  return [...listAnnualPeriods(referenceDate), ...listSelectablePeriods(referenceDate)]
+  return [
+    ...listAppraisalPeriods(referenceDate),
+    ...listSelectablePeriods(referenceDate),
+  ]
 }
 
 /** Calendar-day key for date-only values, so timezones cannot shift a stage. */

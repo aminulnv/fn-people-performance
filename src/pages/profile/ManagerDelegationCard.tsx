@@ -312,7 +312,6 @@ export function ManagerDelegationAssignModal({
           endValue={editor.endsOn}
           onStartChange={editor.setStartsOn}
           onEndChange={editor.setEndsOn}
-          labelPlacement="notch"
         />
       </section>
     </Modal>

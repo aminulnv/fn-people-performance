@@ -131,6 +131,27 @@ describe("reviews store", () => {
     expect(getReviewCycle(created.id)?.id).toBe(created.id);
   });
 
+  it("creates H1 and H2 in the same year as annual-weight appraisals", async () => {
+    const first = await createReviewCycle({
+      type: "regular",
+      periodKey: "h1-2025",
+    });
+    const second = await createReviewCycle({
+      type: "regular",
+      periodKey: "h2-2025",
+    });
+    expect(first.id).toBe("h1-2025");
+    expect(first.name).toBe("H1 2025");
+    expect(second.id).toBe("h2-2025");
+    expect(first.sourceLinks).toEqual([]);
+    const enabled = (first.stagesConfig.reviewStages ?? [])
+      .filter((stage) => stage.enabled)
+      .map((stage) => stage.id);
+    expect(enabled).toContain("self_review");
+    expect(enabled).toContain("manager_review");
+    expect(enabled).not.toContain("goals");
+  });
+
   it("creates an annual appraisal with year stages and linked quarters", async () => {
     const created = await createReviewCycle({
       type: "regular",

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   PURPOSE_SHORT_LABEL,
   cyclePurposeOf,
+  cycleTypeLabel,
   excludeSourceFromAnnualPatches,
   includeSourceInAnnualPatches,
   listLinkableSourceCycles,
@@ -43,6 +44,18 @@ describe('PURPOSE_SHORT_LABEL', () => {
     expect(
       PURPOSE_SHORT_LABEL[cyclePurposeOf({ type: 'custom', periodKey: '' })],
     ).toBe('Custom')
+    expect(
+      cyclePurposeOf({ type: 'regular', periodKey: 'h1-2025' }),
+    ).toBe('annual_appraisal')
+    expect(
+      cyclePurposeOf({ type: 'regular', periodKey: 'h2-2025' }),
+    ).toBe('annual_appraisal')
+    expect(cycleTypeLabel({ type: 'regular', periodKey: 'h2-2025' })).toBe(
+      'Biannual',
+    )
+    expect(cycleTypeLabel({ type: 'regular', periodKey: 'annual-2026' })).toBe(
+      'Annual',
+    )
   })
 })
 

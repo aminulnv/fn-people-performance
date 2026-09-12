@@ -5,7 +5,8 @@ import { toUtcIso } from '@/lib/dates/timezone'
 import {
   findPeriod,
   formatDateRange,
-  listAnnualPeriods,
+  isAnnualPeriodKey,
+  listAppraisalPeriods,
   listQuarterPeriods,
 } from '@/lib/reviews/periods'
 import {
@@ -51,14 +52,14 @@ export function AddReviewCycleModal({
   cycles = [],
 }: AddReviewCycleModalProps) {
   const quarters = useMemo(() => listQuarterPeriods(), [])
-  const annuals = useMemo(() => listAnnualPeriods(), [])
+  const appraisals = useMemo(() => listAppraisalPeriods(), [])
   const availableQuarters = useMemo(
     () => quarters.filter((item) => !existingPeriodKeys.has(item.key)),
     [existingPeriodKeys, quarters],
   )
-  const availableAnnuals = useMemo(
-    () => annuals.filter((item) => !existingPeriodKeys.has(item.key)),
-    [annuals, existingPeriodKeys],
+  const availableAppraisals = useMemo(
+    () => appraisals.filter((item) => !existingPeriodKeys.has(item.key)),
+    [appraisals, existingPeriodKeys],
   )
 
   const [kind, setKind] = useState<CyclePurpose>('quarterly_checkin')
@@ -114,10 +115,11 @@ export function AddReviewCycleModal({
       setModules(presetCycleModules(next, nextPeriod || undefined))
       setSourceIds([])
     } else if (next === 'annual_appraisal') {
-      const nextPeriod = firstKey(availableAnnuals, periodKey)
+      const nextPeriod = firstKey(availableAppraisals, periodKey)
       setPeriodKey(nextPeriod)
       setModules(presetCycleModules(next, nextPeriod || undefined))
-      applySuggestedSources(nextPeriod)
+      if (isAnnualPeriodKey(nextPeriod)) applySuggestedSources(nextPeriod)
+      else setSourceIds([])
     } else {
       setModules(presetCycleModules(next))
     }
@@ -130,7 +132,7 @@ export function AddReviewCycleModal({
       if (kind !== 'custom' && !periodKey) {
         setError(
           kind === 'annual_appraisal'
-            ? 'Every appraisal year in the picker already exists.'
+            ? 'Every appraisal period in the picker already exists.'
             : 'Select a quarter before creating the cycle.',
         )
         return
@@ -175,7 +177,7 @@ export function AddReviewCycleModal({
   if (!open) return null
 
   const periodOptions =
-    kind === 'annual_appraisal' ? availableAnnuals : availableQuarters
+    kind === 'annual_appraisal' ? availableAppraisals : availableQuarters
   const canCreate = kind === 'custom' || periodOptions.length > 0
 
   return (
@@ -200,18 +202,19 @@ export function AddReviewCycleModal({
           periodOptions.length === 0 ? (
             <p className="pd-reviews-create__status" role="status">
               {kind === 'annual_appraisal'
-                ? 'Those years already have an annual cycle.'
+                ? 'Those periods already have an appraisal cycle.'
                 : 'Those quarters already have a cycle.'}
             </p>
           ) : (
             <Select
-              label={kind === 'annual_appraisal' ? 'Year' : 'Quarter'}
+              label={kind === 'annual_appraisal' ? 'Period' : 'Quarter'}
               value={periodKey}
               onChange={(event) => {
                 const next = event.target.value
                 setPeriodKey(next)
                 setModules(presetCycleModules(kind, next))
-                if (kind === 'annual_appraisal') applySuggestedSources(next)
+                if (isAnnualPeriodKey(next)) applySuggestedSources(next)
+                else setSourceIds([])
               }}
               options={periodOptions.map((period) => ({
                 value: period.key,

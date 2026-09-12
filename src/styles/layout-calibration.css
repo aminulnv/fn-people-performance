@@ -1,0 +1,384 @@
+.pd-page.pd-calibration,
+.pd-calibration {
+  display: grid;
+  align-content: start;
+  gap: 0.85rem;
+  width: 100%;
+  max-width: min(100%, 80rem);
+  margin-inline: auto;
+  min-height: 0;
+}
+
+.pd-cal-dist {
+  --grade-exceptional: var(--color-status-completed);
+  --grade-exceeding: var(--color-blue);
+  --grade-performing: var(--color-status-on-hold);
+  --grade-developing: var(--color-status-pending);
+  --grade-unsatisfactory: var(--color-red);
+  --series-1: var(--color-cta);
+  --series-2: var(--color-status-on-hold);
+  --series-3: var(--color-blue);
+  --series-4: var(--color-status-pending);
+  --series-5: var(--color-status-completed);
+  --series-6: var(--color-brand);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(11rem, 14rem);
+  grid-template-areas:
+    'head head'
+    'plot stats'
+    'series series'
+    'note note';
+  gap: 1rem 1.5rem;
+  min-width: 0;
+  padding: 1.1rem 1.2rem 1.15rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--people-radius-panel, 1rem);
+  background: var(--color-surface-raised, var(--color-surface));
+}
+
+.pd-cal-dist__head {
+  grid-area: head;
+  display: grid;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pd-cal-dist__tabs {
+  width: fit-content;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.pd-cal-dist__copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.pd-cal-dist__plot {
+  grid-area: plot;
+  list-style: none;
+  margin: 0;
+  padding: 1.15rem 0 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.pd-cal-dist__col {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  text-align: center;
+}
+
+.pd-cal-dist__track {
+  position: relative;
+  width: 100%;
+  max-width: 8rem;
+  height: 12.5rem;
+  border-radius: var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0 0;
+  background: color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
+}
+
+.pd-cal-dist__cluster {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.pd-cal-dist__cluster--grouped {
+  gap: 0.18rem;
+  padding-inline: 0.2rem;
+}
+
+.pd-cal-dist__fill {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 0;
+  border-radius: var(--radius-sm, 0.375rem) var(--radius-sm, 0.375rem) 0 0;
+  background: var(--color-status-on-hold);
+}
+
+.pd-cal-dist__fill.is-unsatisfactory {
+  background: var(--grade-unsatisfactory);
+}
+
+.pd-cal-dist__fill.is-developing {
+  background: var(--grade-developing);
+}
+
+.pd-cal-dist__fill.is-performing {
+  background: var(--grade-performing);
+}
+
+.pd-cal-dist__fill.is-exceeding {
+  background: var(--grade-exceeding);
+}
+
+.pd-cal-dist__fill.is-exceptional {
+  background: var(--grade-exceptional);
+}
+
+.pd-cal-dist__fill.is-series-1 {
+  background: var(--series-1);
+}
+
+.pd-cal-dist__fill.is-series-2 {
+  background: var(--series-2);
+}
+
+.pd-cal-dist__fill.is-series-3 {
+  background: var(--series-3);
+}
+
+.pd-cal-dist__fill.is-series-4 {
+  background: var(--series-4);
+}
+
+.pd-cal-dist__fill.is-series-5 {
+  background: var(--series-5);
+}
+
+.pd-cal-dist__fill.is-series-6 {
+  background: var(--series-6);
+}
+
+.pd-cal-dist__pct {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translate(-50%, -0.2rem);
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pd-cal-dist__guide {
+  position: absolute;
+  left: -0.15rem;
+  right: -0.15rem;
+  z-index: 1;
+  height: 0;
+  padding-inline-end: 0.05rem;
+  border-top: 0.1rem solid var(--color-red);
+  color: var(--color-red);
+  font-size: 0.65rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  text-align: right;
+  transform: translateY(50%);
+  pointer-events: none;
+}
+
+.pd-cal-dist__count {
+  margin-top: 0.2rem;
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.pd-cal-dist__label {
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.pd-cal-dist__people {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.pd-cal-dist__stats {
+  grid-area: stats;
+  display: grid;
+  align-content: center;
+  gap: 0.85rem;
+  min-width: 0;
+  padding-inline-start: 0.25rem;
+}
+
+.pd-cal-dist__stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.pd-cal-dist__stat strong {
+  color: var(--color-text);
+  font-size: 1.05rem;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  white-space: nowrap;
+}
+
+.pd-cal-dist__stat strong em {
+  margin-inline-start: 0.3rem;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.pd-cal-dist__stat strong.is-high {
+  color: var(--grade-exceptional);
+}
+
+.pd-cal-dist__stat strong.is-mid {
+  color: var(--grade-performing);
+}
+
+.pd-cal-dist__stat strong.is-low {
+  color: var(--grade-developing);
+}
+
+.pd-cal-dist__legend-series {
+  grid-area: series;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 550;
+}
+
+.pd-cal-dist__legend-series li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pd-cal-dist__swatch {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 999px;
+  background: var(--color-status-on-hold);
+}
+
+.pd-cal-dist__swatch.is-series-1 {
+  background: var(--series-1);
+}
+
+.pd-cal-dist__swatch.is-series-2 {
+  background: var(--series-2);
+}
+
+.pd-cal-dist__swatch.is-series-3 {
+  background: var(--series-3);
+}
+
+.pd-cal-dist__swatch.is-series-4 {
+  background: var(--series-4);
+}
+
+.pd-cal-dist__swatch.is-series-5 {
+  background: var(--series-5);
+}
+
+.pd-cal-dist__swatch.is-series-6 {
+  background: var(--series-6);
+}
+
+.pd-cal-dist__footnote {
+  grid-area: note;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.pd-cal-dist__footnote-line {
+  width: 1.1rem;
+  border-top: 0.1rem solid var(--color-red);
+}
+
+.pd-cal-dist__multiples {
+  grid-area: plot;
+  list-style: none;
+  display: grid;
+  gap: 1.15rem;
+  margin: 0;
+  padding: 0;
+}
+
+.pd-cal-dist__multiple {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.pd-cal-dist__multiple-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.pd-cal-dist__multiple-title span {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 550;
+}
+
+.pd-cal-dist__multiple .pd-cal-dist__plot {
+  padding-top: 0;
+}
+
+.pd-cal-dist__multiple .pd-cal-dist__track {
+  height: 8.5rem;
+}
+
+@media (max-width: 52rem) {
+  .pd-cal-dist {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'head'
+      'plot'
+      'series'
+      'stats'
+      'note';
+  }
+
+  .pd-cal-dist__stats {
+    padding: 0.85rem 0 0;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .pd-cal-dist__tabs {
+    width: 100%;
+  }
+}

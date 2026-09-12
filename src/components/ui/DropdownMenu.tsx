@@ -1,19 +1,15 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { cx } from '@/lib/cx'
 import { useHoverMenu } from '@/layout/useHoverMenu'
-import {
-  resolveDropdownMenuPlacement,
-  visibleMenuBounds,
-  type MenuPlacement,
-} from './dropdownMenuPlacement'
+import { useFloatingPanel } from './useFloatingPanel'
 
 export type DropdownMenuItem = {
   id: string
@@ -43,32 +39,19 @@ export function DropdownMenu({
 }: DropdownMenuProps) {
   const menuId = useId()
   const [activeIndex, setActiveIndex] = useState(0)
-  const [placement, setPlacement] = useState<MenuPlacement>({
-    vertical: 'below',
-    horizontal: align,
-  })
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([])
   const panelRef = useRef<HTMLDivElement>(null)
   const { open, setOpen, containerRef, hoverHandlers, toggle } = useHoverMenu({
     closeOnEscape: true,
+    panelRef,
   })
-
-  useLayoutEffect(() => {
-    if (!open) return
-    const container = containerRef.current
-    const panel = panelRef.current
-    if (!container || !panel) return
-    const triggerRect = container.getBoundingClientRect()
-    const panelRect = panel.getBoundingClientRect()
-    setPlacement(
-      resolveDropdownMenuPlacement(
-        triggerRect,
-        { width: panelRect.width, height: panelRect.height },
-        visibleMenuBounds(),
-        align,
-      ),
-    )
-  }, [open, align, items, containerRef])
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+    fitContent: true,
+    preferredAlign: align,
+  })
 
   const enabledItems = items.filter((item) => !item.disabled)
 
@@ -91,6 +74,74 @@ export function DropdownMenu({
     queueMicrotask(() => itemRefs.current[nextIndex]?.focus())
   }
 
+  const panel = open ? (
+    <div
+      ref={panelRef}
+      id={menuId}
+      role="menu"
+      aria-label={label}
+      className="pd-menu__panel pd-menu__panel--floating"
+      style={{
+        ...panelStyle,
+        visibility: panelStyle ? 'visible' : 'hidden',
+      }}
+      {...hoverHandlers}
+    >
+      {items.map((item, index) => (
+        <button
+          key={item.id}
+          ref={(node) => {
+            itemRefs.current[index] = node
+          }}
+          type="button"
+          role="menuitem"
+          className={cx(
+            'pd-menu__item',
+            item.danger && 'pd-menu__item--danger',
+            index === activeIndex && 'is-active',
+          )}
+          disabled={item.disabled}
+          tabIndex={index === activeIndex ? 0 : -1}
+          onMouseEnter={() => {
+            if (!item.disabled) setActiveIndex(index)
+          }}
+          onClick={() => {
+            item.onSelect()
+            setOpen(false)
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'ArrowDown') {
+              event.preventDefault()
+              moveActive(1)
+            } else if (event.key === 'ArrowUp') {
+              event.preventDefault()
+              moveActive(-1)
+            } else if (event.key === 'Home') {
+              event.preventDefault()
+              const first = items.findIndex((entry) => !entry.disabled)
+              if (first >= 0) setActiveIndex(first)
+            } else if (event.key === 'End') {
+              event.preventDefault()
+              for (let i = items.length - 1; i >= 0; i -= 1) {
+                if (!items[i].disabled) {
+                  setActiveIndex(i)
+                  break
+                }
+              }
+            }
+          }}
+        >
+          {item.icon ? (
+            <span className="pd-menu__item-icon" aria-hidden>
+              {item.icon}
+            </span>
+          ) : null}
+          {item.label}
+        </button>
+      ))}
+    </div>
+  ) : null
+
   return (
     <div
       ref={containerRef}
@@ -111,72 +162,9 @@ export function DropdownMenu({
       >
         {trigger ?? label}
       </button>
-      {open ? (
-        <div
-          ref={panelRef}
-          id={menuId}
-          role="menu"
-          aria-label={label}
-          className={cx(
-            'pd-menu__panel',
-            `pd-menu__panel--${placement.horizontal}`,
-            placement.vertical === 'above' && 'pd-menu__panel--above',
-          )}
-        >
-          {items.map((item, index) => (
-            <button
-              key={item.id}
-              ref={(node) => {
-                itemRefs.current[index] = node
-              }}
-              type="button"
-              role="menuitem"
-              className={cx(
-                'pd-menu__item',
-                item.danger && 'pd-menu__item--danger',
-                index === activeIndex && 'is-active',
-              )}
-              disabled={item.disabled}
-              tabIndex={index === activeIndex ? 0 : -1}
-              onMouseEnter={() => {
-                if (!item.disabled) setActiveIndex(index)
-              }}
-              onClick={() => {
-                item.onSelect()
-                setOpen(false)
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'ArrowDown') {
-                  event.preventDefault()
-                  moveActive(1)
-                } else if (event.key === 'ArrowUp') {
-                  event.preventDefault()
-                  moveActive(-1)
-                } else if (event.key === 'Home') {
-                  event.preventDefault()
-                  const first = items.findIndex((entry) => !entry.disabled)
-                  if (first >= 0) setActiveIndex(first)
-                } else if (event.key === 'End') {
-                  event.preventDefault()
-                  for (let i = items.length - 1; i >= 0; i -= 1) {
-                    if (!items[i].disabled) {
-                      setActiveIndex(i)
-                      break
-                    }
-                  }
-                }
-              }}
-            >
-              {item.icon ? (
-                <span className="pd-menu__item-icon" aria-hidden>
-                  {item.icon}
-                </span>
-              ) : null}
-              {item.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {panel && typeof document !== 'undefined'
+        ? createPortal(panel, document.body)
+        : panel}
     </div>
   )
 }

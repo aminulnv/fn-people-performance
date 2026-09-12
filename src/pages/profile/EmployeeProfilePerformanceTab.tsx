@@ -13,7 +13,7 @@ import { cx } from '@/lib/cx'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { formatLocalDateRange } from '@/lib/dates/timezone'
-import { PURPOSE_SHORT_LABEL, cyclePurposeOf } from '@/lib/reviews/purpose'
+import { cyclePurposeOf, cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   buildEmployeeScorecardHistory,
@@ -149,7 +149,7 @@ function ScorecardHistoryRow({
   const grade = gradeCopy(row)
   const statusLabel = SCORECARD_STATUS_LIST_LABEL[row.status]
   const meta = [
-    PURPOSE_SHORT_LABEL[purpose],
+    cycleTypeLabel(cycle),
     windowLabel,
     reviewer && `Reviewer ${reviewer}`,
   ]

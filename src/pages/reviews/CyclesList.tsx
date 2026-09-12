@@ -43,6 +43,8 @@ import {
 import {
   PURPOSE_SHORT_LABEL,
   cyclePurposeOf,
+  cycleTypeFilterValue,
+  cycleTypeLabel,
   excludeSourceFromAnnualPatches,
   findAnnualOwningSource,
   includeSourceInAnnualPatches,
@@ -145,6 +147,7 @@ export function CyclesList() {
       type: [
         { value: 'quarterly_checkin', label: PURPOSE_SHORT_LABEL.quarterly_checkin },
         { value: 'annual_appraisal', label: PURPOSE_SHORT_LABEL.annual_appraisal },
+        { value: 'biannual_appraisal', label: 'Biannual' },
         { value: 'custom', label: PURPOSE_SHORT_LABEL.custom },
       ],
       status: [
@@ -184,7 +187,7 @@ export function CyclesList() {
       if (
         !matchesAttributeFilters(attributeFilters, {
           name: cycle.name.trim(),
-          type: cyclePurposeOf(cycle),
+          type: cycleTypeFilterValue(cycle),
           status,
         })
       ) {
@@ -194,7 +197,7 @@ export function CyclesList() {
       const statusLabel = cycleStatusLabel(status)
       const haystack = [
         cycle.name,
-        PURPOSE_SHORT_LABEL[cyclePurposeOf(cycle)],
+        cycleTypeLabel(cycle),
         statusLabel,
         formatLocalDatesRange(cycle.startDate, cycle.endDate),
       ]
@@ -836,7 +839,7 @@ function CycleRow({
         </span>
       </td>
       <td className="pd-reviews-cycles__muted">
-        {PURPOSE_SHORT_LABEL[purpose]}
+        {cycleTypeLabel(cycle)}
       </td>
       <td className="pd-reviews-cycles__count">
         {cycleMemberIds(cycle).length}
