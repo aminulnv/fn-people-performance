@@ -16,6 +16,7 @@ import {
   createCycleGroup,
   getReviewCycle,
   resetReviewsStoreForTests,
+  updateCycleGroup,
 } from '@/lib/reviews/store'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
 import GoalsPage from '@/pages/GoalsPage'
@@ -325,6 +326,35 @@ describe('GoalsPersonDetail manager review', () => {
     ).not.toBeInTheDocument()
     expect(
       screen.getByRole('region', { name: 'Direct Report goals' }),
+    ).toBeInTheDocument()
+  })
+
+  it('does not mark a grouped report as outside the cycle when the manager is ungrouped', async () => {
+    const cycle = getReviewCycle(getGoalsSnapshot().cycle.id)
+    const group = cycle?.groups?.[0]
+    expect(group).toBeTruthy()
+    await updateCycleGroup(cycle!.id, group!.id, { memberIds: [1] })
+
+    render(
+      <MemoryRouter>
+        <AuthProvider>
+          <GoalsPersonDetail personId={MANAGER_ID} embedded />
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: /My Reports/i }))
+
+    expect(
+      await screen.findByRole('region', { name: 'Direct Report goals' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('status', {
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+      }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /add (a )?goal/i }),
     ).toBeInTheDocument()
   })
 

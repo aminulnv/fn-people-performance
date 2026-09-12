@@ -12,9 +12,27 @@ afterEach(() => {
 })
 
 const OPTIONS: CycleSelectOption[] = [
-  { id: 'annual-2026', label: 'Annual 2026', status: 'future', statusLabel: 'Future' },
-  { id: 'q3-2026', label: 'Q3 2026', status: 'current', statusLabel: 'Current' },
-  { id: 'q2-2026', label: 'Q2 2026', status: 'previous', statusLabel: 'Previous' },
+  {
+    id: 'annual-2026',
+    label: 'Annual 2026',
+    status: 'future',
+    statusLabel: 'Future',
+    dateLabel: '1 Jan - 15 Feb 2027',
+  },
+  {
+    id: 'q3-2026',
+    label: 'Q3 2026',
+    status: 'current',
+    statusLabel: 'Current',
+    dateLabel: '1 Jul - 30 Sep 2026',
+  },
+  {
+    id: 'q2-2026',
+    label: 'Q2 2026',
+    status: 'previous',
+    statusLabel: 'Previous',
+    dateLabel: '1 Apr - 30 Jun 2026',
+  },
 ]
 
 describe('sanitizeCycleSelection', () => {
@@ -45,6 +63,22 @@ describe('toggleCycleSelection', () => {
 })
 
 describe('CycleSelect', () => {
+  it('shows the short date range next to each cycle title', () => {
+    render(
+      <CycleSelect
+        label="Cycle"
+        options={OPTIONS}
+        value="q3-2026"
+        onChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cycle: Q3 2026' }))
+
+    expect(screen.getByText('(1 Jul - 30 Sep 2026)')).toBeInTheDocument()
+    expect(screen.getByText('(1 Apr - 30 Jun 2026)')).toBeInTheDocument()
+  })
+
   it('keeps the menu open while toggling multiple cycles', () => {
     const onChange = vi.fn()
     render(

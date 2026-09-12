@@ -1,14 +1,11 @@
 import { formatLocalTimestamp } from '@/lib/dates/timezone'
 import type {
-  CalibrationLogic,
-  CalibrationModeId,
   CycleStage,
   CycleStagesConfig,
   CycleSettings,
   DateTimeValue,
   GoalCountPolicy,
   GradeBandId,
-  GradeRecommendationId,
   PostWindowGoalPolicy,
   ReviewTypeId,
 } from './types'
@@ -137,55 +134,6 @@ export const GRADE_BAND_CRITERIA: Record<GradeBandId, readonly [string, string, 
   ],
 }
 
-export const CALIBRATION_MODE_META: Record<
-  CalibrationModeId,
-  { label: string; description: string }
-> = {
-  manual: {
-    label: 'Manual',
-    description:
-      'Add a calibrator column to the calibration table. Assign calibrators individually for each employee as needed.',
-  },
-  department: {
-    label: 'Department Owners',
-    description:
-      'Department owners calibrate grades for people in their department.',
-  },
-  central: {
-    label: 'Central Calibration',
-    description:
-      'A central calibrator group reviews and finalises grades across the organisation.',
-  },
-}
-
-export const GRADE_RECOMMENDATION_META: Record<
-  GradeRecommendationId,
-  { label: string; description: string }
-> = {
-  none: {
-    label: 'No Recommendation',
-    description: 'Keep the column empty - calibrators need to pick.',
-  },
-  manager_average: {
-    label: 'Manager Average',
-    description: 'Pre-fill with the average of manager-submitted scores.',
-  },
-  weighted: {
-    label: 'Weighted Scorecards',
-    description:
-      'Pre-fill from weighted scorecard results across review types.',
-  },
-}
-
-export const CALIBRATION_SECTION_HINTS = {
-  calibrators: 'Who reviews and finalises grades for people in this group.',
-  recommendation:
-    'Whether calibrators see a suggested grade before they decide.',
-  seniorLeadership: 'People who sit in SLT calibration for this group.',
-  distribution:
-    'The target mix of grades for this group. Percentages must add up to 100%.',
-} as const
-
 export function enabledReviewTypeLabels(settings: CycleSettings): string {
   const types: Record<ReviewTypeId, boolean> = {
     line_manager: true,
@@ -265,10 +213,4 @@ export function reviewStagesTimeline(config: CycleStagesConfig): CycleStage[] {
   return stagesConfigToTimeline(config).filter(
     (stage) => !GOAL_STAGE_IDS.has(stage.id),
   )
-}
-
-export function distributionTotal(
-  distribution: CalibrationLogic['gradeDistribution'],
-): number {
-  return GRADE_BAND_ORDER.reduce((sum, id) => sum + distribution[id], 0)
 }

@@ -85,8 +85,6 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     settings,
     stagesConfig: buildDefaultStagesConfig('2026-07-01', '2026-09-30'),
     calibration: {
-      calibrationMode: 'department',
-      gradeRecommendation: 'manager_average',
       gradeDistribution: {
         exceptional: 5,
         exceeding: 15,
@@ -212,19 +210,20 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: /advanced/i }))
 
     expect(
-      screen.getByRole('switch', { name: 'Enable Goals Grade' }),
-    ).not.toBeChecked()
-    expect(
-      screen.getByRole('switch', { name: 'Enable Overall Grade' }),
+      screen.getByRole('switch', { name: 'Enable Goals Grading' }),
     ).toBeChecked()
-    expect(screen.getByText('Goals Grade')).toBeInTheDocument()
-    expect(screen.getByText('Overall Grade')).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable Overall Grading' }),
+    ).not.toBeChecked()
+    expect(screen.getByText('Goals Grading')).toBeInTheDocument()
+    expect(screen.getByText('Overall Grading')).toBeInTheDocument()
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
-    expect(screen.getByLabelText('Preset')).toBeInTheDocument()
-    expect(screen.getByText('What We Grade')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Grade areas' })).toBeInTheDocument()
   })
 
   it('keeps publish dates on the release stages', () => {
@@ -295,11 +294,12 @@ describe('GroupSettingsView', () => {
       'aria-pressed',
       'true',
     )
-    expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Preset' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
-    expect(screen.getByLabelText('Preset')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Preset' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Reviews' })).toBeInTheDocument()
   })
 
@@ -407,6 +407,9 @@ describe('GroupSettingsView', () => {
     expect(
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeDisabled()
+    expect(screen.queryByLabelText('Opens')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Goes live')).not.toBeInTheDocument()
+    expect(screen.queryByText('Goes live')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
       'aria-disabled',
       'true',
@@ -422,6 +425,7 @@ describe('GroupSettingsView', () => {
     expect(
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeEnabled()
+    expect(screen.getByText('Goes live')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Calibration' })).not.toHaveAttribute(
       'aria-disabled',
     )
@@ -444,7 +448,7 @@ describe('GroupSettingsView', () => {
     ).toBeInTheDocument()
   })
 
-  it('lets the user pick senior leadership on Calibration', () => {
+  it('keeps the calibration section as a placeholder', () => {
     const { cycle, group } = sample()
     render(
       <MemoryRouter>
@@ -454,17 +458,13 @@ describe('GroupSettingsView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
 
-    expect(screen.getByText('When Calibration Happens')).toBeInTheDocument()
+    expect(screen.getByText('Under development')).toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
+    ).not.toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable SLT Calibration' }),
-    ).toBeInTheDocument()
-    expect(screen.getByText('Senior Leadership')).toBeInTheDocument()
-    expect(
-      screen.getByRole('searchbox', { name: 'Add Senior Leaders' }),
-    ).toBeInTheDocument()
+      screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
+    ).not.toBeInTheDocument()
   })
 
   it('keeps the Goals tab on an annual cycle so Goals can be turned on there', () => {

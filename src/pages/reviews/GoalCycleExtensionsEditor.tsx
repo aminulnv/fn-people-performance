@@ -447,7 +447,7 @@ export function GoalCycleExtensionsEditor({
     <div className="pd-cycle-extensions">
       <div className="pd-cycle-extensions__heading">
         <h4 className="pd-settings-stack__eyebrow">
-          <CalendarClock size={14} strokeWidth={1.75} aria-hidden />
+          <CalendarClock size={15} strokeWidth={1.75} aria-hidden />
           Custom Deadlines
         </h4>
         {!isAdding ? (

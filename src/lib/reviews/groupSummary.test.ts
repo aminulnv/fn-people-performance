@@ -40,8 +40,6 @@ function sampleGroup(overrides: Partial<CycleGroup> = {}): CycleGroup {
     },
     stagesConfig: buildDefaultStagesConfig('2026-07-01', '2026-09-30'),
     calibration: {
-      calibrationMode: 'department',
-      gradeRecommendation: 'manager_average',
       gradeDistribution: {
         exceptional: 5,
         exceeding: 15,
@@ -119,8 +117,22 @@ describe('groupWindowSummary', () => {
 })
 
 describe('gradesJobSummary', () => {
-  it('uses the calibration mode label', () => {
-    expect(gradesJobSummary(sampleGroup())).toBe('Department Owners')
+  it('lists enabled calibration stages', () => {
+    expect(gradesJobSummary(sampleGroup())).toBe('Calibration off')
+  })
+
+  it('summarises annual calibration stages', () => {
+    const group = sampleGroup({
+      stagesConfig: buildDefaultStagesConfig(
+        '2029-01-01',
+        '2029-02-15',
+        'annual_appraisal',
+        'annual-2028',
+      ),
+    })
+    expect(gradesJobSummary(group)).toBe(
+      'HOD / HRBP Calibration → SLT Calibration',
+    )
   })
 })
 

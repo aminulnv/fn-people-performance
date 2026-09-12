@@ -2899,17 +2899,18 @@ function ManagerPanel({
         />
       ) : null}
       {orderedReports.map(({ person, row }) => {
+        const personCycle = goalsCycleForPerson(snapshot.cycle, person.id);
         const reportCaps = capabilitiesFor(person.id);
         const skipLevel = cascadeFromFor(person.id);
         const reportApprovers = cascadeApprovers(skipLevel);
         const allowLateSubmissions =
-          snapshot.cycle.phase === "hard_lock" &&
-          !isGoalWindowOpenForPerson(snapshot.cycle, person) &&
-          snapshot.cycle.postWindowGoalPolicy === "two_tier_approval";
+          personCycle.phase === "hard_lock" &&
+          !isGoalWindowOpenForPerson(personCycle, person) &&
+          personCycle.postWindowGoalPolicy === "two_tier_approval";
         const canEditDraft = Boolean(reportCaps?.canEditStructure);
         const canDuplicate = Boolean(reportCaps?.canDuplicate);
         const lock = reportCycleLock({
-          cycle: snapshot.cycle,
+          cycle: personCycle,
           cycleStatus: snapshot.cycleStatus,
           person,
           row,
@@ -2932,7 +2933,7 @@ function ManagerPanel({
             cascadeRecipientsFor={cascadeRecipientsFor}
             actorId={commentAuthorId}
             deadlinePassed={allowLateSubmissions}
-            goalCountPolicy={snapshot.cycle.goalCountPolicy}
+            goalCountPolicy={personCycle.goalCountPolicy}
             lockMessage={lock.spoken}
             previousCycleLabel={previousCycleLabel}
             duplicateCycles={duplicateCycles}
@@ -2957,7 +2958,7 @@ function ManagerPanel({
             onGoalCreated={() => showSuccessToast("Goal created.")}
             busy={busy}
             allowLateSubmissions={allowLateSubmissions}
-            deadlineMissedAt={resolveGoalDeadline(snapshot.cycle, person)}
+            deadlineMissedAt={resolveGoalDeadline(personCycle, person)}
             lateJustification={row.lateJustification}
             lineManager={reportApprovers.lineManager}
             skipLevelManager={reportApprovers.skipLevelManager}

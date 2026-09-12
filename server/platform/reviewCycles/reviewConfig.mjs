@@ -296,8 +296,105 @@ export function syncLegacyStageWindows(config) {
   }
 }
 
-export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
+const DEFAULT_GRADE_BANDS = [
+  { id: 'exceptional', label: 'Exceptional', sort: 1 },
+  { id: 'exceeding', label: 'Exceeding', sort: 2 },
+  { id: 'performing', label: 'Performing', sort: 3 },
+  { id: 'developing', label: 'Developing', sort: 4 },
+  { id: 'unsatisfactory', label: 'Unsatisfactory', sort: 5 },
+]
+
+const ANNUAL_QUESTIONS = [
+  {
+    id: 'delivered',
+    prompt: 'What did I deliver this year?',
+    enabled: true,
+    required: true,
+    visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+  {
+    id: 'values',
+    prompt: "How did I demonstrate FN's Core Values?",
+    enabled: true,
+    required: true,
+    visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+  {
+    id: 'improve',
+    prompt: 'What do I need to further improve on?',
+    enabled: true,
+    required: false,
+    visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+  {
+    id: 'support',
+    prompt: 'Is the company giving me the support I need to perform at my optimal level?',
+    enabled: true,
+    required: false,
+    visibility: ['employee', 'manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+  {
+    id: 'retain',
+    prompt: 'Will we do what it takes to retain this person?',
+    enabled: true,
+    required: false,
+    visibility: ['calibrators'],
+    outputVisibility: ['manager'],
+  },
+]
+
+const QUARTERLY_QUESTIONS = [
+  {
+    id: 'quarter-comment',
+    prompt: 'How did this person perform against their goals this quarter?',
+    enabled: true,
+    required: true,
+    visibility: ['manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+]
+
+/** Mirrors client scorecard templates: quarterly = goals only; annual = goals/skills/values. */
+function defaultScorecard(purpose) {
+  if (purpose === 'annual_appraisal') {
+    return {
+      pillars: [
+        { id: 'goals', kind: 'goals', label: 'Goals', enabled: true, weight: 50, pullLinkedQuarters: true },
+        { id: 'skills', kind: 'skills', label: 'Skills', enabled: true, weight: 25, pullLinkedQuarters: false },
+        { id: 'values', kind: 'values', label: 'Core Values', enabled: true, weight: 25, pullLinkedQuarters: false },
+      ],
+      questions: ANNUAL_QUESTIONS.map((question) => ({ ...question })),
+      bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
+      extraGradeFields: [],
+    }
+  }
+  // quarterly_checkin and custom/blank: goals only — no Skills or Core Values
+  return {
+    pillars: [
+      { id: 'goals', kind: 'goals', label: 'Goals', enabled: true, weight: 100, pullLinkedQuarters: true },
+      { id: 'skills', kind: 'skills', label: 'Skills', enabled: false, weight: 0, pullLinkedQuarters: false },
+      { id: 'values', kind: 'values', label: 'Core Values', enabled: false, weight: 0, pullLinkedQuarters: false },
+    ],
+    questions:
+      purpose === 'custom'
+        ? []
+        : QUARTERLY_QUESTIONS.map((question) => ({ ...question })),
+    bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
+    extraGradeFields: [],
+  }
+}
+
+export function defaultReviewPolicy(purpose = 'quarterly_checkin', periodKey) {
   const isAnnual = purpose === 'annual_appraisal'
+  // Q1–Q3: goals on / overall off · Q4: both off · Annual: both on
+  const isQ4 =
+    purpose === 'quarterly_checkin' && isGoalsOnlyQuarter(periodKey)
+  const gradeGoals = isAnnual || !isQ4
+  const gradeOverall = isAnnual
   return {
     selfReview: {
       ratePillars: isAnnual,
@@ -306,8 +403,8 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
-      gradeGoals: isAnnual,
-      gradeOverall: true,
+      gradeGoals,
+      gradeOverall,
       gradeSuggestion: 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
@@ -321,63 +418,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin') {
       excludeProbation: false,
       excludePip: false,
     },
-    scorecard: {
-      pillars: [
-        { id: 'goals', kind: 'goals', label: 'Goals', enabled: true, weight: 50, pullLinkedQuarters: true },
-        { id: 'skills', kind: 'skills', label: 'Skills', enabled: true, weight: 25, pullLinkedQuarters: false },
-        { id: 'values', kind: 'values', label: 'Core Values', enabled: true, weight: 25, pullLinkedQuarters: false },
-      ],
-      questions: [
-        {
-          id: 'delivered',
-          prompt: 'What did I deliver this year?',
-          enabled: true,
-          required: true,
-          visibility: ['employee', 'manager', 'calibrators'],
-          outputVisibility: ['employee', 'manager'],
-        },
-        {
-          id: 'values',
-          prompt: "How did I demonstrate FN's Core Values?",
-          enabled: true,
-          required: true,
-          visibility: ['employee', 'manager', 'calibrators'],
-          outputVisibility: ['employee', 'manager'],
-        },
-        {
-          id: 'improve',
-          prompt: 'What do I need to further improve on?',
-          enabled: true,
-          required: false,
-          visibility: ['employee', 'manager', 'calibrators'],
-          outputVisibility: ['employee', 'manager'],
-        },
-        {
-          id: 'support',
-          prompt: 'Is the company giving me the support I need to perform at my optimal level?',
-          enabled: true,
-          required: false,
-          visibility: ['employee', 'manager', 'calibrators'],
-          outputVisibility: ['employee', 'manager'],
-        },
-        {
-          id: 'retain',
-          prompt: 'Will we do what it takes to retain this person?',
-          enabled: true,
-          required: false,
-          visibility: ['calibrators'],
-          outputVisibility: ['manager'],
-        },
-      ],
-      bands: [
-        { id: 'exceptional', label: 'Exceptional', sort: 1 },
-        { id: 'exceeding', label: 'Exceeding', sort: 2 },
-        { id: 'performing', label: 'Performing', sort: 3 },
-        { id: 'developing', label: 'Developing', sort: 4 },
-        { id: 'unsatisfactory', label: 'Unsatisfactory', sort: 5 },
-      ],
-      extraGradeFields: [],
-    },
+    scorecard: defaultScorecard(purpose),
   }
 }
 
@@ -390,8 +431,8 @@ function stripUnusedManagerFields(managerReview) {
   return rest
 }
 
-export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin') {
-  const defaults = defaultReviewPolicy(purpose)
+export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin', periodKey) {
+  const defaults = defaultReviewPolicy(purpose, periodKey)
   if (!policy || typeof policy !== 'object' || Array.isArray(policy) || Object.keys(policy).length === 0) {
     return defaults
   }

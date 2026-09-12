@@ -52,8 +52,6 @@ function sampleCycle(): ReviewCycle {
       autoScorecardGeneration: true,
     },
     calibration: {
-      calibrationMode: 'department',
-      gradeRecommendation: 'manager_average',
       gradeDistribution: {
         exceptional: 5,
         exceeding: 15,

@@ -9,12 +9,16 @@ import {
 } from './reviewPolicy'
 
 describe('scorecard grade switches', () => {
-  it('turns Goals grade off on quarterly and on for annual, with overall on for both', () => {
-    const quarterly = defaultReviewPolicy('quarterly_checkin')
-    expect(gradesGoalsSeparately(quarterly)).toBe(false)
-    expect(gradesOverall(quarterly)).toBe(true)
+  it('defaults Q1–Q3 to goals on / overall off, Q4 both off, annual both on', () => {
+    const q1 = defaultReviewPolicy('quarterly_checkin', 'q1-2026')
+    expect(gradesGoalsSeparately(q1)).toBe(true)
+    expect(gradesOverall(q1)).toBe(false)
 
-    const annual = defaultReviewPolicy('annual_appraisal')
+    const q4 = defaultReviewPolicy('quarterly_checkin', 'q4-2026')
+    expect(gradesGoalsSeparately(q4)).toBe(false)
+    expect(gradesOverall(q4)).toBe(false)
+
+    const annual = defaultReviewPolicy('annual_appraisal', 'annual-2026')
     expect(gradesGoalsSeparately(annual)).toBe(true)
     expect(gradesOverall(annual)).toBe(true)
   })
@@ -27,9 +31,9 @@ describe('scorecard grade switches', () => {
     expect(gradesGoalsSeparately(goalsOnly)).toBe(true)
     expect(gradesOverall(goalsOnly)).toBe(false)
 
-    const legacy = normalizeReviewPolicy({}, 'quarterly_checkin')
-    expect(gradesGoalsSeparately(legacy)).toBe(false)
-    expect(gradesOverall(legacy)).toBe(true)
+    const legacy = normalizeReviewPolicy({}, 'quarterly_checkin', 'q1-2026')
+    expect(gradesGoalsSeparately(legacy)).toBe(true)
+    expect(gradesOverall(legacy)).toBe(false)
   })
 
   it('drops sequential visibility, late self-review, release, appeal, and unused grade edits from older policies', () => {

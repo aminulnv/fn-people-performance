@@ -97,8 +97,9 @@ describe('PublishStageControls', () => {
       onExcludedEmployeeIdsChange: vi.fn(),
     })
 
-    expect(screen.getByText('Hide From')).toBeInTheDocument()
+    expect(screen.getByText('Exceptions')).toBeInTheDocument()
     expect(screen.getByText('2 employees excluded')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Publish to Everyone Now' }))
     expect(

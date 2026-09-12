@@ -52,6 +52,7 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
 export function normalizeCycleSettings(
   settings?: Partial<CycleSettings>,
   purpose: CyclePurpose = "quarterly_checkin",
+  periodKey?: string,
 ): CycleSettings {
   const reviewTypes = {
     ...DEFAULT_CYCLE_SETTINGS.reviewTypes,
@@ -71,13 +72,11 @@ export function normalizeCycleSettings(
       ...settings?.goalCountPolicy,
     },
     excludedEmployeeIds: [...(settings?.excludedEmployeeIds ?? [])],
-    reviewPolicy: normalizeReviewPolicy(settings?.reviewPolicy, purpose),
+    reviewPolicy: normalizeReviewPolicy(settings?.reviewPolicy, purpose, periodKey),
   };
 }
 
 export const DEFAULT_CALIBRATION: CalibrationLogic = {
-  calibrationMode: "manual",
-  gradeRecommendation: "none",
   gradeDistribution: {
     exceptional: 2,
     exceeding: 25,
@@ -85,27 +84,16 @@ export const DEFAULT_CALIBRATION: CalibrationLogic = {
     developing: 28,
     unsatisfactory: 5,
   },
-  sltMemberIds: [],
 };
 
 export function normalizeCalibration(
   calibration?: Partial<CalibrationLogic>,
 ): CalibrationLogic {
-  const sltMemberIds = [
-    ...new Set(
-      (calibration?.sltMemberIds ?? []).filter(
-        (id) => Number.isInteger(id) && id > 0,
-      ),
-    ),
-  ];
   return {
-    ...DEFAULT_CALIBRATION,
-    ...calibration,
     gradeDistribution: {
       ...DEFAULT_CALIBRATION.gradeDistribution,
       ...calibration?.gradeDistribution,
     },
-    sltMemberIds,
   };
 }
 

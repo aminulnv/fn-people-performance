@@ -65,6 +65,7 @@ export function PublishStageControls({
     target === 'employees' && excludedEmployeeIds.length > 0
       ? `${confirm.description} ${exclusionsLabel(excludedEmployeeIds.length)} from automatic publication.`
       : confirm.description
+  const hasExceptions = excludedEmployeeIds.length > 0
 
   const runRelease = () => {
     setBusy(true)
@@ -99,9 +100,9 @@ export function PublishStageControls({
         notice={toastNotice}
         onDismiss={() => setToastNotice(null)}
       />
-      <div className="pd-reviews-publish__row">
+      <div className="pd-reviews-publish__schedule">
         <div className="pd-reviews-window__date">
-          <span className="pd-reviews-window__label">Visible From</span>
+          <span className="pd-reviews-window__label">Goes live</span>
           <Input
             type="datetime"
             aria-label={dateLabel}
@@ -109,41 +110,39 @@ export function PublishStageControls({
             onChange={(event) => onDateChange(event.target.value)}
           />
         </div>
-        <div className="pd-reviews-window__date pd-reviews-publish__now">
-          <span className="pd-reviews-window__label">Publish Early</span>
-          <div className="pd-field">
-            <Button
-              variant="primary"
-              pill
-              className="pd-reviews-publish__now-btn"
-              disabled={busy}
-              aria-label={releaseLabel}
-              onClick={() => {
-                setError(null)
-                setPending(true)
-              }}
-            >
-              <Send size={15} strokeWidth={2} aria-hidden />
-              Publish Now
-            </Button>
-          </div>
-        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          pill
+          className="pd-reviews-publish__now-btn"
+          disabled={busy}
+          aria-label={releaseLabel}
+          onClick={() => {
+            setError(null)
+            setPending(true)
+          }}
+        >
+          <Send size={14} strokeWidth={2} aria-hidden />
+          Publish now
+        </Button>
       </div>
       {target === 'employees' && onExcludedEmployeeIdsChange ? (
-        <div className="pd-reviews-publish-row pd-reviews-publish-row--compact">
-          <p className="pd-reviews-publish-row__title">Hide From</p>
-          <div className="pd-reviews-publish-row__meta">
-            <span className="pd-reviews-publish-row__value">
-              {exclusionsLabel(excludedEmployeeIds.length)}
-            </span>
-            <button
-              type="button"
-              className="pd-reviews-edit-link"
-              onClick={() => setExceptionsOpen(true)}
-            >
-              Choose
-            </button>
+        <div className="pd-reviews-publish__exceptions">
+          <div className="pd-reviews-publish__exceptions-copy">
+            <p className="pd-reviews-publish__exceptions-label">Exceptions</p>
+            <p className="pd-reviews-publish__exceptions-value">
+              {hasExceptions
+                ? exclusionsLabel(excludedEmployeeIds.length)
+                : 'Everyone in this group is included'}
+            </p>
           </div>
+          <button
+            type="button"
+            className="pd-reviews-edit-link"
+            onClick={() => setExceptionsOpen(true)}
+          >
+            {hasExceptions ? 'Edit' : 'Exclude people'}
+          </button>
         </div>
       ) : null}
       {error ? (

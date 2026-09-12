@@ -18,6 +18,7 @@ import { useEmployees } from '@/lib/employees/useEmployees'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { fetchReviewPacketSummaries } from '@/lib/reviews/packetsApi'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
+import { formatDateRange } from '@/lib/reviews/periods'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import {
   useReviewCyclesHydrated,
@@ -57,6 +58,7 @@ export default function CalibrationPage() {
           label: cycle.name,
           status,
           statusLabel: cycleStatusLabel(status),
+          dateLabel: formatDateRange(cycle.startDate, cycle.endDate),
         }
       }),
     [cycles],

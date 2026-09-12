@@ -186,9 +186,7 @@ function compatStagesConfigForRemote(config: CycleStagesConfig) {
 
 function cloneCalibration(): CalibrationLogic {
   return {
-    ...DEFAULT_CALIBRATION,
     gradeDistribution: { ...DEFAULT_CALIBRATION.gradeDistribution },
-    sltMemberIds: [...(DEFAULT_CALIBRATION.sltMemberIds ?? [])],
   };
 }
 
@@ -270,7 +268,7 @@ function normalizeStoredCycle(cycle: ReviewCycle): ReviewCycle {
     type,
     yearKey: cycle.yearKey ?? inferYearKey(cycle.periodKey, cycle.startDate),
     sourceLinks: cycle.sourceLinks ?? [],
-    settings: normalizeCycleSettings(cycle.settings, purpose),
+    settings: normalizeCycleSettings(cycle.settings, purpose, cycle.periodKey),
     stagesConfig: normalizeStagesConfig(cycle.stagesConfig, {
       startDate: cycle.startDate,
       endDate: cycle.endDate,
@@ -279,7 +277,7 @@ function normalizeStoredCycle(cycle: ReviewCycle): ReviewCycle {
     groups: cycleGroupsOf(cycle).map((group) => ({
       ...group,
       cycleId: group.cycleId || cycle.id,
-      settings: normalizeCycleSettings(group.settings, purpose),
+      settings: normalizeCycleSettings(group.settings, purpose, cycle.periodKey),
       stagesConfig: normalizeStagesConfig(group.stagesConfig, {
         startDate: cycle.startDate,
         endDate: cycle.endDate,
@@ -396,7 +394,7 @@ export async function createReviewCycle(
         purpose,
         period.key,
       ),
-      settings: normalizeCycleSettings(undefined, purpose),
+      settings: normalizeCycleSettings(undefined, purpose, period.key),
       calibration: cloneCalibration(),
       groups: [],
       createdAt,

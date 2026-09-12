@@ -446,13 +446,6 @@ export function buildScorecardsForCycle(
     )
 }
 
-const STRENGTH_QUESTION_IDS = new Set([
-  'delivered',
-  'values',
-  'quarter-comment',
-])
-const DEVELOPMENT_QUESTION_IDS = new Set(['improve', 'support'])
-
 export const SCORECARD_STRENGTHS_ANSWER_ID = 'strengths'
 export const SCORECARD_DEVELOPMENTS_ANSWER_ID = 'developments'
 
@@ -461,16 +454,13 @@ const PACKED_FEEDBACK_IDS = new Set([
   SCORECARD_DEVELOPMENTS_ANSWER_ID,
 ])
 
+/**
+ * Only the packed Strengths / Areas fields are owned by the Feedback card.
+ * Template questions (including quarter-comment and annual prompts) must stay
+ * on the review form — do not hide them as "feedback".
+ */
 export function isScorecardFeedbackQuestion(questionId: string): boolean {
-  return (
-    STRENGTH_QUESTION_IDS.has(questionId) ||
-    DEVELOPMENT_QUESTION_IDS.has(questionId) ||
-    PACKED_FEEDBACK_IDS.has(questionId)
-  )
-}
-
-function joinFeedbackParts(parts: string[]): string {
-  return parts.map((part) => part.trim()).filter(Boolean).join('\n\n')
+  return PACKED_FEEDBACK_IDS.has(questionId)
 }
 
 export function feedbackTextForRole(
@@ -486,43 +476,19 @@ export function feedbackTextForRole(
   const packedDevelopments = usable.find(
     (answer) => answer.questionId === SCORECARD_DEVELOPMENTS_ANSWER_ID,
   )
-  const strengths = joinFeedbackParts([
-    ...usable
-      .filter((answer) => STRENGTH_QUESTION_IDS.has(answer.questionId))
-      .map((answer) => answer.body),
-    packedStrengths?.body ?? '',
-  ])
-  const developments = joinFeedbackParts([
-    ...usable
-      .filter((answer) => DEVELOPMENT_QUESTION_IDS.has(answer.questionId))
-      .map((answer) => answer.body),
-    packedDevelopments?.body ?? '',
-  ])
-  const leftover = joinFeedbackParts(
-    usable
-      .filter((answer) => !isScorecardFeedbackQuestion(answer.questionId))
-      .map((answer) => answer.body),
-  )
 
   return {
-    strengths: strengths || leftover,
-    developments,
+    strengths: packedStrengths?.body.trim() ?? '',
+    developments: packedDevelopments?.body.trim() ?? '',
   }
 }
 
 export function answersFromFeedbackText(
-  questions: Array<{ id: string }>,
+  _questions: Array<{ id: string }>,
   strengths: string,
   developments: string,
 ): Array<{ questionId: string; body: string }> {
-  const ids = questions.map((question) => question.id)
   return [
-    ...ids
-      .filter((id) => STRENGTH_QUESTION_IDS.has(id))
-      .map((id) => ({ questionId: id, body: '' })),
-    ...ids
-      .filter((id) => DEVELOPMENT_QUESTION_IDS.has(id))
-      .map((id) => ({ questionId: id, body: '' })),
     { questionId: SCORECARD_STRENGTHS_ANSWER_ID, body: strengths.trim() },
     { questionId: SCORECARD_DEVELOPMENTS_ANSWER_ID, body: developments.trim() },
   ]

@@ -64,7 +64,11 @@ export function mapCycleGroup(
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
-      reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose),
+      reviewPolicy: normalizeReviewPolicy(
+        row.review_policy,
+        purpose,
+        quarter?.periodKey ?? row.period_key,
+      ),
     },
     calibration: row.calibration_config,
     createdAt: isoTimestamp(row.created_at),
@@ -191,6 +195,7 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
             periodKey: input.periodKey,
             type: input.type,
           }),
+          input.periodKey,
         ),
       ),
       actor.actorEmployeeId,
@@ -365,6 +370,7 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
           periodKey: row.period_key,
           type: row.cycle_type,
         }),
+        row.period_key,
       ),
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)

@@ -52,8 +52,6 @@ function sampleCycle(): ReviewCycle {
     autoScorecardGeneration: true,
   }
   const calibration = {
-    calibrationMode: 'department' as const,
-    gradeRecommendation: 'manager_average' as const,
     gradeDistribution: {
       exceptional: 5,
       exceeding: 15,
@@ -206,8 +204,9 @@ describe('CycleSettingsView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
-    expect(screen.getByLabelText('Preset')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Review Form' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
   })
 
   it('opens the group hub when adding a group', async () => {

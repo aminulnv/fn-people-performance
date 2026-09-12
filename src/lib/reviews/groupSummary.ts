@@ -1,4 +1,3 @@
-import { CALIBRATION_MODE_META } from './labels'
 import { formatDateRange } from './periods'
 import {
   cycleModulesOf,
@@ -6,6 +5,8 @@ import {
   isCalibrationStage,
   isGoalsModuleEnabled,
   isReviewsModuleEnabled,
+  REVIEW_STAGE_LABEL,
+  CALIBRATION_STAGE_ORDER,
 } from './reviewStages'
 import type {
   CycleGroup,
@@ -72,7 +73,12 @@ export function reviewJobSummary(group: CycleGroup): string {
 }
 
 export function gradesJobSummary(group: CycleGroup): string {
-  return CALIBRATION_MODE_META[group.calibration.calibrationMode].label
+  const stages = group.stagesConfig.reviewStages ?? []
+  const labels = CALIBRATION_STAGE_ORDER.filter((id) =>
+    stages.some((stage) => stage.id === id && stage.enabled),
+  ).map((id) => REVIEW_STAGE_LABEL[id])
+  if (labels.length === 0) return 'Calibration off'
+  return labels.join(' → ')
 }
 
 export function includedCycleCount(cycle: ReviewCycle): string | null {

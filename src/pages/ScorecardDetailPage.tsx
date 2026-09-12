@@ -20,16 +20,21 @@ import { reviewsTabPath } from '@/lib/reviews/paths'
 import {
   buildScorecardDetail,
   feedbackTextForRole,
+  isScorecardFeedbackQuestion,
+  packetFieldsForRole,
   resolveReviewCycleKey,
   scorecardDetailPath,
 } from '@/lib/reviews/scorecards'
 import {
   feedbackRoleForViewStage,
   gradeForViewStage,
+  scorecardEditStage,
+  stageShowsReviewForm,
 } from '@/lib/reviews/scorecardStages'
 import {
   defaultReviewPolicy,
   enabledPillars,
+  enabledQuestions,
   gradesGoalsSeparately,
   gradesOverall,
 } from '@/lib/reviews/reviewPolicy'
@@ -40,6 +45,7 @@ import {
   useReviewsSnapshot,
 } from '@/lib/reviews/useReviews'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
+import { getReviewStage } from '@/lib/reviews/reviewStages'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ReviewPacketView } from '@/pages/reviews/ReviewPacketView'
@@ -170,10 +176,38 @@ export default function ScorecardDetailPage() {
     stageView.viewing,
     user?.employeeId,
   )
+  const viewingFeedbackRole = feedbackRoleForViewStage(stageView.viewing)
   const viewingFeedback = feedbackTextForRole(
     packet?.answers ?? [],
-    feedbackRoleForViewStage(stageView.viewing),
+    viewingFeedbackRole,
   )
+  const selfOn = Boolean(getReviewStage(stages, 'self_review')?.enabled)
+  const managerOn = Boolean(getReviewStage(stages, 'manager_review')?.enabled)
+  const isSubject = user?.employeeId === employeeId
+  const editStage = scorecardEditStage(stageView.viewing, {
+    selfOn,
+    managerOn,
+    isSubject,
+  })
+  const formVisibility =
+    viewingFeedbackRole === 'self' ? 'employee' : 'manager'
+  const viewQuestions = stageShowsReviewForm(stageView.viewing)
+    ? enabledQuestions(policy, formVisibility).filter(
+        (question) => !isScorecardFeedbackQuestion(question.id),
+      )
+    : []
+  const viewQuestionFields = packet
+    ? packetFieldsForRole(
+        packet,
+        viewingFeedbackRole,
+        viewQuestions,
+        [],
+      ).answers
+    : viewQuestions.map((question) => ({
+        questionId: question.id,
+        prompt: question.prompt,
+        body: '',
+      }))
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return <Navigate to={reviewsTabPath('scorecards')} replace />
@@ -251,8 +285,26 @@ export default function ScorecardDetailPage() {
         />
       )}
 
+      {viewQuestionFields.length > 0 ? (
+        <section className="pd-reviews-edit-card" aria-label="Review questions">
+          {viewQuestionFields.map((answer) => (
+            <div key={answer.questionId} className="pd-field">
+              <p className="pd-field__label">
+                {answer.prompt.trim() || 'Untitled question'}
+              </p>
+              <p
+                className="pd-reviews-scorecard__feedback-box"
+                aria-label={answer.prompt.trim() || 'Untitled question'}
+              >
+                {answer.body.trim() ? answer.body : '\u00a0'}
+              </p>
+            </div>
+          ))}
+        </section>
+      ) : null}
+
       {gradesOverall(policy) ? (
-        <section className="pd-reviews-scorecard__card">
+        <section className="pd-reviews-edit-card" aria-label="Overall Grading">
           <OverallGradePicker
             name="scorecard-overall-grade"
             value={viewingGrade ?? ''}
@@ -313,7 +365,7 @@ export default function ScorecardDetailPage() {
         <div className="pd-review-packet__island">
           <div className="pd-review-packet__actions">
             <Link
-              to={`${scorecardDetailPath(detail.cycleKey, detail.employeeId)}?mode=edit&stage=${stageView.viewing}`}
+              to={`${scorecardDetailPath(detail.cycleKey, detail.employeeId)}?mode=edit&stage=${editStage}`}
               className="pd-btn pd-btn--primary pd-btn--md pd-btn--pill"
             >
               <span className="pd-btn__label">

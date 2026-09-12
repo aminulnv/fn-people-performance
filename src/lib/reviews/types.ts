@@ -235,16 +235,8 @@ export type CycleSettings = {
 export type GradeBandId =
   "exceptional" | "exceeding" | "performing" | "developing" | "unsatisfactory";
 
-export type CalibrationModeId = "manual" | "department" | "central";
-
-export type GradeRecommendationId = "none" | "manager_average" | "weighted";
-
 export type CalibrationLogic = {
-  calibrationMode: CalibrationModeId;
-  gradeRecommendation: GradeRecommendationId;
   gradeDistribution: Record<GradeBandId, number>;
-  /** People who sit in SLT calibration for this group. */
-  sltMemberIds?: number[];
 };
 
 export type CycleGroup = {

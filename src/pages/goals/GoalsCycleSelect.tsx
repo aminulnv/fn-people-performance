@@ -4,6 +4,7 @@ import { cycleStatusLabel } from '@/lib/goals/cyclesFromReviews'
 import { selectGoalCycle } from '@/lib/goalsApi'
 import type { GoalsCycleOption } from '@/lib/goals/types'
 import { getGoalsSnapshot, subscribeGoalsStore } from '@/lib/goals/store'
+import { formatDateRange } from '@/lib/reviews/periods'
 
 type GoalsCycleSelectBase = {
   /** Controlled cycles list; defaults to live store snapshot. */
@@ -40,6 +41,10 @@ function useCycleOptions(cyclesProp?: GoalsCycleOption[]) {
         label: cycle.label,
         status: cycle.status,
         statusLabel: cycleStatusLabel(cycle.status),
+        dateLabel: formatDateRange(
+          cycle.day1,
+          cycle.quarterEndDate ?? cycle.day1,
+        ),
       })),
     [cycles],
   )

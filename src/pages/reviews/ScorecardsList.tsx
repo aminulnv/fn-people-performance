@@ -68,6 +68,7 @@ import {
 } from '@/lib/reviews/scorecards'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
 import type { ReviewPacket } from '@/lib/reviews/types'
+import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import {
   useReviewCyclesHydrated,
@@ -229,6 +230,7 @@ export function ScorecardsList() {
           label: cycle.name,
           status,
           statusLabel: cycleStatusLabel(status),
+          dateLabel: formatDateRange(cycle.startDate, cycle.endDate),
         }
       })
     return fromStore.length > 0

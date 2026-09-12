@@ -7,6 +7,10 @@ afterEach(() => {
   cleanup()
 })
 
+function selectQuestion(number: number) {
+  fireEvent.click(screen.getByRole('button', { name: `Question ${number} settings` }))
+}
+
 describe('ScorecardFormEditor', () => {
   it('applies a library preset to the group form', () => {
     const onChange = vi.fn()
@@ -85,8 +89,24 @@ describe('ScorecardFormEditor', () => {
     expect(
       screen.getByDisplayValue('Will we do what it takes to retain this person?'),
     ).toBeInTheDocument()
-    expect(screen.getAllByRole('group', { name: 'Input stages' })).not.toHaveLength(0)
-    expect(screen.getAllByRole('group', { name: 'Output audience' })).not.toHaveLength(0)
+    expect(screen.getByRole('region', { name: 'Review form preview' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Grade areas' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Goals grade preview')).toBeDisabled()
+    expect(screen.getByRole('heading', { name: 'Overall Grading' })).toBeInTheDocument()
+  })
+
+  it('reveals question tools only when a block is selected', () => {
+    render(
+      <ScorecardFormEditor
+        policy={defaultReviewPolicy('annual_appraisal')}
+        onChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByRole('group', { name: 'Input stages' })).not.toBeInTheDocument()
+    selectQuestion(1)
+    expect(screen.getByRole('group', { name: 'Input stages' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Output audience' })).toBeInTheDocument()
   })
 
   it('lets output visibility be toggled separately from input stages', () => {
@@ -98,7 +118,8 @@ describe('ScorecardFormEditor', () => {
       />,
     )
 
-    const output = screen.getAllByRole('group', { name: 'Output audience' })[0]!
+    selectQuestion(1)
+    const output = screen.getByRole('group', { name: 'Output audience' })
     fireEvent.click(output.querySelectorAll('button')[0]!)
     const question = onChange.mock.calls[0]?.[0].scorecard.questions[0]
     expect(question.visibility).toEqual(['employee', 'manager', 'calibrators'])

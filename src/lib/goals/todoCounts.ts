@@ -72,20 +72,22 @@ export function countOwnGoalTodos(
 
 /** Same attention items as My Goals, plus each set waiting on this manager. */
 export function countReportGoalTodos(
-  reports: readonly { row: PersonGoals }[],
-  cycle: Pick<
-    GoalsCycle,
-    'goalCountPolicy' | 'assignedGroupId' | 'phase' | 'postWindowGoalPolicy'
-  >,
+  reports: readonly { person?: Pick<DemoPerson, 'id'>; row: PersonGoals }[],
+  cycle: GoalsCycle,
 ): number {
-  if (cycle.assignedGroupId === null) {
-    return reports.filter(({ row }) => row.status === 'submitted').length
-  }
-  const canSubmit = cycleAcceptsGoalInput(cycle)
-  return reports.reduce((total, { row }) => {
+  return reports.reduce((total, { person, row }) => {
+    const personCycle = person
+      ? goalsCycleForPerson(cycle, person.id)
+      : cycle
+    if (personCycle.assignedGroupId === null) {
+      return total + (row.status === 'submitted' ? 1 : 0)
+    }
+    const canSubmit = cycleAcceptsGoalInput(personCycle)
     const awaitingReview = row.status === 'submitted' ? 1 : 0
     return (
-      total + awaitingReview + countOwnGoalTodos(row, cycle, { canSubmit })
+      total +
+      awaitingReview +
+      countOwnGoalTodos(row, personCycle, { canSubmit })
     )
   }, 0)
 }

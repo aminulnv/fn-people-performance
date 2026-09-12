@@ -136,8 +136,8 @@ export function deriveGoalCapabilities(
   );
   const progressWindowOpen = cycle.quarterEndDate
     ? cycleStatus !== "future" &&
-      todayDayValue(context.now ?? new Date()) <=
-        dayValue(cycle.quarterEndDate) + lateProgressDays * 86_400_000
+    todayDayValue(context.now ?? new Date()) <=
+    dayValue(cycle.quarterEndDate) + lateProgressDays * 86_400_000
     : currentCycle;
   const windowOpen =
     cycle.phase === "window_open" ||
@@ -147,11 +147,11 @@ export function deriveGoalCapabilities(
   const goalInputOpen = windowOpen || postWindowInputOpen;
   const delegationRole =
     context.delegationAsDirectManager != null ||
-    context.delegationAsSkipLevel != null
+      context.delegationAsSkipLevel != null
       ? {
-          asDirectManager: Boolean(context.delegationAsDirectManager),
-          asSkipLevel: Boolean(context.delegationAsSkipLevel),
-        }
+        asDirectManager: Boolean(context.delegationAsDirectManager),
+        asSkipLevel: Boolean(context.delegationAsSkipLevel),
+      }
       : delegationActingAs(actor.id, subject, context.people ?? [], listActiveDelegatedManagerIds(actor.id));
   const selfOrManager =
     isSelfOrManager(actor, subject) || delegationRole.asDirectManager;

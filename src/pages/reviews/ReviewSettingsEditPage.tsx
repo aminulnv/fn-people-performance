@@ -73,7 +73,7 @@ export function useReviewSettingsDraft(
   embedded = false,
 ): ReviewSettingsDraft {
   const [settings, setSettings] = useState(() =>
-    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle)),
+    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle), cycle.periodKey),
   )
   const [stagesConfig, setStagesConfig] = useState<CycleStagesConfig>(() =>
     withRequiredReviewStages(structuredClone(group.stagesConfig)),
@@ -83,7 +83,7 @@ export function useReviewSettingsDraft(
 
   const policy =
     settings.reviewPolicy ??
-    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle))
+    normalizeCycleSettings(group.settings, cyclePurposeOf(cycle), cycle.periodKey)
       .reviewPolicy!
 
   const setStageEnabled = (id: ReviewStageId, enabled: boolean) => {
@@ -277,9 +277,8 @@ export function ReviewSettingsEditPage({
             <li key={stage.id} className="pd-reviews-stage-preview__item">
               <button
                 type="button"
-                className={`pd-reviews-stage-preview__stage${
-                  highlightedStageId === stage.id ? ' is-active' : ''
-                }`}
+                className={`pd-reviews-stage-preview__stage${highlightedStageId === stage.id ? ' is-active' : ''
+                  }`}
                 onClick={() => focusStage(stage.id)}
               >
                 {REVIEW_STAGE_LABEL[stage.id]}
@@ -358,7 +357,7 @@ export function ReviewSettingsEditPage({
                 <section className="pd-settings-stack__block pd-settings-stack__block--flush">
                   <div className="pd-settings-stack__block-head">
                     <h3 className="pd-settings-stack__eyebrow">
-                      <Star size={14} strokeWidth={1.75} aria-hidden />
+                      <Star size={15} strokeWidth={1.75} aria-hidden />
                       Grades On The Form
                     </h3>
                   </div>
@@ -366,10 +365,10 @@ export function ReviewSettingsEditPage({
                   <div className="pd-settings-stack__row pd-settings-stack__row--compact">
                     <p className="pd-settings-stack__label">
                       <Target size={15} strokeWidth={1.75} aria-hidden />
-                      Goals Grade
+                      Goals Grading
                     </p>
                     <Switch
-                      label="Enable Goals Grade"
+                      label="Enable Goals Grading"
                       className="pd-reviews-type-list__switch"
                       checked={policy.managerReview.gradeGoals}
                       onChange={(event) =>
@@ -386,10 +385,10 @@ export function ReviewSettingsEditPage({
                   <div className="pd-settings-stack__row pd-settings-stack__row--compact">
                     <p className="pd-settings-stack__label">
                       <LayoutGrid size={15} strokeWidth={1.75} aria-hidden />
-                      Overall Grade
+                      Overall Grading
                     </p>
                     <Switch
-                      label="Enable Overall Grade"
+                      label="Enable Overall Grading"
                       className="pd-reviews-type-list__switch"
                       checked={policy.managerReview.gradeOverall}
                       onChange={(event) =>

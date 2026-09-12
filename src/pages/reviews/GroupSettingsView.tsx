@@ -43,11 +43,11 @@ const GROUP_JOBS: {
   label: string
   icon: LucideIcon
 }[] = [
-  { id: 'people', label: 'People', icon: Users },
-  { id: 'goals', label: 'Goals', icon: Target },
-  { id: 'review', label: 'Reviews', icon: Star },
-  { id: 'calibration', label: 'Calibration', icon: Scale },
-]
+    { id: 'people', label: 'People', icon: Users },
+    { id: 'goals', label: 'Goals', icon: Target },
+    { id: 'review', label: 'Reviews', icon: Star },
+    { id: 'calibration', label: 'Calibration', icon: Scale },
+  ]
 
 type GroupJob = GroupSettingsJob
 type PendingPeopleLeave = GroupJob | 'close'
@@ -65,10 +65,10 @@ function jobsForModules(modules: CycleModules) {
     }
     return item.id === 'calibration' && !modules.reviews
       ? {
-          ...option,
-          disabled: true,
-          title: 'Turn on Reviews to use Calibration.',
-        }
+        ...option,
+        disabled: true,
+        title: 'Turn on Reviews to use Calibration.',
+      }
       : option
   })
 }
@@ -146,11 +146,11 @@ export function GroupSettingsView({
   const reviewFormSheet =
     modules.reviews && resolvedScreen === 'review'
       ? reviewFormSideSheet(reviewDraft.policy, (next) =>
-          reviewDraft.setSettings((prev) => ({
-            ...prev,
-            reviewPolicy: next,
-          })),
-        )
+        reviewDraft.setSettings((prev) => ({
+          ...prev,
+          reviewPolicy: next,
+        })),
+      )
       : undefined
 
   useEffect(() => {
@@ -168,10 +168,10 @@ export function GroupSettingsView({
       variant === 'page'
         ? hashForGroupSettings(allowed)
         : hashForCycleOverlay({
-            kind: 'group',
-            groupId: group.id,
-            ...allowed,
-          })
+          kind: 'group',
+          groupId: group.id,
+          ...allowed,
+        })
     if (!normalizeMismatch(location.hash, hash)) return
     navigate(locationWithHash(location, hash), { replace: true })
   }
@@ -184,7 +184,7 @@ export function GroupSettingsView({
 
   const saveName = () => {
     if (name.trim() && name.trim() !== group.name) {
-      void updateCycleGroup(cycle.id, group.id, { name }).catch(() => {})
+      void updateCycleGroup(cycle.id, group.id, { name }).catch(() => { })
     }
   }
 
@@ -234,7 +234,7 @@ export function GroupSettingsView({
     setModules(next)
     reviewDraft.replaceStagesConfig(stagesConfig)
     try {
-      void updateCycleGroup(cycle.id, group.id, { stagesConfig }).catch(() => {})
+      void updateCycleGroup(cycle.id, group.id, { stagesConfig }).catch(() => { })
     } catch {
       /* Keep the local switch when the cycle is not in the store. */
     }
@@ -341,7 +341,6 @@ export function GroupSettingsView({
             cycle={cycle}
             group={group}
             embedded
-            stageDraft={reviewDraft}
             onClose={onClose}
             onSuccess={onSuccess}
           />

@@ -17,8 +17,8 @@ describe('OverallGradePicker', () => {
       />,
     )
 
-    expect(screen.getByRole('heading', { name: 'Overall Grade' })).toBeTruthy()
-    expect(screen.getByRole('radiogroup', { name: 'Overall Grade' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Overall Grading' })).toBeTruthy()
+    expect(screen.getByRole('radiogroup', { name: 'Overall Grading' })).toBeTruthy()
     expect(
       screen.queryByText(/How would you describe/),
     ).toBeNull()

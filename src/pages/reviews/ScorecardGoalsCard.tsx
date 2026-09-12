@@ -103,7 +103,7 @@ export function ScorecardGoalsCard({
               className={gradeSelectClass(goalsGrade)}
               id="scorecard-goals-grade"
               aria-label={
-                goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals Grade'
+                goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals Grading'
               }
               value={goalsGrade ?? ''}
               disabled={gradeLocked}

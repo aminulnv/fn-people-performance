@@ -55,7 +55,7 @@ function SettingsHeading({
   return (
     <div className="pd-settings-stack__block-head">
       <h3 className="pd-settings-stack__eyebrow">
-        <Icon size={14} strokeWidth={1.75} aria-hidden />
+        <Icon size={15} strokeWidth={1.75} aria-hidden />
         {children}
       </h3>
       {meta ? <p className="pd-settings-stack__meta">{meta}</p> : null}

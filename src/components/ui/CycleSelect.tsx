@@ -9,8 +9,10 @@ export type CycleSelectOption = {
   id: string
   label: string
   status?: CycleSelectStatus
-  /** Human-readable status shown next to the label. */
+  /** Human-readable status shown under the label. */
   statusLabel?: string
+  /** Short date range shown in brackets next to the title. */
+  dateLabel?: string
 }
 
 export const CYCLE_SELECT_CLEAR_ID = ''
@@ -144,7 +146,13 @@ export function CycleSelect(props: CycleSelectProps) {
 
   const needle = query.trim().toLowerCase()
   const filtered = needle
-    ? listOptions.filter((option) => option.label.toLowerCase().includes(needle))
+    ? listOptions.filter((option) => {
+        const haystack = [option.label, option.dateLabel, option.statusLabel]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        return haystack.includes(needle)
+      })
     : listOptions
 
   if (!primary) return null
@@ -306,8 +314,15 @@ export function CycleSelect(props: CycleSelectProps) {
                       </span>
                     ) : null}
                     <span className="pd-cycle-select__option-main">
-                      <span className="pd-cycle-select__option-label">
-                        {option.label}
+                      <span className="pd-cycle-select__option-title">
+                        <span className="pd-cycle-select__option-label">
+                          {option.label}
+                        </span>
+                        {option.dateLabel ? (
+                          <span className="pd-cycle-select__date">
+                            ({option.dateLabel})
+                          </span>
+                        ) : null}
                       </span>
                       {option.statusLabel ? (
                         <span

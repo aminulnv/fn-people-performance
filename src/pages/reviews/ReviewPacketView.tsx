@@ -42,7 +42,10 @@ import {
 } from '@/lib/reviews/useReviews'
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
-import { calibrationIsEditable } from '@/lib/reviews/scorecardStages'
+import {
+  calibrationIsEditable,
+  stageShowsReviewForm,
+} from '@/lib/reviews/scorecardStages'
 import { officialReviewReleasedToEmployee } from '@/lib/reviews/packetVisibility'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
@@ -337,8 +340,17 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const goalsGradeLocked =
     goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked
   const viewingManagerForm = stageView.viewing === 'manager_review'
-  const formLocked = viewingManagerForm ? managerFormLocked : selfFormLocked
-  const formActorRole = viewingManagerForm ? 'manager' : 'self'
+  const viewingSelfForm = stageView.viewing === 'self_review'
+  const viewingPublishedForm = stageView.viewing === 'publish_employees'
+  const showSelfPacket =
+    showSelfForm && (viewingSelfForm || (viewingPublishedForm && isSubject))
+  const showManagerPacket =
+    showManagerForm && (viewingManagerForm || viewingPublishedForm)
+  const formOwnsOverall =
+    gradeOverall && (showSelfPacket || showManagerPacket)
+  const formActorRole = viewingSelfForm && showSelfPacket ? 'self' : 'manager'
+  const formLocked =
+    formActorRole === 'manager' ? managerFormLocked : selfFormLocked
 
   const viewHref = `${scorecardDetailPath(
     detail?.cycleKey ?? cycleId,
@@ -470,10 +482,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {showSelfForm && stageView.viewing === 'self_review' ? (
+      {showSelfPacket ? (
         <PacketForm
           title="Self-Review"
-          locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted'}
+          locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted' || viewingPublishedForm}
           questions={selfQuestions}
           pillars={pillars}
           packet={packet}
@@ -496,10 +508,11 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {showManagerForm && stageView.viewing === 'manager_review' ? (
+      {showManagerPacket ? (
         <PacketForm
           title="Manager Review"
           locked={
+            viewingPublishedForm ||
             packet.status === 'released_to_employees' ||
             packet.status === 'released_to_managers'
           }
@@ -521,8 +534,22 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
-      {stageView.viewing === 'self_review' ||
-      stageView.viewing === 'manager_review' ? (
+      {gradeOverall && !formOwnsOverall ? (
+        <section className="pd-reviews-scorecard__card">
+          <OverallGradePicker
+            name="scorecard-overall-grade-readonly"
+            value={
+              packet.publishedOverallGrade ??
+              packet.calibratedOverallGrade ??
+              packet.managerOverallGrade ??
+              ''
+            }
+            disabled
+          />
+        </section>
+      ) : null}
+
+      {stageShowsReviewForm(stageView.viewing) ? (
         <ScorecardFeedbackCard
           feedback={
             detail?.feedback ?? {
@@ -534,7 +561,11 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             }
           }
           editing
-          locked={feedbackRole == null || feedbackLocked}
+          locked={
+            viewingPublishedForm ||
+            feedbackRole == null ||
+            feedbackLocked
+          }
           strengths={strengths}
           developments={developments}
           onStrengthsChange={(next) => {
@@ -559,8 +590,9 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
               Cancel
             </Button>
             {!formLocked &&
-            ((showSelfForm && stageView.viewing === 'self_review') ||
-              (showManagerForm && stageView.viewing === 'manager_review')) ? (
+            !viewingPublishedForm &&
+            ((showSelfForm && viewingSelfForm) ||
+              (showManagerForm && viewingManagerForm)) ? (
               <>
                 <Button
                   variant="secondary"
@@ -792,8 +824,8 @@ function PacketForm({
         <label key={question.id} className="pd-field">
           <span className="pd-field__label">{question.prompt}</span>
           <textarea
-            className="pd-field__control"
-            rows={3}
+            className="pd-reviews-scorecard__feedback-box pd-field__control pd-field__control--textarea"
+            rows={2}
             disabled={locked}
             value={answers[question.id] ?? ''}
             onChange={(event) => {

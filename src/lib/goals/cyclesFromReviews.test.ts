@@ -41,8 +41,6 @@ function cycle(processMode: 'schedule' | 'manual' = 'schedule'): ReviewCycle {
       autoScorecardGeneration: false,
     },
     calibration: {
-      calibrationMode: 'manual',
-      gradeRecommendation: 'none',
       gradeDistribution: {
         exceptional: 2,
         exceeding: 25,

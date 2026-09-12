@@ -80,7 +80,7 @@ function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
-      reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose),
+      reviewPolicy: normalizeReviewPolicy(row.review_policy, purpose, row.period_key),
     },
     calibration: row.calibration_config,
     groups: [],
@@ -316,6 +316,7 @@ export async function createReviewCycle(input, platformUser) {
     const reviewPolicy = normalizeReviewPolicy(
       input.settings.reviewPolicy,
       purpose,
+      input.periodKey,
     )
 
     const id = await allocateCycleId(
@@ -442,6 +443,7 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
       reviewPolicy: normalizeReviewPolicy(
         patch.reviewPolicy ?? before.settings.reviewPolicy,
         nextPurpose,
+        before.periodKey,
       ),
     }
     validateGoalCountPolicy(nextSettings.goalCountPolicy)

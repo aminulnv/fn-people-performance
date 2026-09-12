@@ -19,6 +19,8 @@ export type SettingsSideSheet = {
   tabIcon: LucideIcon
   label: string
   content: ReactNode
+  /** Opens wider for canvas editors (still clamped to the rail). */
+  preferredWidth?: number
 }
 
 function sheetWidthWithinRail(
@@ -60,13 +62,18 @@ export function SettingsSideSheetRail({
     null,
   )
   const reservedWidth = layout === 'inline' ? INLINE_SETTINGS_RESERVE : panelWidth
+  const preferredWidth = sideSheet.preferredWidth ?? DEFAULT_SHEET_WIDTH
   const [sheetWidth, setSheetWidth] = useState(() =>
-    sheetWidthWithinRail(DEFAULT_SHEET_WIDTH, reservedWidth),
+    sheetWidthWithinRail(preferredWidth, reservedWidth),
   )
   const hasToggledRef = useRef(false)
   const holdTabHoverRef = useRef(false)
   const [isTabHovered, setIsTabHovered] = useState(false)
   const isTabExpanded = isOpen !== isTabHovered
+
+  useEffect(() => {
+    setSheetWidth(sheetWidthWithinRail(preferredWidth, reservedWidth))
+  }, [preferredWidth])
 
   useEffect(() => {
     setSheetWidth((width) => sheetWidthWithinRail(width, reservedWidth))
@@ -161,7 +168,7 @@ export function SettingsSideSheetRail({
               )}
               aria-valuenow={Math.round(sheetWidth)}
               tabIndex={0}
-              onDoubleClick={() => applySheetWidth(DEFAULT_SHEET_WIDTH)}
+              onDoubleClick={() => applySheetWidth(preferredWidth)}
               onKeyDown={resizeFromKeyboard}
               onPointerDown={(event) => {
                 sheetResizeStartRef.current = {

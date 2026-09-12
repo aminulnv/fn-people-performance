@@ -4,7 +4,9 @@ import {
   gradeForViewStage,
   managerReviewIsComplete,
   resolveScorecardViewStage,
+  scorecardEditStage,
   scorecardStageIsOpen,
+  stageShowsReviewForm,
   viewerCanOpenStage,
   visibleScorecardSteps,
 } from './scorecardStages'
@@ -132,5 +134,17 @@ describe('scorecard stage viewing', () => {
         viewerEmployeeId: 871,
       }),
     ).toBe('appeal')
+  })
+})
+
+describe('scorecardEditStage', () => {
+  it('keeps self and manager stages', () => {
+    expect(scorecardEditStage('self_review')).toBe('self_review')
+    expect(scorecardEditStage('manager_review')).toBe('manager_review')
+  })
+
+  it('routes Published Edit to the manager form', () => {
+    expect(scorecardEditStage('publish_employees')).toBe('manager_review')
+    expect(stageShowsReviewForm('publish_employees')).toBe(true)
   })
 })

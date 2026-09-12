@@ -105,7 +105,7 @@ describe('ScorecardHero', () => {
         'Executive · People & Culture · Reviewer Aminul Islam Borhan',
       ),
     ).toBeTruthy()
-    expect(screen.getByText('Overall Grade')).toBeTruthy()
+    expect(screen.getByText('Overall Grading')).toBeTruthy()
     expect(screen.queryByText('Manager grade')).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()

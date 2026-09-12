@@ -261,11 +261,36 @@ export function gradeLabelForViewStage(stage: ScorecardViewStage) {
   if (stage === 'self_review') return 'Self-Review Grade'
   if (stage === 'manager_review') return 'Manager grade'
   if (stage === 'calibration_hod_hrbp') return 'Calibrated grade'
-  return 'Overall Grade'
+  return 'Overall Grading'
 }
 
 export function feedbackRoleForViewStage(
   stage: ScorecardViewStage,
 ): 'self' | 'manager' {
   return stage === 'self_review' ? 'self' : 'manager'
+}
+
+/** Stages that own the self/manager review form (questions + overall on the form). */
+export function stageShowsReviewForm(stage: ScorecardViewStage): boolean {
+  return (
+    stage === 'self_review' ||
+    stage === 'manager_review' ||
+    stage === 'publish_employees'
+  )
+}
+
+/**
+ * Edit mode must open a form stage. Publish/calibration/appeal keep the
+ * current stage only when it already is a form stage; otherwise land on
+ * manager review (or self when that is the only form).
+ */
+export function scorecardEditStage(
+  viewing: ScorecardViewStage,
+  options: { selfOn?: boolean; managerOn?: boolean; isSubject?: boolean } = {},
+): ScorecardViewStage {
+  if (viewing === 'self_review' || viewing === 'manager_review') return viewing
+  if (options.isSubject && options.selfOn) return 'self_review'
+  if (options.managerOn !== false) return 'manager_review'
+  if (options.selfOn) return 'self_review'
+  return 'manager_review'
 }

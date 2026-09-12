@@ -75,7 +75,7 @@ export function ReviewStageList({
         )
         if (!stage) return null
         const required = isRequiredReviewStage(id)
-        const active = stage.enabled || required || !moduleEnabled
+        const active = moduleEnabled && (stage.enabled || required)
         const StageIcon = STAGE_ICONS[id]
         return (
           <li
@@ -168,10 +168,10 @@ export function ReviewStageList({
                     )}
                     endValue={toUtcIso(
                       stage.end ??
-                        stage.start ?? {
-                          date: cycle.endDate,
-                          time: '00:00',
-                        },
+                      stage.start ?? {
+                        date: cycle.endDate,
+                        time: '00:00',
+                      },
                     )}
                     onStartChange={(date) => setStageDate(id, 'start', date)}
                     onEndChange={(date) => setStageDate(id, 'end', date)}

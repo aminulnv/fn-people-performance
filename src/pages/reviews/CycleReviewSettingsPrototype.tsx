@@ -1,12 +1,6 @@
-import { ClipboardList, Pencil, Scale } from "lucide-react";
-import { Badge, Button, Card } from "@/components/ui";
-import {
-  CALIBRATION_MODE_META,
-  enabledReviewTypeLabels,
-  GRADE_BAND_META,
-  GRADE_BAND_ORDER,
-  GRADE_RECOMMENDATION_META,
-} from "@/lib/reviews/labels";
+import { ClipboardList, Construction, Pencil, Scale } from "lucide-react";
+import { Badge, Button, Card, EmptyState } from "@/components/ui";
+import { enabledReviewTypeLabels } from "@/lib/reviews/labels";
 import { formatLocalDateRange } from "@/lib/dates/timezone";
 import type { ReviewCycle } from "@/lib/reviews/types";
 import { exclusionsLabel } from "./GradePublishingExclusionsDrawer";
@@ -95,46 +89,18 @@ export function CycleReviewSettingsPrototype({
           title={
             <span className="pd-reviews-card-title">
               <Scale size={16} strokeWidth={1.75} aria-hidden />
-              Calculation &amp; calibration logic
+              Calibration
             </span>
           }
-          description="How grades are recommended and distributed during calibration."
+          description="Calibration settings will appear here."
           actions={<EditButton onClick={onEditCalibration} />}
         >
-          <dl className="pd-reviews-kv">
-            <div className="pd-reviews-kv__row">
-              <dt>Calibration Mode</dt>
-              <dd>
-                {CALIBRATION_MODE_META[cycle.calibration.calibrationMode].label}
-              </dd>
-            </div>
-            <div className="pd-reviews-kv__row">
-              <dt>Grade Recommendation Logic</dt>
-              <dd>
-                {
-                  GRADE_RECOMMENDATION_META[cycle.calibration.gradeRecommendation]
-                    .label
-                }
-              </dd>
-            </div>
-            <div className="pd-reviews-kv__row pd-reviews-kv__row--stacked">
-              <dt>Calibration Grade Distribution</dt>
-              <dd>
-                <ul className="pd-reviews-bands">
-                  {GRADE_BAND_ORDER.map((band) => (
-                    <li key={band} className="pd-reviews-bands__item">
-                      <span className="pd-reviews-bands__value">
-                        {cycle.calibration.gradeDistribution[band]}%
-                      </span>
-                      <span className="pd-reviews-bands__label">
-                        {GRADE_BAND_META[band].label}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </dd>
-            </div>
-          </dl>
+          <EmptyState
+            className="pd-empty--construction pd-empty--inline"
+            icon={Construction}
+            title="Under development"
+            description="Group calibration settings are being rebuilt."
+          />
         </Card>
       </div>
     </section>

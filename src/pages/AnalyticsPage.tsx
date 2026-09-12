@@ -46,6 +46,7 @@ import type { PersonGoals } from '@/lib/goals/types'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
+import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import {
@@ -459,6 +460,7 @@ export default function AnalyticsPage() {
           label: cycle.name,
           status,
           statusLabel: cycleStatusLabel(status),
+          dateLabel: formatDateRange(cycle.startDate, cycle.endDate),
         }
       }),
     [cycles],

@@ -56,14 +56,14 @@ export function resolveCyclePolicyForPerson(
     employeeId == null ? null : findCycleGroupForPerson(cycle, employeeId)
   if (!group) {
     return {
-      settings: normalizeCycleSettings(cycle.settings),
+      settings: normalizeCycleSettings(cycle.settings, undefined, cycle.periodKey),
       stagesConfig: cycle.stagesConfig,
       calibration: cycle.calibration,
       groupId: null,
     }
   }
   return {
-    settings: normalizeCycleSettings(group.settings),
+    settings: normalizeCycleSettings(group.settings, undefined, cycle.periodKey),
     stagesConfig: group.stagesConfig,
     calibration: group.calibration,
     groupId: group.id,
@@ -101,7 +101,9 @@ export function cloneCycleSettingsIntoGroup(
     cycleId: cycle.id,
     name: input.name.trim() || 'Untitled group',
     memberIds: [...new Set((input.memberIds ?? []).map(Number).filter(Number.isInteger))],
-    settings: structuredClone(normalizeCycleSettings(cycle.settings)),
+    settings: structuredClone(
+      normalizeCycleSettings(cycle.settings, undefined, cycle.periodKey),
+    ),
     stagesConfig: {
       ...structuredClone(cycle.stagesConfig),
       goals: {
@@ -156,8 +158,8 @@ export function groupDiffersFromCycle(
   group: CycleGroup,
 ): boolean {
   return (
-    JSON.stringify(normalizeCycleSettings(cycle.settings)) !==
-      JSON.stringify(normalizeCycleSettings(group.settings)) ||
+    JSON.stringify(normalizeCycleSettings(cycle.settings, undefined, cycle.periodKey)) !==
+      JSON.stringify(normalizeCycleSettings(group.settings, undefined, cycle.periodKey)) ||
     JSON.stringify(cycle.stagesConfig) !== JSON.stringify(group.stagesConfig) ||
     JSON.stringify(cycle.calibration) !== JSON.stringify(group.calibration)
   )

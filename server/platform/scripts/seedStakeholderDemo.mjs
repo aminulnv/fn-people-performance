@@ -1083,10 +1083,13 @@ async function main() {
         autoScorecardGeneration: true,
       },
       calibration: {
-        calibrationMode: 'manual',
-        gradeRecommendation: 'none',
-        gradeDistribution: { exceptional: 2, exceeding: 25, performing: 40, developing: 28, unsatisfactory: 5 },
-        sltMemberIds: [1, 2],
+        gradeDistribution: {
+          exceptional: 2,
+          exceeding: 25,
+          performing: 40,
+          developing: 28,
+          unsatisfactory: 5,
+        },
       },
     },
     ACTOR,
@@ -1170,8 +1173,6 @@ async function main() {
       },
       calibration: {
         ...q1.calibration,
-        calibrationMode: 'manual',
-        gradeRecommendation: 'distribution',
       },
     },
     ACTOR,

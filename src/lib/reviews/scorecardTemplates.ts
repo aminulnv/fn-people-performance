@@ -386,15 +386,20 @@ export function updateScorecardPillar(
   }
 }
 
-export function addCustomPillar(policy: ReviewPolicy, label: string): ReviewPolicy {
-  const name = label.trim()
-  if (!name) return policy
+export function addCustomPillar(
+  policy: ReviewPolicy,
+  label = 'Custom area',
+): ReviewPolicy {
+  const name = label.trim() || 'Custom area'
+  const used = policy.scorecard.pillars
+    .filter((pillar) => pillar.enabled)
+    .reduce((sum, pillar) => sum + pillar.weight, 0)
   const pillar: ScorecardPillar = {
     id: nextId('custom'),
     kind: 'custom',
     label: name,
     enabled: true,
-    weight: 0,
+    weight: Math.max(0, 100 - used),
     pullLinkedQuarters: false,
   }
   return {
@@ -406,16 +411,50 @@ export function addCustomPillar(policy: ReviewPolicy, label: string): ReviewPoli
   }
 }
 
+export function removeScorecardPillar(
+  policy: ReviewPolicy,
+  pillarId: string,
+): ReviewPolicy {
+  const next: ReviewPolicy = {
+    ...policy,
+    scorecard: {
+      ...policy.scorecard,
+      pillars: policy.scorecard.pillars.filter((item) => item.id !== pillarId),
+    },
+  }
+  return reweightAfterPillarChange(next)
+}
+
+/** @deprecated Prefer removeScorecardPillar — kept for older call sites. */
 export function removeCustomPillar(
   policy: ReviewPolicy,
   pillarId: string,
 ): ReviewPolicy {
+  return removeScorecardPillar(policy, pillarId)
+}
+
+function reweightAfterPillarChange(policy: ReviewPolicy): ReviewPolicy {
+  const active = policy.scorecard.pillars.filter((pillar) => pillar.enabled)
+  if (active.length === 0) return policy
+  const total = active.reduce((sum, pillar) => sum + pillar.weight, 0)
+  if (total <= 100) return policy
+  const scale = 100 / total
+  let allocated = 0
+  const weights = active.map((pillar, index) => {
+    if (index === active.length - 1) return Math.max(0, 100 - allocated)
+    const next = Math.max(0, Math.round(pillar.weight * scale))
+    allocated += next
+    return next
+  })
+  const byId = new Map(active.map((pillar, index) => [pillar.id, weights[index]!]))
   return {
     ...policy,
     scorecard: {
       ...policy.scorecard,
-      pillars: policy.scorecard.pillars.filter(
-        (item) => !(item.kind === 'custom' && item.id === pillarId),
+      pillars: policy.scorecard.pillars.map((pillar) =>
+        byId.has(pillar.id)
+          ? { ...pillar, weight: byId.get(pillar.id)! }
+          : pillar,
       ),
     },
   }

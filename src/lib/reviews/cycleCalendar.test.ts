@@ -32,8 +32,6 @@ function sampleCycle(): ReviewCycle {
     autoScorecardGeneration: true,
   }
   const calibration = {
-    calibrationMode: 'department' as const,
-    gradeRecommendation: 'manager_average' as const,
     gradeDistribution: {
       exceptional: 5,
       exceeding: 15,

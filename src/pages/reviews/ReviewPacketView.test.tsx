@@ -245,62 +245,84 @@ describe('ScorecardDetailPage', () => {
     )
     expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull()
   })
+
+  it('sends Edit from Published to the manager review form stage', async () => {
+    render(
+      <MemoryRouter
+        initialEntries={[
+          `/reviews/scorecards/${cycleId}/2?stage=publish_employees`,
+        ]}
+      >
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardDetailPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByRole('link', { name: 'Edit' })).toHaveAttribute(
+      'href',
+      `/reviews/scorecards/${cycleId}/2?mode=edit&stage=manager_review`,
+    )
+  })
 })
 
 describe('ReviewPacketView', () => {
-  it('does not show a Goals grade on a quarterly check-in by default', async () => {
-    renderEdit()
-    await screen.findByRole('button', { name: 'Cancel' })
-    expect(screen.queryByRole('button', { name: /Goals \(/ })).toBeNull()
-    expect(screen.queryByLabelText('Goals Grade')).toBeNull()
-    expect(screen.getByRole('heading', { name: 'Overall Grade' })).toBeTruthy()
-  })
-
-  it('hides the overall grade grid when the group turns it off', async () => {
-    const cycle = listReviewCycles().find((item) => item.id === cycleId)
-    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
-    if (!cycle || !group?.settings.reviewPolicy) {
-      throw new Error('expected a seeded quarterly group')
-    }
-    await updateCycleGroup(cycle.id, group.id, {
-      settings: {
-        reviewPolicy: {
-          ...group.settings.reviewPolicy,
-          managerReview: {
-            ...group.settings.reviewPolicy.managerReview,
-            gradeOverall: false,
-          },
-        },
-      },
-    })
-
-    renderEdit()
-    await screen.findByRole('button', { name: 'Cancel' })
-    expect(screen.queryByRole('heading', { name: 'Overall Grade' })).toBeNull()
-  })
-
-  it('shows a Goals grade when the group turns it on', async () => {
-    const cycle = listReviewCycles().find((item) => item.id === cycleId)
-    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
-    if (!cycle || !group?.settings.reviewPolicy) {
-      throw new Error('expected a seeded quarterly group')
-    }
-    await updateCycleGroup(cycle.id, group.id, {
-      settings: {
-        reviewPolicy: {
-          ...group.settings.reviewPolicy,
-          managerReview: {
-            ...group.settings.reviewPolicy.managerReview,
-            gradeGoals: true,
-          },
-        },
-      },
-    })
-
+  it('shows a Goals grade on a quarterly check-in by default', async () => {
     renderEdit()
     expect(
       await screen.findByRole('button', { name: /Goals \(/ }),
     ).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'Overall Grading' })).toBeNull()
+  })
+
+  it('shows the overall grade grid when the group turns it on', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group?.settings.reviewPolicy) {
+      throw new Error('expected a seeded quarterly group')
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...group.settings.reviewPolicy,
+          managerReview: {
+            ...group.settings.reviewPolicy.managerReview,
+            gradeOverall: true,
+          },
+        },
+      },
+    })
+
+    renderEdit()
+    await screen.findByRole('button', { name: 'Cancel' })
+    expect(screen.getByRole('heading', { name: 'Overall Grading' })).toBeTruthy()
+  })
+
+  it('hides a Goals grade when the group turns it off', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group?.settings.reviewPolicy) {
+      throw new Error('expected a seeded quarterly group')
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...group.settings.reviewPolicy,
+          managerReview: {
+            ...group.settings.reviewPolicy.managerReview,
+            gradeGoals: false,
+          },
+        },
+      },
+    })
+
+    renderEdit()
+    await screen.findByRole('button', { name: 'Cancel' })
+    expect(screen.queryByRole('button', { name: /Goals \(/ })).toBeNull()
+    expect(screen.queryByLabelText('Goals Grading')).toBeNull()
   })
 
   it('does not offer calibration while the manager review is still open', async () => {

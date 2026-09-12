@@ -22,7 +22,7 @@ export function OverallGradePicker({
     <section className="pd-reviews-scorecard__overall" aria-labelledby={headingId}>
       <h2 id={headingId} className="pd-reviews-scorecard__section-title">
         <Trophy size={18} strokeWidth={1.75} aria-hidden />
-        Overall Grade
+        Overall Grading
       </h2>
       <div
         className="pd-reviews-scorecard__overall-options"

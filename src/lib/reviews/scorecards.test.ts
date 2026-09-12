@@ -10,6 +10,7 @@ import {
   buildScorecardsForCycle,
   answersFromFeedbackText,
   feedbackFromPacket,
+  isScorecardFeedbackQuestion,
   packetFieldsForRole,
   packetStageLabel,
   gradeFromGoalProgress,
@@ -321,7 +322,7 @@ describe('packetFieldsForRole', () => {
     )
   })
 
-  it('omits strength and improvement answers from the form readout', () => {
+  it('omits only packed Feedback answers from the form readout', () => {
     const fields = packetFieldsForRole(
       packet({
         employeeId: 4,
@@ -330,6 +331,11 @@ describe('packetFieldsForRole', () => {
             questionId: 'delivered',
             actorRole: 'manager',
             body: 'Hit the Q1 outcomes.',
+          },
+          {
+            questionId: 'strengths',
+            actorRole: 'manager',
+            body: 'Packed strengths stay in Feedback.',
           },
           {
             questionId: 'retain',
@@ -354,11 +360,23 @@ describe('packetFieldsForRole', () => {
           required: false,
           visibility: ['calibrators'],
         },
+        {
+          id: 'strengths',
+          prompt: 'Strengths',
+          enabled: true,
+          required: false,
+          visibility: ['manager'],
+        },
       ],
       [],
     )
 
     expect(fields.answers).toEqual([
+      {
+        questionId: 'delivered',
+        prompt: 'What did I deliver this year?',
+        body: 'Hit the Q1 outcomes.',
+      },
       {
         questionId: 'retain',
         prompt: 'Will we do what it takes to retain this person?',
@@ -454,7 +472,7 @@ describe('latestScorecardGrade', () => {
 })
 
 describe('feedbackFromPacket', () => {
-  it('prefers manager answers and splits strengths from development', () => {
+  it('prefers manager packed feedback over self', () => {
     expect(
       feedbackFromPacket(
         packet({
@@ -463,17 +481,17 @@ describe('feedbackFromPacket', () => {
           releasedToEmployeeAt: '2026-08-22T00:00:00.000Z',
           answers: [
             {
-              questionId: 'delivered',
+              questionId: 'strengths',
               actorRole: 'self',
               body: 'I shipped the OKR tool.',
             },
             {
-              questionId: 'delivered',
+              questionId: 'strengths',
               actorRole: 'manager',
               body: 'Owned the OKR platform end to end.',
             },
             {
-              questionId: 'improve',
+              questionId: 'developments',
               actorRole: 'manager',
               body: 'Make ideas simpler for the team to follow.',
             },
@@ -498,14 +516,12 @@ describe('feedbackFromPacket', () => {
         'Simplify how ideas are shared',
       ),
     ).toEqual([
-      { questionId: 'delivered', body: '' },
-      { questionId: 'improve', body: '' },
       { questionId: 'strengths', body: 'Shipped the OKR tool\n\nRaised the quality bar' },
       { questionId: 'developments', body: 'Simplify how ideas are shared' },
     ])
   })
 
-  it('joins older split answers into the single strength and development fields', () => {
+  it('reads only packed strengths and developments for the Feedback card', () => {
     expect(
       feedbackFromPacket(
         packet({
@@ -531,13 +547,12 @@ describe('feedbackFromPacket', () => {
         'Api Singha',
       ),
     ).toMatchObject({
-      strengths:
-        'Owned the OKR platform end to end.\n\nYou ship reliably and at pace.',
+      strengths: 'You ship reliably and at pace.',
       developments: 'Make ideas simpler for others to follow.',
     })
   })
 
-  it('treats the quarterly manager comment as a strength', () => {
+  it('keeps quarterly comments on the form instead of the Feedback card', () => {
     expect(
       feedbackFromPacket(
         packet({
@@ -552,7 +567,9 @@ describe('feedbackFromPacket', () => {
         }),
         'Api Singha',
       ).strengths,
-    ).toEqual('An outstanding quarter on the OKR platform.')
+    ).toEqual('')
+    expect(isScorecardFeedbackQuestion('quarter-comment')).toBe(false)
+    expect(isScorecardFeedbackQuestion('strengths')).toBe(true)
   })
 })
 
@@ -569,7 +586,7 @@ describe('buildScorecardDetail', () => {
       publishedOverallGrade: 'exceeding',
       answers: [
         {
-          questionId: 'delivered',
+          questionId: 'strengths',
           actorRole: 'manager',
           body: 'Closed the quarter cleanly.',
         },
@@ -642,12 +659,12 @@ describe('buildScorecardDetail', () => {
         calibratedOverallGrade: 'exceptional',
         answers: [
           {
-            questionId: 'delivered',
+            questionId: 'strengths',
             actorRole: 'self',
             body: 'I closed my OKRs.',
           },
           {
-            questionId: 'delivered',
+            questionId: 'strengths',
             actorRole: 'manager',
             body: 'Closed the quarter cleanly.',
           },

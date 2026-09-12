@@ -1,3 +1,4 @@
+import { isGoalsOnlyQuarter } from './reviewStages'
 import {
   applyScorecardTemplate,
   DEFAULT_GRADE_BANDS,
@@ -35,8 +36,16 @@ function stripUnusedManagerFields(
   return rest
 }
 
-export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin'): ReviewPolicy {
+export function defaultReviewPolicy(
+  purpose: CyclePurpose = 'quarterly_checkin',
+  periodKey?: string,
+): ReviewPolicy {
   const isAnnual = purpose === 'annual_appraisal'
+  // Q1–Q3: goals on / overall off · Q4: both off · Annual: both on
+  const isQ4 =
+    purpose === 'quarterly_checkin' && isGoalsOnlyQuarter(periodKey)
+  const gradeGoals = isAnnual || !isQ4
+  const gradeOverall = isAnnual
   const base: ReviewPolicy = {
     selfReview: {
       ratePillars: isAnnual,
@@ -45,8 +54,8 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
     managerReview: {
       narrative: 'overall',
       gapCommentTiers: isAnnual ? 2 : 0,
-      gradeGoals: isAnnual,
-      gradeOverall: true,
+      gradeGoals,
+      gradeOverall,
       gradeSuggestion: 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
@@ -73,8 +82,9 @@ export function defaultReviewPolicy(purpose: CyclePurpose = 'quarterly_checkin')
 export function normalizeReviewPolicy(
   policy?: Partial<ReviewPolicy> | null,
   purpose: CyclePurpose = 'quarterly_checkin',
+  periodKey?: string,
 ): ReviewPolicy {
-  const defaults = defaultReviewPolicy(purpose)
+  const defaults = defaultReviewPolicy(purpose, periodKey)
   if (!policy) return defaults
   return {
     selfReview: {

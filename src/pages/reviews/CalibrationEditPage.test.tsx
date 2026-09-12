@@ -1,7 +1,6 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
-import * as reviewsStore from '@/lib/reviews/store'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { CalibrationEditPage } from './CalibrationEditPage'
@@ -9,7 +8,6 @@ import { CalibrationEditPage } from './CalibrationEditPage'
 afterEach(() => {
   cleanup()
   resetReviewsStoreForTests()
-  vi.restoreAllMocks()
 })
 
 function sample(): { cycle: ReviewCycle; group: CycleGroup } {
@@ -39,8 +37,6 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     settings,
     stagesConfig: buildDefaultStagesConfig('2026-07-01', '2026-09-30'),
     calibration: {
-      calibrationMode: 'department',
-      gradeRecommendation: 'manager_average',
       gradeDistribution: {
         exceptional: 5,
         exceeding: 15,
@@ -70,7 +66,7 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
 }
 
 describe('CalibrationEditPage', () => {
-  it('explains every calibration option with an info icon', () => {
+  it('keeps the calibration section as a placeholder', () => {
     const { cycle, group } = sample()
 
     render(
@@ -81,58 +77,10 @@ describe('CalibrationEditPage', () => {
       />,
     )
 
-    expect(screen.getByText('When Calibration Happens')).toBeInTheDocument()
+    expect(screen.getByText('Under development')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
     expect(
-      screen.getByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Calibrators' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Manual' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Department Owners' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Central Calibration' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Recommendation' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About No Recommendation' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Manager Average' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Weighted Scorecards' }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Senior Leadership' }),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Distribution' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Exceptional' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Exceeding' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Performing' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'About Developing' })).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: 'About Unsatisfactory' }),
-    ).toBeInTheDocument()
-  })
-
-  it('notifies the parent after a successful save', () => {
-    const { cycle, group } = sample()
-    const onSuccess = vi.fn()
-    vi.spyOn(reviewsStore, 'updateCycleGroup').mockResolvedValue(group)
-
-    render(
-      <CalibrationEditPage
-        cycle={cycle}
-        group={group}
-        onClose={() => {}}
-        onSuccess={onSuccess}
-      />,
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-
-    expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+      screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
+    ).not.toBeInTheDocument()
   })
 })

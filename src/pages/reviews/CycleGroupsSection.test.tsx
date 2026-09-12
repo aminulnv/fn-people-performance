@@ -111,8 +111,6 @@ function sampleGroup(overrides: Partial<CycleGroup> = {}): CycleGroup {
     autoScorecardGeneration: true,
   }
   const calibration = {
-    calibrationMode: 'department' as const,
-    gradeRecommendation: 'manager_average' as const,
     gradeDistribution: {
       exceptional: 5,
       exceeding: 15,
@@ -158,8 +156,6 @@ function sampleCycle(groups: CycleGroup[]): ReviewCycle {
       autoScorecardGeneration: true,
     },
     calibration: group?.calibration ?? {
-      calibrationMode: 'department',
-      gradeRecommendation: 'manager_average',
       gradeDistribution: {
         exceptional: 5,
         exceeding: 15,

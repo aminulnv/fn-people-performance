@@ -8,7 +8,7 @@ import {
   groupDiffersFromCycle,
   resolveCyclePolicyForPerson,
 } from './cycleGroups'
-import type { CycleGroup, ReviewCycle } from './types'
+import type { CalibrationLogic, CycleGroup, ReviewCycle } from './types'
 
 function cycle(): ReviewCycle {
   return {
@@ -127,11 +127,35 @@ describe('cycleMemberIds', () => {
 })
 
 describe('normalizeCalibration', () => {
-  it('keeps unique senior leadership ids', () => {
+  it('fills missing grade bands from defaults', () => {
     expect(
       normalizeCalibration({
-        sltMemberIds: [11, 11, 0, 22],
-      }).sltMemberIds,
-    ).toEqual([11, 22])
+        gradeDistribution: { exceptional: 10 },
+      } as Partial<CalibrationLogic>).gradeDistribution,
+    ).toEqual({
+      exceptional: 10,
+      exceeding: 25,
+      performing: 40,
+      developing: 28,
+      unsatisfactory: 5,
+    })
+  })
+
+  it('drops legacy mode, recommendation, and SLT fields', () => {
+    expect(
+      normalizeCalibration({
+        calibrationMode: 'department',
+        gradeRecommendation: 'manager_average',
+        sltMemberIds: [11, 22],
+      } as Partial<CalibrationLogic>),
+    ).toEqual({
+      gradeDistribution: {
+        exceptional: 2,
+        exceeding: 25,
+        performing: 40,
+        developing: 28,
+        unsatisfactory: 5,
+      },
+    })
   })
 })
