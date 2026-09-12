@@ -304,7 +304,10 @@ export function ScorecardFormEditor({
                     pill
                     onClick={() => {
                       const next = addCustomPillar(policy)
-                      const created = next.scorecard.pillars.at(-1)
+                      const created =
+                        next.scorecard.pillars[
+                          next.scorecard.pillars.length - 1
+                        ]
                       onChange(next)
                       if (created) setFocusPillarId(created.id)
                     }}
@@ -376,7 +379,10 @@ export function ScorecardFormEditor({
             onClick={() => {
               const next = addReviewQuestion(policy)
               onChange(next)
-              const created = next.scorecard.questions.at(-1)
+              const created =
+                next.scorecard.questions[
+                  next.scorecard.questions.length - 1
+                ]
               if (created) setSelectedQuestionId(created.id)
             }}
           >
