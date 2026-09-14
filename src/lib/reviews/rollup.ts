@@ -103,15 +103,17 @@ export function rollupGoalsPillar(input: {
     return { applicable: [], averageScore: null, averageGrade: null }
   }
 
-  const weightTotal = applicable.reduce((sum, row) => sum + row.weight, 0)
+  // Equal share among active quarters (e.g. 3 left → ~33.33% each).
+  const equalWeight = 100 / applicable.length
+  const equalized = applicable.map((row) => ({ ...row, weight: equalWeight }))
   const averageScore =
-    applicable.reduce(
+    equalized.reduce(
       (sum, row) => sum + scoreForBand(row.grade, bands) * row.weight,
       0,
-    ) / weightTotal
+    ) / 100
 
   return {
-    applicable,
+    applicable: equalized,
     averageScore,
     averageGrade: bandForScore(averageScore, bands),
   }
@@ -125,8 +127,8 @@ export function combinePillarScores(input: {
   suggestedGrade: GradeBandId | null
   used: Array<{ pillar: ScorecardPillar; grade: GradeBandId; score: number }>
 } {
-  const used = input.policy.scorecard.pillars.flatMap((pillar) => {
-    if (!pillar.enabled) return []
+  const enabled = input.policy.scorecard.pillars.filter((pillar) => pillar.enabled)
+  const used = enabled.flatMap((pillar) => {
     const grade = input.pillarGrades[pillar.id]
     if (!grade) return []
     return [
@@ -138,7 +140,12 @@ export function combinePillarScores(input: {
     ]
   })
   const weightTotal = used.reduce((sum, row) => sum + row.pillar.weight, 0)
-  if (used.length === 0 || weightTotal <= 0) {
+  // Only suggest when every enabled pillar has a grade (e.g. Goals + Skills + Values).
+  if (
+    used.length === 0 ||
+    used.length !== enabled.length ||
+    weightTotal <= 0
+  ) {
     return { weightedScore: null, suggestedGrade: null, used }
   }
   const weightedScore =

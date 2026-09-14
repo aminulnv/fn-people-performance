@@ -71,6 +71,7 @@ export function saveLocalPacket(
     }>
     overallGrade?: ReviewPacket['selfOverallGrade']
     overrideReason?: string
+    goalsComponent?: ReviewPacket['goalsComponent']
     submit?: boolean
   },
 ): ReviewPacket {
@@ -94,6 +95,10 @@ export function saveLocalPacket(
         comment: score.comment ?? '',
       })),
     ],
+    goalsComponent:
+      input.goalsComponent !== undefined
+        ? input.goalsComponent
+        : current.goalsComponent,
     version: current.version + 1,
   }
   if (input.actorRole === 'self') {

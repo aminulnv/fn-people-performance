@@ -5,6 +5,8 @@ import type {
   CycleSettings,
   CycleStagesConfig,
   ReviewCycle,
+  ReviewPolicy,
+  ScorecardForm,
 } from './types'
 
 export async function fetchReviewCyclesRemote(): Promise<ReviewCycle[]> {
@@ -126,6 +128,49 @@ export async function deleteCycleGroupRemote(
 ): Promise<void> {
   await apiFetch(
     `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`,
+    { method: 'DELETE' },
+  )
+}
+
+export async function fetchScorecardFormsRemote(): Promise<ScorecardForm[]> {
+  const response = await apiFetch<{ forms: ScorecardForm[] }>(
+    '/api/platform/scorecard-forms',
+  )
+  return response.forms
+}
+
+export async function createScorecardFormRemote(body: {
+  id?: string
+  name: string
+  description?: string
+  policy?: ReviewPolicy
+}): Promise<ScorecardForm> {
+  const response = await apiFetch<{ form: ScorecardForm }>(
+    '/api/platform/scorecard-forms',
+    { method: 'POST', body },
+  )
+  return response.form
+}
+
+export async function updateScorecardFormRemote(
+  formId: string,
+  patch: {
+    name?: string
+    description?: string | null
+    policy?: ReviewPolicy
+    expectedVersion?: number
+  },
+): Promise<ScorecardForm> {
+  const response = await apiFetch<{ form: ScorecardForm }>(
+    `/api/platform/scorecard-forms/${encodeURIComponent(formId)}`,
+    { method: 'PATCH', body: patch },
+  )
+  return response.form
+}
+
+export async function deleteScorecardFormRemote(formId: string): Promise<void> {
+  await apiFetch(
+    `/api/platform/scorecard-forms/${encodeURIComponent(formId)}`,
     { method: 'DELETE' },
   )
 }

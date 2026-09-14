@@ -35,6 +35,7 @@ const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
 const GroupSettingsPage = lazy(() => import('@/pages/reviews/GroupSettingsPage'))
 const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
+const ScorecardsBuilderPage = lazy(() => import('@/pages/ScorecardsBuilderPage'))
 /** Canonical People directory - same pill controls as Organisation. */
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
 /** Soft-rect radius preview (optional). */
@@ -140,6 +141,22 @@ function App() {
                 element={<ScorecardDetailPage />}
               />
               <Route path="reviews/scorecards" element={<ReviewsPage />} />
+              <Route
+                path="scorecards-builder/:formId"
+                element={
+                  <RequirePlatformWrite>
+                    <ScorecardsBuilderPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="scorecards-builder"
+                element={
+                  <RequirePlatformWrite>
+                    <ScorecardsBuilderPage />
+                  </RequirePlatformWrite>
+                }
+              />
               <Route
                 path="reviews/cycles/:cycleId/:section"
                 element={<LegacyCycleRedirect />}

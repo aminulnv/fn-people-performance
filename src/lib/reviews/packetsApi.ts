@@ -2,6 +2,7 @@ import { apiFetch } from '@/lib/apiClient'
 import { readSession } from '@/lib/authApi'
 import { resolveCyclePolicyForPerson } from './cycleGroups'
 import { packetForViewer, packetsForViewer } from './packetVisibility'
+import { listScorecardForms } from './scorecardFormsStore'
 import { getReviewCycle } from './store'
 import type { ReviewPacket } from './types'
 import {
@@ -23,8 +24,11 @@ function sessionEmployeeId(): number | null {
 function visiblePacket(packet: ReviewPacket): ReviewPacket {
   const cycle = getReviewCycle(packet.cycleId)
   const questions = cycle
-    ? resolveCyclePolicyForPerson(cycle, packet.employeeId).settings.reviewPolicy
-        ?.scorecard.questions ?? []
+    ? resolveCyclePolicyForPerson(
+        cycle,
+        packet.employeeId,
+        listScorecardForms(),
+      ).settings.reviewPolicy?.scorecard.questions ?? []
     : []
   return packetForViewer(packet, sessionEmployeeId(), questions)
 }
@@ -33,8 +37,11 @@ function visiblePackets(packets: ReviewPacket[]): ReviewPacket[] {
   return packetsForViewer(packets, sessionEmployeeId(), (packet) => {
     const cycle = getReviewCycle(packet.cycleId)
     return cycle
-      ? resolveCyclePolicyForPerson(cycle, packet.employeeId).settings.reviewPolicy
-          ?.scorecard.questions ?? []
+      ? resolveCyclePolicyForPerson(
+          cycle,
+          packet.employeeId,
+          listScorecardForms(),
+        ).settings.reviewPolicy?.scorecard.questions ?? []
       : []
   })
 }
@@ -83,6 +90,10 @@ export async function saveReviewPacket(
         pillarScores: body.pillarScores as never,
         overallGrade: (body.overallGrade as ReviewPacket['selfOverallGrade']) ?? null,
         overrideReason: body.overrideReason as string | undefined,
+        goalsComponent:
+          body.goalsComponent === undefined
+            ? undefined
+            : (body.goalsComponent as ReviewPacket['goalsComponent']),
         submit: Boolean(body.submit),
       }),
     )

@@ -25,20 +25,29 @@ import {
   resolveReviewAppeal,
   saveReviewPacket,
 } from '@/lib/reviews/packetsApi'
+import {
+  annualGoalsComponent,
+  outcomeForAnnualQuarter,
+  readAnnualQ4Grade,
+} from '@/lib/reviews/annualQuarters'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   defaultReviewPolicy,
   enabledPillars,
   enabledQuestions,
   enabledOutputQuestions,
+  feedbackEnabledForVisibility,
   gradesGoalsSeparately,
   gradesOverall,
+  scorecardFeedbackOf,
 } from '@/lib/reviews/reviewPolicy'
 import { describeEnabledFlow, getReviewStage } from '@/lib/reviews/reviewStages'
+import { combinePillarScores, rollupGoalsPillar } from '@/lib/reviews/rollup'
 import { getReviewCycle } from '@/lib/reviews/store'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
+  useScorecardFormsSnapshot,
 } from '@/lib/reviews/useReviews'
 import type { GradeBandId, ReviewPacket, ReviewPolicy } from '@/lib/reviews/types'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
@@ -51,6 +60,7 @@ import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
+import { ReviewQuestionField } from '@/pages/reviews/ReviewQuestionField'
 import { ScorecardFeedbackCard } from '@/pages/reviews/ScorecardFeedbackCard'
 import {
   GRADE_LISTBOX_OPTIONS,
@@ -70,6 +80,7 @@ type PacketDraft = {
   answers: Array<{ questionId: string; body: string }>
   pillarScores: Array<{ pillarId: string; grade: GradeBandId | null; comment: string }>
   overallGrade: GradeBandId | null
+  goalsComponent?: ReviewPacket['goalsComponent']
 }
 
 function GradeField({
@@ -129,16 +140,18 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const [strengths, setStrengths] = useState('')
   const [developments, setDevelopments] = useState('')
   const [goalsGrade, setGoalsGrade] = useState<GradeBandId | ''>('')
+  const [q4Grade, setQ4Grade] = useState<GradeBandId | ''>('')
   const [packetDraft, setPacketDraft] = useState<PacketDraft | null>(null)
   const [isDirty, setDirty] = useState(false)
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
   const { cycles } = useReviewsSnapshot()
+  const forms = useScorecardFormsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
   const cycle = getReviewCycle(cycleId)
   const policyResolution = cycle
-    ? resolveCyclePolicyForPerson(cycle, employeeId)
+    ? resolveCyclePolicyForPerson(cycle, employeeId, forms)
     : null
   const policy =
     policyResolution?.settings.reviewPolicy ??
@@ -240,7 +253,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           score.pillarId === 'goals' && score.actorRole === goalsGradeRole,
       )?.grade ?? '',
     )
-  }, [goalsGradeRole, packet])
+    if (linkedQuarters.enabled) {
+      setQ4Grade(readAnnualQ4Grade(packet) ?? '')
+    }
+  }, [goalsGradeRole, linkedQuarters.enabled, packet])
 
   if (!cycle) {
     if (!cyclesHydrated) {
@@ -326,9 +342,47 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const hideEmployeeGoalsGrade = linkedQuarters.enabled && isSubject
   const gradeGoals = gradesGoalsSeparately(policy)
   const gradeOverall = gradesOverall(policy)
+  const useWeightedSuggest = linkedQuarters.enabled
+  const rollupGoalsFromQuarters = (includeQ4: boolean) =>
+    useWeightedSuggest
+      ? rollupGoalsPillar({
+          links: linkedQuarters.rows.map((row) => ({
+            sourceCycleId: row.sourceCycleId,
+            weightPercent: 25,
+            excluded: row.excluded,
+          })),
+          quarters: linkedQuarters.rows.map((row) => ({
+            sourceCycleId: row.sourceCycleId,
+            label: row.label,
+            outcome: outcomeForAnnualQuarter(
+              row,
+              includeQ4 && q4Grade ? q4Grade : null,
+            ),
+          })),
+          bands: policy.scorecard.bands,
+        })
+      : null
+  const selfGoalsRollup = rollupGoalsFromQuarters(false)
+  const managerGoalsRollup = rollupGoalsFromQuarters(true)
+  const rolledGoalsGrade =
+    (isManager ? managerGoalsRollup : selfGoalsRollup)?.averageGrade ?? null
   const extraGrades =
     gradeGoals && goalsGradeRole && !hideEmployeeGoalsGrade
       ? { goals: goalsGrade }
+      : undefined
+  const selfExtraGrades = useWeightedSuggest
+    ? selfGoalsRollup?.averageGrade
+      ? { goals: selfGoalsRollup.averageGrade }
+      : undefined
+    : gradeGoals && goalsGradeRole === 'self' && !hideEmployeeGoalsGrade
+      ? extraGrades
+      : undefined
+  const managerExtraGrades = useWeightedSuggest
+    ? managerGoalsRollup?.averageGrade
+      ? { goals: managerGoalsRollup.averageGrade }
+      : undefined
+    : gradeGoals && goalsGradeRole === 'manager'
+      ? extraGrades
       : undefined
   const managerFormLocked =
     packet.status === 'released_to_employees' ||
@@ -339,6 +393,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     packet.status === 'manager_submitted'
   const goalsGradeLocked =
     goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked
+  const q4GradeLocked = goalsGradeLocked
   const viewingManagerForm = stageView.viewing === 'manager_review'
   const viewingSelfForm = stageView.viewing === 'self_review'
   const viewingPublishedForm = stageView.viewing === 'publish_employees'
@@ -372,6 +427,9 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     try {
       const next = await saveReviewPacket(packet.id, {
         ...packetDraft,
+        goalsComponent: useWeightedSuggest
+          ? annualGoalsComponent(q4Grade || null)
+          : packetDraft.goalsComponent,
         actorRole: formActorRole,
         submit,
       })
@@ -430,16 +488,17 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             name: detail.employeeName,
             avatarUrl: detail.employeeAvatarUrl || undefined,
           }}
-          q4Grade={isManager && gradeGoals ? goalsGrade || null : null}
+          q4Grade={isManager && gradeGoals ? q4Grade || null : null}
           onQ4GradeChange={
             isManager && goalsGradeRole && gradeGoals
               ? (next) => {
-                  setGoalsGrade(next)
+                  setQ4Grade(next)
                   setDirty(true)
                 }
               : undefined
           }
-          q4GradeLocked={goalsGradeLocked}
+          q4GradeLocked={q4GradeLocked}
+          goalsRollupGrade={rolledGoalsGrade}
         />
       ) : detail ? (
         <ScorecardGoalsCard
@@ -488,21 +547,22 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted' || viewingPublishedForm}
           questions={selfQuestions}
           pillars={pillars}
+          policy={policy}
           packet={packet}
           actorRole="self"
           overall={packet.selfOverallGrade}
           extraAnswers={feedbackRole === 'self' ? feedbackAnswers : undefined}
-          extraGrades={
-            gradeGoals && goalsGradeRole === 'self' && !hideEmployeeGoalsGrade
-              ? extraGrades
-              : undefined
-          }
+          extraGrades={selfExtraGrades}
           hidePillarIds={
-            !gradeGoals || goalsGradeRole === 'self' || hideEmployeeGoalsGrade
+            useWeightedSuggest ||
+            !gradeGoals ||
+            goalsGradeRole === 'self' ||
+            hideEmployeeGoalsGrade
               ? ['goals']
               : []
           }
           showOverall={gradeOverall}
+          suggestOverall={useWeightedSuggest}
           onDraftChange={setPacketDraft}
           onUserEdit={() => setDirty(true)}
         />
@@ -518,17 +578,19 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           }
           questions={managerQuestions}
           pillars={pillars}
+          policy={policy}
           packet={packet}
           actorRole="manager"
           overall={packet.managerOverallGrade}
           extraAnswers={feedbackRole === 'manager' ? feedbackAnswers : undefined}
-          extraGrades={
-            gradeGoals && goalsGradeRole === 'manager' ? extraGrades : undefined
-          }
+          extraGrades={managerExtraGrades}
           hidePillarIds={
-            !gradeGoals || goalsGradeRole === 'manager' ? ['goals'] : []
+            useWeightedSuggest || !gradeGoals || goalsGradeRole === 'manager'
+              ? ['goals']
+              : []
           }
           showOverall={gradeOverall}
+          suggestOverall={useWeightedSuggest}
           onDraftChange={setPacketDraft}
           onUserEdit={() => setDirty(true)}
         />
@@ -549,7 +611,11 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         </section>
       ) : null}
 
-      {stageShowsReviewForm(stageView.viewing) ? (
+      {stageShowsReviewForm(stageView.viewing) &&
+      feedbackEnabledForVisibility(
+        policy,
+        feedbackRole === 'self' ? 'employee' : 'manager',
+      ) ? (
         <ScorecardFeedbackCard
           feedback={
             detail?.feedback ?? {
@@ -566,6 +632,8 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             feedbackRole == null ||
             feedbackLocked
           }
+          title={scorecardFeedbackOf(policy).title}
+          labels={scorecardFeedbackOf(policy).labels}
           strengths={strengths}
           developments={developments}
           onStrengthsChange={(next) => {
@@ -730,6 +798,7 @@ function PacketForm({
   locked,
   questions,
   pillars,
+  policy,
   packet,
   actorRole,
   overall,
@@ -737,6 +806,7 @@ function PacketForm({
   extraGrades,
   hidePillarIds = [],
   showOverall = true,
+  suggestOverall = false,
   onDraftChange,
   onUserEdit,
 }: {
@@ -744,6 +814,7 @@ function PacketForm({
   locked: boolean
   questions: ReviewPolicy['scorecard']['questions']
   pillars: ReviewPolicy['scorecard']['pillars']
+  policy: ReviewPolicy
   packet: ReviewPacket
   actorRole: 'self' | 'manager'
   overall: GradeBandId | null
@@ -751,6 +822,7 @@ function PacketForm({
   extraGrades?: Record<string, GradeBandId | ''>
   hidePillarIds?: string[]
   showOverall?: boolean
+  suggestOverall?: boolean
   onDraftChange: (draft: PacketDraft) => void
   onUserEdit: () => void
 }) {
@@ -769,7 +841,9 @@ function PacketForm({
     return next
   })
   const [overallGrade, setOverallGrade] = useState<GradeBandId | ''>(overall ?? '')
+  const [overallTouched, setOverallTouched] = useState(Boolean(overall))
   const lastDraftJson = useRef('')
+  const lastAppliedSuggestion = useRef<GradeBandId | null>(null)
 
   const mergedGrades = { ...grades, ...extraGrades }
   const formPillars = pillars.filter(
@@ -778,6 +852,38 @@ function PacketForm({
   const formQuestions = questions.filter(
     (question) => !isScorecardFeedbackQuestion(question.id),
   )
+  const suggestedOverall = suggestOverall
+    ? combinePillarScores({
+        policy,
+        pillarGrades: Object.fromEntries(
+          Object.entries(mergedGrades).map(([id, grade]) => [
+            id,
+            grade || null,
+          ]),
+        ),
+      }).suggestedGrade
+    : null
+
+  useEffect(() => {
+    if (!suggestOverall || !suggestedOverall || locked) return
+    const shouldApply =
+      !overallTouched ||
+      overallGrade === '' ||
+      overallGrade === lastAppliedSuggestion.current
+    if (!shouldApply) return
+    if (overallGrade === suggestedOverall) {
+      lastAppliedSuggestion.current = suggestedOverall
+      return
+    }
+    lastAppliedSuggestion.current = suggestedOverall
+    setOverallGrade(suggestedOverall)
+  }, [
+    locked,
+    overallGrade,
+    overallTouched,
+    suggestOverall,
+    suggestedOverall,
+  ])
 
   useEffect(() => {
     const nextGrades = { ...grades, ...extraGrades }
@@ -821,22 +927,20 @@ function PacketForm({
         </p>
       ) : null}
       {formQuestions.map((question) => (
-        <label key={question.id} className="pd-field">
-          <span className="pd-field__label">{question.prompt}</span>
-          <textarea
-            className="pd-reviews-scorecard__feedback-box pd-field__control pd-field__control--textarea"
-            rows={2}
-            disabled={locked}
-            value={answers[question.id] ?? ''}
-            onChange={(event) => {
-              setAnswers((current) => ({
-                ...current,
-                [question.id]: event.target.value,
-              }))
-              onUserEdit()
-            }}
-          />
-        </label>
+        <ReviewQuestionField
+          key={question.id}
+          question={question}
+          name={`packet-${actorRole}-${question.id}`}
+          disabled={locked}
+          value={answers[question.id] ?? ''}
+          onChange={(next) => {
+            setAnswers((current) => ({
+              ...current,
+              [question.id]: next,
+            }))
+            onUserEdit()
+          }}
+        />
       ))}
       {formPillars.map((pillar) => (
         <GradeField
@@ -859,7 +963,9 @@ function PacketForm({
           name={`packet-grade-${actorRole}-overall`}
           value={overallGrade}
           disabled={locked}
+          suggestedGrade={suggestedOverall}
           onChange={(next) => {
+            setOverallTouched(true)
             setOverallGrade(next)
             onUserEdit()
           }}

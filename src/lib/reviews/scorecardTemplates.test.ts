@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultReviewPolicy, pillarWeightTotal } from './reviewPolicy'
+import { defaultReviewPolicy, normalizeReviewPolicy, pillarWeightTotal } from './reviewPolicy'
 import {
   addCustomPillar,
   addReviewQuestion,
@@ -8,6 +8,7 @@ import {
   SCORECARD_TEMPLATES,
   moveReviewQuestion,
   removeReviewQuestion,
+  setReviewQuestionKind,
   toggleQuestionOutputVisibility,
   toggleQuestionVisibility,
 } from './scorecardTemplates'
@@ -36,7 +37,7 @@ describe('scorecard templates', () => {
     ).toEqual(['calibrators'])
   })
 
-  it('gives quarterly a goals-only form', () => {
+  it('gives quarterly a goals-only form with the manager comment question', () => {
     const policy = defaultReviewPolicy('quarterly_checkin')
     expect(
       policy.scorecard.pillars
@@ -44,9 +45,37 @@ describe('scorecard templates', () => {
         .map((pillar) => pillar.kind),
     ).toEqual(['goals'])
     expect(pillarWeightTotal(policy)).toBe(100)
-    expect(policy.scorecard.questions[0]?.visibility).toEqual([
-      'manager',
-      'calibrators',
+    expect(policy.scorecard.questions).toEqual([
+      expect.objectContaining({
+        id: 'quarter-comment',
+        prompt: 'How did this person perform against their goals this quarter?',
+        enabled: true,
+        required: true,
+        visibility: ['manager', 'calibrators'],
+      }),
+    ])
+  })
+
+  it('gives Q4 a progress-only form with no grading', () => {
+    const policy = defaultReviewPolicy('quarterly_checkin', 'q4-2026')
+    expect(policy.managerReview.gradeGoals).toBe(false)
+    expect(policy.managerReview.gradeOverall).toBe(false)
+    expect(policy.scorecard.questions).toEqual([
+      expect.objectContaining({
+        id: 'q4-progress',
+        required: false,
+      }),
+    ])
+  })
+
+  it('restores the quarterly manager comment when questions were cleared', () => {
+    const policy = normalizeReviewPolicy(
+      { scorecard: { questions: [] } },
+      'quarterly_checkin',
+      'q2-2026',
+    )
+    expect(policy.scorecard.questions.map((question) => question.id)).toEqual([
+      'quarter-comment',
     ])
   })
 
@@ -104,6 +133,41 @@ describe('review form edits', () => {
     )
     policy = removeReviewQuestion(policy, firstId)
     expect(policy.scorecard.questions).toHaveLength(1)
+  })
+
+  it('defaults new questions to open-ended and can switch kinds', () => {
+    let policy = addReviewQuestion(defaultReviewPolicy('custom'))
+    expect(policy.scorecard.questions[0]?.kind).toBe('open_ended')
+
+    policy = addReviewQuestion(policy, 'multiple_choice')
+    const mc = policy.scorecard.questions[1]
+    expect(mc?.kind).toBe('multiple_choice')
+    expect(mc?.options).toEqual(['Option 1', 'Option 2'])
+
+    policy = setReviewQuestionKind(policy, mc!.id, 'yes_no')
+    expect(policy.scorecard.questions[1]?.kind).toBe('yes_no')
+    expect(policy.scorecard.questions[1]?.options).toBeUndefined()
+  })
+
+  it('fills missing kind when normalizing legacy questions', () => {
+    const policy = normalizeReviewPolicy(
+      {
+        scorecard: {
+          questions: [
+            {
+              id: 'legacy',
+              prompt: 'Legacy question',
+              enabled: true,
+              required: false,
+              visibility: ['manager'],
+              outputVisibility: ['manager'],
+            } as never,
+          ],
+        },
+      },
+      'custom',
+    )
+    expect(policy.scorecard.questions[0]?.kind).toBe('open_ended')
   })
 
   it('keeps at least one visibility audience', () => {

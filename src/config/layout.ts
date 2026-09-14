@@ -1,6 +1,7 @@
 import {
   BarChart3,
   CalendarCog,
+  ClipboardList,
   Component,
   Home,
   IdCard,
@@ -49,6 +50,12 @@ export const layoutConfig: AppLayoutConfig = {
     },
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
+    {
+      path: '/scorecards-builder',
+      label: 'Scorecards Builder',
+      icon: ClipboardList,
+      requiredPermission: 'platform.write_all',
+    },
     { path: '/calibration', label: 'Calibration', icon: Scale },
     {
       path: '/analytics',

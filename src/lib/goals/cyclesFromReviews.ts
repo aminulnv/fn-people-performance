@@ -3,6 +3,7 @@ import {
   dayValue as toDay,
   todayDayValue as todayValue,
 } from "@/lib/reviews/periods";
+import { listScorecardForms } from "@/lib/reviews/scorecardFormsStore";
 import { getReviewCycle, listReviewCycles } from "@/lib/reviews/store";
 import { cycleStatusLabel } from "@/lib/reviews/status";
 import type { ReviewCycle, ReviewCycleStatus } from "@/lib/reviews/types";
@@ -38,7 +39,11 @@ export function reviewCycleToGoalsCycle(
   today = new Date(),
   employeeId?: number | null,
 ): GoalsCycle {
-  const policy = resolveCyclePolicyForPerson(cycle, employeeId);
+  const policy = resolveCyclePolicyForPerson(
+    cycle,
+    employeeId,
+    listScorecardForms(),
+  );
   const resolved: ReviewCycle = {
     ...cycle,
     settings: policy.settings,

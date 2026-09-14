@@ -310,6 +310,7 @@ const ANNUAL_QUESTIONS = [
     prompt: 'What did I deliver this year?',
     enabled: true,
     required: true,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -318,6 +319,7 @@ const ANNUAL_QUESTIONS = [
     prompt: "How did I demonstrate FN's Core Values?",
     enabled: true,
     required: true,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -326,6 +328,7 @@ const ANNUAL_QUESTIONS = [
     prompt: 'What do I need to further improve on?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -334,6 +337,7 @@ const ANNUAL_QUESTIONS = [
     prompt: 'Is the company giving me the support I need to perform at my optimal level?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -342,6 +346,7 @@ const ANNUAL_QUESTIONS = [
     prompt: 'Will we do what it takes to retain this person?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['calibrators'],
     outputVisibility: ['manager'],
   },
@@ -353,13 +358,26 @@ const QUARTERLY_QUESTIONS = [
     prompt: 'How did this person perform against their goals this quarter?',
     enabled: true,
     required: true,
+    kind: 'open_ended',
+    visibility: ['manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+]
+
+const Q4_QUESTIONS = [
+  {
+    id: 'q4-progress',
+    prompt: 'What progress has been made on goals this quarter?',
+    enabled: true,
+    required: false,
+    kind: 'open_ended',
     visibility: ['manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
 ]
 
 /** Mirrors client scorecard templates: quarterly = goals only; annual = goals/skills/values. */
-function defaultScorecard(purpose) {
+function defaultScorecard(purpose, periodKey) {
   if (purpose === 'annual_appraisal') {
     return {
       pillars: [
@@ -370,21 +388,49 @@ function defaultScorecard(purpose) {
       questions: ANNUAL_QUESTIONS.map((question) => ({ ...question })),
       bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
       extraGradeFields: [],
+      feedback: {
+        enabled: true,
+        title: 'Feedback',
+        labels: ['Strengths', 'Areas Of Improvement'],
+        required: false,
+        visibility: ['employee', 'manager'],
+        outputVisibility: ['employee', 'manager'],
+      },
     }
   }
+  const isQ4 =
+    purpose === 'quarterly_checkin' && isGoalsOnlyQuarter(periodKey)
   // quarterly_checkin and custom/blank: goals only — no Skills or Core Values
   return {
     pillars: [
       { id: 'goals', kind: 'goals', label: 'Goals', enabled: true, weight: 100, pullLinkedQuarters: true },
       { id: 'skills', kind: 'skills', label: 'Skills', enabled: false, weight: 0, pullLinkedQuarters: false },
       { id: 'values', kind: 'values', label: 'Core Values', enabled: false, weight: 0, pullLinkedQuarters: false },
+      {
+        id: 'leadership',
+        kind: 'leadership',
+        label: 'Leadership Capabilities',
+        enabled: false,
+        weight: 0,
+        pullLinkedQuarters: false,
+      },
     ],
     questions:
       purpose === 'custom'
         ? []
-        : QUARTERLY_QUESTIONS.map((question) => ({ ...question })),
+        : (isQ4 ? Q4_QUESTIONS : QUARTERLY_QUESTIONS).map((question) => ({
+            ...question,
+          })),
     bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
     extraGradeFields: [],
+    feedback: {
+      enabled: true,
+      title: 'Feedback',
+      labels: ['Strengths', 'Areas Of Improvement'],
+      required: false,
+      visibility: ['employee', 'manager'],
+      outputVisibility: ['employee', 'manager'],
+    },
   }
 }
 
@@ -405,7 +451,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin', periodKey) {
       gapCommentTiers: isAnnual ? 2 : 0,
       gradeGoals,
       gradeOverall,
-      gradeSuggestion: 'none',
+      gradeSuggestion: isAnnual ? 'weighted_suggest' : 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
     },
@@ -418,7 +464,7 @@ export function defaultReviewPolicy(purpose = 'quarterly_checkin', periodKey) {
       excludeProbation: false,
       excludePip: false,
     },
-    scorecard: defaultScorecard(purpose),
+    scorecard: defaultScorecard(purpose, periodKey),
   }
 }
 
@@ -433,6 +479,7 @@ function stripUnusedManagerFields(managerReview) {
 
 export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin', periodKey) {
   const defaults = defaultReviewPolicy(purpose, periodKey)
+  const gradeLocks = lockedGradeTogglesForCycle(purpose, periodKey)
   if (!policy || typeof policy !== 'object' || Array.isArray(policy) || Object.keys(policy).length === 0) {
     return defaults
   }
@@ -446,10 +493,12 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin', per
     managerReview: stripUnusedManagerFields({
       ...defaults.managerReview,
       ...policy.managerReview,
-      gradeGoals:
-        policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals,
-      gradeOverall:
-        policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
+      gradeGoals: gradeLocks.locked
+        ? gradeLocks.gradeGoals
+        : (policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals),
+      gradeOverall: gradeLocks.locked
+        ? gradeLocks.gradeOverall
+        : (policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall),
       escalationRoles:
         policy.managerReview?.escalationRoles ?? defaults.managerReview.escalationRoles,
     }),
@@ -459,18 +508,83 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin', per
       pillars: policy.scorecard?.pillars?.length
         ? policy.scorecard.pillars
         : defaults.scorecard.pillars,
-      questions: policy.scorecard?.questions?.length
-        ? policy.scorecard.questions.map((question) => ({
-            ...question,
-            outputVisibility: question.outputVisibility?.length
-              ? question.outputVisibility
-              : ['employee', 'manager'],
-          }))
+      questions: Array.isArray(policy.scorecard?.questions) &&
+        (policy.scorecard.questions.length > 0 || purpose === 'custom')
+        ? policy.scorecard.questions.map((question) => {
+            const kind = question.kind ?? 'open_ended'
+            return {
+              ...question,
+              kind,
+              options:
+                kind === 'multiple_choice'
+                  ? question.options?.length
+                    ? question.options
+                    : ['Option 1', 'Option 2']
+                  : question.options,
+              dualLabels:
+                kind === 'dual_text'
+                  ? question.dualLabels?.length === 2
+                    ? question.dualLabels
+                    : ['Field 1', 'Field 2']
+                  : question.dualLabels,
+              outputVisibility: question.outputVisibility?.length
+                ? question.outputVisibility
+                : ['employee', 'manager'],
+            }
+          })
         : defaults.scorecard.questions,
       bands: policy.scorecard?.bands?.length
         ? policy.scorecard.bands
         : defaults.scorecard.bands,
       extraGradeFields: policy.scorecard?.extraGradeFields ?? [],
+      feedback: (() => {
+        const incoming = policy.scorecard?.feedback
+        const labels =
+          incoming?.labels?.length === 2
+            ? incoming.labels
+            : ['Strengths', 'Areas Of Improvement']
+        return {
+          enabled: incoming?.enabled ?? true,
+          title: incoming?.title?.trim() || 'Feedback',
+          labels,
+          required: incoming?.required ?? false,
+          visibility: incoming?.visibility?.length
+            ? incoming.visibility
+            : ['employee', 'manager'],
+          outputVisibility: incoming?.outputVisibility?.length
+            ? incoming.outputVisibility
+            : ['employee', 'manager'],
+        }
+      })(),
     },
+  }
+}
+
+export function lockedGradeTogglesForCycle(purpose, periodKey) {
+  if (purpose === 'annual_appraisal') {
+    return {
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: true,
+    }
+  }
+  if (purpose === 'quarterly_checkin') {
+    if (isGoalsOnlyQuarter(periodKey)) {
+      return {
+        locked: true,
+        gradeGoals: false,
+        gradeOverall: false,
+      }
+    }
+    return {
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: false,
+    }
+  }
+  return {
+    locked: false,
+    gradeGoals: false,
+    gradeOverall: false,
   }
 }

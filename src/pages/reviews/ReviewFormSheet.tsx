@@ -1,9 +1,8 @@
-import { useState } from 'react'
-import { createPortal } from 'react-dom'
+import { Link } from 'react-router-dom'
 import { ClipboardList } from 'lucide-react'
-import { Button, Modal } from '@/components/ui'
-import type { ReviewPolicy } from '@/lib/reviews/types'
-import { ScorecardFormEditor } from './ScorecardFormEditor'
+import { ListboxSelect } from '@/components/ui'
+import { scorecardsBuilderPath } from '@/lib/reviews/paths'
+import type { ReviewPolicy, ScorecardForm } from '@/lib/reviews/types'
 import type { SettingsSideSheet } from './SettingsSideSheetRail'
 
 export const REVIEW_FORM_SHEET_LABEL = 'Review Form Templates'
@@ -23,118 +22,136 @@ export function reviewFormSummary(policy: ReviewPolicy): string {
   return `${questionLabel} · ${areaLabel} · ${gradeLabel}`
 }
 
-/** Summary-only sheet; editing happens in the modal. */
+/** Summary-only sheet; forms are authored in Scorecards Builder. */
 export const REVIEW_FORM_SHEET_WIDTH = 360
 
-export function reviewFormSideSheet(
-  policy: ReviewPolicy,
-  onChange: (next: ReviewPolicy) => void,
-): SettingsSideSheet {
+export function reviewFormSideSheet(args: {
+  policy: ReviewPolicy
+  forms: ScorecardForm[]
+  scorecardFormId: string | null | undefined
+  onAllocate: (formId: string | null) => void
+}): SettingsSideSheet {
   return {
     tabLabel: REVIEW_FORM_TAB_LABEL,
     tabIcon: ClipboardList,
     label: REVIEW_FORM_SHEET_LABEL,
     preferredWidth: REVIEW_FORM_SHEET_WIDTH,
-    content: <ReviewFormSheet policy={policy} onChange={onChange} />,
+    content: (
+      <ReviewFormSheet
+        policy={args.policy}
+        forms={args.forms}
+        scorecardFormId={args.scorecardFormId}
+        onAllocate={args.onAllocate}
+      />
+    ),
   }
 }
 
-/** Compact side-sheet summary; full editor opens in a modal. */
+/** Compact side-sheet: allocate a shared form template to this group. */
 export function ReviewFormSheet({
   policy,
-  onChange,
+  forms,
+  scorecardFormId,
+  onAllocate,
 }: {
   policy: ReviewPolicy
-  onChange: (next: ReviewPolicy) => void
+  forms: ScorecardForm[]
+  scorecardFormId: string | null | undefined
+  onAllocate: (formId: string | null) => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const areas = policy.scorecard.pillars.filter((pillar) => pillar.enabled)
-  const questions = policy.scorecard.questions.filter((question) => question.enabled)
+  const allocated = scorecardFormId
+    ? forms.find((form) => form.id === scorecardFormId)
+    : null
+  const resolved = allocated?.policy ?? policy
+  const areas = resolved.scorecard.pillars.filter((pillar) => pillar.enabled)
+  const questions = resolved.scorecard.questions.filter(
+    (question) => question.enabled,
+  )
+  const builderHref = allocated
+    ? scorecardsBuilderPath(allocated.id)
+    : scorecardsBuilderPath()
 
   return (
-    <>
-      <div className="pd-reviews-form-sheet">
-        <header className="pd-reviews-form-sheet__head">
-          <h2>
-            <ClipboardList size={20} strokeWidth={2.25} aria-hidden />
-            Review Form
-          </h2>
-        </header>
-        <div className="pd-reviews-form-sheet__body">
-          <div className="pd-reviews-form-sheet__summary">
-            <p className="pd-reviews-form-sheet__lede">
-              {reviewFormSummary(policy)}
-            </p>
+    <div className="pd-reviews-form-sheet">
+      <header className="pd-reviews-form-sheet__head">
+        <h2>
+          <ClipboardList size={20} strokeWidth={2.25} aria-hidden />
+          Review Form
+        </h2>
+      </header>
+      <div className="pd-reviews-form-sheet__body">
+        <div className="pd-reviews-form-sheet__summary">
+          <label className="pd-field">
+            <span className="pd-field__label">Allocated form</span>
+            <ListboxSelect
+              aria-label="Allocated form"
+              allowEmpty
+              emptyLabel="No form allocated"
+              value={scorecardFormId ?? ''}
+              onValueChange={(next) => onAllocate(next || null)}
+              options={forms.map((form) => ({
+                value: form.id,
+                label: form.name,
+                description: reviewFormSummary(form.policy),
+              }))}
+            />
+          </label>
 
-            {areas.length > 0 ? (
-              <section
-                className="pd-reviews-form-sheet__block"
-                aria-label="Grade areas"
-              >
-                <h3 className="pd-field__label">Grade areas</h3>
-                <ul className="pd-reviews-form-sheet__list">
-                  {areas.map((area) => (
-                    <li key={area.id}>
-                      {area.label}
-                      <span className="pd-reviews-form-sheet__meta">
-                        {area.weight}%
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ) : null}
+          <p className="pd-reviews-form-sheet__lede">
+            {allocated
+              ? `${reviewFormSummary(resolved)}. Allocated forms are locked — duplicate in Scorecards Builder to change the scorecard without affecting past quarters.`
+              : 'Allocate a form from Scorecards Builder. Once allocated, the scorecard is locked so past quarters stay unchanged.'}
+          </p>
 
-            {questions.length > 0 ? (
-              <section
-                className="pd-reviews-form-sheet__block"
-                aria-label="Questions"
-              >
-                <h3 className="pd-field__label">Questions</h3>
-                <ol className="pd-reviews-form-sheet__list pd-reviews-form-sheet__list--questions">
-                  {questions.map((question) => (
-                    <li key={question.id}>
-                      {question.prompt.trim() || 'Untitled question'}
-                    </li>
-                  ))}
-                </ol>
-              </section>
-            ) : (
-              <p className="pd-reviews-form-sheet__empty">
-                No questions yet. Open the editor to build this form.
-              </p>
-            )}
-
-            <Button
-              variant="primary"
-              pill
-              className="pd-reviews-form-sheet__edit"
-              onClick={() => setEditing(true)}
+          {allocated && areas.length > 0 ? (
+            <section
+              className="pd-reviews-form-sheet__block"
+              aria-label="Grade areas"
             >
-              Edit form
-            </Button>
-          </div>
+              <h3 className="pd-field__label">Grade areas</h3>
+              <ul className="pd-reviews-form-sheet__list">
+                {areas.map((area) => (
+                  <li key={area.id}>
+                    {area.label}
+                    <span className="pd-reviews-form-sheet__meta">
+                      {area.weight}%
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {allocated && questions.length > 0 ? (
+            <section
+              className="pd-reviews-form-sheet__block"
+              aria-label="Questions"
+            >
+              <h3 className="pd-field__label">Questions</h3>
+              <ol className="pd-reviews-form-sheet__list pd-reviews-form-sheet__list--questions">
+                {questions.map((question) => (
+                  <li key={question.id}>
+                    {question.prompt.trim() || 'Untitled question'}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {!allocated ? (
+            <p className="pd-reviews-form-sheet__empty">
+              No form allocated. Create or pick a template in Scorecards Builder.
+            </p>
+          ) : null}
+
+          <Link
+            className="pd-btn pd-btn--primary pd-btn--pill pd-reviews-form-sheet__edit"
+            to={builderHref}
+          >
+            {allocated ? 'Edit in Builder' : 'Open Scorecards Builder'}
+          </Link>
         </div>
       </div>
-
-      {createPortal(
-        <Modal
-          open={editing}
-          onClose={() => setEditing(false)}
-          title="Review Form"
-          className="pd-reviews-form-modal"
-          actions={
-            <Button variant="primary" pill onClick={() => setEditing(false)}>
-              Done
-            </Button>
-          }
-        >
-          {editing ? (
-            <ScorecardFormEditor policy={policy} onChange={onChange} />
-          ) : null}
-        </Modal>,
-        document.body,
-      )}
-    </>
+    </div>
   )
 }

@@ -14,13 +14,21 @@ import {
 import { packetForViewer, packetsForViewer } from './visibility.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
+import { getScorecardForm } from '../reviewCycles/scorecardForms.mjs'
 
 function viewerEmployeeId(req) {
   return req.platformUser?.employeeId ?? null
 }
 
-function questionsForPacket(cycle, packet) {
+async function questionsForPacket(cycle, packet) {
   const group = (cycle?.groups ?? []).find((item) => item.id === packet.groupId)
+  const formId = group?.settings?.scorecardFormId
+  if (formId) {
+    const form = await getScorecardForm(formId)
+    if (form?.policy?.scorecard?.questions) {
+      return form.policy.scorecard.questions
+    }
+  }
   return (
     group?.settings?.reviewPolicy?.scorecard?.questions ??
     cycle?.settings?.reviewPolicy?.scorecard?.questions ??
@@ -28,12 +36,40 @@ function questionsForPacket(cycle, packet) {
   )
 }
 
+async function questionsByPacketId(cycle, packets) {
+  const formCache = new Map()
+  const entries = await Promise.all(
+    packets.map(async (packet) => {
+      const group = (cycle?.groups ?? []).find(
+        (item) => item.id === packet.groupId,
+      )
+      const formId = group?.settings?.scorecardFormId
+      if (formId) {
+        if (!formCache.has(formId)) {
+          formCache.set(formId, getScorecardForm(formId))
+        }
+        const form = await formCache.get(formId)
+        if (form?.policy?.scorecard?.questions) {
+          return [packet.id, form.policy.scorecard.questions]
+        }
+      }
+      return [
+        packet.id,
+        group?.settings?.reviewPolicy?.scorecard?.questions ??
+          cycle?.settings?.reviewPolicy?.scorecard?.questions ??
+          [],
+      ]
+    }),
+  )
+  return new Map(entries)
+}
+
 async function visiblePacket(req, packet) {
   const cycle = await getReviewCycle(packet.cycleId)
   return packetForViewer(
     packet,
     viewerEmployeeId(req),
-    questionsForPacket(cycle, packet),
+    await questionsForPacket(cycle, packet),
   )
 }
 
@@ -59,11 +95,12 @@ export function registerReviewPacketRoutes(app) {
       const packets = summary
         ? await listReviewPacketSummaries(req.params.cycleId)
         : await listReviewPackets(req.params.cycleId)
+      const questions = await questionsByPacketId(cycle, packets)
       res.json({
         packets: packetsForViewer(
           packets,
           viewerEmployeeId(req),
-          (packet) => questionsForPacket(cycle, packet),
+          (packet) => questions.get(packet.id) ?? [],
         ),
       })
     }),
@@ -147,11 +184,12 @@ export function registerReviewPacketRoutes(app) {
           cycleId: req.params.cycleId,
         })
         const cycle = await getReviewCycle(req.params.cycleId)
+        const questions = await questionsByPacketId(cycle, packets)
         res.json({
           packets: packetsForViewer(
             packets,
             viewerEmployeeId(req),
-            (packet) => questionsForPacket(cycle, packet),
+            (packet) => questions.get(packet.id) ?? [],
           ),
         })
       } catch (err) {

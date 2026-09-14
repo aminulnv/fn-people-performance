@@ -20,6 +20,13 @@ import {
   deleteCycleGroup,
   updateCycleGroup,
 } from './groups.mjs'
+import {
+  createScorecardForm,
+  deleteScorecardForm,
+  getScorecardForm,
+  listScorecardForms,
+  updateScorecardForm,
+} from './scorecardForms.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
 
 function toHttp(err) {
@@ -289,6 +296,75 @@ export function registerReviewCycleRoutes(app) {
         )
         await publishWrite(req, ['reviews', 'activity'])
         res.status(201).json({ cycles: imported })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.get(
+    '/api/platform/scorecard-forms',
+    requirePlatformAuth,
+    asyncHandler(async (_req, res) => {
+      res.json({ forms: await listScorecardForms() })
+    }),
+  )
+
+  app.get(
+    '/api/platform/scorecard-forms/:formId',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const form = await getScorecardForm(req.params.formId)
+      if (!form) throw new HttpError(404, 'Scorecard form not found')
+      res.json({ form })
+    }),
+  )
+
+  app.post(
+    '/api/platform/scorecard-forms',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const form = await createScorecardForm(req.body ?? {}, req.platformUser)
+        await publishWrite(req, ['reviews', 'activity'], { formId: form.id })
+        res.status(201).json({ form })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.patch(
+    '/api/platform/scorecard-forms/:formId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const form = await updateScorecardForm(
+          req.params.formId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['reviews', 'activity'], { formId: form.id })
+        res.json({ form })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.delete(
+    '/api/platform/scorecard-forms/:formId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        await deleteScorecardForm(req.params.formId, req.platformUser)
+        await publishWrite(req, ['reviews', 'activity'], {
+          formId: req.params.formId,
+        })
+        res.json({ ok: true })
       } catch (err) {
         throw toHttp(err)
       }

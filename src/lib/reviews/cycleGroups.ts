@@ -1,9 +1,12 @@
 import { toIntegerId } from '@/lib/integerId'
 import { normalizeCycleSettings } from './demoData'
+import { cyclePurposeOf } from './purpose'
+import { resolveReviewPolicyFromSettings } from './scorecardForms'
 import type {
   CycleGroup,
   CyclePolicyResolution,
   ReviewCycle,
+  ScorecardForm,
 } from './types'
 
 export function cycleGroupsOf(cycle: Pick<ReviewCycle, 'groups'>): CycleGroup[] {
@@ -51,19 +54,47 @@ export function cycleGroupByEmployeeId(
 export function resolveCyclePolicyForPerson(
   cycle: ReviewCycle,
   employeeId?: number | null,
+  forms: readonly ScorecardForm[] = [],
 ): CyclePolicyResolution {
+  const purpose = cyclePurposeOf(cycle)
   const group =
     employeeId == null ? null : findCycleGroupForPerson(cycle, employeeId)
   if (!group) {
+    const settings = normalizeCycleSettings(
+      cycle.settings,
+      purpose,
+      cycle.periodKey,
+    )
     return {
-      settings: normalizeCycleSettings(cycle.settings, undefined, cycle.periodKey),
+      settings: {
+        ...settings,
+        reviewPolicy: resolveReviewPolicyFromSettings(
+          settings,
+          forms,
+          purpose,
+          cycle.periodKey,
+        ),
+      },
       stagesConfig: cycle.stagesConfig,
       calibration: cycle.calibration,
       groupId: null,
     }
   }
+  const settings = normalizeCycleSettings(
+    group.settings,
+    purpose,
+    cycle.periodKey,
+  )
   return {
-    settings: normalizeCycleSettings(group.settings, undefined, cycle.periodKey),
+    settings: {
+      ...settings,
+      reviewPolicy: resolveReviewPolicyFromSettings(
+        settings,
+        forms,
+        purpose,
+        cycle.periodKey,
+      ),
+    },
     stagesConfig: group.stagesConfig,
     calibration: group.calibration,
     groupId: group.id,

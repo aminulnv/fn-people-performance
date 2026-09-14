@@ -23,3 +23,8 @@ export function cycleGroupPath(
   const path = `/cycles/${encodeURIComponent(cycleId)}/groups/${encodeURIComponent(groupId)}`
   return section ? `${path}#${section.startsWith('#') ? section.slice(1) : section}` : path
 }
+
+export function scorecardsBuilderPath(formId?: string): string {
+  if (!formId) return '/scorecards-builder'
+  return `/scorecards-builder/${encodeURIComponent(formId)}`
+}

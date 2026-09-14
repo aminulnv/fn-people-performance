@@ -141,7 +141,8 @@ export function AppLayout({
     ) ??
     matchPath({ path: '/cycles/:cycleId', end: true }, pathname)
   const cycleIdParam =
-    cycleGroupMatch?.params.cycleId ?? cycleDetailMatch?.params.cycleId
+    cycleGroupMatch?.params.cycleId ??
+    cycleDetailMatch?.params.cycleId
   const cycle = cycleIdParam
     ? (cycles.find(
       (item) =>

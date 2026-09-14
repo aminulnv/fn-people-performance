@@ -184,6 +184,17 @@ export function buildBreadcrumbs({
     ]
   }
 
+  const scorecardsBuilderDetail = matchPath(
+    { path: '/scorecards-builder/:formId', end: true },
+    pathname,
+  )
+  if (scorecardsBuilderDetail?.params.formId) {
+    return [
+      { label: 'Scorecards Builder', href: '/scorecards-builder' },
+      { label: 'Edit form' },
+    ]
+  }
+
   const goalsDetail =
     matchPath(
       { path: '/goals/:cycleId/:personId/:goalId', end: true },

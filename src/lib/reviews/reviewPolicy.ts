@@ -2,7 +2,10 @@ import { isGoalsOnlyQuarter } from './reviewStages'
 import {
   applyScorecardTemplate,
   DEFAULT_GRADE_BANDS,
+  DEFAULT_SCORECARD_FEEDBACK,
   mergePillarCatalog,
+  normalizeReviewQuestion,
+  normalizeScorecardFeedback,
   SCORECARD_PILLAR_CATALOG,
   templateIdForPurpose,
 } from './scorecardTemplates'
@@ -15,6 +18,7 @@ import type {
 
 export {
   DEFAULT_ANNUAL_QUESTIONS,
+  DEFAULT_QUARTERLY_QUESTIONS,
   DEFAULT_GRADE_BANDS,
 } from './scorecardTemplates'
 
@@ -56,7 +60,7 @@ export function defaultReviewPolicy(
       gapCommentTiers: isAnnual ? 2 : 0,
       gradeGoals,
       gradeOverall,
-      gradeSuggestion: 'none',
+      gradeSuggestion: isAnnual ? 'weighted_suggest' : 'none',
       latePolicy: isAnnual ? 'escalate' : 'extend',
       escalationRoles: ['hod', 'slt', 'ptr'],
     },
@@ -74,9 +78,52 @@ export function defaultReviewPolicy(
       questions: [],
       bands: DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
       extraGradeFields: [],
+      feedback: { ...DEFAULT_SCORECARD_FEEDBACK },
     },
   }
-  return applyScorecardTemplate(base, templateIdForPurpose(purpose))
+  return applyScorecardTemplate(base, templateIdForPurpose(purpose, periodKey))
+}
+
+export type LockedGradeToggles = {
+  locked: boolean
+  gradeGoals: boolean
+  gradeOverall: boolean
+}
+
+/**
+ * Regular quarterly + annual cycles lock Goals/Overall to the appraisal model.
+ * Custom cycles stay editable.
+ */
+export function lockedGradeTogglesForCycle(
+  purpose: CyclePurpose,
+  periodKey?: string,
+): LockedGradeToggles {
+  if (purpose === 'annual_appraisal') {
+    return {
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: true,
+    }
+  }
+  if (purpose === 'quarterly_checkin') {
+    if (isGoalsOnlyQuarter(periodKey)) {
+      return {
+        locked: true,
+        gradeGoals: false,
+        gradeOverall: false,
+      }
+    }
+    return {
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: false,
+    }
+  }
+  return {
+    locked: false,
+    gradeGoals: false,
+    gradeOverall: false,
+  }
 }
 
 export function normalizeReviewPolicy(
@@ -85,6 +132,7 @@ export function normalizeReviewPolicy(
   periodKey?: string,
 ): ReviewPolicy {
   const defaults = defaultReviewPolicy(purpose, periodKey)
+  const gradeLocks = lockedGradeTogglesForCycle(purpose, periodKey)
   if (!policy) return defaults
   return {
     selfReview: {
@@ -96,10 +144,13 @@ export function normalizeReviewPolicy(
     managerReview: stripUnusedManagerFields({
       ...defaults.managerReview,
       ...policy.managerReview,
-      gradeGoals:
-        policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals,
-      gradeOverall:
-        policy.managerReview?.gradeOverall ?? defaults.managerReview.gradeOverall,
+      gradeGoals: gradeLocks.locked
+        ? gradeLocks.gradeGoals
+        : (policy.managerReview?.gradeGoals ?? defaults.managerReview.gradeGoals),
+      gradeOverall: gradeLocks.locked
+        ? gradeLocks.gradeOverall
+        : (policy.managerReview?.gradeOverall ??
+          defaults.managerReview.gradeOverall),
       escalationRoles:
         policy.managerReview?.escalationRoles ??
         defaults.managerReview.escalationRoles,
@@ -113,19 +164,22 @@ export function normalizeReviewPolicy(
           : defaults.scorecard.pillars,
       ),
       questions:
-        policy.scorecard?.questions != null
-          ? policy.scorecard.questions.map((question) => ({
-              ...question,
-              outputVisibility: question.outputVisibility?.length
-                ? question.outputVisibility
-                : ['employee', 'manager'],
-            }))
+        Array.isArray(policy.scorecard?.questions) &&
+        (policy.scorecard.questions.length > 0 || purpose === 'custom')
+          ? policy.scorecard.questions.map((question) =>
+              normalizeReviewQuestion({
+                ...question,
+                id: question.id,
+                prompt: question.prompt ?? '',
+              }),
+            )
           : defaults.scorecard.questions,
       bands:
         policy.scorecard?.bands?.length
           ? policy.scorecard.bands
           : defaults.scorecard.bands,
       extraGradeFields: policy.scorecard?.extraGradeFields ?? [],
+      feedback: normalizeScorecardFeedback(policy.scorecard?.feedback),
     },
   }
 }
@@ -140,6 +194,20 @@ export function gradesGoalsSeparately(policy: ReviewPolicy): boolean {
 
 export function gradesOverall(policy: ReviewPolicy): boolean {
   return Boolean(policy.managerReview.gradeOverall)
+}
+
+export function scorecardFeedbackOf(policy: ReviewPolicy) {
+  return normalizeScorecardFeedback(policy.scorecard.feedback)
+}
+
+export function feedbackEnabledForVisibility(
+  policy: ReviewPolicy,
+  visibility?: ReviewQuestion['visibility'][number],
+): boolean {
+  const feedback = scorecardFeedbackOf(policy)
+  if (!feedback.enabled) return false
+  if (!visibility) return true
+  return feedback.visibility.includes(visibility)
 }
 
 export function enabledQuestions(

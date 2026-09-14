@@ -6,6 +6,7 @@ import {
   quarterLabelForCycle,
   suggestedSourceLinks,
 } from "./purpose";
+import type { QuarterOutcome } from "./rollup";
 import { isGoalsOnlyQuarter } from "./reviewStages";
 import type {
   CycleSourceLink,
@@ -13,6 +14,18 @@ import type {
   ReviewCycle,
   ReviewPacket,
 } from "./types";
+
+const GRADE_BANDS: GradeBandId[] = [
+  "exceptional",
+  "exceeding",
+  "performing",
+  "developing",
+  "unsatisfactory",
+];
+
+function isGradeBand(value: unknown): value is GradeBandId {
+  return typeof value === "string" && GRADE_BANDS.includes(value as GradeBandId);
+}
 
 export type AnnualQuarterKind = "graded" | "progress";
 
@@ -93,4 +106,45 @@ export function buildAnnualQuarterRows(input: {
       goalCount: goals.length,
     };
   });
+}
+
+/**
+ * Map a linked annual quarter into a rollup outcome.
+ * - Leave / excluded / not yet scored → drop and renormalize
+ * - No goals submitted (defaulter) → keep as unsatisfactory (zero)
+ * - Q4 uses the grade set inside the annual review
+ */
+export function outcomeForAnnualQuarter(
+  row: AnnualQuarterRow,
+  q4Grade: GradeBandId | null = null,
+): QuarterOutcome {
+  if (row.excluded) return { kind: "inapplicable" };
+  if (row.kind === "progress") {
+    return q4Grade ? { kind: "grade", grade: q4Grade } : { kind: "inapplicable" };
+  }
+  if (row.grade) return { kind: "grade", grade: row.grade };
+  // Defaulters stay in the average as unsatisfactory.
+  if (row.goalCount === 0) return { kind: "zero" };
+  // Has goals but no quarter grade yet — treat as inactive for now.
+  return { kind: "inapplicable" };
+}
+
+/** Q4 input grade for annual packets (not the rolled-up Goals pillar). */
+export function readAnnualQ4Grade(
+  packet: ReviewPacket | null | undefined,
+): GradeBandId | null {
+  const component = packet?.goalsComponent;
+  if (component && Object.prototype.hasOwnProperty.call(component, "q4Grade")) {
+    return isGradeBand(component.q4Grade) ? component.q4Grade : null;
+  }
+  // Legacy: before rollup wiring, the manager Goals pillar held the Q4 input.
+  return (
+    packet?.pillarScores.find(
+      (score) => score.pillarId === "goals" && score.actorRole === "manager",
+    )?.grade ?? null
+  );
+}
+
+export function annualGoalsComponent(q4Grade: GradeBandId | null) {
+  return { q4Grade };
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Target } from "lucide-react";
 import { Button, CycleSelect } from "@/components/ui";
 import type { Goal } from "@/lib/goalsApi";
+import { GRADE_BAND_META } from "@/lib/reviews/labels";
 import { goalsDetailPath } from "@/pages/goals/goalHelpers";
 import type { AnnualQuarterRow } from "@/lib/reviews/annualQuarters";
 import type { GradeBandId } from "@/lib/reviews/types";
@@ -19,6 +20,7 @@ export function AnnualGoalsQuarters({
   q4Grade = null,
   onQ4GradeChange,
   q4GradeLocked = false,
+  goalsRollupGrade = null,
 }: {
   rows: AnnualQuarterRow[];
   goalsByCycleId?: Record<string, Goal[] | undefined>;
@@ -31,6 +33,8 @@ export function AnnualGoalsQuarters({
   q4Grade?: GradeBandId | null;
   onQ4GradeChange?: (grade: GradeBandId | "") => void;
   q4GradeLocked?: boolean;
+  /** Rolled-up Goals pillar from linked quarters (display only). */
+  goalsRollupGrade?: GradeBandId | null;
 }) {
   const defaultId =
     rows.find((row) => row.kind === "progress")?.sourceCycleId ??
@@ -75,6 +79,9 @@ export function AnnualGoalsQuarters({
         ? goalsDetailPath(cycleId, subjectId)
         : undefined;
   const isProgress = selected.kind === "progress";
+  const rollupLabel = goalsRollupGrade
+    ? GRADE_BAND_META[goalsRollupGrade].label
+    : null;
 
   return (
     <section className="pd-reviews-scorecard__card" aria-label="Goals by quarter">
@@ -122,6 +129,13 @@ export function AnnualGoalsQuarters({
       {isProgress ? (
         <p className="pd-reviews-flow__hint">
           Progress only - the manager sets this grade in the annual review.
+          {rollupLabel
+            ? ` Overall Goals pillar from linked quarters: ${rollupLabel}.`
+            : ""}
+        </p>
+      ) : rollupLabel ? (
+        <p className="pd-reviews-flow__hint">
+          Overall Goals pillar from linked quarters: {rollupLabel}.
         </p>
       ) : null}
       <ScorecardGoalsCard

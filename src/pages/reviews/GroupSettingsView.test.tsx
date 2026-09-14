@@ -222,8 +222,8 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Grade areas' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Builder/i })).toBeInTheDocument()
+    expect(screen.getByLabelText('Allocated form')).toBeInTheDocument()
   })
 
   it('keeps publish dates on the release stages', () => {
@@ -299,7 +299,7 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.queryByRole('button', { name: 'Preset' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Builder/i })).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Reviews' })).toBeInTheDocument()
   })
 

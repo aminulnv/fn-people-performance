@@ -165,11 +165,25 @@ export type ScorecardPillar = {
 export type ReviewQuestionVisibility = "employee" | "manager" | "calibrators";
 export type ReviewQuestionOutputVisibility = "employee" | "manager";
 
+export type ReviewQuestionKind =
+  | "open_ended"
+  | "yes_no"
+  | "multiple_choice"
+  | "dual_text";
+
 export type ReviewQuestion = {
   id: string;
   prompt: string;
+  /** Optional helper text under the prompt (Google Forms–style description). */
+  description?: string;
   enabled: boolean;
   required: boolean;
+  /** Input control shown on the form. Missing/legacy → open_ended. */
+  kind: ReviewQuestionKind;
+  /** Choices for multiple_choice questions. */
+  options?: string[];
+  /** Labels for the two fields on dual_text questions. */
+  dualLabels?: [string, string];
   /** Stages where an answer can be entered. */
   visibility: ReviewQuestionVisibility[];
   /** Audiences that can read the question and its answers after publication. */
@@ -180,6 +194,16 @@ export type GradeBandDefinition = {
   id: GradeBandId;
   label: string;
   sort: number;
+};
+
+export type ScorecardFeedbackConfig = {
+  enabled: boolean;
+  title: string;
+  /** Field labels: [strengths, areas of improvement]. */
+  labels: [string, string];
+  required: boolean;
+  visibility: ReviewQuestionVisibility[];
+  outputVisibility: ReviewQuestionOutputVisibility[];
 };
 
 export type ReviewPolicy = {
@@ -212,6 +236,7 @@ export type ReviewPolicy = {
     questions: ReviewQuestion[];
     bands: GradeBandDefinition[];
     extraGradeFields: Array<"contribution" | "impact">;
+    feedback: ScorecardFeedbackConfig;
   };
 };
 
@@ -229,7 +254,23 @@ export type CycleSettings = {
   /** Employee IDs excluded from automatic grade publishing. */
   excludedEmployeeIds: number[];
   autoScorecardGeneration: boolean;
+  /**
+   * Live link to a shared scorecard form template. When set, resolved policy
+   * comes from the template (with embedded reviewPolicy as legacy fallback).
+   */
+  scorecardFormId?: string | null;
   reviewPolicy?: ReviewPolicy;
+};
+
+/** Shared scorecard form document owned by Scorecards Builder. */
+export type ScorecardForm = {
+  id: string;
+  name: string;
+  description?: string;
+  policy: ReviewPolicy;
+  createdAt: string;
+  updatedAt: string;
+  version: number;
 };
 
 export type GradeBandId =

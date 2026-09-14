@@ -18,6 +18,7 @@ import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
 import { updateCycleGroup } from '@/lib/reviews/store'
+import { useScorecardFormsSnapshot } from '@/lib/reviews/useReviews'
 import type { CycleGroup, CycleModules, ReviewCycle } from '@/lib/reviews/types'
 import { CalibrationEditPage } from './CalibrationEditPage'
 import { GoalsSettingsEditPage } from './GoalsSettingsEditPage'
@@ -143,14 +144,23 @@ export function GroupSettingsView({
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
   const jobOptions = jobsForModules(modules)
   const reviewDraft = useReviewSettingsDraft(cycle, group, onClose, true)
+  const forms = useScorecardFormsSnapshot()
   const reviewFormSheet =
     modules.reviews && resolvedScreen === 'review'
-      ? reviewFormSideSheet(reviewDraft.policy, (next) =>
-        reviewDraft.setSettings((prev) => ({
-          ...prev,
-          reviewPolicy: next,
-        })),
-      )
+      ? reviewFormSideSheet({
+          policy: reviewDraft.policy,
+          forms,
+          scorecardFormId: reviewDraft.settings.scorecardFormId,
+          onAllocate: (formId) => {
+            reviewDraft.setSettings((prev) => ({
+              ...prev,
+              scorecardFormId: formId,
+            }))
+            void updateCycleGroup(cycle.id, group.id, {
+              settings: { scorecardFormId: formId },
+            }).catch(() => {})
+          },
+        })
       : undefined
 
   useEffect(() => {

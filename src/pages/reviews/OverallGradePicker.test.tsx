@@ -36,6 +36,23 @@ describe('OverallGradePicker', () => {
     expect(onChange).toHaveBeenCalledWith('performing')
   })
 
+  it('shows the formula suggestion without locking the picker', () => {
+    render(
+      <OverallGradePicker
+        name="overall-suggest"
+        value="performing"
+        suggestedGrade="exceeding"
+      />,
+    )
+
+    expect(
+      screen.getByText(/Suggested from Goals 50% \/ Skills 25% \/ Values 25%: Exceeding/),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('radio', { name: /Performing/ }),
+    ).toHaveProperty('disabled', false)
+  })
+
   it('keeps the same list in view mode without changing the grade', () => {
     const onChange = vi.fn()
     render(

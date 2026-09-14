@@ -44,6 +44,7 @@ export function ScorecardGoalsCard({
   title = 'Goals',
   embedded = false,
   hideTitle = false,
+  bare = false,
 }: {
   cycleId?: string
   personId?: string
@@ -61,6 +62,8 @@ export function ScorecardGoalsCard({
   title?: string
   embedded?: boolean
   hideTitle?: boolean
+  /** Drop card chrome when nested inside a setup section. */
+  bare?: boolean
 }) {
   const [openGoalId, setOpenGoalId] = useState<string | null>(null)
   const [openMeasureKey, setOpenMeasureKey] = useState<string | null>(null)
@@ -79,12 +82,15 @@ export function ScorecardGoalsCard({
   return (
     <section
       className={
-        embedded
-          ? 'pd-reviews-quarters__goals'
-          : 'pd-reviews-scorecard__card'
+        bare
+          ? 'pd-reviews-form-setup-section__inner'
+          : embedded
+            ? 'pd-reviews-quarters__goals'
+            : 'pd-reviews-scorecard__card'
       }
-      aria-label={title}
+      aria-label={bare ? undefined : title}
     >
+      {bare && hideTitle ? null : (
       <header className="pd-reviews-scorecard__card-head">
         <div className="pd-reviews-scorecard__card-title">
           {hideTitle ? null : (
@@ -131,6 +137,7 @@ export function ScorecardGoalsCard({
           </span>
         ) : null}
       </header>
+      )}
 
       {goals.length === 0 ? (
         <EmptyState

@@ -8,12 +8,12 @@ describe('usableAvatarUrl', () => {
     expect(usableAvatarUrl('  ')).toBe('')
   })
 
-  it('returns empty for ClickUp profile picture attachments', () => {
+  it('keeps ClickUp profile picture attachments', () => {
     expect(
       usableAvatarUrl(
         'https://attachments.clickup.com/profilePictures/708582_TyZ.jpg',
       ),
-    ).toBe('')
+    ).toBe('https://attachments.clickup.com/profilePictures/708582_TyZ.jpg')
   })
 
   it('keeps other avatar URLs', () => {

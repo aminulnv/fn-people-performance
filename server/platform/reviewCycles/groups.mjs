@@ -64,6 +64,7 @@ export function mapCycleGroup(
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
+      scorecardFormId: row.scorecard_form_id ?? null,
       reviewPolicy: normalizeReviewPolicy(
         row.review_policy,
         purpose,
@@ -173,9 +174,9 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
     `INSERT INTO platform.review_cycle_groups (
        id, cycle_id, name, stages_config, review_types, goal_count_policy,
        post_window_goal_policy, auto_scorecard_generation, calibration_config,
-       review_policy, created_by_employee_id, updated_by_employee_id
+       review_policy, scorecard_form_id, created_by_employee_id, updated_by_employee_id
      ) VALUES (
-       $1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9::jsonb,$10::jsonb,$11,$11
+       $1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,$7,$8,$9::jsonb,$10::jsonb,$11,$12,$12
      )
      RETURNING *`,
     [
@@ -198,6 +199,7 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
           input.periodKey,
         ),
       ),
+      input.settings.scorecardFormId ?? null,
       actor.actorEmployeeId,
     ],
   )
@@ -364,6 +366,10 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
       autoScorecardGeneration:
         patch.autoScorecardGeneration ??
         before.settings.autoScorecardGeneration,
+      scorecardFormId:
+        patch.scorecardFormId !== undefined
+          ? patch.scorecardFormId || null
+          : (before.settings.scorecardFormId ?? null),
       reviewPolicy: normalizeReviewPolicy(
         patch.reviewPolicy ?? before.settings.reviewPolicy,
         cyclePurposeOf({
@@ -412,8 +418,9 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
            auto_scorecard_generation = $8,
            calibration_config = $9::jsonb,
            review_policy = $10::jsonb,
+           scorecard_form_id = $11,
            version = version + 1,
-           updated_by_employee_id = $11,
+           updated_by_employee_id = $12,
            updated_at = now()
        WHERE id = $1 AND cycle_id = $2 AND deleted_at IS NULL
        RETURNING *`,
@@ -428,6 +435,7 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
         Boolean(nextSettings.autoScorecardGeneration),
         JSON.stringify(nextCalibration),
         JSON.stringify(nextSettings.reviewPolicy),
+        nextSettings.scorecardFormId,
         actor.actorEmployeeId,
       ],
     )

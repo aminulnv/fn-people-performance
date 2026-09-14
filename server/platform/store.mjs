@@ -77,16 +77,9 @@ function integerId(value) {
   return Number.isInteger(parsed) ? parsed : undefined
 }
 
-/** ClickUp profile attachments expire/404; treat as missing. */
+/** Normalize avatar URLs; blank/whitespace → empty string. */
 function usableAvatarUrl(src) {
-  const trimmed = String(src ?? '').trim()
-  if (!trimmed) return ''
-  if (
-    /^https?:\/\/attachments\.clickup\.com\/profilePictures\//i.test(trimmed)
-  ) {
-    return ''
-  }
-  return trimmed
+  return String(src ?? '').trim()
 }
 
 /** Map a joined row to the SPA PlatformEmployee shape. */

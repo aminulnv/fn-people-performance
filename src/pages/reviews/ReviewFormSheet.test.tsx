@@ -1,65 +1,56 @@
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { defaultReviewPolicy } from '@/lib/reviews/reviewPolicy'
+import { seedScorecardForms } from '@/lib/reviews/scorecardForms'
 import { ReviewFormSheet, reviewFormSummary } from './ReviewFormSheet'
-
-if (typeof HTMLDialogElement !== 'undefined') {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute('open', '')
-  }
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute('open')
-    this.dispatchEvent(new Event('close'))
-  }
-}
 
 afterEach(() => {
   cleanup()
 })
 
 describe('ReviewFormSheet', () => {
-  it('summarizes the form in the side sheet without the editor', () => {
+  it('summarizes the allocated form and links to the builder', () => {
+    const forms = seedScorecardForms()
+    const onAllocate = vi.fn()
     render(
-      <ReviewFormSheet
-        policy={defaultReviewPolicy('annual_appraisal')}
-        onChange={vi.fn()}
-      />,
+      <MemoryRouter>
+        <ReviewFormSheet
+          policy={defaultReviewPolicy('annual_appraisal')}
+          forms={forms}
+          scorecardFormId={forms[0]!.id}
+          onAllocate={onAllocate}
+        />
+      </MemoryRouter>,
     )
 
     expect(
       screen.getByRole('heading', { name: 'Review Form' }),
     ).toBeInTheDocument()
-    expect(screen.getByText(/questions · .+ areas ·/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Allocated form')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Grade areas' })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Questions' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
     expect(
-      screen.getByRole('button', { name: 'Edit form' }),
-    ).toBeInTheDocument()
+      screen.getByRole('link', { name: 'Edit in Builder' }),
+    ).toHaveAttribute('href', `/scorecards-builder/${forms[0]!.id}`)
   })
 
-  it('opens the form editor in a modal', () => {
-    const onChange = vi.fn()
+  it('prompts to open the builder when no form is allocated', () => {
     render(
-      <ReviewFormSheet
-        policy={defaultReviewPolicy('quarterly_checkin')}
-        onChange={onChange}
-      />,
+      <MemoryRouter>
+        <ReviewFormSheet
+          policy={defaultReviewPolicy('quarterly_checkin')}
+          forms={seedScorecardForms()}
+          scorecardFormId={null}
+          onAllocate={vi.fn()}
+        />
+      </MemoryRouter>,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit form' }))
-
-    const dialog = screen.getByRole('dialog', { name: 'Review Form' })
-    expect(dialog).toHaveAttribute('open')
-    expect(within(dialog).getByLabelText('Preset')).toBeInTheDocument()
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Preset' }))
-    fireEvent.click(screen.getByRole('option', { name: /Annual appraisal/ }))
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Use' }))
-    expect(onChange).toHaveBeenCalled()
-
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Done' }))
-    expect(dialog).not.toHaveAttribute('open')
+    expect(
+      screen.getByRole('link', { name: 'Open Scorecards Builder' }),
+    ).toHaveAttribute('href', '/scorecards-builder')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('summarizes the form without listing every question', () => {

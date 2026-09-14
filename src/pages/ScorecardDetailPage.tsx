@@ -35,20 +35,24 @@ import {
   defaultReviewPolicy,
   enabledPillars,
   enabledQuestions,
+  feedbackEnabledForVisibility,
   gradesGoalsSeparately,
   gradesOverall,
+  scorecardFeedbackOf,
 } from '@/lib/reviews/reviewPolicy'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import { getReviewCycle } from '@/lib/reviews/store'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
+  useScorecardFormsSnapshot,
 } from '@/lib/reviews/useReviews'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { getReviewStage } from '@/lib/reviews/reviewStages'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ReviewPacketView } from '@/pages/reviews/ReviewPacketView'
+import { ReviewQuestionField } from '@/pages/reviews/ReviewQuestionField'
 import { ScorecardFeedbackCard } from '@/pages/reviews/ScorecardFeedbackCard'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { ScorecardGoalsCard } from '@/pages/reviews/ScorecardGoalsCard'
@@ -72,6 +76,7 @@ export default function ScorecardDetailPage() {
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
   const { cycles } = useReviewsSnapshot()
+  const forms = useScorecardFormsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
   const resolvedCycleId = useMemo(
     () => resolveReviewCycleKey(cycleKey),
@@ -87,7 +92,7 @@ export default function ScorecardDetailPage() {
   )?.reviewNotice
   const cycle = getReviewCycle(resolvedCycleId)
   const policyResolution = cycle
-    ? resolveCyclePolicyForPerson(cycle, employeeId)
+    ? resolveCyclePolicyForPerson(cycle, employeeId, forms)
     : null
   const policy =
     policyResolution?.settings.reviewPolicy ??
@@ -287,19 +292,19 @@ export default function ScorecardDetailPage() {
 
       {viewQuestionFields.length > 0 ? (
         <section className="pd-reviews-edit-card" aria-label="Review questions">
-          {viewQuestionFields.map((answer) => (
-            <div key={answer.questionId} className="pd-field">
-              <p className="pd-field__label">
-                {answer.prompt.trim() || 'Untitled question'}
-              </p>
-              <p
-                className="pd-reviews-scorecard__feedback-box"
-                aria-label={answer.prompt.trim() || 'Untitled question'}
-              >
-                {answer.body.trim() ? answer.body : '\u00a0'}
-              </p>
-            </div>
-          ))}
+          {viewQuestions.map((question) => {
+            const answer = viewQuestionFields.find(
+              (item) => item.questionId === question.id,
+            )
+            return (
+              <ReviewQuestionField
+                key={question.id}
+                question={question}
+                value={answer?.body ?? ''}
+                readOnly
+              />
+            )
+          })}
         </section>
       ) : null}
 
@@ -346,7 +351,7 @@ export default function ScorecardDetailPage() {
             </p>
           )}
         </section>
-      ) : (
+      ) : feedbackEnabledForVisibility(policy, formVisibility) ? (
         <ScorecardFeedbackCard
           feedback={{
             ...detail.feedback,
@@ -358,8 +363,10 @@ export default function ScorecardDetailPage() {
             strengths: viewingFeedback.strengths,
             developments: viewingFeedback.developments,
           }}
+          title={scorecardFeedbackOf(policy).title}
+          labels={scorecardFeedbackOf(policy).labels}
         />
-      )}
+      ) : null}
 
       <ReviewActionIsland>
         <div className="pd-review-packet__island">

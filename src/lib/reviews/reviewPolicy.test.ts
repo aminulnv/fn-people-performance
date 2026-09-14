@@ -4,6 +4,7 @@ import {
   defaultReviewPolicy,
   gradesGoalsSeparately,
   gradesOverall,
+  lockedGradeTogglesForCycle,
   normalizeReviewPolicy,
   remainingPillarWeight,
 } from './reviewPolicy'
@@ -23,17 +24,48 @@ describe('scorecard grade switches', () => {
     expect(gradesOverall(annual)).toBe(true)
   })
 
-  it('keeps each switch independent when normalizing older policies', () => {
-    const goalsOnly = normalizeReviewPolicy(
-      { managerReview: { gradeGoals: true, gradeOverall: false } },
-      'quarterly_checkin',
-    )
-    expect(gradesGoalsSeparately(goalsOnly)).toBe(true)
-    expect(gradesOverall(goalsOnly)).toBe(false)
+  it('locks regular quarterly and annual grade toggles to the appraisal model', () => {
+    expect(lockedGradeTogglesForCycle('quarterly_checkin', 'q2-2026')).toMatchObject({
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: false,
+    })
+    expect(lockedGradeTogglesForCycle('quarterly_checkin', 'q4-2026')).toMatchObject({
+      locked: true,
+      gradeGoals: false,
+      gradeOverall: false,
+    })
+    expect(lockedGradeTogglesForCycle('annual_appraisal', 'annual-2026')).toMatchObject({
+      locked: true,
+      gradeGoals: true,
+      gradeOverall: true,
+    })
+    expect(lockedGradeTogglesForCycle('custom')).toMatchObject({ locked: false })
+  })
 
-    const legacy = normalizeReviewPolicy({}, 'quarterly_checkin', 'q1-2026')
-    expect(gradesGoalsSeparately(legacy)).toBe(true)
-    expect(gradesOverall(legacy)).toBe(false)
+  it('forces locked grade toggles when normalizing older policies', () => {
+    const forcedOff = normalizeReviewPolicy(
+      { managerReview: { gradeGoals: true, gradeOverall: true } },
+      'quarterly_checkin',
+      'q1-2026',
+    )
+    expect(gradesGoalsSeparately(forcedOff)).toBe(true)
+    expect(gradesOverall(forcedOff)).toBe(false)
+
+    const q4Forced = normalizeReviewPolicy(
+      { managerReview: { gradeGoals: true, gradeOverall: true } },
+      'quarterly_checkin',
+      'q4-2026',
+    )
+    expect(gradesGoalsSeparately(q4Forced)).toBe(false)
+    expect(gradesOverall(q4Forced)).toBe(false)
+
+    const custom = normalizeReviewPolicy(
+      { managerReview: { gradeGoals: false, gradeOverall: true } },
+      'custom',
+    )
+    expect(gradesGoalsSeparately(custom)).toBe(false)
+    expect(gradesOverall(custom)).toBe(true)
   })
 
   it('drops sequential visibility, late self-review, release, appeal, and unused grade edits from older policies', () => {

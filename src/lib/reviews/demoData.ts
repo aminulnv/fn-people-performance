@@ -46,6 +46,7 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
   postWindowGoalPolicy: "two_tier_approval",
   excludedEmployeeIds: [],
   autoScorecardGeneration: false,
+  scorecardFormId: null,
   reviewPolicy: defaultReviewPolicy("quarterly_checkin"),
 };
 
@@ -72,6 +73,7 @@ export function normalizeCycleSettings(
       ...settings?.goalCountPolicy,
     },
     excludedEmployeeIds: [...(settings?.excludedEmployeeIds ?? [])],
+    scorecardFormId: settings?.scorecardFormId ?? null,
     reviewPolicy: normalizeReviewPolicy(settings?.reviewPolicy, purpose, periodKey),
   };
 }

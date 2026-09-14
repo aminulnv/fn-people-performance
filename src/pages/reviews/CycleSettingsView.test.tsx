@@ -206,7 +206,7 @@ describe('CycleSettingsView', () => {
 
     expect(screen.getByRole('heading', { name: 'Review Form' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Edit form' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Builder/i })).toBeInTheDocument()
   })
 
   it('opens the group hub when adding a group', async () => {

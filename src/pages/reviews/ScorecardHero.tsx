@@ -42,6 +42,7 @@ export function ScorecardHero({
   viewerEmployeeId,
   viewingStage,
   onViewStage,
+  hideStages = false,
 }: {
   detail: ScorecardDetail
   packet: ReviewPacket | null
@@ -49,8 +50,10 @@ export function ScorecardHero({
   viewerEmployeeId?: number | null
   viewingStage?: ScorecardViewStage
   onViewStage?: (stage: ScorecardViewStage) => void
+  /** Form builder preview: show the identity card only. */
+  hideStages?: boolean
 }) {
-  const visibleSteps = visibleScorecardSteps(stages, packet)
+  const visibleSteps = hideStages ? [] : visibleScorecardSteps(stages, packet)
   const currentStepIndex = packet
     ? currentScorecardStepIndex(visibleSteps, packet.status)
     : 0

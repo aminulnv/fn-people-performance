@@ -14,8 +14,14 @@ import {
   buildRatingDistribution,
   type RatingBreakdownId,
 } from '@/lib/calibration/distribution'
+import {
+  buildCalibrationIndicators,
+  previousCyclesOfSamePurpose,
+} from '@/lib/calibration/indicators'
+import { buildManagerRatingHeatmap } from '@/lib/calibration/managerHeatmap'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
+import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
 import { fetchReviewPacketSummaries } from '@/lib/reviews/packetsApi'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import { formatDateRange } from '@/lib/reviews/periods'
@@ -24,7 +30,11 @@ import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
 } from '@/lib/reviews/useReviews'
+import { CalibrationIndicators } from '@/pages/calibration/CalibrationIndicators'
+import { ManagerRatingHeatmap } from '@/pages/calibration/ManagerRatingHeatmap'
+import { RatingComparison } from '@/pages/calibration/RatingComparison'
 import { RatingDistributionChart } from '@/pages/calibration/RatingDistributionChart'
+import { SelfManagerRatingGrid } from '@/pages/calibration/SelfManagerRatingGrid'
 import '@/styles/layout-people.css'
 import '@/styles/layout-calibration.css'
 
@@ -44,6 +54,10 @@ export default function CalibrationPage() {
   const [cycleId, setCycleId] = useState('')
   const [cyclePicked, setCyclePicked] = useState(false)
   const [packets, setPackets] = useState<ReviewPacket[]>([])
+  const [historyPackets, setHistoryPackets] = useState<ReviewPacket[][]>([])
+  const [linkedPacketsByCycleId, setLinkedPacketsByCycleId] = useState<
+    Map<string, ReviewPacket[]>
+  >(() => new Map())
   const [dataState, setDataState] = useState<
     'idle' | 'loading' | 'ready' | 'error'
   >('idle')
@@ -69,6 +83,8 @@ export default function CalibrationPage() {
     setCycleId(nextId)
     if (!nextId) {
       setPackets([])
+      setHistoryPackets([])
+      setLinkedPacketsByCycleId(new Map())
       setDataState('ready')
       setDataError(null)
     }
@@ -93,9 +109,38 @@ export default function CalibrationPage() {
     return fetchReviewPacketSummaries(selectedCycleId)
   }, [])
 
+  const loadIndicatorContext = useCallback(
+    async (selectedCycleId: string) => {
+      const selected = cycles.find((item) => item.id === selectedCycleId)
+      if (!selected) {
+        return {
+          history: [] as ReviewPacket[][],
+          linked: new Map<string, ReviewPacket[]>(),
+        }
+      }
+      const previous = previousCyclesOfSamePurpose(selected, cycles, 2)
+      const linkedIds = annualSourceLinks(selected, cycles).map(
+        (link) => link.sourceCycleId,
+      )
+      const [historyRows, linkedRows] = await Promise.all([
+        Promise.all(previous.map((cycle) => loadPackets(cycle.id))),
+        Promise.all(
+          linkedIds.map(async (id) => [id, await loadPackets(id)] as const),
+        ),
+      ])
+      return {
+        history: historyRows,
+        linked: new Map(linkedRows),
+      }
+    },
+    [cycles, loadPackets],
+  )
+
   useEffect(() => {
     if (!cycleId) {
       setPackets([])
+      setHistoryPackets([])
+      setLinkedPacketsByCycleId(new Map())
       setDataState('ready')
       setDataError(null)
       return
@@ -104,15 +149,21 @@ export default function CalibrationPage() {
     setDataState('loading')
     setDataError(null)
     setPackets([])
-    void loadPackets(cycleId)
-      .then((nextPackets) => {
+    setHistoryPackets([])
+    setLinkedPacketsByCycleId(new Map())
+    void Promise.all([loadPackets(cycleId), loadIndicatorContext(cycleId)])
+      .then(([nextPackets, context]) => {
         if (cancelled) return
         setPackets(nextPackets)
+        setHistoryPackets(context.history)
+        setLinkedPacketsByCycleId(context.linked)
         setDataState('ready')
       })
       .catch((error: unknown) => {
         if (cancelled) return
         setPackets([])
+        setHistoryPackets([])
+        setLinkedPacketsByCycleId(new Map())
         setDataState('error')
         setDataError(
           error instanceof Error
@@ -123,15 +174,17 @@ export default function CalibrationPage() {
     return () => {
       cancelled = true
     }
-  }, [cycleId, loadPackets])
+  }, [cycleId, loadIndicatorContext, loadPackets])
 
   const retryLoad = useCallback(() => {
     if (!cycleId) return
     setDataState('loading')
     setDataError(null)
-    void loadPackets(cycleId)
-      .then((nextPackets) => {
+    void Promise.all([loadPackets(cycleId), loadIndicatorContext(cycleId)])
+      .then(([nextPackets, context]) => {
         setPackets(nextPackets)
+        setHistoryPackets(context.history)
+        setLinkedPacketsByCycleId(context.linked)
         setDataState('ready')
       })
       .catch((error: unknown) => {
@@ -142,19 +195,23 @@ export default function CalibrationPage() {
             : 'Could not load calibration.',
         )
       })
-  }, [cycleId, loadPackets])
+  }, [cycleId, loadIndicatorContext, loadPackets])
 
   const refreshLive = useCallback(
     (event: { cycleId?: string }) => {
       const target = event.cycleId ?? cycleId
       if (!target || (event.cycleId && event.cycleId !== cycleId)) return
-      void loadPackets(target)
-        .then(setPackets)
+      void Promise.all([loadPackets(target), loadIndicatorContext(target)])
+        .then(([nextPackets, context]) => {
+          setPackets(nextPackets)
+          setHistoryPackets(context.history)
+          setLinkedPacketsByCycleId(context.linked)
+        })
         .catch(() => {
           /* Keep the last good snapshot. */
         })
     },
-    [cycleId, loadPackets],
+    [cycleId, loadIndicatorContext, loadPackets],
   )
   useLiveTopic('packets', refreshLive)
 
@@ -168,6 +225,27 @@ export default function CalibrationPage() {
       breakdown,
     })
   }, [breakdown, cycle, employees, packets])
+
+  const indicators = useMemo(() => {
+    if (!cycle) return []
+    return buildCalibrationIndicators({
+      cycle,
+      cycles,
+      employees,
+      packets: packets.filter((packet) => packet.cycleId === cycle.id),
+      previousPackets: historyPackets,
+      linkedPacketsByCycleId,
+    })
+  }, [cycle, cycles, employees, historyPackets, linkedPacketsByCycleId, packets])
+
+  const heatmap = useMemo(() => {
+    if (!cycle) return { rows: [], orgAverageScore: null }
+    return buildManagerRatingHeatmap({
+      cycle,
+      employees,
+      packets: packets.filter((packet) => packet.cycleId === cycle.id),
+    })
+  }, [cycle, employees, packets])
 
   const directoryLoading = loadState === 'idle' || loadState === 'loading'
   const waitingForDefaultCycle =
@@ -237,18 +315,37 @@ export default function CalibrationPage() {
               : 'Choose a cycle to see the rating distribution.'
           }
         />
-      ) : !distribution || distribution.summary.total === 0 ? (
-        <EmptyState
-          icon={Scale}
-          title="No Grades Yet"
-          description="Rating distribution appears once people in this cycle have an official grade."
-        />
       ) : (
-        <RatingDistributionChart
-          distribution={distribution}
-          breakdown={breakdown}
-          onBreakdownChange={setBreakdown}
-        />
+        <>
+          {!distribution || distribution.summary.total === 0 ? (
+            <EmptyState
+              icon={Scale}
+              title="No Grades Yet"
+              description="Rating distribution appears once people in this cycle have an official grade."
+            />
+          ) : (
+            <RatingDistributionChart
+              distribution={distribution}
+              breakdown={breakdown}
+              onBreakdownChange={setBreakdown}
+            />
+          )}
+          <CalibrationIndicators
+            indicators={indicators}
+            employees={employees}
+          />
+          <ManagerRatingHeatmap heatmap={heatmap} />
+          <RatingComparison
+            cycle={cycle}
+            employees={employees}
+            packets={packets.filter((packet) => packet.cycleId === cycle.id)}
+          />
+          <SelfManagerRatingGrid
+            cycle={cycle}
+            employees={employees}
+            packets={packets.filter((packet) => packet.cycleId === cycle.id)}
+          />
+        </>
       )}
     </div>
   )

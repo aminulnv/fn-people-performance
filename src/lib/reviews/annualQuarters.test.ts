@@ -7,6 +7,8 @@ import {
 import {
   buildAnnualQuarterRows,
   gradeFromLinkedPacket,
+  outcomeForAnnualQuarter,
+  readAnnualQ4Grade,
   usesAnnualLinkedQuarters,
 } from "./annualQuarters";
 import type { ReviewCycle, ReviewPacket } from "./types";
@@ -170,5 +172,79 @@ describe("buildAnnualQuarterRows", () => {
       progressPercent: 40,
       goalCount: 1,
     });
+  });
+});
+
+describe("outcomeForAnnualQuarter", () => {
+  const base = {
+    sourceCycleId: "q1-2026",
+    label: "Q1",
+    excluded: false,
+    kind: "graded" as const,
+    grade: null as const,
+    progressPercent: 0,
+    goalCount: 0,
+  };
+
+  it("keeps defaulters (no goals) as zero so they stay in the rollup", () => {
+    expect(outcomeForAnnualQuarter({ ...base, goalCount: 0 })).toEqual({
+      kind: "zero",
+    });
+  });
+
+  it("drops quarters that have goals but no grade yet", () => {
+    expect(
+      outcomeForAnnualQuarter({ ...base, goalCount: 2, grade: null }),
+    ).toEqual({ kind: "inapplicable" });
+  });
+
+  it("uses the Q4 grade from the annual review for progress rows", () => {
+    expect(
+      outcomeForAnnualQuarter(
+        { ...base, kind: "progress", goalCount: 1 },
+        "exceeding",
+      ),
+    ).toEqual({ kind: "grade", grade: "exceeding" });
+    expect(
+      outcomeForAnnualQuarter({ ...base, kind: "progress", goalCount: 1 }, null),
+    ).toEqual({ kind: "inapplicable" });
+  });
+});
+
+describe("readAnnualQ4Grade", () => {
+  it("prefers goalsComponent.q4Grade over the legacy goals pillar", () => {
+    expect(
+      readAnnualQ4Grade(
+        packet({
+          goalsComponent: { q4Grade: "performing" },
+          pillarScores: [
+            {
+              pillarId: "goals",
+              actorRole: "manager",
+              grade: "exceptional",
+              comment: "",
+            },
+          ],
+        }),
+      ),
+    ).toBe("performing");
+  });
+
+  it("falls back to the manager goals pillar when goalsComponent has no q4Grade", () => {
+    expect(
+      readAnnualQ4Grade(
+        packet({
+          goalsComponent: null,
+          pillarScores: [
+            {
+              pillarId: "goals",
+              actorRole: "manager",
+              grade: "developing",
+              comment: "",
+            },
+          ],
+        }),
+      ),
+    ).toBe("developing");
   });
 });

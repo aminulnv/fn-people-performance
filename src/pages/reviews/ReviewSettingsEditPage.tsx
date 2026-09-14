@@ -8,7 +8,7 @@ import {
   Star,
   Target,
 } from 'lucide-react'
-import { Switch } from '@/components/ui'
+import { Switch, Badge } from '@/components/ui'
 import { parseDateTime } from '@/lib/dates/timestamp'
 import { normalizeCycleSettings } from '@/lib/reviews/demoData'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
@@ -22,7 +22,7 @@ import {
   syncLegacyStageWindows,
   withRequiredReviewStages,
 } from '@/lib/reviews/reviewStages'
-import { pillarWeightTotal } from '@/lib/reviews/reviewPolicy'
+import { pillarWeightTotal, lockedGradeTogglesForCycle } from '@/lib/reviews/reviewPolicy'
 import { updateCycleGroup } from '@/lib/reviews/store'
 import type {
   CycleGroup,
@@ -137,7 +137,19 @@ export function useReviewSettingsDraft(
   const save = () => {
     if (saving) return false
     setError(null)
-    const weight = pillarWeightTotal(policy)
+    const purpose = cyclePurposeOf(cycle)
+    const gradeLocks = lockedGradeTogglesForCycle(purpose, cycle.periodKey)
+    const reviewPolicy = gradeLocks.locked
+      ? {
+          ...policy,
+          managerReview: {
+            ...policy.managerReview,
+            gradeGoals: gradeLocks.gradeGoals,
+            gradeOverall: gradeLocks.gradeOverall,
+          },
+        }
+      : policy
+    const weight = pillarWeightTotal(reviewPolicy)
     if (weight !== 100) {
       setError(
         `Enabled pillars must add up to 100%. They currently add up to ${weight}%. Open the review form to adjust the mix.`,
@@ -151,7 +163,8 @@ export function useReviewSettingsDraft(
           reviewTypes: settings.reviewTypes,
           excludedEmployeeIds: settings.excludedEmployeeIds,
           autoScorecardGeneration: settings.autoScorecardGeneration,
-          reviewPolicy: policy,
+          scorecardFormId: settings.scorecardFormId ?? null,
+          reviewPolicy,
         },
         stagesConfig,
       })
@@ -217,6 +230,17 @@ export function ReviewSettingsEditPage({
     [stagesConfig.reviewStages],
   )
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const purpose = cyclePurposeOf(cycle)
+  const gradeLocks = useMemo(
+    () => lockedGradeTogglesForCycle(purpose, cycle.periodKey),
+    [purpose, cycle.periodKey],
+  )
+  const goalsGradeOn = gradeLocks.locked
+    ? gradeLocks.gradeGoals
+    : policy.managerReview.gradeGoals
+  const overallGradeOn = gradeLocks.locked
+    ? gradeLocks.gradeOverall
+    : policy.managerReview.gradeOverall
 
   useEffect(() => {
     if (!highlightedStageId) return
@@ -366,19 +390,24 @@ export function ReviewSettingsEditPage({
                     <p className="pd-settings-stack__label">
                       <Target size={15} strokeWidth={1.75} aria-hidden />
                       Goals Grading
+                      {gradeLocks.locked && !gradeLocks.gradeGoals ? (
+                        <Badge variant="neutral">Annual only</Badge>
+                      ) : null}
                     </p>
                     <Switch
                       label="Enable Goals Grading"
                       className="pd-reviews-type-list__switch"
-                      checked={policy.managerReview.gradeGoals}
-                      onChange={(event) =>
+                      checked={goalsGradeOn}
+                      disabled={gradeLocks.locked}
+                      onChange={(event) => {
+                        if (gradeLocks.locked) return
                         patchPolicy({
                           managerReview: {
                             ...policy.managerReview,
                             gradeGoals: event.target.checked,
                           },
                         })
-                      }
+                      }}
                     />
                   </div>
 
@@ -386,19 +415,24 @@ export function ReviewSettingsEditPage({
                     <p className="pd-settings-stack__label">
                       <LayoutGrid size={15} strokeWidth={1.75} aria-hidden />
                       Overall Grading
+                      {gradeLocks.locked && !gradeLocks.gradeOverall ? (
+                        <Badge variant="neutral">Annual only</Badge>
+                      ) : null}
                     </p>
                     <Switch
                       label="Enable Overall Grading"
                       className="pd-reviews-type-list__switch"
-                      checked={policy.managerReview.gradeOverall}
-                      onChange={(event) =>
+                      checked={overallGradeOn}
+                      disabled={gradeLocks.locked}
+                      onChange={(event) => {
+                        if (gradeLocks.locked) return
                         patchPolicy({
                           managerReview: {
                             ...policy.managerReview,
                             gradeOverall: event.target.checked,
                           },
                         })
-                      }
+                      }}
                     />
                   </div>
                 </section>

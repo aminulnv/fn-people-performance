@@ -43,6 +43,29 @@ describe('rollupGoalsPillar', () => {
     })
 
     expect(result.applicable).toHaveLength(1)
+    expect(result.applicable[0]?.weight).toBe(100)
+    expect(result.averageGrade).toBe('exceeding')
+  })
+
+  it('equal-weights the remaining active quarters after drops', () => {
+    const result = rollupGoalsPillar({
+      links: [
+        { sourceCycleId: 'q1', weightPercent: 25, excluded: false },
+        { sourceCycleId: 'q2', weightPercent: 25, excluded: false },
+        { sourceCycleId: 'q3', weightPercent: 25, excluded: false },
+      ],
+      quarters: [
+        { sourceCycleId: 'q1', label: 'Q1', outcome: { kind: 'leave' } },
+        { sourceCycleId: 'q2', label: 'Q2', outcome: { kind: 'grade', grade: 'exceptional' } },
+        { sourceCycleId: 'q3', label: 'Q3', outcome: { kind: 'grade', grade: 'performing' } },
+      ],
+    })
+
+    expect(result.applicable.map((row) => row.weight)).toEqual([
+      100 / 2,
+      100 / 2,
+    ])
+    // (5 + 3) / 2 = 4 → exceeding
     expect(result.averageGrade).toBe('exceeding')
   })
 })
@@ -58,6 +81,18 @@ describe('combinePillarScores', () => {
       },
     })
     expect(result.suggestedGrade).toBe('exceeding')
+  })
+
+  it('does not suggest until every enabled pillar is graded', () => {
+    const result = combinePillarScores({
+      policy: defaultReviewPolicy('annual_appraisal'),
+      pillarGrades: {
+        goals: 'exceeding',
+        skills: 'performing',
+        values: null,
+      },
+    })
+    expect(result.suggestedGrade).toBeNull()
   })
 
   it('reweights when a pillar is turned off', () => {

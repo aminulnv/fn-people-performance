@@ -3,8 +3,10 @@ import type {
   GradeBandDefinition,
   ReviewPolicy,
   ReviewQuestion,
+  ReviewQuestionKind,
   ReviewQuestionOutputVisibility,
   ReviewQuestionVisibility,
+  ScorecardFeedbackConfig,
   ScorecardPillar,
   ScorecardPillarKind,
 } from './types'
@@ -17,12 +19,145 @@ export const DEFAULT_GRADE_BANDS: GradeBandDefinition[] = [
   { id: 'unsatisfactory', label: 'Unsatisfactory', sort: 5 },
 ]
 
+export const REVIEW_QUESTION_KINDS: Array<{
+  id: ReviewQuestionKind
+  label: string
+  hint: string
+}> = [
+  { id: 'open_ended', label: 'Open-ended', hint: 'Free-text answer' },
+  { id: 'yes_no', label: 'Yes / No', hint: 'Binary choice' },
+  { id: 'multiple_choice', label: 'Multiple choice', hint: 'Pick one option' },
+]
+
+/** Blocks that can be inserted from Add Question (questions + form sections). */
+export const FORM_ADD_BLOCK_OPTIONS: Array<{
+  id: ReviewQuestionKind | 'feedback' | 'overall'
+  label: string
+  hint: string
+}> = [
+  ...REVIEW_QUESTION_KINDS,
+  {
+    id: 'overall',
+    label: 'Overall Grading',
+    hint: 'Five-band overall grade with criteria',
+  },
+  {
+    id: 'feedback',
+    label: 'Feedback',
+    hint: 'Strengths and areas of improvement',
+  },
+]
+
+export const DEFAULT_MULTIPLE_CHOICE_OPTIONS = ['Option 1', 'Option 2']
+export const DEFAULT_DUAL_LABELS: [string, string] = ['Field 1', 'Field 2']
+
+export const DEFAULT_SCORECARD_FEEDBACK: ScorecardFeedbackConfig = {
+  enabled: false,
+  title: 'Feedback',
+  labels: ['Strengths', 'Areas Of Improvement'],
+  required: false,
+  visibility: ['employee', 'manager'],
+  outputVisibility: ['employee', 'manager'],
+}
+
+export function normalizeScorecardFeedback(
+  feedback?: Partial<ScorecardFeedbackConfig> | null,
+): ScorecardFeedbackConfig {
+  const labels =
+    feedback?.labels?.length === 2
+      ? ([feedback.labels[0] || 'Strengths', feedback.labels[1] || 'Areas Of Improvement'] as [
+          string,
+          string,
+        ])
+      : ([...DEFAULT_SCORECARD_FEEDBACK.labels] as [string, string])
+  const enabled =
+    typeof feedback?.enabled === 'boolean'
+      ? feedback.enabled
+      : feedback == null
+        ? DEFAULT_SCORECARD_FEEDBACK.enabled
+        : true
+  return {
+    enabled,
+    title: feedback?.title?.trim() || DEFAULT_SCORECARD_FEEDBACK.title,
+    labels,
+    required: feedback?.required ?? DEFAULT_SCORECARD_FEEDBACK.required,
+    visibility: feedback?.visibility?.length
+      ? [...feedback.visibility]
+      : [...DEFAULT_SCORECARD_FEEDBACK.visibility],
+    outputVisibility: feedback?.outputVisibility?.length
+      ? [...feedback.outputVisibility]
+      : [...DEFAULT_SCORECARD_FEEDBACK.outputVisibility],
+  }
+}
+
+export function updateScorecardFeedback(
+  policy: ReviewPolicy,
+  patch: Partial<ScorecardFeedbackConfig>,
+): ReviewPolicy {
+  return {
+    ...policy,
+    scorecard: {
+      ...policy.scorecard,
+      feedback: normalizeScorecardFeedback({
+        ...policy.scorecard.feedback,
+        ...patch,
+      }),
+    },
+  }
+}
+
+export function updateOverallGrading(
+  policy: ReviewPolicy,
+  gradeOverall: boolean,
+): ReviewPolicy {
+  return {
+    ...policy,
+    managerReview: {
+      ...policy.managerReview,
+      gradeOverall,
+    },
+  }
+}
+
+export function normalizeReviewQuestion(
+  question: Partial<ReviewQuestion> & Pick<ReviewQuestion, 'id' | 'prompt'>,
+): ReviewQuestion {
+  const kind = question.kind ?? 'open_ended'
+  return {
+    id: question.id,
+    prompt: question.prompt ?? '',
+    description: question.description?.trim() ? question.description : undefined,
+    enabled: question.enabled ?? true,
+    required: question.required ?? false,
+    kind,
+    options:
+      kind === 'multiple_choice'
+        ? question.options?.length
+          ? [...question.options]
+          : [...DEFAULT_MULTIPLE_CHOICE_OPTIONS]
+        : question.options,
+    dualLabels:
+      kind === 'dual_text'
+        ? question.dualLabels?.length === 2
+          ? [question.dualLabels[0], question.dualLabels[1]]
+          : [...DEFAULT_DUAL_LABELS]
+        : question.dualLabels,
+    visibility: question.visibility?.length
+      ? [...question.visibility]
+      : ['employee', 'manager', 'calibrators'],
+    outputVisibility: question.outputVisibility?.length
+      ? [...question.outputVisibility]
+      : ['employee', 'manager'],
+  }
+}
+
 export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
   {
     id: 'delivered',
     prompt: 'What did I deliver this year?',
     enabled: true,
     required: true,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -31,6 +166,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     prompt: "How did I demonstrate FN's Core Values?",
     enabled: true,
     required: true,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -39,6 +175,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     prompt: 'What do I need to further improve on?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -47,6 +184,7 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     prompt: 'Is the company giving me the support I need to perform at my optimal level?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
   },
@@ -55,8 +193,35 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     prompt: 'Will we do what it takes to retain this person?',
     enabled: true,
     required: false,
+    kind: 'open_ended',
     visibility: ['calibrators'],
     outputVisibility: ['manager'],
+  },
+]
+
+/** Q1–Q3 manager check-in: one comment. No self-review question bank. */
+export const DEFAULT_QUARTERLY_QUESTIONS: ReviewQuestion[] = [
+  {
+    id: 'quarter-comment',
+    prompt: 'How did this person perform against their goals this quarter?',
+    enabled: true,
+    required: true,
+    kind: 'open_ended',
+    visibility: ['manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
+  },
+]
+
+/** Q4 is progress-only; the Goals grade is set later in Annual. */
+export const DEFAULT_Q4_QUESTIONS: ReviewQuestion[] = [
+  {
+    id: 'q4-progress',
+    prompt: 'What progress has been made on goals this quarter?',
+    enabled: true,
+    required: false,
+    kind: 'open_ended',
+    visibility: ['manager', 'calibrators'],
+    outputVisibility: ['employee', 'manager'],
   },
 ]
 
@@ -108,6 +273,7 @@ export const SCORECARD_PILLAR_CATALOG: ScorecardPillar[] = [
 export type ScorecardTemplateId =
   | 'annual'
   | 'quarterly'
+  | 'q4'
   | 'leadership'
   | 'blank'
 
@@ -158,19 +324,25 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
   },
   {
     id: 'quarterly',
-    name: 'Quarterly check-in',
-    hint: 'Goals only. One manager comment. Employees do not self-rate.',
+    name: 'Q1–Q3 check-in',
+    hint: 'Goals grade only (no overall). One manager comment. Employees do not self-rate.',
     pillars: catalogWith([['goals', 100]]),
-    questions: [
-      {
-        id: 'quarter-comment',
-        prompt: 'How did this person perform against their goals this quarter?',
-        enabled: true,
-        required: true,
-        visibility: ['manager', 'calibrators'],
-        outputVisibility: ['employee', 'manager'],
-      },
-    ],
+    questions: DEFAULT_QUARTERLY_QUESTIONS.map((question) => ({
+      ...question,
+      visibility: [...question.visibility],
+      outputVisibility: [...question.outputVisibility],
+    })),
+  },
+  {
+    id: 'q4',
+    name: 'Q4 progress',
+    hint: 'Goals progress only — no quarter grade. Q4 is graded inside Annual.',
+    pillars: catalogWith([['goals', 100]]),
+    questions: DEFAULT_Q4_QUESTIONS.map((question) => ({
+      ...question,
+      visibility: [...question.visibility],
+      outputVisibility: [...question.outputVisibility],
+    })),
   },
   {
     id: 'leadership',
@@ -186,6 +358,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         prompt: 'What did this person deliver through their team this period?',
         enabled: true,
         required: true,
+        kind: 'open_ended',
         visibility: ['employee', 'manager', 'calibrators'],
         outputVisibility: ['employee', 'manager'],
       },
@@ -194,6 +367,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         prompt: 'How did they demonstrate leadership capability?',
         enabled: true,
         required: true,
+        kind: 'open_ended',
         visibility: ['employee', 'manager', 'calibrators'],
         outputVisibility: ['employee', 'manager'],
       },
@@ -202,6 +376,7 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         prompt: 'Will we do what it takes to retain this person?',
         enabled: true,
         required: false,
+        kind: 'open_ended',
         visibility: ['calibrators'],
         outputVisibility: ['manager'],
       },
@@ -217,9 +392,15 @@ export function scorecardTemplateById(
   return SCORECARD_TEMPLATES.find((item) => item.id === id) ?? SCORECARD_TEMPLATES[0]!
 }
 
-export function templateIdForPurpose(purpose: CyclePurpose): ScorecardTemplateId {
+export function templateIdForPurpose(
+  purpose: CyclePurpose,
+  periodKey?: string,
+): ScorecardTemplateId {
   if (purpose === 'annual_appraisal') return 'annual'
   if (purpose === 'custom') return 'blank'
+  if (purpose === 'quarterly_checkin' && /^q4-\d{4}$/i.test(periodKey ?? '')) {
+    return 'q4'
+  }
   return 'quarterly'
 }
 
@@ -260,19 +441,26 @@ export function applyScorecardTemplate(
       bands: policy.scorecard.bands.length
         ? policy.scorecard.bands
         : DEFAULT_GRADE_BANDS.map((band) => ({ ...band })),
+      feedback: normalizeScorecardFeedback(
+        policy.scorecard.feedback ?? DEFAULT_SCORECARD_FEEDBACK,
+      ),
     },
   }
 }
 
-export function addReviewQuestion(policy: ReviewPolicy): ReviewPolicy {
-  const question: ReviewQuestion = {
+export function addReviewQuestion(
+  policy: ReviewPolicy,
+  kind: ReviewQuestionKind = 'open_ended',
+): ReviewPolicy {
+  const question = normalizeReviewQuestion({
     id: nextId('question'),
     prompt: '',
     enabled: true,
     required: false,
+    kind,
     visibility: ['employee', 'manager', 'calibrators'],
     outputVisibility: ['employee', 'manager'],
-  }
+  })
   return {
     ...policy,
     scorecard: {
@@ -280,6 +468,25 @@ export function addReviewQuestion(policy: ReviewPolicy): ReviewPolicy {
       questions: [...policy.scorecard.questions, question],
     },
   }
+}
+
+export function setReviewQuestionKind(
+  policy: ReviewPolicy,
+  questionId: string,
+  kind: ReviewQuestionKind,
+): ReviewPolicy {
+  const question = policy.scorecard.questions.find((item) => item.id === questionId)
+  if (!question || question.kind === kind) return policy
+  return updateReviewQuestion(
+    policy,
+    questionId,
+    normalizeReviewQuestion({
+      ...question,
+      kind,
+      options: kind === 'multiple_choice' ? question.options : undefined,
+      dualLabels: kind === 'dual_text' ? question.dualLabels : undefined,
+    }),
+  )
 }
 
 export function updateReviewQuestion(
@@ -342,6 +549,31 @@ export function removeReviewQuestion(
       questions: policy.scorecard.questions.filter(
         (question) => question.id !== questionId,
       ),
+    },
+  }
+}
+
+export function duplicateReviewQuestion(
+  policy: ReviewPolicy,
+  questionId: string,
+): ReviewPolicy {
+  const index = policy.scorecard.questions.findIndex(
+    (question) => question.id === questionId,
+  )
+  if (index < 0) return policy
+  const source = policy.scorecard.questions[index]!
+  const copy = normalizeReviewQuestion({
+    ...source,
+    id: nextId('question'),
+    prompt: source.prompt,
+  })
+  const questions = [...policy.scorecard.questions]
+  questions.splice(index + 1, 0, copy)
+  return {
+    ...policy,
+    scorecard: {
+      ...policy.scorecard,
+      questions,
     },
   }
 }
