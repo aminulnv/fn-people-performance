@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildClosedGoalHeadline,
   buildGoalDeadlineHeadline,
+  buildGoalSubmitHeadline,
   cycleQuarterLabel,
   deadlineAriaSuffix,
   deadlineCountdownCopy,
@@ -29,7 +30,8 @@ describe('goalDeadlineBanner copy helpers', () => {
   })
 
   it('builds the headline from the cycle label', () => {
-    expect(buildGoalDeadlineHeadline('Q3 2026')).toBe('Set your Q3 Goals')
+    expect(buildGoalDeadlineHeadline('Q3 2026')).toBe('Set your Q3 2026 Goals')
+    expect(buildGoalSubmitHeadline('Q3 2026')).toBe('Submit your Q3 2026 Goals')
   })
 
   it('pluralises the countdown label', () => {
@@ -63,7 +65,7 @@ describe('goalDeadlineBanner copy helpers', () => {
       primary: 'Overdue',
       secondary: '',
     })
-    expect(deadlineSublinePrefix('upcoming')).toBe('Due by ')
+    expect(deadlineSublinePrefix('upcoming')).toBe('Before ')
     expect(deadlineSublinePrefix('due_today')).toBe('Due today')
     expect(deadlineSublinePrefix('overdue')).toBe('Was due ')
     expect(deadlineSublineEmphasis('due_today', '23rd August 2026')).toBeUndefined()

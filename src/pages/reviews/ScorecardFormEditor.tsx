@@ -146,9 +146,9 @@ const OUTPUT_AUDIENCES: Array<{
   id: ReviewQuestionOutputVisibility
   label: string
 }> = [
-  { id: 'employee', label: 'Employee' },
-  { id: 'manager', label: 'Manager' },
-]
+    { id: 'employee', label: 'Employee' },
+    { id: 'manager', label: 'Manager' },
+  ]
 
 type SelectedBlock = 'overall' | 'feedback' | string | null
 
@@ -157,6 +157,7 @@ function ScorecardSetupSection({
   meta,
   manageLabel,
   onManage,
+  showManage = true,
   selected = false,
   onSelect,
   titleEdit,
@@ -166,6 +167,7 @@ function ScorecardSetupSection({
   meta?: string
   manageLabel: string
   onManage: () => void
+  showManage?: boolean
   selected?: boolean
   onSelect?: () => void
   titleEdit?: {
@@ -206,15 +208,17 @@ function ScorecardSetupSection({
             <span className="pd-reviews-scorecard__goals-percent">{meta}</span>
           ) : null}
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          pill
-          aria-label={manageLabel}
-          onClick={onManage}
-        >
-          {manageLabel}
-        </Button>
+        {showManage ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            pill
+            aria-label={manageLabel}
+            onClick={onManage}
+          >
+            {manageLabel}
+          </Button>
+        ) : null}
       </header>
       <div
         className="pd-reviews-form-setup-section__body"
@@ -232,31 +236,20 @@ function ScorecardSetupSection({
 function AddQuestionTypeMenu({
   label,
   variant = 'secondary',
-  showFeedback = true,
-  showOverall = true,
   open: openProp,
   onOpenChange,
   onPick,
 }: {
   label: string
   variant?: 'primary' | 'secondary'
-  /** Offer the Feedback section when it is not already on the form. */
-  showFeedback?: boolean
-  /** Offer Overall Grading when it is not already on the form. */
-  showOverall?: boolean
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  onPick: (kind: ReviewQuestionKind | 'feedback' | 'overall') => void
+  onPick: (kind: ReviewQuestionKind) => void
 }) {
   const [openInternal, setOpenInternal] = useState(false)
   const open = openProp ?? openInternal
   const setOpen = onOpenChange ?? setOpenInternal
   const rootRef = useRef<HTMLDivElement>(null)
-  const options = FORM_ADD_BLOCK_OPTIONS.filter((item) => {
-    if (item.id === 'feedback') return showFeedback
-    if (item.id === 'overall') return showOverall
-    return true
-  })
 
   useEffect(() => {
     if (!open) return
@@ -288,7 +281,7 @@ function AddQuestionTypeMenu({
       </Button>
       {open ? (
         <ul className="pd-reviews-form-canvas__type-list" role="menu" aria-label={label}>
-          {options.map((item) => (
+          {FORM_ADD_BLOCK_OPTIONS.map((item) => (
             <li key={item.id} role="none">
               <button
                 type="button"
@@ -339,11 +332,10 @@ export function ScorecardFormEditor({
   const goalsPillar = policy.scorecard.pillars.find(
     (pillar) => pillar.kind === 'goals',
   )
-  const showGoalsPreview = Boolean(goalsPillar?.enabled)
   const ratingPillars = policy.scorecard.pillars.filter(
-    (pillar) => pillar.enabled && pillar.kind !== 'goals',
+    (pillar) => pillar.kind !== 'goals',
   )
-  const onChange = locked ? () => {} : onChangeProp
+  const onChange = locked ? () => { } : onChangeProp
 
   const openGradeAreas = () => {
     setGradesOpen(true)
@@ -357,6 +349,20 @@ export function ScorecardFormEditor({
       return
     }
     setQuestionsMenuOpen(true)
+  }
+
+  const manageOverall = () => {
+    if (!showOverall) {
+      onChange(updateOverallGrading(policy, true))
+    }
+    setSelectedBlock('overall')
+  }
+
+  const manageFeedback = () => {
+    if (!feedbackOn) {
+      onChange(updateScorecardFeedback(policy, { enabled: true }))
+    }
+    setSelectedBlock('feedback')
   }
 
   useEffect(() => {
@@ -375,17 +381,7 @@ export function ScorecardFormEditor({
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [selectedBlock])
 
-  const addBlock = (kind: ReviewQuestionKind | 'feedback' | 'overall') => {
-    if (kind === 'feedback') {
-      onChange(updateScorecardFeedback(policy, { enabled: true }))
-      setSelectedBlock('feedback')
-      return
-    }
-    if (kind === 'overall') {
-      onChange(updateOverallGrading(policy, true))
-      setSelectedBlock('overall')
-      return
-    }
+  const addQuestion = (kind: ReviewQuestionKind) => {
     const next = addReviewQuestion(policy, kind)
     onChange(next)
     const created = next.scorecard.questions[next.scorecard.questions.length - 1]
@@ -438,10 +434,10 @@ export function ScorecardFormEditor({
                               enabled: event.target.checked,
                               weight: event.target.checked
                                 ? clampPillarWeight(
-                                    policy,
-                                    item.id,
-                                    item.weight,
-                                  )
+                                  policy,
+                                  item.id,
+                                  item.weight,
+                                )
                                 : item.weight,
                             },
                           )
@@ -579,423 +575,513 @@ export function ScorecardFormEditor({
         className="pd-reviews-form__lock-fieldset"
         aria-label={locked ? 'Allocated form (read-only)' : undefined}
       >
-      {!hideGradesToolbar ? (
-        <div className="pd-reviews-form__toolbar">
-          <Button
-            variant="secondary"
-            size="sm"
-            pill
-            onClick={openGradeAreas}
-          >
-            <Settings2 size={14} strokeWidth={2} aria-hidden />
-            Grade Areas
-          </Button>
-          {weight !== 100 ? (
-            <p className="pd-reviews-form__weight">{weight}% of 100%</p>
-          ) : null}
-        </div>
-      ) : null}
+        {!hideGradesToolbar ? (
+          <div className="pd-reviews-form__toolbar">
+            <Button
+              variant="secondary"
+              size="sm"
+              pill
+              onClick={openGradeAreas}
+            >
+              <Settings2 size={14} strokeWidth={2} aria-hidden />
+              Grade Areas
+            </Button>
+            {weight !== 100 ? (
+              <p className="pd-reviews-form__weight">{weight}% of 100%</p>
+            ) : null}
+          </div>
+        ) : null}
 
-      <section
-        className="pd-reviews-form__page pd-reviews-form__page--scorecard"
-        aria-label="Review form preview"
-      >
-        <ScorecardHero
-          detail={FORM_PREVIEW_DETAIL}
-          packet={null}
-          hideStages
-        />
+        <section
+          className="pd-reviews-form__page pd-reviews-form__page--scorecard"
+          aria-label="Review form preview"
+        >
+          <ScorecardHero
+            detail={FORM_PREVIEW_DETAIL}
+            packet={null}
+            hideStages
+          />
 
-        {showGoalsPreview ? (
           <ScorecardSetupSection
             title={goalsPillar?.label || 'Goals'}
-            meta={`${goalsPillar?.weight ?? 0}%`}
+            meta={goalsPillar?.enabled ? `${goalsPillar.weight}%` : 'Off'}
             manageLabel="Manage evaluation criteria"
             onManage={openGradeAreas}
+            showManage={!locked}
           >
-            <ScorecardGoalsCard
-              cycleLabel={FORM_PREVIEW_DETAIL.cycleLabel}
-              goals={FORM_PREVIEW_GOALS}
-              overallPercent={FORM_PREVIEW_DETAIL.goalsOverallPercent}
-              overallBand={
-                gradesGoalsSeparately(policy)
-                  ? FORM_PREVIEW_DETAIL.goalsOverallBand
-                  : null
-              }
-              owner={{
-                id: 'form-preview',
-                name: FORM_PREVIEW_DETAIL.employeeName,
-              }}
-              hideTitle
-              bare
-            />
-          </ScorecardSetupSection>
-        ) : null}
-
-        {ratingPillars.map((pillar) => (
-          <ScorecardSetupSection
-            key={pillar.id}
-            title={pillar.label || 'Custom area'}
-            meta={`${pillar.weight}%`}
-            manageLabel={`Manage ${pillar.label || 'area'}`}
-            onManage={openGradeAreas}
-          >
-            <div className="pd-reviews-scorecard__contribution-card">
-              <ListboxSelect
-                className="pd-reviews-scorecard__goals-grade"
-                id={`form-preview-pillar-${pillar.id}`}
-                aria-label={`${pillar.label || 'Area'} grade preview`}
-                value=""
-                onValueChange={() => {}}
-                disabled
-                placeholder="Select a grade"
-                emptyLabel="Select a grade"
-                options={GRADE_LISTBOX_OPTIONS}
+            {goalsPillar?.enabled ? (
+              <ScorecardGoalsCard
+                cycleLabel={FORM_PREVIEW_DETAIL.cycleLabel}
+                goals={FORM_PREVIEW_GOALS}
+                overallPercent={FORM_PREVIEW_DETAIL.goalsOverallPercent}
+                overallBand={
+                  gradesGoalsSeparately(policy)
+                    ? FORM_PREVIEW_DETAIL.goalsOverallBand
+                    : null
+                }
+                owner={{
+                  id: 'form-preview',
+                  name: FORM_PREVIEW_DETAIL.employeeName,
+                }}
+                hideTitle
+                bare
               />
-            </div>
-          </ScorecardSetupSection>
-        ))}
-
-        <ScorecardSetupSection
-          title="Questions"
-          manageLabel="Manage questions"
-          onManage={manageQuestions}
-        >
-          {onForm.length === 0 ? (
-            <EmptyState
-              className="pd-reviews-form-preview__empty"
-              title="No Questions Yet"
-              description="This section only appears on the scorecard when you add custom questions."
-              action={
-                <AddQuestionTypeMenu
-                  label="Create Question"
-                  variant="primary"
-                  showFeedback={!feedbackOn}
-                  showOverall={!showOverall}
-                  open={questionsMenuOpen}
-                  onOpenChange={setQuestionsMenuOpen}
-                  onPick={addBlock}
-                />
-              }
-            />
-          ) : (
-            <>
-              <div className="pd-reviews-form-canvas__questions" aria-label="Questions list">
-                {onForm.map((question) => {
-                  const index = policy.scorecard.questions.indexOf(question)
-                  return (
-                    <FormQuestionCard
-                      key={question.id}
-                      question={question}
-                      index={index}
-                      total={policy.scorecard.questions.length}
-                      policy={policy}
-                      selected={selectedBlock === question.id}
-                      onSelect={() =>
-                        setSelectedBlock((current) =>
-                          current === question.id ? null : question.id,
-                        )
-                      }
-                      onFocusQuestion={(questionId = question.id) =>
-                        setSelectedBlock(questionId)
-                      }
-                      onChange={onChange}
-                    />
+            ) : (
+              <EmptyState
+                className="pd-empty--inline"
+                title="Goals are off"
+                description="Turn Goals on in Grade Areas to include them on this scorecard."
+                action={
+                  locked ? null : (
+                    <Button variant="secondary" size="sm" pill onClick={openGradeAreas}>
+                      Manage evaluation criteria
+                    </Button>
                   )
-                })}
-              </div>
-              <div className="pd-reviews-form-canvas__add">
-                <AddQuestionTypeMenu
-                  label="Add Question"
-                  showFeedback={!feedbackOn}
-                  showOverall={!showOverall}
-                  open={questionsMenuOpen}
-                  onOpenChange={setQuestionsMenuOpen}
-                  onPick={addBlock}
-                />
-              </div>
-            </>
-          )}
-        </ScorecardSetupSection>
+                }
+              />
+            )}
+          </ScorecardSetupSection>
 
-        {showOverall ? (
+          {ratingPillars.map((pillar) => (
+            <ScorecardSetupSection
+              key={pillar.id}
+              title={pillar.label || 'Custom area'}
+              meta={pillar.enabled ? `${pillar.weight}%` : 'Off'}
+              manageLabel={`Manage ${pillar.label || 'area'}`}
+              onManage={openGradeAreas}
+              showManage={!locked}
+            >
+              {pillar.id === 'skills' ? (
+                pillar.enabled ? (
+                  <p className="pd-reviews-flow__hint">
+                    Skills come from each person&apos;s profile and are graded on
+                    the review ({pillar.weight}% of overall when on).
+                  </p>
+                ) : (
+                  <EmptyState
+                    className="pd-empty--inline"
+                    title="Skills is off"
+                    description="Turn it on in Grade Areas to show and grade profile skills on this scorecard. Prior skill grades stay saved but do not count toward overall."
+                    action={
+                      locked ? null : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          pill
+                          onClick={openGradeAreas}
+                        >
+                          Manage Skills
+                        </Button>
+                      )
+                    }
+                  />
+                )
+              ) : pillar.enabled ? (
+                <div className="pd-reviews-scorecard__contribution-card">
+                  <ListboxSelect
+                    className="pd-reviews-scorecard__goals-grade"
+                    id={`form-preview-pillar-${pillar.id}`}
+                    aria-label={`${pillar.label || 'Area'} grade preview`}
+                    value=""
+                    onValueChange={() => { }}
+                    disabled
+                    placeholder="Select a grade"
+                    emptyLabel="Select a grade"
+                    options={GRADE_LISTBOX_OPTIONS}
+                  />
+                </div>
+              ) : (
+                <EmptyState
+                  className="pd-empty--inline"
+                  title={`${pillar.label || 'This area'} is off`}
+                  description="Turn it on in Grade Areas to grade it on this scorecard."
+                  action={
+                    locked ? null : (
+                      <Button variant="secondary" size="sm" pill onClick={openGradeAreas}>
+                        {`Manage ${pillar.label || 'area'}`}
+                      </Button>
+                    )
+                  }
+                />
+              )}
+            </ScorecardSetupSection>
+          ))}
+
+          <ScorecardSetupSection
+            title="Questions"
+            manageLabel="Manage questions"
+            onManage={manageQuestions}
+            showManage={!locked}
+          >
+            {onForm.length === 0 ? (
+              <EmptyState
+                className="pd-reviews-form-preview__empty"
+                title="No Questions Yet"
+                description="Add custom questions here. This section stays empty on the live scorecard until you do."
+                action={
+                  <AddQuestionTypeMenu
+                    label="Create Question"
+                    variant="primary"
+                    open={questionsMenuOpen}
+                    onOpenChange={setQuestionsMenuOpen}
+                    onPick={addQuestion}
+                  />
+                }
+              />
+            ) : (
+              <>
+                <div className="pd-reviews-form-canvas__questions" aria-label="Questions list">
+                  {onForm.map((question) => {
+                    const index = policy.scorecard.questions.indexOf(question)
+                    return (
+                      <FormQuestionCard
+                        key={question.id}
+                        question={question}
+                        index={index}
+                        total={policy.scorecard.questions.length}
+                        policy={policy}
+                        selected={selectedBlock === question.id}
+                        onSelect={() =>
+                          setSelectedBlock((current) =>
+                            current === question.id ? null : question.id,
+                          )
+                        }
+                        onFocusQuestion={(questionId = question.id) =>
+                          setSelectedBlock(questionId)
+                        }
+                        onChange={onChange}
+                      />
+                    )
+                  })}
+                </div>
+                <div className="pd-reviews-form-canvas__add">
+                  <AddQuestionTypeMenu
+                    label="Add Question"
+                    open={questionsMenuOpen}
+                    onOpenChange={setQuestionsMenuOpen}
+                    onPick={addQuestion}
+                  />
+                </div>
+              </>
+            )}
+          </ScorecardSetupSection>
+
           <ScorecardSetupSection
             title="Overall Grading"
-            manageLabel="Manage performance grades"
-            onManage={() => setSelectedBlock('overall')}
+            manageLabel="Manage overall grading"
+            onManage={manageOverall}
+            showManage={!locked}
             selected={selectedBlock === 'overall'}
-            onSelect={() => setSelectedBlock('overall')}
+            onSelect={() => {
+              if (showOverall) setSelectedBlock('overall')
+              else manageOverall()
+            }}
           >
-            <OverallGradePicker
-              name="form-preview-overall"
-              value=""
-              disabled
-              hideTitle
-            />
-            {selectedBlock === 'overall' ? (
-              <div
-                className="pd-reviews-gform-card__footer"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="pd-reviews-gform-card__footer-controls">
-                  <div className="pd-reviews-gform-card__footer-rules">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      pill
-                      onClick={() => {
-                        onChange(updateOverallGrading(policy, false))
-                        setSelectedBlock(null)
-                      }}
-                    >
-                      Hide
-                    </Button>
+            {showOverall ? (
+              <>
+                <OverallGradePicker
+                  name="form-preview-overall"
+                  value=""
+                  disabled
+                  hideTitle
+                />
+                {selectedBlock === 'overall' ? (
+                  <div
+                    className="pd-reviews-gform-card__footer"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <div className="pd-reviews-gform-card__footer-controls">
+                      <div className="pd-reviews-gform-card__footer-rules">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          pill
+                          onClick={() => {
+                            onChange(updateOverallGrading(policy, false))
+                            setSelectedBlock(null)
+                          }}
+                        >
+                          Turn off
+                        </Button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            ) : null}
+                ) : null}
+              </>
+            ) : (
+              <EmptyState
+                className="pd-empty--inline"
+                title="Overall grading is off"
+                description="Turn it on to show the five-band overall grade on this scorecard."
+                action={
+                  locked ? null : (
+                    <Button variant="primary" size="sm" pill onClick={manageOverall}>
+                      Include overall grading
+                    </Button>
+                  )
+                }
+              />
+            )}
           </ScorecardSetupSection>
-        ) : null}
 
-        {feedbackOn ? (
           <ScorecardSetupSection
             title={policy.scorecard.feedback?.title || 'Feedback'}
             manageLabel="Manage feedback"
-            onManage={() => setSelectedBlock('feedback')}
+            onManage={manageFeedback}
+            showManage={!locked}
             selected={selectedBlock === 'feedback'}
-            onSelect={() => setSelectedBlock('feedback')}
+            onSelect={() => {
+              if (feedbackOn) setSelectedBlock('feedback')
+              else manageFeedback()
+            }}
             titleEdit={
-              selectedBlock === 'feedback'
+              selectedBlock === 'feedback' && feedbackOn
                 ? {
-                    value: policy.scorecard.feedback?.title ?? 'Feedback',
-                    ariaLabel: 'Feedback section title',
-                    onChange: (title) =>
-                      onChange(updateScorecardFeedback(policy, { title })),
-                  }
+                  value: policy.scorecard.feedback?.title ?? 'Feedback',
+                  ariaLabel: 'Feedback section title',
+                  onChange: (title) =>
+                    onChange(updateScorecardFeedback(policy, { title })),
+                }
                 : undefined
             }
           >
-            <ScorecardFeedbackCard
-              feedback={{
-                authorName: '',
-                authorRole: '',
-                dateLabel: '',
-                strengths: '',
-                developments: '',
-              }}
-              title={policy.scorecard.feedback?.title ?? 'Feedback'}
-              labels={
-                policy.scorecard.feedback?.labels ?? [
-                  'Strengths',
-                  'Areas Of Improvement',
-                ]
-              }
-              hideTitle
-              bare
-              onLabelsChange={
-                selectedBlock === 'feedback'
-                  ? (labels) => onChange(updateScorecardFeedback(policy, { labels }))
-                  : undefined
-              }
-            />
-            {selectedBlock === 'feedback' ? (
-              <div
-                className="pd-reviews-gform-card__footer"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="pd-reviews-gform-card__footer-visibility">
+            {feedbackOn ? (
+              <>
+                <ScorecardFeedbackCard
+                  feedback={{
+                    authorName: '',
+                    authorRole: '',
+                    dateLabel: '',
+                    strengths: '',
+                    developments: '',
+                  }}
+                  title={policy.scorecard.feedback?.title ?? 'Feedback'}
+                  labels={
+                    policy.scorecard.feedback?.labels ?? [
+                      'Strengths',
+                      'Areas Of Improvement',
+                    ]
+                  }
+                  hideTitle
+                  bare
+                  onLabelsChange={
+                    selectedBlock === 'feedback'
+                      ? (labels) => onChange(updateScorecardFeedback(policy, { labels }))
+                      : undefined
+                  }
+                />
+                {selectedBlock === 'feedback' ? (
                   <div
-                    className="pd-reviews-form-preview__shown"
-                    role="group"
-                    aria-label="Answered on"
+                    className="pd-reviews-gform-card__footer"
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    <span className="pd-reviews-form-preview__shown-label">
-                      <PenLine size={12} strokeWidth={2} aria-hidden />
-                      Answered On
-                    </span>
-                    {QUESTION_VISIBILITY.filter((option) => option.id !== 'calibrators').map(
-                      (option) => {
-                        const on = (
-                          policy.scorecard.feedback?.visibility ?? [
-                            'employee',
-                            'manager',
-                          ]
-                        ).includes(option.id)
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            className={
-                              on
-                                ? 'pd-reviews-form-preview__chip is-on'
-                                : 'pd-reviews-form-preview__chip'
-                            }
-                            aria-pressed={on}
-                            title={option.hint}
-                            onClick={() => {
-                              const current =
-                                policy.scorecard.feedback?.visibility ?? [
-                                  'employee',
-                                  'manager',
-                                ]
-                              const next = on
-                                ? current.filter((item) => item !== option.id)
-                                : [...current, option.id]
-                              onChange(
-                                updateScorecardFeedback(policy, {
-                                  visibility:
-                                    next.length > 0 ? next : current,
-                                }),
-                              )
-                            }}
-                          >
-                            {SHOWN_ON[option.id]}
-                          </button>
-                        )
-                      },
-                    )}
-                  </div>
-                  <div
-                    className="pd-reviews-form-preview__shown"
-                    role="group"
-                    aria-label="Published to"
-                  >
-                    <span className="pd-reviews-form-preview__shown-label">
-                      <BadgeCheck size={12} strokeWidth={2} aria-hidden />
-                      Published To
-                    </span>
-                    {OUTPUT_AUDIENCES.map((option) => {
-                      const current =
-                        policy.scorecard.feedback?.outputVisibility ?? [
-                          'employee',
-                          'manager',
-                        ]
-                      const on = current.includes(option.id)
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          className={
-                            on
-                              ? 'pd-reviews-form-preview__chip is-on'
-                              : 'pd-reviews-form-preview__chip'
-                          }
-                          aria-pressed={on}
-                          onClick={() => {
-                            const next = on
-                              ? current.filter((item) => item !== option.id)
-                              : [...current, option.id]
-                            onChange(
-                              updateScorecardFeedback(policy, {
-                                outputVisibility:
-                                  next.length > 0 ? next : current,
-                              }),
+                    <div className="pd-reviews-gform-card__footer-visibility">
+                      <div
+                        className="pd-reviews-form-preview__shown"
+                        role="group"
+                        aria-label="Answered on"
+                      >
+                        <span className="pd-reviews-form-preview__shown-label">
+                          <PenLine size={12} strokeWidth={2} aria-hidden />
+                          Answered On
+                        </span>
+                        {QUESTION_VISIBILITY.filter((option) => option.id !== 'calibrators').map(
+                          (option) => {
+                            const on = (
+                              policy.scorecard.feedback?.visibility ?? [
+                                'employee',
+                                'manager',
+                              ]
+                            ).includes(option.id)
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                className={
+                                  on
+                                    ? 'pd-reviews-form-preview__chip is-on'
+                                    : 'pd-reviews-form-preview__chip'
+                                }
+                                aria-pressed={on}
+                                title={option.hint}
+                                onClick={() => {
+                                  const current =
+                                    policy.scorecard.feedback?.visibility ?? [
+                                      'employee',
+                                      'manager',
+                                    ]
+                                  const next = on
+                                    ? current.filter((item) => item !== option.id)
+                                    : [...current, option.id]
+                                  onChange(
+                                    updateScorecardFeedback(policy, {
+                                      visibility:
+                                        next.length > 0 ? next : current,
+                                    }),
+                                  )
+                                }}
+                              >
+                                {SHOWN_ON[option.id]}
+                              </button>
                             )
+                          },
+                        )}
+                      </div>
+                      <div
+                        className="pd-reviews-form-preview__shown"
+                        role="group"
+                        aria-label="Published to"
+                      >
+                        <span className="pd-reviews-form-preview__shown-label">
+                          <BadgeCheck size={12} strokeWidth={2} aria-hidden />
+                          Published To
+                        </span>
+                        {OUTPUT_AUDIENCES.map((option) => {
+                          const current =
+                            policy.scorecard.feedback?.outputVisibility ?? [
+                              'employee',
+                              'manager',
+                            ]
+                          const on = current.includes(option.id)
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              className={
+                                on
+                                  ? 'pd-reviews-form-preview__chip is-on'
+                                  : 'pd-reviews-form-preview__chip'
+                              }
+                              aria-pressed={on}
+                              onClick={() => {
+                                const next = on
+                                  ? current.filter((item) => item !== option.id)
+                                  : [...current, option.id]
+                                onChange(
+                                  updateScorecardFeedback(policy, {
+                                    outputVisibility:
+                                      next.length > 0 ? next : current,
+                                  }),
+                                )
+                              }}
+                            >
+                              {option.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="pd-reviews-gform-card__footer-controls">
+                      <div className="pd-reviews-gform-card__footer-rules">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          pill
+                          onClick={() => {
+                            onChange(
+                              updateScorecardFeedback(policy, { enabled: false }),
+                            )
+                            setSelectedBlock(null)
                           }}
                         >
-                          {option.label}
-                        </button>
-                      )
-                    })}
+                          Turn off
+                        </Button>
+                        <Switch
+                          label="Required"
+                          className="pd-reviews-gform-card__required"
+                          checked={Boolean(policy.scorecard.feedback?.required)}
+                          onChange={(event) =>
+                            onChange(
+                              updateScorecardFeedback(policy, {
+                                required: event.target.checked,
+                              }),
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="pd-reviews-gform-card__footer-controls">
-                  <div className="pd-reviews-gform-card__footer-rules">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      pill
-                      onClick={() => {
-                        onChange(
-                          updateScorecardFeedback(policy, { enabled: false }),
-                        )
-                        setSelectedBlock(null)
-                      }}
-                    >
-                      Hide
+                ) : null}
+              </>
+            ) : (
+              <EmptyState
+                className="pd-empty--inline"
+                title="Feedback is off"
+                description="Turn it on to collect strengths and areas of development on this scorecard."
+                action={
+                  locked ? null : (
+                    <Button variant="primary" size="sm" pill onClick={manageFeedback}>
+                      Include feedback
                     </Button>
-                    <Switch
-                      label="Required"
-                      className="pd-reviews-gform-card__required"
-                      checked={Boolean(policy.scorecard.feedback?.required)}
-                      onChange={(event) =>
-                        onChange(
-                          updateScorecardFeedback(policy, {
-                            required: event.target.checked,
-                          }),
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : null}
+                  )
+                }
+              />
+            )}
           </ScorecardSetupSection>
+        </section>
+
+        <Modal
+          open={gradesOpen}
+          onClose={() => {
+            setGradesOpen(false)
+            setModifyingPillars(false)
+          }}
+          title="Grade Areas"
+          description="Turn areas on and set weights. This is how grading shows on the scorecard."
+          className="pd-reviews-form-modal pd-reviews-form-modal--grades"
+          actions={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                pill
+                onClick={() => setModifyingPillars((open) => !open)}
+              >
+                {modifyingPillars ? 'Done Editing' : 'Modify'}
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                pill
+                onClick={() => {
+                  setGradesOpen(false)
+                  setModifyingPillars(false)
+                }}
+              >
+                Done
+              </Button>
+            </>
+          }
+        >
+          {gradeAreasTable}
+        </Modal>
+
+        {offForm.length > 0 ? (
+          <details className="pd-cycle-setup__more">
+            <summary>Off the form ({offForm.length})</summary>
+            <ul className="pd-reviews-form-preview__aside">
+              {offForm.map((question) => (
+                <li key={question.id}>
+                  <p>{question.prompt || 'Untitled question'}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    pill
+                    onClick={() =>
+                      onChange(
+                        updateReviewQuestion(policy, question.id, {
+                          enabled: true,
+                        }),
+                      )
+                    }
+                  >
+                    Put On The Form
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </details>
         ) : null}
-      </section>
-
-      <Modal
-        open={gradesOpen}
-        onClose={() => {
-          setGradesOpen(false)
-          setModifyingPillars(false)
-        }}
-        title="Grade Areas"
-        description="Turn areas on and set weights. This is how grading shows on the scorecard."
-        className="pd-reviews-form-modal pd-reviews-form-modal--grades"
-        actions={
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              pill
-              onClick={() => setModifyingPillars((open) => !open)}
-            >
-              {modifyingPillars ? 'Done Editing' : 'Modify'}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              pill
-              onClick={() => {
-                setGradesOpen(false)
-                setModifyingPillars(false)
-              }}
-            >
-              Done
-            </Button>
-          </>
-        }
-      >
-        {gradeAreasTable}
-      </Modal>
-
-      {offForm.length > 0 ? (
-        <details className="pd-cycle-setup__more">
-          <summary>Off the form ({offForm.length})</summary>
-          <ul className="pd-reviews-form-preview__aside">
-            {offForm.map((question) => (
-              <li key={question.id}>
-                <p>{question.prompt || 'Untitled question'}</p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  pill
-                  onClick={() =>
-                    onChange(
-                      updateReviewQuestion(policy, question.id, {
-                        enabled: true,
-                      }),
-                    )
-                  }
-                >
-                  Put On The Form
-                </Button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
       </fieldset>
     </div>
   )
@@ -1088,13 +1174,13 @@ function FormQuestionCard({
             options={(
               kind === 'dual_text'
                 ? [
-                    {
-                      id: 'dual_text' as const,
-                      label: 'Two fields',
-                      hint: 'Legacy dual text',
-                    },
-                    ...REVIEW_QUESTION_KINDS,
-                  ]
+                  {
+                    id: 'dual_text' as const,
+                    label: 'Two fields',
+                    hint: 'Legacy dual text',
+                  },
+                  ...REVIEW_QUESTION_KINDS,
+                ]
                 : REVIEW_QUESTION_KINDS
             ).map((item) => ({
               value: item.id,
@@ -1151,21 +1237,21 @@ function FormQuestionCard({
           onOptionsChange={
             kind === 'multiple_choice'
               ? (options) => {
-                  if (!selected) onFocusQuestion()
-                  onChange(
-                    updateReviewQuestion(policy, question.id, { options }),
-                  )
-                }
+                if (!selected) onFocusQuestion()
+                onChange(
+                  updateReviewQuestion(policy, question.id, { options }),
+                )
+              }
               : undefined
           }
           onDualLabelsChange={
             kind === 'dual_text'
               ? (dualLabels) => {
-                  if (!selected) onFocusQuestion()
-                  onChange(
-                    updateReviewQuestion(policy, question.id, { dualLabels }),
-                  )
-                }
+                if (!selected) onFocusQuestion()
+                onChange(
+                  updateReviewQuestion(policy, question.id, { dualLabels }),
+                )
+              }
               : undefined
           }
         />
@@ -1188,33 +1274,33 @@ function FormQuestionCard({
               </span>
               {QUESTION_VISIBILITY.filter((option) => option.id !== 'calibrators').map(
                 (option) => {
-                const on = question.visibility.includes(option.id)
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    className={
-                      on
-                        ? 'pd-reviews-form-preview__chip is-on'
-                        : 'pd-reviews-form-preview__chip'
-                    }
-                    aria-pressed={on}
-                    title={option.hint}
-                    onClick={() =>
-                      onChange(
-                        toggleQuestionVisibility(
-                          policy,
-                          question.id,
-                          option.id,
-                          !on,
-                        ),
-                      )
-                    }
-                  >
-                    {SHOWN_ON[option.id]}
-                  </button>
-                )
-              },
+                  const on = question.visibility.includes(option.id)
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={
+                        on
+                          ? 'pd-reviews-form-preview__chip is-on'
+                          : 'pd-reviews-form-preview__chip'
+                      }
+                      aria-pressed={on}
+                      title={option.hint}
+                      onClick={() =>
+                        onChange(
+                          toggleQuestionVisibility(
+                            policy,
+                            question.id,
+                            option.id,
+                            !on,
+                          ),
+                        )
+                      }
+                    >
+                      {SHOWN_ON[option.id]}
+                    </button>
+                  )
+                },
               )}
             </div>
             <div

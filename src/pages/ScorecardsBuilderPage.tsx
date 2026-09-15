@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, ClipboardList, Copy, Plus, Settings2, Trash2 } from 'lucide-react'
 import { Button, ConfirmDialog, EmptyState, PageStatus } from '@/components/ui'
@@ -16,6 +16,7 @@ import { scorecardsBuilderPath } from '@/lib/reviews/paths'
 import { defaultReviewPolicy, pillarWeightTotal } from '@/lib/reviews/reviewPolicy'
 import {
   applyScorecardTemplate,
+  SCORECARD_TEMPLATES,
   type ScorecardTemplateId,
 } from '@/lib/reviews/scorecardTemplates'
 import type { ReviewPolicy } from '@/lib/reviews/types'
@@ -34,6 +35,85 @@ import {
 } from '@/pages/reviews/ReviewSaveBanner'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
+
+const FORM_TEMPLATE_NAMES: Record<ScorecardTemplateId, string> = {
+  blank: 'Untitled form',
+  annual: 'Annual appraisal',
+  quarterly: 'Q1–Q3 check-in',
+  q4: 'Q4 progress',
+  leadership: 'Leadership review',
+}
+
+function NewFormMenu({
+  creating,
+  onPick,
+}: {
+  creating: boolean
+  onPick: (templateId: ScorecardTemplateId) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        rootRef.current?.contains(event.target)
+      ) {
+        return
+      }
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [open])
+
+  return (
+    <div ref={rootRef} className="pd-reviews-form-canvas__type-menu">
+      <Button
+        variant="primary"
+        pill
+        loading={creating}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <Plus size={16} strokeWidth={2} aria-hidden />
+        New form
+      </Button>
+      {open ? (
+        <ul
+          className="pd-reviews-form-canvas__type-list"
+          role="menu"
+          aria-label="New form"
+        >
+          {SCORECARD_TEMPLATES.map((template) => (
+            <li key={template.id} role="none">
+              <button
+                type="button"
+                role="menuitem"
+                className="pd-reviews-form-canvas__type-item"
+                aria-label={template.name}
+                onClick={() => {
+                  setOpen(false)
+                  onPick(template.id)
+                }}
+              >
+                <span className="pd-reviews-form-canvas__type-label" aria-hidden>
+                  {template.name}
+                </span>
+                <span className="pd-reviews-form-canvas__type-hint" aria-hidden>
+                  {template.hint}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
+}
 
 function ScorecardsBuilderIndex() {
   const navigate = useNavigate()
@@ -73,15 +153,8 @@ function ScorecardsBuilderIndex() {
         defaultReviewPolicy('custom'),
         templateId,
       )
-      const names: Partial<Record<ScorecardTemplateId, string>> = {
-        blank: 'Untitled form',
-        annual: 'Annual appraisal',
-        quarterly: 'Q1–Q3 check-in',
-        q4: 'Q4 progress',
-        leadership: 'Leadership review',
-      }
       const created = await createScorecardForm({
-        name: names[templateId] ?? 'Untitled form',
+        name: FORM_TEMPLATE_NAMES[templateId] ?? 'Untitled form',
         policy,
       })
       navigate(scorecardsBuilderPath(created.id))
@@ -108,15 +181,7 @@ function ScorecardsBuilderIndex() {
           </p>
         </div>
         <div className="pd-scorecards-builder__actions">
-          <Button
-            variant="primary"
-            pill
-            loading={creating}
-            onClick={() => void createForm('blank')}
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden />
-            New form
-          </Button>
+          <NewFormMenu creating={creating} onPick={(id) => void createForm(id)} />
         </div>
       </header>
       {error ? (
@@ -129,14 +194,7 @@ function ScorecardsBuilderIndex() {
           title="No scorecard forms yet"
           description="Create a form document here, then allocate it from a cycle group’s Reviews settings."
           action={
-            <Button
-              variant="primary"
-              pill
-              loading={creating}
-              onClick={() => void createForm('blank')}
-            >
-              Create form
-            </Button>
+            <NewFormMenu creating={creating} onPick={(id) => void createForm(id)} />
           }
         />
       ) : (
@@ -351,7 +409,13 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
             variant="ghost"
             pill
             loading={deleting}
+            disabled={allocated}
             aria-label="Delete form"
+            title={
+              allocated
+                ? 'Allocated forms cannot be deleted. Duplicate first, or unallocate from cycle groups.'
+                : undefined
+            }
             onClick={() => setDeleteOpen(true)}
           >
             <Trash2 size={16} strokeWidth={2} aria-hidden />

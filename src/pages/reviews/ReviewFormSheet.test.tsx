@@ -28,8 +28,9 @@ describe('ReviewFormSheet', () => {
       screen.getByRole('heading', { name: 'Review Form' }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Allocated form')).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Grade areas' })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: 'Questions' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Grade Areas' })).toBeInTheDocument()
+    expect(screen.getByRole('table', { name: 'Grade areas' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Questions' })).not.toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Edit in Builder' }),
     ).toHaveAttribute('href', `/scorecards-builder/${forms[0]!.id}`)

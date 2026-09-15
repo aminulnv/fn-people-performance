@@ -43,6 +43,24 @@ describe('ScorecardsBuilderPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('offers templates when creating a new form', async () => {
+    render(
+      <MemoryRouter initialEntries={['/scorecards-builder']}>
+        <Routes>
+          <Route path="/scorecards-builder" element={<ScorecardsBuilderPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('button', { name: 'New form' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'New form' }))
+    expect(screen.getByRole('menuitem', { name: 'Create form' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Annual appraisal' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Leadership review' })).toBeInTheDocument()
+  })
+
   it('opens a form editor from the library', async () => {
     render(
       <MemoryRouter

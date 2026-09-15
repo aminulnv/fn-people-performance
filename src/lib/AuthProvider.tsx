@@ -16,6 +16,7 @@ import { loadEmployees } from '@/lib/employees/store'
 import { fetchGoalsSnapshot } from '@/lib/goalsApi'
 import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
 import { ensureReviewCyclesLoaded } from '@/lib/reviews/store'
+import { ensureSkillsLoaded } from '@/lib/skills/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
 
 function syncGoalsPersona(personId: string | undefined) {
@@ -31,6 +32,9 @@ async function hydratePlatformCaches() {
     }),
     ensureReviewCyclesLoaded().catch(() => {
       /* reviews stay empty until retry; Goals falls back gracefully */
+    }),
+    ensureSkillsLoaded().catch(() => {
+      /* skills stay empty until retry */
     }),
   ])
   void fetchGoalsSnapshot().catch(() => {

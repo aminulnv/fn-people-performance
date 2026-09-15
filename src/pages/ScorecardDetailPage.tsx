@@ -56,9 +56,18 @@ import { ReviewQuestionField } from '@/pages/reviews/ReviewQuestionField'
 import { ScorecardFeedbackCard } from '@/pages/reviews/ScorecardFeedbackCard'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { ScorecardGoalsCard } from '@/pages/reviews/ScorecardGoalsCard'
+import { ScorecardPillarGradeCard } from '@/pages/reviews/ScorecardPillarGradeCard'
+import { ScorecardSkillsGradeCard } from '@/pages/reviews/ScorecardSkillsGradeCard'
 import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
 import { ScorecardHero } from '@/pages/reviews/ScorecardHero'
 import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
+import {
+  skillIdFromScorePillarId,
+  hasStoredSkillGrades,
+  skillsWithStoredGrades,
+} from '@/lib/skills/reviewScores'
+import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
+import type { GradeBandId } from '@/lib/reviews/types'
 import {
   ReviewActionIsland,
   ReviewSaveBanner,
@@ -75,6 +84,10 @@ export default function ScorecardDetailPage() {
   const employeeId = Number(employeeIdParam)
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
+  const assignedSkills = useEmployeeSkills(
+    Number.isInteger(employeeId) && employeeId > 0 ? employeeId : 0,
+  )
+  const { skills: skillsCatalog } = useSkillsLibrary()
   const { cycles } = useReviewsSnapshot()
   const forms = useScorecardFormsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
@@ -213,6 +226,38 @@ export default function ScorecardDetailPage() {
         prompt: question.prompt,
         body: '',
       }))
+  const ratingPillars = stageShowsReviewForm(stageView.viewing)
+    ? enabledPillars(policy).filter(
+        (pillar) => pillar.id !== 'goals' && pillar.id !== 'skills',
+      )
+    : []
+  const viewPillarFields = packet
+    ? packetFieldsForRole(
+        packet,
+        viewingFeedbackRole,
+        [],
+        ratingPillars,
+      ).pillars
+    : ratingPillars.map((pillar) => ({
+        pillarId: pillar.id,
+        label: pillar.label,
+        weight: pillar.weight,
+        grade: null,
+        comment: '',
+      }))
+  const skillGrades: Record<string, GradeBandId | ''> = {}
+  if (packet && viewingFeedbackRole) {
+    for (const score of packet.pillarScores) {
+      if (score.actorRole !== viewingFeedbackRole) continue
+      const skillId = skillIdFromScorePillarId(score.pillarId)
+      if (skillId) skillGrades[skillId] = score.grade ?? ''
+    }
+  }
+  const skillsPillarOn = enabledPillars(policy).some(
+    (pillar) => pillar.id === 'skills',
+  )
+  const showSkillsForm = stageShowsReviewForm(stageView.viewing)
+  const priorSkills = skillsWithStoredGrades(skillGrades, skillsCatalog)
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return <Navigate to={reviewsTabPath('scorecards')} replace />
@@ -289,6 +334,31 @@ export default function ScorecardDetailPage() {
           goalsHref={goalsDetailPath(resolvedCycleId, String(detail.employeeId))}
         />
       )}
+
+      {showSkillsForm && skillsPillarOn ? (
+        <ScorecardSkillsGradeCard
+          skills={assignedSkills}
+          grades={skillGrades}
+          profileHref={`/people/${detail.employeeId}`}
+        />
+      ) : showSkillsForm &&
+        !skillsPillarOn &&
+        hasStoredSkillGrades(skillGrades) ? (
+        <ScorecardSkillsGradeCard
+          skills={priorSkills}
+          grades={skillGrades}
+          priorOnly
+        />
+      ) : null}
+
+      {viewPillarFields.map((pillar) => (
+        <ScorecardPillarGradeCard
+          key={pillar.pillarId}
+          label={pillar.label}
+          weight={pillar.weight}
+          grade={pillar.grade}
+        />
+      ))}
 
       {viewQuestionFields.length > 0 ? (
         <section className="pd-reviews-edit-card" aria-label="Review questions">

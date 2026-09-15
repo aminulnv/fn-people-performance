@@ -34,7 +34,13 @@ vi.mock('@/lib/employees/useEmployees', () => ({
 }))
 
 vi.mock('@/lib/goals/useGoalTodoCounts', () => ({
-  useGoalTodoCounts: () => ({ own: 0, reports: 1, total: 1 }),
+  useGoalTodoCounts: (options?: { subjectPersonId?: string }) => {
+    // Subject-scoped: only the signed-in person’s own profile shows a badge here.
+    if (options?.subjectPersonId && options.subjectPersonId !== '1') {
+      return { own: 0, reports: 0, total: 0 }
+    }
+    return { own: 0, reports: 1, total: 1 }
+  },
 }))
 
 function signIn(permissions: ('platform.write_all' | 'platform.read_all')[]) {
@@ -569,6 +575,44 @@ describe('V1 employee profiles', () => {
     expect(
       await screen.findByRole('button', { name: /Goals.*1 item needs attention/ }),
     ).toBeInTheDocument()
+  })
+
+  it('does not put the viewer’s global Goals count on another person’s profile', async () => {
+    await seedEmployee()
+    const other = await createEmployee({
+      employeeId: 99,
+      fullName: 'Other Person',
+      email: 'other@example.com',
+      startDate: '2024-01-01',
+      jobTitle: 'Engineer',
+      department: 'Product',
+      team: '',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: '',
+      site: '',
+      managerEmail: '',
+    })
+    if (!other.ok) throw new Error(other.error)
+    employeesState.employees = listMemoryEmployees() as never[]
+    signIn(['platform.read_all'])
+
+    renderRoute(
+      '/people/99',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Other Person' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /^Goals$/ }),
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Goals.*needs attention/ }),
+    ).not.toBeInTheDocument()
   })
 
   it('links org structures and permissions', async () => {

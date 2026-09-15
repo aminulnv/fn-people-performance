@@ -31,6 +31,7 @@ import { registerReviewPacketRoutes } from './reviewPackets/routes.mjs'
 import { registerGoalRoutes } from './goals/routes.mjs'
 import { registerOkrRoutes } from './okr/routes.mjs'
 import { registerRealtimeRoutes } from './realtime/routes.mjs'
+import { registerSkillsRoutes } from './skills/routes.mjs'
 import { publishWrite } from './realtime/fromRequest.mjs'
 import {
   assignManagerDelegation,
@@ -361,4 +362,5 @@ export function registerPlatformRoutes(app) {
   registerReviewPacketRoutes(app)
   registerGoalRoutes(app)
   registerOkrRoutes(app)
+  registerSkillsRoutes(app)
 }

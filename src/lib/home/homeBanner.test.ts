@@ -100,31 +100,53 @@ describe('resolveHomeBanners', () => {
     mockAreReviewCyclesHydrated.mockReturnValue(true)
   })
 
-  it('shows the sent-back banner on its own', () => {
+  it('shows sent-back with Modify Now and a separate submit-goals countdown card', () => {
     mockGetGoalsSnapshot.mockReturnValue(
       snapshot({
         byPerson: {
           '1': row({
             status: 'sent_back',
-            sendBackBy: { id: 'm1', name: 'Aminul Islam Boman' },
+            sendBackBy: {
+              id: '754',
+              name: 'Aminul Islam Borhan',
+              avatarUrl: '/aminul.png',
+            },
           }),
         },
       }),
     )
     mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
-    mockResolveGoalsCycle.mockReturnValue(cycle())
+    mockResolveGoalsCycle.mockReturnValue(
+      cycle({
+        goalWindow: { startDate: '2026-06-06', endDate: '2026-08-27' },
+      }),
+    )
 
-    const banners = resolveHomeBanners(person())
-    expect(banners).toHaveLength(1)
+    const banners = resolveHomeBanners(
+      person(),
+      new Date('2026-08-20T12:00:00.000Z'),
+    )
+    expect(banners.map((banner) => banner.id)).toEqual([
+      'q3-2026:modify_goals',
+      'q3-2026:submit_goals',
+    ])
     expect(banners[0]?.variant).toBe('modify_goals')
     expect(banners[0]?.headline).toBe('Your Goals Were Sent Back')
-    expect(banners[0]?.subline).toBe('Aminul Islam Boman sent your goals back.')
-    expect(banners[0]?.icon).toBe('sent_back')
+    expect(banners[0]?.sublineActor).toEqual({
+      name: 'Aminul Islam Borhan',
+      avatarUrl: '/aminul.png',
+    })
     expect(banners[0]?.aside).toEqual({
       kind: 'action',
-      primary: 'Modify Goals',
-      secondary: 'For Approval',
+      primary: 'Modify Now',
+      secondary: '',
     })
+    expect(banners[0]?.deadline).toBeUndefined()
+    expect(banners[1]?.headline).toBe('Submit your Q3 2026 Goals')
+    expect(banners[1]?.artwork).toBe('calendar')
+    expect(banners[1]?.aside.kind).toBe('countdown')
+    expect(banners[1]?.aside.primary).toBe('7 Days')
+    expect(banners[1]?.deadline).toBe('2026-08-27')
   })
 
   it('shows both own goal-setting and team approval banners for managers', () => {
@@ -150,7 +172,7 @@ describe('resolveHomeBanners', () => {
       'set_goals',
       'approve_team_goals',
     ])
-    expect(banners[0]?.headline).toBe('Set your Q3 Goals')
+    expect(banners[0]?.headline).toBe('Set your Q3 2026 Goals')
     expect(banners[1]?.headline).toBe("Approve your team's Q3 Goals")
   })
 
@@ -194,7 +216,7 @@ describe('resolveHomeBanners', () => {
     const banners = resolveHomeBanners(person({ reportIds: ['2', '3'] }))
     expect(banners).toHaveLength(1)
     expect(banners[0]?.variant).toBe('set_goals')
-    expect(banners[0]?.headline).toBe('Set your Q3 Goals')
+    expect(banners[0]?.headline).toBe('Set your Q3 2026 Goals')
   })
 
   it('shows progress updates during check-in when goals are approved', () => {
@@ -372,7 +394,7 @@ describe('resolveHomeBanners', () => {
       primary: 'Due',
       secondary: 'Today',
     })
-    expect(banners[0]?.ariaLabel).toBe('Set your Q3 Goals. Due today.')
+    expect(banners[0]?.ariaLabel).toBe('Set your Q3 2026 Goals. Due today.')
   })
 
   it('marks late two-tier goal setting as overdue, not zero days remaining', () => {
@@ -393,7 +415,7 @@ describe('resolveHomeBanners', () => {
       person(),
       new Date('2026-08-23T12:00:00.000Z'),
     )
-    expect(banners[0]?.headline).toBe('Set your Q3 Goals')
+    expect(banners[0]?.headline).toBe('Set your Q3 2026 Goals')
     expect(banners[0]?.timing).toBe('overdue')
     expect(banners[0]?.subline).toBe('Was due ')
     expect(banners[0]?.sublineEmphasis).toBe('1st July 2026')
@@ -403,7 +425,7 @@ describe('resolveHomeBanners', () => {
       secondary: '',
     })
     expect(banners[0]?.ariaLabel).toBe(
-      'Set your Q3 Goals. Overdue, was due 1st July 2026.',
+      'Set your Q3 2026 Goals. Overdue, was due 1st July 2026.',
     )
   })
 
@@ -485,7 +507,7 @@ describe('resolveHomeBanners', () => {
     expect(banners[0]?.aside.primary).toBe('Overdue')
   })
 
-  it('shows a closed banner when hard-stop submissions can no longer be filed', () => {
+  it('does not show a home banner when hard-stop submissions can no longer be filed', () => {
     mockGetGoalsSnapshot.mockReturnValue(
       snapshot({
         byPerson: { '1': row({ personId: '1', status: 'incomplete' }) },
@@ -503,17 +525,7 @@ describe('resolveHomeBanners', () => {
       person(),
       new Date('2026-08-23T12:00:00.000Z'),
     )
-    expect(banners[0]?.headline).toBe('Q3 Goal submission is closed')
-    expect(banners[0]?.subline).toBe('Was due ')
-    expect(banners[0]?.sublineEmphasis).toBe('1st July 2026')
-    expect(banners[0]?.aside).toEqual({
-      kind: 'status',
-      primary: 'Closed',
-      secondary: '',
-    })
-    expect(banners[0]?.ariaLabel).toBe(
-      'Q3 Goal submission is closed. Was due 1st July 2026.',
-    )
+    expect(banners).toEqual([])
   })
 
   it('marks progress updates overdue after the employee check-in deadline', () => {

@@ -3,6 +3,7 @@ import { ClipboardList } from 'lucide-react'
 import { ListboxSelect } from '@/components/ui'
 import { scorecardsBuilderPath } from '@/lib/reviews/paths'
 import type { ReviewPolicy, ScorecardForm } from '@/lib/reviews/types'
+import { GradeAreasPanel } from './GradeAreasEditor'
 import type { SettingsSideSheet } from './SettingsSideSheetRail'
 
 export const REVIEW_FORM_SHEET_LABEL = 'Review Form Templates'
@@ -23,7 +24,7 @@ export function reviewFormSummary(policy: ReviewPolicy): string {
 }
 
 /** Summary-only sheet; forms are authored in Scorecards Builder. */
-export const REVIEW_FORM_SHEET_WIDTH = 360
+export const REVIEW_FORM_SHEET_WIDTH = 400
 
 export function reviewFormSideSheet(args: {
   policy: ReviewPolicy
@@ -63,10 +64,6 @@ export function ReviewFormSheet({
     ? forms.find((form) => form.id === scorecardFormId)
     : null
   const resolved = allocated?.policy ?? policy
-  const areas = resolved.scorecard.pillars.filter((pillar) => pillar.enabled)
-  const questions = resolved.scorecard.questions.filter(
-    (question) => question.enabled,
-  )
   const builderHref = allocated
     ? scorecardsBuilderPath(allocated.id)
     : scorecardsBuilderPath()
@@ -97,52 +94,17 @@ export function ReviewFormSheet({
             />
           </label>
 
-          <p className="pd-reviews-form-sheet__lede">
-            {allocated
-              ? `${reviewFormSummary(resolved)}. Allocated forms are locked — duplicate in Scorecards Builder to change the scorecard without affecting past quarters.`
-              : 'Allocate a form from Scorecards Builder. Once allocated, the scorecard is locked so past quarters stay unchanged.'}
-          </p>
-
-          {allocated && areas.length > 0 ? (
-            <section
-              className="pd-reviews-form-sheet__block"
-              aria-label="Grade areas"
-            >
-              <h3 className="pd-field__label">Grade areas</h3>
-              <ul className="pd-reviews-form-sheet__list">
-                {areas.map((area) => (
-                  <li key={area.id}>
-                    {area.label}
-                    <span className="pd-reviews-form-sheet__meta">
-                      {area.weight}%
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {allocated && questions.length > 0 ? (
-            <section
-              className="pd-reviews-form-sheet__block"
-              aria-label="Questions"
-            >
-              <h3 className="pd-field__label">Questions</h3>
-              <ol className="pd-reviews-form-sheet__list pd-reviews-form-sheet__list--questions">
-                {questions.map((question) => (
-                  <li key={question.id}>
-                    {question.prompt.trim() || 'Untitled question'}
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ) : null}
-
-          {!allocated ? (
+          {allocated ? (
+            <GradeAreasPanel
+              policy={resolved}
+              onChange={() => {}}
+              locked
+            />
+          ) : (
             <p className="pd-reviews-form-sheet__empty">
-              No form allocated. Create or pick a template in Scorecards Builder.
+              No form allocated yet.
             </p>
-          ) : null}
+          )}
 
           <Link
             className="pd-btn pd-btn--primary pd-btn--pill pd-reviews-form-sheet__edit"

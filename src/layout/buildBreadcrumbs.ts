@@ -166,6 +166,13 @@ export function buildBreadcrumbs({
     ]
   }
 
+  if (pathname === '/reviews/skills' || pathname.startsWith('/reviews/skills/')) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Skills' },
+    ]
+  }
+
   const scorecardDetail = matchPath(
     { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
     pathname,

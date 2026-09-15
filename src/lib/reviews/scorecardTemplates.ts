@@ -29,24 +29,12 @@ export const REVIEW_QUESTION_KINDS: Array<{
   { id: 'multiple_choice', label: 'Multiple choice', hint: 'Pick one option' },
 ]
 
-/** Blocks that can be inserted from Add Question (questions + form sections). */
+/** Question types insertable from Add Question. */
 export const FORM_ADD_BLOCK_OPTIONS: Array<{
-  id: ReviewQuestionKind | 'feedback' | 'overall'
+  id: ReviewQuestionKind
   label: string
   hint: string
-}> = [
-  ...REVIEW_QUESTION_KINDS,
-  {
-    id: 'overall',
-    label: 'Overall Grading',
-    hint: 'Five-band overall grade with criteria',
-  },
-  {
-    id: 'feedback',
-    label: 'Feedback',
-    hint: 'Strengths and areas of improvement',
-  },
-]
+}> = [...REVIEW_QUESTION_KINDS]
 
 export const DEFAULT_MULTIPLE_CHOICE_OPTIONS = ['Option 1', 'Option 2']
 export const DEFAULT_DUAL_LABELS: [string, string] = ['Field 1', 'Field 2']
@@ -115,6 +103,10 @@ export function updateOverallGrading(
     managerReview: {
       ...policy.managerReview,
       gradeOverall,
+    },
+    selfReview: {
+      ...policy.selfReview,
+      rateOverall: gradeOverall,
     },
   }
 }

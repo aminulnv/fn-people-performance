@@ -36,7 +36,49 @@ export function cycleQuarterLabel(cycleLabel: string): string {
 }
 
 export function buildGoalDeadlineHeadline(cycleLabel: string): string {
-  return `Set your ${cycleQuarterLabel(cycleLabel)} Goals`
+  const label = cycleLabel.trim() || cycleQuarterLabel(cycleLabel)
+  return `Set your ${label} Goals`
+}
+
+export function buildGoalSubmitHeadline(cycleLabel: string): string {
+  const label = cycleLabel.trim() || cycleQuarterLabel(cycleLabel)
+  return `Submit your ${label} Goals`
+}
+
+export type RemainingTimeParts = {
+  days: number
+  hours: number
+  mins: number
+}
+
+/** Remaining time until end of the deadline day (UTC). */
+export function remainingTimeUntilDeadline(
+  deadline: string,
+  now = new Date(),
+): RemainingTimeParts {
+  const end = new Date(`${deadline}T23:59:59.999Z`)
+  const ms = Math.max(0, end.getTime() - now.getTime())
+  const totalMins = Math.floor(ms / 60_000)
+  return {
+    days: Math.floor(totalMins / (60 * 24)),
+    hours: Math.floor((totalMins % (60 * 24)) / 60),
+    mins: totalMins % 60,
+  }
+}
+
+export type GoalDeadlineTimerUnit = {
+  label: string
+  value: string
+}
+
+export function formatDeadlineTimerUnits(
+  parts: RemainingTimeParts,
+): GoalDeadlineTimerUnit[] {
+  return [
+    { label: 'Days', value: String(parts.days) },
+    { label: 'Hours', value: String(parts.hours) },
+    { label: 'Mins', value: String(parts.mins) },
+  ]
 }
 
 export type GoalDeadlineTiming = 'upcoming' | 'due_today' | 'overdue'
@@ -64,7 +106,7 @@ export function formatDaysRemainingLabel(daysRemaining: number): string {
 export function deadlineSublinePrefix(timing: GoalDeadlineTiming): string {
   if (timing === 'overdue') return 'Was due '
   if (timing === 'due_today') return 'Due today'
-  return 'Due by '
+  return 'Before '
 }
 
 export function deadlineSublineEmphasis(
@@ -112,11 +154,19 @@ export function resolveGoalDeadlineUrgency(
   return 'default'
 }
 
+export const GOAL_DEADLINE_URGENCY_ACCENTS: Record<GoalDeadlineUrgency, string> =
+  {
+    default: '#4E54D4',
+    warning: '#E4A60A',
+    critical: '#A7090C',
+  }
+
+/** @deprecated Card gradient no longer follows urgency - use GOAL_DEADLINE_URGENCY_ACCENTS for timer chips. */
 export const GOAL_DEADLINE_URGENCY_GRADIENTS: Record<
   GoalDeadlineUrgency,
   { start: string; end: string; accent: string }
 > = {
-  default: { start: '#14163C', end: '#635CFF', accent: '#635CFF' },
-  warning: { start: '#2F2508', end: '#E4A60A', accent: '#E4A60A' },
-  critical: { start: '#290808', end: '#A7090C', accent: '#A7090C' },
+  default: { start: '#050505', end: '#2E30C1', accent: '#4E54D4' },
+  warning: { start: '#050505', end: '#2E30C1', accent: '#E4A60A' },
+  critical: { start: '#050505', end: '#2E30C1', accent: '#A7090C' },
 }

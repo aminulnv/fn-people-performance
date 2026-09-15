@@ -12,10 +12,17 @@ import type { SystemPermission } from '@/lib/accessControl/types'
 import type { ReviewPacket } from '@/lib/reviews/types'
 import {
   createCycleGroup,
+  createReviewCycle,
   listReviewCycles,
   resetReviewsStoreForTests,
   updateCycleGroup,
 } from '@/lib/reviews/store'
+import { defaultReviewPolicy } from '@/lib/reviews/reviewPolicy'
+import { updateScorecardFeedback } from '@/lib/reviews/scorecardTemplates'
+import {
+  assignSkillToEmployee,
+  resetSkillsStoreForTests,
+} from '@/lib/skills/store'
 import ScorecardDetailPage from '@/pages/ScorecardDetailPage'
 import { ReviewPacketView } from './ReviewPacketView'
 
@@ -146,6 +153,7 @@ let cycleId = 'q3-2026'
 
 beforeEach(async () => {
   resetReviewsStoreForTests()
+  resetSkillsStoreForTests()
   const manager = employee({
     employeeId: 1,
     fullName: 'Alex Manager',
@@ -278,23 +286,116 @@ describe('ReviewPacketView', () => {
     expect(screen.queryByRole('heading', { name: 'Overall Grading' })).toBeNull()
   })
 
-  it('shows the overall grade grid when the group turns it on', async () => {
-    const cycle = listReviewCycles().find((item) => item.id === cycleId)
-    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
-    if (!cycle || !group?.settings.reviewPolicy) {
-      throw new Error('expected a seeded quarterly group')
-    }
-    await updateCycleGroup(cycle.id, group.id, {
+  it('hides Skills when Grade Areas has Skills off', async () => {
+    assignSkillToEmployee(2, 'skill-ai-fluency')
+    renderEdit()
+    await screen.findByRole('button', { name: /Goals \(/ })
+    expect(screen.queryByRole('region', { name: 'Skills' })).toBeNull()
+    expect(
+      screen.queryByRole('region', { name: 'Skills (previously graded)' }),
+    ).toBeNull()
+  })
+
+  it('shows prior skill grades read-only when Skills is off', async () => {
+    assignSkillToEmployee(2, 'skill-ai-fluency')
+    packetState.packet = packet(cycleId, {
+      pillarScores: [
+        {
+          pillarId: 'skill:skill-ai-fluency',
+          actorRole: 'manager',
+          grade: 'performing',
+          comment: '',
+        },
+      ],
+    })
+    renderEdit()
+    expect(
+      await screen.findByRole('region', {
+        name: 'Skills (previously graded)',
+      }),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('Saved grades. Not counted while Skills is off.'),
+    ).toBeTruthy()
+    expect(screen.getByText('Performing')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'AI Fluency grade' })).toBeNull()
+  })
+
+  it('shows assigned profile skills when Skills is on in Grade Areas', async () => {
+    const custom = await createReviewCycle({
+      type: 'custom',
+      name: 'Skills on review',
+      startDate: '2026-01-01T00:00:00.000Z',
+      endDate: '2026-12-31T00:00:00.000Z',
+    })
+    cycleId = custom.id
+    const group = await createCycleGroup(custom.id, {
+      name: 'Everyone',
+      memberIds: [1, 2],
+    })
+    const policy = defaultReviewPolicy('custom')
+    await updateCycleGroup(custom.id, group.id, {
       settings: {
         reviewPolicy: {
-          ...group.settings.reviewPolicy,
+          ...policy,
+          scorecard: {
+            ...policy.scorecard,
+            pillars: policy.scorecard.pillars.map((pillar) =>
+              pillar.id === 'skills'
+                ? { ...pillar, enabled: true, weight: 25 }
+                : pillar.id === 'goals'
+                  ? { ...pillar, enabled: true, weight: 75 }
+                  : { ...pillar, enabled: false, weight: 0 },
+            ),
+          },
           managerReview: {
-            ...group.settings.reviewPolicy.managerReview,
+            ...policy.managerReview,
+            gradeGoals: true,
             gradeOverall: true,
           },
         },
       },
     })
+    packetState.packet = packet(custom.id)
+    assignSkillToEmployee(2, 'skill-ai-fluency')
+    assignSkillToEmployee(2, 'skill-account-planning')
+    renderEdit()
+    expect(
+      await screen.findByRole('region', { name: 'Skills' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'AI Fluency grade' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Account Planning grade' }),
+    ).toBeTruthy()
+  })
+
+  it('shows the overall grade grid when the group turns it on', async () => {
+    const custom = await createReviewCycle({
+      type: 'custom',
+      name: 'Custom review',
+      startDate: '2026-01-01T00:00:00.000Z',
+      endDate: '2026-12-31T00:00:00.000Z',
+    })
+    cycleId = custom.id
+    const group = await createCycleGroup(custom.id, {
+      name: 'Everyone',
+      memberIds: [1, 2],
+    })
+    await updateCycleGroup(custom.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...defaultReviewPolicy('custom'),
+          managerReview: {
+            ...defaultReviewPolicy('custom').managerReview,
+            gradeGoals: true,
+            gradeOverall: true,
+          },
+        },
+      },
+    })
+    packetState.packet = packet(custom.id)
 
     renderEdit()
     await screen.findByRole('button', { name: 'Cancel' })
@@ -302,22 +403,30 @@ describe('ReviewPacketView', () => {
   })
 
   it('hides a Goals grade when the group turns it off', async () => {
-    const cycle = listReviewCycles().find((item) => item.id === cycleId)
-    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
-    if (!cycle || !group?.settings.reviewPolicy) {
-      throw new Error('expected a seeded quarterly group')
-    }
-    await updateCycleGroup(cycle.id, group.id, {
+    const custom = await createReviewCycle({
+      type: 'custom',
+      name: 'Custom review',
+      startDate: '2026-01-01T00:00:00.000Z',
+      endDate: '2026-12-31T00:00:00.000Z',
+    })
+    cycleId = custom.id
+    const group = await createCycleGroup(custom.id, {
+      name: 'Everyone',
+      memberIds: [1, 2],
+    })
+    await updateCycleGroup(custom.id, group.id, {
       settings: {
         reviewPolicy: {
-          ...group.settings.reviewPolicy,
+          ...defaultReviewPolicy('custom'),
           managerReview: {
-            ...group.settings.reviewPolicy.managerReview,
+            ...defaultReviewPolicy('custom').managerReview,
             gradeGoals: false,
+            gradeOverall: false,
           },
         },
       },
     })
+    packetState.packet = packet(custom.id)
 
     renderEdit()
     await screen.findByRole('button', { name: 'Cancel' })
@@ -367,6 +476,19 @@ describe('ReviewPacketView', () => {
   })
 
   it('warns before Cancel discards unsaved edits', async () => {
+    const cycle = listReviewCycles().find((item) => item.id === cycleId)
+    const group = cycle?.groups?.find((item) => item.memberIds.includes(2))
+    if (!cycle || !group?.settings.reviewPolicy) {
+      throw new Error('expected a seeded quarterly group')
+    }
+    await updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewPolicy: updateScorecardFeedback(group.settings.reviewPolicy, {
+          enabled: true,
+        }),
+      },
+    })
+
     renderEdit()
     await screen.findByRole('button', { name: 'Cancel' })
 

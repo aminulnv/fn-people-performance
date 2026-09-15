@@ -1,6 +1,8 @@
 import type { CycleSectionId } from './types'
 
-export function reviewsTabPath(tab: 'scorecards' = 'scorecards'): string {
+export type ReviewsTabId = 'scorecards' | 'skills'
+
+export function reviewsTabPath(tab: ReviewsTabId = 'scorecards'): string {
   return `/reviews/${tab}`
 }
 

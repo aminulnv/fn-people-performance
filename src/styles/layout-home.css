@@ -1,47 +1,15 @@
 .pd-page--home {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-/* Slightly tighter when two or more banners share the home view. */
-.pd-page--home-multiple {
   gap: 0.75rem;
-}
-
-.pd-page--home-multiple .pd-home-banner__surface {
-  min-height: 5.25rem;
-}
-
-.pd-page--home-multiple .pd-home-banner__body {
-  gap: clamp(0.5rem, 1.1vw, 0.875rem);
-  padding: clamp(0.5rem, 1.1vw, 0.75rem) clamp(0.75rem, 1.5vw, 1.25rem);
-}
-
-.pd-page--home-multiple .pd-home-banner__icon-wrap {
-  width: clamp(2.25rem, 3.4vw, 2.75rem);
-  height: clamp(2.25rem, 3.4vw, 2.75rem);
-}
-
-.pd-page--home-multiple .pd-home-banner__title {
-  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
-}
-
-.pd-page--home-multiple .pd-home-banner__aside-primary {
-  font-size: clamp(1.25rem, 2.4vw, 1.875rem);
-}
-
-.pd-page--home-multiple .pd-home-banner--modify_goals .pd-home-banner__aside-primary,
-.pd-page--home-multiple .pd-home-banner--status .pd-home-banner__aside-primary {
-  font-size: clamp(1rem, 1.9vw, 1.375rem);
-}
-
-.pd-page--home-multiple .pd-home-banner--update_progress .pd-home-banner__aside-primary {
-  font-size: clamp(1.05rem, 2.1vw, 1.5rem);
+  align-items: flex-end;
 }
 
 .pd-home-banner {
   display: block;
+  width: min(100%, 30rem);
+  max-width: 52%;
+  flex: 0 0 auto;
   color: inherit;
   text-decoration: none;
   border-radius: var(--radius-card-lg);
@@ -60,18 +28,20 @@
 .pd-home-banner__surface {
   position: relative;
   overflow: hidden;
-  min-height: 6.5rem;
+  min-height: 11.5rem;
   border-radius: inherit;
-  background: linear-gradient(90deg,
-      var(--pd-home-banner-gradient-start, #14163c) 0%,
-      var(--pd-home-banner-gradient-end, #635cff) 100%);
+  background: linear-gradient(
+    90deg,
+    var(--pd-home-banner-gradient-start, #050505) 0%,
+    var(--pd-home-banner-gradient-end, #2e30c1) 100%
+  );
 }
 
 .pd-home-banner__grain {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  opacity: 0.22;
+  opacity: 0.12;
   pointer-events: none;
   mix-blend-mode: soft-light;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.35' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -82,172 +52,208 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: clamp(0.75rem, 1.6vw, 1.25rem);
-  min-height: inherit;
-  padding: clamp(0.75rem, 1.5vw, 1rem) clamp(1rem, 2.2vw, 1.75rem);
-}
-
-.pd-home-banner--no-icon .pd-home-banner__body {
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: inherit;
+  padding: 1.15rem 0 1.15rem 1.25rem;
 }
 
-.pd-home-banner__icon-wrap {
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: clamp(2.75rem, 4vw, 3.5rem);
-  height: clamp(2.75rem, 4vw, 3.5rem);
-  color: color-mix(in srgb, var(--pd-home-banner-accent, var(--color-theme)) 78%, white);
-}
-
-.pd-home-banner__icon-svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
+.pd-home-banner__main {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.9rem;
+  min-width: 0;
+  padding-inline-end: 0.25rem;
 }
 
 .pd-home-banner__copy {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 0.2rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .pd-home-banner__title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: clamp(1.2rem, 1.9vw, 1.5rem);
+  font-size: clamp(1.2rem, 1.8vw, 1.45rem);
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.035em;
   line-height: 1.15;
   color: var(--color-white);
 }
 
 .pd-home-banner__subline {
   margin: 0;
-  font-size: clamp(0.8125rem, 1.15vw, 0.9375rem);
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.35;
-  color: color-mix(in srgb, white 88%, transparent);
+  color: color-mix(in srgb, white 92%, transparent);
 }
 
 .pd-home-banner__subline-emphasis {
-  color: color-mix(in srgb, var(--pd-home-banner-accent, var(--color-theme)) 72%, white);
-  font-weight: 600;
+  color: inherit;
+  font-weight: inherit;
 }
 
-.pd-home-banner__aside {
+.pd-home-banner__subline-actor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  vertical-align: middle;
+}
+
+.pd-home-banner__subline-avatar.pd-avatar {
+  width: 1.25rem;
+  height: 1.25rem;
+  font-size: 0.5rem;
+  flex: 0 0 auto;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.25);
+}
+
+.pd-home-banner__subline-actor-name {
+  font-weight: 650;
+  color: var(--color-white);
+}
+
+.pd-home-banner__timer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+
+.pd-home-banner__timer-unit {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   gap: 0.15rem;
+  min-width: 2.85rem;
+  min-height: 2.85rem;
+  padding: 0.35rem 0.55rem 0.4rem;
+  border-radius: var(--radius-md, 0.65rem);
+  background: var(--pd-home-banner-accent, #4e54d4);
+}
+
+.pd-home-banner__timer-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: color-mix(in srgb, white 90%, transparent);
+}
+
+.pd-home-banner__timer-value {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--color-white);
+  text-align: center;
+}
+
+.pd-home-banner--urgency-warning .pd-home-banner__timer-label,
+.pd-home-banner--urgency-warning .pd-home-banner__timer-value {
+  color: var(--color-text);
+}
+
+.pd-home-banner--action .pd-home-banner__timer-unit,
+.pd-home-banner--status .pd-home-banner__timer-unit {
+  min-width: auto;
+  padding-inline: 0.7rem;
+}
+
+.pd-home-banner--action .pd-home-banner__timer-value,
+.pd-home-banner--status .pd-home-banner__timer-value {
+  font-size: 0.9375rem;
+}
+
+.pd-home-banner__artwork {
+  display: grid;
+  place-items: center end;
+  justify-self: end;
+  align-self: center;
+  width: 7.25rem;
+  height: 7.25rem;
+  margin-inline-end: 0.35rem;
   flex: 0 0 auto;
-  padding-inline-start: 0.5rem;
-  text-align: right;
+  pointer-events: none;
   user-select: none;
 }
 
-.pd-home-banner__filters {
-  position: absolute;
-  width: 0;
-  height: 0;
-  overflow: hidden;
+.pd-home-banner--approve_team_goals .pd-home-banner__artwork {
+  width: 8.75rem;
+  height: 8.75rem;
+  margin-inline-end: 0.2rem;
 }
 
-.pd-home-banner__aside-primary,
-.pd-home-banner__aside-secondary {
-  color: rgb(0 0 0 / 0.35);
-  filter: var(--pd-home-banner-inset-filter);
+.pd-home-banner--modify_goals .pd-home-banner__artwork {
+  width: 8.5rem;
+  height: 8.5rem;
+  margin-inline-end: 0.25rem;
 }
 
-.pd-home-banner__aside-primary {
-  font-family: var(--font-heading);
-  font-size: clamp(1.625rem, 3vw, 2.25rem);
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  line-height: 0.95;
+.pd-home-banner--update_progress .pd-home-banner__artwork {
+  width: 8.5rem;
+  height: 8.5rem;
+  margin-inline-end: 0.25rem;
 }
 
-.pd-home-banner__aside-secondary {
-  font-family: var(--font-heading);
-  font-size: clamp(0.875rem, 1.5vw, 1.125rem);
-  font-weight: 400;
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-.pd-home-banner--modify_goals .pd-home-banner__aside-primary {
-  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
-  line-height: 1;
-}
-
-.pd-home-banner--modify_goals .pd-home-banner__aside-secondary,
-.pd-home-banner--update_progress .pd-home-banner__aside-secondary {
-  font-size: clamp(0.75rem, 1.2vw, 0.9375rem);
-}
-
-.pd-home-banner--update_progress .pd-home-banner__aside-primary {
-  font-size: clamp(1.375rem, 2.6vw, 1.875rem);
-}
-
-.pd-home-banner--status .pd-home-banner__aside-primary {
-  font-size: clamp(1.25rem, 2.2vw, 1.625rem);
-  line-height: 1;
+.pd-home-banner__artwork-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: right center;
+  filter: drop-shadow(0 10px 18px rgb(0 0 0 / 0.3));
 }
 
 @media (max-width: 760px) {
-
-  .pd-home-banner__body,
-  .pd-home-banner--no-icon .pd-home-banner__body {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    align-items: start;
+  .pd-page--home {
+    align-items: stretch;
   }
 
-  .pd-home-banner__aside {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    align-items: baseline;
-    justify-content: flex-start;
-    gap: 0.45rem;
-    padding-inline-start: 0;
-    text-align: left;
+  .pd-home-banner {
+    width: 100%;
+    max-width: 100%;
   }
 
-  .pd-home-banner__aside-primary {
-    font-size: clamp(1.25rem, 6vw, 1.625rem);
+  .pd-home-banner__surface {
+    min-height: 10.5rem;
   }
 
-  .pd-home-banner__aside-secondary {
-    font-size: clamp(0.75rem, 3.5vw, 0.9375rem);
+  .pd-home-banner__body {
+    padding: 1rem 0 1rem 1.1rem;
   }
 
-  .pd-page--home-multiple .pd-home-banner__aside-primary {
-    font-size: clamp(1rem, 4.5vw, 1.25rem);
+  .pd-home-banner__title {
+    font-size: 1.25rem;
+  }
+
+  .pd-home-banner__artwork {
+    width: 5.75rem;
+    height: 5.75rem;
+  }
+
+  .pd-home-banner--approve_team_goals .pd-home-banner__artwork {
+    width: 7rem;
+    height: 7rem;
+  }
+
+  .pd-home-banner__timer-unit {
+    min-width: 2.6rem;
+    min-height: 2.6rem;
+    padding: 0.3rem 0.4rem 0.35rem;
   }
 }
 
 @media (max-width: 480px) {
   .pd-home-banner__surface {
-    min-height: 5.75rem;
-  }
-
-  .pd-home-banner__icon-wrap {
-    width: clamp(2.5rem, 8vw, 3rem);
-    height: clamp(2.5rem, 8vw, 3rem);
-  }
-
-  .pd-page--home-multiple .pd-home-banner__surface {
-    min-height: 4.75rem;
-  }
-
-  .pd-page--home-multiple .pd-home-banner__icon-wrap {
-    width: clamp(2.125rem, 6.5vw, 2.5rem);
-    height: clamp(2.125rem, 6.5vw, 2.5rem);
+    min-height: 10rem;
   }
 }

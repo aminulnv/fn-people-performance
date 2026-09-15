@@ -11,6 +11,7 @@ import {
   setReviewQuestionKind,
   toggleQuestionOutputVisibility,
   toggleQuestionVisibility,
+  updateOverallGrading,
 } from './scorecardTemplates'
 
 describe('scorecard templates', () => {
@@ -216,5 +217,15 @@ describe('review form edits', () => {
         (pillar) => pillar.kind === 'custom' && pillar.label === 'Client impact',
       ),
     ).toBe(true)
+  })
+
+  it('keeps self overall in sync when overall grading is toggled', () => {
+    const enabled = updateOverallGrading(defaultReviewPolicy('custom'), true)
+    expect(enabled.managerReview.gradeOverall).toBe(true)
+    expect(enabled.selfReview.rateOverall).toBe(true)
+
+    const disabled = updateOverallGrading(enabled, false)
+    expect(disabled.managerReview.gradeOverall).toBe(false)
+    expect(disabled.selfReview.rateOverall).toBe(false)
   })
 })

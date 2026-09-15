@@ -83,9 +83,11 @@ describe('ScorecardFormEditor', () => {
     expect(screen.getByRole('button', { name: 'Manage Skills' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage Core Values' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage questions' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Manage performance grades' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage overall grading' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage feedback' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Overall Grading' })).toBeInTheDocument()
-    expect(screen.queryByRole('region', { name: 'Feedback' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Feedback' })).toBeInTheDocument()
+    expect(screen.getByText('Feedback is off')).toBeInTheDocument()
   })
 
   it('opens grade areas from Manage on a section', () => {
@@ -105,22 +107,34 @@ describe('ScorecardFormEditor', () => {
     expect(screen.queryByLabelText('Goals grade preview')).not.toBeInTheDocument()
   })
 
-  it('adds the Feedback section from the type menu', () => {
+  it('keeps Feedback on the canvas and includes it from the section', () => {
     const onChange = vi.fn()
     renderEditor(defaultReviewPolicy('annual_appraisal'), onChange)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add Question' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Feedback' }))
+    expect(screen.getByRole('region', { name: 'Feedback' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Include feedback' }))
     expect(onChange.mock.calls[0]?.[0].scorecard.feedback.enabled).toBe(true)
   })
 
-  it('adds Overall Grading from the type menu', () => {
+  it('keeps Overall Grading on the canvas for forms that start with it off', () => {
     const onChange = vi.fn()
     renderEditor(defaultReviewPolicy('custom'), onChange)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Question' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Overall Grading' }))
+    expect(screen.getByRole('region', { name: 'Overall Grading' })).toBeInTheDocument()
+    expect(screen.getByText('Overall grading is off')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Include overall grading' }))
     expect(onChange.mock.calls[0]?.[0].managerReview.gradeOverall).toBe(true)
+  })
+
+  it('only offers question types from Add Question', () => {
+    renderEditor(defaultReviewPolicy('annual_appraisal'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Add Question' }))
+    expect(screen.getByRole('menuitem', { name: 'Open-ended' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Yes / No' })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Multiple choice' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Feedback' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Overall Grading' })).not.toBeInTheDocument()
   })
 
   it('shows overall grade criteria on the canvas when enabled', () => {

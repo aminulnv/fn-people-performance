@@ -16,17 +16,20 @@ import {
 import { areReviewCyclesHydrated, getReviewCycle } from '@/lib/reviews/store'
 import { goalsMyGoalsPath, goalsMyReportsPath } from '@/pages/goals/goalHelpers'
 import {
-  buildClosedGoalHeadline,
   buildGoalDeadlineHeadline,
+  buildGoalSubmitHeadline,
   cycleQuarterLabel,
   deadlineAriaSuffix,
   deadlineCountdownCopy,
   deadlineSublineEmphasis,
   deadlineSublinePrefix,
+  formatDeadlineTimerUnits,
   formatGoalDeadlineLabel,
+  remainingTimeUntilDeadline,
   resolveGoalDeadlineTiming,
   resolveGoalDeadlineUrgency,
   signedDaysUntil,
+  type GoalDeadlineTimerUnit,
   type GoalDeadlineTiming,
   type GoalDeadlineUrgency,
 } from './goalDeadlineBanner'
@@ -45,9 +48,16 @@ export type HomeBannerIcon =
   | 'none'
 
 export type HomeBannerAside =
-  | { kind: 'countdown'; primary: string; secondary: string }
+  | {
+      kind: 'countdown'
+      primary: string
+      secondary: string
+      units?: GoalDeadlineTimerUnit[]
+    }
   | { kind: 'action'; primary: string; secondary: string }
   | { kind: 'status'; primary: string; secondary: string }
+
+export type HomeBannerArtwork = 'calendar' | 'approve' | 'return' | 'logbook' | 'none'
 
 export type HomeBannerContent = {
   id: string
@@ -57,41 +67,66 @@ export type HomeBannerContent = {
   headline: string
   subline: string
   sublineEmphasis?: string
+  /** Optional person chip rendered in the subline (e.g. who sent goals back). */
+  sublineActor?: {
+    name: string
+    avatarUrl?: string
+  }
   href: string
   aside: HomeBannerAside
   icon: HomeBannerIcon
+  /** Large right-side visual for the hero countdown layout. */
+  artwork?: HomeBannerArtwork
   ariaLabel: string
   /** Goal-setting countdown urgency - drives yellow/red gradients. */
   urgency?: GoalDeadlineUrgency
   /** Calendar state of the deadline - due later, due today, or already past. */
   timing?: GoalDeadlineTiming
+  /** YYYY-MM-DD deadline used for live Days/Hours/Mins units. */
+  deadline?: string
 }
 
 export const HOME_BANNER_GRADIENTS: Record<
   HomeBannerVariant,
   { start: string; end: string; accent: string }
 > = {
-  set_goals: { start: '#14163C', end: '#635CFF', accent: '#635CFF' },
+  set_goals: { start: '#050505', end: '#2E30C1', accent: '#4E54D4' },
   modify_goals: { start: '#3C1D14', end: '#FF875C', accent: '#FF875C' },
   update_progress: { start: '#010706', end: '#126B43', accent: '#126B43' },
-  approve_team_goals: { start: '#2F2508', end: '#E4A60A', accent: '#E4A60A' },
+  approve_team_goals: { start: '#050505', end: '#2E30C1', accent: '#4E54D4' },
 }
 
 function dateKey(value: Date): string {
   return value.toISOString().slice(0, 10)
 }
 
-function deadlineAside(signedDays: number): HomeBannerAside {
+function deadlineAside(
+  signedDays: number,
+  deadline: string,
+  now: Date,
+): HomeBannerAside {
   const copy = deadlineCountdownCopy(signedDays)
-  return {
-    kind: resolveGoalDeadlineTiming(signedDays) === 'overdue' ? 'status' : 'countdown',
-    ...copy,
+  const timing = resolveGoalDeadlineTiming(signedDays)
+  if (timing === 'overdue') {
+    return { kind: 'status', ...copy }
   }
+  if (timing === 'upcoming') {
+    return {
+      kind: 'countdown',
+      ...copy,
+      units: formatDeadlineTimerUnits(
+        remainingTimeUntilDeadline(deadline, now),
+      ),
+    }
+  }
+  return { kind: 'countdown', ...copy }
 }
 
 function deadlineBannerCopy(
   headline: string,
   context: DeadlineContext,
+  now: Date,
+  options?: { artwork?: HomeBannerArtwork },
 ): Pick<
   HomeBannerContent,
   | 'headline'
@@ -101,6 +136,8 @@ function deadlineBannerCopy(
   | 'urgency'
   | 'timing'
   | 'ariaLabel'
+  | 'artwork'
+  | 'deadline'
 > {
   return {
     headline,
@@ -109,10 +146,12 @@ function deadlineBannerCopy(
       context.timing,
       context.deadlineLabel,
     ),
-    aside: deadlineAside(context.daysRemaining),
+    aside: deadlineAside(context.daysRemaining, context.deadline, now),
     urgency: context.urgency,
     timing: context.timing,
     ariaLabel: `${headline}. ${deadlineAriaSuffix(context.daysRemaining, context.deadlineLabel)}`,
+    deadline: context.deadline,
+    ...(options?.artwork ? { artwork: options.artwork } : {}),
   }
 }
 
@@ -231,9 +270,14 @@ export function resolveHomeBanners(
   const todayKey = dateKey(today)
   const href = goalsHref(cycle.id, person.id)
   const banners: HomeBannerContent[] = []
+  const heroArtwork = { artwork: 'calendar' as const }
 
   if (row.status === 'sent_back') {
     const sender = row.sendBackBy?.name ?? 'Your manager'
+    const senderId = row.sendBackBy?.id
+    const senderAvatar =
+      row.sendBackBy?.avatarUrl?.trim() ||
+      snapshot.people.find((person) => person.id === senderId)?.avatarUrl
     banners.push({
       id: `${cycle.id}:modify_goals`,
       variant: 'modify_goals',
@@ -241,42 +285,56 @@ export function resolveHomeBanners(
       personId: person.id,
       headline: 'Your Goals Were Sent Back',
       subline: `${sender} sent your goals back.`,
+      sublineActor: {
+        name: sender,
+        avatarUrl: senderAvatar,
+      },
       href,
-      icon: 'sent_back',
+      icon: 'none',
+      artwork: 'return',
       aside: {
         kind: 'action',
-        primary: 'Modify Goals',
-        secondary: 'For Approval',
+        primary: 'Modify Now',
+        secondary: '',
       },
       ariaLabel: `Your goals were sent back. ${sender} sent your goals back.`,
     })
+
+    const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
+    if (deadlineContext && isGoalInputPhase(cycle)) {
+      banners.push({
+        id: `${cycle.id}:submit_goals`,
+        variant: 'set_goals',
+        cycleId: cycle.id,
+        personId: person.id,
+        href,
+        icon: 'none',
+        ...deadlineBannerCopy(
+          buildGoalSubmitHeadline(cycle.label),
+          deadlineContext,
+          today,
+          heroArtwork,
+        ),
+      })
+    }
   }
 
   if (shouldPromptOwnGoalSetting(cycle, row)) {
     const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
-    if (deadlineContext) {
-      const submissionClosed = !isGoalInputPhase(cycle)
-      const headline = submissionClosed
-        ? buildClosedGoalHeadline(cycle.label)
-        : buildGoalDeadlineHeadline(cycle.label)
+    if (deadlineContext && isGoalInputPhase(cycle)) {
       banners.push({
         id: `${cycle.id}:set_goals`,
         variant: 'set_goals',
         cycleId: cycle.id,
         personId: person.id,
         href,
-        icon: 'goals',
-        ...(submissionClosed
-          ? {
-              headline,
-              subline: 'Was due ',
-              sublineEmphasis: deadlineContext.deadlineLabel,
-              aside: { kind: 'status' as const, primary: 'Closed', secondary: '' },
-              urgency: 'critical' as const,
-              timing: 'overdue' as const,
-              ariaLabel: `${headline}. Was due ${deadlineContext.deadlineLabel}.`,
-            }
-          : deadlineBannerCopy(headline, deadlineContext)),
+        icon: 'none',
+        ...deadlineBannerCopy(
+          buildGoalDeadlineHeadline(cycle.label),
+          deadlineContext,
+          today,
+          heroArtwork,
+        ),
       })
     }
   }
@@ -290,14 +348,20 @@ export function resolveHomeBanners(
     const deadlineContext = resolveDeadlineContext(cycle, person, todayKey)
     if (deadlineContext) {
       const headline = buildApproveHeadline(cycle.label)
+      const copy = deadlineBannerCopy(
+        headline,
+        deadlineContext,
+        today,
+        { artwork: 'approve' },
+      )
       banners.push({
         id: `${cycle.id}:approve_team_goals`,
         variant: 'approve_team_goals',
         cycleId: cycle.id,
         personId: person.id,
         href: goalsMyReportsPath(cycle.id, person.id),
-        icon: 'approve',
-        ...deadlineBannerCopy(headline, deadlineContext),
+        icon: 'none',
+        ...copy,
       })
     }
   }
@@ -312,7 +376,8 @@ export function resolveHomeBanners(
         cycleId: cycle.id,
         personId: person.id,
         href,
-        icon: 'progress',
+        icon: 'none',
+        artwork: 'logbook',
         ...(upcoming
           ? {
               headline: 'Update Goal Progress',
@@ -320,12 +385,17 @@ export function resolveHomeBanners(
               sublineEmphasis: deadlineContext.deadlineLabel,
               aside: {
                 kind: 'action' as const,
-                primary: 'Update',
-                secondary: 'Progress',
+                primary: 'Update Now',
+                secondary: '',
               },
               ariaLabel: `Update goal progress, due by ${deadlineContext.deadlineLabel}.`,
             }
-          : deadlineBannerCopy('Update Goal Progress', deadlineContext)),
+          : deadlineBannerCopy(
+              'Update Goal Progress',
+              deadlineContext,
+              today,
+              { artwork: 'logbook' },
+            )),
       })
     }
   }

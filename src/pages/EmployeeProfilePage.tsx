@@ -76,6 +76,7 @@ import {
   useManagerDelegationEditor,
 } from '@/pages/profile/ManagerDelegationCard'
 import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
+import { ProfileSkillsCard } from '@/pages/profile/ProfileSkillsCard'
 import { goalTodoBadgeLabel } from '@/lib/goals/todoCounts'
 import { useGoalTodoCounts } from '@/lib/goals/useGoalTodoCounts'
 import {
@@ -297,7 +298,10 @@ export function EmployeeProfileView({
   const [localTab, setLocalTab] = useState<ProfileTabId>('profile')
   const tab = embedded ? localTab : hashTab
   const setTab = embedded ? setLocalTab : setHashTab
-  const goalTodos = useGoalTodoCounts({ load: tab === 'goals' })
+  const goalTodos = useGoalTodoCounts({
+    load: tab === 'goals',
+    subjectPersonId: String(employee.employeeId),
+  })
   const tabOptions = useMemo(
     () => profileTabOptions(goalTodos.total),
     [goalTodos.total],
@@ -631,6 +635,11 @@ export function EmployeeProfileView({
                 </DetailRow>
               </dl>
             </section>
+
+            <ProfileSkillsCard
+              employeeId={employee.employeeId}
+              canEdit={isSelf || canEdit}
+            />
           </div>
 
           <aside className="pd-profile__col pd-profile__col--side">

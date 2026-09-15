@@ -79,9 +79,8 @@ export function countReportGoalTodos(
     const personCycle = person
       ? goalsCycleForPerson(cycle, person.id)
       : cycle
-    if (personCycle.assignedGroupId === null) {
-      return total + (row.status === 'submitted' ? 1 : 0)
-    }
+    // Outside the cycle → nothing to action, even leftover submitted rows.
+    if (personCycle.assignedGroupId === null) return total
     const canSubmit = cycleAcceptsGoalInput(personCycle)
     const awaitingReview = row.status === 'submitted' ? 1 : 0
     return (
@@ -90,6 +89,46 @@ export function countReportGoalTodos(
       countOwnGoalTodos(row, personCycle, { canSubmit })
     )
   }, 0)
+}
+
+/**
+ * Goals tab badge on a person profile: only items for that subject that
+ * the signed-in viewer can act on. Zero when the subject is outside the cycle.
+ */
+export function countGoalTodosOnProfile(
+  viewer: DemoPerson,
+  subjectId: string,
+  snapshot: Pick<GoalsSnapshot, 'cycle' | 'people' | 'byPerson'>,
+  options?: { canSubmitOwn?: boolean },
+): number {
+  if (!areReviewCyclesHydrated()) {
+    if (viewer.id === subjectId) return 0
+    const queue = selectActorApprovalQueue(
+      viewer,
+      snapshot.people,
+      snapshot.byPerson,
+    )
+    const entry = queue.find(({ person }) => person.id === subjectId)
+    return entry?.row.status === 'submitted' ? 1 : 0
+  }
+
+  const subjectCycle = goalsCycleForPerson(snapshot.cycle, subjectId)
+  if (subjectCycle.assignedGroupId === null) return 0
+
+  if (viewer.id === subjectId) {
+    return countOwnGoalTodos(snapshot.byPerson[subjectId], subjectCycle, {
+      canSubmit: options?.canSubmitOwn,
+    })
+  }
+
+  const queue = selectActorApprovalQueue(
+    viewer,
+    snapshot.people,
+    snapshot.byPerson,
+  )
+  const entry = queue.find(({ person }) => person.id === subjectId)
+  if (!entry) return 0
+  return countReportGoalTodos([entry], snapshot.cycle)
 }
 
 export function countGoalTodosForPerson(

@@ -7,6 +7,7 @@ import {
 } from '@/lib/reviews/store'
 import {
   countGoalTodosForPerson,
+  countGoalTodosOnProfile,
   countOwnGoalTodos,
   countReportGoalTodos,
   goalTodoBadgeLabel,
@@ -207,6 +208,72 @@ describe('countReportGoalTodos', () => {
         { ...snapshotCycle('group-1'), phase: 'not_open' },
       ),
     ).toBe(0)
+  })
+
+  it('does not count reports outside the cycle', () => {
+    expect(
+      countReportGoalTodos(
+        [{ row: row({ personId: 'e1', status: 'submitted' }) }],
+        snapshotCycle(null),
+      ),
+    ).toBe(0)
+  })
+})
+
+describe('countGoalTodosOnProfile', () => {
+  afterEach(() => {
+    resetReviewsStoreForTests()
+  })
+
+  it('returns zero when the subject is outside the cycle', () => {
+    const manager = person({ id: 'm1', name: 'Manager', reportIds: ['e1'] })
+    const report = person({ id: 'e1', name: 'Report', managerId: 'm1' })
+    expect(
+      countGoalTodosOnProfile(manager, 'e1', {
+        cycle: snapshotCycle(null),
+        people: [manager, report],
+        byPerson: {
+          e1: row({ personId: 'e1', status: 'submitted' }),
+        },
+      }),
+    ).toBe(0)
+  })
+
+  it('counts only the profile subject for a manager, not the whole queue', () => {
+    const manager = person({
+      id: 'm1',
+      name: 'Manager',
+      reportIds: ['e1', 'e2'],
+    })
+    const report = person({ id: 'e1', name: 'Report', managerId: 'm1' })
+    const other = person({ id: 'e2', name: 'Other', managerId: 'm1' })
+    expect(
+      countGoalTodosOnProfile(manager, 'e1', {
+        cycle: snapshotCycle('group-1'),
+        people: [manager, report, other],
+        byPerson: {
+          e1: row({ personId: 'e1', status: 'submitted' }),
+          e2: row({ personId: 'e2', status: 'submitted' }),
+        },
+      }),
+    ).toBe(1)
+  })
+
+  it('counts own attention items when viewing self', () => {
+    const subject = person({ id: '1', name: 'Aminul' })
+    expect(
+      countGoalTodosOnProfile(subject, '1', {
+        cycle: snapshotCycle('group-1'),
+        people: [subject],
+        byPerson: {
+          '1': row({
+            personId: '1',
+            status: 'sent_back',
+            sendBackReason: 'Fix the matrix',
+          }),
+        },
+      }),
+    ).toBe(2)
   })
 })
 

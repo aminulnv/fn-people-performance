@@ -158,6 +158,21 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
+  it('builds Reviews > Skills for the skills library', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/reviews/skills',
+        navItems: [
+          ...navItems,
+          { path: '/reviews', label: 'Reviews', icon: Home },
+        ],
+      }),
+    ).toEqual([
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Skills' },
+    ])
+  })
+
   it('builds Goals > cycle > full name for a person goals page', () => {
     expect(
       buildBreadcrumbs({
