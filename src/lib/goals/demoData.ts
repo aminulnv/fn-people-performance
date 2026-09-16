@@ -3,35 +3,33 @@ import type { DemoPerson, GoalsCycle, GoalsSnapshot, SubmissionStatus } from "./
 import { listGoalCycleOptions, pickDefaultCycleId } from "./cyclesFromReviews";
 
 /**
- * Fallback when Reviews has no cycles yet - Goals still needs a shape.
- * Prefer real cycles via cyclesFromReviews.
+ * Internal placeholder when Reviews has no cycles. Never listed in
+ * `availableCycles` — Goals UI treats an empty list as "no cycles yet".
  */
-export const FALLBACK_CYCLE: GoalsCycle = {
-  id: "q3-2026",
-  label: "Q3 2026",
-  day1: "2026-07-01",
-  phase: "window_open",
+export const EMPTY_GOALS_CYCLE: GoalsCycle = {
+  id: "",
+  label: "",
+  day1: "1970-01-01",
+  phase: "closed",
   goalCountPolicy: { ...DEFAULT_CYCLE_SETTINGS.goalCountPolicy },
-  postWindowGoalPolicy: DEFAULT_CYCLE_SETTINGS.postWindowGoalPolicy,
+  postWindowGoalPolicy: "hard_stop",
 };
 
-/** @deprecated Use cycles - kept for migration of old session data. */
-export const DEMO_CYCLES: GoalsCycle[] = [FALLBACK_CYCLE];
-
-export const DEMO_CYCLE: GoalsCycle = FALLBACK_CYCLE;
-
-/** Active calendar “current” quarter id when Reviews is empty. */
-export const CURRENT_CYCLE_ID = FALLBACK_CYCLE.id;
-
-/** Goals people come from the People directory (Create employee), not a demo roster. */
 export function createInitialSnapshot(): GoalsSnapshot {
   const options = listGoalCycleOptions({});
   const activeId = pickDefaultCycleId(options);
-  const selected =
-    options.find((c) => c.id === activeId) ??
-    (options[0]
-      ? options[0]
-      : { ...FALLBACK_CYCLE, status: "previous" as const });
+  const selected = options.find((c) => c.id === activeId) ?? options[0];
+
+  if (!selected) {
+    return {
+      cycle: EMPTY_GOALS_CYCLE,
+      cycleStatus: "previous",
+      availableCycles: [],
+      activePersonId: "",
+      people: [],
+      byPerson: {},
+    };
+  }
 
   return {
     cycle: {
@@ -47,7 +45,7 @@ export function createInitialSnapshot(): GoalsSnapshot {
       goalExtensions: selected.goalExtensions,
     },
     cycleStatus: selected.status,
-    availableCycles: options.length > 0 ? options : [selected],
+    availableCycles: options,
     activePersonId: "",
     people: [],
     byPerson: {},
@@ -80,5 +78,5 @@ export function isEligibleForCycle(
   person: DemoPerson,
   cycle: GoalsCycle,
 ): boolean {
-  return cycleEligibility(person, cycle) == null;
+  return cycleEligibility(person, cycle) === null;
 }

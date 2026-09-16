@@ -31,6 +31,7 @@ const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
 const GoalsPage = lazy(() => import('@/pages/GoalsPage'))
 const ReviewsPage = lazy(() => import('@/pages/ReviewsPage'))
 const SkillsPage = lazy(() => import('@/pages/SkillsPage'))
+const ValuesPage = lazy(() => import('@/pages/ValuesPage'))
 const CalibrationPage = lazy(() => import('@/pages/CalibrationPage'))
 const CyclesPage = lazy(() => import('@/pages/CyclesPage'))
 const CycleDetailPage = lazy(() => import('@/pages/CycleDetailPage'))
@@ -143,6 +144,13 @@ function App() {
               />
               <Route path="reviews/scorecards" element={<ReviewsPage />} />
               <Route path="reviews/skills" element={<SkillsPage />} />
+              <Route path="reviews/values/new" element={<ValuesPage />} />
+              <Route path="reviews/values/:valueId/edit" element={<ValuesPage />} />
+              <Route
+                path="reviews/values/:valueId"
+                element={<Navigate to="edit" replace />}
+              />
+              <Route path="reviews/values" element={<ValuesPage />} />
               <Route
                 path="scorecards-builder/:formId"
                 element={

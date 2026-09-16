@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -15,9 +15,8 @@ import {
   type ResizableColumn,
 } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { getEmployee, listDepartments } from '@/lib/employees/store'
-import type { PlatformDepartment } from '@/lib/employees/types'
-import { useOrganisation } from '@/lib/employees/useEmployees'
+import { getEmployee } from '@/lib/employees/store'
+import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import { teamDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import {
@@ -36,29 +35,11 @@ const DEPARTMENT_TEAM_COLUMNS: ResizableColumn[] = [
 export default function DepartmentDetailPage() {
   const { departmentId: rawId = '' } = useParams()
   const departmentId = decodeURIComponent(rawId)
-  const [catalog, setCatalog] = useState<PlatformDepartment[]>([])
-  const [catalogReady, setCatalogReady] = useState(false)
-  const { organisation, employees, isLoading } = useOrganisation(catalog)
+  const catalogs = useOrganisationCatalogs()
+  const { organisation, isLoading } = useOrganisation(catalogs.departments, {
+    teams: catalogs.teams,
+  })
   const [toastNotice, setToastNotice] = useLocationSaveNotice()
-
-  useEffect(() => {
-    let cancelled = false
-    void listDepartments()
-      .then((departments) => {
-        if (cancelled) return
-        setCatalog(departments)
-        setCatalogReady(true)
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCatalog([])
-          setCatalogReady(true)
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [employees])
 
   const { department, members } = useMemo(() => {
     const found =
@@ -72,7 +53,7 @@ export default function DepartmentDetailPage() {
     return { department: found, members: people }
   }, [departmentId, organisation])
 
-  if (isLoading || !catalogReady) {
+  if (isLoading || !catalogs.ready) {
     return (
       <PageSkeleton
         pageClassName="pd-people pd-org pd-org-detail"

@@ -26,8 +26,6 @@ describe('SkillsLibrary', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByRole('navigation', { name: 'Reviews sections' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Skills' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Skill/ })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Function/ })).toBeInTheDocument()
     expect(screen.queryByText('Owner')).not.toBeInTheDocument()

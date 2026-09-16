@@ -173,6 +173,45 @@ export function buildBreadcrumbs({
     ]
   }
 
+  const valueDetail = matchPath(
+    { path: '/reviews/values/:valueId/edit', end: true },
+    pathname,
+  )
+  if (valueDetail?.params.valueId) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Values', href: '/reviews/values' },
+      { label: 'Edit' },
+    ]
+  }
+
+  if (pathname === '/reviews/values/new') {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Values', href: '/reviews/values' },
+      { label: 'Create value' },
+    ]
+  }
+
+  const valueView = matchPath(
+    { path: '/reviews/values/:valueId', end: true },
+    pathname,
+  )
+  if (valueView?.params.valueId) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Values', href: '/reviews/values' },
+      { label: 'Edit' },
+    ]
+  }
+
+  if (pathname === '/reviews/values' || pathname.startsWith('/reviews/values/')) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Values' },
+    ]
+  }
+
   const scorecardDetail = matchPath(
     { path: '/reviews/scorecards/:cycleKey/:employeeId', end: true },
     pathname,

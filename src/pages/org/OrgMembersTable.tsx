@@ -43,7 +43,7 @@ export function OrgMembersTable({
     if (extraColumn === 'department') {
       next.push({ id: 'department', label: 'Department' })
     }
-    next.push({ id: 'manager', label: 'Line manager' }, { id: 'email', label: 'Email' })
+    next.push({ id: 'manager', label: 'Line Manager' }, { id: 'email', label: 'Email' })
     return next
   }, [extraColumn, members.length])
 

@@ -352,8 +352,8 @@ export function CyclesList() {
     () => [
       {
         id: 'cycle-name',
-        label: 'Cycle name',
-        name: 'Cycle name',
+        label: 'Cycle Name',
+        name: 'Cycle Name',
         grow: true,
         growWeight: 3,
         minWidth: 280,

@@ -6,10 +6,10 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 const PEOPLE_COLUMNS: ResizableColumn[] = [
   { id: 'employee-id', label: 'ID' },
   { id: 'name', label: 'Name', grow: true },
-  { id: 'job-title', label: 'Job title' },
+  { id: 'job-title', label: 'Job Title' },
   { id: 'department', label: 'Department' },
   { id: 'team', label: 'Team' },
-  { id: 'reports-to', label: 'Reports to' },
+  { id: 'reports-to', label: 'Reports To' },
   { id: 'status', label: 'Status' },
 ]
 

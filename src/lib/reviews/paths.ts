@@ -1,9 +1,36 @@
 import type { CycleSectionId } from './types'
 
-export type ReviewsTabId = 'scorecards' | 'skills'
+export type ReviewsTabId = 'scorecards' | 'skills' | 'values'
+
+const REVIEWS_TAB_ROOTS = new Set([
+  '/reviews/scorecards',
+  '/reviews/skills',
+  '/reviews/values',
+])
 
 export function reviewsTabPath(tab: ReviewsTabId = 'scorecards'): string {
   return `/reviews/${tab}`
+}
+
+/** True on the Reviews tab list roots only — not scorecard/value detail subpages. */
+export function isReviewsTabRoot(pathname: string): boolean {
+  return REVIEWS_TAB_ROOTS.has(pathname)
+}
+
+export function valuesLibraryPath(): string {
+  return '/reviews/values'
+}
+
+export function valueCreatePath(): string {
+  return '/reviews/values/new'
+}
+
+export function valueDetailPath(valueId: string): string {
+  return `/reviews/values/${encodeURIComponent(valueId)}/edit`
+}
+
+export function valueEditPath(valueId: string): string {
+  return `/reviews/values/${encodeURIComponent(valueId)}/edit`
 }
 
 export function cyclesListPath(): string {

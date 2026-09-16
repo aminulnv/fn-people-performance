@@ -80,8 +80,8 @@ export function ManagerRatingHeatmap({
                   {heatmapBandLabel(bandId)}
                 </th>
               ))}
-              <th scope="col">Team avg</th>
-              <th scope="col">Vs org</th>
+              <th scope="col">Team Avg</th>
+              <th scope="col">Vs Org</th>
             </tr>
           </thead>
           <tbody>

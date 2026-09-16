@@ -82,6 +82,8 @@ describe('ScorecardFormEditor', () => {
     expect(screen.getByRole('button', { name: 'Manage evaluation criteria' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage Skills' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage Core Values' })).toBeInTheDocument()
+    expect(screen.getByText('Move Fast, Chase Excellence')).toBeInTheDocument()
+    expect(screen.getByText('Product First')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage questions' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage overall grading' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Manage feedback' })).toBeInTheDocument()

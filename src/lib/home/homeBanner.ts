@@ -261,6 +261,7 @@ export function resolveHomeBanners(
     snapshot.cycleStatus
 
   if (!areReviewCyclesHydrated()) return []
+  if (snapshot.availableCycles.length === 0 || !cycleId) return []
   if (cycle.assignedGroupId === null) return []
   if (!isActiveCycle(cycleStatus) || cycle.phase === 'closed') return []
 

@@ -1,14 +1,14 @@
-import { ScorecardsList } from './reviews/ScorecardsList'
+import { ValuesLibrary } from './reviews/ValuesLibrary'
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
-export default function ReviewsPage() {
+export default function ValuesPage() {
   return (
     <div
       className="pd-page pd-page--pane pd-page--wide pd-reviews"
-      aria-label="Performance reviews"
+      aria-label="Core Values library"
     >
-      <ScorecardsList />
+      <ValuesLibrary />
     </div>
   )
 }

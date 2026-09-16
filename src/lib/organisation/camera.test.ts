@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CAMERA_BOTTOM_INSET_PX,
   CAMERA_SIDE_INSET_PX,
   CAMERA_TOP_INSET_PX,
   clampCameraPan,
@@ -38,6 +39,17 @@ describe('clampCameraPan', () => {
 
     expect(next).toEqual({ x: 200, y: 180 })
   })
+
+  it('does not pin the camera when content size is still unknown', () => {
+    expect(
+      clampCameraPan(
+        { x: -400, y: -200 },
+        { width: 0, height: 0 },
+        { width: 1000, height: 800 },
+        0.3,
+      ),
+    ).toEqual({ x: -400, y: -200 })
+  })
 })
 
 describe('zoomCameraAroundPoint', () => {
@@ -62,6 +74,32 @@ describe('fitCamera', () => {
     expect(next.zoom).toBe(0.5)
     expect(next.pan.x).toBe(CAMERA_SIDE_INSET_PX)
     expect(next.pan.y).toBe(CAMERA_TOP_INSET_PX + 250)
+  })
+
+  it('centers a short tree vertically inside the padded viewport', () => {
+    const viewport = { width: 1200, height: 900 }
+    const content = { width: 900, height: 420 }
+    const next = fitCamera(
+      content,
+      viewport,
+      (zoom) => Math.min(2, Math.max(0.3, zoom)),
+    )
+
+    const availableWidth = viewport.width - CAMERA_SIDE_INSET_PX * 2
+    const availableHeight =
+      viewport.height - CAMERA_TOP_INSET_PX - CAMERA_BOTTOM_INSET_PX
+    const expectedZoom = Math.min(
+      availableWidth / content.width,
+      availableHeight / content.height,
+    )
+
+    expect(next.zoom).toBe(expectedZoom)
+    expect(next.pan.x).toBe(
+      CAMERA_SIDE_INSET_PX + (availableWidth - content.width * expectedZoom) / 2,
+    )
+    expect(next.pan.y).toBe(
+      CAMERA_TOP_INSET_PX + (availableHeight - content.height * expectedZoom) / 2,
+    )
   })
 })
 

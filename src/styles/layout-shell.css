@@ -789,14 +789,29 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   height: var(--pd-topbar-h);
   padding: 0 1.25rem;
   gap: 0.75rem;
+  justify-content: space-between;
 }
 
 .pd-topbar__center {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   min-width: 0;
+  pointer-events: none;
+}
+
+.pd-topbar__center > * {
+  pointer-events: auto;
+}
+
+.pd-topbar--desktop .pd-topbar__center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  flex: none;
+  width: auto;
+  max-width: calc(100% - 22rem);
 }
 
 .pd-topbar__subnav {
@@ -943,10 +958,11 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--color-text);
-  font: inherit;
+  color: var(--color-text-secondary);
+  font-family: var(--font-heading);
   font-size: 0.875rem;
   font-weight: 500;
+  letter-spacing: -0.02em;
   line-height: 1.2;
   text-decoration: none;
   white-space: nowrap;
@@ -957,13 +973,14 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 }
 
 .pd-topbar__reviews-link:hover:not(.is-active) {
+  color: var(--color-text);
   background: color-mix(in srgb, var(--color-text) 6%, transparent);
 }
 
 .pd-topbar__reviews-link.is-active {
   background: color-mix(in srgb, var(--color-text) 12%, transparent);
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pd-topbar__reviews-link:focus-visible {

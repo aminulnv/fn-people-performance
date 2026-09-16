@@ -4,7 +4,7 @@ import { ArrowLeft, Building2, Network, UsersRound } from 'lucide-react'
 import { Avatar, PageSkeleton, PageStatus, PageStatusLink } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee } from '@/lib/employees/store'
-import { useOrganisation } from '@/lib/employees/useEmployees'
+import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import { departmentDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
@@ -13,7 +13,10 @@ import '@/styles/layout-organisation.css'
 export default function TeamDetailPage() {
   const { teamId: rawId = '' } = useParams()
   const teamId = decodeURIComponent(rawId)
-  const { organisation, isLoading } = useOrganisation()
+  const catalogs = useOrganisationCatalogs()
+  const { organisation, isLoading } = useOrganisation(catalogs.departments, {
+    teams: catalogs.teams,
+  })
 
   const { team, departmentId, members } = useMemo(() => {
     const found = organisation.teams.find((t) => t.id === teamId) ?? null
@@ -34,7 +37,7 @@ export default function TeamDetailPage() {
     }
   }, [organisation, teamId])
 
-  if (isLoading) {
+  if (isLoading || !catalogs.ready) {
     return (
       <PageSkeleton
         pageClassName="pd-people pd-org pd-org-detail"

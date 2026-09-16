@@ -51,6 +51,7 @@ import type {
   ReviewQuestionOutputVisibility,
   ReviewQuestionVisibility,
 } from '@/lib/reviews/types'
+import { useEnabledValues } from '@/lib/values/useValues'
 
 /** Dummy person so the builder matches scorecard view layout. */
 const FORM_PREVIEW_DETAIL: ScorecardDetail = {
@@ -316,6 +317,7 @@ export function ScorecardFormEditor({
   onGradesOpenChange,
   locked = false,
 }: ScorecardFormEditorProps) {
+  const enabledValues = useEnabledValues()
   const [selectedBlock, setSelectedBlock] = useState<SelectedBlock>(null)
   const [focusPillarId, setFocusPillarId] = useState<string | null>(null)
   const [modifyingPillars, setModifyingPillars] = useState(false)
@@ -671,6 +673,39 @@ export function ScorecardFormEditor({
                           onClick={openGradeAreas}
                         >
                           Manage Skills
+                        </Button>
+                      )
+                    }
+                  />
+                )
+              ) : pillar.id === 'values' ? (
+                pillar.enabled ? (
+                  <div>
+                    <p className="pd-reviews-flow__hint">
+                      Everyone is graded on the company cultural values. The
+                      unweighted average is {pillar.weight}% of overall and
+                      cannot be set by hand.
+                    </p>
+                    <ul className="pd-reviews-values-preview">
+                      {enabledValues.map((value) => (
+                        <li key={value.id}>{value.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <EmptyState
+                    className="pd-empty--inline"
+                    title="Core Values is off"
+                    description="Turn it on in Grade Areas to grade the seven cultural values on this scorecard. Prior value grades stay saved but do not count toward overall."
+                    action={
+                      locked ? null : (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          pill
+                          onClick={openGradeAreas}
+                        >
+                          Manage Core Values
                         </Button>
                       )
                     }

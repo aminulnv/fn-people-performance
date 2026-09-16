@@ -53,25 +53,29 @@
   z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: stretch;
   gap: 0.5rem;
   min-height: inherit;
-  padding: 1.15rem 0 1.15rem 1.25rem;
+  padding: 1.25rem 0 1.25rem 1.25rem;
+  box-sizing: border-box;
 }
 
 .pd-home-banner__main {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 0.9rem;
+  align-self: stretch;
+  gap: 0.75rem;
   min-width: 0;
+  min-height: 100%;
+  padding-block: 0;
   padding-inline-end: 0.25rem;
 }
 
 .pd-home-banner__copy {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 0.3rem;
   min-width: 0;
 }
@@ -123,7 +127,9 @@
   display: flex;
   flex-wrap: wrap;
   align-items: stretch;
+  align-self: flex-start;
   gap: 0.4rem;
+  margin-top: auto;
 }
 
 .pd-home-banner__timer-unit {
@@ -165,7 +171,8 @@
 .pd-home-banner--action .pd-home-banner__timer-unit,
 .pd-home-banner--status .pd-home-banner__timer-unit {
   min-width: auto;
-  padding-inline: 0.7rem;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.85rem;
 }
 
 .pd-home-banner--action .pd-home-banner__timer-value,
@@ -228,7 +235,7 @@
   }
 
   .pd-home-banner__body {
-    padding: 1rem 0 1rem 1.1rem;
+    padding: 1.15rem 0 1.15rem 1.1rem;
   }
 
   .pd-home-banner__title {

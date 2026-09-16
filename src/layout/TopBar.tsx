@@ -10,7 +10,7 @@ import { ProfileDropdown } from './ProfileDropdown'
 interface TopBarProps {
   breadcrumbs: BreadcrumbItem[]
   titleIcon?: LucideIcon
-  /** Section links (e.g. Reviews subpages) - centered on desktop, own row on mobile. */
+  /** Section links (e.g. Reviews tabs) — centered on desktop, own row on mobile. */
   centerSlot?: ReactNode
   onSignOut?: () => void
   onMobileMenuOpen: () => void

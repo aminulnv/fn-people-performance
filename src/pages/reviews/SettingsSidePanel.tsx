@@ -45,6 +45,8 @@ type SettingsSidePanelProps = {
   /** Controlled open state for the pull-out sheet (hash-linked). */
   sideSheetOpen?: boolean
   onSideSheetOpenChange?: (open: boolean) => void
+  /** Starting panel width in px (clamped to viewport). */
+  defaultWidth?: number
   onClose: () => void
 }
 
@@ -62,6 +64,7 @@ export function SettingsSidePanel({
   sideSheet,
   sideSheetOpen,
   onSideSheetOpenChange,
+  defaultWidth = DEFAULT_PANEL_WIDTH,
   onClose,
 }: SettingsSidePanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -70,7 +73,7 @@ export function SettingsSidePanel({
     null,
   )
   const [panelWidth, setPanelWidth] = useState(() =>
-    panelWidthWithinViewport(DEFAULT_PANEL_WIDTH),
+    panelWidthWithinViewport(defaultWidth),
   )
   const [uncontrolledSideSheetOpen, setUncontrolledSideSheetOpen] =
     useState(false)
@@ -180,7 +183,7 @@ export function SettingsSidePanel({
             )}
             aria-valuenow={Math.round(panelWidth)}
             tabIndex={0}
-            onDoubleClick={() => applyPanelWidth(DEFAULT_PANEL_WIDTH)}
+            onDoubleClick={() => applyPanelWidth(defaultWidth)}
             onKeyDown={resizeFromKeyboard}
             onPointerDown={(event) => {
               resizeStartRef.current = {

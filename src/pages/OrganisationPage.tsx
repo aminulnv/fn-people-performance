@@ -25,12 +25,8 @@ import {
 } from '@/lib/filters/attributeFilters'
 import { useAuth } from '@/lib/auth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { listDepartments } from '@/lib/employees/store'
-import type {
-  PlatformDepartment,
-  PlatformEmployee,
-} from '@/lib/employees/types'
-import { useOrganisation } from '@/lib/employees/useEmployees'
+import type { PlatformEmployee } from '@/lib/employees/types'
+import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import {
   departmentDetailPath,
   teamDetailPath,
@@ -165,13 +161,14 @@ function isMyTeam(
 
 export default function OrganisationPage() {
   const { user } = useAuth()
-  const [catalog, setCatalog] = useState<PlatformDepartment[]>([])
+  const catalogs = useOrganisationCatalogs()
   const {
     employees,
     organisation: snapshot,
     loadState,
     loadError,
-  } = useOrganisation(catalog)
+    isLoading,
+  } = useOrganisation(catalogs.departments, { teams: catalogs.teams })
   const [structureView, setStructureView] = useState<StructureView | null>(null)
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
@@ -183,20 +180,6 @@ export default function OrganisationPage() {
   function toggleStructureView(next: StructureView) {
     setStructureView((current) => (current === next ? null : next))
   }
-
-  useEffect(() => {
-    let cancelled = false
-    void listDepartments()
-      .then((rows) => {
-        if (!cancelled) setCatalog(rows)
-      })
-      .catch(() => {
-        if (!cancelled) setCatalog([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [employees])
 
   const q = query.trim().toLowerCase()
 
@@ -257,6 +240,8 @@ export default function OrganisationPage() {
 
   const hasPeople = employees.some((e) => e.isActive)
   const hasStructure = hasPeople || snapshot.departments.length > 0
+  /** Hold totals until catalog merges — otherwise employee-only counts flash first. */
+  const structurePending = isLoading || !catalogs.ready
   const peopleCount = useMemo(
     () =>
       snapshot.departments.reduce(
@@ -266,6 +251,9 @@ export default function OrganisationPage() {
     [snapshot.departments],
   )
   const activeView = structureView ?? 'departments'
+  const departmentTotal = structurePending ? '…' : snapshot.departments.length
+  const teamTotal = structurePending ? '…' : snapshot.teams.length
+  const peopleTotal = structurePending ? '…' : peopleCount
 
   useEffect(() => {
     setAttributeFilters({})
@@ -372,9 +360,7 @@ export default function OrganisationPage() {
             <Building2 size={14} strokeWidth={1.75} aria-hidden />
             Departments
           </span>
-          <span className="pd-people__summary-value">
-            {snapshot.departments.length}
-          </span>
+          <span className="pd-people__summary-value">{departmentTotal}</span>
         </button>
         <button
           type="button"
@@ -391,16 +377,14 @@ export default function OrganisationPage() {
             <UsersRound size={14} strokeWidth={1.75} aria-hidden />
             Teams
           </span>
-          <span className="pd-people__summary-value">
-            {snapshot.teams.length}
-          </span>
+          <span className="pd-people__summary-value">{teamTotal}</span>
         </button>
         <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">
             <Users size={14} strokeWidth={1.75} aria-hidden />
             People
           </span>
-          <span className="pd-people__summary-value">{peopleCount}</span>
+          <span className="pd-people__summary-value">{peopleTotal}</span>
         </div>
       </div>
 
@@ -463,7 +447,7 @@ export default function OrganisationPage() {
           {activeView === 'departments' ? 'Departments' : 'Teams'}
         </h2>
 
-            {loadState === 'loading' && !hasStructure ? (
+            {structurePending ? (
               <p className="pd-people__empty">
                 Loading organisation from the live database…
               </p>

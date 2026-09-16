@@ -153,6 +153,21 @@ describe("goal snapshot reads", () => {
     clearEmployees();
   });
 
+  it("does not invent a ghost cycle when Reviews has none", async () => {
+    const { deleteReviewCycle, listReviewCycles } = await import(
+      "@/lib/reviews/store"
+    );
+    for (const cycle of listReviewCycles()) {
+      await deleteReviewCycle(cycle.id);
+    }
+    resetGoalsDemo();
+
+    const snapshot = getGoalsSnapshot();
+    expect(snapshot.availableCycles).toEqual([]);
+    expect(snapshot.cycle.id).toBe("");
+    expect(snapshot.cycle.label).toBe("");
+  });
+
   it("does not rewrite storage when the active person is already selected", () => {
     const first = setActivePerson("1");
     const second = setActivePerson("1");

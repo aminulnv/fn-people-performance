@@ -30,6 +30,7 @@ vi.mock('@/lib/employees/store', async (importOriginal) => {
   return {
     ...actual,
     listDepartments: async () => [],
+    listTeams: async () => [],
   }
 })
 

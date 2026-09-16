@@ -164,4 +164,68 @@ describe('buildOrganisationFromEmployees', () => {
       },
     ])
   })
+
+  it('adds empty catalog teams and drops Unassigned buckets', () => {
+    const snapshot = mergeOrganisationWithCatalog(
+      buildOrganisationFromEmployees([
+        employee({
+          employeeId: 1,
+          fullName: 'No Org',
+          email: 'noorg@example.com',
+        }),
+        employee({
+          employeeId: 2,
+          fullName: 'Ivy',
+          email: 'ivy@example.com',
+          department: 'Engineering',
+          team: 'Platform',
+        }),
+      ]),
+      [
+        {
+          id: 1,
+          name: 'Engineering',
+          headEmployeeId: null,
+          headName: null,
+          headEmail: null,
+          hrbpEmployeeId: null,
+          hrbpName: null,
+          hrbpEmail: null,
+          headcount: 1,
+          teamCount: 2,
+        },
+      ],
+      [
+        {
+          id: 10,
+          name: 'Platform',
+          departmentId: 1,
+          departmentName: 'Engineering',
+          ownerEmployeeId: 9,
+          ownerName: 'Morgan Manager',
+          ownerEmail: null,
+          headcount: 1,
+        },
+        {
+          id: 11,
+          name: 'Growth',
+          departmentId: 1,
+          departmentName: 'Engineering',
+          ownerEmployeeId: null,
+          ownerName: 'Casey Owner',
+          ownerEmail: null,
+          headcount: 0,
+        },
+      ],
+    )
+
+    expect(snapshot.departments.map((department) => department.name)).toEqual([
+      'Engineering',
+    ])
+    expect(snapshot.teams.map((team) => team.name)).toEqual(['Growth', 'Platform'])
+    expect(snapshot.teams.find((team) => team.name === 'Growth')).toMatchObject({
+      headcount: 0,
+      manager: { fullName: 'Casey Owner' },
+    })
+  })
 })

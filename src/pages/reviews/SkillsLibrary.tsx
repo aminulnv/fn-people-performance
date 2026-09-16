@@ -16,7 +16,6 @@ import {
 import { createSkill } from '@/lib/skills/store'
 import { useSkillTalentCounts, useSkillsLibrary } from '@/lib/skills/useSkills'
 import type { Skill, SkillStatus } from '@/lib/skills/types'
-import { ReviewsTabs } from './ReviewsTabs'
 
 const SKILL_ATTRIBUTES = [
   { id: 'function', label: 'Function', icon: Building2 },
@@ -98,7 +97,6 @@ export function SkillsLibrary() {
 
   return (
     <div className="pd-reviews-skills">
-      <ReviewsTabs current="skills" />
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"

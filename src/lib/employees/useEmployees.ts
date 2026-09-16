@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   buildOrganisationFromEmployees,
   mergeOrganisationWithCatalog,
@@ -8,11 +8,13 @@ import {
   getEmployeesLoadError,
   getEmployeesLoadState,
   getEmployeesStoreVersion,
+  listDepartments,
   listEmployees,
+  listTeams,
   loadEmployees,
   subscribeEmployeesStore,
 } from './store'
-import type { PlatformDepartment, PlatformEmployee } from './types'
+import type { PlatformDepartment, PlatformEmployee, PlatformTeam } from './types'
 
 export type EmployeesLoadState = ReturnType<typeof getEmployeesLoadState>
 
@@ -62,18 +64,52 @@ export function useEmployees(options?: {
   }, [version])
 }
 
-/** Employees store + derived org tree (optionally merged with department catalog). */
+/** Revolut department + team catalogs for Organisation surfaces. */
+export function useOrganisationCatalogs(reloadKey?: unknown): {
+  departments: PlatformDepartment[]
+  teams: PlatformTeam[]
+  ready: boolean
+} {
+  const [departments, setDepartments] = useState<PlatformDepartment[]>([])
+  const [teams, setTeams] = useState<PlatformTeam[]>([])
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void Promise.all([listDepartments(), listTeams()])
+      .then(([nextDepartments, nextTeams]) => {
+        if (cancelled) return
+        setDepartments(nextDepartments)
+        setTeams(nextTeams)
+        setReady(true)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setDepartments([])
+        setTeams([])
+        setReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [reloadKey])
+
+  return { departments, teams, ready }
+}
+
+/** Employees store + derived org tree merged with Revolut department/team catalogs. */
 export function useOrganisation(
   catalog: PlatformDepartment[] = [],
-  options?: { load?: boolean },
+  options?: { load?: boolean; teams?: PlatformTeam[] },
 ): UseOrganisationResult {
   const employeesState = useEmployees(options)
+  const teams = options?.teams ?? []
   const organisation = useMemo(() => {
     const base = buildOrganisationFromEmployees(employeesState.employees)
-    return catalog.length > 0
-      ? mergeOrganisationWithCatalog(base, catalog)
+    return catalog.length > 0 || teams.length > 0
+      ? mergeOrganisationWithCatalog(base, catalog, teams)
       : base
-  }, [catalog, employeesState.employees])
+  }, [catalog, employeesState.employees, teams])
 
   return { ...employeesState, organisation }
 }

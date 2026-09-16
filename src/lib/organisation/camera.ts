@@ -38,8 +38,17 @@ export function clampCameraPan(
 ): CameraPoint {
   const width = content.width * zoom
   const height = content.height * zoom
-  const visibleX = Math.min(Math.max(minVisible, 0), width || minVisible)
-  const visibleY = Math.min(Math.max(minVisible, 0), height || minVisible)
+  // Empty measurements must not clamp — they pin the camera to a corner.
+  if (
+    width <= 0 ||
+    height <= 0 ||
+    viewport.width <= 0 ||
+    viewport.height <= 0
+  ) {
+    return pan
+  }
+  const visibleX = Math.min(Math.max(minVisible, 0), width)
+  const visibleY = Math.min(Math.max(minVisible, 0), height)
 
   return {
     x: clampCameraValue(pan.x, visibleX - width, viewport.width - visibleX),

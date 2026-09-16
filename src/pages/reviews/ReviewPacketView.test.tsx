@@ -23,6 +23,7 @@ import {
   assignSkillToEmployee,
   resetSkillsStoreForTests,
 } from '@/lib/skills/store'
+import { resetValuesStoreForTests } from '@/lib/values/store'
 import ScorecardDetailPage from '@/pages/ScorecardDetailPage'
 import { ReviewPacketView } from './ReviewPacketView'
 
@@ -154,6 +155,7 @@ let cycleId = 'q3-2026'
 beforeEach(async () => {
   resetReviewsStoreForTests()
   resetSkillsStoreForTests()
+  resetValuesStoreForTests()
   const manager = employee({
     employeeId: 1,
     fullName: 'Alex Manager',
@@ -369,6 +371,54 @@ describe('ReviewPacketView', () => {
     expect(
       screen.getByRole('button', { name: 'Account Planning grade' }),
     ).toBeTruthy()
+  })
+
+  it('grades each core value when Values is on in Grade Areas', async () => {
+    const custom = await createReviewCycle({
+      type: 'custom',
+      name: 'Values on review',
+      startDate: '2026-01-01T00:00:00.000Z',
+      endDate: '2026-12-31T00:00:00.000Z',
+    })
+    cycleId = custom.id
+    const group = await createCycleGroup(custom.id, {
+      name: 'Everyone',
+      memberIds: [1, 2],
+    })
+    const policy = defaultReviewPolicy('custom')
+    await updateCycleGroup(custom.id, group.id, {
+      settings: {
+        reviewPolicy: {
+          ...policy,
+          scorecard: {
+            ...policy.scorecard,
+            pillars: policy.scorecard.pillars.map((pillar) =>
+              pillar.id === 'values'
+                ? { ...pillar, enabled: true, weight: 25 }
+                : pillar.id === 'goals'
+                  ? { ...pillar, enabled: true, weight: 75 }
+                  : { ...pillar, enabled: false, weight: 0 },
+            ),
+          },
+          managerReview: {
+            ...policy.managerReview,
+            gradeGoals: true,
+            gradeOverall: true,
+          },
+        },
+      },
+    })
+    packetState.packet = packet(custom.id)
+    renderEdit()
+    expect(
+      await screen.findByRole('region', { name: 'Core Values' }),
+    ).toBeTruthy()
+    expect(
+      screen.getByRole('button', { name: 'Product First grade' }),
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole('button', { name: /Core Values \(/ }),
+    ).toBeNull()
   })
 
   it('shows the overall grade grid when the group turns it on', async () => {

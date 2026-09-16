@@ -73,6 +73,7 @@ import {
   type ReviewSaveNotice,
 } from '@/pages/reviews/ReviewSaveBanner'
 import { ScorecardSkillsGradeCard } from '@/pages/reviews/ScorecardSkillsGradeCard'
+import { ScorecardValuesGradeCard } from '@/pages/reviews/ScorecardValuesGradeCard'
 import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
 import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
 import {
@@ -84,6 +85,15 @@ import {
   skillsWithStoredGrades,
 } from '@/lib/skills/reviewScores'
 import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
+import {
+  averageValueGrade,
+  hasStoredValueGrades,
+  isValueScorePillarId,
+  valueIdFromScorePillarId,
+  valueScorePillarId,
+  valuesWithStoredGrades,
+} from '@/lib/values/reviewScores'
+import { useEnabledValues } from '@/lib/values/useValues'
 import '@/styles/layout-activity.css'
 
 type PacketDraft = {
@@ -154,10 +164,14 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const [skillGrades, setSkillGrades] = useState<Record<string, GradeBandId | ''>>(
     {},
   )
+  const [valueGrades, setValueGrades] = useState<Record<string, GradeBandId | ''>>(
+    {},
+  )
   const [packetDraft, setPacketDraft] = useState<PacketDraft | null>(null)
   const [isDirty, setDirty] = useState(false)
   const assignedSkills = useEmployeeSkills(employeeId)
   const { skills: skillsCatalog } = useSkillsLibrary()
+  const enabledValues = useEnabledValues()
   const [leaveOpen, setLeaveOpen] = useState(false)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
   const [activityOpen, setActivityOpen] = useState(false)
@@ -275,13 +289,17 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
 
   useEffect(() => {
     if (!packet || !goalsGradeRole) return
-    const next: Record<string, GradeBandId | ''> = {}
+    const nextSkills: Record<string, GradeBandId | ''> = {}
+    const nextValues: Record<string, GradeBandId | ''> = {}
     for (const score of packet.pillarScores) {
       if (score.actorRole !== goalsGradeRole) continue
       const skillId = skillIdFromScorePillarId(score.pillarId)
-      if (skillId) next[skillId] = score.grade ?? ''
+      if (skillId) nextSkills[skillId] = score.grade ?? ''
+      const valueId = valueIdFromScorePillarId(score.pillarId)
+      if (valueId) nextValues[valueId] = score.grade ?? ''
     }
-    setSkillGrades(next)
+    setSkillGrades(nextSkills)
+    setValueGrades(nextValues)
   }, [goalsGradeRole, packet])
 
   if (!cycle) {
@@ -398,9 +416,19 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const skillsRollupGrade = averageSkillGrade(
     assignedSkills.map((skill) => skillGrades[skill.id]),
   )
+  const valuesPillarOn = pillars.some((pillar) => pillar.id === 'values')
+  const hasPriorValueGrades = hasStoredValueGrades(valueGrades)
+  const priorValues = valuesWithStoredGrades(valueGrades)
+  const valuesRollupGrade = averageValueGrade(
+    enabledValues.map((value) => valueGrades[value.id]),
+  )
   const skillExtraGrades =
     skillsPillarOn && skillsRollupGrade
       ? { skills: skillsRollupGrade as GradeBandId | '' }
+      : undefined
+  const valueExtraGrades =
+    valuesPillarOn && valuesRollupGrade
+      ? { values: valuesRollupGrade as GradeBandId | '' }
       : undefined
   const selfExtraGrades = {
     ...(useWeightedSuggest
@@ -411,6 +439,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         ? { goals: goalsGrade }
         : {}),
     ...skillExtraGrades,
+    ...valueExtraGrades,
   }
   const managerExtraGrades = {
     ...(useWeightedSuggest
@@ -421,6 +450,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         ? { goals: goalsGrade }
         : {}),
     ...skillExtraGrades,
+    ...valueExtraGrades,
   }
   const managerFormLocked =
     packet.status === 'released_to_employees' ||
@@ -488,17 +518,45 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
             assignedSkills.map((skill) => skillGrades[skill.id]),
           )
         : null
+      const valuesPillarOn = pillars.some((pillar) => pillar.id === 'values')
+      const valuePillarScores = valuesPillarOn
+        ? enabledValues.map((value) => ({
+            pillarId: valueScorePillarId(value.id),
+            grade: (valueGrades[value.id] || null) as GradeBandId | null,
+            comment: '',
+          }))
+        : packet.pillarScores
+            .filter(
+              (score) =>
+                score.actorRole === formActorRole &&
+                isValueScorePillarId(score.pillarId),
+            )
+            .map((score) => ({
+              pillarId: score.pillarId,
+              grade: score.grade,
+              comment: score.comment,
+            }))
+      const valuesRollup = valuesPillarOn
+        ? averageValueGrade(enabledValues.map((value) => valueGrades[value.id]))
+        : null
       const basePillars = packetDraft.pillarScores.filter(
         (score) =>
-          score.pillarId !== 'skills' && !isSkillScorePillarId(score.pillarId),
+          score.pillarId !== 'skills' &&
+          !isSkillScorePillarId(score.pillarId) &&
+          score.pillarId !== 'values' &&
+          !isValueScorePillarId(score.pillarId),
       )
       const next = await saveReviewPacket(packet.id, {
         ...packetDraft,
         pillarScores: [
           ...basePillars,
           ...skillPillarScores,
+          ...valuePillarScores,
           ...(skillsPillarOn
             ? [{ pillarId: 'skills', grade: skillsRollup, comment: '' }]
+            : []),
+          ...(valuesPillarOn
+            ? [{ pillarId: 'values', grade: valuesRollup, comment: '' }]
             : []),
         ],
         goalsComponent: useWeightedSuggest
@@ -646,6 +704,36 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         />
       ) : null}
 
+      {valuesPillarOn && (showSelfPacket || showManagerPacket) ? (
+        <ScorecardValuesGradeCard
+          values={enabledValues}
+          grades={valueGrades}
+          editing={Boolean(goalsGradeRole)}
+          locked={
+            formActorRole === 'manager' ? managerFormLocked : selfFormLocked
+          }
+          onGradeChange={
+            goalsGradeRole
+              ? (valueId, next) => {
+                  setValueGrades((current) => ({
+                    ...current,
+                    [valueId]: next,
+                  }))
+                  setDirty(true)
+                }
+              : undefined
+          }
+        />
+      ) : !valuesPillarOn &&
+        hasPriorValueGrades &&
+        (showSelfPacket || showManagerPacket) ? (
+        <ScorecardValuesGradeCard
+          values={priorValues}
+          grades={valueGrades}
+          priorOnly
+        />
+      ) : null}
+
       {showSelfPacket ? (
         <PacketForm
           title="Self-Review"
@@ -662,6 +750,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           }
           hidePillarIds={[
             'skills',
+            'values',
             ...(useWeightedSuggest ||
             !gradeGoals ||
             goalsGradeRole === 'self' ||
@@ -698,6 +787,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           }
           hidePillarIds={[
             'skills',
+            'values',
             ...(useWeightedSuggest || !gradeGoals || goalsGradeRole === 'manager'
               ? (['goals'] as const)
               : []),

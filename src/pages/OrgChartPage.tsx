@@ -537,17 +537,28 @@ export default function OrgChartPage() {
     id: number
     key: number
   } | null>(null)
-  const [content, setContent] = useState({ width: 0, height: 0 })
-
   const stageRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const zoomInnerRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<CameraPoint>({ x: 0, y: 0 })
   const zoomRef = useRef(zoom)
-  const contentRef = useRef(content)
+  const contentRef = useRef({ width: 0, height: 0 })
   const seededCameraRef = useRef(false)
   zoomRef.current = zoom
-  contentRef.current = content
+
+  const measureContentSize = useCallback(() => {
+    const el = zoomInnerRef.current
+    if (!el) return { width: 0, height: 0 }
+    // offset* ignores CSS transforms, so we always get layout size at zoom 1.
+    return { width: el.offsetWidth, height: el.offsetHeight }
+  }, [])
+
+  const syncContentSize = useCallback(
+    (next: { width: number; height: number }) => {
+      contentRef.current = next
+    },
+    [],
+  )
 
   const myEmployeeId = useMemo(() => {
     const email = user?.email?.toLowerCase()
@@ -628,7 +639,13 @@ export default function OrgChartPage() {
   }, [])
 
   const applyCameraTransform = useCallback(() => {
+    const scroll = scrollRef.current
     const el = zoomInnerRef.current
+    if (scroll) {
+      // Native scroll offsets fight the transform camera — keep them at 0.
+      if (scroll.scrollTop !== 0) scroll.scrollTop = 0
+      if (scroll.scrollLeft !== 0) scroll.scrollLeft = 0
+    }
     if (!el) return
     const { x, y } = panRef.current
     el.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoomRef.current})`
@@ -636,12 +653,12 @@ export default function OrgChartPage() {
   }, [])
 
   const commitPan = useCallback(
-    (next: CameraPoint) => {
+    (next: CameraPoint, contentSize = contentRef.current) => {
       const viewport = viewportSize()
       panRef.current =
         viewport.width === 0 || viewport.height === 0
           ? next
-          : clampCameraPan(next, contentRef.current, viewport, zoomRef.current)
+          : clampCameraPan(next, contentSize, viewport, zoomRef.current)
       applyCameraTransform()
     },
     [applyCameraTransform, viewportSize],
@@ -681,13 +698,14 @@ export default function OrgChartPage() {
       ) {
         return false
       }
+      syncContentSize(size)
       const next = fitCamera(size, viewport, clampZoom)
       zoomRef.current = next.zoom
-      commitPan(next.pan)
+      commitPan(next.pan, size)
       setZoom(next.zoom)
       return true
     },
-    [commitPan, viewportSize],
+    [commitPan, syncContentSize, viewportSize],
   )
 
   const openingKey = `${searchQuery}::${focusPersonId ?? ''}`
@@ -702,25 +720,21 @@ export default function OrgChartPage() {
     const el = zoomInnerRef.current
     if (!el) return
     const measure = () => {
-      const next = { width: el.offsetWidth, height: el.offsetHeight }
-      const sizeChanged =
-        next.width !== contentRef.current.width ||
-        next.height !== contentRef.current.height
-      contentRef.current = next
-      if (sizeChanged) setContent(next)
+      const next = measureContentSize()
+      syncContentSize(next)
       if (next.width === 0 || next.height === 0) return
       if (!seededCameraRef.current) {
         if (!applyFit(next)) return
         seededCameraRef.current = true
         return
       }
-      commitPan(panRef.current)
+      commitPan(panRef.current, next)
     }
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [applyFit, commitPan, companyRoots, expanded])
+  }, [applyFit, commitPan, companyRoots, expanded, measureContentSize, syncContentSize])
 
   useLayoutEffect(() => {
     if (focusPersonId == null) return
@@ -919,8 +933,8 @@ export default function OrgChartPage() {
   )
 
   const fitToScreen = useCallback(() => {
-    applyFit(content)
-  }, [applyFit, content])
+    applyFit(measureContentSize())
+  }, [applyFit, measureContentSize])
 
   const findMe = useCallback(() => {
     if (myEmployeeId == null) return

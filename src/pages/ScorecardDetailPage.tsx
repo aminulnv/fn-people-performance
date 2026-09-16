@@ -58,6 +58,7 @@ import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { ScorecardGoalsCard } from '@/pages/reviews/ScorecardGoalsCard'
 import { ScorecardPillarGradeCard } from '@/pages/reviews/ScorecardPillarGradeCard'
 import { ScorecardSkillsGradeCard } from '@/pages/reviews/ScorecardSkillsGradeCard'
+import { ScorecardValuesGradeCard } from '@/pages/reviews/ScorecardValuesGradeCard'
 import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
 import { ScorecardHero } from '@/pages/reviews/ScorecardHero'
 import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
@@ -67,6 +68,12 @@ import {
   skillsWithStoredGrades,
 } from '@/lib/skills/reviewScores'
 import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
+import {
+  hasStoredValueGrades,
+  valueIdFromScorePillarId,
+  valuesWithStoredGrades,
+} from '@/lib/values/reviewScores'
+import { useEnabledValues } from '@/lib/values/useValues'
 import type { GradeBandId } from '@/lib/reviews/types'
 import {
   ReviewActionIsland,
@@ -88,6 +95,7 @@ export default function ScorecardDetailPage() {
     Number.isInteger(employeeId) && employeeId > 0 ? employeeId : 0,
   )
   const { skills: skillsCatalog } = useSkillsLibrary()
+  const enabledValues = useEnabledValues()
   const { cycles } = useReviewsSnapshot()
   const forms = useScorecardFormsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
@@ -228,7 +236,10 @@ export default function ScorecardDetailPage() {
       }))
   const ratingPillars = stageShowsReviewForm(stageView.viewing)
     ? enabledPillars(policy).filter(
-        (pillar) => pillar.id !== 'goals' && pillar.id !== 'skills',
+        (pillar) =>
+          pillar.id !== 'goals' &&
+          pillar.id !== 'skills' &&
+          pillar.id !== 'values',
       )
     : []
   const viewPillarFields = packet
@@ -246,18 +257,25 @@ export default function ScorecardDetailPage() {
         comment: '',
       }))
   const skillGrades: Record<string, GradeBandId | ''> = {}
+  const valueGrades: Record<string, GradeBandId | ''> = {}
   if (packet && viewingFeedbackRole) {
     for (const score of packet.pillarScores) {
       if (score.actorRole !== viewingFeedbackRole) continue
       const skillId = skillIdFromScorePillarId(score.pillarId)
       if (skillId) skillGrades[skillId] = score.grade ?? ''
+      const valueId = valueIdFromScorePillarId(score.pillarId)
+      if (valueId) valueGrades[valueId] = score.grade ?? ''
     }
   }
   const skillsPillarOn = enabledPillars(policy).some(
     (pillar) => pillar.id === 'skills',
   )
+  const valuesPillarOn = enabledPillars(policy).some(
+    (pillar) => pillar.id === 'values',
+  )
   const showSkillsForm = stageShowsReviewForm(stageView.viewing)
   const priorSkills = skillsWithStoredGrades(skillGrades, skillsCatalog)
+  const priorValues = valuesWithStoredGrades(valueGrades)
 
   if (!Number.isInteger(employeeId) || employeeId <= 0) {
     return <Navigate to={reviewsTabPath('scorecards')} replace />
@@ -347,6 +365,18 @@ export default function ScorecardDetailPage() {
         <ScorecardSkillsGradeCard
           skills={priorSkills}
           grades={skillGrades}
+          priorOnly
+        />
+      ) : null}
+
+      {showSkillsForm && valuesPillarOn ? (
+        <ScorecardValuesGradeCard values={enabledValues} grades={valueGrades} />
+      ) : showSkillsForm &&
+        !valuesPillarOn &&
+        hasStoredValueGrades(valueGrades) ? (
+        <ScorecardValuesGradeCard
+          values={priorValues}
+          grades={valueGrades}
           priorOnly
         />
       ) : null}

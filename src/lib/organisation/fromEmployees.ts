@@ -1,6 +1,7 @@
 import type {
   PlatformDepartment,
   PlatformEmployee,
+  PlatformTeam,
 } from '@/lib/employees/types'
 import type {
   OrgDepartment,
@@ -257,16 +258,48 @@ export function buildOrganisationFromEmployees(
   return { departments: orgDepartments, teams }
 }
 
+function catalogPerson(
+  employeeId: number | null,
+  name: string | null,
+): OrgPersonRef | null {
+  const fullName = name?.trim() ?? ''
+  if (employeeId == null && !fullName) return null
+  return {
+    ...(employeeId != null ? { employeeId } : {}),
+    fullName,
+  }
+}
+
+function sortedTeams(teams: OrgTeam[]): OrgTeam[] {
+  return [...teams].sort((a, b) => {
+    const byDept = a.departmentName.localeCompare(b.departmentName)
+    if (byDept !== 0) return byDept
+    return a.name.localeCompare(b.name)
+  })
+}
+
 /**
- * Fold API/catalog departments into the employee-derived snapshot so empty
- * departments (just created, no people yet) still appear in Organisation.
+ * Fold Revolut/API catalogs into the employee-derived snapshot so empty
+ * departments and teams still appear, and Unassigned buckets do not.
  */
 export function mergeOrganisationWithCatalog(
   snapshot: OrganisationSnapshot,
   catalog: PlatformDepartment[],
+  teams: PlatformTeam[] = [],
 ): OrganisationSnapshot {
+  const matchCatalog = catalog.length > 0 || teams.length > 0
   const byKey = new Map(
-    snapshot.departments.map((department) => [department.id, department]),
+    snapshot.departments
+      .filter((department) => !matchCatalog || department.name !== UNASSIGNED)
+      .map((department) => [
+        department.id,
+        {
+          ...department,
+          teams: matchCatalog
+            ? department.teams.filter((team) => team.name !== UNASSIGNED)
+            : department.teams,
+        },
+      ]),
   )
 
   for (const row of catalog) {
@@ -274,13 +307,7 @@ export function mergeOrganisationWithCatalog(
     if (!name) continue
     const key = departmentKey(name)
     const existing = byKey.get(key)
-    const catalogHead =
-      row.headName != null && row.headName.trim()
-        ? {
-            employeeId: row.headEmployeeId ?? undefined,
-            fullName: row.headName,
-          }
-        : null
+    const catalogHead = catalogPerson(row.headEmployeeId, row.headName)
 
     if (existing) {
       byKey.set(key, {
@@ -301,16 +328,50 @@ export function mergeOrganisationWithCatalog(
     })
   }
 
+  for (const row of teams) {
+    const departmentName = row.departmentName.trim()
+    const teamName = row.name.trim()
+    if (!departmentName || !teamName) continue
+    const deptKey = departmentKey(departmentName)
+    const existingDept = byKey.get(deptKey) ?? {
+      id: deptKey,
+      name: departmentName,
+      head: null,
+      headcount: 0,
+      teams: [],
+      memberIds: [],
+    }
+    const id = teamKey(departmentName, teamName)
+    const catalogManager = catalogPerson(row.ownerEmployeeId, row.ownerName)
+    const existingTeam = existingDept.teams.find((team) => team.id === id)
+    const nextTeams = existingTeam
+      ? existingDept.teams.map((team) =>
+          team.id === id
+            ? { ...team, manager: team.manager ?? catalogManager }
+            : team,
+        )
+      : [
+          ...existingDept.teams,
+          {
+            id,
+            name: teamName,
+            departmentName: existingDept.name,
+            manager: catalogManager,
+            headcount: row.headcount,
+            memberIds: [],
+          },
+        ]
+    byKey.set(deptKey, {
+      ...existingDept,
+      teams: sortedTeams(nextTeams),
+    })
+  }
+
   const departments = [...byKey.values()].sort((a, b) =>
     a.name.localeCompare(b.name),
   )
-  const teams = departments
-    .flatMap((department) => department.teams)
-    .sort((a, b) => {
-      const byDept = a.departmentName.localeCompare(b.departmentName)
-      if (byDept !== 0) return byDept
-      return a.name.localeCompare(b.name)
-    })
-
-  return { departments, teams }
+  return {
+    departments,
+    teams: sortedTeams(departments.flatMap((department) => department.teams)),
+  }
 }

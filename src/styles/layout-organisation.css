@@ -341,16 +341,22 @@
 }
 
 .pd-org-stage {
+  --org-chart-stage-bg: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+  /* Stronger than --color-border so connectors read on the tinted stage. */
+  --org-chart-line: color-mix(in srgb, var(--color-text) 28%, var(--color-border));
+  --org-chart-line-width: 0.125rem;
+  --org-chart-line-drop: 1.25rem;
   position: relative;
   flex: 1;
   min-width: 0;
   display: flex;
   padding: 0;
   overflow: hidden;
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+  background: var(--org-chart-stage-bg);
 }
 
 .pd-org-scroll {
+  position: relative;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -377,6 +383,9 @@
 }
 
 .pd-org-zoom-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: max-content;
   transform-origin: 0 0;
   will-change: transform;
@@ -411,9 +420,10 @@
 }
 
 .pd-org-vline {
-  width: 0;
-  height: 1.25rem;
-  border-left: 1px solid var(--color-border);
+  width: var(--org-chart-line-width);
+  height: var(--org-chart-line-drop);
+  border-radius: 999px;
+  background: var(--org-chart-line);
   flex-shrink: 0;
 }
 
@@ -434,26 +444,59 @@
   z-index: 1;
 }
 
-.pd-org-tree-children>.pd-org-tree-node::before {
+/* Middle siblings: straight drop from the shared rail. */
+.pd-org-tree-children>.pd-org-tree-node:not(:first-child):not(:last-child)::before {
   content: '';
   position: absolute;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
-  width: 0;
-  height: 1.25rem;
-  border-left: 1px solid var(--color-border);
+  width: var(--org-chart-line-width);
+  height: var(--org-chart-line-drop);
+  border-radius: 999px;
+  background: var(--org-chart-line);
   pointer-events: none;
 }
 
+/* Outer siblings: rounded L from the rail into the card. */
+.pd-org-tree-children>.pd-org-tree-node:first-child:not(:only-child)::before,
+.pd-org-tree-children>.pd-org-tree-node:last-child:not(:only-child)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 50%;
+  height: var(--org-chart-line-drop);
+  border-style: solid;
+  border-color: var(--org-chart-line);
+  border-width: 0;
+  background: transparent;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.pd-org-tree-children>.pd-org-tree-node:first-child:not(:only-child)::before {
+  left: 50%;
+  border-left-width: var(--org-chart-line-width);
+  border-top-width: var(--org-chart-line-width);
+  border-top-left-radius: 0.5rem;
+}
+
+.pd-org-tree-children>.pd-org-tree-node:last-child:not(:only-child)::before {
+  right: 50%;
+  border-right-width: var(--org-chart-line-width);
+  border-top-width: var(--org-chart-line-width);
+  border-top-right-radius: 0.5rem;
+}
+
+/* Shared horizontal rail between the outer rounded corners. */
 .pd-org-tree-children::before {
   content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 0;
-  border-top: 1px solid var(--color-border);
+  height: var(--org-chart-line-width);
+  background: var(--org-chart-line);
   pointer-events: none;
 }
 
@@ -463,13 +506,13 @@
   position: absolute;
   top: 0;
   width: 50%;
-  height: 0;
-  border-top: 1px solid color-mix(in srgb, var(--color-text) 3%, var(--color-bg));
+  height: var(--org-chart-line-width);
+  background: var(--org-chart-stage-bg);
   pointer-events: none;
 }
 
 .pd-org-tree-children>.pd-org-tree-node {
-  padding-top: 1.25rem;
+  padding-top: var(--org-chart-line-drop);
 }
 
 .pd-org-tree-children>.pd-org-tree-node:first-child::after {

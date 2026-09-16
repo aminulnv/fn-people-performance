@@ -22,6 +22,8 @@ import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { getGoalsSnapshot } from '@/lib/goals/store'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
+import { isReviewsTabRoot } from '@/lib/reviews/paths'
+import { ReviewsTabs } from './ReviewsTabs'
 import { useAssistantPrefs } from './useAssistantPrefs'
 import { useBreakpoint } from './useBreakpoint'
 import type { AppLayoutConfig } from './types'
@@ -223,6 +225,7 @@ export function AppLayout({
   )
 
   const titleIcon = resolveTopBarIcon(pathname, visibleNavItems)
+  const reviewsTabs = isReviewsTabRoot(pathname) ? <ReviewsTabs /> : undefined
 
   return (
     <GlobalSearchProvider>
@@ -248,6 +251,7 @@ export function AppLayout({
               <TopBar
                 breadcrumbs={breadcrumbs}
                 titleIcon={titleIcon}
+                centerSlot={reviewsTabs}
                 onSignOut={onSignOut}
                 onMobileMenuOpen={() => setIsMobileOpen(true)}
                 isMobile={isMobile}

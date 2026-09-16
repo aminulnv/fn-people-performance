@@ -21,7 +21,7 @@ import {
 } from "./cyclesFromReviews";
 import {
   createInitialSnapshot,
-  FALLBACK_CYCLE,
+  EMPTY_GOALS_CYCLE,
   isEligibleForCycle,
 } from "./demoData";
 import { hasStructuralGoalChanges } from "./goalChanges";
@@ -213,11 +213,11 @@ function withoutEmptyDemoRows(state: GoalsPersisted): GoalsPersisted {
 
 function createInitialPersisted(): GoalsPersisted {
   const options = listGoalCycleOptions({});
-  const activeCycleId = pickDefaultCycleId(options) ?? FALLBACK_CYCLE.id;
+  const activeCycleId = pickDefaultCycleId(options) ?? "";
   return {
     activeCycleId,
     activePersonId: "",
-    phaseByCycle: { [activeCycleId]: "window_open" },
+    phaseByCycle: activeCycleId ? { [activeCycleId]: "window_open" } : {},
     byCycle: {},
   };
 }
@@ -329,7 +329,25 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
   const options = listGoalCycleOptions(state.phaseByCycle);
   let activeCycleId = state.activeCycleId;
 
-  if (options.length > 0 && !options.some((c) => c.id === activeCycleId)) {
+  if (options.length === 0) {
+    const merged = mergePeopleIntoGoalsState({
+      cycleId: "",
+      byPerson: {},
+      activePersonId: state.activePersonId,
+      signedInPersonId,
+      seedMissingPeople: useLocalGoalsPersistence(),
+    });
+    return {
+      cycle: EMPTY_GOALS_CYCLE,
+      cycleStatus: "previous",
+      availableCycles: [],
+      activePersonId: merged.activePersonId,
+      people: merged.people,
+      byPerson: {},
+    };
+  }
+
+  if (!options.some((c) => c.id === activeCycleId)) {
     activeCycleId = pickDefaultCycleId(options) ?? options[0].id;
   }
 
@@ -342,17 +360,12 @@ function projectSnapshot(state: GoalsPersisted): GoalsSnapshot {
   );
   const option = options.find((c) => c.id === activeCycleId);
 
-  const cycle = fromReviews ??
-    option ?? {
-      ...FALLBACK_CYCLE,
-      phase,
-    };
+  const cycle = fromReviews ?? option ?? EMPTY_GOALS_CYCLE;
 
   const cycleStatus =
     resolveGoalsCycleStatus(cycle.id) ?? option?.status ?? "previous";
 
-  const availableCycles: GoalsCycleOption[] =
-    options.length > 0 ? options : [{ ...cycle, status: cycleStatus }];
+  const availableCycles: GoalsCycleOption[] = options;
 
   const bucket = ensureCycleBucket(state, cycle.id);
   const merged = mergePeopleIntoGoalsState({
@@ -498,7 +511,7 @@ export function replaceCycleGoalsFromRemote(
 ): GoalsSnapshot {
   const state = getPersisted();
   const existingBucket = state.byCycle[cycleId] ?? {};
-  const phase = state.phaseByCycle[cycleId] ?? FALLBACK_CYCLE.phase;
+  const phase = state.phaseByCycle[cycleId] ?? "window_open";
   const byPerson: Record<string, PersonGoals> = {};
   for (const submission of submissions) {
     const existing = existingBucket[submission.personId];
@@ -514,7 +527,7 @@ export function replaceCycleGoalsFromRemote(
         phase,
         new Date(),
         parseGoalsEmployeeId(submission.personId),
-      ) ?? FALLBACK_CYCLE;
+      ) ?? { ...EMPTY_GOALS_CYCLE, id: cycleId, phase };
     byPerson[submission.personId] = {
       ...submission,
       personId: submission.personId,

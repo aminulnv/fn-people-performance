@@ -201,6 +201,16 @@ function actionItems(
       icon: Sparkles,
     },
     {
+      id: 'action:values-library',
+      kind: 'action',
+      scope: 'actions',
+      label: 'Open Core Values',
+      description: 'Reviews',
+      keywords: uniqueKeywords(['values', 'culture', 'behaviours', 'library']),
+      path: '/reviews/values',
+      icon: Star,
+    },
+    {
       id: 'action:org-chart',
       kind: 'action',
       scope: 'actions',
