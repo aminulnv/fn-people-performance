@@ -74,9 +74,15 @@ export function normalizeBehaviour(
   }
 }
 
-export function normalizeCompanyValue(
-  value: Partial<CompanyValue> & Pick<CompanyValue, 'name'>,
-): CompanyValue {
+type CompanyValueInput = Omit<
+  Partial<CompanyValue>,
+  'behaviours' | 'name'
+> &
+  Pick<CompanyValue, 'name'> & {
+    behaviours?: Array<Partial<ValueBehaviour> & Pick<ValueBehaviour, 'name'>>
+  }
+
+export function normalizeCompanyValue(value: CompanyValueInput): CompanyValue {
   const status: ValueStatus =
     value.status === 'disabled' ? 'disabled' : 'enabled'
   const playbook =
@@ -90,9 +96,8 @@ export function normalizeCompanyValue(
     playbookUrl: playbook || null,
     behaviours: Array.isArray(value.behaviours)
       ? value.behaviours
-          .filter(
-            (item): item is Partial<ValueBehaviour> & Pick<ValueBehaviour, 'name'> =>
-              Boolean(item && typeof item.name === 'string' && item.name.trim()),
+          .filter((item) =>
+            Boolean(item && typeof item.name === 'string' && item.name.trim()),
           )
           .map(normalizeBehaviour)
       : [],
@@ -111,11 +116,10 @@ function parseState(raw: string): ValuesState | null {
     if (!Array.isArray(parsed.values)) return null
     return {
       values: parsed.values
-        .filter(
-          (item): item is Partial<CompanyValue> & Pick<CompanyValue, 'name'> =>
-            Boolean(item && typeof item.name === 'string'),
-        )
-        .map(normalizeCompanyValue),
+        .filter((item) => Boolean(item && typeof item.name === 'string'))
+        .map((item) =>
+          normalizeCompanyValue(item as CompanyValueInput),
+        ),
     }
   } catch {
     return null
