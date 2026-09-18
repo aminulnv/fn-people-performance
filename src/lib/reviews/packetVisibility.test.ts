@@ -89,16 +89,40 @@ describe('packetForViewer', () => {
     expect(packetForViewer(source, 754, questions as never).answers).toEqual([])
   })
 
-  it('keeps answers enabled for the manager output', () => {
+  it('keeps answers enabled for the real manager output', () => {
     const source = packet({ status: 'released_to_managers' })
-    expect(packetForViewer(source, 1, questions as never).answers).toEqual(
-      source.answers,
-    )
+    expect(
+      packetForViewer(source, 1, questions as never, {
+        managedEmployeeIds: [754],
+      }).answers,
+    ).toEqual(source.answers)
   })
 
-  it('does not redact the packet for a manager or calibrator', () => {
+  it('does not redact the packet for the real manager', () => {
     const source = packet()
-    expect(packetForViewer(source, 1)).toEqual(source)
-    expect(packetForViewer(source, null)).toEqual(source)
+    expect(
+      packetForViewer(source, 1, [], { managedEmployeeIds: [754] }),
+    ).toEqual(source)
+  })
+
+  it('hides unpublished grades from a reviewer stored on the packet', () => {
+    const visible = packetForViewer(packet(), 1)
+    expect(visible.managerOverallGrade).toBeNull()
+    expect(visible.calibratedOverallGrade).toBeNull()
+  })
+
+  it('hides unpublished grades from a colleague', () => {
+    const visible = packetForViewer(packet(), 2)
+    expect(visible.managerOverallGrade).toBeNull()
+    expect(visible.calibratedOverallGrade).toBeNull()
+    expect(visible.calibrationEvents).toEqual([])
+    expect(visible.answers.map((answer) => answer.actorRole)).toEqual(['self'])
+  })
+
+  it('shows unpublished grades to All read access and All read + write access', () => {
+    const source = packet()
+    expect(
+      packetForViewer(source, 2, [], { canViewAllReviews: true }),
+    ).toEqual(source)
   })
 })

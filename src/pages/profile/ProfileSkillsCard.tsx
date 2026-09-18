@@ -5,6 +5,7 @@ import { Button, EmptyState, Modal } from '@/components/ui'
 import { reviewsTabPath } from '@/lib/reviews/paths'
 import {
   assignSkillToEmployee,
+  getSkillIdsForEmployee,
   removeSkillFromEmployee,
 } from '@/lib/skills/store'
 import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
@@ -19,6 +20,10 @@ export function ProfileSkillsCard({
 }) {
   const library = useSkillsLibrary().skills
   const assigned = useEmployeeSkills(employeeId)
+  const extraIds = useMemo(
+    () => new Set(getSkillIdsForEmployee(employeeId)),
+    [assigned, employeeId],
+  )
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const assignedIds = useMemo(
@@ -32,7 +37,7 @@ export function ProfileSkillsCard({
       .filter((skill) => !assignedIds.has(skill.id))
       .filter((skill) => {
         if (!q) return true
-        return [skill.name, skill.function, skill.role]
+        return [skill.name, skill.department]
           .join(' ')
           .toLowerCase()
           .includes(q)
@@ -63,16 +68,16 @@ export function ProfileSkillsCard({
       {assigned.length === 0 ? (
         <EmptyState
           className="pd-empty--inline"
-          title="No skills assigned"
+          title="No skills on this role yet"
           description={
             canEdit
-              ? 'Pick skills from the library. These will be graded on the review form.'
-              : 'No skills have been assigned to this person yet.'
+              ? 'Role skills come from the competency matrix. You can still add extras from the library.'
+              : 'Skills come from this person’s role. None are attached yet.'
           }
           action={
             canEdit ? (
               <Button variant="primary" size="sm" pill onClick={() => setOpen(true)}>
-                Add skills
+                Add extras
               </Button>
             ) : (
               <Link
@@ -89,10 +94,16 @@ export function ProfileSkillsCard({
           {assigned.map((skill) => (
             <li key={skill.id} className="pd-profile__skill-chip">
               <span className="pd-profile__skill-chip-label">{skill.name}</span>
-              {skill.function ? (
-                <span className="pd-profile__skill-chip-meta">{skill.function}</span>
+              {skill.expectedHint ? (
+                <span className="pd-profile__skill-chip-meta">
+                  {skill.expectedHint}
+                </span>
+              ) : skill.source === 'extra' ? (
+                <span className="pd-profile__skill-chip-meta">Extra</span>
+              ) : skill.department ? (
+                <span className="pd-profile__skill-chip-meta">{skill.department}</span>
               ) : null}
-              {canEdit ? (
+              {canEdit && extraIds.has(skill.id) && skill.source === 'extra' ? (
                 <button
                   type="button"
                   className="pd-profile__skill-chip-remove"
@@ -115,8 +126,8 @@ export function ProfileSkillsCard({
           setOpen(false)
           setQuery('')
         }}
-        title="Add skills"
-        description="Choose from the company skills library."
+        title="Add extra skills"
+        description="Role skills are inherited. These extras are graded on the review as well."
         actions={
           <Button
             variant="primary"
@@ -143,7 +154,7 @@ export function ProfileSkillsCard({
         {available.length === 0 ? (
           <p className="pd-reviews-flow__hint">
             {library.length === assigned.length
-              ? 'Every library skill is already assigned.'
+              ? 'Every library skill is already on this person.'
               : 'No skills match that search.'}{' '}
             <Link to={reviewsTabPath('skills')}>Manage library</Link>
           </p>
@@ -176,9 +187,9 @@ function SkillPickerRow({
     <li className="pd-profile__skill-picker-row">
       <div className="pd-profile__skill-picker-main">
         <span className="pd-profile__skill-picker-name">{skill.name}</span>
-        {skill.function || skill.role ? (
+        {skill.department ? (
           <span className="pd-profile__skill-picker-meta">
-            {[skill.function, skill.role].filter(Boolean).join(' · ')}
+            {skill.department}
           </span>
         ) : null}
       </div>

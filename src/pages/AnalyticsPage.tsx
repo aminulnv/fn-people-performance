@@ -666,6 +666,7 @@ export default function AnalyticsPage() {
 
       {!cycle ? (
         <EmptyState
+          className="pd-people__empty-panel"
           icon={Users}
           title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
           description={
@@ -676,6 +677,7 @@ export default function AnalyticsPage() {
         />
       ) : !hasRoster ? (
         <EmptyState
+          className="pd-people__empty-panel"
           icon={Users}
           title="No One In This View"
           description="This cycle has no matching people for the selected scope."

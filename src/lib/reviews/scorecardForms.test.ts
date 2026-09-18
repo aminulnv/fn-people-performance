@@ -4,6 +4,7 @@ import { normalizeCycleSettings } from './demoData'
 import { defaultReviewPolicy } from './reviewPolicy'
 import {
   countScorecardFormUsage,
+  formsForCycleType,
   resolveReviewPolicyFromSettings,
   scorecardFormPolicyEquals,
   seedScorecardForms,
@@ -201,6 +202,36 @@ describe('suggestedScorecardFormId', () => {
     expect(suggestedScorecardFormId('annual_appraisal', 'annual-2026')).toBe(
       'form-annual-appraisal',
     )
+  })
+})
+
+describe('formsForCycleType', () => {
+  it('keeps forms tagged for the cycle kind', () => {
+    const forms = seedScorecardForms()
+    expect(forms.every((form) => Boolean(form.cycleType))).toBe(true)
+    expect(
+      formsForCycleType(forms, 'quarterly_checkin').map((form) => form.id),
+    ).toEqual([
+      'form-q1-checkin',
+      'form-q2-checkin',
+      'form-q3-checkin',
+      'form-q4-progress',
+    ])
+    expect(
+      formsForCycleType(forms, 'annual_appraisal').map((form) => form.id),
+    ).toEqual(['form-annual-appraisal'])
+    expect(formsForCycleType(forms, 'custom').map((form) => form.id)).toEqual([
+      'form-blank',
+    ])
+  })
+
+  it('still includes a currently allocated form of another type', () => {
+    const forms = seedScorecardForms()
+    expect(
+      formsForCycleType(forms, 'custom', {
+        includeFormId: 'form-annual-appraisal',
+      }).map((form) => form.id),
+    ).toEqual(['form-annual-appraisal', 'form-blank'])
   })
 })
 

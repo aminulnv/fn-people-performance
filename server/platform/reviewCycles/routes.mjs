@@ -28,6 +28,11 @@ import {
   updateScorecardForm,
 } from './scorecardForms.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
+import {
+  confirmCalibrationClean,
+  getCalibrationSitting,
+  saveCalibrationSittingEmployee,
+} from '../calibrationSession.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -365,6 +370,62 @@ export function registerReviewCycleRoutes(app) {
           formId: req.params.formId,
         })
         res.json({ ok: true })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.get(
+    '/api/platform/review-cycles/:cycleId/calibration-sitting',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
+      if (!cycle) throw new HttpError(404, 'Review cycle not found')
+      res.json(await getCalibrationSitting(req.params.cycleId))
+    }),
+  )
+
+  app.patch(
+    '/api/platform/review-cycles/:cycleId/calibration-sitting/employees/:employeeId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
+      if (!cycle) throw new HttpError(404, 'Review cycle not found')
+      const employeeId = Number(req.params.employeeId)
+      if (!Number.isInteger(employeeId) || employeeId <= 0) {
+        throw new HttpError(400, 'Invalid employee id')
+      }
+      try {
+        const sitting = await saveCalibrationSittingEmployee(
+          req.params.cycleId,
+          employeeId,
+          req.body ?? {},
+          req.platformUser?.employeeId ?? null,
+        )
+        await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
+        res.json(sitting)
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-cycles/:cycleId/calibration-sitting/confirm-clean',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
+      if (!cycle) throw new HttpError(404, 'Review cycle not found')
+      try {
+        const sitting = await confirmCalibrationClean(
+          req.params.cycleId,
+          req.platformUser?.employeeId ?? null,
+        )
+        await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
+        res.json(sitting)
       } catch (err) {
         throw toHttp(err)
       }

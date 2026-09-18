@@ -446,6 +446,7 @@ describe('latestScorecardGrade', () => {
       latestScorecardGrade(
         packet({
           employeeId: 4,
+          status: 'released_to_employees',
           selfOverallGrade: 'performing',
           managerOverallGrade: 'developing',
           publishedOverallGrade: 'exceeding',
@@ -609,30 +610,53 @@ describe('buildScorecardDetail', () => {
     const cycle = listReviewCycles()[0]
     if (!cycle) throw new Error('expected a seeded cycle')
     await createCycleGroup(cycle.id, { name: 'Everyone', memberIds: [4] })
-    const subject = employee({ employeeId: 4, fullName: 'Sheikh Syed Ahmed' })
-
-    const ungraded = buildScorecardDetail(cycle.id, 4, [subject], null, packet({
-      cycleId: cycle.id,
+    const subject = employee({
       employeeId: 4,
-      status: 'manager_in_progress',
-      managerOverallGrade: 'exceeding',
-    }))
+      fullName: 'Sheikh Syed Ahmed',
+      reportsToId: 9,
+    })
+    const manager = employee({
+      employeeId: 9,
+      fullName: 'Api Singha',
+      email: 'api@example.com',
+    })
+
+    const ungraded = buildScorecardDetail(
+      cycle.id,
+      4,
+      [subject, manager],
+      'api@example.com',
+      packet({
+        cycleId: cycle.id,
+        employeeId: 4,
+        managerEmployeeId: 9,
+        status: 'manager_in_progress',
+        managerOverallGrade: 'exceeding',
+      }),
+    )
     expect(ungraded?.goalsOverallBand).toBeNull()
 
-    const graded = buildScorecardDetail(cycle.id, 4, [subject], null, packet({
-      cycleId: cycle.id,
-      employeeId: 4,
-      status: 'manager_in_progress',
-      managerOverallGrade: 'exceeding',
-      pillarScores: [
-        {
-          pillarId: 'goals',
-          actorRole: 'manager',
-          grade: 'performing',
-          comment: '',
-        },
-      ],
-    }))
+    const graded = buildScorecardDetail(
+      cycle.id,
+      4,
+      [subject, manager],
+      'api@example.com',
+      packet({
+        cycleId: cycle.id,
+        employeeId: 4,
+        managerEmployeeId: 9,
+        status: 'manager_in_progress',
+        managerOverallGrade: 'exceeding',
+        pillarScores: [
+          {
+            pillarId: 'goals',
+            actorRole: 'manager',
+            grade: 'performing',
+            comment: '',
+          },
+        ],
+      }),
+    )
     expect(graded?.goalsOverallBand).toBe('performing')
   })
 

@@ -1,4 +1,4 @@
-import { officialReviewReleasedToEmployee, packetForViewer } from './packetVisibility'
+import { officialReviewReleasedToEmployee, packetForViewer, sessionReviewAccess, type ReviewViewerAccess } from './packetVisibility'
 import { REVIEW_STAGE_LABEL, getReviewStage } from './reviewStages'
 import type {
   GradeBandId,
@@ -189,11 +189,10 @@ export function scorecardStageIsOpen(
     currentIndex,
     packet?.status ?? 'not_started',
   )
-  if (
-    step.id === 'appeal' &&
-    packet?.status === 'released_to_employees'
-  ) {
-    return viewerCanOpenStage(step.id, packet, viewerEmployeeId)
+  if (step.id === 'appeal' && packet?.status === 'released_to_employees') {
+    return (
+      viewerEmployeeId != null && viewerEmployeeId === packet.employeeId
+    )
   }
   if (state === 'upcoming') return false
   if (
@@ -242,8 +241,14 @@ export function gradeForViewStage(
   packet: ReviewPacket | null | undefined,
   stage: ScorecardViewStage,
   viewerEmployeeId?: number | null,
+  access: ReviewViewerAccess = sessionReviewAccess(),
 ): GradeBandId | null {
-  const visible = packetForViewer(packet, viewerEmployeeId)
+  const visible = packetForViewer(
+    packet,
+    viewerEmployeeId,
+    [],
+    access,
+  )
   if (!visible) return null
   if (stage === 'self_review') return visible.selfOverallGrade
   if (stage === 'manager_review') return visible.managerOverallGrade

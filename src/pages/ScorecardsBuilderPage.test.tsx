@@ -23,16 +23,22 @@ afterEach(() => {
 describe('ScorecardsBuilderPage', () => {
   it('lists seeded form templates', async () => {
     render(
-      <MemoryRouter initialEntries={['/scorecards-builder']}>
+      <MemoryRouter initialEntries={['/reviews/scorecards-library']}>
         <Routes>
-          <Route path="/scorecards-builder" element={<ScorecardsBuilderPage />} />
+          <Route
+            path="/reviews/scorecards-library"
+            element={<ScorecardsBuilderPage />}
+          />
         </Routes>
       </MemoryRouter>,
     )
 
     expect(
-      await screen.findByRole('heading', { name: 'Scorecards Builder' }),
+      await screen.findByRole('heading', { name: 'Scorecards Library' }),
     ).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Quarterly/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Annual/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Custom/i })).toBeInTheDocument()
     expect(screen.getByText('Annual appraisal')).toBeInTheDocument()
     expect(screen.getByText('Q1 check-in')).toBeInTheDocument()
     expect(screen.getByText('Q2 check-in')).toBeInTheDocument()
@@ -43,11 +49,35 @@ describe('ScorecardsBuilderPage', () => {
     ).toBeInTheDocument()
   })
 
+  it('filters the library by cycle type', async () => {
+    render(
+      <MemoryRouter initialEntries={['/reviews/scorecards-library']}>
+        <Routes>
+          <Route
+            path="/reviews/scorecards-library"
+            element={<ScorecardsBuilderPage />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Scorecards Library' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Annual' }))
+    expect(screen.getByText('Annual appraisal')).toBeInTheDocument()
+    expect(screen.queryByText('Q1 check-in')).not.toBeInTheDocument()
+    expect(screen.queryByText('Blank form')).not.toBeInTheDocument()
+  })
+
   it('offers templates when creating a new form', async () => {
     render(
-      <MemoryRouter initialEntries={['/scorecards-builder']}>
+      <MemoryRouter initialEntries={['/reviews/scorecards-library']}>
         <Routes>
-          <Route path="/scorecards-builder" element={<ScorecardsBuilderPage />} />
+          <Route
+            path="/reviews/scorecards-library"
+            element={<ScorecardsBuilderPage />}
+          />
         </Routes>
       </MemoryRouter>,
     )
@@ -64,11 +94,11 @@ describe('ScorecardsBuilderPage', () => {
   it('opens a form editor from the library', async () => {
     render(
       <MemoryRouter
-        initialEntries={['/scorecards-builder/form-annual-appraisal']}
+        initialEntries={['/reviews/scorecards-library/form-annual-appraisal']}
       >
         <Routes>
           <Route
-            path="/scorecards-builder/:formId"
+            path="/reviews/scorecards-library/:formId"
             element={<ScorecardsBuilderPage />}
           />
         </Routes>
@@ -88,10 +118,10 @@ describe('ScorecardsBuilderPage', () => {
       .mockResolvedValue(undefined)
 
     render(
-      <MemoryRouter initialEntries={['/scorecards-builder/form-blank']}>
+      <MemoryRouter initialEntries={['/reviews/scorecards-library/form-blank']}>
         <Routes>
           <Route
-            path="/scorecards-builder/:formId"
+            path="/reviews/scorecards-library/:formId"
             element={<ScorecardsBuilderPage />}
           />
         </Routes>

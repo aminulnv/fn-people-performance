@@ -3,6 +3,7 @@ import { reviewsTabPath, type ReviewsTabId } from '@/lib/reviews/paths'
 
 const TABS: Array<{ id: ReviewsTabId; label: string }> = [
   { id: 'scorecards', label: 'Scorecards' },
+  { id: 'scorecards-library', label: 'Scorecards Library' },
   { id: 'skills', label: 'Skills' },
   { id: 'values', label: 'Values' },
 ]

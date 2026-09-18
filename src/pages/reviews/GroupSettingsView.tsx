@@ -151,6 +151,7 @@ export function GroupSettingsView({
           policy: reviewDraft.policy,
           forms,
           scorecardFormId: reviewDraft.settings.scorecardFormId,
+          cycleType: cyclePurposeOf(cycle),
           onAllocate: (formId) => {
             reviewDraft.setSettings((prev) => ({
               ...prev,

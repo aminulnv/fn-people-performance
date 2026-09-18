@@ -21,7 +21,19 @@ describe('navItemsForPermissions', () => {
     expect(visible.some((item) => item.path === '/analytics')).toBe(false)
   })
 
-  it('shows Analytics to Settings admins with platform.read_all', () => {
+  it('hides Calibration without All read or All read + write access', () => {
+    const visible = navItemsForPermissions(layoutConfig.navItems, [])
+    expect(visible.some((item) => item.path === '/calibration')).toBe(false)
+  })
+
+  it('shows Calibration to All read access', () => {
+    const visible = navItemsForPermissions(layoutConfig.navItems, [
+      'platform.read_all',
+    ])
+    expect(visible.some((item) => item.path === '/calibration')).toBe(true)
+  })
+
+  it('shows Analytics to people with All read access', () => {
     const visible = navItemsForPermissions(layoutConfig.navItems, [
       'platform.read_all',
     ])

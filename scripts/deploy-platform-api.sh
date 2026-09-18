@@ -128,6 +128,11 @@ required = ["PLATFORM_GOOGLE_CLIENT_ID", "PLATFORM_GOOGLE_CLIENT_SECRET"]
 if not has_database_url:
     required += ["DB_HOST", "DB_NAME", "DB_USERNAME", "DB_PASS"]
 missing = [k for k in required if not str(vals.get(k, "")).strip()]
+session_secret = str(vals.get("PLATFORM_SESSION_SECRET", "")).strip() or str(
+    vals.get("SESSION_SECRET", "")
+).strip()
+if not session_secret:
+    missing.append("PLATFORM_SESSION_SECRET or SESSION_SECRET")
 if missing:
     raise SystemExit(f"Missing required env keys in dashboard .env: {', '.join(missing)}")
 

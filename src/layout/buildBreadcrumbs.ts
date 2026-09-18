@@ -87,14 +87,22 @@ export function buildBreadcrumbs({
 
   if (pathname === '/organisation/departments/new') {
     return [
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Add Department' },
+    ]
+  }
+
+  if (pathname === '/organisation/roles/new') {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Roles', href: '/organisation/roles' },
+      { label: 'Add Role' },
     ]
   }
 
   if (pathname === '/organisation/chart') {
     return [
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Org Chart' },
     ]
   }
@@ -108,7 +116,7 @@ export function buildBreadcrumbs({
     department.params.departmentId !== 'new'
   ) {
     return [
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       {
         label:
           departmentName?.trim() ||
@@ -123,7 +131,7 @@ export function buildBreadcrumbs({
   )
   if (team?.params.teamId) {
     return [
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       {
         label: teamName?.trim() || decodeURIComponent(team.params.teamId),
       },
@@ -166,10 +174,64 @@ export function buildBreadcrumbs({
     ]
   }
 
+  if (pathname === '/reviews/skills/new') {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Skills', href: '/reviews/skills' },
+      { label: 'Create New Skill' },
+    ]
+  }
+
+  const skillDetail = matchPath(
+    { path: '/reviews/skills/:skillId/edit', end: true },
+    pathname,
+  )
+  if (skillDetail?.params.skillId) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Skills', href: '/reviews/skills' },
+      { label: 'Edit' },
+    ]
+  }
+
+  const skillView = matchPath(
+    { path: '/reviews/skills/:skillId', end: true },
+    pathname,
+  )
+  if (skillView?.params.skillId) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Skills', href: '/reviews/skills' },
+      { label: 'Edit' },
+    ]
+  }
+
   if (pathname === '/reviews/skills' || pathname.startsWith('/reviews/skills/')) {
     return [
       { label: 'Reviews', href: '/reviews/scorecards' },
       { label: 'Skills' },
+    ]
+  }
+
+  const scorecardsLibraryDetail = matchPath(
+    { path: '/reviews/scorecards-library/:formId', end: true },
+    pathname,
+  )
+  if (scorecardsLibraryDetail?.params.formId) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards Library', href: '/reviews/scorecards-library' },
+      { label: 'Edit form' },
+    ]
+  }
+
+  if (
+    pathname === '/reviews/scorecards-library' ||
+    pathname.startsWith('/reviews/scorecards-library/')
+  ) {
+    return [
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards Library' },
     ]
   }
 
@@ -227,17 +289,6 @@ export function buildBreadcrumbs({
       { label: 'Scorecards', href: '/reviews/scorecards' },
       { label: cycleLabel, href: '/reviews/scorecards' },
       { label: employeeName?.trim() || 'Scorecard' },
-    ]
-  }
-
-  const scorecardsBuilderDetail = matchPath(
-    { path: '/scorecards-builder/:formId', end: true },
-    pathname,
-  )
-  if (scorecardsBuilderDetail?.params.formId) {
-    return [
-      { label: 'Scorecards Builder', href: '/scorecards-builder' },
-      { label: 'Edit form' },
     ]
   }
 

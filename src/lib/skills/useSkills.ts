@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react'
+import { subscribeEmployeesStore } from '@/lib/employees/store'
+import {
+  roleUsageBySkillId,
+  type SkillRoleRef,
+  type PersonSkill,
+} from '@/lib/roles/inheritedSkills'
+import { ensureRolesLoaded, subscribeRolesStore } from '@/lib/roles/store'
 import {
   ensureSkillsLoaded,
-  getSkillAssignmentsSnapshot,
+  getSkillById,
   getSkillsForEmployee,
   getSkillsSnapshot,
   subscribeSkillsStore,
+  talentCountForSkill,
 } from './store'
 import type { Skill } from './types'
 
@@ -13,6 +21,7 @@ function useHydrateSkills() {
     void ensureSkillsLoaded().catch(() => {
       /* pages keep last snapshot until the next remount */
     })
+    void ensureRolesLoaded().catch(() => {})
   }, [])
 }
 
@@ -33,15 +42,36 @@ export function useSkillsLibrary() {
   return { skills }
 }
 
+export function useSkill(skillId: string) {
+  useHydrateSkills()
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    return subscribeSkillsStore(() => setTick((n) => n + 1))
+  }, [])
+
+  void tick
+  return skillId ? getSkillById(skillId) : null
+}
+
 export function useEmployeeSkills(employeeId: number) {
   useHydrateSkills()
-  const [skills, setSkills] = useState<Skill[]>(() =>
+  const [skills, setSkills] = useState<PersonSkill[]>(() =>
     getSkillsForEmployee(employeeId),
   )
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    return subscribeSkillsStore(() => setTick((n) => n + 1))
+    const unsubSkills = subscribeSkillsStore(() => setTick((n) => n + 1))
+    const unsubRoles = subscribeRolesStore(() => setTick((n) => n + 1))
+    const unsubEmployees = subscribeEmployeesStore(() =>
+      setTick((n) => n + 1),
+    )
+    return () => {
+      unsubSkills()
+      unsubRoles()
+      unsubEmployees()
+    }
   }, [])
 
   useEffect(() => {
@@ -58,19 +88,51 @@ export function useSkillTalentCounts() {
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    return subscribeSkillsStore(() => setTick((n) => n + 1))
+    const unsubSkills = subscribeSkillsStore(() => setTick((n) => n + 1))
+    const unsubRoles = subscribeRolesStore(() => setTick((n) => n + 1))
+    const unsubEmployees = subscribeEmployeesStore(() =>
+      setTick((n) => n + 1),
+    )
+    return () => {
+      unsubSkills()
+      unsubRoles()
+      unsubEmployees()
+    }
   }, [])
 
   useEffect(() => {
     void tick
     const next: Record<string, number> = {}
-    for (const assignment of getSkillAssignmentsSnapshot()) {
-      for (const skillId of assignment.skillIds) {
-        next[skillId] = (next[skillId] ?? 0) + 1
-      }
+    for (const skill of getSkillsSnapshot()) {
+      next[skill.id] = talentCountForSkill(skill.id)
     }
     setCounts(next)
   }, [tick])
 
   return counts
+}
+
+/** Live map of skillId → roles that include it on their competency matrix. */
+export function useSkillRoleUsage(): Record<string, SkillRoleRef[]> {
+  useHydrateSkills()
+  const [usage, setUsage] = useState<Record<string, SkillRoleRef[]>>(() =>
+    roleUsageBySkillId(),
+  )
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    const unsubSkills = subscribeSkillsStore(() => setTick((n) => n + 1))
+    const unsubRoles = subscribeRolesStore(() => setTick((n) => n + 1))
+    return () => {
+      unsubSkills()
+      unsubRoles()
+    }
+  }, [])
+
+  useEffect(() => {
+    void tick
+    setUsage(roleUsageBySkillId())
+  }, [tick])
+
+  return usage
 }

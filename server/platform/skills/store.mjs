@@ -11,115 +11,123 @@ const SEED_SKILLS = [
   {
     id: 'skill-account-planning',
     name: 'Account Planning',
-    function: 'Sales',
+    department: 'Sales',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-accuracy',
     name: 'Accuracy',
-    function: '',
+    department: '',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-financial-accuracy',
     name: 'Accuracy in Financial Processing',
-    function: 'Finance',
+    department: 'Finance',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-acquisition-negotiation',
     name: 'Acquisition and Negotiation',
-    function: '',
+    department: '',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-admin-support',
     name: 'Administrative Support',
-    function: 'HR',
+    department: 'HR',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-ai-fluency',
     name: 'AI Fluency',
-    function: 'Strategic Execution',
+    department: 'Strategic Execution',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-analytical-methods',
     name: 'Analytical and Statistical Methods',
-    function: 'Product',
+    department: 'Product',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-analytical-thinking',
     name: 'Analytical Thinking',
-    function: 'Trading & Risk',
+    department: 'Trading & Risk',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-stakeholder-comms',
     name: 'Stakeholder Communication',
-    function: '',
+    department: '',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-delivery-ownership',
     name: 'Delivery Ownership',
-    function: 'Engineering',
+    department: 'Engineering',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-people-leadership',
     name: 'People Leadership',
-    function: '',
+    department: '',
     role: 'Manager',
     status: 'approved',
   },
   {
     id: 'skill-coaching',
     name: 'Coaching and Feedback',
-    function: '',
+    department: '',
     role: 'Manager',
     status: 'approved',
   },
   {
     id: 'skill-data-storytelling',
     name: 'Analytical Insight and Context Building',
-    function: 'Product',
+    department: 'Product',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-risk-judgement',
     name: 'Risk Judgement',
-    function: 'Trading & Risk',
+    department: 'Trading & Risk',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-process-design',
     name: 'Process Design',
-    function: 'Operations',
+    department: 'Operations',
     role: '',
     status: 'approved',
   },
   {
     id: 'skill-written-comms',
     name: 'Written Communication',
-    function: '',
+    department: '',
     role: '',
     status: 'approved',
   },
+]
+
+const MASTERY_LEVELS = [
+  'none',
+  'basic',
+  'intermediate',
+  'advanced',
+  'expert',
 ]
 
 function actorFromUser(platformUser) {
@@ -130,13 +138,33 @@ function actorFromUser(platformUser) {
   }
 }
 
+function emptyMastery() {
+  return {
+    none: '',
+    basic: '',
+    intermediate: '',
+    advanced: '',
+    expert: '',
+  }
+}
+
+function normalizeMastery(value) {
+  const next = emptyMastery()
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return next
+  for (const level of MASTERY_LEVELS) {
+    next[level] = String(value[level] ?? '').trim()
+  }
+  return next
+}
+
 function mapSkill(row) {
   return {
     id: row.id,
     name: row.name,
-    function: row.function_name ?? '',
+    department: row.function_name ?? '',
     role: row.role_name ?? '',
     status: row.status === 'draft' ? 'draft' : 'approved',
+    mastery: normalizeMastery(row.mastery),
   }
 }
 
@@ -160,7 +188,7 @@ export async function ensureDefaultSkills() {
            id, name, function_name, role_name, status
          ) VALUES ($1, $2, $3, $4, $5)
          ON CONFLICT (id) DO NOTHING`,
-        [item.id, item.name, item.function, item.role, item.status],
+        [item.id, item.name, item.department, item.role, item.status],
       )
     }
     await client.query('COMMIT')
@@ -214,25 +242,50 @@ export async function listSkillsSnapshot() {
   return { skills, assignments }
 }
 
+async function resolveDepartmentName(client, input) {
+  const departmentName = String(input.department ?? input.function ?? '').trim()
+  if (!departmentName) return ''
+  const { rows } = await client.query(
+    `SELECT name FROM platform.departments WHERE lower(name) = lower($1) LIMIT 1`,
+    [departmentName],
+  )
+  if (!rows[0]) {
+    throw new HttpError(
+      400,
+      'Pick a department from the list, or leave blank for company-wide.',
+    )
+  }
+  return rows[0].name
+}
+
 export async function createSkill(input, platformUser) {
   const name = String(input.name ?? '').trim()
   if (!name) throw new HttpError(400, 'Give the skill a name.')
   const actor = actorFromUser(platformUser)
   const id = input.id || `skill-${crypto.randomUUID()}`
-  const functionName = String(input.function ?? '').trim()
   const roleName = String(input.role ?? '').trim()
   const status = input.status === 'draft' ? 'draft' : 'approved'
+  const mastery = normalizeMastery(input.mastery)
 
   const client = await getPool().connect()
   try {
     await client.query('BEGIN')
+    const departmentName = await resolveDepartmentName(client, input)
     const { rows } = await client.query(
       `INSERT INTO platform.skills (
-         id, name, function_name, role_name, status,
+         id, name, function_name, role_name, status, mastery,
          created_by_employee_id, updated_by_employee_id
-       ) VALUES ($1, $2, $3, $4, $5, $6, $6)
+       ) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $7)
        RETURNING *`,
-      [id, name, functionName, roleName, status, actor.actorEmployeeId],
+      [
+        id,
+        name,
+        departmentName,
+        roleName,
+        status,
+        JSON.stringify(mastery),
+        actor.actorEmployeeId,
+      ],
     )
     const skill = mapSkill(rows[0])
     await appendActivityEvent(client, {
@@ -241,6 +294,71 @@ export async function createSkill(input, platformUser) {
       entityId: skill.id,
       ...actor,
       summary: `Created skill ${skill.name}`,
+      metadata: { skillId: skill.id },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    return skill
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+export async function updateSkill(skillId, input, platformUser) {
+  const id = String(skillId ?? '').trim()
+  if (!id) throw new HttpError(400, 'Skill id is required.')
+  const name = String(input.name ?? '').trim()
+  if (!name) throw new HttpError(400, 'Give the skill a name.')
+  const actor = actorFromUser(platformUser)
+  const roleName = String(input.role ?? '').trim()
+  const status = input.status === 'draft' ? 'draft' : 'approved'
+
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const { rows: existingRows } = await client.query(
+      `SELECT * FROM platform.skills
+       WHERE id = $1 AND deleted_at IS NULL
+       FOR UPDATE`,
+      [id],
+    )
+    if (!existingRows[0]) throw new HttpError(404, 'This skill was not found.')
+    const departmentName = await resolveDepartmentName(client, input)
+    const mastery = Object.prototype.hasOwnProperty.call(input, 'mastery')
+      ? normalizeMastery(input.mastery)
+      : normalizeMastery(existingRows[0].mastery)
+
+    const { rows } = await client.query(
+      `UPDATE platform.skills
+       SET name = $2,
+           function_name = $3,
+           role_name = $4,
+           status = $5,
+           mastery = $6::jsonb,
+           updated_by_employee_id = $7,
+           updated_at = now()
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING *`,
+      [
+        id,
+        name,
+        departmentName,
+        roleName,
+        status,
+        JSON.stringify(mastery),
+        actor.actorEmployeeId,
+      ],
+    )
+    const skill = mapSkill(rows[0])
+    await appendActivityEvent(client, {
+      eventKey: 'skill.updated',
+      entityType: 'skill',
+      entityId: skill.id,
+      ...actor,
+      summary: `Updated skill ${skill.name}`,
       metadata: { skillId: skill.id },
       source: 'api',
     })

@@ -3,13 +3,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { ScorecardSkillsGradeCard } from './ScorecardSkillsGradeCard'
 import type { Skill } from '@/lib/skills/types'
+import { emptySkillMastery } from '@/lib/skills/types'
 
 const skill: Skill = {
   id: 'skill-ai-fluency',
   name: 'AI Fluency',
-  function: 'Engineering',
+  department: 'Engineering',
   role: '',
   status: 'approved',
+  mastery: emptySkillMastery(),
 }
 
 afterEach(() => cleanup())
@@ -25,7 +27,7 @@ describe('ScorecardSkillsGradeCard', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByText('No skills on their profile')).toBeTruthy()
+    expect(screen.getByText('No skills on their role yet')).toBeTruthy()
     expect(screen.getByRole('link', { name: 'Open profile' })).toHaveAttribute(
       'href',
       '/people/7',
@@ -47,6 +49,18 @@ describe('ScorecardSkillsGradeCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'AI Fluency grade' }))
     fireEvent.click(screen.getByRole('option', { name: 'Performing' }))
     expect(onGradeChange).toHaveBeenCalledWith('skill-ai-fluency', 'performing')
+  })
+
+  it('shows the expected level from the role matrix', () => {
+    render(
+      <MemoryRouter>
+        <ScorecardSkillsGradeCard
+          skills={[{ ...skill, expectedHint: 'Expected: Expert for IC2' }]}
+          grades={{}}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Expected: Expert for IC2')).toBeTruthy()
   })
 
   it('shows read-only grades on the view scorecard', () => {

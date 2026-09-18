@@ -1,10 +1,12 @@
 import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
+import { permissionsForPlatformUser } from '../auth.mjs'
+import { listActiveDelegatedManagerIds } from '../delegations.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
 import { publicationExclusionClause } from './publicationFilter.mjs'
-import { calibrationIsEditable } from './visibility.mjs'
+import { calibrationIsEditable, managerReviewWriteAllowed } from './visibility.mjs'
 
 const REVIEW_GRADES = new Set([
   'exceptional',
@@ -276,6 +278,31 @@ export async function saveReviewDraft(packetId, input, platformUser) {
       Number(platformUser.employeeId) === Number(row.employee_id)
     ) {
       throw new HttpError(403, 'You cannot rate your own packet as a manager.')
+    }
+    if (actorRole === 'manager') {
+      const permissions = await permissionsForPlatformUser(platformUser ?? {})
+      const { rows: subjectRows } = await client.query(
+        `SELECT reports_to_employee_id
+         FROM platform.employees
+         WHERE employee_id = $1`,
+        [row.employee_id],
+      )
+      const coveredManagerIds = platformUser?.employeeId
+        ? await listActiveDelegatedManagerIds(Number(platformUser.employeeId))
+        : []
+      const allowed = managerReviewWriteAllowed({
+        actorEmployeeId: platformUser?.employeeId ?? null,
+        subjectEmployeeId: row.employee_id,
+        reportsToEmployeeId: subjectRows[0]?.reports_to_employee_id ?? null,
+        coveredManagerIds,
+        canWriteAll: permissions.includes('platform.write_all'),
+      })
+      if (!allowed) {
+        throw new HttpError(
+          403,
+          'Only this person’s manager, or the person covering them, can write the manager review.',
+        )
+      }
     }
 
     if (Array.isArray(input.answers)) {
@@ -655,6 +682,9 @@ export async function createReviewAppeal(packetId, body, platformUser) {
     if (!row) throw new HttpError(404, 'Review not found')
     if (row.status !== 'released_to_employees') {
       throw new HttpError(400, 'Appeals open after the grade is released to the employee.')
+    }
+    if (Number(platformUser?.employeeId) !== Number(row.employee_id)) {
+      throw new HttpError(403, 'Only this employee can appeal their review.')
     }
     await client.query(
       `INSERT INTO platform.review_appeals (

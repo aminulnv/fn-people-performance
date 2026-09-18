@@ -15,6 +15,28 @@ function statusRank(status) {
   return PACKET_STATUS_ORDER.indexOf(status)
 }
 
+/**
+ * True when this person may save a manager review.
+ * The real manager, the person covering that manager during the delegation
+ * window, or All read + write access. All read access can look, not change.
+ */
+export function managerReviewWriteAllowed({
+  actorEmployeeId,
+  subjectEmployeeId,
+  reportsToEmployeeId = null,
+  coveredManagerIds = [],
+  canWriteAll = false,
+}) {
+  const actor = actorEmployeeId == null ? null : Number(actorEmployeeId)
+  const subject = subjectEmployeeId == null ? null : Number(subjectEmployeeId)
+  if (actor != null && actor === subject) return false
+  if (canWriteAll) return true
+  if (actor == null || reportsToEmployeeId == null) return false
+  const managerId = Number(reportsToEmployeeId)
+  if (actor === managerId) return true
+  return coveredManagerIds.map(Number).includes(managerId)
+}
+
 export function managerReviewIsComplete(status) {
   return statusRank(status) >= statusRank('manager_submitted')
 }
@@ -73,7 +95,26 @@ function stripUnpublishedOfficialReview(packet) {
   }
 }
 
-export function packetForViewer(packet, viewerEmployeeId, questions = []) {
+function canSeeUnpublishedReview(packet, viewerEmployeeId, access) {
+  if (access?.canViewAllReviews) return true
+  const managed = access?.managedEmployeeIds
+  const subjectId = Number(packet.employeeId)
+  if (managed instanceof Set) return managed.has(subjectId)
+  if (Array.isArray(managed)) return managed.map(Number).includes(subjectId)
+  return false
+}
+
+/**
+ * Unpublished manager and calibration grades are visible to the employee's
+ * real manager, the person covering that manager, and people with All read
+ * access or All read + write access. Being stored on the review is not enough.
+ */
+export function packetForViewer(
+  packet,
+  viewerEmployeeId,
+  questions = [],
+  access = {},
+) {
   if (!packet) return null
   const isSubject =
     viewerEmployeeId != null &&
@@ -85,6 +126,12 @@ export function packetForViewer(packet, viewerEmployeeId, questions = []) {
     return filterAnswersForAudience(packet, questions, 'employee')
   }
   if (
+    !officialReviewReleasedToEmployee(packet.status) &&
+    !canSeeUnpublishedReview(packet, viewerEmployeeId, access)
+  ) {
+    return stripUnpublishedOfficialReview(packet)
+  }
+  if (
     viewerEmployeeId != null &&
     Number(viewerEmployeeId) === Number(packet.managerEmployeeId) &&
     outputReleasedToManager(packet.status)
@@ -94,8 +141,18 @@ export function packetForViewer(packet, viewerEmployeeId, questions = []) {
   return packet
 }
 
-export function packetsForViewer(packets, viewerEmployeeId, questionsForPacket) {
+export function packetsForViewer(
+  packets,
+  viewerEmployeeId,
+  questionsForPacket,
+  access = {},
+) {
   return packets.map((packet) =>
-    packetForViewer(packet, viewerEmployeeId, questionsForPacket?.(packet) ?? []),
+    packetForViewer(
+      packet,
+      viewerEmployeeId,
+      questionsForPacket?.(packet) ?? [],
+      access,
+    ),
   )
 }

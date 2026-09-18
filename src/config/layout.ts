@@ -1,7 +1,6 @@
 import {
   BarChart3,
   CalendarCog,
-  ClipboardList,
   Component,
   Home,
   IdCard,
@@ -51,12 +50,11 @@ export const layoutConfig: AppLayoutConfig = {
     { path: '/goals', label: 'Goals', icon: Target },
     { path: '/reviews', label: 'Reviews', icon: Star },
     {
-      path: '/scorecards-builder',
-      label: 'Scorecards Builder',
-      icon: ClipboardList,
-      requiredPermission: 'platform.write_all',
+      path: '/calibration',
+      label: 'Calibration',
+      icon: Scale,
+      requiredAnyPermission: ['platform.read_all', 'platform.write_all'],
     },
-    { path: '/calibration', label: 'Calibration', icon: Scale },
     {
       path: '/analytics',
       label: 'Analytics',
@@ -76,9 +74,15 @@ export function navItemsForPermissions(
   items: NavItem[],
   permissions: readonly SystemPermission[] | undefined,
 ): NavItem[] {
-  return items.filter(
-    (item) =>
+  return items.filter((item) => {
+    if (item.requiredAnyPermission?.length) {
+      return item.requiredAnyPermission.some((permission) =>
+        hasSystemPermission(permissions, permission),
+      )
+    }
+    return (
       !item.requiredPermission ||
-      hasSystemPermission(permissions, item.requiredPermission),
-  )
+      hasSystemPermission(permissions, item.requiredPermission)
+    )
+  })
 }

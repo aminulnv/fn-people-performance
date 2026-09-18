@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui'
 import {
   RATING_GRID_BAND_ORDER,
-  RATING_GRID_INFO,
   buildSelfManagerRatingGrid,
   formatTierGap,
   shortBandLabel,
@@ -14,6 +13,19 @@ import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
 import { HintIcon } from '@/pages/reviews/HintIcon'
+
+const RATING_GRID_HINT = (
+  <ul className="pd-help-tip">
+    <li>
+      <strong>Dots</strong>
+      People with both a self and a manager grade. Click a cell to list them.
+    </li>
+    <li>
+      <strong>Diagonal</strong>
+      Self and manager ratings match. The legend under the grid shows the gap.
+    </li>
+  </ul>
+)
 
 function cellKey(cell: Pick<RatingGridCell, 'selfGrade' | 'managerGrade'>): string {
   return `${cell.selfGrade}:${cell.managerGrade}`
@@ -90,13 +102,10 @@ export function SelfManagerRatingGrid({
           </span>
           Self-Rating vs Manager Rating Grid
           <HintIcon
-            content={RATING_GRID_INFO}
+            content={RATING_GRID_HINT}
             label="About self vs manager rating grid"
           />
         </h2>
-        <p className="pd-cal-grid__copy">
-          Diagonal = aligned · Click any dot to view employees
-        </p>
       </header>
 
       <div className="pd-cal-grid__panel">
@@ -192,33 +201,15 @@ export function SelfManagerRatingGrid({
         <aside className="pd-cal-grid__side">
           <ul className="pd-cal-grid__stats">
             <li className="pd-cal-grid__stat">
-              <span className="pd-cal-grid__stat-label">
-                Total employees
-                <HintIcon
-                  content="People in this cycle with both a self overall grade and a manager overall grade."
-                  label="About total employees"
-                />
-              </span>
+              <span className="pd-cal-grid__stat-label">Total employees</span>
               <strong>{model.total}</strong>
             </li>
             <li className="pd-cal-grid__stat">
-              <span className="pd-cal-grid__stat-label">
-                Red flag (2+ tier gap)
-                <HintIcon
-                  content="Self and manager overall grades differ by two or more bands in either direction."
-                  label="About red flag count"
-                />
-              </span>
+              <span className="pd-cal-grid__stat-label">Red flag (2+ tier gap)</span>
               <strong className="is-red">{model.redFlagCount}</strong>
             </li>
             <li className="pd-cal-grid__stat">
-              <span className="pd-cal-grid__stat-label">
-                Amber (1 tier gap)
-                <HintIcon
-                  content="Self and manager overall grades differ by exactly one band in either direction."
-                  label="About amber count"
-                />
-              </span>
+              <span className="pd-cal-grid__stat-label">Amber (1 tier gap)</span>
               <strong className="is-amber">{model.amberCount}</strong>
             </li>
           </ul>

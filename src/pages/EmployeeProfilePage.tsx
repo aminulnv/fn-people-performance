@@ -21,6 +21,7 @@ import {
   Network,
   Pencil,
   Star,
+  Tag,
   Target,
   Undo2,
   UserRound,
@@ -47,6 +48,7 @@ import {
   resolveHrbp,
   resolveTeamOwner,
   teamOwnerFallbackName,
+  isAboveInReportingLine,
 } from '@/lib/employees/relationships'
 import {
   findEmployeeByEmail,
@@ -55,6 +57,11 @@ import {
   listEmployees,
 } from '@/lib/employees/store'
 import { useEmployeeProfile } from '@/lib/employees/useEmployeeProfile'
+import {
+  inGradeLabel,
+  lastPromoLabel,
+  pipStatusLabel,
+} from '@/lib/employees/career'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
@@ -62,6 +69,7 @@ import {
   departmentPathForName,
   orgChartPath,
   organisationPathForEmployee,
+  roleDetailPath,
   teamPathForNames,
 } from '@/lib/organisation/paths'
 import { GoalsPersonDetail } from '@/pages/GoalsPage'
@@ -314,6 +322,21 @@ export function EmployeeProfileView({
     hoverHandlers: moreHoverHandlers,
     toggle: toggleMore,
   } = useHoverMenu({ closeOnEscape: true })
+  const directory = useMemo(() => {
+    const byId = new Map<number, PlatformEmployee>()
+    for (const person of listEmployees()) byId.set(person.employeeId, person)
+    for (const person of employees) byId.set(person.employeeId, person)
+    return [...byId.values()]
+  }, [employees])
+  const viewerId = user?.employeeId ?? Number(user?.personId)
+  const canSeeCareer =
+    hasSystemPermission(user?.permissions, 'platform.read_all') ||
+    hasSystemPermission(user?.permissions, 'platform.write_all') ||
+    isAboveInReportingLine(
+      Number.isInteger(viewerId) ? viewerId : null,
+      employee,
+      directory,
+    )
   const canEdit = hasSystemPermission(
     user?.permissions,
     'platform.write_all',
@@ -403,7 +426,7 @@ export function EmployeeProfileView({
               <h1 className="pd-profile__name">{employee.fullName}</h1>
             </div>
             <p className="pd-profile__hero-meta">
-              {[employee.jobTitle, employee.department, employee.division]
+              {[employee.role || employee.jobTitle, employee.department, employee.division]
                 .filter(Boolean)
                 .join(' · ') || 'No role details yet'}
             </p>
@@ -584,6 +607,15 @@ export function EmployeeProfileView({
                   {employee.isActive ? 'Active' : 'Inactive'}
                 </DetailRow>
                 <DetailRow label="Role" icon={Briefcase}>
+                  {employee.roleId ? (
+                    <OrgUnitLink href={roleDetailPath(employee.roleId)}>
+                      {employee.role}
+                    </OrgUnitLink>
+                  ) : (
+                    employee.role || '-'
+                  )}
+                </DetailRow>
+                <DetailRow label="Job title" icon={Tag}>
                   {employee.jobTitle || '-'}
                 </DetailRow>
                 <DetailRow label="Seniority" icon={Award}>
@@ -635,6 +667,25 @@ export function EmployeeProfileView({
                 </DetailRow>
               </dl>
             </section>
+
+            {canSeeCareer ? (
+              <section className="pd-profile__card">
+                <header className="pd-profile__card-head">
+                  <h2 className="pd-profile__card-title">Career</h2>
+                </header>
+                <dl className="pd-profile__details">
+                  <DetailRow label="In grade" icon={Calendar}>
+                    {inGradeLabel(employee.gradeEffectiveOn)}
+                  </DetailRow>
+                  <DetailRow label="Last promotion" icon={History}>
+                    {lastPromoLabel(employee.lastPromotionOn)}
+                  </DetailRow>
+                  <DetailRow label="PIP" icon={CircleDot}>
+                    {pipStatusLabel(employee.onPip)}
+                  </DetailRow>
+                </dl>
+              </section>
+            ) : null}
 
             <ProfileSkillsCard
               employeeId={employee.employeeId}

@@ -6,9 +6,6 @@ import { shortManagerName } from './managerHeatmap'
 
 export const RATING_GRID_BAND_ORDER: GradeBandId[] = [...OVERALL_GRADE_ORDER]
 
-export const RATING_GRID_INFO =
-  'Each dot is people with both a self and manager overall grade. The diagonal is aligned. Blue is manager higher; amber is a 1-tier gap either way; red is a 2+ tier gap either way. Click a cell to list the people in it.'
-
 const TIER_INDEX: Record<GradeBandId, number> = {
   unsatisfactory: 0,
   developing: 1,

@@ -6,9 +6,6 @@ import { bandForScore, scoreForBand } from '@/lib/reviews/rollup'
 import type { GradeBandId, ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { shortManagerName } from './managerHeatmap'
 
-export const RATING_COMPARISON_INFO =
-  'Bars show each group’s mean official grade (1–5). The vertical line is the selected comparison baseline. On par means within ±0.25 of that baseline; otherwise the bar and delta lean below (red) or above (blue).'
-
 export const COMPARISON_VIEWS = [
   { id: 'department', label: 'Department' },
   { id: 'team_manager', label: 'Team / Manager' },

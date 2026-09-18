@@ -1,7 +1,6 @@
 import { HintIcon } from '@/pages/reviews/HintIcon'
 import {
   HEATMAP_BAND_ORDER,
-  HEATMAP_INFO,
   heatmapBandLabel,
   heatmapIntensity,
   type ManagerHeatmapRow,
@@ -9,6 +8,24 @@ import {
 } from '@/lib/calibration/managerHeatmap'
 import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import { cx } from '@/lib/cx'
+
+const HEATMAP_HINT = (
+  <ul className="pd-help-tip">
+    <li>
+      <strong>Cells</strong>
+      Share of that manager’s graded team. Darker teal is a higher share.
+    </li>
+    <li>
+      <strong>Red</strong>
+      Outlier: 40% or more at Developing & below, or over 60% at Exceeding &
+      above.
+    </li>
+    <li>
+      <strong>Team avg / Vs org</strong>
+      Mean score from 1–5, compared with the cycle overall.
+    </li>
+  </ul>
+)
 
 function peopleLabel(count: number): string {
   return `${count} ${count === 1 ? 'employee' : 'employees'}`
@@ -50,24 +67,8 @@ export function ManagerRatingHeatmap({
             3
           </span>
           Manager Rating Heatmap
-          <HintIcon content={HEATMAP_INFO} label="About manager rating heatmap" />
+          <HintIcon content={HEATMAP_HINT} label="About manager rating heatmap" />
         </h2>
-        <p className="pd-cal-heat__copy">
-          Each cell = % of manager&apos;s team at that rating tier · Red =
-          outlier concentration · Green = healthy spread
-        </p>
-        <ul className="pd-cal-heat__legend" aria-label="Heatmap legend">
-          <li>
-            <span className="pd-cal-heat__swatch is-outlier" aria-hidden />
-            Red = ≥40% team at Developing &amp; below, or &gt;60% at Exceeding
-            &amp; above
-          </li>
-          <li>
-            <span className="pd-cal-heat__swatch is-intensity" aria-hidden />
-            Darker teal = higher % at that tier
-          </li>
-          <li>Cells show % of team · hover for count</li>
-        </ul>
       </header>
 
       <div className="pd-cal-heat__scroller">

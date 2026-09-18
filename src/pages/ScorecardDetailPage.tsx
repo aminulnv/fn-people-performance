@@ -9,10 +9,12 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import { PageStatus } from '@/components/ui'
+import { useHydrateManagerDelegations, useManagerDelegationsRevision } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { selectGoalCycle } from '@/lib/goalsApi'
 import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store'
 import { useAuth } from '@/lib/auth'
+import { canWriteManagerReview } from '@/lib/reviews/managerReviewAccess'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { fetchReviewPacket } from '@/lib/reviews/packetsApi'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
@@ -91,6 +93,8 @@ export default function ScorecardDetailPage() {
   const employeeId = Number(employeeIdParam)
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
+  useHydrateManagerDelegations(user?.employeeId ?? undefined)
+  useManagerDelegationsRevision()
   const assignedSkills = useEmployeeSkills(
     Number.isInteger(employeeId) && employeeId > 0 ? employeeId : 0,
   )
@@ -215,6 +219,15 @@ export default function ScorecardDetailPage() {
     managerOn,
     isSubject,
   })
+  const canEditManagerReview = canWriteManagerReview({
+    viewerEmployeeId: user?.employeeId ?? null,
+    subjectEmployeeId: employeeId,
+    subject: employees.find((person) => person.employeeId === employeeId),
+    directory: employees,
+    permissions: user?.permissions,
+  })
+  const showEdit =
+    editStage === 'self_review' ? isSubject : canEditManagerReview
   const formVisibility =
     viewingFeedbackRole === 'self' ? 'employee' : 'manager'
   const viewQuestions = stageShowsReviewForm(stageView.viewing)
@@ -468,21 +481,23 @@ export default function ScorecardDetailPage() {
         />
       ) : null}
 
-      <ReviewActionIsland>
-        <div className="pd-review-packet__island">
-          <div className="pd-review-packet__actions">
-            <Link
-              to={`${scorecardDetailPath(detail.cycleKey, detail.employeeId)}?mode=edit&stage=${editStage}`}
-              className="pd-btn pd-btn--primary pd-btn--md pd-btn--pill"
-            >
-              <span className="pd-btn__label">
-                <Pencil size={16} strokeWidth={1.75} aria-hidden />
-                Edit
-              </span>
-            </Link>
+      {showEdit ? (
+        <ReviewActionIsland>
+          <div className="pd-review-packet__island">
+            <div className="pd-review-packet__actions">
+              <Link
+                to={`${scorecardDetailPath(detail.cycleKey, detail.employeeId)}?mode=edit&stage=${editStage}`}
+                className="pd-btn pd-btn--primary pd-btn--md pd-btn--pill"
+              >
+                <span className="pd-btn__label">
+                  <Pencil size={16} strokeWidth={1.75} aria-hidden />
+                  Edit
+                </span>
+              </Link>
+            </div>
           </div>
-        </div>
-      </ReviewActionIsland>
+        </ReviewActionIsland>
+      ) : null}
     </div>
   )
 }

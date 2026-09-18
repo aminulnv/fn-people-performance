@@ -4,7 +4,7 @@ import { getGoalsSnapshotForCycle } from '@/lib/goals/store'
 import type { Goal } from '@/lib/goals/types'
 import { goalCompletion } from '@/lib/goals/weightage'
 import { cycleMemberIds, findCycleGroupForPerson } from './cycleGroups'
-import { packetForViewer } from './packetVisibility'
+import { packetForViewer, reviewAccessForDirectory, sessionReviewAccess, type ReviewViewerAccess } from './packetVisibility'
 import { getReviewCycle, listReviewCycles } from './store'
 import type {
   GradeBandId,
@@ -335,8 +335,14 @@ function scorecardRowForPerson(
   byEmail: Map<string, PlatformEmployee>,
   me: PlatformEmployee | undefined,
   packet?: ReviewPacket,
+  access: ReviewViewerAccess = sessionReviewAccess(),
 ): ScorecardRow {
-  const visiblePacket = packetForViewer(packet, me?.employeeId ?? null)
+  const visiblePacket = packetForViewer(
+    packet,
+    me?.employeeId ?? null,
+    [],
+    reviewAccessForDirectory(me, active, access),
+  )
   const reviewer = resolveScorecardReviewer(
     employee,
     active,
@@ -409,6 +415,7 @@ export function buildScorecardsForCycle(
   employees: PlatformEmployee[],
   currentUserEmail?: string | null,
   packets: ReviewPacket[] = [],
+  access: ReviewViewerAccess = sessionReviewAccess(),
 ): ScorecardRow[] {
   const cycle = getReviewCycle(resolveReviewCycleKey(cycleKey))
   const active = scorecardDirectory(employees)
@@ -442,6 +449,7 @@ export function buildScorecardsForCycle(
         byEmail,
         me,
         packetByEmployee.get(employee.employeeId),
+        access,
       ),
     )
 }
@@ -537,13 +545,18 @@ export function buildScorecardDetail(
   currentUserEmail?: string | null,
   packet?: ReviewPacket | null,
 ): ScorecardDetail | null {
-  const viewerEmployeeId =
-    employees.find(
-      (person) =>
-        person.email.trim().toLowerCase() ===
-        (currentUserEmail?.trim().toLowerCase() ?? ''),
-    )?.employeeId ?? null
-  const visiblePacket = packetForViewer(packet, viewerEmployeeId)
+  const me = employees.find(
+    (person) =>
+      person.email.trim().toLowerCase() ===
+      (currentUserEmail?.trim().toLowerCase() ?? ''),
+  )
+  const viewerEmployeeId = me?.employeeId ?? null
+  const visiblePacket = packetForViewer(
+    packet,
+    viewerEmployeeId,
+    [],
+    reviewAccessForDirectory(me, employees, sessionReviewAccess()),
+  )
   const rows = buildScorecardsForCycle(
     cycleKey,
     employees,
@@ -610,7 +623,12 @@ export function latestScorecardGrade(
   grade: GradeBandId | null
   source: 'published' | 'calibrated' | 'manager' | 'self' | null
 } {
-  const visible = packetForViewer(packet, viewerEmployeeId)
+  const visible = packetForViewer(
+    packet,
+    viewerEmployeeId,
+    [],
+    sessionReviewAccess(),
+  )
   if (!visible) return { grade: null, source: null }
   if (visible.publishedOverallGrade) {
     return { grade: visible.publishedOverallGrade, source: 'published' }

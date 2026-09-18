@@ -1,6 +1,6 @@
 import { GRADE_BAND_ORDER } from '@/lib/reviews/labels'
 import type { GradeBandId } from '@/lib/reviews/types'
-import type { Skill } from './types'
+import { emptySkillMastery, type Skill } from './types'
 
 export const SKILL_SCORE_PREFIX = 'skill:'
 
@@ -54,9 +54,10 @@ export function skillsWithStoredGrades(
       return {
         id: skillId,
         name: 'Previously graded skill',
-        function: '',
+        department: '',
         role: '',
         status: 'approved' as const,
+        mastery: emptySkillMastery(),
       }
     })
 }

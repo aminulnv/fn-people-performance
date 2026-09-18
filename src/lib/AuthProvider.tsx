@@ -17,6 +17,7 @@ import { fetchGoalsSnapshot } from '@/lib/goalsApi'
 import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
 import { ensureReviewCyclesLoaded } from '@/lib/reviews/store'
 import { ensureSkillsLoaded } from '@/lib/skills/store'
+import { ensureRolesLoaded } from '@/lib/roles/store'
 import { ensureValuesLoaded } from '@/lib/values/store'
 import { AuthContext, type AuthContextValue } from '@/lib/authContext'
 
@@ -36,6 +37,9 @@ async function hydratePlatformCaches() {
     }),
     ensureSkillsLoaded().catch(() => {
       /* skills stay empty until retry */
+    }),
+    ensureRolesLoaded().catch(() => {
+      /* roles stay empty until retry */
     }),
     ensureValuesLoaded().catch(() => {
       /* values stay empty until retry */

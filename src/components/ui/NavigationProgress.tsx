@@ -126,6 +126,15 @@ export function RouteProgressComplete() {
 function pageIdentity(pathname: string): string {
   const goalsPerson = pathname.match(/^(\/goals\/[^/]+\/[^/]+)/)
   if (goalsPerson) return goalsPerson[1]
+
+  // Skills / values create+edit are side panels on the library page.
+  const skillsLibrary = pathname.match(/^(\/reviews\/skills)(?:\/|$)/)
+  if (skillsLibrary) return skillsLibrary[1]
+  const valuesLibrary = pathname.match(/^(\/reviews\/values)(?:\/|$)/)
+  if (valuesLibrary) return valuesLibrary[1]
+  // Role create is a side panel on the Organisation Roles tab.
+  if (pathname === '/organisation/roles/new') return '/organisation/roles'
+
   return pathname
 }
 

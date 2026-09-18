@@ -12,6 +12,8 @@ export interface NavItem {
   badgeCount?: number
   /** When set, the item is hidden unless the user has this permission. */
   requiredPermission?: SystemPermission
+  /** Hidden unless the user has at least one of these permissions. */
+  requiredAnyPermission?: SystemPermission[]
 }
 
 export interface BrandConfig {

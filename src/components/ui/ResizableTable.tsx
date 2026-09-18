@@ -19,12 +19,9 @@ export type ResizableColumn = {
   /** Spoken column name, for labels that are markup rather than plain text. */
   name?: string
   minWidth?: number
-  /**
-   * Kept for compatibility. The final column now owns leftover width so it can
-   * reach the table edge without exposing a redundant resize control.
-   */
+  /** Shares leftover width once every column has what its content needs. */
   grow?: boolean
-  /** Kept for compatibility with existing column definitions. */
+  /** Relative share of leftover width. Defaults to 1 when `grow` is set. */
   growWeight?: number
 }
 
@@ -67,6 +64,12 @@ function columnName(column: ResizableColumn): string {
 
 function minWidthOf(column: ResizableColumn): number {
   return column.minWidth ?? MIN_COLUMN_WIDTH
+}
+
+function growWeightOf(column: ResizableColumn): number {
+  if (!column.grow) return 0
+  const weight = column.growWeight ?? 1
+  return weight > 0 ? weight : 1
 }
 
 function sumWidths(columns: ResizableColumn[], widths: ColumnWidths): number {
@@ -178,8 +181,17 @@ export function distributeAutoWidths(
 ): AutoLayout {
   const fitted = { ...natural }
   const total = sumWidths(columns, fitted)
+  const growColumns = columns.filter((column) => column.grow)
+  // Prefer grow columns (e.g. Skill/Name) so short trailing columns like Status
+  // stay tight. Fall back to the last column so the table still reaches the edge.
+  const slackColumns =
+    growColumns.length > 0
+      ? growColumns
+      : columns.length > 0
+        ? [columns[columns.length - 1]]
+        : []
 
-  if (columns.length === 0 || total >= availableWidth) {
+  if (slackColumns.length === 0 || total >= availableWidth) {
     return {
       widths: fitted,
       tableWidth: total,
@@ -188,9 +200,18 @@ export function distributeAutoWidths(
   }
 
   const slack = availableWidth - total
-  const lastColumn = columns[columns.length - 1]
-  fitted[lastColumn.id] =
-    (fitted[lastColumn.id] ?? minWidthOf(lastColumn)) + slack
+  const weights = slackColumns.map(growWeightOf)
+  const weightTotal = weights.reduce((sum, weight) => sum + weight, 0) || 1
+  let assigned = 0
+
+  slackColumns.forEach((column, index) => {
+    const extra =
+      index === slackColumns.length - 1
+        ? slack - assigned
+        : Math.floor((slack * weights[index]) / weightTotal)
+    assigned += extra
+    fitted[column.id] = (fitted[column.id] ?? minWidthOf(column)) + extra
+  })
 
   return {
     widths: fitted,
@@ -209,8 +230,9 @@ function columnSignature(columns: ResizableColumn[]): string {
 }
 
 /**
- * Columns auto-fit to their content. The final column fills leftover width and
- * has no resize handle; earlier columns can still be resized manually.
+ * Columns auto-fit to their content. Grow columns share leftover width so short
+ * columns stay tight; the final column has no resize handle and absorbs slack
+ * in manual layout so the table still reaches the edge.
  */
 export function ResizableTable({
   storageKey,

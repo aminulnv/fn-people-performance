@@ -59,6 +59,8 @@ export function relatedPersonStub(
     fullName: fullName.trim(),
     email,
     startDate: '',
+    role: '',
+    roleId: undefined,
     jobTitle: '',
     department: '',
     team: '',
@@ -228,4 +230,52 @@ export function resolveTeamOwner(
     personByIdOrName(employee.teamOwnerId, employee.teamOwnerName) ??
     relatedPersonStub(employee.teamOwnerId, employee.teamOwnerName ?? '')
   )
+}
+
+function personIdInDirectory(
+  employee: Pick<
+    PlatformEmployee,
+    'reportsToId' | 'managerEmail' | 'reportsToName'
+  >,
+  directory: readonly PlatformEmployee[],
+): number | null {
+  if (employee.reportsToId != null && employee.reportsToId > 0) {
+    return employee.reportsToId
+  }
+  const email = employee.managerEmail.trim().toLocaleLowerCase()
+  if (email) {
+    const match = directory.find(
+      (person) => person.email.trim().toLocaleLowerCase() === email,
+    )
+    if (match) return match.employeeId
+  }
+  const name = employee.reportsToName.trim().toLocaleLowerCase()
+  if (!name) return null
+  const match = directory.find(
+    (person) => person.fullName.trim().toLocaleLowerCase() === name,
+  )
+  return match?.employeeId ?? null
+}
+
+/** True when the viewer is the subject's manager, or any manager above that. */
+export function isAboveInReportingLine(
+  viewerId: number | null | undefined,
+  subject: PlatformEmployee,
+  directory: readonly PlatformEmployee[],
+): boolean {
+  if (viewerId == null || !Number.isInteger(viewerId) || viewerId <= 0) {
+    return false
+  }
+  if (viewerId === subject.employeeId) return false
+  const byId = new Map(directory.map((person) => [person.employeeId, person]))
+  const seen = new Set<number>([subject.employeeId])
+  let current: PlatformEmployee | undefined = subject
+  while (current) {
+    const managerId = personIdInDirectory(current, directory)
+    if (managerId == null || seen.has(managerId)) return false
+    if (managerId === viewerId) return true
+    seen.add(managerId)
+    current = byId.get(managerId)
+  }
+  return false
 }

@@ -24,12 +24,14 @@
 .pd-scorecards-builder__heading {
   display: flex;
   align-items: flex-start;
+  flex: 1 1 18rem;
   gap: 0.35rem;
   min-width: 0;
 }
 
 .pd-scorecards-builder__titles {
   display: grid;
+  flex: 1 1 auto;
   gap: 0.25rem;
   min-width: 0;
 }
@@ -40,7 +42,9 @@
 }
 
 .pd-scorecards-builder__name-input {
-  width: min(100%, 28rem);
+  /* Prefer a real width; min(100%, …) collapses to the input’s ~20ch intrinsic size. */
+  width: 28rem;
+  max-width: 100%;
   margin: 0;
   padding: 0.15rem 0;
   border: 0;
@@ -125,6 +129,38 @@
   list-style: none;
 }
 
+.pd-scorecards-builder__filters {
+  margin: 0 0 var(--spacing-4, 1rem);
+}
+
+.pd-scorecards-builder__sections {
+  display: grid;
+  gap: var(--spacing-6, 1.5rem);
+}
+
+.pd-scorecards-builder__section {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.pd-scorecards-builder__section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.pd-scorecards-builder__section-count {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 .pd-scorecards-builder__row {
   display: grid;
   gap: 0.35rem;
@@ -153,6 +189,18 @@
   color: var(--color-text);
 }
 
+.pd-scorecards-builder__row-type {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-bg-secondary, #f4f4f5);
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
 .pd-scorecards-builder__row-meta {
   color: var(--color-text-secondary);
   font-size: 0.875rem;
@@ -161,6 +209,13 @@
 .pd-scorecards-builder__row-summary {
   color: var(--color-text-secondary);
   font-size: 0.8125rem;
+}
+
+.pd-scorecards-builder__cycle-type {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  max-width: 22rem;
 }
 
 /* Match People/Org pill actions (Edit, Save, Cancel, Confirm). */
@@ -330,6 +385,7 @@
   display: grid;
   gap: var(--spacing-4, 1rem);
   min-width: 0;
+  width: 100%;
 }
 
 .pd-reviews-skills__name {
@@ -1070,6 +1126,19 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--color-text-secondary);
+}
+
+.pd-skill-mastery__list {
+  display: grid;
+  gap: var(--spacing-3, 0.75rem);
+}
+
+.pd-skill-mastery__item {
+  margin: 0;
+}
+
+.pd-skill-mastery__item .pd-field__label {
+  font-weight: 650;
 }
 
 .pd-reviews-value-panel__description {
@@ -5572,6 +5641,13 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-6, 1.5rem);
+}
+
+.pd-reviews-form-sheet__cycle-type {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .pd-reviews-form-sheet__empty {

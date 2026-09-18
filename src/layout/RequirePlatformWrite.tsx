@@ -3,10 +3,7 @@ import {
   PageStatus,
   PageStatusLink,
 } from '@/components/ui'
-import {
-  hasSystemPermission,
-  type SystemPermission,
-} from '@/lib/accessControl/types'
+import { canViewAllReviews, hasSystemPermission, type SystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
 
 type RequirePermissionProps = {
@@ -65,4 +62,22 @@ export function RequirePlatformRead({ children }: RequirePlatformReadProps) {
       {children}
     </RequirePermission>
   )
+}
+
+export function RequireReviewOversight({ children }: { children: ReactNode }) {
+  const { user } = useAuth()
+  const allowed = canViewAllReviews(user?.permissions)
+
+  if (!allowed) {
+    return (
+      <PageStatus
+        variant="forbidden"
+        aria-label="Access denied"
+        description="Calibration is available to people with All read access or All read + write access."
+        action={<PageStatusLink to="/" label="Back to home" />}
+      />
+    )
+  }
+
+  return children
 }

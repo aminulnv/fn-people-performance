@@ -6,6 +6,10 @@ export type PlatformEmployee = {
   email: string
   /** ISO date YYYY-MM-DD */
   startDate: string
+  /** Functional role from Revolut specialisation (e.g. QA Engineer). */
+  role: string
+  /** Catalog role id when the person sits in a job family. */
+  roleId?: string
   jobTitle: string
   department: string
   departmentId?: number
@@ -19,6 +23,12 @@ export type PlatformEmployee = {
   /** Owner of the employee's team (`teams.owner_employee_id`). */
   teamOwnerName?: string
   jobGrade: string
+  /** Date the current job_grade took effect. Absent until a grade-change row exists. */
+  gradeEffectiveOn?: string
+  /** Latest promotion. Absent until a promotion is recorded. */
+  lastPromotionOn?: string
+  /** True when an active PIP row is open. */
+  onPip?: boolean
   site: string
   /** External image URL; empty when unset (initials fallback in UI). */
   avatarUrl: string
@@ -47,6 +57,10 @@ export type CreateEmployeeInput = {
   fullName: string
   email: string
   startDate: string
+  /** Functional role from Revolut specialisation (e.g. QA Engineer). */
+  role?: string
+  /** Preferred: catalog role id. `role` stays a display/sync fallback. */
+  roleId?: string
   jobTitle: string
   department: string
   team: string

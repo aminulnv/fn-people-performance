@@ -1,8 +1,14 @@
 import { Link } from 'react-router-dom'
 import { ClipboardList } from 'lucide-react'
 import { ListboxSelect } from '@/components/ui'
+import { PURPOSE_SHORT_LABEL } from '@/lib/reviews/purpose'
 import { scorecardsBuilderPath } from '@/lib/reviews/paths'
-import type { ReviewPolicy, ScorecardForm } from '@/lib/reviews/types'
+import { formsForCycleType } from '@/lib/reviews/scorecardForms'
+import type {
+  CyclePurpose,
+  ReviewPolicy,
+  ScorecardForm,
+} from '@/lib/reviews/types'
 import { GradeAreasPanel } from './GradeAreasEditor'
 import type { SettingsSideSheet } from './SettingsSideSheetRail'
 
@@ -23,13 +29,14 @@ export function reviewFormSummary(policy: ReviewPolicy): string {
   return `${questionLabel} · ${areaLabel} · ${gradeLabel}`
 }
 
-/** Summary-only sheet; forms are authored in Scorecards Builder. */
+/** Summary-only sheet; forms are authored in the Scorecards Library. */
 export const REVIEW_FORM_SHEET_WIDTH = 400
 
 export function reviewFormSideSheet(args: {
   policy: ReviewPolicy
   forms: ScorecardForm[]
   scorecardFormId: string | null | undefined
+  cycleType: CyclePurpose
   onAllocate: (formId: string | null) => void
 }): SettingsSideSheet {
   return {
@@ -42,6 +49,7 @@ export function reviewFormSideSheet(args: {
         policy={args.policy}
         forms={args.forms}
         scorecardFormId={args.scorecardFormId}
+        cycleType={args.cycleType}
         onAllocate={args.onAllocate}
       />
     ),
@@ -53,13 +61,18 @@ export function ReviewFormSheet({
   policy,
   forms,
   scorecardFormId,
+  cycleType,
   onAllocate,
 }: {
   policy: ReviewPolicy
   forms: ScorecardForm[]
   scorecardFormId: string | null | undefined
+  cycleType: CyclePurpose
   onAllocate: (formId: string | null) => void
 }) {
+  const matchingForms = formsForCycleType(forms, cycleType, {
+    includeFormId: scorecardFormId,
+  })
   const allocated = scorecardFormId
     ? forms.find((form) => form.id === scorecardFormId)
     : null
@@ -78,6 +91,9 @@ export function ReviewFormSheet({
       </header>
       <div className="pd-reviews-form-sheet__body">
         <div className="pd-reviews-form-sheet__summary">
+          <p className="pd-reviews-form-sheet__cycle-type">
+            Showing {PURPOSE_SHORT_LABEL[cycleType]} forms
+          </p>
           <label className="pd-field">
             <span className="pd-field__label">Allocated form</span>
             <ListboxSelect
@@ -86,7 +102,7 @@ export function ReviewFormSheet({
               emptyLabel="No form allocated"
               value={scorecardFormId ?? ''}
               onValueChange={(next) => onAllocate(next || null)}
-              options={forms.map((form) => ({
+              options={matchingForms.map((form) => ({
                 value: form.id,
                 label: form.name,
                 description: reviewFormSummary(form.policy),
@@ -110,7 +126,7 @@ export function ReviewFormSheet({
             className="pd-btn pd-btn--primary pd-btn--pill pd-reviews-form-sheet__edit"
             to={builderHref}
           >
-            {allocated ? 'Edit in Builder' : 'Open Scorecards Builder'}
+            {allocated ? 'Edit in Library' : 'Open Scorecards Library'}
           </Link>
         </div>
       </div>

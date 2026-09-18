@@ -93,3 +93,13 @@ export function hasSystemPermission(
 ): boolean {
   return permissions?.includes(permission) ?? false
 }
+
+/** Company-wide review visibility. Write access includes this. */
+export function canViewAllReviews(
+  permissions: readonly SystemPermission[] | undefined,
+): boolean {
+  return (
+    hasSystemPermission(permissions, 'platform.read_all') ||
+    hasSystemPermission(permissions, 'platform.write_all')
+  )
+}

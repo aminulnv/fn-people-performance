@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Scale, Users } from 'lucide-react'
+import { Scale } from 'lucide-react'
 import {
   CYCLE_SELECT_CLEAR_ID,
   CycleSelect,
@@ -31,6 +31,7 @@ import {
   useReviewsSnapshot,
 } from '@/lib/reviews/useReviews'
 import { CalibrationIndicators } from '@/pages/calibration/CalibrationIndicators'
+import { EmployeeRatingTable } from '@/pages/calibration/EmployeeRatingTable'
 import { ManagerRatingHeatmap } from '@/pages/calibration/ManagerRatingHeatmap'
 import { RatingComparison } from '@/pages/calibration/RatingComparison'
 import { RatingDistributionChart } from '@/pages/calibration/RatingDistributionChart'
@@ -228,6 +229,28 @@ export default function CalibrationPage() {
 
   const indicators = useMemo(() => {
     if (!cycle) return []
+    const previous = previousCyclesOfSamePurpose(cycle, cycles, 1)[0]
+    const previousStart = previous?.startDate.slice(0, 10)
+    const previousEnd = previous?.endDate.slice(0, 10)
+    const promotedEmployeeIds = new Set(
+      employees
+        .filter((employee) => {
+          const day = employee.lastPromotionOn?.slice(0, 10)
+          return Boolean(
+            day &&
+              previousStart &&
+              previousEnd &&
+              day >= previousStart &&
+              day <= previousEnd,
+          )
+        })
+        .map((employee) => employee.employeeId),
+    )
+    const pipEmployeeIds = new Set(
+      employees
+        .filter((employee) => employee.onPip)
+        .map((employee) => employee.employeeId),
+    )
     return buildCalibrationIndicators({
       cycle,
       cycles,
@@ -235,6 +258,8 @@ export default function CalibrationPage() {
       packets: packets.filter((packet) => packet.cycleId === cycle.id),
       previousPackets: historyPackets,
       linkedPacketsByCycleId,
+      promotedEmployeeIds,
+      pipEmployeeIds,
     })
   }, [cycle, cycles, employees, historyPackets, linkedPacketsByCycleId, packets])
 
@@ -300,13 +325,39 @@ export default function CalibrationPage() {
       ) : pageLoading ? (
         <PageStatus variant="loading" title="Loading Calibration" />
       ) : view === 'ratings' ? (
-        <EmptyState
-          icon={Users}
-          title="Employee Rating Table"
-          description="This view is coming next."
-        />
+        !cycle ? (
+          <EmptyState
+            className="pd-people__empty-panel"
+            icon={Scale}
+            title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
+            description={
+              cycleOptions.length === 0
+                ? 'Create a review cycle to start calibration.'
+                : 'Choose a cycle to see the employee rating table.'
+            }
+          />
+        ) : (
+          <EmployeeRatingTable
+            cycle={cycle}
+            cycles={cycles}
+            employees={employees}
+            packets={packets.filter((packet) => packet.cycleId === cycle.id)}
+            previousPackets={historyPackets[0] ?? []}
+            historyPackets={historyPackets}
+            linkedPacketsByCycleId={linkedPacketsByCycleId}
+            indicators={indicators}
+            onPacketUpdated={(next) => {
+              setPackets((current) =>
+                current.map((packet) =>
+                  packet.id === next.id ? next : packet,
+                ),
+              )
+            }}
+          />
+        )
       ) : !cycle ? (
         <EmptyState
+          className="pd-people__empty-panel"
           icon={Scale}
           title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
           description={
@@ -319,6 +370,7 @@ export default function CalibrationPage() {
         <>
           {!distribution || distribution.summary.total === 0 ? (
             <EmptyState
+              className="pd-people__empty-panel"
               icon={Scale}
               title="No Grades Yet"
               description="Rating distribution appears once people in this cycle have an official grade."

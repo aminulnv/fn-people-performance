@@ -8,7 +8,7 @@ import {
 } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
 import { isCycleSection } from '@/lib/reviews/cycleSections'
-import { cycleDetailPath } from '@/lib/reviews/paths'
+import { cycleDetailPath, scorecardsLibraryPath } from '@/lib/reviews/paths'
 import {
   goalsDetailPath,
   goalsGoalPath,
@@ -16,6 +16,7 @@ import {
 import {
   RequirePlatformRead,
   RequirePlatformWrite,
+  RequireReviewOversight,
 } from '@/layout/RequirePlatformWrite'
 import {
   GlobalRouteProgressComplete,
@@ -55,6 +56,8 @@ const CreateDepartmentPage = lazy(
   () => import('@/pages/CreateDepartmentPage'),
 )
 const TeamDetailPage = lazy(() => import('@/pages/TeamDetailPage'))
+const EditRolePage = lazy(() => import('@/pages/EditRolePage'))
+const RoleDetailPage = lazy(() => import('@/pages/RoleDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 
 function CatchAllRedirect() {
@@ -80,6 +83,12 @@ function LegacyCycleRedirect() {
       replace
     />
   )
+}
+
+/** Legacy `/scorecards-builder/...` URLs → Reviews Scorecards Library. */
+function LegacyScorecardsBuilderRedirect() {
+  const { formId } = useParams()
+  return <Navigate to={scorecardsLibraryPath(formId)} replace />
 }
 
 /** Legacy `/goals-v2/...` URLs → canonical `/goals/...`. */
@@ -110,7 +119,20 @@ function App() {
               <Route path="people/new" element={<CreateEmployeePage />} />
               <Route path="people/:employeeId/edit" element={<EditEmployeePage />} />
               <Route path="people/:employeeId" element={<EmployeeProfilePage />} />
-              <Route path="organisation" element={<OrganisationPage />} />
+              <Route
+                path="organisation"
+                element={<Navigate to="/organisation/departments" replace />}
+              />
+              <Route
+                path="organisation/departments"
+                element={<OrganisationPage />}
+              />
+              <Route path="organisation/teams" element={<OrganisationPage />} />
+              <Route
+                path="organisation/roles/new"
+                element={<OrganisationPage />}
+              />
+              <Route path="organisation/roles" element={<OrganisationPage />} />
               <Route path="organisation/chart" element={<OrgChartPage />} />
               <Route
                 path="organisation/departments/new"
@@ -123,6 +145,18 @@ function App() {
               <Route
                 path="organisation/teams/:teamId"
                 element={<TeamDetailPage />}
+              />
+              <Route
+                path="organisation/roles/:roleId/edit"
+                element={
+                  <RequirePlatformWrite>
+                    <EditRolePage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="organisation/roles/:roleId"
+                element={<RoleDetailPage />}
               />
               <Route path="goals" element={<GoalsPage />} />
               <Route
@@ -143,29 +177,32 @@ function App() {
                 element={<ScorecardDetailPage />}
               />
               <Route path="reviews/scorecards" element={<ReviewsPage />} />
-              <Route path="reviews/skills" element={<SkillsPage />} />
-              <Route path="reviews/values/new" element={<ValuesPage />} />
-              <Route path="reviews/values/:valueId/edit" element={<ValuesPage />} />
               <Route
-                path="reviews/values/:valueId"
-                element={<Navigate to="edit" replace />}
-              />
-              <Route path="reviews/values" element={<ValuesPage />} />
-              <Route
-                path="scorecards-builder/:formId"
+                path="reviews/scorecards-library/:formId"
                 element={
                   <RequirePlatformWrite>
                     <ScorecardsBuilderPage />
                   </RequirePlatformWrite>
                 }
+              />
+              <Route
+                path="reviews/scorecards-library"
+                element={
+                  <RequirePlatformWrite>
+                    <ScorecardsBuilderPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              {/* Splat keeps SkillsPage mounted when opening create/edit panels. */}
+              <Route path="reviews/skills/*" element={<SkillsPage />} />
+              <Route path="reviews/values/*" element={<ValuesPage />} />
+              <Route
+                path="scorecards-builder/:formId"
+                element={<LegacyScorecardsBuilderRedirect />}
               />
               <Route
                 path="scorecards-builder"
-                element={
-                  <RequirePlatformWrite>
-                    <ScorecardsBuilderPage />
-                  </RequirePlatformWrite>
-                }
+                element={<Navigate to="/reviews/scorecards-library" replace />}
               />
               <Route
                 path="reviews/cycles/:cycleId/:section"
@@ -183,7 +220,14 @@ function App() {
                 path="reviews/:tab"
                 element={<Navigate to="/reviews/scorecards" replace />}
               />
-              <Route path="calibration" element={<CalibrationPage />} />
+              <Route
+                path="calibration"
+                element={
+                  <RequireReviewOversight>
+                    <CalibrationPage />
+                  </RequireReviewOversight>
+                }
+              />
               <Route
                 path="cycles"
                 element={

@@ -25,6 +25,7 @@ import {
   setEmployeeAccess,
   upsertPlatformEmployee,
 } from './store.mjs'
+import { endEmployeePip, startEmployeePip } from './career.mjs'
 import { listActivityEvents } from './activity.mjs'
 import { registerReviewCycleRoutes } from './reviewCycles/routes.mjs'
 import { registerReviewPacketRoutes } from './reviewPackets/routes.mjs'
@@ -32,6 +33,7 @@ import { registerGoalRoutes } from './goals/routes.mjs'
 import { registerOkrRoutes } from './okr/routes.mjs'
 import { registerRealtimeRoutes } from './realtime/routes.mjs'
 import { registerSkillsRoutes } from './skills/routes.mjs'
+import { registerRolesRoutes } from './roles/routes.mjs'
 import { registerValuesRoutes } from './values/routes.mjs'
 import { publishWrite } from './realtime/fromRequest.mjs'
 import {
@@ -280,6 +282,46 @@ export function registerPlatformRoutes(app) {
     }),
   )
 
+  app.post(
+    '/api/platform/employees/:employeeId/pips',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.params.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Invalid employee id')
+      }
+      const existing = await getPlatformEmployee(employeeId)
+      if (!existing) throw new HttpError(404, 'Employee not found')
+      try {
+        const pip = await startEmployeePip(employeeId, req.body?.startedOn)
+        await publishWrite(req, ['employees'], { employeeId })
+        res.status(201).json({ pip })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/employees/:employeeId/pips/end',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.params.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Invalid employee id')
+      }
+      try {
+        const pip = await endEmployeePip(employeeId, req.body ?? {})
+        await publishWrite(req, ['employees'], { employeeId })
+        res.json({ pip })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
   app.get(
     '/api/platform/departments',
     requirePlatformAuth,
@@ -364,5 +406,6 @@ export function registerPlatformRoutes(app) {
   registerGoalRoutes(app)
   registerOkrRoutes(app)
   registerSkillsRoutes(app)
+  registerRolesRoutes(app)
   registerValuesRoutes(app)
 }

@@ -1,10 +1,6 @@
 import { useMemo, useState } from 'react'
-import {
-  Link,
-  useMatch,
-  useNavigate,
-} from 'react-router-dom'
-import { Plus } from 'lucide-react'
+import { Link, useMatch, useNavigate } from 'react-router-dom'
+import { Heart, Plus } from 'lucide-react'
 import { EmptyState, ResizableTable, Switch } from '@/components/ui'
 import {
   valueCreatePath,
@@ -100,30 +96,35 @@ export function ValuesLibrary() {
           Values
         </h2>
         {visible.length === 0 ? (
-          <EmptyState
-            title={values.length === 0 ? 'No values yet' : 'No enabled values'}
-            description={
-              values.length === 0
-                ? 'Create company cultural values here, then grade them on the annual scorecard.'
-                : 'Turn off “Hide disabled values” to see disabled ones, or create a new value.'
-            }
-            action={
-              <Link
-                to={valueCreatePath()}
-                className="pd-btn pd-btn--primary pd-btn--pill"
-              >
-                Create new value
-              </Link>
-            }
-          />
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-people__empty-panel"
+              icon={Heart}
+              title={values.length === 0 ? 'No Values Yet' : 'No Enabled Values'}
+              description={
+                values.length === 0
+                  ? 'Create company cultural values here, then grade them on the annual scorecard.'
+                  : 'Turn off “Hide disabled values” to see disabled ones, or create a new value.'
+              }
+              action={
+                <Link
+                  to={valueCreatePath()}
+                  className="pd-people__create-btn"
+                >
+                  <Plus size={18} strokeWidth={2} aria-hidden />
+                  Create New Value
+                </Link>
+              }
+            />
+          </div>
         ) : (
           <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-skills__table"
               storageKey="reviews-values-v4"
               columns={[
-                { id: 'name', label: 'Value Name' },
-                { id: 'description', label: 'Description' },
+                { id: 'name', label: 'Value Name', grow: true },
+                { id: 'description', label: 'Description', grow: true },
                 { id: 'status', label: 'Status' },
               ]}
               fitKey={visible.length}

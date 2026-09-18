@@ -63,7 +63,7 @@ describe('buildBreadcrumbs', () => {
     expect(
       buildBreadcrumbs({ pathname: '/organisation/chart', navItems }),
     ).toEqual([
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Org Chart' },
     ])
 
@@ -74,7 +74,7 @@ describe('buildBreadcrumbs', () => {
         departmentName: 'Engineering',
       }),
     ).toEqual([
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Engineering' },
     ])
 
@@ -85,7 +85,7 @@ describe('buildBreadcrumbs', () => {
         teamName: 'Platform',
       }),
     ).toEqual([
-      { label: 'Organisation', href: '/organisation' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Platform' },
     ])
   })
@@ -185,6 +185,37 @@ describe('buildBreadcrumbs', () => {
     ).toEqual([
       { label: 'Reviews', href: '/reviews/scorecards' },
       { label: 'Values' },
+    ])
+  })
+
+  it('builds Reviews > Scorecards Library for the forms library', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/reviews/scorecards-library',
+        navItems: [
+          ...navItems,
+          { path: '/reviews', label: 'Reviews', icon: Home },
+        ],
+      }),
+    ).toEqual([
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards Library' },
+    ])
+  })
+
+  it('builds Reviews > Scorecards Library > Edit form for a form', () => {
+    expect(
+      buildBreadcrumbs({
+        pathname: '/reviews/scorecards-library/form-annual',
+        navItems: [
+          ...navItems,
+          { path: '/reviews', label: 'Reviews', icon: Home },
+        ],
+      }),
+    ).toEqual([
+      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Scorecards Library', href: '/reviews/scorecards-library' },
+      { label: 'Edit form' },
     ])
   })
 

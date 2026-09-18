@@ -1382,7 +1382,8 @@ body>.pd-people-filters__panel {
 
   /* Reviews wraps its sections one level deeper; pass the height through. */
   .pd-page--pane .pd-reviews-scorecards,
-  .pd-page--pane .pd-reviews-cycles {
+  .pd-page--pane .pd-reviews-cycles,
+  .pd-page--pane .pd-reviews-skills {
     display: flex;
     flex-direction: column;
     flex: 1;

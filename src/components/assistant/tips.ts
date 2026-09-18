@@ -31,7 +31,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/organisation': {
     title: 'See the structure',
-    body: 'Organisation helps you understand teams, reporting lines, and where work sits.',
+    body: 'Use the Departments, Teams, and Roles tabs to browse structure, then open a unit for detail.',
   },
   '/organisation/chart': {
     title: 'Follow the reporting line',

@@ -47,6 +47,8 @@ type SettingsSidePanelProps = {
   onSideSheetOpenChange?: (open: boolean) => void
   /** Starting panel width in px (clamped to viewport). */
   defaultWidth?: number
+  /** Size the sheet to its content instead of a fixed pixel width. */
+  fitContent?: boolean
   onClose: () => void
 }
 
@@ -65,6 +67,7 @@ export function SettingsSidePanel({
   sideSheetOpen,
   onSideSheetOpenChange,
   defaultWidth = DEFAULT_PANEL_WIDTH,
+  fitContent = false,
   onClose,
 }: SettingsSidePanelProps) {
   const panelRef = useRef<HTMLElement>(null)
@@ -169,7 +172,15 @@ export function SettingsSidePanel({
           aria-modal="true"
           aria-label={label}
           tabIndex={-1}
-          style={{ width: panelWidth }}
+          style={
+            fitContent
+              ? {
+                  width: 'max-content',
+                  maxWidth: `calc(100vw - ${VIEWPORT_GUTTER}px)`,
+                  minWidth: 'min(28rem, calc(100vw - 2rem))',
+                }
+              : { width: panelWidth }
+          }
         >
           <div
             className="pd-settings-panel__resize"

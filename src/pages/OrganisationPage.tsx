@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation, useMatch, useNavigate } from 'react-router-dom'
 import {
+  Briefcase,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -14,6 +15,7 @@ import { OrgChartLink } from '@/components/OrgChartLink'
 import {
   AttributeFilters,
   Avatar,
+  EmptyState,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
@@ -24,18 +26,34 @@ import {
   type AttributeValue,
 } from '@/lib/filters/attributeFilters'
 import { useAuth } from '@/lib/auth'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import {
   departmentDetailPath,
+  organisationTabPath,
+  roleCreatePath,
+  roleDetailPath,
   teamDetailPath,
+  type OrganisationTabId,
 } from '@/lib/organisation/paths'
+import { listRolesWithHeadcount } from '@/lib/roles/inheritedSkills'
+import { formatNips } from '@/lib/roles/labels'
+import { useRolesCatalog } from '@/lib/roles/useRoles'
 import type { OrgDepartment, OrgPersonRef, OrgTeam } from '@/lib/organisation/types'
+import { RoleFormFields } from '@/pages/org/RoleFormEditor'
+import { SettingsSidePanel } from '@/pages/reviews/SettingsSidePanel'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
-type StructureView = 'departments' | 'teams'
+type StructureView = OrganisationTabId
+
+function tabFromPathname(pathname: string): StructureView {
+  if (pathname.startsWith('/organisation/roles')) return 'roles'
+  if (pathname.startsWith('/organisation/teams')) return 'teams'
+  return 'departments'
+}
 
 function PersonCell({
   person,
@@ -161,7 +179,16 @@ function isMyTeam(
 
 export default function OrganisationPage() {
   const { user } = useAuth()
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const createRoleMatch = useMatch('/organisation/roles/new')
+  const isCreatingRole = Boolean(createRoleMatch)
+  const canCreateRole = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
   const catalogs = useOrganisationCatalogs()
+  const { roles } = useRolesCatalog()
   const {
     employees,
     organisation: snapshot,
@@ -169,7 +196,7 @@ export default function OrganisationPage() {
     loadError,
     isLoading,
   } = useOrganisation(catalogs.departments, { teams: catalogs.teams })
-  const [structureView, setStructureView] = useState<StructureView | null>(null)
+  const activeView = tabFromPathname(pathname)
   const [query, setQuery] = useState('')
   const [mineOnly, setMineOnly] = useState(false)
   const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
@@ -177,8 +204,14 @@ export default function OrganisationPage() {
   )
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
 
-  function toggleStructureView(next: StructureView) {
-    setStructureView((current) => (current === next ? null : next))
+  useEffect(() => {
+    if (isCreatingRole && !canCreateRole) {
+      navigate(organisationTabPath('roles'), { replace: true })
+    }
+  }, [canCreateRole, isCreatingRole, navigate])
+
+  function closeCreateRolePanel() {
+    navigate(organisationTabPath('roles'), { replace: true })
   }
 
   const q = query.trim().toLowerCase()
@@ -229,6 +262,46 @@ export default function OrganisationPage() {
       })
   }, [attributeFilters, employees, mineOnly, q, snapshot.teams, user])
 
+  const rolesWithHeadcount = useMemo(
+    () => listRolesWithHeadcount(),
+    [employees, roles],
+  )
+
+  const filteredRoles = useMemo(() => {
+    const myRoleId = (() => {
+      if (!user) return null
+      const email = user.email?.trim().toLowerCase()
+      const me = email
+        ? employees.find((employee) => employee.email.toLowerCase() === email)
+        : undefined
+      return me?.roleId ?? null
+    })()
+    return rolesWithHeadcount
+      .filter((role) => {
+        if (mineOnly && myRoleId && role.id !== myRoleId) return false
+        if (
+          !matchesAttributeFilters(attributeFilters, {
+            name: role.name.trim(),
+            department: role.departmentName.trim(),
+          })
+        ) {
+          return false
+        }
+        if (!q) return true
+        return [
+          role.name,
+          role.departmentName,
+          ...role.skills.map((skill) => skill.skillName),
+        ]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      })
+      .sort((left, right) =>
+        left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+      )
+  }, [attributeFilters, employees, mineOnly, q, rolesWithHeadcount, user])
+
   function toggleExpanded(departmentId: string) {
     setExpanded((prev) => {
       const next = new Set(prev)
@@ -239,7 +312,8 @@ export default function OrganisationPage() {
   }
 
   const hasPeople = employees.some((e) => e.isActive)
-  const hasStructure = hasPeople || snapshot.departments.length > 0
+  const hasStructure =
+    hasPeople || snapshot.departments.length > 0 || rolesWithHeadcount.length > 0
   /** Hold totals until catalog merges — otherwise employee-only counts flash first. */
   const structurePending = isLoading || !catalogs.ready
   const peopleCount = useMemo(
@@ -250,32 +324,45 @@ export default function OrganisationPage() {
       ),
     [snapshot.departments],
   )
-  const activeView = structureView ?? 'departments'
   const departmentTotal = structurePending ? '…' : snapshot.departments.length
   const teamTotal = structurePending ? '…' : snapshot.teams.length
+  const roleTotal = structurePending ? '…' : rolesWithHeadcount.length
   const peopleTotal = structurePending ? '…' : peopleCount
 
   useEffect(() => {
     setAttributeFilters({})
   }, [activeView])
 
-  const orgAttributes = useMemo(
-    () =>
-      activeView === 'departments'
-        ? [
-            { id: 'name', label: 'Department name', icon: Building2 },
-            { id: 'team', label: 'Team', icon: UsersRound },
-            { id: 'owner', label: 'Owner', icon: UserRound },
-          ]
-        : [
-            { id: 'name', label: 'Team name', icon: UsersRound },
-            { id: 'department', label: 'Department', icon: Building2 },
-            { id: 'owner', label: 'Owner', icon: UserRound },
-          ],
-    [activeView],
-  )
+  const orgAttributes = useMemo(() => {
+    if (activeView === 'roles') {
+      return [
+        { id: 'name', label: 'Role name', icon: Briefcase },
+        { id: 'department', label: 'Department', icon: Building2 },
+      ]
+    }
+    if (activeView === 'departments') {
+      return [
+        { id: 'name', label: 'Department name', icon: Building2 },
+        { id: 'team', label: 'Team', icon: UsersRound },
+        { id: 'owner', label: 'Owner', icon: UserRound },
+      ]
+    }
+    return [
+      { id: 'name', label: 'Team name', icon: UsersRound },
+      { id: 'department', label: 'Department', icon: Building2 },
+      { id: 'owner', label: 'Owner', icon: UserRound },
+    ]
+  }, [activeView])
 
   const orgAttributeValues = useMemo((): Record<string, AttributeValue[]> => {
+    if (activeView === 'roles') {
+      return {
+        name: uniqueAttributeValues(rolesWithHeadcount.map((role) => role.name)),
+        department: uniqueAttributeValues(
+          rolesWithHeadcount.map((role) => role.departmentName),
+        ),
+      }
+    }
     if (activeView === 'departments') {
       return {
         name: uniqueAttributeValues(
@@ -302,10 +389,14 @@ export default function OrganisationPage() {
         snapshot.teams.map((team) => team.manager?.fullName ?? ''),
       ),
     }
-  }, [activeView, snapshot.departments, snapshot.teams])
+  }, [activeView, rolesWithHeadcount, snapshot.departments, snapshot.teams])
   const selectedTeams = attributeFilters.team ?? []
   const mineLabel =
-    activeView === 'departments' ? 'My Department' : 'My Teams'
+    activeView === 'departments'
+      ? 'My Department'
+      : activeView === 'teams'
+        ? 'My Teams'
+        : 'My Role'
   const departmentColumns = useMemo<ResizableColumn[]>(
     () => [
       {
@@ -334,6 +425,16 @@ export default function OrganisationPage() {
     ],
     [],
   )
+  const roleColumns = useMemo<ResizableColumn[]>(
+    () => [
+      { id: 'role', label: 'Role', name: 'Role', grow: true },
+      { id: 'department', label: 'Department' },
+      { id: 'headcount', label: 'Headcount' },
+      { id: 'nips', label: 'NIPS' },
+      { id: 'skills', label: 'Skills' },
+    ],
+    [],
+  )
 
   return (
     <div
@@ -345,40 +446,27 @@ export default function OrganisationPage() {
         role="group"
         aria-label="Structure totals"
       >
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            structureView === 'departments' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={structureView === 'departments'}
-          onClick={() => toggleStructureView('departments')}
-        >
+        <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">
             <Building2 size={14} strokeWidth={1.75} aria-hidden />
             Departments
           </span>
           <span className="pd-people__summary-value">{departmentTotal}</span>
-        </button>
-        <button
-          type="button"
-          className={[
-            'pd-people__summary-btn',
-            structureView === 'teams' ? 'is-active' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          aria-pressed={structureView === 'teams'}
-          onClick={() => toggleStructureView('teams')}
-        >
+        </div>
+        <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">
             <UsersRound size={14} strokeWidth={1.75} aria-hidden />
             Teams
           </span>
           <span className="pd-people__summary-value">{teamTotal}</span>
-        </button>
+        </div>
+        <div className="pd-people__summary-card">
+          <span className="pd-people__summary-label">
+            <Briefcase size={14} strokeWidth={1.75} aria-hidden />
+            Roles
+          </span>
+          <span className="pd-people__summary-value">{roleTotal}</span>
+        </div>
         <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">
             <Users size={14} strokeWidth={1.75} aria-hidden />
@@ -400,7 +488,9 @@ export default function OrganisationPage() {
               placeholder={
                 activeView === 'departments'
                   ? 'Search departments…'
-                  : 'Search teams…'
+                  : activeView === 'teams'
+                    ? 'Search teams…'
+                    : 'Search roles…'
               }
               className="pd-people__search-input"
             />
@@ -429,13 +519,25 @@ export default function OrganisationPage() {
             sectionLabel="Organisation attributes"
           />
           <OrgChartLink />
-          <Link
-            to="/organisation/departments/new"
-            className="pd-people__create-btn"
-          >
-            <Plus size={18} strokeWidth={2} aria-hidden />
-            Add Department
-          </Link>
+          {activeView === 'roles' ? (
+            canCreateRole ? (
+              <Link
+                to={roleCreatePath()}
+                className="pd-people__create-btn"
+              >
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Role
+              </Link>
+            ) : null
+          ) : (
+            <Link
+              to="/organisation/departments/new"
+              className="pd-people__create-btn"
+            >
+              <Plus size={18} strokeWidth={2} aria-hidden />
+              Add Department
+            </Link>
+          )}
         </div>
       </div>
 
@@ -444,7 +546,11 @@ export default function OrganisationPage() {
         aria-labelledby="org-structure-heading"
       >
         <h2 id="org-structure-heading" className="pd-sr-only">
-          {activeView === 'departments' ? 'Departments' : 'Teams'}
+          {activeView === 'departments'
+            ? 'Departments'
+            : activeView === 'teams'
+              ? 'Teams'
+              : 'Roles'}
         </h2>
 
             {structurePending ? (
@@ -457,24 +563,32 @@ export default function OrganisationPage() {
               </p>
             ) : !hasStructure ? (
               <div className="pd-people__empty-state">
-                <p className="pd-people__empty">
-                  Organisation is built from departments and teams. Add a
-                  department to get started, then assign people from the People
-                  directory.
-                </p>
-            <Link
-              to="/organisation/departments/new"
-              className="pd-people__create-btn pd-people__create-btn--secondary"
-            >
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Department
-            </Link>
-          </div>
-        ) : activeView === 'departments' ? (
+                <EmptyState
+                  className="pd-people__empty-panel"
+                  icon={Building2}
+                  title="No Organisation Yet"
+                  description="Organisation is built from departments and teams. Add a department to get started, then assign people from the People directory."
+                  action={
+                    <Link
+                      to="/organisation/departments/new"
+                      className="pd-people__create-btn"
+                    >
+                      <Plus size={18} strokeWidth={2} aria-hidden />
+                      Add Department
+                    </Link>
+                  }
+                />
+              </div>
+            ) : activeView === 'departments' ? (
           filteredDepartments.length === 0 ? (
-            <p className="pd-people__empty">
-              No departments match your filters.
-            </p>
+            <div className="pd-people__empty-state">
+              <EmptyState
+                className="pd-people__empty-panel"
+                icon={Building2}
+                title="No Matches"
+                description="No departments match your filters."
+              />
+            </div>
           ) : (
             <div className="pd-people__table-wrap">
               <ResizableTable
@@ -608,8 +722,74 @@ export default function OrganisationPage() {
               </ResizableTable>
             </div>
           )
+        ) : activeView === 'roles' ? (
+          filteredRoles.length === 0 ? (
+            <div className="pd-people__empty-state">
+              <EmptyState
+                className="pd-people__empty-panel"
+                icon={Briefcase}
+                title="No Matches"
+                description="No roles match your filters."
+              />
+            </div>
+          ) : (
+            <div className="pd-people__table-wrap">
+              <ResizableTable
+                className="pd-people__table"
+                storageKey="organisation-roles-column-widths"
+                columns={roleColumns}
+              >
+                <tbody>
+                  {filteredRoles.map((role) => (
+                    <tr key={role.id}>
+                      <td>
+                        <div className="pd-org__name-cell">
+                          <Link
+                            to={roleDetailPath(role.id)}
+                            className="pd-org__unit-link"
+                          >
+                            <span className="pd-org__unit-icon" aria-hidden>
+                              <Briefcase size={16} strokeWidth={1.75} />
+                            </span>
+                            <span className="pd-org__unit-name">{role.name}</span>
+                          </Link>
+                        </div>
+                      </td>
+                      <td>{role.departmentName || '-'}</td>
+                      <td>{role.headcount}</td>
+                      <td>
+                        <span
+                          className={
+                            role.nipsPercent >= 67
+                              ? 'pd-org-role__nips pd-org-role__nips--good'
+                              : role.nipsPercent > 0
+                                ? 'pd-org-role__nips pd-org-role__nips--mid'
+                                : 'pd-org-role__nips pd-org-role__nips--low'
+                          }
+                        >
+                          {formatNips(role.nipsPercent)}
+                        </span>
+                      </td>
+                      <td>
+                        {role.skills.length > 0
+                          ? role.skills.map((skill) => skill.skillName).join(', ')
+                          : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </ResizableTable>
+            </div>
+          )
         ) : filteredTeams.length === 0 ? (
-          <p className="pd-people__empty">No teams match your filters.</p>
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-people__empty-panel"
+              icon={UsersRound}
+              title="No Matches"
+              description="No teams match your filters."
+            />
+          </div>
         ) : (
           <div className="pd-people__table-wrap">
             <ResizableTable
@@ -655,6 +835,20 @@ export default function OrganisationPage() {
           </div>
         )}
       </section>
+
+      {isCreatingRole && canCreateRole ? (
+        <SettingsSidePanel
+          label="Add Role"
+          closeLabel="Close role panel"
+          defaultWidth={480}
+          onClose={closeCreateRolePanel}
+        >
+          <RoleFormFields
+            onCancel={closeCreateRolePanel}
+            onSaved={closeCreateRolePanel}
+          />
+        </SettingsSidePanel>
+      ) : null}
     </div>
   )
 }

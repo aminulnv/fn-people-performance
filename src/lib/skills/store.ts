@@ -3,8 +3,21 @@ import {
   createSkillRemote,
   fetchSkillsSnapshotRemote,
   setEmployeeSkillIdsRemote,
+  updateSkillRemote,
 } from './remoteApi'
-import type { EmployeeSkillAssignment, Skill } from './types'
+import {
+  employeeIdsWithRoleSkill,
+  getInheritedSkillsForEmployee,
+  unionPersonSkills,
+} from '@/lib/roles/inheritedSkills'
+import type { PersonSkill } from '@/lib/roles/inheritedSkills'
+import {
+  emptySkillMastery,
+  SKILL_MASTERY_LEVELS,
+  type EmployeeSkillAssignment,
+  type Skill,
+  type SkillMastery,
+} from './types'
 
 const STORAGE_KEY = 'pd-skills-library-v2'
 const LEGACY_SESSION_KEY = 'pd-skills-library-v1'
@@ -115,13 +128,27 @@ function newSkillId(): string {
   return `skill-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
-export function normalizeSkill(skill: Partial<Skill> & Pick<Skill, 'name'>): Skill {
+function normalizeMastery(value: unknown): SkillMastery {
+  const next = emptySkillMastery()
+  if (!value || typeof value !== 'object') return next
+  const raw = value as Record<string, unknown>
+  for (const level of SKILL_MASTERY_LEVELS) {
+    next[level] = String(raw[level] ?? '').trim()
+  }
+  return next
+}
+
+export function normalizeSkill(
+  skill: Partial<Skill> &
+    Pick<Skill, 'name'> & { function?: string; department?: string },
+): Skill {
   return {
     id: skill.id?.trim() || newSkillId(),
     name: skill.name.trim(),
-    function: skill.function?.trim() ?? '',
+    department: (skill.department ?? skill.function)?.trim() ?? '',
     role: skill.role?.trim() ?? '',
     status: skill.status === 'draft' ? 'draft' : 'approved',
+    mastery: normalizeMastery(skill.mastery),
   }
 }
 
@@ -134,6 +161,13 @@ export function subscribeSkillsStore(listener: () => void) {
 
 export function getSkillsSnapshot(): Skill[] {
   return clone(getState().skills)
+}
+
+export function getSkillById(skillId: string): Skill | null {
+  const id = skillId.trim()
+  if (!id) return null
+  const skill = getState().skills.find((item) => item.id === id)
+  return skill ? clone(skill) : null
 }
 
 export function getSkillAssignmentsSnapshot(): EmployeeSkillAssignment[] {
@@ -167,11 +201,14 @@ export async function ensureSkillsLoaded(): Promise<void> {
 }
 
 export function talentCountForSkill(skillId: string): number {
-  return getState().assignments.filter((item) =>
-    item.skillIds.includes(skillId),
-  ).length
+  const ids = new Set(employeeIdsWithRoleSkill(skillId))
+  for (const item of getState().assignments) {
+    if (item.skillIds.includes(skillId)) ids.add(item.employeeId)
+  }
+  return ids.size
 }
 
+/** Extra skills on the person, not including role-inherited skills. */
 export function getSkillIdsForEmployee(employeeId: number): string[] {
   const row = getState().assignments.find(
     (item) => item.employeeId === employeeId,
@@ -179,11 +216,16 @@ export function getSkillIdsForEmployee(employeeId: number): string[] {
   return row ? [...row.skillIds] : []
 }
 
-export function getSkillsForEmployee(employeeId: number): Skill[] {
-  const ids = new Set(getSkillIdsForEmployee(employeeId))
-  return getState()
-    .skills.filter((skill) => ids.has(skill.id))
+export function getSkillsForEmployee(employeeId: number): PersonSkill[] {
+  const extras = getState()
+    .skills.filter((skill) =>
+      getSkillIdsForEmployee(employeeId).includes(skill.id),
+    )
     .map((skill) => ({ ...skill }))
+  return unionPersonSkills(
+    getInheritedSkillsForEmployee(employeeId, getState().skills),
+    extras,
+  )
 }
 
 function applyEmployeeSkillIds(
@@ -239,8 +281,10 @@ export async function removeSkillFromEmployee(
 
 export async function createSkill(input: {
   name: string
-  function?: string
+  department?: string
   role?: string
+  status?: Skill['status']
+  mastery?: SkillMastery
 }): Promise<Skill> {
   const name = input.name.trim()
   if (!name) {
@@ -249,9 +293,10 @@ export async function createSkill(input: {
   if (useLocalSkills()) {
     const skill = normalizeSkill({
       name,
-      function: input.function,
+      department: input.department,
       role: input.role,
-      status: 'approved',
+      status: input.status ?? 'approved',
+      mastery: input.mastery,
     })
     const state = getState()
     commit({
@@ -262,8 +307,10 @@ export async function createSkill(input: {
   }
   const created = await createSkillRemote({
     name,
-    function: input.function,
+    department: input.department,
     role: input.role,
+    status: input.status,
+    mastery: input.mastery,
   })
   const skill = normalizeSkill(created)
   const state = getState()
@@ -272,6 +319,54 @@ export async function createSkill(input: {
     skills: [...state.skills.filter((item) => item.id !== skill.id), skill],
   })
   return clone(skill)
+}
+
+export async function updateSkill(
+  id: string,
+  input: {
+    name: string
+    department?: string
+    role?: string
+    status?: Skill['status']
+    mastery?: SkillMastery
+  },
+): Promise<Skill> {
+  const name = input.name.trim()
+  if (!name) {
+    throw new Error('Give the skill a name.')
+  }
+  if (useLocalSkills()) {
+    const state = getState()
+    const existing = state.skills.find((skill) => skill.id === id)
+    if (!existing) throw new Error('This skill was not found.')
+    const next = normalizeSkill({
+      ...existing,
+      name,
+      department: input.department,
+      role: input.role,
+      status: input.status ?? existing.status,
+      mastery: input.mastery ?? existing.mastery,
+    })
+    commit({
+      ...state,
+      skills: state.skills.map((skill) => (skill.id === id ? next : skill)),
+    })
+    return clone(next)
+  }
+  const updated = await updateSkillRemote(id, {
+    name,
+    department: input.department,
+    role: input.role,
+    status: input.status,
+    mastery: input.mastery,
+  })
+  const next = normalizeSkill(updated)
+  const state = getState()
+  commit({
+    ...state,
+    skills: state.skills.map((skill) => (skill.id === id ? next : skill)),
+  })
+  return clone(next)
 }
 
 export function resetSkillsStoreForTests() {

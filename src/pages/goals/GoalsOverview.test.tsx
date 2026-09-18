@@ -322,3 +322,45 @@ describe('Goals overview cycle eligibility', () => {
     expect(screen.getByRole('menuitem', { name: 'Cancel' })).toBeInTheDocument()
   })
 })
+
+describe('Goals overview with no cycles', () => {
+  beforeEach(async () => {
+    localStorage.clear()
+    sessionStorage.clear()
+    clearSession()
+    clearEmployees()
+    resetReviewsStoreForTests()
+    resetSharedGoalsSnapshotForTests()
+    await seedDirectory()
+    setSignedInPerson(REPORT_ID)
+    const { deleteReviewCycle, listReviewCycles } = await import(
+      '@/lib/reviews/store'
+    )
+    for (const cycle of listReviewCycles()) {
+      await deleteReviewCycle(cycle.id)
+    }
+    resetGoalsDemo()
+    signInReport()
+  })
+
+  afterEach(() => {
+    cleanup()
+    resetSharedGoalsSnapshotForTests()
+    clearEmployees()
+    clearSession()
+  })
+
+  it('shows the same empty-state pattern as Cycles when none exist', async () => {
+    renderOverview()
+
+    expect(
+      await screen.findByRole('heading', { name: 'No Goal Cycles Yet' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        'Ask an administrator to add a cycle before setting goals.',
+      ),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Loading goals')).not.toBeInTheDocument()
+  })
+})

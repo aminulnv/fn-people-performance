@@ -7,6 +7,7 @@ import {
   skillScorePillarId,
   skillsWithStoredGrades,
 } from './reviewScores'
+import { emptySkillMastery } from './types'
 
 describe('skill review scores', () => {
   it('builds and parses skill pillar ids', () => {
@@ -45,9 +46,10 @@ describe('skill review scores', () => {
         {
           id: 'skill-ai-fluency',
           name: 'AI Fluency',
-          function: '',
+          department: '',
           role: '',
           status: 'approved',
+          mastery: emptySkillMastery(),
         },
       ],
     )

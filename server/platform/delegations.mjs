@@ -97,6 +97,27 @@ export async function listActiveDelegatedManagerIds(delegateEmployeeId) {
   return rows.map((row) => Number(row.absent_employee_id))
 }
 
+/** People whose real manager is this person, or a manager they are covering now. */
+export async function listEmployeesManagedBy(viewerEmployeeId) {
+  const viewerId = Number(viewerEmployeeId)
+  if (!Number.isInteger(viewerId)) return []
+  const { rows } = await getPool().query(
+    `SELECT employee_id
+     FROM platform.employees
+     WHERE reports_to_employee_id = $1
+        OR reports_to_employee_id IN (
+          SELECT absent_employee_id
+          FROM platform.manager_delegations
+          WHERE delegate_employee_id = $1
+            AND revoked_at IS NULL
+            AND starts_at <= now()
+            AND ends_at >= now()
+        )`,
+    [viewerId],
+  )
+  return rows.map((row) => Number(row.employee_id))
+}
+
 export async function listManagerDelegations({ employeeId, delegateEmployeeId }) {
   const clauses = []
   const params = []

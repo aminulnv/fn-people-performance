@@ -4,6 +4,8 @@
  */
 import { getPool } from '../db.mjs'
 import { appendActivityEvent } from './activity.mjs'
+import { recordGradeChange } from './career.mjs'
+import { resolveEmployeeRole } from './roles/store.mjs'
 
 function activityActor(actor = {}) {
   return {
@@ -20,6 +22,8 @@ const EMPLOYEE_SELECT = `
     e.name,
     e.joining_date,
     e.status,
+    e.role,
+    e.role_id,
     e.job_title,
     e.job_grade,
     e.site,
@@ -42,8 +46,13 @@ const EMPLOYEE_SELECT = `
     own.name AS team_owner_name,
     mgr.employee_id AS manager_id,
     mgr.name AS reports_to_name,
-    mgr.email AS manager_email
+    mgr.email AS manager_email,
+    role_cat.name AS role_catalog_name,
+    grade_since.effective_on AS grade_effective_on,
+    last_promo.effective_on AS last_promotion_on,
+    (active_pip.employee_id IS NOT NULL) AS on_pip
   FROM platform.employees e
+  LEFT JOIN platform.roles role_cat ON role_cat.id = e.role_id
   LEFT JOIN platform.departments d ON d.id = e.department_id
   LEFT JOIN platform.teams t ON t.id = e.team_id
   LEFT JOIN platform.divisions div ON div.id = e.division_id
@@ -51,7 +60,43 @@ const EMPLOYEE_SELECT = `
   LEFT JOIN platform.employees hrbp ON hrbp.employee_id = d.hrbp_employee_id
   LEFT JOIN platform.employees own ON own.employee_id = t.owner_employee_id
   LEFT JOIN platform.employees mgr ON mgr.employee_id = e.reports_to_employee_id
+  LEFT JOIN LATERAL (
+    SELECT g.effective_on
+    FROM platform.employee_grade_changes g
+    WHERE g.employee_id = e.employee_id
+      AND btrim(g.job_grade) = btrim(e.job_grade)
+    ORDER BY g.effective_on DESC, g.id DESC
+    LIMIT 1
+  ) grade_since ON true
+  LEFT JOIN LATERAL (
+    SELECT g.effective_on
+    FROM platform.employee_grade_changes g
+    WHERE g.employee_id = e.employee_id
+      AND g.change_kind = 'promotion'
+    ORDER BY g.effective_on DESC, g.id DESC
+    LIMIT 1
+  ) last_promo ON true
+  LEFT JOIN LATERAL (
+    SELECT p.employee_id
+    FROM platform.employee_pips p
+    WHERE p.employee_id = e.employee_id
+      AND p.status = 'active'
+    ORDER BY p.started_on DESC, p.id DESC
+    LIMIT 1
+  ) active_pip ON true
 `
+
+function isoDate(value) {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return ''
+    const month = String(value.getMonth() + 1).padStart(2, '0')
+    const day = String(value.getDate()).padStart(2, '0')
+    return `${value.getFullYear()}-${month}-${day}`
+  }
+  const raw = String(value).trim()
+  return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : ''
+}
 
 function isoInstant(value) {
   if (value == null || value === '') return ''
@@ -89,6 +134,8 @@ export function mapEmployeeRow(row) {
     fullName: row.name ?? '',
     email: row.email ?? '',
     startDate: isoInstant(row.joining_date),
+    role: row.role_catalog_name || row.role || '',
+    roleId: row.role_id || undefined,
     jobTitle: row.job_title ?? '',
     department: row.department_name ?? '',
     departmentId: integerId(row.department_id),
@@ -100,6 +147,9 @@ export function mapEmployeeRow(row) {
     hrbpName: row.hrbp_name ?? '',
     teamOwnerName: row.team_owner_name ?? '',
     jobGrade: row.job_grade ?? '',
+    gradeEffectiveOn: isoDate(row.grade_effective_on) || undefined,
+    lastPromotionOn: isoDate(row.last_promotion_on) || undefined,
+    onPip: Boolean(row.on_pip),
     site: row.site ?? '',
     avatarUrl: usableAvatarUrl(row.avatar_url),
     managerEmail: row.manager_email ?? '',
@@ -428,20 +478,23 @@ export async function upsertPlatformEmployee(input, options = {}) {
     const avatarUrl = avatarUrlProvided
       ? usableAvatarUrl(input.avatarUrl)
       : null
+    const roleAssignment = await resolveEmployeeRole(client, input)
 
     if (replaceId == null) {
       await client.query(
         `INSERT INTO platform.employees (
            employee_id, email, name, joining_date, status,
-           job_title, job_grade, site, avatar_url, department_id, team_id, division_id,
+           role, role_id, job_title, job_grade, site, avatar_url, department_id, team_id, division_id,
            reports_to_employee_id, department_head_employee_id
-         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
         [
           employeeId,
           email,
           fullName,
           startDate,
           status,
+          roleAssignment.roleName,
+          roleAssignment.roleId,
           String(input.jobTitle ?? '').trim() || null,
           String(input.jobGrade ?? '').trim() || null,
           String(input.site ?? '').trim() || null,
@@ -463,6 +516,16 @@ export async function upsertPlatformEmployee(input, options = {}) {
         summary: `Created employee ${fullName}`,
         source: 'api',
       })
+      const hiredGrade = String(input.jobGrade ?? '').trim()
+      if (hiredGrade) {
+        await recordGradeChange(client, {
+          employeeId,
+          jobGrade: hiredGrade,
+          previousGrade: '',
+          effectiveOn: startDate,
+          changeKind: 'hire',
+        })
+      }
     } else {
       await client.query(
         `UPDATE platform.employees SET
@@ -471,15 +534,17 @@ export async function upsertPlatformEmployee(input, options = {}) {
            name = $4,
            joining_date = $5,
            status = $6,
-           job_title = $7,
-           job_grade = $8,
-           site = $9,
-           avatar_url = COALESCE($10, avatar_url),
-           department_id = $11,
-           team_id = $12,
-           division_id = $13,
-           reports_to_employee_id = $14,
-           department_head_employee_id = $15,
+           role = $7,
+           role_id = $8,
+           job_title = $9,
+           job_grade = $10,
+           site = $11,
+           avatar_url = COALESCE($12, avatar_url),
+           department_id = $13,
+           team_id = $14,
+           division_id = $15,
+           reports_to_employee_id = $16,
+           department_head_employee_id = $17,
            updated_at = now()
          WHERE employee_id = $1`,
         [
@@ -489,6 +554,8 @@ export async function upsertPlatformEmployee(input, options = {}) {
           fullName,
           startDate,
           status,
+          roleAssignment.roleName,
+          roleAssignment.roleId,
           String(input.jobTitle ?? '').trim(),
           String(input.jobGrade ?? '').trim(),
           String(input.site ?? '').trim(),
@@ -657,12 +724,20 @@ export async function upsertPlatformEmployee(input, options = {}) {
               : []),
           )
         }
+        const nextRole = roleAssignment.roleName
         const nextJobTitle = String(input.jobTitle ?? '').trim()
         const nextJobGrade = String(input.jobGrade ?? '').trim()
         const nextSite = String(input.site ?? '').trim()
         const nextStart = dateOnly(startDate)
         const previousStart = dateOnly(previous.joining_date)
         const jobChanges = []
+        if (String(previous.role ?? '') !== nextRole) {
+          jobChanges.push({
+            field: 'role',
+            from: previous.role ?? null,
+            to: nextRole || null,
+          })
+        }
         if (String(previous.job_title ?? '') !== nextJobTitle) {
           jobChanges.push({
             field: 'jobTitle',
@@ -670,12 +745,23 @@ export async function upsertPlatformEmployee(input, options = {}) {
             to: nextJobTitle || null,
           })
         }
-        if (String(previous.job_grade ?? '') !== nextJobGrade) {
+        if (String(previous.job_grade ?? '').trim() !== nextJobGrade) {
           jobChanges.push({
             field: 'jobGrade',
             from: previous.job_grade ?? null,
             to: nextJobGrade || null,
           })
+          if (nextJobGrade) {
+            await recordGradeChange(client, {
+              employeeId,
+              jobGrade: nextJobGrade,
+              previousGrade: previous.job_grade,
+              effectiveOn: String(previous.job_grade ?? '').trim()
+                ? undefined
+                : startDate,
+              changeKind: input.gradeChangeKind,
+            })
+          }
         }
         if (String(previous.site ?? '') !== nextSite) {
           jobChanges.push({

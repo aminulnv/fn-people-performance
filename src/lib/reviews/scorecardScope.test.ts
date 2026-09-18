@@ -33,11 +33,21 @@ describe('defaultScorecardScope', () => {
 })
 
 describe('visibleScorecardScopes', () => {
-  it('keeps My Reviews and Everyone for an individual contributor', () => {
+  it('keeps My Reviews for an individual contributor', () => {
     expect(
       visibleScorecardScopes({ hasViewer: true, hasDirectReports: false }).map(
         (option) => option.id,
       ),
+    ).toEqual(['mine'])
+  })
+
+  it('adds Everyone for people who can see all reviews', () => {
+    expect(
+      visibleScorecardScopes({
+        hasViewer: true,
+        hasDirectReports: false,
+        canViewAllReviews: true,
+      }).map((option) => option.id),
     ).toEqual(['mine', 'all'])
   })
 
@@ -46,13 +56,13 @@ describe('visibleScorecardScopes', () => {
       visibleScorecardScopes({ hasViewer: true, hasDirectReports: true }).map(
         (option) => option.id,
       ),
-    ).toEqual(['mine', 'reports', 'all'])
+    ).toEqual(['mine', 'reports'])
   })
 
-  it('falls back to Everyone when the viewer is unknown', () => {
+  it('does not show Everyone when the viewer is unknown', () => {
     expect(
       visibleScorecardScopes({ hasViewer: false, hasDirectReports: false }),
-    ).toEqual([{ id: 'all', label: 'Everyone' }])
+    ).toEqual([{ id: 'mine', label: 'My Reviews' }])
   })
 })
 

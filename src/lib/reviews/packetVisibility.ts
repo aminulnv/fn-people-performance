@@ -1,4 +1,41 @@
+import { readSession } from '@/lib/authApi'
+import { canViewAllReviews } from '@/lib/accessControl/types'
+import { isEffectiveDirectReport } from '@/lib/delegations/roles'
+import { listEmployees } from '@/lib/employees/store'
+import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewPacket, ReviewPacketStatus, ReviewQuestion } from './types'
+
+/** Who may see manager and calibration grades before they are released. */
+export type ReviewViewerAccess = {
+  canViewAllReviews?: boolean
+  /** Subjects this viewer manages directly, or through an active delegation. */
+  managedEmployeeIds?: number[]
+}
+
+export function reviewAccessForDirectory(
+  viewer: PlatformEmployee | null | undefined,
+  directory: readonly PlatformEmployee[],
+  access: ReviewViewerAccess = {},
+): ReviewViewerAccess {
+  if (!viewer) return access
+  return {
+    ...access,
+    managedEmployeeIds: directory
+      .filter((person) => isEffectiveDirectReport(person, viewer, directory))
+      .map((person) => person.employeeId),
+  }
+}
+
+export function sessionReviewAccess(): ReviewViewerAccess {
+  const session = readSession()
+  const directory = listEmployees()
+  const viewer = directory.find(
+    (person) => person.employeeId === session?.user.employeeId,
+  )
+  return reviewAccessForDirectory(viewer, directory, {
+    canViewAllReviews: canViewAllReviews(session?.user.permissions),
+  })
+}
 
 /** Official manager / calibration result is visible to the subject after this. */
 export function officialReviewReleasedToEmployee(
@@ -52,24 +89,38 @@ function filterAnswersForAudience(
   }
 }
 
+function canSeeUnpublishedReview(
+  packet: ReviewPacket,
+  _viewerEmployeeId: number | null | undefined,
+  access: ReviewViewerAccess,
+): boolean {
+  if (access.canViewAllReviews) return true
+  return (access.managedEmployeeIds ?? []).includes(packet.employeeId)
+}
+
 /**
  * The subject may only see their self-review until results are published
- * to employees. Managers and calibrators still get the full packet.
+ * to employees. The real manager, the person covering that manager, and
+ * people with All read access or All read + write access can see unpublished
+ * grades. Everyone else cannot.
  */
 export function packetForViewer(
   packet: ReviewPacket,
   viewerEmployeeId?: number | null,
   questions?: ReviewQuestion[],
+  access?: ReviewViewerAccess,
 ): ReviewPacket
 export function packetForViewer(
   packet: ReviewPacket | null | undefined,
   viewerEmployeeId?: number | null,
   questions?: ReviewQuestion[],
+  access?: ReviewViewerAccess,
 ): ReviewPacket | null
 export function packetForViewer(
   packet: ReviewPacket | null | undefined,
   viewerEmployeeId?: number | null,
   questions: ReviewQuestion[] = [],
+  access: ReviewViewerAccess = {},
 ): ReviewPacket | null {
   if (!packet) return null
   const isSubject =
@@ -80,6 +131,12 @@ export function packetForViewer(
   }
   if (isSubject) {
     return filterAnswersForAudience(packet, questions, 'employee')
+  }
+  if (
+    !officialReviewReleasedToEmployee(packet.status) &&
+    !canSeeUnpublishedReview(packet, viewerEmployeeId, access)
+  ) {
+    return stripUnpublishedOfficialReview(packet)
   }
   if (
     viewerEmployeeId != null &&
@@ -95,12 +152,14 @@ export function packetsForViewer(
   packets: ReviewPacket[],
   viewerEmployeeId?: number | null,
   questionsForPacket?: (packet: ReviewPacket) => ReviewQuestion[],
+  access: ReviewViewerAccess = {},
 ): ReviewPacket[] {
   return packets.map((packet) =>
     packetForViewer(
       packet,
       viewerEmployeeId,
       questionsForPacket?.(packet) ?? [],
+      access,
     ),
   )
 }

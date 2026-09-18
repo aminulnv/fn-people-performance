@@ -3,12 +3,48 @@ import { departmentKey } from '@/lib/organisation/fromEmployees'
 
 /** URL helpers for organisation unit detail pages. */
 
+export type OrganisationTabId = 'departments' | 'teams' | 'roles'
+
+const ORGANISATION_TAB_ROOTS = new Set([
+  '/organisation/departments',
+  '/organisation/teams',
+  '/organisation/roles',
+])
+
+export function organisationTabPath(
+  tab: OrganisationTabId = 'departments',
+): string {
+  return `/organisation/${tab}`
+}
+
+/** True on the Organisation tab list roots only — not detail/create subpages. */
+export function isOrganisationTabRoot(pathname: string): boolean {
+  return (
+    ORGANISATION_TAB_ROOTS.has(pathname) ||
+    pathname === '/organisation/roles/new'
+  )
+}
+
 export function departmentDetailPath(departmentId: string): string {
   return `/organisation/departments/${encodeURIComponent(departmentId)}`
 }
 
 export function teamDetailPath(teamId: string): string {
   return `/organisation/teams/${encodeURIComponent(teamId)}`
+}
+
+export function roleDetailPath(roleId: string, tab?: string): string {
+  const base = `/organisation/roles/${encodeURIComponent(roleId)}`
+  if (!tab || tab === 'preview') return base
+  return `${base}?tab=${encodeURIComponent(tab)}`
+}
+
+export function roleCreatePath(): string {
+  return '/organisation/roles/new'
+}
+
+export function roleEditPath(roleId: string): string {
+  return `/organisation/roles/${encodeURIComponent(roleId)}/edit`
 }
 
 function teamKey(departmentName: string, teamName: string): string {
@@ -49,5 +85,5 @@ export function organisationPathForEmployee(
   if (department) {
     return departmentDetailPath(departmentKey(department))
   }
-  return '/organisation'
+  return organisationTabPath('departments')
 }

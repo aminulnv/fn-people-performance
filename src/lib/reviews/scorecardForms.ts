@@ -8,6 +8,25 @@ import type {
   ScorecardForm,
 } from './types'
 
+const CYCLE_TYPES: readonly CyclePurpose[] = [
+  'quarterly_checkin',
+  'annual_appraisal',
+  'custom',
+]
+
+export function normalizeScorecardCycleType(
+  value: unknown,
+  fallback: CyclePurpose = 'custom',
+): CyclePurpose {
+  if (
+    typeof value === 'string' &&
+    (CYCLE_TYPES as readonly string[]).includes(value)
+  ) {
+    return value as CyclePurpose
+  }
+  return fallback
+}
+
 /** Resolve the live form policy for group/cycle settings. */
 export function resolveReviewPolicyFromSettings(
   settings: CycleSettings,
@@ -54,6 +73,7 @@ function seededForm(input: {
     id: input.id,
     name: input.name,
     description: input.description,
+    cycleType: input.purpose,
     policy,
     createdAt: input.now,
     updatedAt: input.now,
@@ -145,6 +165,19 @@ export function suggestedScorecardFormId(
   return null
 }
 
+export function formsForCycleType(
+  forms: readonly ScorecardForm[],
+  cycleType: CyclePurpose,
+  options?: { includeFormId?: string | null },
+): ScorecardForm[] {
+  const includeId = options?.includeFormId ?? null
+  return forms.filter(
+    (form) =>
+      form.cycleType === cycleType ||
+      (includeId != null && form.id === includeId),
+  )
+}
+
 export function normalizeScorecardForm(
   form: Partial<ScorecardForm> & Pick<ScorecardForm, 'id' | 'name'>,
 ): ScorecardForm {
@@ -153,6 +186,7 @@ export function normalizeScorecardForm(
     id: form.id,
     name: form.name.trim() || 'Untitled form',
     description: form.description?.trim() || undefined,
+    cycleType: normalizeScorecardCycleType(form.cycleType),
     policy: normalizeReviewPolicy(form.policy, 'custom'),
     createdAt: form.createdAt ?? now,
     updatedAt: form.updatedAt ?? now,
@@ -170,4 +204,3 @@ export function scorecardFormPolicyEquals(
 
 export const ALLOCATED_FORM_POLICY_LOCK =
   'This form is allocated to cycle groups. Duplicate it to edit the scorecard — changing it in place would also change every past quarter that uses it.'
-

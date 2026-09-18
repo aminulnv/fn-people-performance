@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import {
   ActivityLogDrawer,
   ActivityLogTrigger,
@@ -7,8 +7,9 @@ import {
 import { Button, ConfirmDialog, Field, ListboxSelect, PageStatus } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/auth'
-import { useHydrateManagerDelegations } from '@/lib/delegations/useManagerDelegations'
+import { useHydrateManagerDelegations, useManagerDelegationsRevision } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import { canWriteManagerReview } from '@/lib/reviews/managerReviewAccess'
 import { selectGoalCycle } from '@/lib/goalsApi'
 import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store'
 import {
@@ -152,6 +153,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const navigate = useNavigate()
   const { user } = useAuth()
   useHydrateManagerDelegations(user?.employeeId ?? undefined)
+  useManagerDelegationsRevision()
   const { employees, isLoading: employeesLoading } = useEmployees()
   const [packet, setPacket] = useState<ReviewPacket | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -187,7 +189,16 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     defaultReviewPolicy(cyclePurposeOf(cycle))
   const viewerId = user?.employeeId ?? (Number(user?.personId) || null)
   const isSubject = viewerId === employeeId
-  const isManager = Boolean(viewerId && viewerId !== employeeId)
+  const subjectEmployee = employees.find(
+    (person) => person.employeeId === employeeId,
+  )
+  const isManager = canWriteManagerReview({
+    viewerEmployeeId: viewerId,
+    subjectEmployeeId: employeeId,
+    subject: subjectEmployee,
+    directory: employees,
+    permissions: user?.permissions,
+  })
   const goalsPillar = enabledPillars(policy).find((pillar) => pillar.id === 'goals')
   const linkedQuarters = useAnnualLinkedQuarters({
     cycle,
@@ -321,6 +332,14 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       <PageStatus
         variant="loading"
         description="Loading the review packet…"
+      />
+    )
+  }
+  if (!isSubject && !isManager) {
+    return (
+      <Navigate
+        to={scorecardDetailPath(cycleId, employeeId)}
+        replace
       />
     )
   }

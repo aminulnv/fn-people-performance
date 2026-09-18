@@ -22,7 +22,6 @@ import {
 import {
   AttributeFilters,
   Avatar,
-  Button,
   CountBadge,
   CycleSelect,
   Divider,
@@ -797,15 +796,20 @@ function GoalsOverview() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const canManageCycles = hasSystemPermission(
+    user?.permissions,
+    "platform.write_all",
+  );
   const snapshot = useSharedGoalsSnapshot();
+  const hasGoalCycles = snapshot.availableCycles.length > 0;
   const cycleMembershipReady = useReviewCyclesHydrated();
   const [query, setQuery] = useState("");
   const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
     {},
   );
-  const [selectedCycleIds, setSelectedCycleIds] = useState<string[]>(() => [
-    snapshot.cycle.id,
-  ]);
+  const [selectedCycleIds, setSelectedCycleIds] = useState<string[]>(() =>
+    snapshot.cycle.id ? [snapshot.cycle.id] : [],
+  );
   const hydration = useGoalsHydration(selectedCycleIds);
 
   useEffect(() => {
@@ -1200,9 +1204,10 @@ function GoalsOverview() {
   );
 
   const isGoalsListPending =
-    visibleScope === "mine"
+    hasGoalCycles &&
+    (visibleScope === "mine"
       ? (!hydration.ownReady || !cycleMembershipReady) && ownGoalCount === 0
-      : !hydration.cycleReady && filtered.length === 0;
+      : !hydration.cycleReady && filtered.length === 0);
 
   return (
     <div
@@ -1307,10 +1312,34 @@ function GoalsOverview() {
             aria-busy="true"
             aria-label="Loading goals"
           />
+        ) : !hasGoalCycles ? (
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-people__empty-panel"
+              icon={Target}
+              title="No Goal Cycles Yet"
+              description={
+                canManageCycles
+                  ? "Create a scheduled or custom cycle to start setting goals."
+                  : "Ask an administrator to add a cycle before setting goals."
+              }
+              action={
+                canManageCycles ? (
+                  <Link
+                    to={cyclesListPath()}
+                    className="pd-people__create-btn"
+                  >
+                    <Plus size={18} strokeWidth={2} aria-hidden />
+                    Add Cycle
+                  </Link>
+                ) : undefined
+              }
+            />
+          </div>
         ) : visibleScope === "mine" && ownCycleEmpty && ownGoalCount === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
-              className="pd-empty--inline"
+              className="pd-people__empty-panel"
               icon={Target}
               title={ownCycleEmpty.title}
               description={ownCycleEmpty.description}
@@ -1319,23 +1348,24 @@ function GoalsOverview() {
         ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
-              className="pd-empty--inline"
+              className="pd-people__empty-panel"
               icon={Target}
               title={emptyList.title}
               description={emptyList.description}
               action={
                 emptyList.offerAdd && me ? (
-                  <Button
-                    pill
+                  <button
+                    type="button"
+                    className="pd-people__create-btn"
                     onClick={() =>
                       navigate(
                         goalsDetailPath(snapshot.cycle.id, me.id),
                       )
                     }
                   >
-                    <Plus size={16} strokeWidth={1.75} aria-hidden />
+                    <Plus size={18} strokeWidth={2} aria-hidden />
                     Add Goal
-                  </Button>
+                  </button>
                 ) : undefined
               }
             />
@@ -1889,7 +1919,7 @@ export function GoalsPersonDetail({
           title="No Goal Cycles Yet"
           description={
             canManageCycles
-              ? "Add a cycle, then come back to set goals."
+              ? "Create a scheduled or custom cycle to start setting goals."
               : "Ask an administrator to add a cycle before setting goals."
           }
           action={

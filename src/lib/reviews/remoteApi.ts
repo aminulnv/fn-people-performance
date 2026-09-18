@@ -2,6 +2,7 @@ import { apiFetch } from '@/lib/apiClient'
 import type {
   CalibrationLogic,
   CycleGroup,
+  CyclePurpose,
   CycleSettings,
   CycleStagesConfig,
   ReviewCycle,
@@ -143,6 +144,7 @@ export async function createScorecardFormRemote(body: {
   id?: string
   name: string
   description?: string
+  cycleType?: CyclePurpose
   policy?: ReviewPolicy
 }): Promise<ScorecardForm> {
   const response = await apiFetch<{ form: ScorecardForm }>(
@@ -157,6 +159,7 @@ export async function updateScorecardFormRemote(
   patch: {
     name?: string
     description?: string | null
+    cycleType?: CyclePurpose
     policy?: ReviewPolicy
     expectedVersion?: number
   },

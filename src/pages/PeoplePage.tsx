@@ -311,7 +311,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
         ) : employees.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
-              className="pd-empty--inline"
+              className="pd-people__empty-panel"
               icon={Users}
               title="No Employees Yet"
               description="Add people to the directory to get started."
@@ -324,30 +324,32 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
             />
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState
-            className="pd-people__empty-panel"
-            icon={Users}
-            title="No People Match Your Filters"
-            description={
-              query.trim()
-                ? `No one matches “${query.trim()}” with the filters you have applied. Try a different search or clear filters.`
-                : 'These filters exclude everyone. Try clearing them to see the full directory.'
-            }
-            action={
-              <button
-                type="button"
-                className="pd-people__create-btn"
-                onClick={() => {
-                  setQuery('')
-                  setScope('all')
-                  setStatusFilter(null)
-                  setAttributeFilters({})
-                }}
-              >
-                Clear Filters
-              </button>
-            }
-          />
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-people__empty-panel"
+              icon={Users}
+              title="No Matches"
+              description={
+                query.trim()
+                  ? `No one matches “${query.trim()}” with the filters you have applied. Try a different search or clear filters.`
+                  : 'These filters exclude everyone. Try clearing them to see the full directory.'
+              }
+              action={
+                <button
+                  type="button"
+                  className="pd-people__create-btn"
+                  onClick={() => {
+                    setQuery('')
+                    setScope('all')
+                    setStatusFilter(null)
+                    setAttributeFilters({})
+                  }}
+                >
+                  Clear Filters
+                </button>
+              }
+            />
+          </div>
         ) : (
           <PeopleDirectoryTable
             employees={filtered}

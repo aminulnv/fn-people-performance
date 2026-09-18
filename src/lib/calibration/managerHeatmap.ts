@@ -8,9 +8,6 @@ import { sharePercent } from './distribution'
 
 export const HEATMAP_BAND_ORDER: GradeBandId[] = [...OVERALL_GRADE_ORDER]
 
-export const HEATMAP_INFO =
-  'Each cell is the share of that manager’s graded team in the band. Red outline marks outlier concentration: ≥40% Developing & below, or >60% Exceeding & above. Team avg is the mean 1–5 score; Vs org compares that mean to the cycle overall.'
-
 const LOW_OUTLIER_PERCENT = 40
 const HIGH_OUTLIER_PERCENT = 60
 const ON_AVG_DELTA = 0.25

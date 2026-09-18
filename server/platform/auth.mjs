@@ -19,6 +19,7 @@ import { getAppUrl } from '../auth.mjs'
 import { getPool } from '../db.mjs'
 import { asyncHandler, HttpError } from '../errors.mjs'
 import { authRateLimit } from '../rateLimit.mjs'
+import { sessionSecret } from './sessionSecret.mjs'
 import { getEmployeeAccess } from './store.mjs'
 
 const COOKIE_NAME = 'pd_platform_sid'
@@ -52,14 +53,6 @@ function platformPublicOrigin(req) {
 function isLocalDevProxy(req) {
   return LOCAL_DEV_HOSTS.has(forwardedHeader(req, 'x-forwarded-host'))
 }
-function sessionSecret() {
-  return (
-    process.env.PLATFORM_SESSION_SECRET?.trim() ||
-    process.env.SESSION_SECRET?.trim() ||
-    'platform-dev-session-secret'
-  )
-}
-
 function allowedDomain() {
   return (
     process.env.PLATFORM_ALLOWED_EMAIL_DOMAIN?.trim().toLowerCase() ||

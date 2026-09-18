@@ -2,8 +2,10 @@ import { config as loadEnv } from 'dotenv'
 import { createPlatformApp } from './app.mjs'
 import { assertPlatformMigrations } from './platform/migrations.mjs'
 import { startRealtimeHub } from './platform/realtime/hub.mjs'
+import { sessionSecret } from './platform/sessionSecret.mjs'
 
 loadEnv()
+sessionSecret()
 
 const port = Number(process.env.PORT?.trim() || 3002)
 await assertPlatformMigrations()

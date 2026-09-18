@@ -8,6 +8,7 @@ import {
   createSkill,
   listSkillsSnapshot,
   setEmployeeSkillIds,
+  updateSkill,
 } from './store.mjs'
 
 function toHttp(err) {
@@ -51,6 +52,25 @@ export function registerSkillsRoutes(app) {
         const skill = await createSkill(req.body ?? {}, req.platformUser)
         await publishWrite(req, ['reviews', 'activity'], { skillId: skill.id })
         res.status(201).json({ skill })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.patch(
+    '/api/platform/skills/:skillId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const skill = await updateSkill(
+          req.params.skillId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['reviews', 'activity'], { skillId: skill.id })
+        res.json({ skill })
       } catch (err) {
         throw toHttp(err)
       }

@@ -47,12 +47,16 @@ export function defaultScorecardScope(
 export function visibleScorecardScopes(input: {
   hasViewer: boolean
   hasDirectReports: boolean
+  canViewAllReviews?: boolean
 }): { id: ScorecardDirectoryScope; label: string }[] {
-  if (!input.hasViewer) return [{ id: 'all', label: 'Everyone' }]
-  return SCORECARD_SCOPE_OPTIONS.filter((option) => {
+  const scopes = SCORECARD_SCOPE_OPTIONS.filter((option) => {
+    if (option.id === 'all') return input.canViewAllReviews === true
     if (option.id === 'reports') return input.hasDirectReports
+    if (option.id === 'mine') return input.hasViewer
     return true
   })
+  if (scopes.length > 0) return scopes
+  return [{ id: 'mine', label: 'My Reviews' }]
 }
 
 export function resolveScorecardScope(

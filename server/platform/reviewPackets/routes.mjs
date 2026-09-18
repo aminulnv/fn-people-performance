@@ -1,5 +1,9 @@
 import { asyncHandler, HttpError } from '../../errors.mjs'
-import { requirePlatformAuth, requirePlatformPermission } from '../auth.mjs'
+import {
+  permissionsForPlatformUser,
+  requirePlatformAuth,
+  requirePlatformPermission,
+} from '../auth.mjs'
 import {
   calibrateReviewPacket,
   createReviewAppeal,
@@ -11,6 +15,7 @@ import {
   resolveReviewAppeal,
   saveReviewDraft,
 } from './store.mjs'
+import { listEmployeesManagedBy } from '../delegations.mjs'
 import { packetForViewer, packetsForViewer } from './visibility.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
@@ -18,6 +23,20 @@ import { getScorecardForm } from '../reviewCycles/scorecardForms.mjs'
 
 function viewerEmployeeId(req) {
   return req.platformUser?.employeeId ?? null
+}
+
+async function viewerReviewAccess(req) {
+  const permissions = await permissionsForPlatformUser(req.platformUser ?? {})
+  const list = Array.isArray(permissions) ? permissions : []
+  const viewerId = viewerEmployeeId(req)
+  const managedEmployeeIds = viewerId
+    ? await listEmployeesManagedBy(viewerId)
+    : []
+  return {
+    canViewAllReviews:
+      list.includes('platform.read_all') || list.includes('platform.write_all'),
+    managedEmployeeIds,
+  }
 }
 
 async function questionsForPacket(cycle, packet) {
@@ -70,6 +89,7 @@ async function visiblePacket(req, packet) {
     packet,
     viewerEmployeeId(req),
     await questionsForPacket(cycle, packet),
+    await viewerReviewAccess(req),
   )
 }
 
@@ -96,11 +116,13 @@ export function registerReviewPacketRoutes(app) {
         ? await listReviewPacketSummaries(req.params.cycleId)
         : await listReviewPackets(req.params.cycleId)
       const questions = await questionsByPacketId(cycle, packets)
+      const access = await viewerReviewAccess(req)
       res.json({
         packets: packetsForViewer(
           packets,
           viewerEmployeeId(req),
           (packet) => questions.get(packet.id) ?? [],
+          access,
         ),
       })
     }),
@@ -185,11 +207,13 @@ export function registerReviewPacketRoutes(app) {
         })
         const cycle = await getReviewCycle(req.params.cycleId)
         const questions = await questionsByPacketId(cycle, packets)
+        const access = await viewerReviewAccess(req)
         res.json({
           packets: packetsForViewer(
             packets,
             viewerEmployeeId(req),
             (packet) => questions.get(packet.id) ?? [],
+            access,
           ),
         })
       } catch (err) {

@@ -271,7 +271,7 @@ describe('V1 employee profiles', () => {
 
   it('places team owner directly under team in the employee details list', async () => {
     await seedEmployee()
-    signIn(['platform.read_all'])
+    signIn([])
 
     renderRoute(
       '/people/1',
@@ -290,6 +290,7 @@ describe('V1 employee profiles', () => {
       'Employee ID',
       'Status',
       'Role',
+      'Job title',
       'Seniority',
       'Department',
       'Team',
@@ -301,6 +302,58 @@ describe('V1 employee profiles', () => {
       'HRBP',
       'Joining Date',
     ])
+    expect(screen.queryByRole('heading', { name: 'Career' })).not.toBeInTheDocument()
+  })
+
+  it('shows career details to managers above the person', async () => {
+    await seedManagerWithReports()
+    writeSession({
+      user: {
+        id: '2',
+        email: 'manager@example.com',
+        name: 'Line Manager',
+        personId: '2',
+        permissions: [],
+        title: 'Engineering Manager',
+      },
+      signedInAt: '2026-01-01T00:00:00.000Z',
+    })
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Career' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('In grade')).toBeInTheDocument()
+    expect(screen.getByText('Last promotion')).toBeInTheDocument()
+    expect(screen.getByText('PIP')).toBeInTheDocument()
+  })
+
+  it('shows career details to platform admins who are not in the reporting line', async () => {
+    await seedEmployee()
+    writeSession({
+      user: {
+        id: '99',
+        email: 'admin@example.com',
+        name: 'Platform Admin',
+        personId: '99',
+        permissions: ['platform.read_all', 'platform.write_all'],
+        title: 'Admin',
+      },
+      signedInAt: '2026-01-01T00:00:00.000Z',
+    })
+
+    renderRoute(
+      '/people/1',
+      <Route path="/people/:employeeId" element={<EmployeeProfilePage />} />,
+    )
+
+    expect(
+      await screen.findByRole('heading', { name: 'Career' }),
+    ).toBeInTheDocument()
   })
 
   it('links a resolved line manager to their V1 profile', async () => {

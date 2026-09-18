@@ -10,9 +10,9 @@ import {
   scorecardFormPolicyEquals,
   seedScorecardForms,
 } from './scorecardForms'
-import type { ReviewPolicy, ScorecardForm } from './types'
+import type { CyclePurpose, ReviewPolicy, ScorecardForm } from './types'
 
-const STORAGE_KEY = 'pd-scorecard-forms-v2'
+const STORAGE_KEY = 'pd-scorecard-forms-v3'
 
 let memory: ScorecardForm[] | null = null
 let remoteHydrated = false
@@ -128,6 +128,7 @@ export function resetScorecardFormsStoreForTests() {
 export async function createScorecardForm(input: {
   name: string
   description?: string
+  cycleType?: CyclePurpose
   policy?: ReviewPolicy
 }): Promise<ScorecardForm> {
   const now = new Date().toISOString()
@@ -135,6 +136,7 @@ export async function createScorecardForm(input: {
     id: `form-${crypto.randomUUID()}`,
     name: input.name,
     description: input.description,
+    cycleType: input.cycleType,
     policy: input.policy,
     createdAt: now,
     updatedAt: now,
@@ -147,6 +149,7 @@ export async function createScorecardForm(input: {
   const created = await createScorecardFormRemote({
     name: local.name,
     description: local.description,
+    cycleType: local.cycleType,
     policy: local.policy,
   })
   const form = normalizeScorecardForm(created)
@@ -159,6 +162,7 @@ export async function updateScorecardForm(
   patch: {
     name?: string
     description?: string | null
+    cycleType?: CyclePurpose
     policy?: ReviewPolicy
     expectedVersion?: number
     /** When set, blocks policy edits if the form is allocated. */
@@ -175,6 +179,15 @@ export async function updateScorecardForm(
   ) {
     throw new Error(ALLOCATED_FORM_POLICY_LOCK)
   }
+  if (
+    patch.cycleType !== undefined &&
+    patch.cycleType !== current.cycleType &&
+    usage > 0
+  ) {
+    throw new Error(
+      'This form is allocated to cycle groups. Duplicate it to change the cycle type.',
+    )
+  }
   const next = normalizeScorecardForm({
     ...current,
     name: patch.name ?? current.name,
@@ -182,6 +195,7 @@ export async function updateScorecardForm(
       patch.description === undefined
         ? current.description
         : patch.description ?? undefined,
+    cycleType: patch.cycleType ?? current.cycleType,
     policy: patch.policy ?? current.policy,
     updatedAt: new Date().toISOString(),
     version: current.version + 1,
@@ -196,6 +210,7 @@ export async function updateScorecardForm(
     const remote = await updateScorecardFormRemote(current.id, {
       name: patch.name,
       description: patch.description,
+      cycleType: patch.cycleType,
       policy: patch.policy,
       expectedVersion: patch.expectedVersion ?? current.version,
     })

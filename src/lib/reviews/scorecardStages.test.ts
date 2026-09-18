@@ -113,9 +113,9 @@ describe('scorecard stage viewing', () => {
 
   it('returns the grade that belongs to the selected stage', () => {
     const source = packet()
-    expect(gradeForViewStage(source, 'self_review', 1)).toBe('performing')
-    expect(gradeForViewStage(source, 'manager_review', 1)).toBe('exceeding')
-    expect(gradeForViewStage(source, 'calibration_hod_hrbp', 1)).toBe(
+    expect(gradeForViewStage(source, 'self_review', 1, { managedEmployeeIds: [871] })).toBe('performing')
+    expect(gradeForViewStage(source, 'manager_review', 1, { managedEmployeeIds: [871] })).toBe('exceeding')
+    expect(gradeForViewStage(source, 'calibration_hod_hrbp', 1, { managedEmployeeIds: [871] })).toBe(
       'exceptional',
     )
   })
@@ -134,6 +134,19 @@ describe('scorecard stage viewing', () => {
         viewerEmployeeId: 871,
       }),
     ).toBe('appeal')
+  })
+
+  it('keeps the appeal stage closed for everyone except the employee', () => {
+    const source = packet({ status: 'released_to_employees' })
+    const steps = visibleScorecardSteps(stages, source)
+    expect(
+      resolveScorecardViewStage({
+        requested: 'appeal',
+        steps,
+        packet: source,
+        viewerEmployeeId: 1,
+      }),
+    ).toBe('publish_employees')
   })
 })
 

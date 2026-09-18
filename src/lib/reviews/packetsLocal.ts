@@ -179,9 +179,22 @@ export function releaseLocalPackets(
   return listLocalPackets(cycleId)
 }
 
-export function appealLocalPacket(packetId: string, body: string): ReviewPacket {
+export function appealLocalPacket(
+  packetId: string,
+  body: string,
+  actorEmployeeId?: number | null,
+): ReviewPacket {
   const current = [...packets.values()].find((packet) => packet.id === packetId)
   if (!current) throw new Error('Review not found')
+  if (current.status !== 'released_to_employees') {
+    throw new Error('Appeals open after the grade is released to the employee.')
+  }
+  if (
+    actorEmployeeId == null ||
+    Number(actorEmployeeId) !== Number(current.employeeId)
+  ) {
+    throw new Error('Only this employee can appeal their review.')
+  }
   const next: ReviewPacket = {
     ...current,
     status: 'appealed',
@@ -192,7 +205,7 @@ export function appealLocalPacket(packetId: string, body: string): ReviewPacket 
         body,
         status: 'open',
         createdAt: new Date().toISOString(),
-        createdByEmployeeId: null,
+        createdByEmployeeId: actorEmployeeId,
       },
     ],
     version: current.version + 1,

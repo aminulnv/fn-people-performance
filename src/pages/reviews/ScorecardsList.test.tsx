@@ -25,7 +25,12 @@ const { employeesState, authState, packetsState } = vi.hoisted(() => ({
       email: 'alex.manager@example.com',
       name: 'Alex Manager',
       personId: '1',
-    } as { email: string; name: string } | null,
+      permissions: [] as string[],
+    } as {
+      email: string
+      name: string
+      permissions: string[]
+    } | null,
   },
   packetsState: {
     packets: [] as ReviewPacket[],
@@ -97,6 +102,7 @@ beforeEach(async () => {
   authState.user = {
     email: 'alex.manager@example.com',
     name: 'Alex Manager',
+    permissions: [],
   }
   const { listReviewCycles } = await import('@/lib/reviews/store')
   const cycle = listReviewCycles()[0]
@@ -125,6 +131,11 @@ function renderList(hash = '') {
 
 describe('ScorecardsList', () => {
   it('uses the header eye to hide and show every grade', async () => {
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.read_all'],
+    }
     const cycle = listReviewCycles()[0]
     if (!cycle) throw new Error('expected a seeded cycle')
     packetsState.packets = [
@@ -166,6 +177,11 @@ describe('ScorecardsList', () => {
   })
 
   it('filters scorecards from the Filters menu', async () => {
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.read_all'],
+    }
     renderList('#everyone')
 
     await screen.findByRole('link', { name: 'Casey Peer' })
@@ -178,14 +194,14 @@ describe('ScorecardsList', () => {
     expect(screen.getByText('1 shown')).toBeInTheDocument()
   })
 
-  it('scopes the manager queue with My Reviews, My Reports, and Everyone', async () => {
+  it('scopes the manager queue with My Reviews and My Reports', async () => {
     renderList()
 
     expect(
       await screen.findByRole('button', { name: 'My Reports' }),
     ).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'My Reviews' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Everyone' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Everyone' })).toBeNull()
     expect(scorecardLink('Riley Report')).toBeInTheDocument()
     expect(scorecardLink('Alex Manager')).toBeNull()
     expect(scorecardLink('Casey Peer')).toBeNull()
@@ -196,17 +212,28 @@ describe('ScorecardsList', () => {
       expect.stringMatching(/\/reviews\/scorecards\//),
     )
     expect(scorecardLink('Riley Report')).toBeNull()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Everyone' }))
+  it('shows Everyone to All read access', async () => {
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.read_all'],
+    }
+    renderList()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Everyone' }))
     expect(await screen.findByRole('link', { name: 'Casey Peer' })).toBeInTheDocument()
     expect(scorecardLink('Riley Report')).toBeInTheDocument()
     expect(scorecardLink('Alex Manager')).toBeInTheDocument()
-    expect(
-      screen.getByRole('columnheader', { name: /^Role/ }),
-    ).toBeInTheDocument()
   })
 
   it('lists scorecards from every selected cycle', async () => {
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.read_all'],
+    }
     const extra = await createReviewCycle({
       type: 'regular',
       periodKey: 'q2-2026',
@@ -228,6 +255,11 @@ describe('ScorecardsList', () => {
   })
 
   it('hides optional columns from the Columns menu', async () => {
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.read_all'],
+    }
     window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
     renderList('#everyone')
 

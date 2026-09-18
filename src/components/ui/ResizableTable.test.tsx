@@ -145,20 +145,20 @@ describe('distributeAutoWidths', () => {
     { id: 'status', label: 'Status' },
   ]
 
-  it('gives leftover width to the final column', () => {
+  it('gives leftover width to grow columns', () => {
     const layout = distributeAutoWidths(
       layoutColumns,
       { name: 120, status: 80 },
       400,
     )
 
-    expect(layout.widths.status).toBe(280)
-    expect(layout.widths.name).toBe(120)
+    expect(layout.widths.name).toBe(320)
+    expect(layout.widths.status).toBe(80)
     expect(layout.tableWidth).toBe(400)
     expect(layout.overflows).toBe(false)
   })
 
-  it('stretches the final column when none are marked to grow', () => {
+  it('falls back to the final column when none are marked to grow', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name' },
@@ -173,7 +173,7 @@ describe('distributeAutoWidths', () => {
     expect(layout.overflows).toBe(false)
   })
 
-  it('does not spread leftover width across earlier grow columns', () => {
+  it('spreads leftover width across grow columns by weight', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name', grow: true },
@@ -184,12 +184,12 @@ describe('distributeAutoWidths', () => {
       401,
     )
 
-    expect(layout.widths).toEqual({ name: 120, purpose: 100, status: 181 })
+    expect(layout.widths).toEqual({ name: 170, purpose: 151, status: 80 })
     expect(layout.tableWidth).toBe(401)
     expect(layout.overflows).toBe(false)
   })
 
-  it('ignores earlier grow weights so the final column remains fluid', () => {
+  it('honours grow weights when sharing leftover width', () => {
     const layout = distributeAutoWidths(
       [
         { id: 'name', label: 'Name', grow: true, growWeight: 3 },
@@ -202,10 +202,10 @@ describe('distributeAutoWidths', () => {
     )
 
     expect(layout.widths).toEqual({
-      name: 120,
-      purpose: 100,
-      timeframe: 100,
-      status: 180,
+      name: 180,
+      purpose: 120,
+      timeframe: 120,
+      status: 80,
     })
     expect(layout.tableWidth).toBe(500)
   })

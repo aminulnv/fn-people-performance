@@ -41,6 +41,7 @@ import {
   writeVisibleColumnIds,
 } from '@/lib/ui/columnVisibility'
 import { useAuth } from '@/lib/auth'
+import { canViewAllReviews } from '@/lib/accessControl/types'
 import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
 import {
   useHydrateManagerDelegations,
@@ -217,6 +218,7 @@ export function ScorecardsList() {
   const overviewScopes = visibleScorecardScopes({
     hasViewer: Boolean(me),
     hasDirectReports,
+    canViewAllReviews: canViewAllReviews(user?.permissions),
   })
   const visibleScope = resolveScorecardScope(scope, overviewScopes)
 
@@ -307,9 +309,10 @@ export function ScorecardsList() {
           employees,
           user?.email,
           packets.filter((packet) => packet.cycleId === cycleKey),
+          { canViewAllReviews: canViewAllReviews(user?.permissions) },
         ),
       ),
-    [coversRevision, cycleKeys, employees, packets, user?.email],
+    [coversRevision, cycleKeys, employees, packets, user?.email, user?.permissions],
   )
 
   const queueRows = useMemo(
@@ -641,7 +644,7 @@ export function ScorecardsList() {
         ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
-              className="pd-empty--inline"
+              className="pd-people__empty-panel"
               icon={Award}
               title={queueRows.length === 0 ? 'No Performance Reviews Yet' : 'No Matches'}
               description={

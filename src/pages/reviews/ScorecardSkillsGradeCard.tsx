@@ -5,6 +5,8 @@ import { GRADE_LISTBOX_OPTIONS } from '@/pages/reviews/ScorecardGoalsCard'
 import type { GradeBandId } from '@/lib/reviews/types'
 import type { Skill } from '@/lib/skills/types'
 
+type ScorecardSkill = Skill & { expectedHint?: string }
+
 function gradeSelectClass(grade: GradeBandId | null | '') {
   return [
     'pd-reviews-scorecard__goals-grade',
@@ -23,7 +25,7 @@ export function ScorecardSkillsGradeCard({
   profileHref,
   onGradeChange,
 }: {
-  skills: Skill[]
+  skills: ScorecardSkill[]
   grades: Record<string, GradeBandId | ''>
   editing?: boolean
   locked?: boolean
@@ -52,8 +54,8 @@ export function ScorecardSkillsGradeCard({
       {skills.length === 0 ? (
         <EmptyState
           className="pd-empty--inline"
-          title="No skills on their profile"
-          description="Assign skills on the profile first. Those skills show up here to grade."
+          title="No skills on their role yet"
+          description="Skills come from the role competency matrix, plus any extras on the profile."
           action={
             profileHref ? (
               <Link
@@ -73,9 +75,13 @@ export function ScorecardSkillsGradeCard({
               <li key={skill.id} className="pd-reviews-skills-grade__row">
                 <div className="pd-reviews-skills-grade__main">
                   <span className="pd-reviews-skills-grade__name">{skill.name}</span>
-                  {skill.function ? (
+                  {skill.expectedHint ? (
                     <span className="pd-reviews-skills-grade__meta">
-                      {skill.function}
+                      {skill.expectedHint}
+                    </span>
+                  ) : skill.department ? (
+                    <span className="pd-reviews-skills-grade__meta">
+                      {skill.department}
                     </span>
                   ) : null}
                 </div>

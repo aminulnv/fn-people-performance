@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { ListboxSelect, SegmentedControl } from '@/components/ui'
 import {
   COMPARISON_VIEWS,
-  RATING_COMPARISON_INFO,
   buildRatingComparisonGroups,
   buildRatingComparisonModel,
   ratingBandCaption,
@@ -12,6 +11,23 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
 import { HintIcon } from '@/pages/reviews/HintIcon'
+
+const COMPARISON_HINT = (
+  <ul className="pd-help-tip">
+    <li>
+      <strong>Bars</strong>
+      Each group’s mean official grade, on a 1–5 scale.
+    </li>
+    <li>
+      <strong>Vertical line</strong>
+      Average of the comparison group you selected.
+    </li>
+    <li>
+      <strong>Color</strong>
+      On par is within ±0.25 of that line. Below is red, above is blue.
+    </li>
+  </ul>
+)
 
 function formatDelta(delta: number): string {
   const rounded = Math.round(delta * 100) / 100
@@ -93,15 +109,8 @@ export function RatingComparison({
             4
           </span>
           Rating Comparison
-          <HintIcon
-            content={RATING_COMPARISON_INFO}
-            label="About rating comparison"
-          />
+          <HintIcon content={COMPARISON_HINT} label="About rating comparison" />
         </h2>
-        <p className="pd-cal-cmp__copy">
-          Compare departments or teams against each other · Use the filters
-          below to build your view
-        </p>
       </header>
 
       <div className="pd-cal-cmp__panel">
@@ -175,11 +184,6 @@ export function RatingComparison({
             ))}
           </ul>
         )}
-
-        <p className="pd-cal-cmp__footnote">
-          <span className="pd-cal-cmp__footnote-line" aria-hidden />
-          Vertical line = average rating of selected comparison group
-        </p>
       </div>
     </section>
   )

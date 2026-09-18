@@ -262,11 +262,13 @@ export type CycleSettings = {
   reviewPolicy?: ReviewPolicy;
 };
 
-/** Shared scorecard form document owned by Scorecards Builder. */
+/** Shared scorecard form document owned by the Scorecards Library. */
 export type ScorecardForm = {
   id: string;
   name: string;
   description?: string;
+  /** Cycle kind this form is built for (Quarterly / Annual / Custom). */
+  cycleType: CyclePurpose;
   policy: ReviewPolicy;
   createdAt: string;
   updatedAt: string;

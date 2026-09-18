@@ -277,6 +277,17 @@ export type ScorecardTemplate = {
   questions: ReviewQuestion[]
 }
 
+/** Cycle kind suggested when creating a form from this template. */
+export function cycleTypeForTemplate(
+  templateId: ScorecardTemplateId,
+): CyclePurpose {
+  if (templateId === 'annual') return 'annual_appraisal'
+  if (templateId === 'quarterly' || templateId === 'q4') {
+    return 'quarterly_checkin'
+  }
+  return 'custom'
+}
+
 function catalogWith(
   enabled: Array<[Exclude<ScorecardPillarKind, 'custom'>, number]>,
 ): ScorecardPillar[] {

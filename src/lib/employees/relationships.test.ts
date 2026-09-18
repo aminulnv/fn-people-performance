@@ -4,9 +4,9 @@ import {
   listMemoryEmployees,
   replaceMemoryEmployees,
 } from './memoryStore'
-import { resolveTeamOwner } from './relationships'
+import { isAboveInReportingLine, resolveTeamOwner } from './relationships'
+import type { PlatformEmployee, PlatformTeam } from './types'
 import { clearEmployees, createEmployee, getEmployee } from './store'
-import type { PlatformTeam } from './types'
 
 const ownerInput = {
   employeeId: 5,
@@ -231,5 +231,54 @@ describe('resolveTeamOwner', () => {
     expect(
       resolveTeamOwner(getEmployee(member.employee.employeeId))?.fullName,
     ).toBe('Angie Rahman')
+  })
+})
+
+function person(
+  employeeId: number,
+  reportsToId?: number,
+): PlatformEmployee {
+  return {
+    employeeId,
+    fullName: `Person ${employeeId}`,
+    email: `p${employeeId}@example.com`,
+    startDate: '2020-01-01',
+    role: '',
+    jobTitle: '',
+    department: '',
+    team: '',
+    division: '',
+    reportsToName: '',
+    reportsToId,
+    departmentHeadName: '',
+    hrbpName: '',
+    jobGrade: '',
+    site: '',
+    avatarUrl: '',
+    managerEmail: '',
+    isActive: true,
+    createdAt: '',
+    updatedAt: '',
+  }
+}
+
+describe('isAboveInReportingLine', () => {
+  const employee = person(1, 2)
+  const manager = person(2, 3)
+  const skip = person(3, 4)
+  const top = person(4)
+  const peer = person(9, 2)
+  const directory = [employee, manager, skip, top, peer]
+
+  it('includes the line manager and every manager above them', () => {
+    expect(isAboveInReportingLine(2, employee, directory)).toBe(true)
+    expect(isAboveInReportingLine(3, employee, directory)).toBe(true)
+    expect(isAboveInReportingLine(4, employee, directory)).toBe(true)
+  })
+
+  it('excludes the person, their peers, and people below them', () => {
+    expect(isAboveInReportingLine(1, employee, directory)).toBe(false)
+    expect(isAboveInReportingLine(9, employee, directory)).toBe(false)
+    expect(isAboveInReportingLine(1, manager, directory)).toBe(false)
   })
 })

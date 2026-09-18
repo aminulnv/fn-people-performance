@@ -15,6 +15,7 @@ import {
   MapPin,
   Network,
   Save,
+  Tag,
   UserRound,
   Users,
 } from 'lucide-react'
@@ -58,6 +59,7 @@ import {
   updateEmployee,
 } from '@/lib/employees/store'
 import { useEmployees } from '@/lib/employees/useEmployees'
+import { useRolesCatalog } from '@/lib/roles/useRoles'
 import type { CreateEmployeeInput, UpdateEmployeeInput } from '@/lib/employees/types'
 import { notifyManagerChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
@@ -74,6 +76,8 @@ const EMPTY_FORM: FormState = {
   fullName: '',
   email: '',
   startDate: '',
+  role: '',
+  roleId: '',
   jobTitle: '',
   department: '',
   team: '',
@@ -93,6 +97,8 @@ function toUpdateInput(form: FormState): UpdateEmployeeInput {
     fullName: form.fullName,
     email: form.email,
     startDate: form.startDate,
+    role: form.role ?? '',
+    roleId: form.roleId || undefined,
     jobTitle: form.jobTitle,
     department: form.department,
     team: form.team,
@@ -156,6 +162,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const { employeeId: employeeIdParam } = useParams()
   const employeeId = Number(employeeIdParam)
   const { employees, isLoading, loadError, reload } = useEmployees()
+  const { roles } = useRolesCatalog()
   const canWrite = hasSystemPermission(
     user?.permissions,
     'platform.write_all',
@@ -182,6 +189,16 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       division: employees.map((e) => e.division),
     }
     return {
+      role: roles
+        .slice()
+        .sort((left, right) =>
+          left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+        )
+        .map((role) => ({
+          value: role.id,
+          label: role.name,
+          description: role.departmentName || undefined,
+        })),
       jobTitle: buildCatalogOptions(JOB_TITLE_OPTIONS, [
         ...extras.jobTitle,
         form.jobTitle,
@@ -202,6 +219,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     }
   }, [
     employees,
+    roles,
     form.jobTitle,
     form.jobGrade,
     form.site,
@@ -285,6 +303,8 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       fullName: existing.fullName,
       email: existing.email,
       startDate: toUtcIso(existing.startDate) || existing.startDate,
+      role: existing.role,
+      roleId: existing.roleId ?? '',
       jobTitle: existing.jobTitle,
       department: existing.department,
       team: existing.team,
@@ -348,7 +368,11 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const backTo = mode === 'edit' ? `/people/${employeeId}` : '/people'
   const previewName =
     form.fullName.trim() || (mode === 'edit' ? 'Employee' : 'New Employee')
-  const previewMeta = [form.jobTitle.trim(), form.department.trim(), form.division.trim()]
+  const previewMeta = [
+    (form.role ?? '').trim() || form.jobTitle.trim(),
+    form.department.trim(),
+    form.division.trim(),
+  ]
     .filter(Boolean)
     .join(' · ')
   const directoryCount = listEmployees().length
@@ -578,8 +602,28 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                 </DetailRow>
                 <DetailRow label="Role" icon={Briefcase}>
                   <ListboxSelect
-                    name="jobTitle"
+                    name="role"
                     aria-label="Role"
+                    value={form.roleId ?? ''}
+                    onValueChange={(next) => {
+                      const selected = roles.find((role) => role.id === next)
+                      setForm((current) => ({
+                        ...current,
+                        roleId: next,
+                        role: selected?.name ?? '',
+                      }))
+                    }}
+                    placeholder="Select role"
+                    options={catalogOptions.role}
+                    searchable
+                    searchPlaceholder="Search roles"
+                    noResultsText="No roles found"
+                  />
+                </DetailRow>
+                <DetailRow label="Job title" icon={Tag}>
+                  <ListboxSelect
+                    name="jobTitle"
+                    aria-label="Job title"
                     value={form.jobTitle}
                     onValueChange={(next) => onFieldChange('jobTitle', next)}
                     placeholder="Select job title"

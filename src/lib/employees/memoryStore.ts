@@ -18,6 +18,11 @@ function normalizeEmployee(
   const { wing, ...rest } = raw
   return {
     ...rest,
+    role: typeof rest.role === 'string' ? rest.role : '',
+    roleId:
+      typeof rest.roleId === 'string' && rest.roleId.trim()
+        ? rest.roleId.trim()
+        : undefined,
     team: typeof rest.team === 'string' ? rest.team : (wing ?? ''),
     avatarUrl: typeof rest.avatarUrl === 'string' ? rest.avatarUrl : '',
     teamOwnerName:
@@ -114,6 +119,11 @@ export function createMemoryEmployee(
     fullName,
     email,
     startDate: input.startDate.trim(),
+    role: (input.role ?? '').trim(),
+    roleId:
+      typeof input.roleId === 'string' && input.roleId.trim()
+        ? input.roleId.trim()
+        : undefined,
     jobTitle: input.jobTitle.trim(),
     department: input.department.trim(),
     team: input.team.trim(),
@@ -182,6 +192,11 @@ export function updateMemoryEmployee(
     fullName,
     email,
     startDate: input.startDate.trim(),
+    role: (input.role ?? '').trim(),
+    roleId:
+      typeof input.roleId === 'string' && input.roleId.trim()
+        ? input.roleId.trim()
+        : undefined,
     jobTitle: input.jobTitle.trim(),
     department: input.department.trim(),
     team: input.team.trim(),

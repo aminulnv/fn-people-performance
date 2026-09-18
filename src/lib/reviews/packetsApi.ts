@@ -1,7 +1,7 @@
 import { apiFetch } from '@/lib/apiClient'
 import { readSession } from '@/lib/authApi'
 import { resolveCyclePolicyForPerson } from './cycleGroups'
-import { packetForViewer, packetsForViewer } from './packetVisibility'
+import { packetForViewer, packetsForViewer, sessionReviewAccess } from './packetVisibility'
 import { listScorecardForms } from './scorecardFormsStore'
 import { getReviewCycle } from './store'
 import type { ReviewPacket } from './types'
@@ -22,6 +22,7 @@ function sessionEmployeeId(): number | null {
 }
 
 function visiblePacket(packet: ReviewPacket): ReviewPacket {
+  if (!useLocalReviewPackets()) return packet
   const cycle = getReviewCycle(packet.cycleId)
   const questions = cycle
     ? resolveCyclePolicyForPerson(
@@ -30,20 +31,31 @@ function visiblePacket(packet: ReviewPacket): ReviewPacket {
         listScorecardForms(),
       ).settings.reviewPolicy?.scorecard.questions ?? []
     : []
-  return packetForViewer(packet, sessionEmployeeId(), questions)
+  return packetForViewer(
+    packet,
+    sessionEmployeeId(),
+    questions,
+    sessionReviewAccess(),
+  )
 }
 
 function visiblePackets(packets: ReviewPacket[]): ReviewPacket[] {
-  return packetsForViewer(packets, sessionEmployeeId(), (packet) => {
-    const cycle = getReviewCycle(packet.cycleId)
-    return cycle
-      ? resolveCyclePolicyForPerson(
-          cycle,
-          packet.employeeId,
-          listScorecardForms(),
-        ).settings.reviewPolicy?.scorecard.questions ?? []
-      : []
-  })
+  if (!useLocalReviewPackets()) return packets
+  return packetsForViewer(
+    packets,
+    sessionEmployeeId(),
+    (packet) => {
+      const cycle = getReviewCycle(packet.cycleId)
+      return cycle
+        ? resolveCyclePolicyForPerson(
+            cycle,
+            packet.employeeId,
+            listScorecardForms(),
+          ).settings.reviewPolicy?.scorecard.questions ?? []
+        : []
+    },
+    sessionReviewAccess(),
+  )
 }
 
 export async function fetchReviewPackets(cycleId: string): Promise<ReviewPacket[]> {
@@ -144,7 +156,11 @@ export async function appealReviewPacket(
   packetId: string,
   body: string,
 ): Promise<ReviewPacket> {
-  if (useLocalReviewPackets()) return visiblePacket(appealLocalPacket(packetId, body))
+  if (useLocalReviewPackets()) {
+    return visiblePacket(
+      appealLocalPacket(packetId, body, sessionEmployeeId()),
+    )
+  }
   const response = await apiFetch<{ packet: ReviewPacket }>(
     `/api/platform/review-packets/${encodeURIComponent(packetId)}/appeals`,
     { method: 'POST', body: { body } },

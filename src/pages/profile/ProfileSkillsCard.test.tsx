@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { clearEmployees, createEmployee } from '@/lib/employees/store'
+import { createRole, resetRolesStoreForTests, updateRoleMatrix } from '@/lib/roles/store'
 import {
   getSkillIdsForEmployee,
+  getSkillsSnapshot,
   resetSkillsStoreForTests,
 } from '@/lib/skills/store'
 import { ProfileSkillsCard } from './ProfileSkillsCard'
@@ -19,6 +22,8 @@ if (typeof HTMLDialogElement !== 'undefined') {
 afterEach(() => {
   cleanup()
   resetSkillsStoreForTests()
+  resetRolesStoreForTests()
+  clearEmployees()
 })
 
 describe('ProfileSkillsCard', () => {
@@ -29,11 +34,54 @@ describe('ProfileSkillsCard', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('No skills assigned')).toBeInTheDocument()
+    expect(screen.getByText('No skills on this role yet')).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: 'Add skills' })[0]!)
     fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]!)
-    expect(screen.queryByText('No skills assigned')).not.toBeInTheDocument()
+    expect(screen.queryByText('No skills on this role yet')).not.toBeInTheDocument()
     expect(getSkillIdsForEmployee(1).length).toBe(1)
+  })
+
+  it('shows inherited role skills without a manual assignment', async () => {
+    const role = await createRole({ name: 'QA Engineer' })
+    const skill = getSkillsSnapshot()[0]!
+    await updateRoleMatrix(role.id, [
+      {
+        skillId: skill.id,
+        skillName: skill.name,
+        weightPct: 40,
+        expectations: { IC2: 'expert' },
+      },
+    ])
+    const created = await createEmployee({
+      employeeId: 7,
+      fullName: 'Role Person',
+      email: 'role.person@example.com',
+      startDate: '2024-01-01',
+      role: role.name,
+      roleId: role.id,
+      jobTitle: 'QA Engineer',
+      department: 'Engineering',
+      team: '',
+      division: '',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: 'IC2',
+      site: '',
+      managerEmail: '',
+    })
+    expect(created.ok).toBe(true)
+
+    render(
+      <MemoryRouter>
+        <ProfileSkillsCard employeeId={7} canEdit />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText(skill.name)).toBeInTheDocument()
+    expect(screen.getByText('Expected: Expert for IC2')).toBeInTheDocument()
+    expect(getSkillIdsForEmployee(7)).toEqual([])
+    expect(screen.queryByRole('button', { name: `Remove ${skill.name}` })).toBeNull()
   })
 
   it('hides add controls when read-only', () => {

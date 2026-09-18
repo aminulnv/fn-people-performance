@@ -8,6 +8,12 @@ import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { defaultReviewPolicy, normalizeReviewPolicy } from './reviewConfig.mjs'
 
+const CYCLE_TYPES = new Set([
+  'quarterly_checkin',
+  'annual_appraisal',
+  'custom',
+])
+
 function isoTimestamp(value) {
   if (!value) return undefined
   if (value instanceof Date) return value.toISOString()
@@ -22,12 +28,30 @@ function actorFromUser(platformUser) {
   }
 }
 
+function normalizeCycleType(value, fallback = 'custom') {
+  const next = typeof value === 'string' ? value.trim() : ''
+  return CYCLE_TYPES.has(next) ? next : fallback
+}
+
+function requireCycleType(value) {
+  if (value == null || String(value).trim() === '') return 'custom'
+  const next = String(value).trim()
+  if (!CYCLE_TYPES.has(next)) {
+    throw new HttpError(
+      400,
+      'Cycle type must be Quarterly, Annual, or Custom.',
+    )
+  }
+  return next
+}
+
 export function mapScorecardForm(row) {
   return {
     id: row.id,
     name: row.name,
     description: row.description ?? undefined,
-    policy: normalizeReviewPolicy(row.policy, 'custom'),
+    cycleType: normalizeCycleType(row.cycle_type),
+    policy: normalizeReviewPolicy(row.policy, normalizeCycleType(row.cycle_type)),
     createdAt: isoTimestamp(row.created_at),
     updatedAt: isoTimestamp(row.updated_at),
     version: Number(row.version),
@@ -42,6 +66,7 @@ export function builtInScorecardForms() {
       name: 'Q1 check-in',
       description:
         'Q1 Goals grade only. Locked grade later feeds the Annual Goals rollup.',
+      cycleType: 'quarterly_checkin',
       purpose: 'quarterly_checkin',
       periodKey: 'q1-2026',
     },
@@ -50,6 +75,7 @@ export function builtInScorecardForms() {
       name: 'Q2 check-in',
       description:
         'Q2 Goals grade only. Locked grade later feeds the Annual Goals rollup.',
+      cycleType: 'quarterly_checkin',
       purpose: 'quarterly_checkin',
       periodKey: 'q2-2026',
     },
@@ -58,6 +84,7 @@ export function builtInScorecardForms() {
       name: 'Q3 check-in',
       description:
         'Q3 Goals grade only. Locked grade later feeds the Annual Goals rollup.',
+      cycleType: 'quarterly_checkin',
       purpose: 'quarterly_checkin',
       periodKey: 'q3-2026',
     },
@@ -66,6 +93,7 @@ export function builtInScorecardForms() {
       name: 'Q4 progress',
       description:
         'Goals progress only — no quarter grade. Manager sets the Q4 grade in Annual.',
+      cycleType: 'quarterly_checkin',
       purpose: 'quarterly_checkin',
       periodKey: 'q4-2026',
     },
@@ -74,6 +102,7 @@ export function builtInScorecardForms() {
       name: 'Annual appraisal',
       description:
         'Goals (from Q1–Q4) 50% + Skills 25% + Values 25%, with year-end questions and overall grading.',
+      cycleType: 'annual_appraisal',
       purpose: 'annual_appraisal',
       periodKey: 'annual-2026',
     },
@@ -81,6 +110,7 @@ export function builtInScorecardForms() {
       id: 'form-blank',
       name: 'Blank form',
       description: 'Empty canvas to build from scratch.',
+      cycleType: 'custom',
       purpose: 'custom',
       periodKey: undefined,
     },
@@ -106,10 +136,16 @@ export async function ensureDefaultScorecardForms() {
       const policy = defaultReviewPolicy(item.purpose, item.periodKey)
       await client.query(
         `INSERT INTO platform.scorecard_forms (
-           id, name, description, policy
-         ) VALUES ($1, $2, $3, $4::jsonb)
+           id, name, description, cycle_type, policy
+         ) VALUES ($1, $2, $3, $4, $5::jsonb)
          ON CONFLICT (id) DO NOTHING`,
-        [item.id, item.name, item.description, JSON.stringify(policy)],
+        [
+          item.id,
+          item.name,
+          item.description,
+          item.cycleType,
+          JSON.stringify(policy),
+        ],
       )
     }
     await client.query('COMMIT')
@@ -131,7 +167,14 @@ export async function listScorecardForms() {
     `SELECT *
      FROM platform.scorecard_forms
      WHERE deleted_at IS NULL
-     ORDER BY lower(name), created_at`,
+     ORDER BY
+       CASE cycle_type
+         WHEN 'quarterly_checkin' THEN 0
+         WHEN 'annual_appraisal' THEN 1
+         ELSE 2
+       END,
+       lower(name),
+       created_at`,
   )
   return rows.map(mapScorecardForm)
 }
@@ -159,9 +202,10 @@ export async function countFormUsage(formId) {
 export async function createScorecardForm(input, platformUser) {
   const name = String(input.name ?? '').trim()
   if (!name) throw new HttpError(400, 'Form name is required.')
+  const cycleType = requireCycleType(input.cycleType ?? input.cycle_type)
   const actor = actorFromUser(platformUser)
   const id = input.id || `form-${crypto.randomUUID()}`
-  const policy = normalizeReviewPolicy(input.policy, 'custom')
+  const policy = normalizeReviewPolicy(input.policy, cycleType)
   const description =
     input.description == null || String(input.description).trim() === ''
       ? null
@@ -172,11 +216,18 @@ export async function createScorecardForm(input, platformUser) {
     await client.query('BEGIN')
     const { rows } = await client.query(
       `INSERT INTO platform.scorecard_forms (
-         id, name, description, policy,
+         id, name, description, cycle_type, policy,
          created_by_employee_id, updated_by_employee_id
-       ) VALUES ($1, $2, $3, $4::jsonb, $5, $5)
+       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $6)
        RETURNING *`,
-      [id, name, description, JSON.stringify(policy), actor.actorEmployeeId],
+      [
+        id,
+        name,
+        description,
+        cycleType,
+        JSON.stringify(policy),
+        actor.actorEmployeeId,
+      ],
     )
     const form = mapScorecardForm(rows[0])
     await appendActivityEvent(client, {
@@ -185,7 +236,7 @@ export async function createScorecardForm(input, platformUser) {
       entityId: form.id,
       ...actor,
       summary: `Created scorecard form ${form.name}`,
-      metadata: { formId: form.id },
+      metadata: { formId: form.id, cycleType: form.cycleType },
       source: 'api',
     })
     await client.query('COMMIT')
@@ -230,10 +281,17 @@ export async function updateScorecardForm(formId, patch, platformUser) {
         : patch.description == null || String(patch.description).trim() === ''
           ? null
           : String(patch.description).trim()
-    const beforePolicy = normalizeReviewPolicy(before.policy, 'custom')
+    const nextCycleType =
+      patch.cycleType !== undefined || patch.cycle_type !== undefined
+        ? requireCycleType(patch.cycleType ?? patch.cycle_type)
+        : normalizeCycleType(before.cycle_type)
+    const beforePolicy = normalizeReviewPolicy(
+      before.policy,
+      normalizeCycleType(before.cycle_type),
+    )
     const nextPolicy =
       patch.policy !== undefined
-        ? normalizeReviewPolicy(patch.policy, 'custom')
+        ? normalizeReviewPolicy(patch.policy, nextCycleType)
         : beforePolicy
 
     if (patch.policy !== undefined) {
@@ -249,13 +307,24 @@ export async function updateScorecardForm(formId, patch, platformUser) {
       }
     }
 
+    if (nextCycleType !== normalizeCycleType(before.cycle_type)) {
+      const usage = await countFormUsage(formId)
+      if (usage > 0) {
+        throw new HttpError(
+          409,
+          'This form is allocated to cycle groups. Duplicate it to change the cycle type.',
+        )
+      }
+    }
+
     const { rows } = await client.query(
       `UPDATE platform.scorecard_forms
        SET name = $2,
            description = $3,
-           policy = $4::jsonb,
+           cycle_type = $4,
+           policy = $5::jsonb,
            version = version + 1,
-           updated_by_employee_id = $5,
+           updated_by_employee_id = $6,
            updated_at = now()
        WHERE id = $1 AND deleted_at IS NULL
        RETURNING *`,
@@ -263,6 +332,7 @@ export async function updateScorecardForm(formId, patch, platformUser) {
         formId,
         nextName,
         nextDescription,
+        nextCycleType,
         JSON.stringify(nextPolicy),
         actor.actorEmployeeId,
       ],
@@ -274,7 +344,7 @@ export async function updateScorecardForm(formId, patch, platformUser) {
       entityId: form.id,
       ...actor,
       summary: `Updated scorecard form ${form.name}`,
-      metadata: { formId: form.id },
+      metadata: { formId: form.id, cycleType: form.cycleType },
       source: 'api',
     })
     await client.query('COMMIT')

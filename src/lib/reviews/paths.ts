@@ -1,9 +1,14 @@
 import type { CycleSectionId } from './types'
 
-export type ReviewsTabId = 'scorecards' | 'skills' | 'values'
+export type ReviewsTabId =
+  | 'scorecards'
+  | 'scorecards-library'
+  | 'skills'
+  | 'values'
 
 const REVIEWS_TAB_ROOTS = new Set([
   '/reviews/scorecards',
+  '/reviews/scorecards-library',
   '/reviews/skills',
   '/reviews/values',
 ])
@@ -33,6 +38,18 @@ export function valueEditPath(valueId: string): string {
   return `/reviews/values/${encodeURIComponent(valueId)}/edit`
 }
 
+export function skillsLibraryPath(): string {
+  return '/reviews/skills'
+}
+
+export function skillCreatePath(): string {
+  return '/reviews/skills/new'
+}
+
+export function skillEditPath(skillId: string): string {
+  return `/reviews/skills/${encodeURIComponent(skillId)}/edit`
+}
+
 export function cyclesListPath(): string {
   return '/cycles'
 }
@@ -53,7 +70,12 @@ export function cycleGroupPath(
   return section ? `${path}#${section.startsWith('#') ? section.slice(1) : section}` : path
 }
 
+export function scorecardsLibraryPath(formId?: string): string {
+  if (!formId) return '/reviews/scorecards-library'
+  return `/reviews/scorecards-library/${encodeURIComponent(formId)}`
+}
+
+/** @deprecated Prefer scorecardsLibraryPath — kept as an alias for call sites. */
 export function scorecardsBuilderPath(formId?: string): string {
-  if (!formId) return '/scorecards-builder'
-  return `/scorecards-builder/${encodeURIComponent(formId)}`
+  return scorecardsLibraryPath(formId)
 }
