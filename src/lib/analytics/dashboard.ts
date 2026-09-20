@@ -2,6 +2,7 @@ import { isEffectiveDirectReport } from '@/lib/delegations/roles'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { PersonGoals } from '@/lib/goals/types'
 import { cycleMemberIds, findCycleGroupForPerson } from '@/lib/reviews/cycleGroups'
+import { guidelineForEmployees } from '@/lib/reviews/calibrationGuideline'
 import { GRADE_BAND_META, GRADE_BAND_ORDER } from '@/lib/reviews/labels'
 import { PACKET_STATUS_LABEL } from '@/lib/reviews/scorecards'
 import {
@@ -484,7 +485,10 @@ export function buildAnalyticsDashboard(input: {
   const gradedPackets = packets.filter((packet) => officialGrade(packet))
   const gradeMix: AnalyticsGradeMixRow[] = []
   if (showReviews && gradedPackets.length > 0) {
-    const guideline = input.cycle.calibration.gradeDistribution
+    const guideline = guidelineForEmployees(
+      input.cycle,
+      gradedPackets.map((packet) => packet.employeeId),
+    )
     const counts = Object.fromEntries(
       GRADE_BAND_ORDER.map((id) => [id, 0]),
     ) as Record<GradeBandId, number>

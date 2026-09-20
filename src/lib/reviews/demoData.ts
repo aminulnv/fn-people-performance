@@ -7,6 +7,7 @@ import {
   applyNestedWindowsToReviewStages,
   defaultReviewStages,
   deriveReviewStagesFromLegacy,
+  withoutUnsupportedCalibration,
   mergeReviewStages,
   syncLegacyStageWindows,
 } from "./reviewStages";
@@ -32,9 +33,6 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
   reviewTypes: {
     line_manager: true,
     self: false,
-    upwards: false,
-    peer: false,
-    functional_manager: false,
   },
   goalCountPolicy: {
     minimumRequired: 2,
@@ -50,15 +48,22 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
   reviewPolicy: defaultReviewPolicy("quarterly_checkin"),
 };
 
+export function reviewTypesOf(
+  value?: { self?: boolean } | null,
+): CycleSettings["reviewTypes"] {
+  return {
+    line_manager: true,
+    self: value?.self === true,
+  };
+}
+
 export function normalizeCycleSettings(
   settings?: Partial<CycleSettings>,
   purpose: CyclePurpose = "quarterly_checkin",
   periodKey?: string,
 ): CycleSettings {
   const reviewTypes = {
-    ...DEFAULT_CYCLE_SETTINGS.reviewTypes,
-    ...settings?.reviewTypes,
-    line_manager: true,
+    ...reviewTypesOf(settings?.reviewTypes),
     ...(purpose === "annual_appraisal" ? { self: true } : {}),
   };
   if (settings?.reviewTypes?.self != null) {
@@ -215,7 +220,10 @@ export function normalizeStagesConfig(
       ? defaultReviewStages(purpose, merged)
       : deriveReviewStagesFromLegacy(purpose, merged),
   );
-  return syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged));
+  return withoutUnsupportedCalibration(
+    syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+    purpose,
+  );
 }
 
 /** Default stage windows relative to a quarter timeframe. */
@@ -241,7 +249,7 @@ export function buildDefaultStagesConfig(
         managerEnd: at(endDate),
       },
       calibration: {
-        enabled: purpose !== "quarterly_checkin",
+        enabled: purpose === "annual_appraisal",
         start: at(endDate),
         end: at(endDate),
         manualStart: at(endDate),
@@ -282,7 +290,7 @@ export function buildDefaultStagesConfig(
       managerEnd: at(toIso(reviewEnd)),
     },
     calibration: {
-      enabled: purpose !== "quarterly_checkin",
+      enabled: purpose === "annual_appraisal",
       start: at(toIso(calStart)),
       end: at(toIso(calEnd)),
       manualStart: at(toIso(calStart)),

@@ -122,6 +122,7 @@ const SEED_SKILLS = [
   },
 ]
 
+/** Rubric keys. `none` is Not Applicable. */
 const MASTERY_LEVELS = [
   'none',
   'basic',

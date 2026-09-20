@@ -33,9 +33,6 @@ function cycle(processMode: 'schedule' | 'manual' = 'schedule'): ReviewCycle {
       reviewTypes: {
         line_manager: true,
         self: false,
-        upwards: false,
-        peer: false,
-        functional_manager: false,
       },
       excludedEmployeeIds: [],
       autoScorecardGeneration: false,

@@ -102,7 +102,7 @@ export function ManagerRatingHeatmap({
                   <th scope="row">
                     <span className="pd-cal-heat__manager">
                       <span className="pd-cal-heat__manager-name">
-                        {row.shortName}
+                        {row.managerName}
                       </span>
                       <span className="pd-cal-heat__manager-meta">
                         {peopleLabel(row.teamSize)}

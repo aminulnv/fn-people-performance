@@ -16,11 +16,14 @@ import {
 import type {
   CreateDepartmentInput,
   CreateEmployeeInput,
+  CreateTeamInput,
   EmployeeProfilePayload,
   PlatformDepartment,
   PlatformEmployee,
   PlatformTeam,
+  UpdateDepartmentInput,
   UpdateEmployeeInput,
+  UpdateTeamInput,
 } from './types'
 
 type Listener = () => void
@@ -364,6 +367,7 @@ export function clearEmployees(): void {
   memoryDepartments = []
   memoryDepartmentSeq = 10_000
   memoryTeams = []
+  memoryTeamSeq = 20_000
   cache = []
   profileExtras.clear()
   profileLoadPromises.clear()
@@ -389,17 +393,7 @@ export async function listDepartments(): Promise<PlatformDepartment[]> {
       if (!name) continue
       const key = name.toLowerCase()
       const existing = byName.get(key)
-      if (existing) {
-        byName.set(key, {
-          ...existing,
-          headEmployeeId:
-            existing.headEmployeeId ?? employee.departmentHeadId ?? null,
-          headName: existing.headName || employee.departmentHeadName || null,
-          hrbpEmployeeId: existing.hrbpEmployeeId ?? employee.hrbpId ?? null,
-          hrbpName: existing.hrbpName || employee.hrbpName || null,
-        })
-        continue
-      }
+      if (existing) continue
       byName.set(key, {
         id: byName.size + 1,
         name,
@@ -494,6 +488,7 @@ export async function createDepartment(
 
 /** Extra teams created in the local/test backend. */
 let memoryTeams: PlatformTeam[] = []
+let memoryTeamSeq = 20_000
 
 /** Test helper - replace the in-memory team catalog. */
 export function replaceTeams(teams: PlatformTeam[]): void {
@@ -507,9 +502,6 @@ export function replaceTeams(teams: PlatformTeam[]): void {
  */
 export async function listTeams(): Promise<PlatformTeam[]> {
   if (useMemoryBackend()) {
-    if (memoryTeams.length > 0) {
-      return memoryTeams.map((team) => ({ ...team }))
-    }
     const byKey = new Map<string, PlatformTeam>()
     let seq = 1
     for (const employee of listMemoryEmployees()) {
@@ -520,10 +512,6 @@ export async function listTeams(): Promise<PlatformTeam[]> {
       const existing = byKey.get(key)
       if (existing) {
         existing.headcount += 1
-        if (existing.ownerEmployeeId == null && employee.teamOwnerId != null) {
-          existing.ownerEmployeeId = employee.teamOwnerId
-          existing.ownerName = employee.teamOwnerName ?? null
-        }
         continue
       }
       byKey.set(key, {
@@ -537,6 +525,10 @@ export async function listTeams(): Promise<PlatformTeam[]> {
         headcount: 1,
       })
     }
+    for (const team of memoryTeams) {
+      const key = `${team.departmentName.trim().toLowerCase()}::${team.name.trim().toLowerCase()}`
+      byKey.set(key, { ...team })
+    }
     return [...byKey.values()].sort((left, right) =>
       left.name.localeCompare(right.name),
     )
@@ -544,4 +536,183 @@ export async function listTeams(): Promise<PlatformTeam[]> {
 
   const data = await apiFetch<{ teams: PlatformTeam[] }>('/api/platform/teams')
   return Array.isArray(data.teams) ? data.teams : []
+}
+
+function apiError(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    const body = err.body as { error?: string } | null
+    return body?.error ?? `Request failed (${err.status})`
+  }
+  return err instanceof Error ? err.message : fallback
+}
+
+function memoryPerson(employeeId: number | null | undefined) {
+  if (employeeId == null) return null
+  return getMemoryEmployee(employeeId)
+}
+
+export async function updateDepartment(
+  input: UpdateDepartmentInput,
+): Promise<CreateDepartmentResult> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: 'Department name is required.' }
+  if (useMemoryBackend()) {
+    const existing = await listDepartments()
+    if (
+      existing.some(
+        (row) =>
+          row.id !== input.id &&
+          row.name.trim().toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      return { ok: false, error: 'A department with this name already exists.' }
+    }
+    const head = memoryPerson(input.headEmployeeId)
+    const hrbp = memoryPerson(input.hrbpEmployeeId)
+    const department: PlatformDepartment = {
+      id: input.id,
+      name,
+      headEmployeeId: head?.employeeId ?? null,
+      headName: head?.fullName ?? null,
+      headEmail: head?.email ?? null,
+      hrbpEmployeeId: hrbp?.employeeId ?? null,
+      hrbpName: hrbp?.fullName ?? null,
+      hrbpEmail: hrbp?.email ?? null,
+      headcount: existing.find((row) => row.id === input.id)?.headcount ?? 0,
+      teamCount: existing.find((row) => row.id === input.id)?.teamCount ?? 0,
+    }
+    memoryDepartments = [
+      ...memoryDepartments.filter((row) => row.id !== input.id),
+      department,
+    ]
+    notify()
+    return { ok: true, department }
+  }
+  try {
+    const data = await apiFetch<{ department: PlatformDepartment }>(
+      `/api/platform/departments/${input.id}`,
+      {
+        method: 'PATCH',
+        body: {
+          name,
+          headEmployeeId: input.headEmployeeId ?? null,
+          hrbpEmployeeId: input.hrbpEmployeeId ?? null,
+        },
+      },
+    )
+    return { ok: true, department: data.department }
+  } catch (err) {
+    return { ok: false, error: apiError(err, 'Could not update the department.') }
+  }
+}
+
+export type TeamWriteResult =
+  | { ok: true; team: PlatformTeam }
+  | { ok: false; error: string }
+
+export async function createTeam(input: CreateTeamInput): Promise<TeamWriteResult> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: 'Team name is required.' }
+  if (!Number.isInteger(input.departmentId) || input.departmentId <= 0) {
+    return { ok: false, error: 'Choose a department for this team.' }
+  }
+  if (useMemoryBackend()) {
+    const departments = await listDepartments()
+    const department = departments.find((row) => row.id === input.departmentId)
+    if (!department) return { ok: false, error: 'Department not found.' }
+    const teams = await listTeams()
+    if (
+      teams.some(
+        (team) =>
+          team.departmentId === department.id &&
+          team.name.trim().toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      return {
+        ok: false,
+        error: 'A team with this name already exists in that department.',
+      }
+    }
+    const owner = memoryPerson(input.ownerEmployeeId)
+    const team: PlatformTeam = {
+      id: ++memoryTeamSeq,
+      name,
+      departmentId: department.id,
+      departmentName: department.name,
+      ownerEmployeeId: owner?.employeeId ?? null,
+      ownerName: owner?.fullName ?? null,
+      ownerEmail: owner?.email ?? null,
+      headcount: 0,
+    }
+    memoryTeams = [...memoryTeams, team]
+    notify()
+    return { ok: true, team }
+  }
+  try {
+    const data = await apiFetch<{ team: PlatformTeam }>('/api/platform/teams', {
+      method: 'POST',
+      body: {
+        name,
+        departmentId: input.departmentId,
+        ownerEmployeeId: input.ownerEmployeeId ?? null,
+      },
+    })
+    return { ok: true, team: data.team }
+  } catch (err) {
+    return { ok: false, error: apiError(err, 'Could not create the team.') }
+  }
+}
+
+export async function updateTeam(input: UpdateTeamInput): Promise<TeamWriteResult> {
+  const name = input.name.trim()
+  if (!name) return { ok: false, error: 'Team name is required.' }
+  if (useMemoryBackend()) {
+    const departments = await listDepartments()
+    const department = departments.find((row) => row.id === input.departmentId)
+    if (!department) return { ok: false, error: 'Department not found.' }
+    const teams = await listTeams()
+    if (
+      teams.some(
+        (team) =>
+          team.id !== input.id &&
+          team.departmentId === department.id &&
+          team.name.trim().toLowerCase() === name.toLowerCase(),
+      )
+    ) {
+      return {
+        ok: false,
+        error: 'A team with this name already exists in that department.',
+      }
+    }
+    const owner = memoryPerson(input.ownerEmployeeId)
+    const team: PlatformTeam = {
+      id: input.id,
+      name,
+      departmentId: department.id,
+      departmentName: department.name,
+      ownerEmployeeId: owner?.employeeId ?? null,
+      ownerName: owner?.fullName ?? null,
+      ownerEmail: owner?.email ?? null,
+      headcount: teams.find((row) => row.id === input.id)?.headcount ?? 0,
+    }
+    memoryTeams = [...memoryTeams.filter((row) => row.id !== input.id), team]
+    notify()
+    return { ok: true, team }
+  }
+  try {
+    const data = await apiFetch<{ team: PlatformTeam }>(
+      `/api/platform/teams/${input.id}`,
+      {
+        method: 'PATCH',
+        body: {
+          name,
+          departmentId: input.departmentId,
+          ownerEmployeeId: input.ownerEmployeeId ?? null,
+        },
+      },
+    )
+    return { ok: true, team: data.team }
+  } catch (err) {
+    return { ok: false, error: apiError(err, 'Could not update the team.') }
+  }
 }

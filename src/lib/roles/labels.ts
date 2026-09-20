@@ -1,8 +1,8 @@
-import type { ExpectedSkillLevel, PlatformRole, RoleSkill } from './types'
+import type { ExpectedSkillLevel } from './types'
 import { EXPECTED_SKILL_LEVELS } from './types'
 
 const LEVEL_LABELS: Record<ExpectedSkillLevel, string> = {
-  none: 'Poor',
+  none: 'Not Applicable',
   basic: 'Basic',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
@@ -46,38 +46,4 @@ export function roleWeightTotal(weights: Array<number | undefined>): number {
     (sum, value) => sum + (Number(value) || 0),
     0,
   )
-}
-
-/** Grades that have at least one non-none expectation on the matrix. */
-export function gradesWithExpectations(skills: RoleSkill[]): Set<string> {
-  const grades = new Set<string>()
-  for (const skill of skills) {
-    for (const [grade, level] of Object.entries(skill.expectations)) {
-      if (level && level !== 'none') grades.add(grade.trim())
-    }
-  }
-  return grades
-}
-
-/**
- * NIPS-style readiness: share of active people whose seniority has expectations
- * defined on the role matrix. Empty matrix or no people → 0.
- */
-export function roleNipsPercent(
-  role: Pick<PlatformRole, 'skills'>,
-  members: Array<{ isActive: boolean; jobGrade: string }>,
-): number {
-  const active = members.filter((member) => member.isActive)
-  if (active.length === 0) return 0
-  const covered = gradesWithExpectations(role.skills)
-  if (covered.size === 0) return 0
-  const matching = active.filter((member) => {
-    const grade = member.jobGrade.trim()
-    return grade !== '' && covered.has(grade)
-  }).length
-  return Math.round((matching / active.length) * 100)
-}
-
-export function formatNips(percent: number): string {
-  return `${percent}%`
 }

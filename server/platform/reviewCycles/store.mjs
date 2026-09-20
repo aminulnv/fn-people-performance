@@ -11,6 +11,7 @@ import {
   cyclePurposeOf,
   inferYearKey,
   normalizeReviewPolicy,
+  normalizeReviewTypes,
 } from './reviewConfig.mjs'
 import {
   validateCalibration,
@@ -75,7 +76,7 @@ function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
       purpose,
     }),
     settings: {
-      reviewTypes: row.review_types,
+      reviewTypes: normalizeReviewTypes(row.review_types),
       goalCountPolicy: row.goal_count_policy,
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
@@ -342,7 +343,7 @@ export async function createReviewCycle(input, platformUser) {
       input.endDate,
       Boolean(input.isTest),
       JSON.stringify(stagesConfig),
-      JSON.stringify(input.settings.reviewTypes),
+      JSON.stringify(normalizeReviewTypes(input.settings.reviewTypes)),
       JSON.stringify(input.settings.goalCountPolicy),
       input.settings.postWindowGoalPolicy,
       Boolean(input.settings.autoScorecardGeneration),
@@ -426,9 +427,9 @@ export async function updateReviewCycle(cycleId, patch, platformUser) {
       type: before.type,
     })
     const nextSettings = {
-      reviewTypes: patch.reviewTypes
-        ? { ...patch.reviewTypes, line_manager: true }
-        : before.settings.reviewTypes,
+      reviewTypes: normalizeReviewTypes(
+        patch.reviewTypes ?? before.settings.reviewTypes,
+      ),
       goalCountPolicy: {
         ...before.settings.goalCountPolicy,
         ...patch.goalCountPolicy,
@@ -733,7 +734,7 @@ export async function importReviewCycles(cycles, platformUser, fingerprint) {
           cycle.endDate,
           Boolean(cycle.isTest),
           JSON.stringify(stagesConfig),
-          JSON.stringify(cycle.settings.reviewTypes),
+          JSON.stringify(normalizeReviewTypes(cycle.settings.reviewTypes)),
           JSON.stringify(cycle.settings.goalCountPolicy),
           cycle.settings.postWindowGoalPolicy,
           Boolean(cycle.settings.autoScorecardGeneration),

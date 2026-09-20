@@ -136,7 +136,6 @@ describe('roles catalog', () => {
     const role = await createRole({
       name: 'QA Engineer',
       description: 'Ship quality',
-      goals: ['Zero Sev-1'],
     })
     const skill = getSkillsSnapshot()[0]!
     await updateRoleMatrix(role.id, [
@@ -152,31 +151,9 @@ describe('roles catalog', () => {
     expect(copy.id).not.toBe(role.id)
     expect(copy.name).toContain('(copy)')
     expect(copy.description).toBe('Ship quality')
-    expect(copy.goals).toEqual(['Zero Sev-1'])
     expect(copy.skills).toHaveLength(1)
     expect(copy.skills[0]?.expectations.IC2).toBe('advanced')
     expect(copy.skills[0]?.descriptions.IC2).toBe('Owns release quality.')
-  })
-
-  it('computes NIPS from seniority coverage on the matrix', async () => {
-    const { roleNipsPercent } = await import('./labels')
-    const role = await createRole({ name: 'QA Engineer' })
-    const skill = getSkillsSnapshot()[0]!
-    await updateRoleMatrix(role.id, [
-      {
-        skillId: skill.id,
-        skillName: skill.name,
-        weightPct: 100,
-        expectations: { IC2: 'expert' },
-      },
-    ])
-    const refreshed = (await import('./store')).getRole(role.id)!
-    expect(
-      roleNipsPercent(refreshed, [
-        { isActive: true, jobGrade: 'IC2' },
-        { isActive: true, jobGrade: 'IC1' },
-      ]),
-    ).toBe(50)
   })
 
   it('lists roles that use a skill from the matrix', async () => {

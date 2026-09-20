@@ -1,10 +1,10 @@
 import { requirePlatformAuth } from '../auth.mjs'
-import { attachRealtimeClient } from './hub.mjs'
+import { openRealtimeClient, attachRealtimeClient } from './hub.mjs'
 
 const HEARTBEAT_MS = 25_000
 
 export function registerRealtimeRoutes(app) {
-  app.get('/api/platform/events', requirePlatformAuth, (req, res) => {
+  app.get('/api/platform/events', requirePlatformAuth, async (req, res) => {
     res.status(200)
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
     res.setHeader('Cache-Control', 'no-cache, no-transform')
@@ -14,7 +14,13 @@ export function registerRealtimeRoutes(app) {
 
     res.write('event: ready\ndata: {"ok":true}\n\n')
 
-    const detach = attachRealtimeClient(res)
+    let detach = () => {}
+    try {
+      detach = await openRealtimeClient(res, req.platformUser)
+    } catch (error) {
+      console.error('[realtime] could not load viewer scope:', error)
+      detach = attachRealtimeClient(res)
+    }
     const heartbeat = setInterval(() => {
       try {
         res.write(': ping\n\n')

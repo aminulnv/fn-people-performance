@@ -63,9 +63,6 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     reviewTypes: {
       line_manager: true,
       self: false,
-      upwards: false,
-      peer: false,
-      functional_manager: false,
     },
     goalCountPolicy: {
       minimumRequired: 3,
@@ -410,14 +407,7 @@ describe('GroupSettingsView', () => {
     expect(screen.queryByLabelText('Opens')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Goes live')).not.toBeInTheDocument()
     expect(screen.queryByText('Goes live')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
-    expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
-      'title',
-      'Turn on Reviews to use Calibration.',
-    )
+    expect(screen.queryByRole('button', { name: 'Calibration' })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('switch', { name: 'Enable Reviews' }))
 
@@ -426,9 +416,7 @@ describe('GroupSettingsView', () => {
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeEnabled()
     expect(screen.getByText('Goes live')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Calibration' })).not.toHaveAttribute(
-      'aria-disabled',
-    )
+    expect(screen.queryByRole('button', { name: 'Calibration' })).not.toBeInTheDocument()
   })
 
   it('keeps the top nav when switching sections', () => {
@@ -448,8 +436,9 @@ describe('GroupSettingsView', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps the calibration section as a placeholder', () => {
+  it('shows the group grade mix on the calibration section', () => {
     const { cycle, group } = sample()
+    cycle.periodKey = 'annual-2026'
     render(
       <MemoryRouter>
         <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
@@ -458,13 +447,39 @@ describe('GroupSettingsView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
 
-    expect(screen.getByText('Under development')).toBeInTheDocument()
+    expect(screen.getByText('Expected grade mix')).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Performing' })).toHaveValue('60')
+    expect(screen.queryByText('Under development')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('asks to save or discard an unsaved grade mix before closing', () => {
+    const { cycle, group } = sample()
+    cycle.periodKey = 'annual-2026'
+    const onClose = vi.fn()
+    render(
+      <MemoryRouter>
+        <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Exceptional' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    expect(
+      screen.getByRole('heading', { name: 'Unsaved changes' }),
+    ).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('keeps the Goals tab on an annual cycle so Goals can be turned on there', () => {
@@ -514,16 +529,9 @@ describe('GroupSettingsView', () => {
 
     expect(screen.getByRole('button', { name: 'Goals' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reviews' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
-      'aria-disabled',
-      'true',
-    )
-    expect(screen.getByRole('button', { name: 'Calibration' })).toHaveAttribute(
-      'title',
-      'Turn on Reviews to use Calibration.',
-    )
+    expect(screen.queryByRole('button', { name: 'Calibration' })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
     expect(screen.queryByText('Senior Leadership')).not.toBeInTheDocument()
   })
 })

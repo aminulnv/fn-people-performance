@@ -129,8 +129,7 @@ export type CycleStagesConfig = {
   reviewStages?: ReviewStageConfig[];
 };
 
-export type ReviewTypeId =
-  "line_manager" | "self" | "upwards" | "peer" | "functional_manager";
+export type ReviewTypeId = "line_manager" | "self";
 
 export type GoalCountPolicy = {
   /** Submission is blocked below this number. */

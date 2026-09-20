@@ -20,7 +20,7 @@ function sampleCycle(): ReviewCycle {
   const endDate = '2026-09-30'
   const stagesConfig = buildDefaultStagesConfig(startDate, endDate)
   const settings = {
-    reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
+    reviewTypes: { line_manager: true, self: false },
     goalCountPolicy: {
       minimumRequired: 3,
       recommendedMinimum: 4,

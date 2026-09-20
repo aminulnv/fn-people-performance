@@ -84,6 +84,13 @@ export function cyclePurposeOf(
   )
 }
 
+/** Calibration belongs to annual appraisals, not quarterly or custom cycles. */
+export function cycleSupportsCalibration(
+  cycle: Pick<ReviewCycle, 'periodKey' | 'type'> | null | undefined,
+): boolean {
+  return cyclePurposeOf(cycle) === 'annual_appraisal'
+}
+
 export function isLinkableSourceCycle(
   cycle: ReviewCycle,
   excludeId?: string,

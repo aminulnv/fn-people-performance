@@ -4,8 +4,9 @@ import {
   PLATFORM_EVENT_CHANNEL,
   parsePlatformEventPayload,
 } from './event.mjs'
+import { loadRealtimeViewer, viewerMayHearEvent } from './audience.mjs'
 
-const clients = new Set()
+const clients = new Map()
 const seenEventIds = new Set()
 const SEEN_LIMIT = 800
 let listenClient = null
@@ -22,17 +23,67 @@ function rememberEventId(id) {
   return true
 }
 
-export function attachRealtimeClient(res) {
-  clients.add(res)
+const SCOPE_REFRESH_MS = 15_000
+
+function wireEvent(event) {
+  const { audienceEmployeeIds: _audience, ...wire } = event
+  return wire
+}
+
+export function attachRealtimeClient(res, viewer) {
+  clients.set(res, {
+    viewer: viewer ?? {
+      employeeId: null,
+      permissions: new Set(),
+      goalSubjectIds: new Set(),
+      packetSubjectIds: new Set(),
+    },
+    user: null,
+    loadedAt: Date.now(),
+    refreshing: false,
+  })
   return () => {
     clients.delete(res)
   }
 }
 
+export async function openRealtimeClient(res, user) {
+  const viewer = await loadRealtimeViewer(user)
+  if (res.writableEnded) return () => {}
+  clients.set(res, {
+    viewer,
+    user,
+    loadedAt: Date.now(),
+    refreshing: false,
+  })
+  return () => {
+    clients.delete(res)
+  }
+}
+
+function refreshViewer(state) {
+  if (!state.user || state.refreshing) return
+  if (Date.now() - state.loadedAt < SCOPE_REFRESH_MS) return
+  state.refreshing = true
+  loadRealtimeViewer(state.user)
+    .then((viewer) => {
+      state.viewer = viewer
+      state.loadedAt = Date.now()
+    })
+    .catch((error) => {
+      console.error('[realtime] could not refresh viewer scope:', error)
+    })
+    .finally(() => {
+      state.refreshing = false
+    })
+}
+
 export function broadcastPlatformEvent(event) {
   if (!event || !rememberEventId(event.id)) return
-  const frame = `id: ${event.id}\nevent: platform\ndata: ${JSON.stringify(event)}\n\n`
-  for (const res of clients) {
+  const frame = `id: ${event.id}\nevent: platform\ndata: ${JSON.stringify(wireEvent(event))}\n\n`
+  for (const [res, state] of clients) {
+    refreshViewer(state)
+    if (!viewerMayHearEvent(state.viewer, event)) continue
     try {
       res.write(frame)
     } catch {

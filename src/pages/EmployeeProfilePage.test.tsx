@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider } from '@/lib/AuthProvider'
@@ -8,7 +8,7 @@ import {
   listMemoryEmployees,
   replaceMemoryEmployees,
 } from '@/lib/employees/memoryStore'
-import { clearEmployees, createEmployee } from '@/lib/employees/store'
+import { clearEmployees, createEmployee, replaceTeams } from '@/lib/employees/store'
 import {
   createCycleGroup,
   listReviewCycles,
@@ -29,9 +29,14 @@ const { employeesState } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/lib/employees/useEmployees', () => ({
-  useEmployees: () => employeesState,
-}))
+vi.mock('@/lib/employees/useEmployees', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/lib/employees/useEmployees')>()
+  return {
+    ...actual,
+    useEmployees: () => employeesState,
+  }
+})
 
 vi.mock('@/lib/goals/useGoalTodoCounts', () => ({
   useGoalTodoCounts: (options?: { subjectPersonId?: string }) => {
@@ -330,6 +335,8 @@ describe('V1 employee profiles', () => {
     expect(screen.getByText('In grade')).toBeInTheDocument()
     expect(screen.getByText('Last promotion')).toBeInTheDocument()
     expect(screen.getByText('PIP')).toBeInTheDocument()
+    expect(screen.getByText('Display')).toBeInTheDocument()
+    expect(screen.getByText('only')).toBeInTheDocument()
   })
 
   it('shows career details to platform admins who are not in the reporting line', async () => {
@@ -512,16 +519,33 @@ describe('V1 employee profiles', () => {
       ),
     )
     employeesState.employees = listMemoryEmployees() as never[]
+    replaceTeams([
+      {
+        id: 9,
+        name: 'Performance & Total Rewards',
+        departmentId: 1,
+        departmentName: 'People & Culture',
+        ownerEmployeeId: owner.employee.employeeId,
+        ownerName: owner.employee.fullName,
+        ownerEmail: owner.employee.email,
+        headcount: 2,
+      },
+    ])
 
     signIn(['platform.read_all'])
 
     renderRoute('/profile', <Route path="/profile" element={<MyProfilePage />} />)
 
-    const teamOwnerRow = (await screen.findByText('Team Owner')).closest(
-      '.pd-profile__detail-row',
-    )
-    expect(teamOwnerRow).toHaveTextContent('Angie Ng Yun Ni')
-    expect(teamOwnerRow).not.toHaveTextContent("Elvira Moey Shae'Fee")
+    await waitFor(() => {
+      const teamOwnerRow = screen
+        .getByText('Team Owner')
+        .closest('.pd-profile__detail-row')
+      expect(teamOwnerRow).toHaveTextContent('Angie Ng Yun Ni')
+      expect(teamOwnerRow).not.toHaveTextContent("Elvira Moey Shae'Fee")
+    })
+    const teamOwnerRow = screen
+      .getByText('Team Owner')
+      .closest('.pd-profile__detail-row')
     expect(
       teamOwnerRow?.querySelector('a.pd-people__person-link'),
     ).toHaveAttribute('href', '/people/5')

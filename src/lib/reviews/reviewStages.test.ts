@@ -41,6 +41,15 @@ describe('cycle module presets', () => {
     expect(presetEnabledStages('annual_appraisal', 'annual-2026')).not.toContain(
       'goals',
     )
+    expect(presetEnabledStages('annual_appraisal', 'annual-2026')).toEqual(
+      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+    )
+    expect(presetEnabledStages('quarterly_checkin', 'q3-2026')).not.toEqual(
+      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+    )
+    expect(presetEnabledStages('custom')).not.toEqual(
+      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+    )
   })
 
   it('uses the quarterly review flow when Reviews is turned on for Q4', () => {
@@ -110,6 +119,10 @@ describe('applyCycleModules', () => {
     ).toBe(true)
     expect(
       next.reviewStages?.find((stage) => stage.id === 'self_review')?.enabled,
+    ).toBe(false)
+    expect(
+      next.reviewStages?.find((stage) => stage.id === 'calibration_hod_hrbp')
+        ?.enabled,
     ).toBe(false)
   })
 

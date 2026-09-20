@@ -1,4 +1,4 @@
-import { SegmentedControl } from '@/components/ui'
+import { SegmentedControl, Tooltip } from '@/components/ui'
 import {
   RATING_BREAKDOWNS,
   chartScale,
@@ -86,13 +86,20 @@ function BandColumn({
             className="pd-cal-dist__guide"
             style={{ bottom: `${guide}%` }}
           >
-            {band.guidelinePercent}%
+            <Tooltip
+              className="pd-cal-dist__guide-tip"
+              content="This cycle’s target for this band."
+              side="top"
+            >
+              <span className="pd-cal-dist__guide-label">
+                {band.guidelinePercent}%
+              </span>
+            </Tooltip>
           </span>
         ) : null}
       </div>
       <strong className="pd-cal-dist__count">{band.count}</strong>
       <span className="pd-cal-dist__label">{band.label}</span>
-      <span className="pd-cal-dist__people">{peopleLabel(band.count)}</span>
     </li>
   )
 }
@@ -134,10 +141,16 @@ export function RatingDistributionChart({
   distribution,
   breakdown,
   onBreakdownChange,
+  title,
+  hideBreakdown = false,
+  hideSummary = false,
 }: {
   distribution: RatingDistribution
   breakdown: RatingBreakdownId
   onBreakdownChange: (value: RatingBreakdownId) => void
+  title?: string
+  hideBreakdown?: boolean
+  hideSummary?: boolean
 }) {
   const { bands, series, summary } = distribution
   const useSmallMultiples =
@@ -145,19 +158,46 @@ export function RatingDistributionChart({
   const grouped = breakdown !== 'overall' && !useSmallMultiples
 
   return (
-    <section className="pd-cal-dist" aria-label="Rating distribution">
+    <section
+      className={cx('pd-cal-dist', hideSummary && 'pd-cal-dist--solo')}
+      aria-label={title ?? 'Rating distribution'}
+    >
       <header className="pd-cal-dist__head">
-        <SegmentedControl
-          className="pd-cal-dist__tabs"
-          options={RATING_BREAKDOWNS}
-          value={breakdown}
-          onChange={onBreakdownChange}
-          aria-label="Rating breakdown"
-        />
-        <p className="pd-cal-dist__copy">
-          Bar height is the share of graded people. The red line is this
-          cycle’s guideline per band.
-        </p>
+        {hideBreakdown ? (
+          <h2 className="pd-cal-dist__title">{title}</h2>
+        ) : (
+          <SegmentedControl
+            className="pd-cal-dist__tabs"
+            options={RATING_BREAKDOWNS}
+            value={breakdown}
+            onChange={onBreakdownChange}
+            aria-label="Rating breakdown"
+          />
+        )}
+        <ul className="pd-cal-dist__key" aria-label="How to read this chart">
+          <li>
+            <Tooltip
+              content="Bar height is the share of graded people."
+              side="bottom"
+            >
+              <span className="pd-cal-dist__key-item" tabIndex={0}>
+                <span className="pd-cal-dist__key-bar" aria-hidden />
+                Share of people
+              </span>
+            </Tooltip>
+          </li>
+          <li>
+            <Tooltip
+              content="The red line is this cycle’s target per band."
+              side="bottom"
+            >
+              <span className="pd-cal-dist__key-item" tabIndex={0}>
+                <span className="pd-cal-dist__key-line" aria-hidden />
+                Guideline
+              </span>
+            </Tooltip>
+          </li>
+        </ul>
       </header>
 
       {useSmallMultiples ? (
@@ -203,6 +243,7 @@ export function RatingDistributionChart({
         </ul>
       ) : null}
 
+      {hideSummary ? null : (
       <aside className="pd-cal-dist__stats" aria-label="Calibration totals">
         <p className="pd-cal-dist__stat">
           <span>Total in calibration</span>
@@ -230,11 +271,7 @@ export function RatingDistributionChart({
           </strong>
         </p>
       </aside>
-
-      <p className="pd-cal-dist__footnote">
-        <span className="pd-cal-dist__footnote-line" aria-hidden />
-        Red line = guideline target per band
-      </p>
+      )}
     </section>
   )
 }

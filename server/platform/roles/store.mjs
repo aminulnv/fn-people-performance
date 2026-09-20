@@ -7,6 +7,7 @@ import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 
+/** Stored keys. `none` is the Not Applicable band (not a scored level). */
 const EXPECTED_LEVELS = new Set([
   'none',
   'basic',
@@ -40,22 +41,6 @@ function parseLevel(value) {
   return EXPECTED_LEVELS.has(level) ? level : 'none'
 }
 
-function parseGoals(value) {
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => String(item ?? '').trim())
-      .filter(Boolean)
-  }
-  if (typeof value === 'string') {
-    try {
-      return parseGoals(JSON.parse(value))
-    } catch {
-      return value.trim() ? [value.trim()] : []
-    }
-  }
-  return []
-}
-
 function mapRole(row, skills = []) {
   return {
     id: row.id,
@@ -63,8 +48,6 @@ function mapRole(row, skills = []) {
     departmentId: integerId(row.department_id),
     departmentName: row.department_name ?? '',
     description: row.description ?? '',
-    goals: parseGoals(row.goals),
-    locations: row.locations ?? 'All',
     archivedAt: row.archived_at ? isoTimestamp(row.archived_at) : null,
     headcount: Number(row.headcount) || 0,
     skills,
@@ -79,8 +62,6 @@ const ROLE_SELECT = `
     r.name,
     r.department_id,
     r.description,
-    r.goals,
-    r.locations,
     r.archived_at,
     r.created_at,
     r.updated_at,
@@ -186,30 +167,28 @@ export async function upsertRoleByName(client, name) {
 }
 
 export async function resolveEmployeeRole(client, input) {
+  const named = String(input.role ?? '').trim()
   if (Object.prototype.hasOwnProperty.call(input, 'roleId')) {
     const raw = input.roleId
-    if (raw == null || String(raw).trim() === '') {
-      return {
-        roleId: null,
-        roleName: String(input.role ?? '').trim(),
-      }
+    if (raw != null && String(raw).trim() !== '') {
+      const roleId = String(raw).trim()
+      const { rows } = await client.query(
+        `SELECT id, name FROM platform.roles WHERE id = $1`,
+        [roleId],
+      )
+      if (!rows[0]) throw new HttpError(400, 'Unknown role.')
+      return { roleId: rows[0].id, roleName: rows[0].name }
     }
-    const roleId = String(raw).trim()
-    const { rows } = await client.query(
-      `SELECT id, name FROM platform.roles WHERE id = $1`,
-      [roleId],
-    )
-    if (!rows[0]) throw new HttpError(400, 'Unknown role.')
-    return { roleId: rows[0].id, roleName: rows[0].name }
   }
-  const roleName = String(input.role ?? '').trim()
-  if (!roleName) return { roleId: null, roleName: '' }
+  if (!named) return { roleId: null, roleName: '' }
   const { rows } = await client.query(
     `SELECT id, name FROM platform.roles WHERE lower(name) = lower($1) LIMIT 1`,
-    [roleName],
+    [named],
   )
-  if (rows[0]) return { roleId: rows[0].id, roleName: rows[0].name }
-  return { roleId: null, roleName }
+  if (!rows[0]) {
+    throw new HttpError(400, 'Choose a role from the list.')
+  }
+  return { roleId: rows[0].id, roleName: rows[0].name }
 }
 
 async function assertDepartment(client, departmentId) {
@@ -228,8 +207,6 @@ export async function createRole(input, platformUser) {
   const actor = actorFromUser(platformUser)
   const departmentId = integerId(input.departmentId)
   const description = String(input.description ?? '').trim()
-  const goals = parseGoals(input.goals)
-  const locations = String(input.locations ?? 'All').trim() || 'All'
   const id = String(input.id ?? '').trim() || `role-${crypto.randomUUID()}`
 
   const client = await getPool().connect()
@@ -245,16 +222,9 @@ export async function createRole(input, platformUser) {
     }
     await client.query(
       `INSERT INTO platform.roles (
-         id, name, department_id, description, goals, locations
-       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6)`,
-      [
-        id,
-        name,
-        departmentId,
-        description,
-        JSON.stringify(goals),
-        locations,
-      ],
+         id, name, department_id, description
+       ) VALUES ($1, $2, $3, $4)`,
+      [id, name, departmentId, description],
     )
     await appendActivityEvent(client, {
       eventKey: 'role.created',
@@ -310,12 +280,6 @@ export async function updateRole(roleId, input, platformUser) {
     const description = Object.prototype.hasOwnProperty.call(input, 'description')
       ? String(input.description ?? '').trim()
       : previous.description ?? ''
-    const goals = Object.prototype.hasOwnProperty.call(input, 'goals')
-      ? parseGoals(input.goals)
-      : parseGoals(previous.goals)
-    const locations = Object.prototype.hasOwnProperty.call(input, 'locations')
-      ? String(input.locations ?? '').trim() || 'All'
-      : previous.locations ?? 'All'
     let archivedAt = previous.archived_at
     if (Object.prototype.hasOwnProperty.call(input, 'archivedAt')) {
       archivedAt = input.archivedAt ? new Date() : null
@@ -326,20 +290,10 @@ export async function updateRole(roleId, input, platformUser) {
        SET name = $2,
            department_id = $3,
            description = $4,
-           goals = $5::jsonb,
-           locations = $6,
-           archived_at = $7,
+           archived_at = $5,
            updated_at = now()
        WHERE id = $1`,
-      [
-        id,
-        name,
-        departmentId,
-        description,
-        JSON.stringify(goals),
-        locations,
-        archivedAt,
-      ],
+      [id, name, departmentId, description, archivedAt],
     )
     if (name !== previous.name) {
       await client.query(
@@ -491,8 +445,6 @@ export async function duplicateRole(roleId, platformUser) {
       name,
       departmentId: source.departmentId,
       description: source.description,
-      goals: source.goals,
-      locations: source.locations,
     },
     platformUser,
   )

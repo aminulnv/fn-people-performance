@@ -504,10 +504,13 @@ export default function AnalyticsPage() {
   }, [cycleId, cycleOptions, cyclePicked, cycles])
 
   const loadCycleData = useCallback(async (selectedCycleId: string) => {
-    const [nextPackets, nextSubmissions] = await Promise.all([
-      fetchReviewPackets(selectedCycleId),
-      fetchCycleGoalSubmissionsRemote(selectedCycleId).catch(() => []),
-    ])
+    const nextPackets = await fetchReviewPackets(selectedCycleId)
+    let nextSubmissions: PersonGoals[]
+    try {
+      nextSubmissions = await fetchCycleGoalSubmissionsRemote(selectedCycleId)
+    } catch {
+      throw new Error('Could not load goals')
+    }
     return { packets: nextPackets, submissions: nextSubmissions }
   }, [])
 
@@ -612,12 +615,17 @@ export default function AnalyticsPage() {
     )
   }
   if (dataState === 'error') {
+    const goalsFailed = dataError === 'Could not load goals'
     return (
       <PageStatus
         variant="error"
-        title="Could Not Load Analytics"
-        description={dataError ?? 'Reload and try again.'}
-        action={<PageStatusRetry onClick={retryLoad} />}
+        title={goalsFailed ? 'Could not load goals' : 'Could Not Load Analytics'}
+        description={
+          goalsFailed
+            ? 'Goal submissions did not load. This is not the same as nobody having goals.'
+            : (dataError ?? 'Reload and try again.')
+        }
+        action={<PageStatusRetry label="Retry" onClick={retryLoad} />}
       />
     )
   }

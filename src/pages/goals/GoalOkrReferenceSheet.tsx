@@ -1,4 +1,6 @@
 import { Target } from "lucide-react";
+import { canViewAllReviews } from "@/lib/accessControl/types";
+import { useAuth } from "@/lib/auth";
 import { COMPANY_OKR_NAME, type OkrReferenceScope } from "@/lib/okr/reference";
 import { GoalOkrReferenceList } from "./GoalOkrReferenceList";
 
@@ -33,6 +35,7 @@ export function GoalOkrReferenceSheet({
   scope?: OkrReferenceScope;
   applyToGoalDisabledReason?: string;
 }) {
+  const { user } = useAuth();
   return (
     <div className="pd-okr-sheet">
       <header className="pd-okr-sheet__head">
@@ -47,6 +50,7 @@ export function GoalOkrReferenceSheet({
         quarter={quarter}
         scope={scope}
         applyToGoalDisabledReason={applyToGoalDisabledReason}
+        showDisconnectedNote={canViewAllReviews(user?.permissions)}
       />
     </div>
   );

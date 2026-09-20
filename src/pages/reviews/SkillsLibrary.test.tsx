@@ -6,6 +6,21 @@ import { getSkillsSnapshot, resetSkillsStoreForTests } from '@/lib/skills/store'
 import { resetRolesStoreForTests } from '@/lib/roles/store'
 import { SkillsLibrary } from './SkillsLibrary'
 
+const authState = vi.hoisted(() => ({
+  permissions: ['platform.write_all'] as string[],
+}))
+
+vi.mock('@/lib/useAuth', () => ({
+  useAuth: () => ({
+    status: 'authenticated',
+    user: { permissions: authState.permissions },
+    session: null,
+    signInWithGoogle: async () => {},
+    signInWithEmailPassword: async () => {},
+    signOut: async () => {},
+  }),
+}))
+
 const catalogDepartments: PlatformDepartment[] = [
   {
     id: 1,
@@ -69,6 +84,7 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  authState.permissions = ['platform.write_all']
   resetSkillsStoreForTests()
   resetRolesStoreForTests()
 })
@@ -177,6 +193,16 @@ describe('SkillsLibrary', () => {
       getSkillsSnapshot().find((skill) => skill.id === 'skill-account-planning')
         ?.department,
     ).toBe('Engineering')
+  })
+
+  it('hides skill editing when the user cannot write', () => {
+    authState.permissions = []
+    renderSkills()
+    expect(
+      screen.queryByRole('link', { name: 'Create New Skill' }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Account Planning'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
   it('rejects free-text departments that are not in the catalog', async () => {

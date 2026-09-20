@@ -20,7 +20,7 @@ import { getPool } from '../db.mjs'
 import { asyncHandler, HttpError } from '../errors.mjs'
 import { authRateLimit } from '../rateLimit.mjs'
 import { sessionSecret } from './sessionSecret.mjs'
-import { getEmployeeAccess } from './store.mjs'
+import { getEmployeeAccess, hasAccessAssignments } from './store.mjs'
 
 const COOKIE_NAME = 'pd_platform_sid'
 const OAUTH_STATE_COOKIE = 'pd_platform_oauth'
@@ -208,17 +208,30 @@ function redirectPlatform(res, path, req) {
 
 async function findEmployeeByEmail(email) {
   try {
-    const { rows } = await getPool().query(
-      `SELECT employee_id, email, name, job_title, status
-       FROM platform.employees
-       WHERE lower(email) = lower($1)
-       LIMIT 1`,
-      [email],
-    )
-    return rows[0] ?? null
+    return await employeeForSession(email)
   } catch {
     return null
   }
+}
+
+/** Status lookup that fails the request when the database is unreachable. */
+async function employeeForSession(email) {
+  const { rows } = await getPool().query(
+    `SELECT employee_id, email, name, job_title, status
+     FROM platform.employees
+     WHERE lower(email) = lower($1)
+     LIMIT 1`,
+    [email],
+  )
+  return rows[0] ?? null
+}
+
+function rejectInactiveSession(req, res) {
+  clearPlatformCookie(req, res)
+  res.status(401).json({
+    error: 'This account is inactive.',
+    code: 'inactive',
+  })
 }
 
 /** Only active People directory rows may sign in. */
@@ -240,6 +253,14 @@ async function requireActiveEmployee(email) {
   return employee
 }
 
+const BOOTSTRAP_PERMISSIONS = [
+  'platform.read_all',
+  'platform.write_all',
+  'access.manage',
+  'activity.read_all',
+  'activity.export',
+]
+
 function bootstrapAdminEmails() {
   const configured = String(process.env.PLATFORM_BOOTSTRAP_ADMIN_EMAILS ?? '')
     .split(',')
@@ -252,19 +273,32 @@ function bootstrapAdminEmails() {
   return new Set(configured)
 }
 
-export async function permissionsForPlatformUser(user) {
-  const email = String(user?.email ?? '').trim().toLowerCase()
-  if (email && bootstrapAdminEmails().has(email)) {
-    return [
-      'platform.read_all',
-      'platform.write_all',
-      'access.manage',
-      'activity.read_all',
-      'activity.export',
-    ]
+/**
+ * The built-in admin email only applies while Settings has no access
+ * assignments. Once any assignment exists, Admin Access is the real list.
+ */
+export function permissionsForAccessRules({
+  email,
+  bootstrapEmails,
+  rulesExist,
+  assignedPermissions,
+}) {
+  const normalized = String(email ?? '').trim().toLowerCase()
+  if (!rulesExist && normalized && bootstrapEmails.has(normalized)) {
+    return BOOTSTRAP_PERMISSIONS
   }
+  return assignedPermissions ?? []
+}
+
+export async function permissionsForPlatformUser(user) {
   const access = await getEmployeeAccess(user?.employeeId ?? null)
-  return access.permissions
+  const rulesExist = await hasAccessAssignments()
+  return permissionsForAccessRules({
+    email: user?.email,
+    bootstrapEmails: bootstrapAdminEmails(),
+    rulesExist,
+    assignedPermissions: access.permissions,
+  })
 }
 
 async function toPublicUser(payload, employee) {
@@ -309,7 +343,20 @@ export function requirePlatformAuth(req, res, next) {
     sub: payload.sub,
     employeeId: payload.employeeId ?? null,
   }
-  next()
+  void endSessionUnlessActive(req, res, next)
+}
+
+async function endSessionUnlessActive(req, res, next) {
+  try {
+    const employee = await employeeForSession(req.platformUser.email)
+    if (!employee || employee.status !== 'active') {
+      return rejectInactiveSession(req, res)
+    }
+    req.platformUser.employeeId = employee.employee_id
+    next()
+  } catch (error) {
+    next(error)
+  }
 }
 
 export function requirePlatformPermission(permission) {
@@ -441,7 +488,10 @@ export function registerPlatformAuthRoutes(app) {
       if (!payload) {
         return res.status(401).json({ authenticated: false })
       }
-      const employee = await findEmployeeByEmail(payload.email)
+      const employee = await employeeForSession(payload.email)
+      if (!employee || employee.status !== 'active') {
+        return rejectInactiveSession(req, res)
+      }
       res.json({
         authenticated: true,
         user: await toPublicUser(payload, employee),

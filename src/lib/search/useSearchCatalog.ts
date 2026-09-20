@@ -1,35 +1,51 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { PlatformDepartment } from '@/lib/employees/types'
 import { useOrganisation } from '@/lib/employees/useEmployees'
 import { getGoalsSnapshot, subscribeGoalsStore } from '@/lib/goals/store'
-import { getNotificationFeed, subscribeNotifications } from '@/lib/notifications/store'
+import { fetchNotifications, watchNotifications } from '@/lib/notificationsApi'
+import { queryKeys } from '@/lib/queryClient'
 import { buildEmployeeScorecardHistory } from '@/lib/reviews/scorecards'
 import { listReviewCycles, subscribeReviewsStore } from '@/lib/reviews/store'
 import { useAuth } from '@/lib/useAuth'
+import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { buildSearchCatalog } from './catalog'
 import type { SearchItem } from './types'
 
-const EMPTY_FEED_ITEMS: never[] = []
 const NO_DEPARTMENT_CATALOG: PlatformDepartment[] = []
 
 export function useSearchCatalog(): SearchItem[] {
   const { user } = useAuth()
+  const person = useCurrentPerson()
+  const queryClient = useQueryClient()
   const { employees, organisation } = useOrganisation(
     NO_DEPARTMENT_CATALOG,
     { load: false },
   )
   const [goalsTick, setGoalsTick] = useState(0)
   const [reviewsTick, setReviewsTick] = useState(0)
-  const [notifyTick, setNotifyTick] = useState(0)
 
   useEffect(() => subscribeGoalsStore(() => setGoalsTick((n) => n + 1)), [])
   useEffect(() => subscribeReviewsStore(() => setReviewsTick((n) => n + 1)), [])
-  useEffect(() => subscribeNotifications(() => setNotifyTick((n) => n + 1)), [])
+  useEffect(
+    () =>
+      watchNotifications(() => {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.notifications(person?.id ?? ''),
+        })
+      }),
+    [person?.id, queryClient],
+  )
+
+  const { data: feed } = useQuery({
+    queryKey: queryKeys.notifications(person?.id ?? ''),
+    queryFn: () => fetchNotifications(person!),
+    enabled: Boolean(person),
+  })
 
   return useMemo(() => {
     void goalsTick
     void reviewsTick
-    void notifyTick
 
     const goals = getGoalsSnapshot()
     const userEmail = user?.email.trim().toLowerCase() ?? ''
@@ -61,9 +77,7 @@ export function useSearchCatalog(): SearchItem[] {
       scorecards: me
         ? buildEmployeeScorecardHistory(me, employees, user?.email)
         : [],
-      notifications: user
-        ? getNotificationFeed(user.personId).items
-        : EMPTY_FEED_ITEMS,
+      notifications: feed?.items ?? [],
     })
-  }, [employees, goalsTick, notifyTick, organisation, reviewsTick, user])
+  }, [employees, feed?.items, goalsTick, organisation, reviewsTick, user])
 }

@@ -385,6 +385,48 @@ describe('buildAnalyticsDashboard', () => {
     })
   })
 
+  it('compares grade mix to the group guideline, not the sample curve', () => {
+    const host = cycle({
+      memberIds: [11],
+      modules: { goals: false, reviews: true },
+    })
+    const group = host.groups?.[0]
+    if (!group) throw new Error('expected a group')
+    group.calibration = {
+      gradeDistribution: {
+        exceptional: 10,
+        exceeding: 25,
+        performing: 32,
+        developing: 28,
+        unsatisfactory: 5,
+      },
+    }
+    const dashboard = buildAnalyticsDashboard({
+      cycle: host,
+      employees: [
+        employee({
+          employeeId: 11,
+          fullName: 'Person 0',
+          department: 'Product',
+        }),
+      ],
+      packets: [
+        packet(11, 'released_to_employees', {
+          publishedOverallGrade: 'exceptional',
+        }),
+      ],
+      submissions: [],
+      scope: 'all',
+      viewer: manager,
+    })
+    expect(
+      dashboard.gradeMix.find((row) => row.id === 'exceptional'),
+    ).toMatchObject({
+      guidelinePercent: 10,
+      deltaPoints: 90,
+    })
+  })
+
   it('ranks the department with the most unfinished reviews first', () => {
     const dashboard = buildAnalyticsDashboard({
       cycle: cycle({

@@ -33,6 +33,13 @@ export function normalizePlatformEvent(input) {
     typeof input.cycleId === 'string' && input.cycleId.trim()
       ? input.cycleId
       : undefined
+  const audienceEmployeeIds = Array.isArray(input.audienceEmployeeIds)
+    ? [...new Set(
+        input.audienceEmployeeIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id)),
+      )]
+    : undefined
   return {
     id:
       typeof input.id === 'string' && input.id.trim()
@@ -47,6 +54,7 @@ export function normalizePlatformEvent(input) {
     cycleId,
     employeeId,
     actorEmployeeId,
+    ...(audienceEmployeeIds?.length ? { audienceEmployeeIds } : {}),
     at:
       typeof input.at === 'string' && input.at
         ? input.at

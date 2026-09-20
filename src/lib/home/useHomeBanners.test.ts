@@ -63,9 +63,12 @@ describe('useHomeBanners', () => {
 
     const { result } = renderHook(() => useHomeBanners())
 
-    expect(result.current).toEqual([])
+    expect(result.current).toEqual({ banners: [], ready: false })
     await waitFor(() => {
-      expect(result.current).toEqual([{ id: 'set_goals' }])
+      expect(result.current).toEqual({
+        banners: [{ id: 'set_goals' }],
+        ready: true,
+      })
     })
     expect(mockResolveHomeBanners).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'm1' }),
@@ -104,7 +107,7 @@ describe('useHomeBanners', () => {
     const { result } = renderHook(() => useHomeBanners())
 
     await waitFor(() => {
-      expect(result.current).toEqual([{ id: 'set_goals' }])
+      expect(result.current.banners).toEqual([{ id: 'set_goals' }])
     })
 
     const fetchesAfterHydration = mockFetchGoalsSnapshot.mock.calls.length

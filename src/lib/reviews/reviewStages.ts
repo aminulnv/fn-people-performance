@@ -179,6 +179,9 @@ export function applyCycleModules(
     if (!modules.reviews) {
       return { ...stage, enabled: false }
     }
+    if (isCalibrationStage(stage.id) && purpose !== 'annual_appraisal') {
+      return { ...stage, enabled: false }
+    }
     if (isRequiredReviewStage(stage.id)) {
       return { ...stage, enabled: true }
     }
@@ -188,6 +191,20 @@ export function applyCycleModules(
   return syncLegacyStageWindows({
     ...config,
     reviewStages,
+  })
+}
+
+/** Drop calibration stages outside annual appraisals. */
+export function withoutUnsupportedCalibration(
+  config: CycleStagesConfig,
+  purpose: CyclePurpose,
+): CycleStagesConfig {
+  if (purpose === 'annual_appraisal') return config
+  return syncLegacyStageWindows({
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      isCalibrationStage(stage.id) ? { ...stage, enabled: false } : stage,
+    ),
   })
 }
 
@@ -202,10 +219,7 @@ export function deriveReviewStagesFromLegacy(
     if (id === 'goals') return { ...base, enabled: !annual }
     if (id === 'self_review') return { ...base, enabled: annual }
     if (id === 'manager_review') return { ...base, enabled: true }
-    if (id === 'calibration_hod_hrbp') {
-      return { ...base, enabled: config.calibration.enabled }
-    }
-    if (id === 'calibration_slt') {
+    if (id === 'calibration_hod_hrbp' || id === 'calibration_slt') {
       return { ...base, enabled: annual && config.calibration.enabled }
     }
     if (id === 'publish_managers' || id === 'publish_employees') {

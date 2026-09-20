@@ -68,6 +68,14 @@ export async function apiFetch<T>(
   }
 
   if (!response.ok) {
+    if (
+      response.status === 401 &&
+      typeof window !== 'undefined' &&
+      !path.includes('/api/platform/auth/login') &&
+      !path.includes('/api/platform/auth/logout')
+    ) {
+      window.dispatchEvent(new Event('platform-unauthorized'))
+    }
     const serverMessage =
       parsed &&
       typeof parsed === 'object' &&

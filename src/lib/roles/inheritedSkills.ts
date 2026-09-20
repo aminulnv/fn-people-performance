@@ -1,7 +1,7 @@
 import { listEmployees } from '@/lib/employees/store'
 import { JOB_GRADE_OPTIONS } from '@/lib/employees/catalog'
 import { emptySkillMastery, type Skill } from '@/lib/skills/types'
-import { expectedHintForGrade, roleNipsPercent } from './labels'
+import { expectedHintForGrade } from './labels'
 import { getRole, listRoles } from './store'
 import type {
   ExpectedSkillLevel,
@@ -87,7 +87,6 @@ export function listRolesWithHeadcount() {
     return {
       ...role,
       headcount: members.filter((member) => member.isActive).length,
-      nipsPercent: roleNipsPercent(role, members),
     }
   })
 }

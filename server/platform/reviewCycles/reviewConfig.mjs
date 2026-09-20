@@ -85,11 +85,29 @@ export function applyCycleModules(config, modules, purpose, periodKey) {
   const reviewStages = (config.reviewStages ?? []).map((stage) => {
     if (stage.id === 'goals') return { ...stage, enabled: modules.goals }
     if (!modules.reviews) return { ...stage, enabled: false }
+    if (
+      (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') &&
+      purpose !== 'annual_appraisal'
+    ) {
+      return { ...stage, enabled: false }
+    }
     if (stage.id === 'publish_employees') return { ...stage, enabled: true }
     if (reviewsWereOn) return stage
     return { ...stage, enabled: reviewPreset.has(stage.id) }
   })
   return syncLegacyStageWindows({ ...config, reviewStages })
+}
+
+export function withoutUnsupportedCalibration(config, purpose) {
+  if (purpose === 'annual_appraisal') return config
+  return syncLegacyStageWindows({
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt'
+        ? { ...stage, enabled: false }
+        : stage,
+    ),
+  })
 }
 
 function at(date, time = '00:00') {
@@ -103,10 +121,7 @@ export function deriveReviewStagesFromLegacy(purpose, config) {
     if (stage.id === 'goals') return { ...stage, enabled: !annual }
     if (stage.id === 'self_review') return { ...stage, enabled: annual }
     if (stage.id === 'manager_review') return { ...stage, enabled: true }
-    if (stage.id === 'calibration_hod_hrbp') {
-      return { ...stage, enabled: Boolean(config.calibration.enabled) }
-    }
-    if (stage.id === 'calibration_slt') {
+    if (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') {
       return { ...stage, enabled: annual && Boolean(config.calibration.enabled) }
     }
     if (stage.id === 'publish_managers' || stage.id === 'publish_employees') {
@@ -586,5 +601,14 @@ export function lockedGradeTogglesForCycle(purpose, periodKey) {
     locked: false,
     gradeGoals: false,
     gradeOverall: false,
+  }
+}
+
+/** Line manager and self review are the only review types. */
+export function normalizeReviewTypes(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+  return {
+    line_manager: true,
+    self: source.self === true,
   }
 }

@@ -2,9 +2,15 @@
  * Stakeholder demo seed. Wipes cycle/review/goal/activity rows, keeps employees.
  * Run inside the platform API container: node platform/scripts/seedStakeholderDemo.mjs
  */
+import { config as loadEnv } from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { getPool } from '../../db.mjs'
-import { createReviewCycle, updateReviewCycle } from '../reviewCycles/store.mjs'
+import { createReviewCycle } from '../reviewCycles/store.mjs'
 import { createCycleGroup } from '../reviewCycles/groups.mjs'
+
+const serverRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+loadEnv({ path: path.join(serverRoot, '.env') })
 
 const ACTOR = {
   employeeId: 1,
@@ -128,34 +134,52 @@ function isoDate(date, hour = 10) {
 
 async function wipeTransactional(pool) {
   const client = await pool.connect()
+  const tables = [
+    'review_answers',
+    'review_appeals',
+    'review_calibration_events',
+    'review_pillar_scores',
+    'calibration_sitting_employees',
+    'calibration_sittings',
+    'review_packets',
+    'review_cycle_sources',
+    'review_cycle_grade_exclusions',
+    'review_cycle_group_members',
+    'review_cycle_groups',
+    'goal_comments',
+    'goal_measurements',
+    'goal_progress_entries',
+    'goal_ratings',
+    'goals',
+    'goal_submissions',
+    'notification_deliveries',
+    'notifications',
+    'manager_delegations',
+    'activity_events',
+    'review_cycles',
+  ]
   try {
     await client.query('BEGIN')
-    await client.query('ALTER TABLE platform.activity_events DISABLE TRIGGER USER')
-    await client.query(`
-      TRUNCATE TABLE
-        platform.review_answers,
-        platform.review_appeals,
-        platform.review_calibration_events,
-        platform.review_pillar_scores,
-        platform.review_packets,
-        platform.review_cycle_sources,
-        platform.review_cycle_grade_exclusions,
-        platform.review_cycle_group_members,
-        platform.review_cycle_groups,
-        platform.goal_comments,
-        platform.goal_measurements,
-        platform.goal_progress_entries,
-        platform.goal_ratings,
-        platform.goals,
-        platform.goal_submissions,
-        platform.notification_deliveries,
-        platform.notifications,
-        platform.manager_delegations,
-        platform.activity_events,
-        platform.review_cycles
-      RESTART IDENTITY
-    `)
-    await client.query('ALTER TABLE platform.activity_events ENABLE TRIGGER USER')
+    const { rows } = await client.query(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = 'platform'
+         AND table_name = ANY($1::text[])`,
+      [tables],
+    )
+    const present = new Set(rows.map((row) => row.table_name))
+    if (present.has('activity_events')) {
+      await client.query('ALTER TABLE platform.activity_events DISABLE TRIGGER USER')
+    }
+    const existing = tables.filter((name) => present.has(name))
+    if (existing.length > 0) {
+      await client.query(
+        `TRUNCATE TABLE ${existing.map((name) => `platform.${name}`).join(', ')} RESTART IDENTITY`,
+      )
+    }
+    if (present.has('activity_events')) {
+      await client.query('ALTER TABLE platform.activity_events ENABLE TRIGGER USER')
+    }
     await client.query('COMMIT')
   } catch (error) {
     await client.query('ROLLBACK')
@@ -192,12 +216,81 @@ function partitionEmployees(employees) {
   return { leadership, peopleCulture, newJoiners, company }
 }
 
-function enableStage(stagesConfig, stageId) {
+function enableStages(stagesConfig, stageIds) {
+  const wanted = new Set(stageIds)
   const next = structuredClone(stagesConfig)
   next.reviewStages = (next.reviewStages ?? []).map((stage) =>
-    stage.id === stageId ? { ...stage, enabled: true } : stage,
+    wanted.has(stage.id) ? { ...stage, enabled: true } : stage,
   )
+  const calibrationOn = next.reviewStages.some(
+    (stage) =>
+      (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') &&
+      stage.enabled,
+  )
+  next.calibration = { ...next.calibration, enabled: calibrationOn }
   return next
+}
+
+function enableStage(stagesConfig, stageId) {
+  return enableStages(stagesConfig, [stageId])
+}
+
+const Q3_COMPANY_JOURNEY = [
+  ['draft', 'not_started'],
+  ['draft', 'not_started'],
+  ['submitted', 'not_started'],
+  ['submitted', 'not_started'],
+  ['sent_back', 'not_started'],
+  ['approved', 'manager_in_progress'],
+  ['approved', 'manager_in_progress'],
+  ['approved', 'manager_submitted'],
+  ['approved', 'manager_submitted'],
+  ['approved', 'in_calibration'],
+  ['approved', 'in_calibration'],
+  ['approved', 'in_calibration'],
+  ['approved', 'calibrated'],
+  ['approved', 'calibrated'],
+  ['approved', 'released_to_managers'],
+  ['approved', 'released_to_employees'],
+  ['approved', 'released_to_employees'],
+  ['approved', 'appealed'],
+  ['not_eligible', 'not_started'],
+  ['approved', 'in_calibration'],
+]
+
+const Q3_LEADERSHIP_JOURNEY = [
+  ['draft', 'not_started'],
+  ['submitted', 'not_started'],
+  ['sent_back', 'not_started'],
+  ['approved', 'self_in_progress'],
+  ['approved', 'self_submitted'],
+  ['approved', 'manager_in_progress'],
+  ['approved', 'manager_submitted'],
+  ['approved', 'in_calibration'],
+  ['approved', 'calibrated'],
+  ['approved', 'released_to_employees'],
+]
+
+function joinedOn(employee) {
+  const value = employee.joining_date
+  if (value instanceof Date) return value.toISOString().slice(0, 10)
+  return String(value ?? '').slice(0, 10)
+}
+
+/** Q3 demo walk: goal status and review packet stay on the same step. */
+function q3Journey(employee) {
+  if (employee.job_grade === 'Intern') {
+    return { goal: 'not_eligible', packet: 'not_started' }
+  }
+  const roll = hash(employee.employee_id, 303) % 20
+  if (joinedOn(employee) >= '2026-04-01' && roll === 0) {
+    return { goal: 'incomplete', packet: 'not_started' }
+  }
+  const table = LEADERSHIP_GRADES.has(employee.job_grade)
+    ? Q3_LEADERSHIP_JOURNEY
+    : Q3_COMPANY_JOURNEY
+  const [goal, packet] = table[roll % table.length]
+  return { goal, packet }
 }
 
 function goalPack(employee, cycleId, progress) {
@@ -431,71 +524,104 @@ function goalPack(employee, cycleId, progress) {
   return goals
 }
 
-function submissionStatus(cycleId, employee) {
-  const roll = hash(employee.employee_id, cycleId.charCodeAt(1) || 1) % 10
-  if (cycleId === 'q1-2026') return 'approved'
-  if (cycleId === 'q2-2026') return roll === 0 ? 'sent_back' : 'approved'
-  if (cycleId === 'q4-2026') {
-    if (roll === 0) return 'submitted'
-    if (roll === 1) return 'not_eligible'
-    return 'draft'
-  }
-  if (employee.job_grade === 'Intern') return 'not_eligible'
-  if (roll <= 1) return 'draft'
-  if (roll === 2 || roll === 3) return 'submitted'
-  if (roll === 4) return 'sent_back'
-  // Incomplete is only meaningful under hard_stop. Two-tier cycles keep a
-  // late draft so people can still submit with exception approval.
-  if (roll === 5) return cycleId === 'q4-2026' ? 'incomplete' : 'draft'
-  return 'approved'
+const CLOSED_CYCLES = new Set([
+  'h1-2025',
+  'h2-2025',
+  'q1-2026',
+  'q2-2026',
+  'q3-2026',
+  'q4-2026',
+])
+
+const PUBLISHED_REVIEWS = new Set([
+  'h1-2025',
+  'h2-2025',
+  'q1-2026',
+  'q2-2026',
+  'q3-2026',
+])
+
+const CYCLE_MOMENTS = {
+  'h1-2025': {
+    submitted: '2025-03-10',
+    approved: '2025-03-14',
+    viewed: '2025-06-10',
+    calibration: '2025-06-18',
+    manager: '2025-06-20',
+    employee: '2025-06-24',
+  },
+  'h2-2025': {
+    submitted: '2025-09-10',
+    approved: '2025-09-14',
+    viewed: '2025-12-08',
+    calibration: '2025-12-16',
+    manager: '2025-12-18',
+    employee: '2025-12-22',
+  },
+  'q1-2026': {
+    submitted: '2026-01-20',
+    approved: '2026-01-24',
+    viewed: '2026-03-16',
+    manager: '2026-03-24',
+    employee: '2026-03-27',
+  },
+  'q2-2026': {
+    submitted: '2026-04-16',
+    approved: '2026-04-20',
+    viewed: '2026-06-16',
+    manager: '2026-06-24',
+    employee: '2026-06-26',
+  },
+  'q3-2026': {
+    submitted: '2026-07-16',
+    approved: '2026-07-20',
+    viewed: '2026-09-08',
+    manager: '2026-09-16',
+    employee: '2026-09-18',
+  },
+  'q4-2026': {
+    submitted: '2026-10-14',
+    approved: '2026-10-18',
+    viewed: '2026-12-10',
+    manager: '2026-12-18',
+    employee: '2026-12-20',
+  },
+  'annual-2026': {
+    submitted: '2027-01-08',
+    approved: '2027-01-12',
+    viewed: '2027-01-06',
+    calibration: '2027-01-20',
+    manager: '2027-01-18',
+    employee: '2027-02-02',
+  },
 }
 
-function packetStatus(cycleId, employee) {
-  const roll = hash(employee.employee_id, 99 + cycleId.length) % 10
-  if (cycleId === 'q4-2026') return 'not_started'
-  if (cycleId === 'q1-2026' || cycleId === 'q2-2026') {
-    return roll === 0 ? 'appealed' : 'released_to_employees'
-  }
-  if (cycleId === 'q3-2026') {
-    return [
-      'not_started',
-      'not_started',
-      'manager_in_progress',
-      'manager_in_progress',
-      'manager_submitted',
-      'manager_submitted',
-      'released_to_managers',
-      'released_to_employees',
-      'released_to_employees',
-      'appealed',
-    ][roll]
-  }
-  if (cycleId === 'annual-2026') {
-    return [
-      'not_started',
-      'self_in_progress',
-      'self_submitted',
-      'manager_in_progress',
-      'manager_submitted',
-      'in_calibration',
-      'calibrated',
-      'released_to_managers',
-      'released_to_employees',
-      'appealed',
-    ][roll]
-  }
-  return [
-    'not_started',
-    'manager_in_progress',
-    'manager_submitted',
-    'in_calibration',
-    'calibrated',
-    'released_to_managers',
-    'released_to_employees',
-    'appealed',
-    'manager_submitted',
-    'released_to_employees',
-  ][roll]
+function isClosedCycle(cycleId) {
+  return CLOSED_CYCLES.has(cycleId)
+}
+
+function isPublishedReview(cycleId) {
+  return PUBLISHED_REVIEWS.has(cycleId)
+}
+
+function isAppraisalCycle(cycleId) {
+  return cycleId === 'h1-2025' || cycleId === 'h2-2025' || cycleId === 'annual-2026'
+}
+
+function momentsOf(cycleId) {
+  return CYCLE_MOMENTS[cycleId] ?? CYCLE_MOMENTS['q3-2026']
+}
+
+function submissionStatus(cycleId, employee) {
+  if (employee.job_grade === 'Intern') return 'not_eligible'
+  if (isClosedCycle(cycleId)) return 'approved'
+  return 'draft'
+}
+
+function packetStatus(cycleId) {
+  if (cycleId === 'annual-2026') return 'manager_submitted'
+  if (isPublishedReview(cycleId)) return 'released_to_employees'
+  return 'not_started'
 }
 
 function gradeFor(employee, salt) {
@@ -516,9 +642,7 @@ async function insertRows(client, sql, rows, mapFn) {
 }
 
 function goalProgressForCycle(cycleId) {
-  if (cycleId === 'q1-2026' || cycleId === 'q2-2026') return 'done'
-  if (cycleId === 'q3-2026') return 'mid'
-  return 'early'
+  return isClosedCycle(cycleId) ? 'done' : 'early'
 }
 
 async function seedGoals(client, cycleId, members, employeesById) {
@@ -536,8 +660,10 @@ async function seedGoals(client, cycleId, members, employeesById) {
     const manager = employee.reports_to_employee_id
       ? employeesById.get(employee.reports_to_employee_id)
       : null
-    const empty = status === 'not_eligible' || (cycleId === 'q4-2026' && status === 'draft' && hash(employee.employee_id, 7) % 3 === 0)
-    const pack = empty ? [] : goalPack(employee, cycleId, goalProgressForCycle(cycleId))
+    const empty = status === 'not_eligible'
+    const goalProgress = goalProgressForCycle(cycleId)
+    const clock = momentsOf(cycleId)
+    const pack = empty ? [] : goalPack(employee, cycleId, goalProgress)
     submissions.push({
       cycleId,
       employeeId: employee.employee_id,
@@ -561,8 +687,8 @@ async function seedGoals(client, cycleId, members, employeesById) {
       submittedAt:
         status === 'draft' || status === 'not_eligible' || status === 'incomplete'
           ? null
-          : isoDate('2026-08-12'),
-      approvedAt: status === 'approved' ? isoDate('2026-08-16') : null,
+          : isoDate(clock.submitted),
+      approvedAt: status === 'approved' ? isoDate(clock.approved) : null,
     })
 
     pack.forEach((goal, goalIndex) => {
@@ -802,7 +928,7 @@ async function seedGoals(client, cycleId, members, employeesById) {
 }
 
 function questionBodies(cycleId) {
-  if (cycleId === 'annual-2026') {
+  if (isAppraisalCycle(cycleId)) {
     return {
       self: [
         ['delivered', 'Shipped the committed plan and unblocked two dependent teams.'],
@@ -811,23 +937,10 @@ function questionBodies(cycleId) {
         ['support', 'More decision rights on hiring would remove a recurring stall.'],
       ],
       manager: [
-        ['delivered', 'Reliable owner. The team’s output is visibly better than last year.'],
+        ['delivered', 'Reliable owner. The team’s output is visibly better than last period.'],
         ['values', 'Models the standard. Does not hide bad news.'],
         ['improve', 'Delegate the status pack; stay on the two or three real decisions.'],
         ['retain', 'Yes - this is someone we should fight to keep.'],
-      ],
-    }
-  }
-  if (cycleId === 'leadership-mid-2026') {
-    return {
-      self: [
-        ['lead-delivered', 'The team hit the plan and absorbed two unexpected escalations.'],
-        ['lead-capability', 'Coached two new owners onto the operating review.'],
-      ],
-      manager: [
-        ['lead-delivered', 'Delivery held. Succession is the remaining gap.'],
-        ['lead-capability', 'Strong on standards, still too involved in the weekly pack.'],
-        ['lead-retain', 'Retain. This seat is hard to replace.'],
       ],
     }
   }
@@ -849,21 +962,34 @@ async function seedPackets(client, cycleId, members, employeesById) {
   const calibrations = []
   const appeals = []
   const questions = questionBodies(cycleId)
-  const annualPillars = ['goals', 'skills', 'values']
-  const leadershipPillars = ['goals', 'leadership']
+  const appraisalPillars = ['goals', 'skills', 'values']
+  const clock = momentsOf(cycleId)
+  const bands = ['unsatisfactory', 'developing', 'performing', 'exceeding', 'exceptional']
 
   for (const member of members) {
     const employee = employeesById.get(member.employee_id)
     if (!employee) continue
-    const status = packetStatus(cycleId, employee)
+    if (employee.job_grade === 'Intern' && cycleId !== 'annual-2026') continue
+    const status = packetStatus(cycleId)
+    const appraisal = isAppraisalCycle(cycleId)
+    const closedAppraisal = cycleId === 'h1-2025' || cycleId === 'h2-2025'
     const selfGrade = gradeFor(employee, 31)
     const managerGrade = gradeFor(employee, 41)
-    const calibratedGrade = gradeFor(employee, 51)
-    const hasSelf = ['self_in_progress', 'self_submitted', 'manager_in_progress', 'manager_submitted', 'in_calibration', 'calibrated', 'released_to_managers', 'released_to_employees', 'appealed'].includes(status) && questions.self.length
-    const hasManager = !['not_started', 'self_in_progress', 'self_submitted'].includes(status)
-    const released = ['released_to_managers', 'released_to_employees', 'appealed'].includes(status)
-    const calibrated = ['in_calibration', 'calibrated', 'released_to_managers', 'released_to_employees', 'appealed'].includes(status)
+    let calibratedGrade = managerGrade
+    if (closedAppraisal && hash(employee.employee_id, 77) % 4 === 0) {
+      const index = Math.max(0, bands.indexOf(managerGrade))
+      calibratedGrade = bands[Math.min(bands.length - 1, index + 1)]
+    }
+    const pending = status === 'not_started'
+    const hasSelf = appraisal && !pending
+    const hasManager = !pending
+    const released = status === 'released_to_employees'
     const packetId = `pkt-${cycleId}-${employee.employee_id}`
+      const publishedGrade = released
+      ? closedAppraisal
+        ? calibratedGrade
+        : managerGrade
+      : null
     packets.push({
       id: packetId,
       cycleId,
@@ -873,18 +999,15 @@ async function seedPackets(client, cycleId, members, employeesById) {
       status,
       selfGrade: hasSelf ? selfGrade : null,
       managerGrade: hasManager ? managerGrade : null,
-      calibratedGrade: calibrated ? calibratedGrade : null,
-      publishedGrade: released ? calibratedGrade : null,
+      calibratedGrade: closedAppraisal && released ? calibratedGrade : null,
+      publishedGrade,
       override:
-        hasManager && selfGrade !== managerGrade && hash(employee.employee_id, 8) % 5 === 0
+        hasSelf && selfGrade !== managerGrade && hash(employee.employee_id, 8) % 5 === 0
           ? 'Manager override: the written outcomes do not match the self-score.'
           : '',
-      firstViewed: status === 'not_started' ? null : isoDate('2026-08-18'),
-      releasedManager: released ? isoDate('2026-08-24') : null,
-      releasedEmployee:
-        status === 'released_to_employees' || status === 'appealed'
-          ? isoDate('2026-08-26')
-          : null,
+      firstViewed: pending ? null : isoDate(clock.viewed),
+      releasedManager: released ? isoDate(clock.manager) : null,
+      releasedEmployee: released ? isoDate(clock.employee) : null,
     })
 
     if (hasSelf) {
@@ -896,14 +1019,13 @@ async function seedPackets(client, cycleId, members, employeesById) {
       for (const [questionId, body] of questions.manager) {
         answers.push({ packetId, role: 'manager', questionId, body })
       }
-    }
-    if (cycleId === 'annual-2026' && hasManager) {
-      for (const pillarId of annualPillars) {
+      const pillarIds = appraisal ? appraisalPillars : ['goals']
+      for (const pillarId of pillarIds) {
         pillars.push({
           packetId,
           role: 'manager',
           pillarId,
-          grade: gradeFor(employee, pillarId.length),
+          grade: pillarId === 'goals' ? managerGrade : gradeFor(employee, pillarId.length),
           comment: `Manager view on ${pillarId}.`,
         })
         if (hasSelf) {
@@ -911,41 +1033,21 @@ async function seedPackets(client, cycleId, members, employeesById) {
             packetId,
             role: 'self',
             pillarId,
-            grade: gradeFor(employee, pillarId.length + 3),
+            grade: pillarId === 'goals' ? selfGrade : gradeFor(employee, pillarId.length + 3),
             comment: `Self view on ${pillarId}.`,
           })
         }
       }
     }
-    if (cycleId === 'leadership-mid-2026' && hasManager) {
-      for (const pillarId of leadershipPillars) {
-        pillars.push({
-          packetId,
-          role: 'manager',
-          pillarId,
-          grade: managerGrade,
-          comment: `Leadership score on ${pillarId}.`,
-        })
-      }
-    }
-    if (calibrated && managerGrade !== calibratedGrade) {
+    if (closedAppraisal && released && managerGrade !== calibratedGrade) {
       calibrations.push({
         id: `cal-${packetId}`,
         packetId,
-        stageId: cycleId === 'annual-2026' ? 'calibration_slt' : 'calibration_hod_hrbp',
+        stageId: 'calibration_slt',
         fromGrade: managerGrade,
         toGrade: calibratedGrade,
         reason: 'Aligned to the department distribution and peer set.',
         actorId: ACTOR.employeeId,
-      })
-    }
-    if (status === 'appealed') {
-      appeals.push({
-        id: `apl-${packetId}`,
-        packetId,
-        body: 'Please revisit the final grade. The published outcome does not reflect the recovered dependency.',
-        status: pick(employee.employee_id, 12, ['open', 'recorded', 'resolved']),
-        createdBy: employee.employee_id,
       })
     }
   }
@@ -1044,12 +1146,156 @@ async function seedPackets(client, cycleId, members, employeesById) {
       chunk.map((row) => row.createdBy),
     ],
   )
+
+  if (cycleId !== 'h1-2025' && cycleId !== 'h2-2025') return
+  const sitting = packets.map((packet) => {
+    const adjusted = packet.managerGrade !== packet.calibratedGrade
+    return {
+      employeeId: packet.employeeId,
+      status: 'confirmed',
+      notes: adjusted
+        ? 'Confirmed after a one-band move to fit the department curve.'
+        : 'Confirmed the manager grade.',
+      adjustedAt: adjusted ? isoDate(clock.calibration, 16) : null,
+    }
+  })
+  if (!sitting.length) return
+  const closedAt = isoDate(clock.calibration, 18)
+  await client.query(
+    `INSERT INTO platform.calibration_sittings (
+       cycle_id, clean_confirmed_at, clean_confirmed_by_employee_id,
+       locked_at, locked_by_employee_id
+     )
+     VALUES ($1, $2, $3, $2, $3)
+     ON CONFLICT (cycle_id) DO UPDATE SET
+       clean_confirmed_at = EXCLUDED.clean_confirmed_at,
+       clean_confirmed_by_employee_id = EXCLUDED.clean_confirmed_by_employee_id,
+       locked_at = EXCLUDED.locked_at,
+       locked_by_employee_id = EXCLUDED.locked_by_employee_id`,
+    [cycleId, closedAt, ACTOR.employeeId],
+  )
+  await insertRows(
+    client,
+    `INSERT INTO platform.calibration_sitting_employees (
+       cycle_id, employee_id, status, notes, adjusted_at, updated_by_employee_id
+     )
+     SELECT * FROM unnest($1::text[], $2::int[], $3::text[], $4::text[], $5::timestamptz[], $6::int[])`,
+    sitting,
+    (chunk) => [
+      chunk.map(() => cycleId),
+      chunk.map((row) => row.employeeId),
+      chunk.map((row) => row.status),
+      chunk.map((row) => row.notes),
+      chunk.map((row) => row.adjustedAt),
+      chunk.map(() => ACTOR.employeeId),
+    ],
+  )
+}
+
+const DEMO_CALIBRATION = {
+  gradeDistribution: {
+    exceptional: 2,
+    exceeding: 25,
+    performing: 40,
+    developing: 28,
+    unsatisfactory: 5,
+  },
+}
+
+async function clearCycle(pool, cycleId) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(
+      `DELETE FROM platform.review_answers
+       WHERE packet_id IN (SELECT id FROM platform.review_packets WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.review_appeals
+       WHERE packet_id IN (SELECT id FROM platform.review_packets WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.review_calibration_events
+       WHERE packet_id IN (SELECT id FROM platform.review_packets WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.review_pillar_scores
+       WHERE packet_id IN (SELECT id FROM platform.review_packets WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.calibration_sitting_employees WHERE cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.calibration_sittings WHERE cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(`DELETE FROM platform.review_packets WHERE cycle_id = $1`, [cycleId])
+    await client.query(
+      `UPDATE platform.goals SET cascaded_from_goal_id = NULL WHERE cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.goal_comments
+       WHERE goal_id IN (SELECT goal_id FROM platform.goals WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.goal_measurements
+       WHERE goal_id IN (SELECT goal_id FROM platform.goals WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.goal_progress_entries
+       WHERE goal_id IN (SELECT goal_id FROM platform.goals WHERE cycle_id = $1)`,
+      [cycleId],
+    )
+    await client.query(`DELETE FROM platform.goal_ratings WHERE cycle_id = $1`, [cycleId])
+    await client.query(`DELETE FROM platform.goals WHERE cycle_id = $1`, [cycleId])
+    await client.query(`DELETE FROM platform.goal_submissions WHERE cycle_id = $1`, [cycleId])
+    await client.query(
+      `DELETE FROM platform.review_cycle_group_members WHERE cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(
+      `DELETE FROM platform.review_cycle_grade_exclusions WHERE cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(`DELETE FROM platform.review_cycle_groups WHERE cycle_id = $1`, [cycleId])
+    await client.query(
+      `DELETE FROM platform.review_cycle_sources
+       WHERE cycle_id = $1 OR source_cycle_id = $1`,
+      [cycleId],
+    )
+    await client.query(`DELETE FROM platform.review_cycles WHERE id = $1`, [cycleId])
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
 }
 
 async function main() {
+  const onlyIndex = process.argv.indexOf('--only')
+  const onlyCycle = onlyIndex >= 0 ? process.argv[onlyIndex + 1] : null
+  if (onlyCycle && onlyCycle !== 'q3-2026') {
+    throw new Error(`Unsupported --only value: ${onlyCycle}`)
+  }
+
   const pool = getPool()
-  console.log('Wiping previous cycle/review/goal seed…')
-  await wipeTransactional(pool)
+  if (onlyCycle) {
+    console.log(`Clearing ${onlyCycle} before reseed…`)
+    await clearCycle(pool, onlyCycle)
+  } else {
+    console.log('Wiping previous cycle/review/goal seed…')
+    await wipeTransactional(pool)
+  }
 
   const { rows: employees } = await pool.query(`
     SELECT
@@ -1072,53 +1318,84 @@ async function main() {
   )
 
   const ids = (list) => list.map((row) => row.employee_id)
+  const presentBy = (list, endDate) =>
+    ids(list.filter((employee) => joinedOn(employee) <= endDate))
 
-  const q1 = await createReviewCycle(
-    {
-      id: 'q1-2026',
-      name: 'Q1 2026',
-      type: 'regular',
-      periodKey: 'q1-2026',
-      startDate: '2026-01-01',
-      endDate: '2026-03-31',
-      settings: {
-        reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
-        postWindowGoalPolicy: 'two_tier_approval',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: true,
+  const quarterSettings = {
+    reviewTypes: { line_manager: true, self: false },
+    goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
+    postWindowGoalPolicy: 'two_tier_approval',
+    excludedEmployeeIds: [],
+    autoScorecardGeneration: true,
+  }
+  const appraisalSettings = {
+    ...quarterSettings,
+    reviewTypes: { line_manager: true, self: true },
+    autoScorecardGeneration: false,
+  }
+
+  let h1
+  let h2
+  let q1
+  let q2
+  let q4
+  let annual
+  if (!onlyCycle) {
+    h1 = await createReviewCycle(
+      {
+        id: 'h1-2025',
+        name: 'H1 2025',
+        type: 'regular',
+        periodKey: 'h1-2025',
+        yearKey: '2025',
+        startDate: '2025-01-01',
+        endDate: '2025-06-30',
+        settings: appraisalSettings,
+        calibration: DEMO_CALIBRATION,
       },
-      calibration: {
-        gradeDistribution: {
-          exceptional: 2,
-          exceeding: 25,
-          performing: 40,
-          developing: 28,
-          unsatisfactory: 5,
-        },
+      ACTOR,
+    )
+    h2 = await createReviewCycle(
+      {
+        id: 'h2-2025',
+        name: 'H2 2025',
+        type: 'regular',
+        periodKey: 'h2-2025',
+        yearKey: '2025',
+        startDate: '2025-07-01',
+        endDate: '2025-12-31',
+        settings: appraisalSettings,
+        calibration: DEMO_CALIBRATION,
       },
-    },
-    ACTOR,
-  )
-  const q2 = await createReviewCycle(
-    {
-      id: 'q2-2026',
-      name: 'Q2 2026',
-      type: 'regular',
-      periodKey: 'q2-2026',
-      startDate: '2026-04-01',
-      endDate: '2026-06-30',
-      settings: {
-        reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
-        postWindowGoalPolicy: 'two_tier_approval',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: true,
+      ACTOR,
+    )
+    q1 = await createReviewCycle(
+      {
+        id: 'q1-2026',
+        name: 'Q1 2026',
+        type: 'regular',
+        periodKey: 'q1-2026',
+        startDate: '2026-01-01',
+        endDate: '2026-03-31',
+        settings: quarterSettings,
+        calibration: DEMO_CALIBRATION,
       },
-      calibration: q1.calibration,
-    },
-    ACTOR,
-  )
+      ACTOR,
+    )
+    q2 = await createReviewCycle(
+      {
+        id: 'q2-2026',
+        name: 'Q2 2026',
+        type: 'regular',
+        periodKey: 'q2-2026',
+        startDate: '2026-04-01',
+        endDate: '2026-06-30',
+        settings: quarterSettings,
+        calibration: DEMO_CALIBRATION,
+      },
+      ACTOR,
+    )
+  }
   const q3 = await createReviewCycle(
     {
       id: 'q3-2026',
@@ -1127,96 +1404,55 @@ async function main() {
       periodKey: 'q3-2026',
       startDate: '2026-07-01',
       endDate: '2026-09-30',
-      settings: {
-        reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: 7 },
-        postWindowGoalPolicy: 'two_tier_approval',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: false,
-      },
-      calibration: q1.calibration,
+      settings: quarterSettings,
+      calibration: DEMO_CALIBRATION,
     },
     ACTOR,
   )
-  const q4 = await createReviewCycle(
-    {
-      id: 'q4-2026',
-      name: 'Q4 2026',
-      type: 'regular',
-      periodKey: 'q4-2026',
-      startDate: '2026-10-01',
-      endDate: '2026-12-31',
-      settings: {
-        reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
-        postWindowGoalPolicy: 'hard_stop',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: false,
+  if (!onlyCycle) {
+    q4 = await createReviewCycle(
+      {
+        id: 'q4-2026',
+        name: 'Q4 2026',
+        type: 'regular',
+        periodKey: 'q4-2026',
+        startDate: '2026-10-01',
+        endDate: '2026-12-31',
+        settings: {
+          ...quarterSettings,
+          postWindowGoalPolicy: 'hard_stop',
+          autoScorecardGeneration: false,
+        },
+        calibration: DEMO_CALIBRATION,
       },
-      calibration: q1.calibration,
-    },
-    ACTOR,
-  )
-  const annual = await createReviewCycle(
-    {
-      id: 'annual-2026',
-      name: 'Annual 2026',
-      type: 'regular',
-      periodKey: 'annual-2026',
-      startDate: '2026-01-01',
-      endDate: '2026-12-31',
-      sourceLinks: [
-        { sourceCycleId: q1.id, weightPercent: 25, excluded: false },
-        { sourceCycleId: q2.id, weightPercent: 25, excluded: false },
-        { sourceCycleId: q3.id, weightPercent: 25, excluded: false },
-        { sourceCycleId: q4.id, weightPercent: 25, excluded: false },
-      ],
-      settings: {
-        reviewTypes: { line_manager: true, self: true, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
-        postWindowGoalPolicy: 'two_tier_approval',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: false,
+      ACTOR,
+    )
+    annual = await createReviewCycle(
+      {
+        id: 'annual-2026',
+        name: 'Annual 2026',
+        type: 'regular',
+        periodKey: 'annual-2026',
+        yearKey: '2026',
+        startDate: '2027-01-01',
+        endDate: '2027-02-15',
+        sourceLinks: [
+          { sourceCycleId: q1.id, weightPercent: 25, excluded: false },
+          { sourceCycleId: q2.id, weightPercent: 25, excluded: false },
+          { sourceCycleId: q3.id, weightPercent: 25, excluded: false },
+          { sourceCycleId: q4.id, weightPercent: 25, excluded: false },
+        ],
+        settings: appraisalSettings,
+        calibration: DEMO_CALIBRATION,
       },
-      calibration: {
-        ...q1.calibration,
-      },
-    },
-    ACTOR,
-  )
-  const leadership = await createReviewCycle(
-    {
-      id: 'leadership-mid-2026',
-      name: 'Leadership Mid Year',
-      type: 'custom',
-      startDate: '2026-06-01',
-      endDate: '2026-08-15',
-      settings: {
-        reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 3, recommendedMinimum: 3, recommendedMaximum: 6, maximumAllowed: 6 },
-        postWindowGoalPolicy: 'hard_stop',
-        excludedEmployeeIds: [],
-        autoScorecardGeneration: false,
-        reviewPolicy: LEADERSHIP_POLICY,
-      },
-      calibration: q1.calibration,
-    },
-    ACTOR,
-  )
-
-  await updateReviewCycle(
-    leadership.id,
-    {
-      expectedVersion: leadership.version,
-      reviewPolicy: LEADERSHIP_POLICY,
-    },
-    ACTOR,
-  )
+      ACTOR,
+    )
+  }
 
   console.log('Cycles created. Building groups…')
 
   const defaultSettings = (overrides = {}) => ({
-    reviewTypes: { line_manager: true, self: false, upwards: false, peer: false, functional_manager: false },
+    reviewTypes: { line_manager: true, self: false },
     goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 5, maximumAllowed: null },
     postWindowGoalPolicy: 'two_tier_approval',
     autoScorecardGeneration: false,
@@ -1240,56 +1476,43 @@ async function main() {
     }
   }
 
-  await addGroups(q1, [
-    { name: 'Leadership', memberIds: ids(parts.leadership), settings: defaultSettings({ goalCountPolicy: { minimumRequired: 3, recommendedMinimum: 4, recommendedMaximum: 6, maximumAllowed: 6 } }) },
-    { name: 'Company', memberIds: ids([...parts.company, ...parts.peopleCulture, ...parts.newJoiners]) },
-  ])
-  await addGroups(q2, [
-    { name: 'Leadership', memberIds: ids(parts.leadership) },
-    { name: 'Company', memberIds: ids([...parts.company, ...parts.peopleCulture, ...parts.newJoiners]) },
-  ])
+  const staff = (endDate) => [
+    { name: 'Leadership', memberIds: presentBy(parts.leadership, endDate), settings: defaultSettings({ reviewTypes: { line_manager: true, self: true } }) },
+    { name: 'Company', memberIds: presentBy([...parts.company, ...parts.peopleCulture, ...parts.newJoiners], endDate) },
+  ]
 
-  const q3LeadershipStages = enableStage(
-    {
-      ...q3.stagesConfig,
-      reviewStages: q3.stagesConfig.reviewStages,
-    },
-    'self_review',
-  )
+  if (!onlyCycle) {
+    await addGroups(h1, staff('2025-06-30').map((group) => ({
+      ...group,
+      settings: defaultSettings({ reviewTypes: { line_manager: true, self: true } }),
+    })))
+    await addGroups(h2, staff('2025-12-31').map((group) => ({
+      ...group,
+      settings: defaultSettings({ reviewTypes: { line_manager: true, self: true } }),
+    })))
+    await addGroups(q1, [
+      { name: 'Leadership', memberIds: presentBy(parts.leadership, '2026-03-31') },
+      { name: 'Company', memberIds: presentBy([...parts.company, ...parts.peopleCulture, ...parts.newJoiners], '2026-03-31') },
+    ])
+    await addGroups(q2, [
+      { name: 'Leadership', memberIds: presentBy(parts.leadership, '2026-06-30') },
+      { name: 'Company', memberIds: presentBy([...parts.company, ...parts.peopleCulture, ...parts.newJoiners], '2026-06-30') },
+    ])
+  }
+
   await addGroups(q3, [
-    {
-      name: 'Leadership',
-      memberIds: ids(parts.leadership),
-      stagesConfig: q3LeadershipStages,
-      settings: defaultSettings({
-        reviewTypes: { line_manager: true, self: true, upwards: false, peer: false, functional_manager: false },
-        goalCountPolicy: { minimumRequired: 3, recommendedMinimum: 4, recommendedMaximum: 6, maximumAllowed: 6 },
-      }),
-    },
-    {
-      name: 'People & Culture',
-      memberIds: ids(parts.peopleCulture),
-      settings: defaultSettings({
-        goalCountPolicy: { minimumRequired: 2, recommendedMinimum: 3, recommendedMaximum: 7, maximumAllowed: 7 },
-      }),
-    },
-    {
-      name: 'New joiners',
-      memberIds: ids(parts.newJoiners),
-      settings: defaultSettings({ postWindowGoalPolicy: 'hard_stop' }),
-    },
-    { name: 'Company', memberIds: ids(parts.company) },
+    { name: 'Leadership', memberIds: presentBy(parts.leadership, '2026-09-30') },
+    { name: 'Company', memberIds: presentBy([...parts.company, ...parts.peopleCulture, ...parts.newJoiners], '2026-09-30') },
   ])
-  await addGroups(q4, [
-    { name: 'Everyone', memberIds: ids(employees), settings: defaultSettings({ postWindowGoalPolicy: 'hard_stop' }) },
-  ])
-  await addGroups(annual, [
-    { name: 'Leadership', memberIds: ids(parts.leadership) },
-    { name: 'Company', memberIds: ids([...parts.company, ...parts.peopleCulture, ...parts.newJoiners]) },
-  ])
-  await addGroups(leadership, [
-    { name: 'SLT and people leaders', memberIds: ids(parts.leadership) },
-  ])
+  if (!onlyCycle) {
+    await addGroups(q4, [
+      { name: 'Everyone', memberIds: presentBy(employees, '2026-12-31'), settings: defaultSettings({ postWindowGoalPolicy: 'hard_stop' }) },
+    ])
+    await addGroups(annual, [
+      { name: 'Leadership', memberIds: ids(parts.leadership), settings: defaultSettings({ reviewTypes: { line_manager: true, self: true } }) },
+      { name: 'Company', memberIds: ids([...parts.company, ...parts.peopleCulture, ...parts.newJoiners]), settings: defaultSettings({ reviewTypes: { line_manager: true, self: true } }) },
+    ])
+  }
 
   const client = await pool.connect()
   try {
@@ -1304,12 +1527,19 @@ async function main() {
       byCycle.set(row.cycle_id, list)
     }
 
-    for (const cycleId of ['q1-2026', 'q2-2026', 'q3-2026', 'q4-2026']) {
+    const goalCycles = onlyCycle
+      ? [onlyCycle]
+      : ['h1-2025', 'h2-2025', 'q1-2026', 'q2-2026', 'q3-2026', 'q4-2026']
+    const reviewCycles = onlyCycle
+      ? [onlyCycle]
+      : ['h1-2025', 'h2-2025', 'q1-2026', 'q2-2026', 'q3-2026', 'annual-2026']
+
+    for (const cycleId of goalCycles) {
       console.log(`Seeding goals for ${cycleId}…`)
       await seedGoals(client, cycleId, byCycle.get(cycleId) ?? [], employeesById)
     }
 
-    for (const cycleId of ['q1-2026', 'q2-2026', 'q3-2026', 'q4-2026', 'annual-2026', 'leadership-mid-2026']) {
+    for (const cycleId of reviewCycles) {
       console.log(`Seeding reviews for ${cycleId}…`)
       await seedPackets(client, cycleId, byCycle.get(cycleId) ?? [], employeesById)
     }

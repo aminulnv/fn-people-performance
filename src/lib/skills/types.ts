@@ -1,6 +1,6 @@
 export type SkillStatus = 'approved' | 'draft'
 
-/** Revolut-style skill mastery bands (Poor → Expert). */
+/** Skill mastery bands (Not Applicable → Expert). `none` is Not Applicable. */
 export const SKILL_MASTERY_LEVELS = [
   'none',
   'basic',

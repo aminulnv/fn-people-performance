@@ -1,3 +1,4 @@
+import { apiFetch } from '@/lib/apiClient'
 import type { DemoPerson } from '@/lib/goals/types'
 import { evaluateNotificationReminders } from './notifications/reminders'
 import { evaluateReviewNotifications } from './notifications/reviewReminders'
@@ -19,32 +20,48 @@ export type {
   NotificationRecord,
 } from './notifications/types'
 
-/**
- * Frontend adapter for the current local workflow stores. The catalogue and
- * feed contract stay unchanged when persistence moves to `/api/platform`.
- */
+/** Tests and local-only sign-in keep the browser list. The app uses the server. */
+function useLocalNotifications(): boolean {
+  return (
+    import.meta.env.MODE === 'test' ||
+    import.meta.env.VITE_AUTH_MODE === 'local'
+  )
+}
+
 export async function fetchNotifications(
   recipient: DemoPerson,
 ): Promise<NotificationFeed> {
-  evaluateNotificationReminders(recipient.id)
-  evaluateReviewNotifications(recipient)
-  return getNotificationFeed(recipient.id)
+  if (useLocalNotifications()) {
+    evaluateNotificationReminders(recipient.id)
+    evaluateReviewNotifications(recipient)
+    return getNotificationFeed(recipient.id)
+  }
+  return apiFetch<NotificationFeed>('/api/platform/notifications')
 }
 
 export async function readNotification(
-  recipientId: string,
+  _recipientId: string,
   notificationId: string,
 ): Promise<void> {
-  markNotificationRead(recipientId, notificationId)
+  if (useLocalNotifications()) {
+    markNotificationRead(_recipientId, notificationId)
+    return
+  }
+  await apiFetch(`/api/platform/notifications/${encodeURIComponent(notificationId)}/read`, {
+    method: 'POST',
+  })
 }
 
-export async function readAllNotifications(
-  recipientId: string,
-): Promise<void> {
-  markAllNotificationsRead(recipientId)
+export async function readAllNotifications(recipientId: string): Promise<void> {
+  if (useLocalNotifications()) {
+    markAllNotificationsRead(recipientId)
+    return
+  }
+  await apiFetch('/api/platform/notifications/read-all', { method: 'POST' })
 }
 
 export function watchNotifications(onChange: () => void): () => void {
+  if (!useLocalNotifications()) return () => {}
   return subscribeNotifications(onChange)
 }
 

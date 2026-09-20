@@ -15,6 +15,7 @@ import {
 } from './notifications.mjs'
 import {
   createPlatformDepartment,
+  createPlatformTeam,
   getPlatformEmployee,
   getPlatformEmployeeProfile,
   listPlatformDepartments,
@@ -23,6 +24,8 @@ import {
   listPlatformTeams,
   listAccessControl,
   setEmployeeAccess,
+  updatePlatformDepartment,
+  updatePlatformTeam,
   upsertPlatformEmployee,
 } from './store.mjs'
 import { endEmployeePip, startEmployeePip } from './career.mjs'
@@ -39,6 +42,7 @@ import { publishWrite } from './realtime/fromRequest.mjs'
 import {
   assignManagerDelegation,
   canViewManagerDelegations,
+  delegationNotifyIds,
   listManagerDelegations,
   listVisibleActiveManagerDelegations,
   revokeManagerDelegation,
@@ -197,7 +201,13 @@ export function registerPlatformRoutes(app) {
         req.body ?? {},
         req.platformUser,
       )
-      await publishWrite(req, ['delegations', 'activity'])
+      await publishWrite(req, ['delegations', 'activity'], {
+        employeeId: delegation?.absentEmployeeId,
+        audienceEmployeeIds: await delegationNotifyIds(
+          delegation?.absentEmployeeId,
+          delegation?.delegateEmployeeId,
+        ),
+      })
       res.status(201).json({ delegation })
     }),
   )
@@ -211,7 +221,13 @@ export function registerPlatformRoutes(app) {
         req.params.delegationId,
         req.platformUser,
       )
-      await publishWrite(req, ['delegations', 'activity'])
+      await publishWrite(req, ['delegations', 'activity'], {
+        employeeId: delegation?.absentEmployeeId,
+        audienceEmployeeIds: await delegationNotifyIds(
+          delegation?.absentEmployeeId,
+          delegation?.delegateEmployeeId,
+        ),
+      })
       res.json({ delegation })
     }),
   )
@@ -349,12 +365,65 @@ export function registerPlatformRoutes(app) {
     }),
   )
 
+  app.patch(
+    '/api/platform/departments/:departmentId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const department = await updatePlatformDepartment(
+          req.params.departmentId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['employees', 'activity'])
+        res.json({ department })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
   app.get(
     '/api/platform/teams',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
       const teams = await listPlatformTeams(req.query.departmentId)
       res.json({ teams })
+    }),
+  )
+
+  app.post(
+    '/api/platform/teams',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const team = await createPlatformTeam(req.body ?? {}, req.platformUser)
+        await publishWrite(req, ['employees', 'activity'])
+        res.status(201).json({ team })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.patch(
+    '/api/platform/teams/:teamId',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const team = await updatePlatformTeam(
+          req.params.teamId,
+          req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['employees', 'activity'])
+        res.json({ team })
+      } catch (err) {
+        throw toHttp(err)
+      }
     }),
   )
 

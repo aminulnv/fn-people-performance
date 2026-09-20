@@ -1,8 +1,23 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { resetValuesStoreForTests } from '@/lib/values/store'
 import { ValuesLibrary } from './ValuesLibrary'
+
+const authState = vi.hoisted(() => ({
+  permissions: ['platform.write_all'] as string[],
+}))
+
+vi.mock('@/lib/useAuth', () => ({
+  useAuth: () => ({
+    status: 'authenticated',
+    user: { permissions: authState.permissions },
+    session: null,
+    signInWithGoogle: async () => {},
+    signInWithEmailPassword: async () => {},
+    signOut: async () => {},
+  }),
+}))
 
 afterEach(() => {
   cleanup()
@@ -10,6 +25,7 @@ afterEach(() => {
 })
 
 beforeEach(() => {
+  authState.permissions = ['platform.write_all']
   resetValuesStoreForTests()
 })
 
@@ -93,5 +109,15 @@ describe('ValuesLibrary', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
     expect(screen.getByText('Updated product obsession.')).toBeInTheDocument()
+  })
+
+  it('hides value editing when the user cannot write', () => {
+    authState.permissions = []
+    renderValues()
+    expect(
+      screen.queryByRole('link', { name: /Create new value/i }),
+    ).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Product First'))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

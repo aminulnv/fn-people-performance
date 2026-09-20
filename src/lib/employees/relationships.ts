@@ -1,4 +1,3 @@
-import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import type { OrgTeam } from '@/lib/organisation/types'
 import { getEmployee, listEmployees } from './store'
 import type { PlatformEmployee, PlatformTeam } from './types'
@@ -169,41 +168,13 @@ export function findCatalogTeam(
   return nameMatches.length === 1 ? nameMatches[0] : null
 }
 
-export function findOrgTeam(
-  employee: PlatformEmployee,
-  orgTeams: OrgTeam[],
-): OrgTeam | null {
-  const teamName = employee.team.trim()
-  if (!teamName) return null
-  const departmentName = employee.department.trim()
-  const byDepartmentAndName = orgTeams.find(
-    (team) =>
-      sameLabel(team.name, teamName) &&
-      (!departmentName || sameLabel(team.departmentName, departmentName)),
-  )
-  if (byDepartmentAndName) return byDepartmentAndName
-  const nameMatches = orgTeams.filter((team) => sameLabel(team.name, teamName))
-  return nameMatches.length === 1 ? nameMatches[0] : null
-}
-
-function orgTeamsForOwner(
-  sources: TeamOwnerSources,
-): OrgTeam[] {
-  if (sources.orgTeams) return sources.orgTeams
-  return buildOrganisationFromEmployees(listEmployees()).teams
-}
-
 export function teamOwnerFallbackName(
   employee: PlatformEmployee | null,
   sources: TeamOwnerSources = {},
 ): string {
   if (!employee) return ''
-  const orgTeam = findOrgTeam(employee, orgTeamsForOwner(sources))
-  const fromOrg = orgTeam?.manager?.fullName.trim() ?? ''
-  if (fromOrg) return fromOrg
   const catalog = findCatalogTeam(employee, sources.teams ?? [])
-  const fromCatalog = catalog?.ownerName?.trim() ?? ''
-  if (fromCatalog) return fromCatalog
+  if (catalog) return catalog.ownerName?.trim() ?? ''
   return employee.teamOwnerName?.trim() ?? ''
 }
 
@@ -212,24 +183,11 @@ export function resolveTeamOwner(
   sources: TeamOwnerSources = {},
 ): PlatformEmployee | null {
   if (!employee) return null
-  const orgTeam = findOrgTeam(employee, orgTeamsForOwner(sources))
-  const fromOrg = personByIdOrName(
-    orgTeam?.manager?.employeeId,
-    orgTeam?.manager?.fullName,
-  )
-  if (fromOrg) return fromOrg
-
   const catalog = findCatalogTeam(employee, sources.teams ?? [])
-  const fromCatalog = personByIdOrName(
-    catalog?.ownerEmployeeId,
-    catalog?.ownerName,
-  )
-  if (fromCatalog) return fromCatalog
-
-  return (
-    personByIdOrName(employee.teamOwnerId, employee.teamOwnerName) ??
-    relatedPersonStub(employee.teamOwnerId, employee.teamOwnerName ?? '')
-  )
+  if (catalog) {
+    return personByIdOrName(catalog.ownerEmployeeId, catalog.ownerName)
+  }
+  return personByIdOrName(employee.teamOwnerId, employee.teamOwnerName)
 }
 
 function personIdInDirectory(

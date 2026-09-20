@@ -12,11 +12,12 @@ import {
 import { OrgChartLink } from '@/components/OrgChartLink'
 import { EmptyState, SegmentedControl } from '@/components/ui'
 import { useAuth } from '@/lib/auth'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import {
   useHydrateManagerDelegations,
   useManagerDelegationsRevision,
 } from '@/lib/delegations/useManagerDelegations'
-import { useEmployees } from '@/lib/employees/useEmployees'
+import { useEmployees, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import {
   hashForPeopleScope,
   peopleScopeFromHash,
@@ -42,17 +43,17 @@ const SCOPES: { id: DirectoryScope; label: string }[] = [
   { id: 'department', label: 'My Department' },
 ]
 
-export type PeoplePageProps = {
-  /** Soft-rect radius preview at `/people-v3` (canonical `/people` uses Org pills). */
-  variant?: 'v3'
-}
-
-export default function PeoplePage({ variant }: PeoplePageProps = {}) {
+export default function PeoplePage() {
   const { user } = useAuth()
+  const canCreateEmployee = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
   const navigate = useNavigate()
   const location = useLocation()
   const [searchParams] = useSearchParams()
   const { employees, loadState, loadError } = useEmployees()
+  const catalogs = useOrganisationCatalogs()
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const selectedEmployeeId = useMemo(() => {
@@ -83,7 +84,6 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   const [attributeFilters, setAttributeFilters] =
     useState<DirectoryAttributeFilters>({})
 
-  const isV3 = variant === 'v3'
   const employeesById = useMemo(
     () => new Map(employees.map((employee) => [employee.employeeId, employee])),
     [employees],
@@ -113,7 +113,25 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
     setStatusFilter((current) => (current === next ? null : next))
   }
 
-  const stats = useMemo(() => directoryStats(employees), [employees])
+  const stats = useMemo(
+    () =>
+      directoryStats(
+        employees,
+        catalogs.ready && !catalogs.error
+          ? {
+              departments: catalogs.departments,
+              teams: catalogs.teams,
+            }
+          : undefined,
+      ),
+    [
+      catalogs.departments,
+      catalogs.error,
+      catalogs.ready,
+      catalogs.teams,
+      employees,
+    ],
+  )
 
   const coversRevision = useManagerDelegationsRevision()
   useHydrateManagerDelegations(user?.employeeId ?? undefined)
@@ -156,18 +174,7 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
   )
 
   return (
-    <div
-      className={[
-        'pd-page',
-        'pd-page--pane',
-        'pd-page--wide',
-        'pd-people',
-        isV3 ? 'pd-people--v3' : '',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-label="People"
-    >
+    <div className="pd-page pd-page--pane pd-page--wide pd-people" aria-label="People">
       <div
         className="pd-people__summary pd-people__summary--stretch"
         role="group"
@@ -284,10 +291,12 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
               onAttributeFiltersChange={setAttributeFilters}
             />
             <OrgChartLink />
-            <Link to="/people/new" className="pd-people__create-btn">
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Employee
-            </Link>
+            {canCreateEmployee ? (
+              <Link to="/people/new" className="pd-people__create-btn">
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Employee
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
@@ -316,10 +325,12 @@ export default function PeoplePage({ variant }: PeoplePageProps = {}) {
               title="No Employees Yet"
               description="Add people to the directory to get started."
               action={
-                <Link to="/people/new" className="pd-people__create-btn">
-                  <Plus size={18} strokeWidth={2} aria-hidden />
-                  Add Employee
-                </Link>
+                canCreateEmployee ? (
+                  <Link to="/people/new" className="pd-people__create-btn">
+                    <Plus size={18} strokeWidth={2} aria-hidden />
+                    Add Employee
+                  </Link>
+                ) : undefined
               }
             />
           </div>

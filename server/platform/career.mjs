@@ -1,6 +1,5 @@
 import { getPool } from '../db.mjs'
 
-const CHANGE_KINDS = new Set(['hire', 'promotion', 'lateral', 'demotion'])
 const END_STATUSES = new Set(['completed', 'cancelled'])
 
 function calendarDay(value) {
@@ -30,14 +29,21 @@ function utcDay(value) {
 }
 
 /**
- * First grade is a hire. Later edits default to promotion unless the caller
- * names lateral or demotion. There is no grade ladder to infer direction.
+ * First grade is a hire. A later change must say promotion, lateral, or
+ * demotion. There is no grade ladder to infer direction.
  */
 export function classifyGradeChange(previousGrade, requestedKind) {
   const previous = String(previousGrade ?? '').trim()
   if (!previous) return 'hire'
   const requested = String(requestedKind ?? '').trim()
-  return CHANGE_KINDS.has(requested) ? requested : 'promotion'
+  if (requested === 'promotion' || requested === 'lateral' || requested === 'demotion') {
+    return requested
+  }
+  const err = new Error(
+    'Say whether this grade change is a promotion, a sideways move, or a step down.',
+  )
+  err.statusCode = 400
+  throw err
 }
 
 export async function recordGradeChange(client, input) {

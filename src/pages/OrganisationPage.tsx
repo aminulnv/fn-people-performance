@@ -16,6 +16,8 @@ import {
   AttributeFilters,
   Avatar,
   EmptyState,
+  PageStatus,
+  PageStatusRetry,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
@@ -26,7 +28,6 @@ import {
   type AttributeValue,
 } from '@/lib/filters/attributeFilters'
 import { useAuth } from '@/lib/auth'
-import { hasSystemPermission } from '@/lib/accessControl/types'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
@@ -35,11 +36,12 @@ import {
   organisationTabPath,
   roleCreatePath,
   roleDetailPath,
+  teamCreatePath,
   teamDetailPath,
   type OrganisationTabId,
 } from '@/lib/organisation/paths'
 import { listRolesWithHeadcount } from '@/lib/roles/inheritedSkills'
-import { formatNips } from '@/lib/roles/labels'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useRolesCatalog } from '@/lib/roles/useRoles'
 import type { OrgDepartment, OrgPersonRef, OrgTeam } from '@/lib/organisation/types'
 import { RoleFormFields } from '@/pages/org/RoleFormEditor'
@@ -430,11 +432,23 @@ export default function OrganisationPage() {
       { id: 'role', label: 'Role', name: 'Role', grow: true },
       { id: 'department', label: 'Department' },
       { id: 'headcount', label: 'Headcount' },
-      { id: 'nips', label: 'NIPS' },
       { id: 'skills', label: 'Skills' },
     ],
     [],
   )
+
+  if (catalogs.ready && catalogs.error) {
+    return (
+      <PageStatus
+        variant="error"
+        pageClassName="pd-people pd-org"
+        aria-label="Organisation"
+        title="Could not load organisation"
+        description="Departments and teams did not load. This is not an empty organisation."
+        action={<PageStatusRetry label="Retry" onClick={catalogs.reload} />}
+      />
+    )
+  }
 
   return (
     <div
@@ -529,7 +543,14 @@ export default function OrganisationPage() {
                 Add Role
               </Link>
             ) : null
-          ) : (
+          ) : activeView === 'teams' ? (
+            canCreateRole ? (
+              <Link to={teamCreatePath()} className="pd-people__create-btn">
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Team
+              </Link>
+            ) : null
+          ) : canCreateRole ? (
             <Link
               to="/organisation/departments/new"
               className="pd-people__create-btn"
@@ -537,7 +558,7 @@ export default function OrganisationPage() {
               <Plus size={18} strokeWidth={2} aria-hidden />
               Add Department
             </Link>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -569,13 +590,15 @@ export default function OrganisationPage() {
                   title="No Organisation Yet"
                   description="Organisation is built from departments and teams. Add a department to get started, then assign people from the People directory."
                   action={
-                    <Link
-                      to="/organisation/departments/new"
-                      className="pd-people__create-btn"
-                    >
-                      <Plus size={18} strokeWidth={2} aria-hidden />
-                      Add Department
-                    </Link>
+                    canCreateRole ? (
+                      <Link
+                        to="/organisation/departments/new"
+                        className="pd-people__create-btn"
+                      >
+                        <Plus size={18} strokeWidth={2} aria-hidden />
+                        Add Department
+                      </Link>
+                    ) : undefined
                   }
                 />
               </div>
@@ -757,19 +780,6 @@ export default function OrganisationPage() {
                       </td>
                       <td>{role.departmentName || '-'}</td>
                       <td>{role.headcount}</td>
-                      <td>
-                        <span
-                          className={
-                            role.nipsPercent >= 67
-                              ? 'pd-org-role__nips pd-org-role__nips--good'
-                              : role.nipsPercent > 0
-                                ? 'pd-org-role__nips pd-org-role__nips--mid'
-                                : 'pd-org-role__nips pd-org-role__nips--low'
-                          }
-                        >
-                          {formatNips(role.nipsPercent)}
-                        </span>
-                      </td>
                       <td>
                         {role.skills.length > 0
                           ? role.skills.map((skill) => skill.skillName).join(', ')

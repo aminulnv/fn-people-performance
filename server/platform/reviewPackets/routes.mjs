@@ -171,7 +171,6 @@ export function registerReviewPacketRoutes(app) {
   app.post(
     '/api/platform/review-packets/:packetId/calibrate',
     requirePlatformAuth,
-    requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       try {
         const packet = await calibrateReviewPacket(
@@ -179,7 +178,7 @@ export function registerReviewPacketRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
-        await publishWrite(req, ['packets', 'activity'], {
+        await publishWrite(req, ['packets', 'notifications', 'activity'], {
           cycleId: packet.cycleId,
           employeeId: packet.employeeId,
         })

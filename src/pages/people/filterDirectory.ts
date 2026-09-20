@@ -9,6 +9,7 @@ export type DirectoryAttributeId =
   | 'email'
   | 'jobTitle'
   | 'department'
+  | 'role'
   | 'team'
   | 'reportsTo'
 
@@ -33,6 +34,7 @@ export const DIRECTORY_ATTRIBUTES: DirectoryAttributeOption[] = [
   { id: 'status', label: 'Status' },
   { id: 'jobTitle', label: 'Job title' },
   { id: 'department', label: 'Department' },
+  { id: 'role', label: 'Role' },
   { id: 'team', label: 'Team' },
   { id: 'reportsTo', label: 'Reports to' },
 ]
@@ -49,8 +51,16 @@ function uniqueNonEmpty(values: string[]): number {
   return new Set(values.map((value) => value.trim()).filter(Boolean)).size
 }
 
+function namedCatalogCount(rows: readonly { name: string }[]): number {
+  return rows.filter((row) => row.name.trim()).length
+}
+
 export function directoryStats(
   employees: readonly PlatformEmployee[],
+  org?: {
+    departments: readonly { name: string }[]
+    teams: readonly { name: string }[]
+  },
 ): DirectoryStats {
   let active = 0
   for (const employee of employees) {
@@ -60,8 +70,12 @@ export function directoryStats(
     total: employees.length,
     active,
     inactive: employees.length - active,
-    departments: uniqueNonEmpty(employees.map((employee) => employee.department)),
-    teams: uniqueNonEmpty(employees.map((employee) => employee.team)),
+    departments: org
+      ? namedCatalogCount(org.departments)
+      : uniqueNonEmpty(employees.map((employee) => employee.department)),
+    teams: org
+      ? namedCatalogCount(org.teams)
+      : uniqueNonEmpty(employees.map((employee) => employee.team)),
   }
 }
 
@@ -72,6 +86,7 @@ export function employeeSearchHaystack(employee: PlatformEmployee): string {
     employee.email,
     employee.startDate,
     employee.jobTitle,
+    employee.role,
     employee.department,
     employee.team,
     employee.division,
@@ -115,6 +130,8 @@ export function employeeAttributeValue(
       return employee.jobTitle.trim()
     case 'department':
       return employee.department.trim()
+    case 'role':
+      return (employee.role ?? '').trim()
     case 'team':
       return employee.team.trim()
     case 'reportsTo':

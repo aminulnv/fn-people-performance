@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Scale, Star, Target, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Badge, ConfirmDialog, SegmentedControl } from '@/components/ui'
+import { Badge, Button, ConfirmDialog, Modal, SegmentedControl } from '@/components/ui'
 import {
   cycleOverlayFromHash,
   groupSettingsFromHash,
@@ -15,7 +15,7 @@ import {
 } from '@/lib/reviews/groupSettingsHashes'
 import { locationWithHash } from '@/lib/routing/urlHash'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
-import { cyclePurposeOf } from '@/lib/reviews/purpose'
+import { cyclePurposeOf, cycleSupportsCalibration } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
 import { updateCycleGroup } from '@/lib/reviews/store'
 import { useScorecardFormsSnapshot } from '@/lib/reviews/useReviews'
@@ -53,8 +53,10 @@ const GROUP_JOBS: {
 type GroupJob = GroupSettingsJob
 type PendingPeopleLeave = GroupJob | 'close'
 
-function jobsForModules(modules: CycleModules) {
-  return GROUP_JOBS.map((item) => {
+function jobsForModules(modules: CycleModules, showCalibration: boolean) {
+  return GROUP_JOBS.filter(
+    (item) => showCalibration || item.id !== 'calibration',
+  ).map((item) => {
     const option = {
       id: item.id,
       label: (
@@ -74,7 +76,12 @@ function jobsForModules(modules: CycleModules) {
   })
 }
 
-function visibleScreen(requested: GroupJob, modules: CycleModules): GroupJob {
+function visibleScreen(
+  requested: GroupJob,
+  modules: CycleModules,
+  showCalibration: boolean,
+): GroupJob {
+  if (requested === 'calibration' && !showCalibration) return 'people'
   if (requested === 'calibration' && !modules.reviews) return 'review'
   return requested
 }
@@ -82,8 +89,9 @@ function visibleScreen(requested: GroupJob, modules: CycleModules): GroupJob {
 function withVisibleJob(
   state: GroupSettingsHashState,
   modules: CycleModules,
+  showCalibration: boolean,
 ): GroupSettingsHashState {
-  const job = visibleScreen(state.job, modules)
+  const job = visibleScreen(state.job, modules, showCalibration)
   if (job === state.job) return state
   return {
     job,
@@ -102,10 +110,15 @@ export function GroupSettingsView({
   const location = useLocation()
   const navigate = useNavigate()
   const storedModules = cycleModulesOf(group.stagesConfig.reviewStages)
+  const showCalibration = cycleSupportsCalibration(cycle)
   const [modules, setModules] = useState(storedModules)
   const [name, setName] = useState(group.name)
   const [peopleDirty, setPeopleDirty] = useState(false)
+  const [calibrationDirty, setCalibrationDirty] = useState(false)
+  const calibrationSaveRef = useRef<(() => Promise<boolean>) | null>(null)
   const [pendingPeopleLeave, setPendingPeopleLeave] =
+    useState<PendingPeopleLeave | null>(null)
+  const [pendingCalibrationLeave, setPendingCalibrationLeave] =
     useState<PendingPeopleLeave | null>(null)
   const [peoplePaneMemory, setPeoplePaneMemory] = useState(
     () => readInitialPeoplePane(variant, location.hash, group.id),
@@ -113,17 +126,25 @@ export function GroupSettingsView({
 
   const readHashState = (): GroupSettingsHashState => {
     if (variant === 'page') {
-      return withVisibleJob(groupSettingsFromHash(location.hash), {
-        goals: modules.goals,
-        reviews: modules.reviews,
-      })
+      return withVisibleJob(
+        groupSettingsFromHash(location.hash),
+        {
+          goals: modules.goals,
+          reviews: modules.reviews,
+        },
+        showCalibration,
+      )
     }
     const overlay = cycleOverlayFromHash(location.hash)
     if (overlay?.kind === 'group' && overlay.groupId === group.id) {
-      return withVisibleJob(overlay, {
-        goals: modules.goals,
-        reviews: modules.reviews,
-      })
+      return withVisibleJob(
+        overlay,
+        {
+          goals: modules.goals,
+          reviews: modules.reviews,
+        },
+        showCalibration,
+      )
     }
     return {
       job: 'people',
@@ -142,7 +163,7 @@ export function GroupSettingsView({
     parsedHash.job === 'people' ? parsedHash : { ...parsedHash, peoplePane: 'added' },
   )
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
-  const jobOptions = jobsForModules(modules)
+  const jobOptions = jobsForModules(modules, showCalibration)
   const reviewDraft = useReviewSettingsDraft(cycle, group, onClose, true)
   const forms = useScorecardFormsSnapshot()
   const reviewFormSheet =
@@ -174,7 +195,7 @@ export function GroupSettingsView({
   }, [parsedHash.job, parsedHash.peoplePane])
 
   const writeHash = (next: GroupSettingsHashState) => {
-    const allowed = withVisibleJob(next, modules)
+    const allowed = withVisibleJob(next, modules, showCalibration)
     const hash =
       variant === 'page'
         ? hashForGroupSettings(allowed)
@@ -212,6 +233,14 @@ export function GroupSettingsView({
       setPendingPeopleLeave(next)
       return false
     }
+    if (
+      resolvedScreen === 'calibration' &&
+      calibrationDirty &&
+      next !== 'calibration'
+    ) {
+      setPendingCalibrationLeave(next)
+      return false
+    }
     applyScreen(next)
     return true
   }
@@ -219,6 +248,10 @@ export function GroupSettingsView({
   const requestClose = () => {
     if (resolvedScreen === 'people' && peopleDirty) {
       setPendingPeopleLeave('close')
+      return
+    }
+    if (resolvedScreen === 'calibration' && calibrationDirty) {
+      setPendingCalibrationLeave('close')
       return
     }
     onClose()
@@ -233,6 +266,29 @@ export function GroupSettingsView({
     } else if (pending) {
       applyScreen(pending)
     }
+  }
+
+  const finishCalibrationLeave = () => {
+    const pending = pendingCalibrationLeave
+    setPendingCalibrationLeave(null)
+    setCalibrationDirty(false)
+    if (pending === 'close') {
+      onClose()
+    } else if (pending) {
+      applyScreen(pending)
+    }
+  }
+
+  const saveCalibrationAndLeave = () => {
+    const save = calibrationSaveRef.current
+    if (!save) {
+      finishCalibrationLeave()
+      return
+    }
+    void save().then((saved) => {
+      if (saved) finishCalibrationLeave()
+      else setPendingCalibrationLeave(null)
+    })
   }
 
   const saveModules = (next: CycleModules) => {
@@ -347,13 +403,15 @@ export function GroupSettingsView({
           />
         ) : null}
 
-        {modules.reviews && resolvedScreen === 'calibration' ? (
+        {showCalibration && modules.reviews && resolvedScreen === 'calibration' ? (
           <CalibrationEditPage
             cycle={cycle}
             group={group}
             embedded
             onClose={onClose}
             onSuccess={onSuccess}
+            onDirtyChange={setCalibrationDirty}
+            saveRef={calibrationSaveRef}
           />
         ) : null}
       </div>
@@ -409,6 +467,12 @@ export function GroupSettingsView({
           cancelLabel="Keep editing"
           confirmVariant="danger"
         />
+        <UnsavedGradeMixDialog
+          open={pendingCalibrationLeave !== null}
+          onStay={() => setPendingCalibrationLeave(null)}
+          onDiscard={finishCalibrationLeave}
+          onSave={saveCalibrationAndLeave}
+        />
       </div>
     )
   }
@@ -435,7 +499,44 @@ export function GroupSettingsView({
         cancelLabel="Keep editing"
         confirmVariant="danger"
       />
+      <UnsavedGradeMixDialog
+        open={pendingCalibrationLeave !== null}
+        onStay={() => setPendingCalibrationLeave(null)}
+        onDiscard={finishCalibrationLeave}
+        onSave={saveCalibrationAndLeave}
+      />
     </SettingsSidePanel>
+  )
+}
+
+function UnsavedGradeMixDialog({
+  open,
+  onStay,
+  onDiscard,
+  onSave,
+}: {
+  open: boolean
+  onStay: () => void
+  onDiscard: () => void
+  onSave: () => void
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onStay}
+      title="Unsaved changes"
+      description="Save the grade mix before leaving, or discard it."
+      actions={
+        <>
+          <Button variant="secondary" onClick={onDiscard}>
+            Discard
+          </Button>
+          <Button variant="primary" onClick={onSave}>
+            Save
+          </Button>
+        </>
+      }
+    />
   )
 }
 

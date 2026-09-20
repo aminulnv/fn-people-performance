@@ -119,6 +119,9 @@ export function calibrateLocalPacket(
 ): ReviewPacket {
   const current = [...packets.values()].find((packet) => packet.id === packetId)
   if (!current) throw new Error('Review not found')
+  if (!String(input.reason ?? '').trim()) {
+    throw new Error('A new grade and a written reason are required.')
+  }
   if (!calibrationIsEditable(current.status)) {
     throw new Error('Calibration cannot start until the manager review is submitted.')
   }

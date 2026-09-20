@@ -19,9 +19,14 @@ const { employeesState } = vi.hoisted(() => ({
   },
 }))
 
-vi.mock('@/lib/employees/useEmployees', () => ({
-  useEmployees: () => employeesState,
-}))
+vi.mock('@/lib/employees/useEmployees', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/lib/employees/useEmployees')>()
+  return {
+    ...actual,
+    useEmployees: () => employeesState,
+  }
+})
 
 vi.mock('@/lib/auth', () => ({
   useAuth: () => ({ user: null }),
@@ -76,6 +81,7 @@ describe('PeoplePage', () => {
     )
 
     expect(screen.getByLabelText('People')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Add Employee' })).not.toBeInTheDocument()
     expect(screen.getAllByText('80').length).toBeGreaterThan(0)
 
     const directoryNames = screen.getAllByRole('button', {

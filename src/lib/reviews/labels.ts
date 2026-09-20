@@ -32,31 +32,9 @@ export const REVIEW_TYPE_META: Record<
       'Allows the employee to submit a review of their own performance and behaviours.',
     badge: 'recommended',
   },
-  upwards: {
-    label: 'Upwards Reviews',
-    description:
-      'Direct and functional reports are allowed to submit anonymous reviews of their managers.',
-    badge: 'recommended',
-  },
-  peer: {
-    label: 'Peer Reviews',
-    description: 'Allow peers to review each other.',
-    badge: 'recommended',
-  },
-  functional_manager: {
-    label: 'Functional Manager Reviews',
-    description:
-      'Allows functional managers (FM) to submit performance reviews for their reports.',
-  },
 }
 
-export const REVIEW_TYPE_ORDER: ReviewTypeId[] = [
-  'line_manager',
-  'self',
-  'upwards',
-  'peer',
-  'functional_manager',
-]
+export const REVIEW_TYPE_ORDER: ReviewTypeId[] = ['line_manager', 'self']
 
 export const GRADE_BAND_META: Record<
   GradeBandId,
@@ -138,9 +116,6 @@ export function enabledReviewTypeLabels(settings: CycleSettings): string {
   const types: Record<ReviewTypeId, boolean> = {
     line_manager: true,
     self: false,
-    upwards: false,
-    peer: false,
-    functional_manager: false,
   }
   for (const id of REVIEW_TYPE_ORDER) {
     if (typeof settings.reviewTypes?.[id] === 'boolean') {

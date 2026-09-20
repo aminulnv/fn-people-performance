@@ -118,6 +118,25 @@ export async function listEmployeesManagedBy(viewerEmployeeId) {
   return rows.map((row) => Number(row.employee_id))
 }
 
+/** People whose screens must refresh when this cover starts or ends. */
+export async function delegationNotifyIds(absentEmployeeId, delegateEmployeeId) {
+  const ids = new Set()
+  const absentId = Number(absentEmployeeId)
+  const delegateId = Number(delegateEmployeeId)
+  if (Number.isInteger(absentId)) ids.add(absentId)
+  if (Number.isInteger(delegateId)) ids.add(delegateId)
+  if (!Number.isInteger(absentId)) return [...ids]
+  const { rows } = await getPool().query(
+    `SELECT employee_id
+     FROM platform.employees
+     WHERE status = 'active'
+       AND reports_to_employee_id = $1`,
+    [absentId],
+  )
+  for (const row of rows) ids.add(Number(row.employee_id))
+  return [...ids]
+}
+
 export async function listManagerDelegations({ employeeId, delegateEmployeeId }) {
   const clauses = []
   const params = []

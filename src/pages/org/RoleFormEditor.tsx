@@ -110,7 +110,7 @@ export function RoleFormFields({
           rows={4}
           value={description}
           onChange={(event) => setDescription(event.target.value)}
-          placeholder="A short summary explaining the goals and the scope of the role."
+          placeholder="A short summary of this role."
         />
         <p className="pd-field__hint">Optional.</p>
       </div>

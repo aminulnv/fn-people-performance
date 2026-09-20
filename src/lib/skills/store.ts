@@ -2,13 +2,11 @@ import { SEED_SKILLS } from './seed'
 import {
   createSkillRemote,
   fetchSkillsSnapshotRemote,
-  setEmployeeSkillIdsRemote,
   updateSkillRemote,
 } from './remoteApi'
 import {
   employeeIdsWithRoleSkill,
   getInheritedSkillsForEmployee,
-  unionPersonSkills,
 } from '@/lib/roles/inheritedSkills'
 import type { PersonSkill } from '@/lib/roles/inheritedSkills'
 import {
@@ -201,82 +199,39 @@ export async function ensureSkillsLoaded(): Promise<void> {
 }
 
 export function talentCountForSkill(skillId: string): number {
-  const ids = new Set(employeeIdsWithRoleSkill(skillId))
-  for (const item of getState().assignments) {
-    if (item.skillIds.includes(skillId)) ids.add(item.employeeId)
-  }
-  return ids.size
+  return employeeIdsWithRoleSkill(skillId).length
 }
 
-/** Extra skills on the person, not including role-inherited skills. */
-export function getSkillIdsForEmployee(employeeId: number): string[] {
-  const row = getState().assignments.find(
-    (item) => item.employeeId === employeeId,
-  )
-  return row ? [...row.skillIds] : []
-}
-
+/** Skills on this person come only from the role assigned to their profile. */
 export function getSkillsForEmployee(employeeId: number): PersonSkill[] {
-  const extras = getState()
-    .skills.filter((skill) =>
-      getSkillIdsForEmployee(employeeId).includes(skill.id),
-    )
-    .map((skill) => ({ ...skill }))
-  return unionPersonSkills(
-    getInheritedSkillsForEmployee(employeeId, getState().skills),
-    extras,
-  )
+  return getInheritedSkillsForEmployee(employeeId, getState().skills)
 }
 
-function applyEmployeeSkillIds(
-  employeeId: number,
-  skillIds: string[],
-): string[] {
-  const known = new Set(getState().skills.map((skill) => skill.id))
-  const nextIds = [...new Set(skillIds.filter((id) => known.has(id)))]
-  const state = getState()
-  const without = state.assignments.filter(
-    (item) => item.employeeId !== employeeId,
+function skillsBelongOnTheRole(): never {
+  throw new Error(
+    'Skills belong on a role. Assign that role to the person.',
   )
-  commit({
-    ...state,
-    assignments:
-      nextIds.length === 0
-        ? without
-        : [...without, { employeeId, skillIds: nextIds }],
-  })
-  return nextIds
 }
 
 export async function setEmployeeSkillIds(
-  employeeId: number,
-  skillIds: string[],
+  _employeeId: number,
+  _skillIds: string[],
 ): Promise<string[]> {
-  if (useLocalSkills()) {
-    return applyEmployeeSkillIds(employeeId, skillIds)
-  }
-  const assignment = await setEmployeeSkillIdsRemote(employeeId, skillIds)
-  applyEmployeeSkillIds(assignment.employeeId, assignment.skillIds)
-  return assignment.skillIds
+  skillsBelongOnTheRole()
 }
 
 export async function assignSkillToEmployee(
-  employeeId: number,
-  skillId: string,
+  _employeeId: number,
+  _skillId: string,
 ): Promise<string[]> {
-  const current = getSkillIdsForEmployee(employeeId)
-  if (current.includes(skillId)) return current
-  return setEmployeeSkillIds(employeeId, [...current, skillId])
+  skillsBelongOnTheRole()
 }
 
 export async function removeSkillFromEmployee(
-  employeeId: number,
-  skillId: string,
+  _employeeId: number,
+  _skillId: string,
 ): Promise<string[]> {
-  return setEmployeeSkillIds(
-    employeeId,
-    getSkillIdsForEmployee(employeeId).filter((id) => id !== skillId),
-  )
+  skillsBelongOnTheRole()
 }
 
 export async function createSkill(input: {

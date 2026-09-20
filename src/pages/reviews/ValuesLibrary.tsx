@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link, useMatch, useNavigate } from 'react-router-dom'
 import { Heart, Plus } from 'lucide-react'
 import { EmptyState, ResizableTable, Switch } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/useAuth'
 import {
   valueCreatePath,
   valueEditPath,
@@ -26,6 +28,8 @@ function panelModeFromRoute(
 
 export function ValuesLibrary() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const canWrite = hasSystemPermission(user?.permissions, 'platform.write_all')
   const { values } = useValuesLibrary()
   const [hideDisabled, setHideDisabled] = useState(true)
 
@@ -78,13 +82,15 @@ export function ValuesLibrary() {
           />
         </div>
         <div className="pd-people__bar-end">
-          <Link
-            to={valueCreatePath()}
-            className="pd-btn pd-btn--primary pd-btn--pill"
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden />
-            Create new value
-          </Link>
+          {canWrite ? (
+            <Link
+              to={valueCreatePath()}
+              className="pd-btn pd-btn--primary pd-btn--pill"
+            >
+              <Plus size={16} strokeWidth={2} aria-hidden />
+              Create new value
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -103,17 +109,19 @@ export function ValuesLibrary() {
               title={values.length === 0 ? 'No Values Yet' : 'No Enabled Values'}
               description={
                 values.length === 0
-                  ? 'Create company cultural values here, then grade them on the annual scorecard.'
-                  : 'Turn off “Hide disabled values” to see disabled ones, or create a new value.'
+                  ? 'Company values are added by an admin, then graded on the annual scorecard.'
+                  : 'Turn off “Hide disabled values” to see disabled ones.'
               }
               action={
-                <Link
-                  to={valueCreatePath()}
-                  className="pd-people__create-btn"
-                >
-                  <Plus size={18} strokeWidth={2} aria-hidden />
-                  Create New Value
-                </Link>
+                values.length === 0 && canWrite ? (
+                  <Link
+                    to={valueCreatePath()}
+                    className="pd-people__create-btn"
+                  >
+                    <Plus size={18} strokeWidth={2} aria-hidden />
+                    Create New Value
+                  </Link>
+                ) : null
               }
             />
           </div>
@@ -132,7 +140,10 @@ export function ValuesLibrary() {
               <tbody>
                 {visible.map((value) => {
                   const isSelected = selectedId === value.id
-                  const openValue = () => navigate(valueEditPath(value.id))
+                  const openValue = () => {
+                    if (!canWrite) return
+                    navigate(valueEditPath(value.id))
+                  }
                   return (
                     <tr
                       key={value.id}
@@ -187,12 +198,18 @@ export function ValuesLibrary() {
           onClose={closePanel}
         >
           {panel.kind === 'create' ? (
-            <ValueFormFields
-              mode="create"
-              onCancel={closePanel}
-              onSaved={closePanel}
-            />
-          ) : (
+            canWrite ? (
+              <ValueFormFields
+                mode="create"
+                onCancel={closePanel}
+                onSaved={closePanel}
+              />
+            ) : (
+              <p className="pd-reviews-flow__hint">
+                Only an admin with write access can add values.
+              </p>
+            )
+          ) : canWrite ? (
             <ValueFormFields
               key={panel.valueId}
               mode="edit"
@@ -200,6 +217,10 @@ export function ValuesLibrary() {
               onCancel={closePanel}
               onSaved={closePanel}
             />
+          ) : (
+            <p className="pd-reviews-flow__hint">
+              Only an admin with write access can change values.
+            </p>
           )}
         </SettingsSidePanel>
       ) : null}

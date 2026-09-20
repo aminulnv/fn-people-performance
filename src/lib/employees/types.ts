@@ -79,7 +79,11 @@ export type CreateEmployeeInput = {
 export type UpdateEmployeeInput = Required<
   Pick<CreateEmployeeInput, 'isActive'>
 > &
-  Omit<CreateEmployeeInput, 'isActive'>
+  Omit<CreateEmployeeInput, 'isActive'> & {
+    gradeChangeKind?: GradeChangeKind
+  }
+
+export type GradeChangeKind = 'promotion' | 'lateral' | 'demotion'
 
 /** Department catalog row from `/api/platform/departments`. */
 export type PlatformDepartment = {
@@ -99,6 +103,20 @@ export type CreateDepartmentInput = {
   name: string
   headEmployeeId?: number | null
   hrbpEmployeeId?: number | null
+}
+
+export type UpdateDepartmentInput = CreateDepartmentInput & {
+  id: number
+}
+
+export type CreateTeamInput = {
+  name: string
+  departmentId: number
+  ownerEmployeeId?: number | null
+}
+
+export type UpdateTeamInput = CreateTeamInput & {
+  id: number
 }
 
 /** Team catalog row from `/api/platform/teams`. */

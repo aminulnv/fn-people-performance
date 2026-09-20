@@ -13,10 +13,6 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
     title: 'Welcome back',
     body: 'Start from Home to jump into goals, reviews, and people updates in one place.',
   },
-  '/dashboard': {
-    title: 'Your pulse check',
-    body: 'Dashboard tiles summarize progress at a glance - drill into any metric that looks off.',
-  },
   '/people': {
     title: 'Find your people',
     body: 'Browse the employee directory, or use Create employee to add someone new.',

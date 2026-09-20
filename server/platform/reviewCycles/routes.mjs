@@ -31,8 +31,15 @@ import { publishWrite } from '../realtime/fromRequest.mjs'
 import {
   confirmCalibrationClean,
   getCalibrationSitting,
+  lockCalibrationSession,
   saveCalibrationSittingEmployee,
 } from '../calibrationSession.mjs'
+import {
+  listCalibratorAssignments,
+  setDepartmentCalibrators,
+  setPersonCalibrators,
+  setTeamCalibrators,
+} from '../calibrationGovernance.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -426,6 +433,100 @@ export function registerReviewCycleRoutes(app) {
         )
         await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
         res.json(sitting)
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-cycles/:cycleId/calibration-sitting/lock',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
+      if (!cycle) throw new HttpError(404, 'Review cycle not found')
+      try {
+        const sitting = await lockCalibrationSession(
+          req.params.cycleId,
+          req.platformUser?.employeeId ?? null,
+        )
+        await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
+        res.json(sitting)
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.get(
+    '/api/platform/department-calibrators',
+    requirePlatformAuth,
+    asyncHandler(async (_req, res) => {
+      res.json(await listCalibratorAssignments())
+    }),
+  )
+
+  app.put(
+    '/api/platform/departments/:departmentId/calibrators',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const departmentId = Number(req.params.departmentId)
+      if (!Number.isInteger(departmentId) || departmentId <= 0) {
+        throw new HttpError(400, 'Invalid department id')
+      }
+      const employeeIds = Array.isArray(req.body?.employeeIds)
+        ? req.body.employeeIds
+        : []
+      try {
+        const department = await setDepartmentCalibrators(
+          departmentId,
+          employeeIds,
+        )
+        res.json({ department })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.put(
+    '/api/platform/teams/:teamId/calibrators',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const teamId = Number(req.params.teamId)
+      if (!Number.isInteger(teamId) || teamId <= 0) {
+        throw new HttpError(400, 'Invalid team id')
+      }
+      const employeeIds = Array.isArray(req.body?.employeeIds)
+        ? req.body.employeeIds
+        : []
+      try {
+        const team = await setTeamCalibrators(teamId, employeeIds)
+        res.json({ team })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.put(
+    '/api/platform/employees/:employeeId/calibrators',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.params.employeeId)
+      if (!Number.isInteger(employeeId) || employeeId <= 0) {
+        throw new HttpError(400, 'Invalid employee id')
+      }
+      const employeeIds = Array.isArray(req.body?.employeeIds)
+        ? req.body.employeeIds
+        : []
+      try {
+        const person = await setPersonCalibrators(employeeId, employeeIds)
+        res.json({ person })
       } catch (err) {
         throw toHttp(err)
       }

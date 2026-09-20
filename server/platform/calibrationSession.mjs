@@ -1,4 +1,5 @@
 import { getPool } from '../db.mjs'
+import { assertCalibrationUnlocked } from './calibrationGovernance.mjs'
 
 const STATUSES = new Set(['not_reviewed', 'discussed', 'confirmed'])
 const NOTES_LIMIT = 4000
@@ -22,7 +23,7 @@ export async function getCalibrationSitting(cycleId) {
   const pool = getPool()
   const [cycle, people] = await Promise.all([
     pool.query(
-      `SELECT clean_confirmed_at
+      `SELECT clean_confirmed_at, locked_at, locked_by_employee_id
        FROM platform.calibration_sittings
        WHERE cycle_id = $1`,
       [cycleId],
@@ -38,6 +39,11 @@ export async function getCalibrationSitting(cycleId) {
   return {
     cycleId,
     cleanConfirmedAt: iso(cycle.rows[0]?.clean_confirmed_at),
+    lockedAt: iso(cycle.rows[0]?.locked_at),
+    lockedByEmployeeId:
+      cycle.rows[0]?.locked_by_employee_id == null
+        ? null
+        : Number(cycle.rows[0].locked_by_employee_id),
     employees: people.rows.map(mapEmployee),
   }
 }
@@ -51,6 +57,7 @@ export async function saveCalibrationSittingEmployee(
   const hasStatus = Object.prototype.hasOwnProperty.call(input, 'status')
   const hasNotes = Object.prototype.hasOwnProperty.call(input, 'notes')
   const markAdjusted = input.adjusted === true
+  await assertCalibrationUnlocked(getPool(), cycleId)
   if (!hasStatus && !hasNotes && !markAdjusted) {
     const err = new Error('Nothing to save.')
     err.statusCode = 400
@@ -104,6 +111,7 @@ export async function saveCalibrationSittingEmployee(
 }
 
 export async function confirmCalibrationClean(cycleId, actorEmployeeId) {
+  await assertCalibrationUnlocked(getPool(), cycleId)
   await getPool().query(
     `INSERT INTO platform.calibration_sittings (
        cycle_id, clean_confirmed_at, clean_confirmed_by_employee_id
@@ -111,6 +119,31 @@ export async function confirmCalibrationClean(cycleId, actorEmployeeId) {
      ON CONFLICT (cycle_id) DO UPDATE SET
        clean_confirmed_at = now(),
        clean_confirmed_by_employee_id = EXCLUDED.clean_confirmed_by_employee_id,
+       updated_at = now()`,
+    [cycleId, actorEmployeeId],
+  )
+  return getCalibrationSitting(cycleId)
+}
+
+export async function lockCalibrationSession(cycleId, actorEmployeeId) {
+  const pool = getPool()
+  const existing = await pool.query(
+    `SELECT locked_at FROM platform.calibration_sittings WHERE cycle_id = $1`,
+    [cycleId],
+  )
+  if (existing.rows[0]?.locked_at) {
+    return getCalibrationSitting(cycleId)
+  }
+  await pool.query(
+    `INSERT INTO platform.calibration_sittings (
+       cycle_id, locked_at, locked_by_employee_id
+     ) VALUES ($1, now(), $2)
+     ON CONFLICT (cycle_id) DO UPDATE SET
+       locked_at = COALESCE(platform.calibration_sittings.locked_at, now()),
+       locked_by_employee_id = COALESCE(
+         platform.calibration_sittings.locked_by_employee_id,
+         EXCLUDED.locked_by_employee_id
+       ),
        updated_at = now()`,
     [cycleId, actorEmployeeId],
   )

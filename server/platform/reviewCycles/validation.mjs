@@ -8,6 +8,7 @@ import {
   mergeReviewStages,
   syncLegacyStageWindows,
   withRequiredReviewStages,
+  withoutUnsupportedCalibration,
 } from './reviewConfig.mjs'
 
 function datePart(value) {
@@ -151,7 +152,7 @@ export function buildDefaultStagesConfig(startDate, endDate, purpose = 'quarterl
       managerEnd: at(toIso(reviewEnd)),
     },
     calibration: {
-      enabled: purpose !== 'quarterly_checkin',
+      enabled: purpose === 'annual_appraisal',
       start: at(toIso(calStart)),
       end: at(toIso(calEnd)),
       manualStart: at(toIso(calStart)),
@@ -247,8 +248,11 @@ export function normalizeStagesConfig(config, quarter = {}) {
       ? defaultReviewStages(purpose, merged)
       : deriveReviewStagesFromLegacy(purpose, merged),
   )
-  return withRequiredReviewStages(
-    syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+  return withoutUnsupportedCalibration(
+    withRequiredReviewStages(
+      syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+    ),
+    purpose,
   )
 }
 

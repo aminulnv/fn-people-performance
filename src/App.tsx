@@ -25,7 +25,6 @@ import {
 } from '@/components/ui/NavigationProgress'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
-const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
 const SettingsPage = lazy(() => import('@/pages/SettingsPage'))
@@ -41,8 +40,6 @@ const ScorecardDetailPage = lazy(() => import('@/pages/ScorecardDetailPage'))
 const ScorecardsBuilderPage = lazy(() => import('@/pages/ScorecardsBuilderPage'))
 /** Canonical People directory - same pill controls as Organisation. */
 const PeoplePage = lazy(() => import('@/pages/PeoplePage'))
-/** Soft-rect radius preview (optional). */
-const PeopleV3Page = lazy(() => import('@/pages/PeopleV3Page'))
 const CreateEmployeePage = lazy(() => import('@/pages/CreateEmployeePage'))
 const EditEmployeePage = lazy(() => import('@/pages/EditEmployeePage'))
 const EmployeeProfilePage = lazy(() => import('@/pages/EmployeeProfilePage'))
@@ -55,7 +52,9 @@ const DepartmentDetailPage = lazy(
 const CreateDepartmentPage = lazy(
   () => import('@/pages/CreateDepartmentPage'),
 )
+const EditDepartmentPage = lazy(() => import('@/pages/EditDepartmentPage'))
 const TeamDetailPage = lazy(() => import('@/pages/TeamDetailPage'))
+const TeamFormPage = lazy(() => import('@/pages/TeamFormPage'))
 const EditRolePage = lazy(() => import('@/pages/EditRolePage'))
 const RoleDetailPage = lazy(() => import('@/pages/RoleDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
@@ -115,7 +114,6 @@ function App() {
               <Route index element={<HomePage />} />
               <Route path="profile" element={<MyProfilePage />} />
               <Route path="people" element={<PeoplePage />} />
-              <Route path="people-v3" element={<PeopleV3Page />} />
               <Route path="people/new" element={<CreateEmployeePage />} />
               <Route path="people/:employeeId/edit" element={<EditEmployeePage />} />
               <Route path="people/:employeeId" element={<EmployeeProfilePage />} />
@@ -136,11 +134,39 @@ function App() {
               <Route path="organisation/chart" element={<OrgChartPage />} />
               <Route
                 path="organisation/departments/new"
-                element={<CreateDepartmentPage />}
+                element={
+                  <RequirePlatformWrite>
+                    <CreateDepartmentPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="organisation/departments/:departmentId/edit"
+                element={
+                  <RequirePlatformWrite>
+                    <EditDepartmentPage />
+                  </RequirePlatformWrite>
+                }
               />
               <Route
                 path="organisation/departments/:departmentId"
                 element={<DepartmentDetailPage />}
+              />
+              <Route
+                path="organisation/teams/new"
+                element={
+                  <RequirePlatformWrite>
+                    <TeamFormPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="organisation/teams/:teamId/edit"
+                element={
+                  <RequirePlatformWrite>
+                    <TeamFormPage />
+                  </RequirePlatformWrite>
+                }
               />
               <Route
                 path="organisation/teams/:teamId"
@@ -222,6 +248,10 @@ function App() {
               />
               <Route
                 path="calibration"
+                element={<Navigate to="/calibration/insights" replace />}
+              />
+              <Route
+                path="calibration/:view"
                 element={
                   <RequireReviewOversight>
                     <CalibrationPage />
@@ -268,7 +298,6 @@ function App() {
                   </RequirePlatformRead>
                 }
               />
-              <Route path="dashboard" element={<DashboardPage />} />
               <Route path="settings" element={<SettingsPage />} />
             </Route>
             <Route path="*" element={<CatchAllRedirect />} />

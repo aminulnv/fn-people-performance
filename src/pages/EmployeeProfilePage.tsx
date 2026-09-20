@@ -62,9 +62,8 @@ import {
   lastPromoLabel,
   pipStatusLabel,
 } from '@/lib/employees/career'
-import { useEmployees } from '@/lib/employees/useEmployees'
+import { useEmployees, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { buildOrganisationFromEmployees } from '@/lib/organisation/fromEmployees'
 import {
   departmentPathForName,
   orgChartPath,
@@ -85,6 +84,7 @@ import {
 } from '@/pages/profile/ManagerDelegationCard'
 import { ProfileOrgChart } from '@/pages/profile/ProfileOrgChart'
 import { ProfileSkillsCard } from '@/pages/profile/ProfileSkillsCard'
+import { PipDisplayOnlyMark } from '@/pages/profile/PipDisplayOnlyMark'
 import { goalTodoBadgeLabel } from '@/lib/goals/todoCounts'
 import { useGoalTodoCounts } from '@/lib/goals/useGoalTodoCounts'
 import {
@@ -365,13 +365,10 @@ export function EmployeeProfileView({
     hasDirectReports,
     onSuccess: showSuccessToast,
   })
+  const catalogs = useOrganisationCatalogs()
   const teamOwnerSources = useMemo(
-    () => ({
-      orgTeams: buildOrganisationFromEmployees(
-        employees.length > 0 ? employees : listEmployees(),
-      ).teams,
-    }),
-    [employees],
+    () => ({ teams: catalogs.teams }),
+    [catalogs.teams],
   )
   const teamOwner = useMemo(
     () => resolveTeamOwner(employee, teamOwnerSources),
@@ -681,7 +678,10 @@ export function EmployeeProfileView({
                     {lastPromoLabel(employee.lastPromotionOn)}
                   </DetailRow>
                   <DetailRow label="PIP" icon={CircleDot}>
-                    {pipStatusLabel(employee.onPip)}
+                    <span className="pd-pip-status">
+                      {pipStatusLabel(employee.onPip)}
+                      <PipDisplayOnlyMark />
+                    </span>
                   </DetailRow>
                 </dl>
               </section>
@@ -689,7 +689,7 @@ export function EmployeeProfileView({
 
             <ProfileSkillsCard
               employeeId={employee.employeeId}
-              canEdit={isSelf || canEdit}
+              canEdit={canEdit}
             />
           </div>
 

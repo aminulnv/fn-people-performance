@@ -33,6 +33,7 @@ import {
 } from '@/lib/calibration/sessionApi'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { pipStatusLabel } from '@/lib/employees/career'
+import { PipDisplayOnlyMark } from '@/pages/profile/PipDisplayOnlyMark'
 import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { GRADE_BAND_META, OVERALL_GRADE_ORDER } from '@/lib/reviews/labels'
@@ -80,6 +81,8 @@ type CalibrationEmployeeDrawerProps = {
   onPacketUpdated: (packet: ReviewPacket) => void
   sittingEmployee: CalibrationSittingEmployee | null
   sittingReady: boolean
+  sessionLocked: boolean
+  canOverride: boolean
   onSittingSaved: (sitting: CalibrationSitting) => void
   onRatingAdjusted: () => void
 }
@@ -164,6 +167,8 @@ export function CalibrationEmployeeDrawer({
   onPacketUpdated,
   sittingEmployee,
   sittingReady,
+  sessionLocked,
+  canOverride,
   onSittingSaved,
   onRatingAdjusted,
 }: CalibrationEmployeeDrawerProps) {
@@ -182,6 +187,7 @@ export function CalibrationEmployeeDrawer({
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideSaving, setOverrideSaving] = useState(false)
   const [overrideError, setOverrideError] = useState<string | null>(null)
+  const [sessionError, setSessionError] = useState<string | null>(null)
   const [overrideOpen, setOverrideOpen] = useState(false)
 
   useEffect(() => {
@@ -196,10 +202,11 @@ export function CalibrationEmployeeDrawer({
   useEffect(() => {
     setSessionStatus(sittingEmployee?.status ?? 'not_reviewed')
     setSessionNotes(sittingEmployee?.notes ?? '')
+    setSessionError(null)
   }, [row.employeeId, sittingEmployee?.notes, sittingEmployee?.status])
 
   useEffect(() => {
-    if (!sittingReady) return
+    if (!sittingReady || sessionLocked) return
     const savedNotes = sittingEmployee?.notes ?? ''
     if (sessionNotes === savedNotes) return
     const handle = window.setTimeout(() => {
@@ -207,9 +214,16 @@ export function CalibrationEmployeeDrawer({
         status: sessionStatus,
         notes: sessionNotes,
       })
-        .then(onSittingSaved)
-        .catch(() => {
-          /* Keep the draft. The next edit retries. */
+        .then((next) => {
+          setSessionError(null)
+          onSittingSaved(next)
+        })
+        .catch((error: unknown) => {
+          setSessionError(
+            error instanceof Error
+              ? error.message
+              : 'Could not save the calibration notes.',
+          )
         })
     }, 500)
     return () => window.clearTimeout(handle)
@@ -221,6 +235,7 @@ export function CalibrationEmployeeDrawer({
     sessionStatus,
     sittingEmployee?.notes,
     sittingReady,
+    sessionLocked,
   ])
 
   useEffect(() => {
@@ -333,13 +348,13 @@ export function CalibrationEmployeeDrawer({
     : 0
 
   async function saveOverride() {
-    if (!packet || !overrideGrade) return
+    if (!packet || !overrideGrade || !overrideReason.trim() || sessionLocked || !canOverride) return
     setOverrideSaving(true)
     setOverrideError(null)
     try {
       const next = await calibrateReviewPacket(packet.id, {
         toGrade: overrideGrade,
-        reason: overrideReason.trim() || 'Calibration drawer override',
+        reason: overrideReason.trim(),
       })
       setPacket(next)
       onPacketUpdated(next)
@@ -798,7 +813,10 @@ export function CalibrationEmployeeDrawer({
                 <li>
                   <span>PIP history</span>
                   <strong className={employee?.onPip ? undefined : 'is-ok'}>
-                    {pipStatusLabel(employee?.onPip)}
+                    <span className="pd-pip-status">
+                      {pipStatusLabel(employee?.onPip)}
+                      <PipDisplayOnlyMark />
+                    </span>
                   </strong>
                 </li>
               </ul>
@@ -833,17 +851,27 @@ export function CalibrationEmployeeDrawer({
               <h3 className="pd-cal-drawer__section-title">Calibration status</h3>
               <ListboxSelect
                 value={sessionStatus}
+                disabled={!sittingReady || sessionLocked}
                 onValueChange={(value) => {
                   const next = value as CalibrationSittingStatus
                   setSessionStatus(next)
-                  if (!sittingReady) return
+                  if (!sittingReady || sessionLocked) return
+                  setSessionError(null)
                   void saveCalibrationSittingEmployee(cycle.id, row.employeeId, {
                     status: next,
                     notes: sessionNotes,
                   })
-                    .then(onSittingSaved)
-                    .catch(() => {
-                      /* The selected status stays on screen until the next save. */
+                    .then((saved) => {
+                      setSessionError(null)
+                      onSittingSaved(saved)
+                    })
+                    .catch((error: unknown) => {
+                      setSessionStatus(sittingEmployee?.status ?? 'not_reviewed')
+                      setSessionError(
+                        error instanceof Error
+                          ? error.message
+                          : 'Could not save the calibration status.',
+                      )
                     })
                 }}
                 options={[...CALIBRATION_STATUS_OPTIONS]}
@@ -851,12 +879,18 @@ export function CalibrationEmployeeDrawer({
                 portal={false}
                 aria-label="Calibration status"
               />
+              {sessionError ? (
+                <p className="pd-cal-drawer__error" role="alert">
+                  {sessionError}
+                </p>
+              ) : null}
             </section>
 
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">Session notes</h3>
               <Textarea
                 value={sessionNotes}
+                disabled={sessionLocked}
                 onChange={(event) => setSessionNotes(event.target.value)}
                 rows={4}
                 placeholder="Add calibration notes for this employee"
@@ -876,7 +910,7 @@ export function CalibrationEmployeeDrawer({
                 <button
                   type="button"
                   className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-                  disabled={!packet}
+                  disabled={!packet || sessionLocked || !canOverride}
                   onClick={() => {
                     setOverrideGrade(finalGrade ?? '')
                     setOverrideOpen(true)
@@ -929,7 +963,10 @@ export function CalibrationEmployeeDrawer({
                       type="button"
                       className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
                       disabled={
-                        overrideSaving || !overrideGrade || !packet
+                        overrideSaving ||
+                        !overrideGrade ||
+                        !overrideReason.trim() ||
+                        !packet
                       }
                       onClick={() => {
                         void saveOverride()

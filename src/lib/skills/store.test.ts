@@ -3,10 +3,8 @@ import { SEED_SKILLS } from './seed'
 import {
   assignSkillToEmployee,
   createSkill,
-  getSkillIdsForEmployee,
   getSkillsForEmployee,
   getSkillsSnapshot,
-  removeSkillFromEmployee,
   resetSkillsStoreForTests,
   talentCountForSkill,
   updateSkill,
@@ -66,20 +64,17 @@ describe('skills store', () => {
     ).toBe('Workshop Facilitation')
   })
 
-  it('assigns and removes skills on a person', async () => {
+  it('refuses to assign a skill directly to a person', async () => {
     resetSkillsStoreForTests()
     const skill = getSkillsSnapshot()[0]!
-    await assignSkillToEmployee(1, skill.id)
-    expect(getSkillIdsForEmployee(1)).toEqual([skill.id])
-    expect(getSkillsForEmployee(1).map((item) => item.id)).toEqual([skill.id])
-    expect(talentCountForSkill(skill.id)).toBe(1)
-
-    await removeSkillFromEmployee(1, skill.id)
-    expect(getSkillIdsForEmployee(1)).toEqual([])
+    await expect(assignSkillToEmployee(1, skill.id)).rejects.toThrow(
+      'Skills belong on a role',
+    )
+    expect(getSkillsForEmployee(1)).toEqual([])
     expect(talentCountForSkill(skill.id)).toBe(0)
   })
 
-  it('lists inherited role skills plus extras on the scorecard', async () => {
+  it('lists only the skills on the person’s role', async () => {
     resetSkillsStoreForTests()
     const { resetRolesStoreForTests, createRole, updateRoleMatrix } =
       await import('@/lib/roles/store')
@@ -89,7 +84,6 @@ describe('skills store', () => {
     resetRolesStoreForTests()
     clearEmployees()
     const inherited = getSkillsSnapshot()[0]!
-    const extra = getSkillsSnapshot()[1]!
     const role = await createRole({ name: 'QA Engineer' })
     await updateRoleMatrix(role.id, [
       {
@@ -117,13 +111,10 @@ describe('skills store', () => {
       site: '',
       managerEmail: '',
     })
-    await assignSkillToEmployee(9, extra.id)
     const listed = getSkillsForEmployee(9)
-    expect(listed.map((item) => item.id)).toEqual(
-      expect.arrayContaining([inherited.id, extra.id]),
-    )
+    expect(listed.map((item) => item.id)).toEqual([inherited.id])
     expect(listed.find((item) => item.id === inherited.id)?.source).toBe('role')
-    expect(listed.find((item) => item.id === extra.id)?.source).toBe('extra')
+    expect(listed).toHaveLength(1)
     resetRolesStoreForTests()
     clearEmployees()
   })

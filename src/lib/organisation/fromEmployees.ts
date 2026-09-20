@@ -240,6 +240,7 @@ export function buildOrganisationFromEmployees(
         id,
         name: dept.departmentName,
         head,
+        hrbp: null,
         headcount: dept.members.length,
         teams,
         memberIds: dept.members.map((m) => m.employeeId),
@@ -312,7 +313,8 @@ export function mergeOrganisationWithCatalog(
     if (existing) {
       byKey.set(key, {
         ...existing,
-        head: existing.head ?? catalogHead,
+        head: catalogHead,
+        hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName),
         headcount: Math.max(existing.headcount, row.headcount),
       })
       continue
@@ -322,6 +324,7 @@ export function mergeOrganisationWithCatalog(
       id: key,
       name,
       head: catalogHead,
+      hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName),
       headcount: row.headcount,
       teams: [],
       memberIds: [],
@@ -337,6 +340,7 @@ export function mergeOrganisationWithCatalog(
       id: deptKey,
       name: departmentName,
       head: null,
+      hrbp: null,
       headcount: 0,
       teams: [],
       memberIds: [],
@@ -345,11 +349,9 @@ export function mergeOrganisationWithCatalog(
     const catalogManager = catalogPerson(row.ownerEmployeeId, row.ownerName)
     const existingTeam = existingDept.teams.find((team) => team.id === id)
     const nextTeams = existingTeam
-      ? existingDept.teams.map((team) =>
-          team.id === id
-            ? { ...team, manager: team.manager ?? catalogManager }
-            : team,
-        )
+        ? existingDept.teams.map((team) =>
+            team.id === id ? { ...team, manager: catalogManager } : team,
+          )
       : [
           ...existingDept.teams,
           {

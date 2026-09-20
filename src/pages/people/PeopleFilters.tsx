@@ -4,6 +4,7 @@ import {
   Briefcase,
   Building2,
   CircleDot,
+  Contact,
   IdCard,
   UserRound,
   UsersRound,
@@ -30,6 +31,7 @@ const ATTRIBUTE_ICONS: Record<DirectoryAttributeOption['id'], LucideIcon> = {
   status: CircleDot,
   jobTitle: Briefcase,
   department: Building2,
+  role: Contact,
   team: UsersRound,
   reportsTo: UserRound,
 }

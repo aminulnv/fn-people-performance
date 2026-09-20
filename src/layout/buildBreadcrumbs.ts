@@ -92,6 +92,13 @@ export function buildBreadcrumbs({
     ]
   }
 
+  if (pathname === '/organisation/teams/new') {
+    return [
+      { label: 'Organisation', href: '/organisation/teams' },
+      { label: 'Add Team' },
+    ]
+  }
+
   if (pathname === '/organisation/roles/new') {
     return [
       { label: 'Organisation', href: '/organisation/departments' },
@@ -104,6 +111,21 @@ export function buildBreadcrumbs({
     return [
       { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Org Chart' },
+    ]
+  }
+
+  const departmentEdit = matchPath(
+    { path: '/organisation/departments/:departmentId/edit', end: true },
+    pathname,
+  )
+  if (departmentEdit?.params.departmentId) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      {
+        label: departmentName?.trim() || 'Department',
+        href: `/organisation/departments/${departmentEdit.params.departmentId}`,
+      },
+      { label: 'Edit' },
     ]
   }
 
@@ -122,6 +144,21 @@ export function buildBreadcrumbs({
           departmentName?.trim() ||
           decodeURIComponent(department.params.departmentId),
       },
+    ]
+  }
+
+  const teamEdit = matchPath(
+    { path: '/organisation/teams/:teamId/edit', end: true },
+    pathname,
+  )
+  if (teamEdit?.params.teamId) {
+    return [
+      { label: 'Organisation', href: '/organisation/teams' },
+      {
+        label: teamName?.trim() || 'Team',
+        href: `/organisation/teams/${teamEdit.params.teamId}`,
+      },
+      { label: 'Edit' },
     ]
   }
 

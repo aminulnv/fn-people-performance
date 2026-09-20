@@ -158,6 +158,7 @@ describe('buildOrganisationFromEmployees', () => {
         id: 'strategy',
         name: 'Strategy',
         head: { employeeId: 7, fullName: 'Casey Owner' },
+        hrbp: null,
         headcount: 0,
         teams: [],
         memberIds: [],
@@ -226,6 +227,66 @@ describe('buildOrganisationFromEmployees', () => {
     expect(snapshot.teams.find((team) => team.name === 'Growth')).toMatchObject({
       headcount: 0,
       manager: { fullName: 'Casey Owner' },
+    })
+  })
+
+  it('uses the catalog head and owner instead of a reporting-line guess', () => {
+    const snapshot = mergeOrganisationWithCatalog(
+      buildOrganisationFromEmployees([
+        employee({
+          employeeId: 10,
+          fullName: 'Dana Head',
+          email: 'dana@example.com',
+          department: 'Engineering',
+          team: 'Platform',
+          departmentHeadName: 'Dana Head',
+          departmentHeadId: 10,
+        }),
+        employee({
+          employeeId: 20,
+          fullName: 'Morgan Manager',
+          email: 'morgan@example.com',
+          department: 'Engineering',
+          team: 'Platform',
+          reportsToName: 'Dana Head',
+          reportsToId: 10,
+          departmentHeadName: 'Dana Head',
+          departmentHeadId: 10,
+        }),
+      ]),
+      [
+        {
+          id: 1,
+          name: 'Engineering',
+          headEmployeeId: 7,
+          headName: 'Casey Owner',
+          headEmail: null,
+          hrbpEmployeeId: 8,
+          hrbpName: 'Harper HR',
+          hrbpEmail: null,
+          headcount: 2,
+          teamCount: 1,
+        },
+      ],
+      [
+        {
+          id: 10,
+          name: 'Platform',
+          departmentId: 1,
+          departmentName: 'Engineering',
+          ownerEmployeeId: 9,
+          ownerName: 'Owner Chosen',
+          ownerEmail: null,
+          headcount: 2,
+        },
+      ],
+    )
+    const engineering = snapshot.departments[0]
+    expect(engineering?.head).toEqual({ employeeId: 7, fullName: 'Casey Owner' })
+    expect(engineering?.hrbp).toEqual({ employeeId: 8, fullName: 'Harper HR' })
+    expect(engineering?.teams[0]?.manager).toEqual({
+      employeeId: 9,
+      fullName: 'Owner Chosen',
     })
   })
 })

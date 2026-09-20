@@ -11,7 +11,7 @@ export type OrgTeam = {
   id: string
   name: string
   departmentName: string
-  /** Team manager (most common reports-to among members). */
+  /** Team owner chosen on the team. Not guessed from reporting lines. */
   manager: OrgPersonRef | null
   headcount: number
   memberIds: number[]
@@ -22,6 +22,7 @@ export type OrgDepartment = {
   id: string
   name: string
   head: OrgPersonRef | null
+  hrbp: OrgPersonRef | null
   headcount: number
   teams: OrgTeam[]
   memberIds: number[]

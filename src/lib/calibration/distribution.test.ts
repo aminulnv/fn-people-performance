@@ -156,6 +156,33 @@ describe('buildRatingDistribution', () => {
     expect(distribution.series).toHaveLength(1)
   })
 
+  it('uses the group guideline instead of the cycle sample curve', () => {
+    const host = cycle([1, 2, 3, 4])
+    const group = host.groups?.[0]
+    if (!group) throw new Error('expected a group')
+    group.calibration = {
+      gradeDistribution: {
+        exceptional: 0,
+        exceeding: 10,
+        performing: 70,
+        developing: 15,
+        unsatisfactory: 5,
+      },
+    }
+    const distribution = buildRatingDistribution({
+      cycle: host,
+      employees: people,
+      packets: [packet(1, 'performing'), packet(2, 'performing')],
+      breakdown: 'overall',
+    })
+    expect(
+      distribution.bands.find((band) => band.id === 'performing')?.guidelinePercent,
+    ).toBe(70)
+    expect(
+      distribution.bands.find((band) => band.id === 'exceptional')?.guidelinePercent,
+    ).toBe(0)
+  })
+
   it('ignores people outside the cycle and packets without a grade', () => {
     const distribution = buildRatingDistribution({
       cycle: cycle([1, 2]),

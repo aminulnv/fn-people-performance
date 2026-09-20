@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, ListboxSelect } from '@/components/ui'
 import { expectedLevelLabel, roleWeightTotal } from '@/lib/roles/labels'
 import { matrixGrades } from '@/lib/roles/inheritedSkills'
 import { updateRoleMatrix } from '@/lib/roles/store'
@@ -8,6 +8,12 @@ import type { ExpectedSkillLevel, PlatformRole, RoleSkill } from '@/lib/roles/ty
 import { EXPECTED_SKILL_LEVELS } from '@/lib/roles/types'
 import { useSkillsLibrary } from '@/lib/skills/useSkills'
 import { RoleSkillsDrawer } from '@/pages/org/RoleSkillsDrawer'
+
+const LEVEL_OPTIONS = EXPECTED_SKILL_LEVELS.map((level) => ({
+  value: level,
+  label: expectedLevelLabel(level),
+  className: `pd-org-role-matrix__level--${level}`,
+}))
 
 export function RoleCompetencyMatrix({
   role,
@@ -166,28 +172,20 @@ export function RoleCompetencyMatrix({
                         className="pd-org-role-matrix__col-grade"
                       >
                         {canEdit ? (
-                          <select
-                            className={[
-                              'pd-org-role-matrix__level',
-                              `pd-org-role-matrix__level--${value}`,
-                              'is-editable',
-                            ].join(' ')}
+                          <ListboxSelect
+                            className={`pd-org-role-matrix__level-select pd-org-role-matrix__level--${value}`}
                             aria-label={`${row.skillName} expected level for ${grade}`}
                             value={value}
-                            onChange={(event) =>
+                            allowEmpty={false}
+                            options={LEVEL_OPTIONS}
+                            onValueChange={(next) =>
                               setExpectation(
                                 row.skillId,
                                 grade,
-                                event.target.value as ExpectedSkillLevel,
+                                next as ExpectedSkillLevel,
                               )
                             }
-                          >
-                            {EXPECTED_SKILL_LEVELS.map((level) => (
-                              <option key={level} value={level}>
-                                {expectedLevelLabel(level)}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         ) : (
                           <span
                             className={[

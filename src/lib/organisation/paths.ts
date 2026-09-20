@@ -33,6 +33,18 @@ export function teamDetailPath(teamId: string): string {
   return `/organisation/teams/${encodeURIComponent(teamId)}`
 }
 
+export function teamCreatePath(): string {
+  return '/organisation/teams/new'
+}
+
+export function teamEditPath(teamId: string): string {
+  return `/organisation/teams/${encodeURIComponent(teamId)}/edit`
+}
+
+export function departmentEditPath(departmentId: string): string {
+  return `/organisation/departments/${encodeURIComponent(departmentId)}/edit`
+}
+
 export function roleDetailPath(roleId: string, tab?: string): string {
   const base = `/organisation/roles/${encodeURIComponent(roleId)}`
   if (!tab || tab === 'preview') return base
@@ -47,7 +59,7 @@ export function roleEditPath(roleId: string): string {
   return `/organisation/roles/${encodeURIComponent(roleId)}/edit`
 }
 
-function teamKey(departmentName: string, teamName: string): string {
+export function teamKey(departmentName: string, teamName: string): string {
   return `${departmentKey(departmentName)}::${teamName.trim().toLowerCase() || 'unassigned'}`
 }
 

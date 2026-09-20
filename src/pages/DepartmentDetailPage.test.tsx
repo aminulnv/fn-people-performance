@@ -17,6 +17,17 @@ const { employeesState } = vi.hoisted(() => ({
   },
 }))
 
+vi.mock('@/lib/useAuth', () => ({
+  useAuth: () => ({
+    status: 'authenticated',
+    user: { permissions: [] as string[] },
+    session: null,
+    signInWithGoogle: async () => {},
+    signInWithEmailPassword: async () => {},
+    signOut: async () => {},
+  }),
+}))
+
 vi.mock('@/lib/employees/useEmployees', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/employees/useEmployees')>()
   return {

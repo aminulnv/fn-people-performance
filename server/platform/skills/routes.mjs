@@ -7,7 +7,6 @@ import { publishWrite } from '../realtime/fromRequest.mjs'
 import {
   createSkill,
   listSkillsSnapshot,
-  setEmployeeSkillIds,
   updateSkill,
 } from './store.mjs'
 
@@ -18,16 +17,6 @@ function toHttp(err) {
     return new HttpError(status, err.message || 'Request failed')
   }
   return err
-}
-
-function hasWriteAll(platformUser) {
-  const permissions = platformUser?.permissions
-  return Array.isArray(permissions) && permissions.includes('platform.write_all')
-}
-
-function canEditEmployeeSkills(platformUser, employeeId) {
-  if (hasWriteAll(platformUser)) return true
-  return Number(platformUser?.employeeId) === Number(employeeId)
 }
 
 export function registerSkillsRoutes(app) {
@@ -80,24 +69,11 @@ export function registerSkillsRoutes(app) {
   app.put(
     '/api/platform/skills/assignments/:employeeId',
     requirePlatformAuth,
-    asyncHandler(async (req, res) => {
-      const employeeId = Number(req.params.employeeId)
-      if (!canEditEmployeeSkills(req.platformUser, employeeId)) {
-        throw new HttpError(403, 'You cannot edit skills for this person.')
-      }
-      try {
-        const assignment = await setEmployeeSkillIds(
-          employeeId,
-          req.body?.skillIds,
-          req.platformUser,
-        )
-        await publishWrite(req, ['reviews', 'activity'], {
-          employeeId: assignment.employeeId,
-        })
-        res.json({ assignment })
-      } catch (err) {
-        throw toHttp(err)
-      }
+    asyncHandler(async (_req, _res) => {
+      throw new HttpError(
+        403,
+        'Skills belong on a role. Assign that role to the person.',
+      )
     }),
   )
 }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -115,25 +115,30 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
   )
   const feedCount = unreadCount > 0 ? unreadCount : openActionCount
 
-  useEffect(
-    () =>
-      watchNotifications(() => {
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.notifications(recipientId),
-        })
-      }),
-    [queryClient, recipientId],
-  )
+  const refreshFeed = useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.notifications(recipientId),
+    })
+  }, [queryClient, recipientId])
+
+  useEffect(() => watchNotifications(refreshFeed), [refreshFeed])
 
   const markAllRead = async () => {
     if (!recipientId) return
     await readAllNotifications(recipientId)
+    refreshFeed()
   }
 
   const openNotification = async (id: string, destination?: string) => {
     if (!recipientId) return
     await readNotification(recipientId, id)
+    refreshFeed()
     if (destination) navigate(destination)
+  }
+
+  const dismissNotification = (id: string) => {
+    if (!recipientId) return
+    void readNotification(recipientId, id).then(refreshFeed)
   }
 
   return (
@@ -313,7 +318,7 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
                           type="button"
                           className="pd-topbar__notif-action pd-topbar__notif-action--ghost"
                           onClick={() => {
-                            void readNotification(recipientId, item.id)
+                            dismissNotification(item.id)
                           }}
                         >
                           <X size={12} strokeWidth={2.25} />

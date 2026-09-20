@@ -4798,8 +4798,39 @@
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
-  gap: 0.6rem;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+
+.pd-reviews-distribution__row {
+  display: block;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.pd-reviews-distribution .pd-field {
+  min-width: 0;
+  align-items: center;
+}
+
+.pd-reviews-distribution .pd-field__label {
+  margin: 0;
+  width: 100%;
+  text-align: center;
+}
+
+.pd-reviews-distribution .pd-reviews-count-stepper {
+  width: 100%;
+  max-width: 100%;
+}
+
+.pd-reviews-distribution .pd-reviews-count-input {
+  width: auto;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .pd-reviews-distribution__bar {
@@ -4836,29 +4867,25 @@
   background: var(--grade-unsatisfactory, #c2413b);
 }
 
-.pd-reviews-distribution__row {
-  display: grid;
-  gap: 0.45rem;
-  padding: 0.65rem 0;
-  border: 0;
-  border-bottom: 1px solid var(--color-divider);
-  border-radius: 0;
-  background: transparent;
-}
-
-.pd-reviews-distribution__row:last-child {
-  border-bottom: 0;
+.pd-reviews-distribution__row .pd-reviews-stepper {
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
 }
 
 .pd-reviews-distribution__label {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
+  justify-content: center;
+  gap: 0.35rem;
+  max-width: 100%;
   font-family: var(--font-heading, inherit);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: -0.015em;
+  line-height: 1.2;
   color: var(--color-text);
+  text-align: center;
 }
 
 .pd-reviews-distribution__label .pd-help-icon {
@@ -4903,15 +4930,21 @@
 .pd-reviews-distribution__controls {
   display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.55rem;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.pd-reviews-distribution__row .pd-reviews-stepper {
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .pd-reviews-distribution__value {
-  min-width: 2.75rem;
+  min-width: 2.25rem;
   text-align: center;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   color: var(--color-text);
 }
 
@@ -7750,6 +7783,12 @@ body>.pd-cycle-groups-members__column-filter-panel {
 
 .pd-reviews-form__grade-table-panel .pd-people__table-wrap {
   max-height: none;
+  overflow: visible;
+  scrollbar-gutter: auto;
+}
+
+.pd-reviews-form__grade-table-panel.pd-people__panel--table {
+  overflow: visible;
 }
 
 .pd-reviews-form__grade-table {
@@ -7760,6 +7799,34 @@ body>.pd-cycle-groups-members__column-filter-panel {
   text-align: center;
   width: 1%;
   white-space: nowrap;
+  overflow: visible;
+}
+
+/* Step buttons sit beside the value. The goals-table version hangs them
+   outside the field, which this last column clips. */
+.pd-reviews-form__grade-weight-col .pd-goals-table__weight-edit {
+  display: inline-flex;
+  gap: 0.3rem;
+}
+
+.pd-reviews-form__grade-weight-col .pd-goals-table__weight-step {
+  position: static;
+  top: auto;
+  right: auto;
+  left: auto;
+  flex-shrink: 0;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pd-reviews-form__grade-weight-col .pd-goals-table__weight-step:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.pd-reviews-form__grade-weight-col .pd-reviews-pillar-list__off {
+  width: 3.25rem;
 }
 
 .pd-reviews-form__grade-action-col {

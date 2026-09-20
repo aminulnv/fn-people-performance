@@ -1,4 +1,5 @@
 import { formatDateRange } from './periods'
+import { cycleSupportsCalibration } from './purpose'
 import {
   cycleModulesOf,
   describeEnabledFlow,
@@ -120,8 +121,15 @@ function stagesHaveCalibration(
 
 /** True when this cycle or any group runs calibration. */
 export function cycleHasCalibration(
-  cycle: Pick<ReviewCycle, 'stagesConfig' | 'groups'>,
+  cycle: Pick<ReviewCycle, 'stagesConfig' | 'groups'> &
+    Partial<Pick<ReviewCycle, 'periodKey' | 'type'>>,
 ): boolean {
+  if (
+    (cycle.periodKey != null || cycle.type != null) &&
+    !cycleSupportsCalibration(cycle)
+  ) {
+    return false
+  }
   if (
     stagesHaveCalibration(
       cycle.stagesConfig.reviewStages,

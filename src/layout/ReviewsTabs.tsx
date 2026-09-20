@@ -1,5 +1,7 @@
 import { NavLink } from 'react-router-dom'
+import { hasSystemPermission } from '@/lib/accessControl/types'
 import { reviewsTabPath, type ReviewsTabId } from '@/lib/reviews/paths'
+import { useAuth } from '@/lib/useAuth'
 
 const TABS: Array<{ id: ReviewsTabId; label: string }> = [
   { id: 'scorecards', label: 'Scorecards' },
@@ -9,9 +11,18 @@ const TABS: Array<{ id: ReviewsTabId; label: string }> = [
 ]
 
 export function ReviewsTabs({ current }: { current?: ReviewsTabId }) {
+  const { user } = useAuth()
+  const canEditForms = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
+  const tabs = canEditForms
+    ? TABS
+    : TABS.filter((tab) => tab.id !== 'scorecards-library')
+
   return (
     <nav className="pd-topbar__reviews-nav" aria-label="Reviews sections">
-      {TABS.map((tab) => (
+      {tabs.map((tab) => (
         <NavLink
           key={tab.id}
           to={reviewsTabPath(tab.id)}

@@ -10,6 +10,7 @@ import {
   buildEmployeeRatingRows,
   filterRatingTableRows,
   formatGapLabel,
+  formatRatingTrend,
   ratingTableProgress,
 } from './ratingTable'
 
@@ -176,7 +177,11 @@ describe('buildEmployeeRatingRows', () => {
     expect(formatGapLabel(ahmad.gapTiers)).toBe('−2 Self')
     expect(ahmad.priorGrade).toBe('performing')
     expect(ahmad.priorYearLabel).toBe('2024')
-    expect(ahmad.trend).toBe('down')
+    expect(ahmad.trend).toBe(-1)
+    expect(formatRatingTrend(ahmad.trend)).toBe('↓1')
+    expect(formatRatingTrend(2)).toBe('↑2')
+    expect(formatRatingTrend(0)).toBe('→')
+    expect(formatRatingTrend(null)).toBe('')
 
     const bea = rows.find((row) => row.employeeId === 11)!
     expect(bea.isAdjusted).toBe(false)
@@ -258,5 +263,12 @@ describe('buildEmployeeRatingRows', () => {
         market: 'MY',
       }).map((row) => row.employeeId),
     ).toEqual([11])
+    expect(
+      filterRatingTableRows(rows, {
+        quickFilter: 'all',
+        department: ['Technology', 'Commercial'],
+        jobLevel: ['IC3+'],
+      }).map((row) => row.employeeId),
+    ).toEqual([10])
   })
 })

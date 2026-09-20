@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import {
   buildOrganisationFromEmployees,
   mergeOrganisationWithCatalog,
@@ -69,10 +69,20 @@ export function useOrganisationCatalogs(reloadKey?: unknown): {
   departments: PlatformDepartment[]
   teams: PlatformTeam[]
   ready: boolean
+  error: string | null
+  reload: () => void
 } {
   const [departments, setDepartments] = useState<PlatformDepartment[]>([])
   const [teams, setTeams] = useState<PlatformTeam[]>([])
   const [ready, setReady] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
+
+  const reload = useCallback(() => {
+    setReady(false)
+    setError(null)
+    setAttempt((current) => current + 1)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -81,20 +91,26 @@ export function useOrganisationCatalogs(reloadKey?: unknown): {
         if (cancelled) return
         setDepartments(nextDepartments)
         setTeams(nextTeams)
+        setError(null)
         setReady(true)
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return
         setDepartments([])
         setTeams([])
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : 'Could not load departments and teams.',
+        )
         setReady(true)
       })
     return () => {
       cancelled = true
     }
-  }, [reloadKey])
+  }, [attempt, reloadKey])
 
-  return { departments, teams, ready }
+  return { departments, teams, ready, error, reload }
 }
 
 /** Employees store + derived org tree merged with Revolut department/team catalogs. */

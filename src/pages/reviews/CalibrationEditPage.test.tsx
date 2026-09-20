@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
@@ -15,9 +15,6 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     reviewTypes: {
       line_manager: true,
       self: false,
-      upwards: false,
-      peer: false,
-      functional_manager: false,
     },
     goalCountPolicy: {
       minimumRequired: 3,
@@ -66,7 +63,7 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
 }
 
 describe('CalibrationEditPage', () => {
-  it('keeps the calibration section as a placeholder', () => {
+  it('lets an admin set the expected share of each grade', () => {
     const { cycle, group } = sample()
 
     render(
@@ -77,10 +74,17 @@ describe('CalibrationEditPage', () => {
       />,
     )
 
-    expect(screen.getByText('Under development')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Performing' })).toHaveValue('60')
+    expect(screen.queryByText('Under development')).not.toBeInTheDocument()
     expect(
       screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
     ).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Increase Exceptional' }))
+
+    expect(
+      screen.getByRole('alert'),
+    ).toHaveTextContent('The expected shares must add up to 100%.')
   })
 })

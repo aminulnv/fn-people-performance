@@ -133,7 +133,7 @@ describe('resolveTeamOwner', () => {
     ).toBe('Angie Rahman')
   })
 
-  it('falls back to the organisation team manager', async () => {
+  it('does not guess a team owner from reporting lines', async () => {
     const owner = await createEmployee(ownerInput)
     const member = await createEmployee({
       ...memberInput,
@@ -149,11 +149,11 @@ describe('resolveTeamOwner', () => {
     expect(
       resolveTeamOwner(getEmployee(member.employee.employeeId), {
         orgTeams,
-      })?.fullName,
-    ).toBe('Angie Rahman')
+      }),
+    ).toBeNull()
   })
 
-  it('keeps the organisation owner when the catalog names someone else', async () => {
+  it('uses the catalog owner even when reporting lines name someone else', async () => {
     const departmentHead = await createEmployee({
       employeeId: 9,
       fullName: "Elvira Moey Shae'Fee",
@@ -190,10 +190,10 @@ describe('resolveTeamOwner', () => {
         teams: [ptrTeam(departmentHead.employee)],
         orgTeams,
       })?.fullName,
-    ).toBe('Angie Rahman')
+    ).toBe("Elvira Moey Shae'Fee")
   })
 
-  it('uses the directory-derived owner when sources are omitted', async () => {
+  it('uses the assigned team owner, not the reporting-line manager', async () => {
     const departmentHead = await createEmployee({
       employeeId: 9,
       fullName: "Elvira Moey Shae'Fee",
@@ -230,7 +230,7 @@ describe('resolveTeamOwner', () => {
 
     expect(
       resolveTeamOwner(getEmployee(member.employee.employeeId))?.fullName,
-    ).toBe('Angie Rahman')
+    ).toBe("Elvira Moey Shae'Fee")
   })
 })
 

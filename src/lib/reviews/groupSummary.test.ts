@@ -24,9 +24,6 @@ function sampleGroup(overrides: Partial<CycleGroup> = {}): CycleGroup {
       reviewTypes: {
         line_manager: true,
         self: false,
-        upwards: false,
-        peer: false,
-        functional_manager: false,
       },
       goalCountPolicy: {
         minimumRequired: 3,

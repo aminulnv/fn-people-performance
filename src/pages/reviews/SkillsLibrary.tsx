@@ -13,6 +13,8 @@ import {
   ResizableTable,
   SegmentedControl,
 } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/useAuth'
 import {
   matchesAttributeFilters,
   uniqueAttributeValues,
@@ -70,6 +72,8 @@ function parseSkillPanelTab(raw: string | null): SkillPanelTab {
 
 export function SkillsLibrary() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const canWrite = hasSystemPermission(user?.permissions, 'platform.write_all')
   const [searchParams, setSearchParams] = useSearchParams()
   const { skills } = useSkillsLibrary()
   const talentCounts = useSkillTalentCounts()
@@ -211,13 +215,15 @@ export function SkillsLibrary() {
             onChange={setAttributeFilters}
             sectionLabel="Skill attributes"
           />
-          <Link
-            to={skillCreatePath()}
-            className="pd-btn pd-btn--primary pd-btn--pill"
-          >
-            <Plus size={16} strokeWidth={2} aria-hidden />
-            Create New Skill
-          </Link>
+          {canWrite ? (
+            <Link
+              to={skillCreatePath()}
+              className="pd-btn pd-btn--primary pd-btn--pill"
+            >
+              <Plus size={16} strokeWidth={2} aria-hidden />
+              Create New Skill
+            </Link>
+          ) : null}
         </div>
       </div>
 
@@ -236,11 +242,11 @@ export function SkillsLibrary() {
               title={skills.length === 0 ? 'No Skills Yet' : 'No Matches'}
               description={
                 skills.length === 0
-                  ? 'Add skills here. Assign them on roles or profiles, then grade those skills on the review form.'
+                  ? 'Skills are added by an admin, then attached to a role.'
                   : 'Try a different search or filter.'
               }
               action={
-                skills.length === 0 ? (
+                skills.length === 0 && canWrite ? (
                   <Link
                     to={skillCreatePath()}
                     className="pd-people__create-btn"
@@ -274,7 +280,10 @@ export function SkillsLibrary() {
                     roles={roleUsage[skill.id] ?? []}
                     talent={talentCounts[skill.id] ?? 0}
                     selected={selectedId === skill.id}
-                    onOpen={() => navigate(skillEditPath(skill.id))}
+                    onOpen={() => {
+                      if (!canWrite) return
+                      navigate(skillEditPath(skill.id))
+                    }}
                   />
                 ))}
               </tbody>
@@ -308,17 +317,23 @@ export function SkillsLibrary() {
           }
         >
           {panel.kind === 'create' ? (
-            <SkillFormFields
-              mode="create"
-              onCancel={closePanel}
-              onSaved={closePanel}
-            />
+            canWrite ? (
+              <SkillFormFields
+                mode="create"
+                onCancel={closePanel}
+                onSaved={closePanel}
+              />
+            ) : (
+              <p className="pd-reviews-flow__hint">
+                Only an admin with write access can add skills.
+              </p>
+            )
           ) : panelTab === 'roles' && panelSkill ? (
             <SkillRolesMatrix
               skillId={panelSkill.id}
               skillName={panelSkill.name}
             />
-          ) : (
+          ) : canWrite ? (
             <SkillFormFields
               key={panel.skillId}
               mode="edit"
@@ -326,6 +341,10 @@ export function SkillsLibrary() {
               onCancel={closePanel}
               onSaved={closePanel}
             />
+          ) : (
+            <p className="pd-reviews-flow__hint">
+              Only an admin with write access can change skills.
+            </p>
           )}
         </SettingsSidePanel>
       ) : null}

@@ -103,9 +103,6 @@ function sampleGroup(overrides: Partial<CycleGroup> = {}): CycleGroup {
     reviewTypes: {
       line_manager: true,
       self: false,
-      upwards: false,
-      peer: false,
-      functional_manager: false,
     },
     excludedEmployeeIds: [] as number[],
     autoScorecardGeneration: true,
@@ -148,9 +145,6 @@ function sampleCycle(groups: CycleGroup[]): ReviewCycle {
       reviewTypes: {
         line_manager: true,
         self: false,
-        upwards: false,
-        peer: false,
-        functional_manager: false,
       },
       excludedEmployeeIds: [],
       autoScorecardGeneration: true,

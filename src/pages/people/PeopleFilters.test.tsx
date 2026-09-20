@@ -58,6 +58,8 @@ describe('PeopleFilters', () => {
     expect(screen.getByRole('button', { name: 'Email' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Status' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Job title' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Department' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Role' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Team' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reports to' })).toBeInTheDocument()
 

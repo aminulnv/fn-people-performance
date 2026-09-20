@@ -1,11 +1,13 @@
 import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Building2, Network, UsersRound } from 'lucide-react'
-import { Avatar, PageSkeleton, PageStatus, PageStatusLink } from '@/components/ui'
+import { ArrowLeft, Building2, Network, Pencil, UsersRound } from 'lucide-react'
+import { Avatar, PageSkeleton, PageStatus, PageStatusLink, PageStatusRetry } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/useAuth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee } from '@/lib/employees/store'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
-import { departmentDetailPath } from '@/lib/organisation/paths'
+import { departmentDetailPath, teamEditPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
@@ -14,6 +16,8 @@ export default function TeamDetailPage() {
   const { teamId: rawId = '' } = useParams()
   const teamId = decodeURIComponent(rawId)
   const catalogs = useOrganisationCatalogs()
+  const { user } = useAuth()
+  const canEdit = hasSystemPermission(user?.permissions, 'platform.write_all')
   const { organisation, isLoading } = useOrganisation(catalogs.departments, {
     teams: catalogs.teams,
   })
@@ -42,6 +46,19 @@ export default function TeamDetailPage() {
       <PageSkeleton
         pageClassName="pd-people pd-org pd-org-detail"
         aria-label="Team"
+      />
+    )
+  }
+
+  if (catalogs.error) {
+    return (
+      <PageStatus
+        variant="error"
+        pageClassName="pd-people pd-org pd-org-detail"
+        aria-label="Team"
+        title="Could not load organisation"
+        description="Departments and teams did not load. This team is not missing."
+        action={<PageStatusRetry label="Retry" onClick={catalogs.reload} />}
       />
     )
   }
@@ -99,6 +116,15 @@ export default function TeamDetailPage() {
           </div>
         </div>
         <div className="pd-org-detail__hero-actions">
+          {canEdit ? (
+            <Link
+              to={teamEditPath(team.id)}
+              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
+            >
+              <Pencil size={14} strokeWidth={1.75} aria-hidden />
+              Edit
+            </Link>
+          ) : null}
           <Link to="/organisation/chart" className="pd-people__ghost-btn">
             <Network size={16} strokeWidth={1.75} aria-hidden />
             Org Chart

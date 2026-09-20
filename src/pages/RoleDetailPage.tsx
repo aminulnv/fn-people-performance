@@ -6,7 +6,6 @@ import {
   Briefcase,
   Building2,
   Copy,
-  MapPin,
   Pencil,
 } from 'lucide-react'
 import {
@@ -24,7 +23,6 @@ import {
   roleDetailPath,
   roleEditPath,
 } from '@/lib/organisation/paths'
-import { formatNips, roleNipsPercent } from '@/lib/roles/labels'
 import {
   membersForRole,
 } from '@/lib/roles/inheritedSkills'
@@ -79,7 +77,6 @@ export default function RoleDetailPage() {
     [members],
   )
 
-  const nipsPercent = role ? roleNipsPercent(role, members) : 0
   const headcount = activeMembers.length
 
   const tabOptions = useMemo(
@@ -108,7 +105,6 @@ export default function RoleDetailPage() {
                 Talent
                 <span className="pd-org-role__tab-badge">
                   {headcount}
-                  {headcount > 0 ? ` · ${formatNips(nipsPercent)}` : ''}
                 </span>
               </span>
             ),
@@ -116,7 +112,7 @@ export default function RoleDetailPage() {
         }
         return option
       }),
-    [headcount, nipsPercent, role],
+    [headcount, role],
   )
 
   async function onDuplicate() {
@@ -288,32 +284,9 @@ export default function RoleDetailPage() {
               </dd>
             </div>
             <div className="pd-org-role-preview__row">
-              <dt>Locations</dt>
-              <dd>
-                <span className="pd-org-role-preview__locations">
-                  <MapPin size={14} strokeWidth={1.75} aria-hidden />
-                  {role.locations || 'All'}
-                </span>
-              </dd>
-            </div>
-            <div className="pd-org-role-preview__row">
               <dt>Description</dt>
               <dd className="pd-org-role-preview__description">
                 {role.description || '—'}
-              </dd>
-            </div>
-            <div className="pd-org-role-preview__row">
-              <dt>Goals</dt>
-              <dd>
-                {role.goals.length > 0 ? (
-                  <ul className="pd-org-role-preview__goals">
-                    {role.goals.map((goal) => (
-                      <li key={goal}>{goal}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  '—'
-                )}
               </dd>
             </div>
           </dl>
@@ -333,18 +306,6 @@ export default function RoleDetailPage() {
             <h2 className="pd-org-detail__panel-title">Active employees</h2>
             <p className="pd-org-role__talent-summary">
               {headcount} {headcount === 1 ? 'Employee' : 'Employees'}
-              {' · '}
-              <span
-                className={
-                  nipsPercent >= 67
-                    ? 'pd-org-role__nips pd-org-role__nips--good'
-                    : nipsPercent > 0
-                      ? 'pd-org-role__nips pd-org-role__nips--mid'
-                      : 'pd-org-role__nips pd-org-role__nips--low'
-                }
-              >
-                {formatNips(nipsPercent)} NIPS
-              </span>
             </p>
           </header>
           <OrgMembersTable members={activeMembers} variant="talent" />

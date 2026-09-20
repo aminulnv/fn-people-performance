@@ -22,8 +22,10 @@ import { useReviewsSnapshot } from '@/lib/reviews/useReviews'
 import { getGoalsSnapshot } from '@/lib/goals/store'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
+import { isCalibrationTabRoot } from '@/lib/calibration/paths'
 import { isOrganisationTabRoot } from '@/lib/organisation/paths'
 import { isReviewsTabRoot } from '@/lib/reviews/paths'
+import { CalibrationTabs } from './CalibrationTabs'
 import { OrganisationTabs } from './OrganisationTabs'
 import { ReviewsTabs } from './ReviewsTabs'
 import { useAssistantPrefs } from './useAssistantPrefs'
@@ -235,6 +237,8 @@ export function AppLayout({
         pathname === '/organisation/roles/new' ? 'roles' : undefined
       }
     />
+  ) : isCalibrationTabRoot(pathname) ? (
+    <CalibrationTabs />
   ) : undefined
 
   return (

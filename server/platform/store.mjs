@@ -56,7 +56,7 @@ const EMPLOYEE_SELECT = `
   LEFT JOIN platform.departments d ON d.id = e.department_id
   LEFT JOIN platform.teams t ON t.id = e.team_id
   LEFT JOIN platform.divisions div ON div.id = e.division_id
-  LEFT JOIN platform.employees head ON head.employee_id = e.department_head_employee_id
+  LEFT JOIN platform.employees head ON head.employee_id = d.head_employee_id
   LEFT JOIN platform.employees hrbp ON hrbp.employee_id = d.hrbp_employee_id
   LEFT JOIN platform.employees own ON own.employee_id = t.owner_employee_id
   LEFT JOIN platform.employees mgr ON mgr.employee_id = e.reports_to_employee_id
@@ -255,34 +255,31 @@ function dateOnly(value) {
   return isoInstant(value)
 }
 
-async function ensureDepartment(client, name, actor) {
-  const trimmed = name.trim()
+/** Resolve a department by name. Does not create unknown departments. */
+async function ensureDepartment(client, name) {
+  const trimmed = String(name ?? '').trim()
   if (!trimmed) return null
   const existing = await client.query(
     `SELECT id FROM platform.departments WHERE lower(name) = lower($1) LIMIT 1`,
     [trimmed],
   )
   if (existing.rows[0]) return existing.rows[0].id
-  const inserted = await client.query(
-    `INSERT INTO platform.departments (name) VALUES ($1) RETURNING id`,
-    [trimmed],
+  const err = new Error(
+    `Unknown department "${trimmed}". Choose a department from the organisation.`,
   )
-  if (actor) {
-    await appendActivityEvent(client, {
-      eventKey: 'department.created',
-      entityType: 'department',
-      entityId: String(inserted.rows[0].id),
-      ...actor,
-      summary: `Created department ${trimmed}`,
-      source: 'api',
-    })
-  }
-  return inserted.rows[0].id
+  err.statusCode = 400
+  throw err
 }
 
-async function ensureTeam(client, departmentId, name, actor) {
-  const trimmed = name.trim()
-  if (!departmentId || !trimmed) return null
+/** Resolve a team in a department. Does not create unknown teams. */
+async function ensureTeam(client, departmentId, name) {
+  const trimmed = String(name ?? '').trim()
+  if (!trimmed) return null
+  if (!departmentId) {
+    const err = new Error('Choose a department before assigning a team.')
+    err.statusCode = 400
+    throw err
+  }
   const existing = await client.query(
     `SELECT id FROM platform.teams
      WHERE department_id = $1 AND lower(name) = lower($2)
@@ -290,22 +287,11 @@ async function ensureTeam(client, departmentId, name, actor) {
     [departmentId, trimmed],
   )
   if (existing.rows[0]) return existing.rows[0].id
-  const inserted = await client.query(
-    `INSERT INTO platform.teams (department_id, name) VALUES ($1, $2) RETURNING id`,
-    [departmentId, trimmed],
+  const err = new Error(
+    `Unknown team "${trimmed}" in this department. Choose a team from the organisation.`,
   )
-  if (actor) {
-    await appendActivityEvent(client, {
-      eventKey: 'team.created',
-      entityType: 'team',
-      entityId: String(inserted.rows[0].id),
-      ...actor,
-      summary: `Created team ${trimmed}`,
-      metadata: { departmentId },
-      source: 'api',
-    })
-  }
-  return inserted.rows[0].id
+  err.statusCode = 400
+  throw err
 }
 
 /** Resolve division by name only - does not create unknown divisions. */
@@ -436,17 +422,8 @@ export async function upsertPlatformEmployee(input, options = {}) {
       }
     }
 
-    const departmentId = await ensureDepartment(
-      client,
-      input.department ?? '',
-      actor,
-    )
-    const teamId = await ensureTeam(
-      client,
-      departmentId,
-      input.team ?? '',
-      actor,
-    )
+    const departmentId = await ensureDepartment(client, input.department ?? '')
+    const teamId = await ensureTeam(client, departmentId, input.team ?? '')
     const divisionName = String(input.division ?? '').trim()
     const divisionId = await resolveDivisionId(client, divisionName)
     if (divisionName && divisionId == null) {
@@ -972,6 +949,259 @@ export async function createPlatformDepartment(input = {}, actorInput = {}) {
   }
 }
 
+async function assertPeopleExist(client, pairs) {
+  for (const [label, employeeId] of pairs) {
+    if (employeeId == null) continue
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      const err = new Error(`Invalid ${label}`)
+      err.statusCode = 400
+      throw err
+    }
+    const person = await client.query(
+      `SELECT employee_id FROM platform.employees WHERE employee_id = $1 LIMIT 1`,
+      [employeeId],
+    )
+    if (!person.rows[0]) {
+      const err = new Error(`${label} was not found in the directory`)
+      err.statusCode = 400
+      throw err
+    }
+  }
+}
+
+function optionalEmployeeId(value) {
+  if (value == null || value === '') return null
+  return Number(value)
+}
+
+export async function updatePlatformDepartment(departmentId, input = {}, actorInput = {}) {
+  const id = Number(departmentId)
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('Department not found')
+    err.statusCode = 404
+    throw err
+  }
+  const name = String(input.name ?? '').trim()
+  if (!name) {
+    const err = new Error('Department name is required')
+    err.statusCode = 400
+    throw err
+  }
+  const headEmployeeId = optionalEmployeeId(input.headEmployeeId)
+  const hrbpEmployeeId = optionalEmployeeId(input.hrbpEmployeeId)
+  const actor = activityActor(actorInput)
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const current = await client.query(
+      `SELECT id, name FROM platform.departments WHERE id = $1 LIMIT 1`,
+      [id],
+    )
+    if (!current.rows[0]) {
+      const err = new Error('Department not found')
+      err.statusCode = 404
+      throw err
+    }
+    const clash = await client.query(
+      `SELECT id FROM platform.departments
+       WHERE lower(name) = lower($1) AND id <> $2
+       LIMIT 1`,
+      [name, id],
+    )
+    if (clash.rows[0]) {
+      const err = new Error('A department with this name already exists')
+      err.statusCode = 409
+      throw err
+    }
+    await assertPeopleExist(client, [
+      ['Department owner', headEmployeeId],
+      ['HRBP', hrbpEmployeeId],
+    ])
+    await client.query(
+      `UPDATE platform.departments
+       SET name = $2, head_employee_id = $3, hrbp_employee_id = $4
+       WHERE id = $1`,
+      [id, name, headEmployeeId, hrbpEmployeeId],
+    )
+    await appendActivityEvent(client, {
+      eventKey: 'department.updated',
+      entityType: 'department',
+      entityId: String(id),
+      ...actor,
+      summary: `Updated department ${name}`,
+      metadata: { headEmployeeId, hrbpEmployeeId },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    return getPlatformDepartment(id)
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+export async function createPlatformTeam(input = {}, actorInput = {}) {
+  const name = String(input.name ?? '').trim()
+  const departmentId = Number(input.departmentId)
+  if (!name) {
+    const err = new Error('Team name is required')
+    err.statusCode = 400
+    throw err
+  }
+  if (!Number.isInteger(departmentId) || departmentId <= 0) {
+    const err = new Error('Choose a department for this team')
+    err.statusCode = 400
+    throw err
+  }
+  const ownerEmployeeId = optionalEmployeeId(input.ownerEmployeeId)
+  const actor = activityActor(actorInput)
+  const client = await getPool().connect()
+  let teamId = null
+  try {
+    await client.query('BEGIN')
+    const department = await client.query(
+      `SELECT id, name FROM platform.departments WHERE id = $1 LIMIT 1`,
+      [departmentId],
+    )
+    if (!department.rows[0]) {
+      const err = new Error('Department not found')
+      err.statusCode = 404
+      throw err
+    }
+    const clash = await client.query(
+      `SELECT id FROM platform.teams
+       WHERE department_id = $1 AND lower(name) = lower($2)
+       LIMIT 1`,
+      [departmentId, name],
+    )
+    if (clash.rows[0]) {
+      const err = new Error('A team with this name already exists in that department')
+      err.statusCode = 409
+      throw err
+    }
+    await assertPeopleExist(client, [['Team owner', ownerEmployeeId]])
+    const inserted = await client.query(
+      `INSERT INTO platform.teams (department_id, name, owner_employee_id)
+       VALUES ($1, $2, $3)
+       RETURNING id`,
+      [departmentId, name, ownerEmployeeId],
+    )
+    const teamIdInserted = inserted.rows[0].id
+    teamId = teamIdInserted
+    await appendActivityEvent(client, {
+      eventKey: 'team.created',
+      entityType: 'team',
+      entityId: String(teamIdInserted),
+      ...actor,
+      summary: `Created team ${name}`,
+      metadata: { departmentId, ownerEmployeeId },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw err
+  } finally {
+    client.release()
+  }
+  const teams = await listPlatformTeams(departmentId)
+  return teams.find((team) => Number(team.id) === Number(teamId)) ?? null
+}
+
+export async function updatePlatformTeam(teamId, input = {}, actorInput = {}) {
+  const id = Number(teamId)
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('Team not found')
+    err.statusCode = 404
+    throw err
+  }
+  const name = String(input.name ?? '').trim()
+  const departmentId = Number(input.departmentId)
+  if (!name) {
+    const err = new Error('Team name is required')
+    err.statusCode = 400
+    throw err
+  }
+  if (!Number.isInteger(departmentId) || departmentId <= 0) {
+    const err = new Error('Choose a department for this team')
+    err.statusCode = 400
+    throw err
+  }
+  const ownerEmployeeId = optionalEmployeeId(input.ownerEmployeeId)
+  const actor = activityActor(actorInput)
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const current = await client.query(
+      `SELECT id FROM platform.teams WHERE id = $1 LIMIT 1`,
+      [id],
+    )
+    if (!current.rows[0]) {
+      const err = new Error('Team not found')
+      err.statusCode = 404
+      throw err
+    }
+    const department = await client.query(
+      `SELECT id FROM platform.departments WHERE id = $1 LIMIT 1`,
+      [departmentId],
+    )
+    if (!department.rows[0]) {
+      const err = new Error('Department not found')
+      err.statusCode = 404
+      throw err
+    }
+    const clash = await client.query(
+      `SELECT id FROM platform.teams
+       WHERE department_id = $1 AND lower(name) = lower($2) AND id <> $3
+       LIMIT 1`,
+      [departmentId, name, id],
+    )
+    if (clash.rows[0]) {
+      const err = new Error('A team with this name already exists in that department')
+      err.statusCode = 409
+      throw err
+    }
+    await assertPeopleExist(client, [['Team owner', ownerEmployeeId]])
+    await client.query(
+      `UPDATE platform.teams
+       SET name = $2, department_id = $3, owner_employee_id = $4
+       WHERE id = $1`,
+      [id, name, departmentId, ownerEmployeeId],
+    )
+    await appendActivityEvent(client, {
+      eventKey: 'team.updated',
+      entityType: 'team',
+      entityId: String(id),
+      ...actor,
+      summary: `Updated team ${name}`,
+      metadata: { departmentId, ownerEmployeeId },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw err
+  } finally {
+    client.release()
+  }
+  const teams = await listPlatformTeams(departmentId)
+  return teams.find((team) => Number(team.id) === id) ?? null
+}
+
 export async function listPlatformDivisions() {
   const { rows } = await getPool().query(
     `SELECT
@@ -1040,6 +1270,19 @@ export async function listPlatformTeams(departmentId) {
       : undefined,
     headcount: row.headcount,
   }))
+}
+
+/** True once Settings has at least one access assignment. */
+export async function hasAccessAssignments() {
+  try {
+    const { rows } = await getPool().query(
+      `SELECT 1 FROM platform.employee_access_profiles LIMIT 1`,
+    )
+    return Boolean(rows[0])
+  } catch (error) {
+    if (error?.code === '42P01') return false
+    throw error
+  }
 }
 
 export async function getEmployeeAccess(employeeId) {

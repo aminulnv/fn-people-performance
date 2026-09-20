@@ -11,6 +11,7 @@ import {
   gradeTierDelta,
   monthsBetweenDates,
   previousCyclesOfSamePurpose,
+  promotionYearWindow,
 } from './indicators'
 
 function employee(
@@ -137,6 +138,18 @@ describe('previousCyclesOfSamePurpose', () => {
       ),
     ).toEqual(['q2', 'q1'])
   })
+
+  it('treats half-year appraisals as the previous annual cycles', () => {
+    const annual = makeCycle('annual-2026', 'annual-2026', '2026-01-01', [1])
+    const h2 = makeCycle('h2-2025', 'h2-2025', '2025-07-01', [1])
+    const h1 = makeCycle('h1-2025', 'h1-2025', '2025-01-01', [1])
+    const quarter = makeCycle('q4-2025', 'q4-2025', '2025-10-01', [1])
+    expect(
+      previousCyclesOfSamePurpose(annual, [annual, h2, h1, quarter], 2).map(
+        (cycle) => cycle.id,
+      ),
+    ).toEqual(['h2-2025', 'h1-2025'])
+  })
 })
 
 describe('buildCalibrationIndicators', () => {
@@ -153,7 +166,7 @@ describe('buildCalibrationIndicators', () => {
     employee({ employeeId: 14, fullName: 'Improving' }),
   ]
 
-  it('flags tenure, streaks, tier moves, and self/manager gaps', () => {
+  it('flags a gap of more than one band against the previous cycle, and a 2-band self gap', () => {
     const indicators = buildCalibrationIndicators({
       cycle,
       employees,
@@ -173,64 +186,64 @@ describe('buildCalibrationIndicators', () => {
           packet('q2', 12, { published: 'developing' }),
           packet('q2', 14, { published: 'developing' }),
         ],
-        [
-          packet('q1', 11, { published: 'exceptional' }),
-          packet('q1', 12, { published: 'unsatisfactory' }),
-        ],
       ],
-      promotedEmployeeIds: new Set([11]),
     })
 
     const byId = Object.fromEntries(
       indicators.map((row) => [row.id, row.employeeIds]),
     )
 
-    expect(byId.new_hire_exceeding).toEqual([10])
-    expect(byId.two_cycles_exceeding).toEqual([11])
-    expect(byId.three_cycles_exceeding).toEqual([11])
-    expect(byId.promoted_exceeding_again).toEqual([11])
-    expect(byId.two_cycles_developing).toEqual([12])
-    expect(byId.three_cycles_developing).toEqual([12])
-    expect(byId.improved_two_tiers).toEqual([14])
+    expect(byId.previous_cycle_gap).toEqual([14])
+    expect(byId.promoted_last_12_months).toEqual([])
     expect(byId.self_higher_than_manager).toEqual([13])
     expect(byId.self_lower_than_manager).toEqual([])
   })
 
-  it('compares annual grade to linked quarter average', () => {
-    const annual = {
-      ...makeCycle('annual', 'annual-2026', '2026-10-01', [20]),
-      sourceLinks: [
-        { sourceCycleId: 'q1', weightPercent: 25, excluded: false },
-        { sourceCycleId: 'q2', weightPercent: 25, excluded: false },
-        { sourceCycleId: 'q3', weightPercent: 25, excluded: false },
-        { sourceCycleId: 'q4', weightPercent: 25, excluded: false },
-      ],
-    }
+  it('compares the annual grade to H2, not to an average with H1', () => {
+    const annual = makeCycle('annual-2026', 'annual-2026', '2026-01-01', [20])
     const indicators = buildCalibrationIndicators({
       cycle: annual,
       employees: [employee({ employeeId: 20, fullName: 'Annual Gap' })],
-      packets: [packet('annual', 20, { manager: 'exceptional' })],
-      linkedPacketsByCycleId: new Map([
-        ['q1', [packet('q1', 20, { published: 'performing' })]],
-        ['q2', [packet('q2', 20, { published: 'performing' })]],
-        ['q3', [packet('q3', 20, { published: 'performing' })]],
-        ['q4', [packet('q4', 20, { published: 'performing' })]],
-      ]),
+      packets: [packet('annual-2026', 20, { manager: 'exceptional' })],
+      previousPackets: [
+        [packet('h2-2025', 20, { published: 'exceeding' })],
+        [packet('h1-2025', 20, { published: 'unsatisfactory' })],
+      ],
     })
 
     expect(
-      indicators.find((row) => row.id === 'annual_vs_quarterly')?.employeeIds,
-    ).toEqual([20])
+      indicators.find((row) => row.id === 'previous_cycle_gap')?.employeeIds,
+    ).toEqual([])
   })
 
-  it('counts unsatisfactory people when no PIP set is provided', () => {
+  it('flags when the annual grade is more than one band from H2', () => {
+    const annual = makeCycle('annual-2026', 'annual-2026', '2026-01-01', [21])
     const indicators = buildCalibrationIndicators({
-      cycle,
-      employees: [employee({ employeeId: 10, fullName: 'At Risk' })],
-      packets: [packet('q3', 10, { manager: 'unsatisfactory' })],
+      cycle: annual,
+      employees: [employee({ employeeId: 21, fullName: 'Far' })],
+      packets: [packet('annual-2026', 21, { manager: 'exceptional' })],
+      previousPackets: [[packet('h2-2025', 21, { published: 'performing' })]],
     })
     expect(
-      indicators.find((row) => row.id === 'unsatisfactory_no_pip')?.count,
-    ).toBe(1)
+      indicators.find((row) => row.id === 'previous_cycle_gap')?.employeeIds,
+    ).toEqual([21])
+  })
+
+  it('flags a promotion inside the cycle year window', () => {
+    const cycle = makeCycle('annual', 'annual-2026', '2026-10-01', [30])
+    expect(promotionYearWindow(cycle)).toEqual({
+      start: '2026-01-01',
+      end: '2026-12-31',
+    })
+    const indicators = buildCalibrationIndicators({
+      cycle,
+      employees: [employee({ employeeId: 30, fullName: 'Promoted' })],
+      packets: [packet('annual', 30, { manager: 'performing' })],
+      promotedInWindowEmployeeIds: new Set([30]),
+    })
+    expect(
+      indicators.find((row) => row.id === 'promoted_last_12_months')
+        ?.employeeIds,
+    ).toEqual([30])
   })
 })

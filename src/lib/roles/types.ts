@@ -31,8 +31,6 @@ export type PlatformRole = {
   departmentId: number | null
   departmentName: string
   description: string
-  goals: string[]
-  locations: string
   archivedAt: string | null
   headcount: number
   skills: RoleSkill[]
@@ -44,16 +42,12 @@ export type CreateRoleInput = {
   name: string
   departmentId?: number | null
   description?: string
-  goals?: string[]
-  locations?: string
 }
 
 export type UpdateRoleInput = {
   name?: string
   departmentId?: number | null
   description?: string
-  goals?: string[]
-  locations?: string
   archivedAt?: string | null
 }
 

@@ -59,11 +59,6 @@ function parseLevel(value: unknown): ExpectedSkillLevel {
     : 'none'
 }
 
-function parseGoals(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.map((item) => String(item ?? '').trim()).filter(Boolean)
-}
-
 function normalizeSkillRow(
   row: Partial<RoleSkill> & { skillId: string },
 ): RoleSkill {
@@ -99,8 +94,6 @@ export function normalizeRole(
     departmentId: role.departmentId ?? null,
     departmentName: role.departmentName?.trim() ?? '',
     description: role.description?.trim() ?? '',
-    goals: parseGoals(role.goals),
-    locations: role.locations?.trim() || 'All',
     archivedAt: role.archivedAt ?? null,
     headcount: Number(role.headcount) || 0,
     skills: Array.isArray(role.skills)
@@ -256,8 +249,6 @@ export async function createRole(input: CreateRoleInput): Promise<PlatformRole> 
       name,
       departmentId: input.departmentId ?? null,
       description: input.description,
-      goals: input.goals,
-      locations: input.locations,
     })
     upsertLocal(role)
     return clone(role)
@@ -283,9 +274,6 @@ export async function updateRole(
         input.description !== undefined
           ? input.description
           : existing.description,
-      goals: input.goals !== undefined ? input.goals : existing.goals,
-      locations:
-        input.locations !== undefined ? input.locations : existing.locations,
       updatedAt: isoNow(),
     })
     upsertLocal(next)

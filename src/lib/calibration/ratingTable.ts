@@ -7,7 +7,11 @@ import {
 } from '@/lib/reviews/annualQuarters'
 import { cycleMemberIds } from '@/lib/reviews/cycleGroups'
 import { GRADE_BAND_META } from '@/lib/reviews/labels'
-import { formatShortDate } from '@/lib/reviews/periods'
+import {
+  findPeriod,
+  formatShortDate,
+  isHalfYearPeriodKey,
+} from '@/lib/reviews/periods'
 import { scoreForBand } from '@/lib/reviews/rollup'
 import type {
   GradeBandId,
@@ -28,13 +32,42 @@ export const GRADE_SHORT_LABEL: Record<GradeBandId, string> = {
   unsatisfactory: 'Unsa',
 }
 
+const JOB_LEVEL_ORDER = ['IC1', 'IC2', 'IC3+', 'Manager']
+
+/** IC1, IC2, and IC3+ (IC3 and above). Manager grades stay in their own bucket. */
+export function jobLevelOf(jobGrade: string): string {
+  const compact = jobGrade.trim().toUpperCase().replace(/[\s_-]+/g, '')
+  const individual = compact.match(/^IC(\d+)/)
+  if (individual) {
+    const level = Number(individual[1])
+    if (level <= 1) return 'IC1'
+    if (level === 2) return 'IC2'
+    return 'IC3+'
+  }
+  if (/^(M\d|MGMT|MANAGER)/.test(compact)) return 'Manager'
+  return jobGrade.trim() || '—'
+}
+
+export function sortJobLevels(values: readonly string[]): string[] {
+  return [...new Set(values.filter((value) => value && value !== '—'))].sort(
+    (left, right) => {
+      const leftRank = JOB_LEVEL_ORDER.indexOf(left)
+      const rightRank = JOB_LEVEL_ORDER.indexOf(right)
+      const leftOrder = leftRank === -1 ? JOB_LEVEL_ORDER.length : leftRank
+      const rightOrder = rightRank === -1 ? JOB_LEVEL_ORDER.length : rightRank
+      if (leftOrder !== rightOrder) return leftOrder - rightOrder
+      return left.localeCompare(right, undefined, { sensitivity: 'base' })
+    },
+  )
+}
+
 export const RATING_TABLE_QUICK_FILTERS = [
   { id: 'all', label: 'All employees' },
   { id: 'flagged', label: 'Flagged only' },
   { id: 'gap_2', label: 'Gap 2+ tiers' },
   { id: 'developing_below', label: 'Developing & below' },
   { id: 'exceeding_above', label: 'Exceeding & above' },
-  { id: 'annual_neq_qavg', label: 'Annual ≠ Q avg' },
+  { id: 'previous_cycle_gap', label: '2+ from previous cycle' },
   { id: 'adjusted', label: 'Adjusted this session' },
 ] as const
 
@@ -54,14 +87,17 @@ export type RatingTableFlag = {
   definition: string
 }
 
-export type RatingTableTrend = 'up' | 'down' | 'flat' | null
+/** Signed grade-tier change vs the prior cycle. Positive is up, negative is down, 0 is flat. */
+export type RatingTableTrend = number | null
 
 export type RatingTableRow = {
   employeeId: number
   fullName: string
   department: string
+  team: string
   market: string
   jobGrade: string
+  jobLevel: string
   managerName: string
   packetId: string | null
   quarters: RatingTableQuarter[]
@@ -83,7 +119,6 @@ export type RatingTableRow = {
   flags: RatingTableFlag[]
   isFlagged: boolean
   isAdjusted: boolean
-  annualDiffersFromQuarterAvg: boolean
 }
 
 export type RatingTableProgress = {
@@ -158,9 +193,12 @@ function quarterShortLabel(label: string, index: number): string {
 }
 
 function yearLabelFromCycle(
-  cycle: Pick<ReviewCycle, 'yearKey' | 'startDate' | 'name'> | null | undefined,
+  cycle: Pick<ReviewCycle, 'yearKey' | 'startDate' | 'name' | 'periodKey'> | null | undefined,
 ): string {
   if (!cycle) return 'Prior'
+  if (isHalfYearPeriodKey(cycle.periodKey)) {
+    return findPeriod(cycle.periodKey)?.label ?? cycle.name ?? 'Prior'
+  }
   if (cycle.yearKey) return cycle.yearKey
   const year = cycle.startDate?.slice(0, 4)
   if (year) return year
@@ -189,11 +227,15 @@ function trendBetween(
   prior: GradeBandId | null,
   current: GradeBandId | null,
 ): RatingTableTrend {
-  const delta = gradeTierDelta(prior, current)
-  if (delta == null) return null
-  if (delta > 0) return 'up'
-  if (delta < 0) return 'down'
-  return 'flat'
+  return gradeTierDelta(prior, current)
+}
+
+/** Arrow plus tier count, matching the calibration dashboard trend cell. */
+export function formatRatingTrend(trend: RatingTableTrend): string {
+  if (trend == null) return ''
+  if (trend > 0) return `↑${trend}`
+  if (trend < 0) return `↓${Math.abs(trend)}`
+  return '→'
 }
 
 export function buildEmployeeRatingRows(input: {
@@ -266,17 +308,15 @@ export function buildEmployeeRatingRows(input: {
     )
     const flags = flagsByEmployee.get(employeeId) ?? []
     const isAdjusted = Boolean(input.adjustedEmployeeIds?.has(employeeId))
-    const annualDiffersFromQuarterAvg =
-      annualGrade != null &&
-      quarterAvg.grade != null &&
-      annualGrade !== quarterAvg.grade
 
     rows.push({
       employeeId,
       fullName: employee.fullName,
       department: employee.department.trim() || '—',
+      team: employee.team.trim() || '—',
       market: employee.site.trim() || '—',
       jobGrade: employee.jobGrade.trim() || '—',
+      jobLevel: jobLevelOf(employee.jobGrade),
       managerName: employee.reportsToName.trim() || '—',
       packetId: packet?.id ?? null,
       quarters,
@@ -296,7 +336,6 @@ export function buildEmployeeRatingRows(input: {
       flags,
       isFlagged: flags.length > 0,
       isAdjusted,
-      annualDiffersFromQuarterAvg,
     })
   }
 
@@ -321,21 +360,61 @@ export function ratingTableProgress(
   return { total: rows.length, flagged, adjusted, clean }
 }
 
+function selectedValues(
+  value: string | readonly string[] | undefined,
+): string[] | null {
+  if (value == null || value === '') return null
+  if (typeof value === 'string') return [value]
+  return value.length === 0 ? null : [...value]
+}
+
+function matchesSelection(
+  value: string,
+  selected: string | readonly string[] | undefined,
+): boolean {
+  const values = selectedValues(selected)
+  if (!values) return true
+  return values.includes(value)
+}
+
+export function employeeMatchesCohort(
+  employee: PlatformEmployee,
+  filters: {
+    department?: readonly string[]
+    team?: readonly string[]
+    market?: readonly string[]
+    jobLevel?: readonly string[]
+  },
+): boolean {
+  const department = employee.department.trim() || '—'
+  const team = employee.team.trim() || '—'
+  const market = employee.site.trim() || '—'
+  if (!matchesSelection(department, filters.department)) return false
+  if (!matchesSelection(team, filters.team)) return false
+  if (!matchesSelection(market, filters.market)) return false
+  if (!matchesSelection(jobLevelOf(employee.jobGrade), filters.jobLevel)) return false
+  return true
+}
+
 export function filterRatingTableRows(
   rows: readonly RatingTableRow[],
   input: {
     quickFilter: RatingTableQuickFilterId
-    department?: string
-    market?: string
-    jobGrade?: string
-    manager?: string
+    department?: string | readonly string[]
+    team?: string | readonly string[]
+    market?: string | readonly string[]
+    jobGrade?: string | readonly string[]
+    jobLevel?: string | readonly string[]
+    manager?: string | readonly string[]
   },
 ): RatingTableRow[] {
   return rows.filter((row) => {
-    if (input.department && row.department !== input.department) return false
-    if (input.market && row.market !== input.market) return false
-    if (input.jobGrade && row.jobGrade !== input.jobGrade) return false
-    if (input.manager && row.managerName !== input.manager) return false
+    if (!matchesSelection(row.department, input.department)) return false
+    if (!matchesSelection(row.team, input.team)) return false
+    if (!matchesSelection(row.market, input.market)) return false
+    if (!matchesSelection(row.jobGrade, input.jobGrade)) return false
+    if (!matchesSelection(row.jobLevel, input.jobLevel)) return false
+    if (!matchesSelection(row.managerName, input.manager)) return false
 
     switch (input.quickFilter) {
       case 'all':
@@ -353,8 +432,10 @@ export function filterRatingTableRows(
         return (
           row.annualGrade === 'exceeding' || row.annualGrade === 'exceptional'
         )
-      case 'annual_neq_qavg':
-        return row.annualDiffersFromQuarterAvg
+      case 'previous_cycle_gap': {
+        const delta = gradeTierDelta(row.priorGrade, row.annualGrade)
+        return delta != null && Math.abs(delta) > 1
+      }
       case 'adjusted':
         return row.isAdjusted
       default:
@@ -422,7 +503,7 @@ export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
       gradeLabel(row.selfGrade),
       formatGapLabel(row.gapTiers),
       gradeLabel(row.priorGrade),
-      row.trend ?? '',
+      formatRatingTrend(row.trend),
       row.joinDateLabel,
       row.timeInGradeLabel,
       row.lastPromoLabel,

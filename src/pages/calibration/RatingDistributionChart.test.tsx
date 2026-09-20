@@ -81,7 +81,9 @@ describe('RatingDistributionChart', () => {
     expect(screen.getByText('Total in calibration')).toBeTruthy()
     expect(screen.getByText('20')).toBeTruthy()
     expect(screen.getByText('Exceeding & above')).toBeTruthy()
-    expect(screen.getByText('Red line = guideline target per band')).toBeTruthy()
+    expect(screen.getByText('Share of people')).toBeTruthy()
+    expect(screen.getByText('Guideline')).toBeTruthy()
+    expect(screen.queryByText(/Bar height is the share/)).toBeNull()
   })
 
   it('asks for another breakdown', () => {

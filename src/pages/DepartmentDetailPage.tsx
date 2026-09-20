@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Building2,
   Network,
+  Pencil,
   UsersRound,
 } from 'lucide-react'
 import {
@@ -11,13 +12,16 @@ import {
   PageSkeleton,
   PageStatus,
   PageStatusLink,
+  PageStatusRetry,
   ResizableTable,
   type ResizableColumn,
 } from '@/components/ui'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/useAuth'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { getEmployee } from '@/lib/employees/store'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
-import { teamDetailPath } from '@/lib/organisation/paths'
+import { departmentEditPath, teamDetailPath } from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import {
   ReviewSaveBanner,
@@ -36,6 +40,8 @@ export default function DepartmentDetailPage() {
   const { departmentId: rawId = '' } = useParams()
   const departmentId = decodeURIComponent(rawId)
   const catalogs = useOrganisationCatalogs()
+  const { user } = useAuth()
+  const canEdit = hasSystemPermission(user?.permissions, 'platform.write_all')
   const { organisation, isLoading } = useOrganisation(catalogs.departments, {
     teams: catalogs.teams,
   })
@@ -62,6 +68,19 @@ export default function DepartmentDetailPage() {
     )
   }
 
+  if (catalogs.error) {
+    return (
+      <PageStatus
+        variant="error"
+        pageClassName="pd-people pd-org pd-org-detail"
+        aria-label="Department"
+        title="Could not load organisation"
+        description="Departments and teams did not load. This department is not missing."
+        action={<PageStatusRetry label="Retry" onClick={catalogs.reload} />}
+      />
+    )
+  }
+
   if (!department) {
     return (
       <PageStatus
@@ -76,6 +95,7 @@ export default function DepartmentDetailPage() {
   }
 
   const head = department.head
+  const hrbp = department.hrbp
 
   return (
     <div
@@ -108,6 +128,15 @@ export default function DepartmentDetailPage() {
           </div>
         </div>
         <div className="pd-org-detail__hero-actions">
+          {canEdit ? (
+            <Link
+              to={departmentEditPath(department.id)}
+              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
+            >
+              <Pencil size={14} strokeWidth={1.75} aria-hidden />
+              Edit
+            </Link>
+          ) : null}
           <Link to="/organisation/chart" className="pd-people__ghost-btn">
             <Network size={16} strokeWidth={1.75} aria-hidden />
             Org Chart
@@ -136,6 +165,27 @@ export default function DepartmentDetailPage() {
                   </Link>
                 ) : (
                   head.fullName
+                )}
+              </span>
+            ) : (
+              <span className="pd-org__muted">Unassigned</span>
+            )}
+          </span>
+        </div>
+        <div className="pd-org-detail__stat">
+          <span className="pd-org-detail__stat-label">HRBP</span>
+          <span className="pd-org-detail__stat-value">
+            {hrbp ? (
+              <span className="pd-people__person">
+                {hrbp.employeeId != null ? (
+                  <Link
+                    to={`/people/${hrbp.employeeId}`}
+                    className="pd-people__person-link"
+                  >
+                    {hrbp.fullName}
+                  </Link>
+                ) : (
+                  hrbp.fullName
                 )}
               </span>
             ) : (

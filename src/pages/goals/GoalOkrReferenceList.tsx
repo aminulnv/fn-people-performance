@@ -21,7 +21,7 @@ import {
   OKR_GOAL_DRAG_TYPE,
   okrGoalDropPayload,
 } from "@/lib/okr/applyToGoal";
-import { fetchEmployeeOkrs } from "@/lib/okr/performance";
+import { fetchEmployeeOkrs, useOkrConnection } from "@/lib/okr/performance";
 import { queryKeys } from "@/lib/queryClient";
 import {
   formatOkrMeasure,
@@ -463,24 +463,30 @@ export function GoalOkrReferenceList({
   employeeId,
   quarter,
   applyToGoalDisabledReason,
+  showDisconnectedNote = false,
   window: windowProp,
 }: {
   employeeId?: number;
   quarter?: string;
   scope?: OkrReferenceScope;
   applyToGoalDisabledReason?: string;
+  /** Admins see why the search is missing when the OKR key is not set. */
+  showDisconnectedNote?: boolean;
   window?: OkrWindowData;
 }) {
   const [query, setQuery] = useState("");
   const [level, setLevel] = useState<OkrLevelTab>("company");
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const lookupId = employeeId && employeeId > 0 ? employeeId : 0;
+  const checksConnection = windowProp == null && lookupId > 0;
+  const connection = useOkrConnection(checksConnection);
+  const disconnected = checksConnection && connection.configured === false;
   const { employees } = useEmployees();
   const directory = employees;
   const { data, isPending, isError, error } = useQuery({
     queryKey: queryKeys.employeeOkrs(lookupId, quarter),
     queryFn: () => fetchEmployeeOkrs({ employeeId: lookupId, quarter }),
-    enabled: windowProp == null && lookupId > 0,
+    enabled: checksConnection && !disconnected && (connection.ready || connection.failed),
   });
   const window = windowProp ?? data;
   const viewer = useMemo(() => {
@@ -523,11 +529,24 @@ export function GoalOkrReferenceList({
     return <p className="pd-okr-ref__empty">No matching OKRs.</p>;
   }
 
-  if (windowProp == null && isPending) {
+  if (disconnected) {
+    if (!showDisconnectedNote) return null;
+    return <p className="pd-okr-ref__empty">OKR is not connected.</p>;
+  }
+
+  const waitingForConnection =
+    checksConnection && connection.configured === null && !connection.failed;
+  if (windowProp == null && (waitingForConnection || isPending)) {
     return <p className="pd-okr-ref__empty">Loading OKRs…</p>;
   }
 
   if (windowProp == null && isError) {
+    const disconnectedError =
+      error instanceof ApiError && error.status === 503;
+    if (disconnectedError) {
+      if (!showDisconnectedNote) return null;
+      return <p className="pd-okr-ref__empty">OKR is not connected.</p>;
+    }
     const message =
       error instanceof ApiError ? error.message : "Could not load OKRs.";
     return <p className="pd-okr-ref__empty">{message}</p>;

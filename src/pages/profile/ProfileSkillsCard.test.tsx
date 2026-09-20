@@ -1,23 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
 import { createRole, resetRolesStoreForTests, updateRoleMatrix } from '@/lib/roles/store'
 import {
-  getSkillIdsForEmployee,
   getSkillsSnapshot,
   resetSkillsStoreForTests,
 } from '@/lib/skills/store'
 import { ProfileSkillsCard } from './ProfileSkillsCard'
-
-if (typeof HTMLDialogElement !== 'undefined') {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute('open', '')
-  }
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute('open')
-  }
-}
 
 afterEach(() => {
   cleanup()
@@ -27,21 +17,31 @@ afterEach(() => {
 })
 
 describe('ProfileSkillsCard', () => {
-  it('lets the person add a library skill to their profile', () => {
+  it('does not offer a way to add skills onto the person', () => {
+    render(
+      <MemoryRouter>
+        <ProfileSkillsCard employeeId={1} />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('No role assigned')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Assign a role' })).not.toBeInTheDocument()
+  })
+
+  it('lets an admin with write access assign a role', () => {
     render(
       <MemoryRouter>
         <ProfileSkillsCard employeeId={1} canEdit />
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('No skills on this role yet')).toBeInTheDocument()
-    fireEvent.click(screen.getAllByRole('button', { name: 'Add skills' })[0]!)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Add' })[0]!)
-    expect(screen.queryByText('No skills on this role yet')).not.toBeInTheDocument()
-    expect(getSkillIdsForEmployee(1).length).toBe(1)
+    expect(screen.getByRole('link', { name: 'Assign a role' })).toHaveAttribute(
+      'href',
+      '/people/1/edit',
+    )
   })
 
-  it('shows inherited role skills without a manual assignment', async () => {
+  it('shows skills from the assigned role', async () => {
     const role = await createRole({ name: 'QA Engineer' })
     const skill = getSkillsSnapshot()[0]!
     await updateRoleMatrix(role.id, [
@@ -74,24 +74,12 @@ describe('ProfileSkillsCard', () => {
 
     render(
       <MemoryRouter>
-        <ProfileSkillsCard employeeId={7} canEdit />
+        <ProfileSkillsCard employeeId={7} />
       </MemoryRouter>,
     )
 
     expect(screen.getByText(skill.name)).toBeInTheDocument()
     expect(screen.getByText('Expected: Expert for IC2')).toBeInTheDocument()
-    expect(getSkillIdsForEmployee(7)).toEqual([])
     expect(screen.queryByRole('button', { name: `Remove ${skill.name}` })).toBeNull()
-  })
-
-  it('hides add controls when read-only', () => {
-    render(
-      <MemoryRouter>
-        <ProfileSkillsCard employeeId={1} canEdit={false} />
-      </MemoryRouter>,
-    )
-
-    expect(screen.queryByRole('button', { name: 'Add skills' })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Open skills library' })).toBeInTheDocument()
   })
 })

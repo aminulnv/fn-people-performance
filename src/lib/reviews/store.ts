@@ -7,6 +7,7 @@ import {
   DEFAULT_CALIBRATION,
   normalizeCycleSettings,
   normalizeStagesConfig,
+  reviewTypesOf,
 } from "./demoData";
 import { cyclePurposeOf, inferYearKey, suggestedSourceLinks } from "./purpose";
 import {
@@ -567,9 +568,9 @@ function mergeCyclePatch(
     sourceLinks: patch.sourceLinks ?? current.sourceLinks,
     settings: {
       ...current.settings,
-      reviewTypes: settings?.reviewTypes
-        ? { ...settings.reviewTypes, line_manager: true }
-        : current.settings.reviewTypes,
+      reviewTypes: reviewTypesOf(
+        settings?.reviewTypes ?? current.settings.reviewTypes,
+      ),
       goalCountPolicy,
       postWindowGoalPolicy:
         settings?.postWindowGoalPolicy ?? current.settings.postWindowGoalPolicy,
@@ -850,9 +851,9 @@ function applyCycleGroupUpdate(
       ? {
           ...current.settings,
           ...patch.settings,
-          reviewTypes: patch.settings.reviewTypes
-            ? { ...patch.settings.reviewTypes, line_manager: true }
-            : current.settings.reviewTypes,
+          reviewTypes: reviewTypesOf(
+            patch.settings.reviewTypes ?? current.settings.reviewTypes,
+          ),
           goalCountPolicy: {
             ...current.settings.goalCountPolicy,
             ...patch.settings.goalCountPolicy,
@@ -1019,9 +1020,9 @@ export async function updateCycleSettings(
     endDate,
     settings: {
       ...current.settings,
-      reviewTypes: patch.reviewTypes
-        ? { ...patch.reviewTypes, line_manager: true }
-        : current.settings.reviewTypes,
+      reviewTypes: reviewTypesOf(
+        patch.reviewTypes ?? current.settings.reviewTypes,
+      ),
       goalCountPolicy,
       postWindowGoalPolicy:
         patch.postWindowGoalPolicy ?? current.settings.postWindowGoalPolicy,

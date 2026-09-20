@@ -45,12 +45,10 @@ import {
 } from '@/lib/organisation/paths'
 import {
   buildCatalogOptions,
-  DEPARTMENT_OPTIONS,
   DIVISION_OPTIONS,
   JOB_GRADE_OPTIONS,
   JOB_TITLE_OPTIONS,
   SITE_OPTIONS,
-  TEAM_OPTIONS,
 } from '@/lib/employees/catalog'
 import {
   createEmployee,
@@ -58,9 +56,13 @@ import {
   listEmployees,
   updateEmployee,
 } from '@/lib/employees/store'
-import { useEmployees } from '@/lib/employees/useEmployees'
+import { useEmployees, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import { useRolesCatalog } from '@/lib/roles/useRoles'
-import type { CreateEmployeeInput, UpdateEmployeeInput } from '@/lib/employees/types'
+import type {
+  CreateEmployeeInput,
+  GradeChangeKind,
+  UpdateEmployeeInput,
+} from '@/lib/employees/types'
 import { notifyManagerChanged } from '@/lib/notifications/adminEvents'
 import { useAuth } from '@/lib/useAuth'
 import '@/styles/layout-people.css'
@@ -91,7 +93,10 @@ const EMPTY_FORM: FormState = {
   isActive: true,
 }
 
-function toUpdateInput(form: FormState): UpdateEmployeeInput {
+function toUpdateInput(
+  form: FormState,
+  gradeChangeKind?: GradeChangeKind,
+): UpdateEmployeeInput {
   return {
     employeeId: Number(form.employeeId),
     fullName: form.fullName,
@@ -110,6 +115,7 @@ function toUpdateInput(form: FormState): UpdateEmployeeInput {
     site: form.site,
     managerEmail: form.managerEmail,
     isActive: form.isActive,
+    ...(gradeChangeKind ? { gradeChangeKind } : {}),
   }
 }
 
@@ -163,6 +169,10 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   const employeeId = Number(employeeIdParam)
   const { employees, isLoading, loadError, reload } = useEmployees()
   const { roles } = useRolesCatalog()
+  const orgCatalogs = useOrganisationCatalogs()
+  const [gradeChangeKind, setGradeChangeKind] = useState<GradeChangeKind | ''>(
+    '',
+  )
   const canWrite = hasSystemPermission(
     user?.permissions,
     'platform.write_all',
@@ -184,10 +194,17 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       jobTitle: employees.map((e) => e.jobTitle),
       jobGrade: employees.map((e) => e.jobGrade),
       site: employees.map((e) => e.site),
-      department: employees.map((e) => e.department),
-      team: employees.map((e) => e.team),
       division: employees.map((e) => e.division),
     }
+    const departmentNames = orgCatalogs.departments.map((row) => row.name)
+    const departmentKey = form.department.trim().toLowerCase()
+    const teamNames = orgCatalogs.teams
+      .filter(
+        (team) =>
+          departmentKey &&
+          team.departmentName.trim().toLowerCase() === departmentKey,
+      )
+      .map((team) => team.name)
     return {
       role: roles
         .slice()
@@ -208,11 +225,12 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
         form.jobGrade,
       ]),
       site: buildCatalogOptions(SITE_OPTIONS, [...extras.site, form.site]),
-      department: buildCatalogOptions(DEPARTMENT_OPTIONS, [
-        ...extras.department,
-        form.department,
+      department: buildCatalogOptions(departmentNames, [
+        orgCatalogs.ready ? '' : form.department,
       ]),
-      team: buildCatalogOptions(TEAM_OPTIONS, [...extras.team, form.team]),
+      team: buildCatalogOptions(teamNames, [
+        orgCatalogs.ready ? '' : form.team,
+      ]),
       division: buildCatalogOptions(DIVISION_OPTIONS, [
         form.division,
       ].filter(Boolean)),
@@ -220,6 +238,9 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
   }, [
     employees,
     roles,
+    orgCatalogs.departments,
+    orgCatalogs.teams,
+    orgCatalogs.ready,
     form.jobTitle,
     form.jobGrade,
     form.site,
@@ -278,17 +299,22 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     return ''
   }, [employees, form.managerEmail, form.reportsToName, mode, employeeId])
 
-  const departmentHeadValue = useMemo(() => {
-    const excludeId = mode === 'edit' ? employeeId : undefined
-    const byName = form.departmentHeadName.trim().toLowerCase()
-    if (!byName) return ''
-    const match = employees.find(
-      (person) =>
-        person.fullName.trim().toLowerCase() === byName &&
-        person.employeeId !== excludeId,
+  const selectedDepartment = useMemo(() => {
+    const key = form.department.trim().toLowerCase()
+    if (!key) return null
+    return (
+      orgCatalogs.departments.find(
+        (row) => row.name.trim().toLowerCase() === key,
+      ) ?? null
     )
-    return match ? String(match.employeeId) : ''
-  }, [employees, form.departmentHeadName, mode, employeeId])
+  }, [form.department, orgCatalogs.departments])
+
+  const savedGrade = (existing?.jobGrade ?? '').trim()
+  const gradeChangeRequired =
+    mode === 'edit' &&
+    Boolean(savedGrade) &&
+    Boolean(form.jobGrade.trim()) &&
+    form.jobGrade.trim() !== savedGrade
 
   const manager = useMemo(() => {
     if (!reportsToValue) return null
@@ -411,17 +437,40 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     }))
   }
 
-  const onDepartmentHeadChange = (selectedId: string) => {
-    if (!selectedId) {
-      setForm((prev) => ({ ...prev, departmentHeadName: '' }))
-      return
-    }
-    const head = getEmployee(Number(selectedId))
-    if (!head) return
-    setForm((prev) => ({
+  const applyDepartment = (prev: FormState, next: string): FormState => {
+    const key = next.trim().toLowerCase()
+    const row = orgCatalogs.departments.find(
+      (department) => department.name.trim().toLowerCase() === key,
+    )
+    const teamStillValid = orgCatalogs.teams.some(
+      (team) =>
+        team.departmentName.trim().toLowerCase() === key &&
+        team.name === prev.team,
+    )
+    return {
       ...prev,
-      departmentHeadName: head.fullName,
-    }))
+      department: next,
+      team: teamStillValid ? prev.team : '',
+      departmentHeadName: row?.headName ?? '',
+      hrbpName: row?.hrbpName ?? '',
+    }
+  }
+
+  const onDepartmentChange = (next: string) => {
+    setForm((prev) => applyDepartment(prev, next))
+  }
+
+  const onRoleChange = (next: string) => {
+    const selected = roles.find((role) => role.id === next)
+    setForm((current) => {
+      const withRole = {
+        ...current,
+        roleId: next,
+        role: selected?.name ?? '',
+      }
+      if (!selected?.departmentName.trim()) return withRole
+      return applyDepartment(withRole, selected.departmentName)
+    })
   }
 
   const onSubmit = (event: FormEvent) => {
@@ -430,6 +479,13 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
     setError(null)
 
     void (async () => {
+      if (gradeChangeRequired && !gradeChangeKind) {
+        setError(
+          'Say whether this grade change is a promotion, a sideways move, or a step down.',
+        )
+        setBusy(false)
+        return
+      }
       if (mode === 'create') {
         const result = await createEmployee({
           ...form,
@@ -448,7 +504,10 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
         return
       }
 
-      const result = await updateEmployee(employeeId, toUpdateInput(form))
+      const result = await updateEmployee(
+        employeeId,
+        toUpdateInput(form, gradeChangeKind || undefined),
+      )
       if (!result.ok) {
         setError(result.error)
         setBusy(false)
@@ -483,6 +542,14 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
       />
     )
   }
+
+  const selectedRole = roles.find((role) => role.id === form.roleId)
+  const roleDepartment = selectedRole?.departmentName.trim() ?? ''
+  const roleDepartmentWarning =
+    roleDepartment &&
+    form.department.trim().toLowerCase() !== roleDepartment.toLowerCase()
+      ? `This role is in ${roleDepartment}. You chose a different department.`
+      : null
 
   return (
     <form
@@ -605,14 +672,7 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     name="role"
                     aria-label="Role"
                     value={form.roleId ?? ''}
-                    onValueChange={(next) => {
-                      const selected = roles.find((role) => role.id === next)
-                      setForm((current) => ({
-                        ...current,
-                        roleId: next,
-                        role: selected?.name ?? '',
-                      }))
-                    }}
+                    onValueChange={onRoleChange}
                     placeholder="Select role"
                     options={catalogOptions.role}
                     searchable
@@ -635,20 +695,46 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     name="jobGrade"
                     aria-label="Seniority"
                     value={form.jobGrade}
-                    onValueChange={(next) => onFieldChange('jobGrade', next)}
+                    onValueChange={(next) => {
+                      onFieldChange('jobGrade', next)
+                      if (next.trim() === savedGrade) setGradeChangeKind('')
+                    }}
                     placeholder="Select job grade"
                     options={catalogOptions.jobGrade}
                   />
                 </DetailRow>
+                {gradeChangeRequired ? (
+                  <DetailRow label="Grade change" icon={Award}>
+                    <ListboxSelect
+                      name="gradeChangeKind"
+                      aria-label="Grade change"
+                      value={gradeChangeKind}
+                      onValueChange={(next) =>
+                        setGradeChangeKind(next as GradeChangeKind)
+                      }
+                      placeholder="Promotion, sideways, or step down"
+                      options={[
+                        { value: 'promotion', label: 'Promotion' },
+                        { value: 'lateral', label: 'Sideways move' },
+                        { value: 'demotion', label: 'Step down' },
+                      ]}
+                    />
+                  </DetailRow>
+                ) : null}
                 <DetailRow label="Department" icon={Building2}>
                   <ListboxSelect
                     name="department"
                     aria-label="Department"
                     value={form.department}
-                    onValueChange={(next) => onFieldChange('department', next)}
+                    onValueChange={onDepartmentChange}
                     placeholder="Select department"
                     options={catalogOptions.department}
                   />
+                  {roleDepartmentWarning ? (
+                    <p className="pd-field__error" role="status">
+                      {roleDepartmentWarning}
+                    </p>
+                  ) : null}
                 </DetailRow>
                 <DetailRow label="Team" icon={Users}>
                   <ListboxSelect
@@ -656,7 +742,9 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                     aria-label="Team"
                     value={form.team}
                     onValueChange={(next) => onFieldChange('team', next)}
-                    placeholder="Select team"
+                    placeholder={
+                      form.department ? 'Select team' : 'Select a department first'
+                    }
                     options={catalogOptions.team}
                   />
                 </DetailRow>
@@ -694,21 +782,15 @@ export default function EmployeeFormPage({ mode }: { mode: FormMode }) {
                   />
                 </DetailRow>
                 <DetailRow label="Department Head" icon={Network}>
-                  <ListboxSelect
-                    name="departmentHead"
-                    aria-label="Department Head"
-                    value={departmentHeadValue}
-                    onValueChange={onDepartmentHeadChange}
-                    placeholder="Select department head"
-                    options={personOptions}
-                    searchable
-                    searchPlaceholder="Search people"
-                    noResultsText="No people found"
-                  />
+                  <div className="pd-profile__readonly">
+                    {selectedDepartment?.headName?.trim() ||
+                      'Set on the department'}
+                  </div>
                 </DetailRow>
                 <DetailRow label="HRBP" icon={HeartHandshake}>
                   <div className="pd-profile__readonly">
-                    {form.hrbpName.trim() || 'Set after save via department'}
+                    {selectedDepartment?.hrbpName?.trim() ||
+                      'Set on the department'}
                   </div>
                 </DetailRow>
                 <DetailRow label="Joining Date" icon={Calendar}>

@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  ArrowDownRight,
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  Download,
-  Flag,
-  Scale,
-  Users,
-} from 'lucide-react'
+import { Check, Download, Flag, Scale, Users } from 'lucide-react'
 import {
   ColumnVisibility,
   EmptyState,
@@ -30,20 +21,28 @@ import type {
   ReviewPacket,
 } from '@/lib/reviews/types'
 import type { CalibrationIndicator } from '@/lib/calibration/indicators'
+import { useAuth } from '@/lib/useAuth'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { canOverrideCalibrationGrade } from '@/lib/calibration/overrideAccess'
 import {
   confirmCalibrationClean,
+  EMPTY_CALIBRATOR_ASSIGNMENTS,
   fetchCalibrationSitting,
+  fetchCalibratorAssignments,
+  lockCalibrationSession,
   saveCalibrationSittingEmployee,
   type CalibrationSitting,
+  type CalibratorAssignments,
 } from '@/lib/calibration/sessionApi'
+import { DepartmentCalibratorsDialog } from '@/pages/calibration/DepartmentCalibratorsDialog'
 import {
   RATING_TABLE_COLUMN_OPTIONS,
   RATING_TABLE_QUICK_FILTERS,
-  GRADE_SHORT_LABEL,
   buildEmployeeRatingRows,
   defaultVisibleColumnIds,
   filterRatingTableRows,
   formatGapLabel,
+  formatRatingTrend,
   gradeLabel,
   ratingTableCsv,
   ratingTableProgress,
@@ -63,27 +62,18 @@ type EmployeeRatingTableProps = {
   historyPackets: readonly (readonly ReviewPacket[])[]
   linkedPacketsByCycleId: ReadonlyMap<string, readonly ReviewPacket[]>
   indicators: readonly CalibrationIndicator[]
+  departments: readonly string[]
+  teams: readonly string[]
+  markets: readonly string[]
+  jobLevels: readonly string[]
   onPacketUpdated: (packet: ReviewPacket) => void
 }
 
-function GradePill({
-  grade,
-  compact = false,
-}: {
-  grade: GradeBandId | null
-  compact?: boolean
-}) {
+function GradePill({ grade }: { grade: GradeBandId | null }) {
   if (!grade) return <span className="pd-cal-rt__muted">—</span>
   return (
-    <span
-      className={cx(
-        'pd-cal-rt__grade',
-        `is-${grade}`,
-        compact && 'is-compact',
-      )}
-      title={GRADE_BAND_META[grade].label}
-    >
-      {compact ? GRADE_SHORT_LABEL[grade] : GRADE_BAND_META[grade].label}
+    <span className={cx('pd-cal-rt__grade', `is-${grade}`)}>
+      {GRADE_BAND_META[grade].label}
     </span>
   )
 }
@@ -110,27 +100,17 @@ function GapCell({ gapTiers }: { gapTiers: number | null }) {
 }
 
 function TrendCell({ trend }: { trend: RatingTableRow['trend'] }) {
-  if (!trend) return <span className="pd-cal-rt__muted">—</span>
-  if (trend === 'up') {
-    return (
-      <span className="pd-cal-rt__trend is-up" title="Up vs prior">
-        <ArrowUpRight size={15} strokeWidth={2.25} aria-hidden />
-        <span className="pd-sr-only">Up</span>
-      </span>
-    )
-  }
-  if (trend === 'down') {
-    return (
-      <span className="pd-cal-rt__trend is-down" title="Down vs prior">
-        <ArrowDownRight size={15} strokeWidth={2.25} aria-hidden />
-        <span className="pd-sr-only">Down</span>
-      </span>
-    )
-  }
+  if (trend == null) return <span className="pd-cal-rt__muted">—</span>
+  const tone = trend > 0 ? 'is-up' : trend < 0 ? 'is-down' : 'is-flat'
+  const title =
+    trend > 0
+      ? `Up ${trend} vs prior`
+      : trend < 0
+        ? `Down ${Math.abs(trend)} vs prior`
+        : 'No change vs prior'
   return (
-    <span className="pd-cal-rt__trend is-flat" title="Flat vs prior">
-      <ArrowRight size={15} strokeWidth={2.25} aria-hidden />
-      <span className="pd-sr-only">Flat</span>
+    <span className={cx('pd-cal-rt__trend', tone)} title={title}>
+      {formatRatingTrend(trend)}
     </span>
   )
 }
@@ -144,18 +124,34 @@ export function EmployeeRatingTable({
   historyPackets,
   linkedPacketsByCycleId,
   indicators,
+  departments,
+  teams,
+  markets,
+  jobLevels,
   onPacketUpdated,
 }: EmployeeRatingTableProps) {
+  const { user } = useAuth()
+  const canAssignCalibrators = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
+  const viewerEmployeeId = user?.employeeId ?? null
   const [quickFilter, setQuickFilter] =
     useState<RatingTableQuickFilterId>('all')
-  const [department, setDepartment] = useState('')
-  const [market, setMarket] = useState('')
-  const [jobGrade, setJobGrade] = useState('')
   const [manager, setManager] = useState('')
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
     null,
   )
   const [sitting, setSitting] = useState<CalibrationSitting | null>(null)
+  const [sittingError, setSittingError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [assignments, setAssignments] = useState<CalibratorAssignments>(
+    EMPTY_CALIBRATOR_ASSIGNMENTS,
+  )
+  const [calibratorsOpen, setCalibratorsOpen] = useState(false)
+  const [lockOpen, setLockOpen] = useState(false)
+  const [locking, setLocking] = useState(false)
+  const [lockError, setLockError] = useState<string | null>(null)
   const [confirmingClean, setConfirmingClean] = useState(false)
   const [flagRow, setFlagRow] = useState<RatingTableRow | null>(null)
   const [overrideRow, setOverrideRow] = useState<RatingTableRow | null>(null)
@@ -180,17 +176,24 @@ export function EmployeeRatingTable({
   useEffect(() => {
     let cancelled = false
     setSitting(null)
-    void fetchCalibrationSitting(cycle.id)
-      .then((next) => {
-        if (!cancelled) setSitting(next)
+    setSittingError(null)
+    void Promise.all([
+      fetchCalibrationSitting(cycle.id),
+      fetchCalibratorAssignments().catch(() => EMPTY_CALIBRATOR_ASSIGNMENTS),
+    ])
+      .then(([next, assigned]) => {
+        if (cancelled) return
+        setSitting(next)
+        setAssignments(assigned)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (!cancelled) {
-          setSitting({
-            cycleId: cycle.id,
-            cleanConfirmedAt: null,
-            employees: [],
-          })
+          setSitting(null)
+          setSittingError(
+            error instanceof Error
+              ? error.message
+              : 'Could not load the calibration session.',
+          )
         }
       })
     return () => {
@@ -237,25 +240,22 @@ export function EmployeeRatingTable({
     [hasQuarters, priorYearLabel],
   )
 
-  const filterOptions = useMemo(() => {
-    return {
-      departments: uniqueSortedValues(rows.map((row) => row.department)),
-      markets: uniqueSortedValues(rows.map((row) => row.market)),
-      jobGrades: uniqueSortedValues(rows.map((row) => row.jobGrade)),
-      managers: uniqueSortedValues(rows.map((row) => row.managerName)),
-    }
-  }, [rows])
+  const filterOptions = useMemo(
+    () => uniqueSortedValues(rows.map((row) => row.managerName)),
+    [rows],
+  )
 
   const filteredRows = useMemo(
     () =>
       filterRatingTableRows(rows, {
         quickFilter,
-        department: department || undefined,
-        market: market || undefined,
-        jobGrade: jobGrade || undefined,
+        department: departments,
+        team: teams,
+        market: markets,
+        jobLevel: jobLevels,
         manager: manager || undefined,
       }),
-    [rows, quickFilter, department, market, jobGrade, manager],
+    [rows, quickFilter, departments, teams, markets, jobLevels, manager],
   )
 
   const progress = useMemo(() => ratingTableProgress(rows), [rows])
@@ -309,23 +309,21 @@ export function EmployeeRatingTable({
       })
   }, [visibleSet, priorYearLabel])
 
-  const hasActiveAttributeFilters = Boolean(
-    department || market || jobGrade || manager,
-  )
+  const hasActiveAttributeFilters = Boolean(manager)
 
   function resetFilters() {
-    setDepartment('')
-    setMarket('')
-    setJobGrade('')
     setManager('')
     setQuickFilter('all')
   }
 
   async function rememberAdjusted(employeeId: number) {
+    const previous = sitting
+    setActionError(null)
     setSitting((current) => {
       const base: CalibrationSitting = current ?? {
         cycleId: cycle.id,
         cleanConfirmedAt: null,
+        lockedAt: null,
         employees: [],
       }
       const employees = base.employees.some(
@@ -352,17 +350,44 @@ export function EmployeeRatingTable({
         adjusted: true,
       })
       setSitting(next)
-    } catch {
-      /* The grade is already saved. The count stays optimistic until reload. */
+    } catch (error) {
+      setSitting(previous)
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : 'Could not record this grade change.',
+      )
     }
   }
 
   async function confirmClean() {
     setConfirmingClean(true)
+    setActionError(null)
     try {
       setSitting(await confirmCalibrationClean(cycle.id))
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : 'Could not confirm the clean ratings.',
+      )
     } finally {
       setConfirmingClean(false)
+    }
+  }
+
+  async function lockSession() {
+    setLocking(true)
+    setLockError(null)
+    try {
+      setSitting(await lockCalibrationSession(cycle.id))
+      setLockOpen(false)
+    } catch (error) {
+      setLockError(
+        error instanceof Error ? error.message : 'Could not lock the session.',
+      )
+    } finally {
+      setLocking(false)
     }
   }
 
@@ -385,13 +410,13 @@ export function EmployeeRatingTable({
   }
 
   async function saveOverride() {
-    if (!overrideRow?.packetId || !overrideGrade) return
+    if (!overrideRow?.packetId || !overrideGrade || !overrideReason.trim()) return
     setOverrideSaving(true)
     setOverrideError(null)
     try {
       const next = await calibrateReviewPacket(overrideRow.packetId, {
         toGrade: overrideGrade,
-        reason: overrideReason.trim() || 'Calibration table override',
+        reason: overrideReason.trim(),
       })
       onPacketUpdated(next)
       void rememberAdjusted(overrideRow.employeeId)
@@ -427,39 +452,9 @@ export function EmployeeRatingTable({
     <section className="pd-cal-rt" aria-label="Employee rating table">
       <div className="pd-cal-rt__filters">
         <ListboxSelect
-          value={department}
-          onValueChange={setDepartment}
-          options={filterOptions.departments.map((value) => ({
-            value,
-            label: value,
-          }))}
-          emptyLabel="All Departments"
-          aria-label="Filter by department"
-        />
-        <ListboxSelect
-          value={market}
-          onValueChange={setMarket}
-          options={filterOptions.markets.map((value) => ({
-            value,
-            label: value,
-          }))}
-          emptyLabel="All Markets"
-          aria-label="Filter by market"
-        />
-        <ListboxSelect
-          value={jobGrade}
-          onValueChange={setJobGrade}
-          options={filterOptions.jobGrades.map((value) => ({
-            value,
-            label: value,
-          }))}
-          emptyLabel="All Grades"
-          aria-label="Filter by grade"
-        />
-        <ListboxSelect
           value={manager}
           onValueChange={setManager}
-          options={filterOptions.managers.map((value) => ({
+          options={filterOptions.map((value) => ({
             value,
             label: value,
           }))}
@@ -485,7 +480,18 @@ export function EmployeeRatingTable({
             {progress.total} employees · {progress.flagged} flagged for
             discussion · {progress.adjusted} adjusted this session
             {sitting?.cleanConfirmedAt ? ' · clean confirmed' : ''}
+            {sitting?.lockedAt ? ' · session locked' : ''}
           </p>
+          {sittingError ? (
+            <p className="pd-cal-rt__override-error" role="alert">
+              {sittingError}
+            </p>
+          ) : null}
+          {actionError ? (
+            <p className="pd-cal-rt__override-error" role="alert">
+              {actionError}
+            </p>
+          ) : null}
         </div>
         <div
           className="pd-cal-rt__bar"
@@ -526,6 +532,7 @@ export function EmployeeRatingTable({
             onClick={() => void confirmClean()}
             disabled={
               sitting == null ||
+              Boolean(sitting.lockedAt) ||
               progress.clean === 0 ||
               Boolean(sitting.cleanConfirmedAt) ||
               confirmingClean
@@ -534,6 +541,28 @@ export function EmployeeRatingTable({
             <Check size={14} strokeWidth={2} aria-hidden />
             Confirm all clean
           </button>
+          {canAssignCalibrators ? (
+            <button
+              type="button"
+              className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
+              onClick={() => setCalibratorsOpen(true)}
+            >
+              Assign calibrators
+            </button>
+          ) : null}
+          {canAssignCalibrators ? (
+            <button
+              type="button"
+              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
+              disabled={sitting == null || Boolean(sitting.lockedAt) || locking}
+              onClick={() => {
+                setLockError(null)
+                setLockOpen(true)
+              }}
+            >
+              {sitting?.lockedAt ? 'Session locked' : 'Lock calibration session'}
+            </button>
+          ) : null}
           <button
             type="button"
             className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
@@ -604,7 +633,7 @@ export function EmployeeRatingTable({
         <div className="pd-people__table-wrap pd-cal-rt__table-wrap">
           <ResizableTable
             className="pd-people__table pd-cal-rt__table"
-            storageKey="calibration-rating-table-v1"
+            storageKey="calibration-rating-table-v2"
             columns={tableColumns}
             fitKey={`${visibleColumnIds.join('|')}:${filteredRows.length}`}
           >
@@ -638,22 +667,22 @@ export function EmployeeRatingTable({
                   ) : null}
                   {visibleSet.has('q1') ? (
                     <td>
-                      <GradePill grade={row.quarters[0]?.grade ?? null} compact />
+                      <GradePill grade={row.quarters[0]?.grade ?? null} />
                     </td>
                   ) : null}
                   {visibleSet.has('q2') ? (
                     <td>
-                      <GradePill grade={row.quarters[1]?.grade ?? null} compact />
+                      <GradePill grade={row.quarters[1]?.grade ?? null} />
                     </td>
                   ) : null}
                   {visibleSet.has('q3') ? (
                     <td>
-                      <GradePill grade={row.quarters[2]?.grade ?? null} compact />
+                      <GradePill grade={row.quarters[2]?.grade ?? null} />
                     </td>
                   ) : null}
                   {visibleSet.has('q4') ? (
                     <td>
-                      <GradePill grade={row.quarters[3]?.grade ?? null} compact />
+                      <GradePill grade={row.quarters[3]?.grade ?? null} />
                     </td>
                   ) : null}
                   {visibleSet.has('qAvg') ? (
@@ -682,7 +711,7 @@ export function EmployeeRatingTable({
                     </td>
                   ) : null}
                   {visibleSet.has('trend') ? (
-                    <td>
+                    <td className="pd-cal-rt__center">
                       <TrendCell trend={row.trend} />
                     </td>
                   ) : null}
@@ -716,7 +745,23 @@ export function EmployeeRatingTable({
                       <button
                         type="button"
                         className="pd-btn pd-btn--ghost pd-btn--sm"
-                        disabled={!row.packetId}
+                        disabled={
+                          !row.packetId ||
+                          Boolean(sitting?.lockedAt) ||
+                          !canOverrideCalibrationGrade({
+                            viewerEmployeeId,
+                            subject:
+                              employees.find(
+                                (employee) =>
+                                  employee.employeeId === row.employeeId,
+                              ) ?? {
+                                employeeId: row.employeeId,
+                                department: row.department,
+                                team: row.team,
+                              },
+                            assignments,
+                          })
+                        }
                         onClick={() => openOverride(row)}
                       >
                         Override
@@ -759,7 +804,7 @@ export function EmployeeRatingTable({
         title={
           overrideRow ? `Override · ${overrideRow.fullName}` : 'Override rating'
         }
-        description="Sets the calibrated overall grade for this packet."
+        description="A written reason is required. The person’s manager is notified."
         actions={
           <>
             <button
@@ -773,7 +818,12 @@ export function EmployeeRatingTable({
             <button
               type="button"
               className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
-              disabled={overrideSaving || !overrideGrade || !overrideRow?.packetId}
+              disabled={
+                overrideSaving ||
+                !overrideGrade ||
+                !overrideReason.trim() ||
+                !overrideRow?.packetId
+              }
               onClick={() => {
                 void saveOverride()
               }}
@@ -825,6 +875,52 @@ export function EmployeeRatingTable({
         ) : null}
       </Modal>
 
+      <Modal
+        open={lockOpen}
+        onClose={() => {
+          if (locking) return
+          setLockOpen(false)
+        }}
+        title="Lock calibration session"
+        description="Ratings stay as they are and cannot be changed before results are released."
+        actions={
+          <>
+            <button
+              type="button"
+              className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
+              disabled={locking}
+              onClick={() => setLockOpen(false)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
+              disabled={locking}
+              onClick={() => {
+                void lockSession()
+              }}
+            >
+              {locking ? 'Locking…' : 'Lock session'}
+            </button>
+          </>
+        }
+      >
+        {lockError ? (
+          <p className="pd-cal-rt__override-error" role="alert">
+            {lockError}
+          </p>
+        ) : null}
+      </Modal>
+
+      <DepartmentCalibratorsDialog
+        open={calibratorsOpen}
+        assignments={assignments}
+        employees={employees}
+        onClose={() => setCalibratorsOpen(false)}
+        onChange={setAssignments}
+      />
+
       {selectedRow ? (
         <CalibrationEmployeeDrawer
           row={selectedRow}
@@ -841,6 +937,17 @@ export function EmployeeRatingTable({
             ) ?? null
           }
           sittingReady={sitting != null}
+          sessionLocked={Boolean(sitting?.lockedAt)}
+          canOverride={canOverrideCalibrationGrade({
+            viewerEmployeeId,
+            subject:
+              selectedEmployee ?? {
+                employeeId: selectedRow.employeeId,
+                department: selectedRow.department,
+                team: selectedRow.team,
+              },
+            assignments,
+          })}
           onSittingSaved={setSitting}
           onRatingAdjusted={() => void rememberAdjusted(selectedRow.employeeId)}
         />

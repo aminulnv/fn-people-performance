@@ -20,7 +20,7 @@ import {
 import { defaultReviewPolicy } from '@/lib/reviews/reviewPolicy'
 import { updateScorecardFeedback } from '@/lib/reviews/scorecardTemplates'
 import {
-  assignSkillToEmployee,
+  getSkillsSnapshot,
   resetSkillsStoreForTests,
 } from '@/lib/skills/store'
 import { resetValuesStoreForTests } from '@/lib/values/store'
@@ -151,6 +151,50 @@ function packet(cycleId: string, partial: Partial<ReviewPacket> = {}): ReviewPac
 }
 
 let cycleId = 'q3-2026'
+
+async function givePersonRoleSkills(employeeId: number, skillIds: string[]) {
+  const { createRole, updateRoleMatrix } = await import('@/lib/roles/store')
+  const { createEmployee, listEmployees, updateEmployee } = await import(
+    '@/lib/employees/store'
+  )
+  const catalog = getSkillsSnapshot()
+  const role = await createRole({
+    name: `Review ${employeeId} ${skillIds.join(' ')} ${Date.now().toString(36)}`,
+  })
+  await updateRoleMatrix(
+    role.id,
+    skillIds.map((skillId) => ({
+      skillId,
+      skillName: catalog.find((skill) => skill.id === skillId)?.name ?? skillId,
+      weightPct: 0,
+      expectations: {},
+    })),
+  )
+  const person = {
+    employeeId,
+    fullName: 'Riley Report',
+    email: 'riley.report@example.com',
+    startDate: '2024-01-01',
+    role: role.name,
+    roleId: role.id,
+    jobTitle: 'Engineer',
+    department: 'Product',
+    team: 'Core',
+    division: '',
+    reportsToName: 'Alex Manager',
+    departmentHeadName: '',
+    hrbpName: '',
+    jobGrade: 'IC2',
+    site: '',
+    managerEmail: 'alex.manager@example.com',
+    isActive: true as const,
+  }
+  const existing = listEmployees().find((row) => row.employeeId === employeeId)
+  const result = existing
+    ? await updateEmployee(employeeId, person)
+    : await createEmployee(person)
+  if (!result.ok) throw new Error(result.error)
+}
 
 beforeEach(async () => {
   resetReviewsStoreForTests()
@@ -289,7 +333,7 @@ describe('ReviewPacketView', () => {
   })
 
   it('hides Skills when Grade Areas has Skills off', async () => {
-    assignSkillToEmployee(2, 'skill-ai-fluency')
+    await givePersonRoleSkills(2, ['skill-ai-fluency'])
     renderEdit()
     await screen.findByRole('button', { name: /Goals \(/ })
     expect(screen.queryByRole('region', { name: 'Skills' })).toBeNull()
@@ -299,7 +343,7 @@ describe('ReviewPacketView', () => {
   })
 
   it('shows prior skill grades read-only when Skills is off', async () => {
-    assignSkillToEmployee(2, 'skill-ai-fluency')
+    await givePersonRoleSkills(2, ['skill-ai-fluency'])
     packetState.packet = packet(cycleId, {
       pillarScores: [
         {
@@ -359,8 +403,10 @@ describe('ReviewPacketView', () => {
       },
     })
     packetState.packet = packet(custom.id)
-    assignSkillToEmployee(2, 'skill-ai-fluency')
-    assignSkillToEmployee(2, 'skill-account-planning')
+    await givePersonRoleSkills(2, [
+      'skill-ai-fluency',
+      'skill-account-planning',
+    ])
     renderEdit()
     expect(
       await screen.findByRole('region', { name: 'Skills' }),

@@ -6,7 +6,11 @@ import crypto from 'node:crypto'
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
-import { cyclePurposeOf, normalizeReviewPolicy } from './reviewConfig.mjs'
+import {
+  cyclePurposeOf,
+  normalizeReviewPolicy,
+  normalizeReviewTypes,
+} from './reviewConfig.mjs'
 import {
   normalizeStagesConfig,
   validateCalibration,
@@ -59,7 +63,7 @@ export function mapCycleGroup(
       purpose,
     }),
     settings: {
-      reviewTypes: row.review_types,
+      reviewTypes: normalizeReviewTypes(row.review_types),
       goalCountPolicy: row.goal_count_policy,
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
@@ -184,7 +188,7 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
       cycleId,
       name,
       JSON.stringify(stagesConfig),
-      JSON.stringify(input.settings.reviewTypes),
+      JSON.stringify(normalizeReviewTypes(input.settings.reviewTypes)),
       JSON.stringify(input.settings.goalCountPolicy),
       input.settings.postWindowGoalPolicy,
       Boolean(input.settings.autoScorecardGeneration),
@@ -318,7 +322,7 @@ export async function createCycleGroup(cycleId, input, platformUser) {
       type: cycle.cycle_type,
       stagesConfig: input.stagesConfig ?? cycle.stages_config,
       settings: input.settings ?? {
-        reviewTypes: cycle.review_types,
+        reviewTypes: normalizeReviewTypes(cycle.review_types),
         goalCountPolicy: cycle.goal_count_policy,
         postWindowGoalPolicy: cycle.post_window_goal_policy,
         autoScorecardGeneration: cycle.auto_scorecard_generation,
@@ -352,9 +356,9 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
 
     const before = await loadGroup(client, cycleId, groupId)
     const nextSettings = {
-      reviewTypes: patch.reviewTypes
-        ? { ...patch.reviewTypes, line_manager: true }
-        : before.settings.reviewTypes,
+      reviewTypes: normalizeReviewTypes(
+        patch.reviewTypes ?? before.settings.reviewTypes,
+      ),
       goalCountPolicy: {
         ...before.settings.goalCountPolicy,
         ...patch.goalCountPolicy,

@@ -1,6 +1,7 @@
 import { officialGrade } from '@/lib/analytics/dashboard'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { cycleMemberIds } from '@/lib/reviews/cycleGroups'
+import { guidelineForEmployees } from '@/lib/reviews/calibrationGuideline'
 import { GRADE_BAND_META, OVERALL_GRADE_ORDER } from '@/lib/reviews/labels'
 import type { GradeBandId, ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 
@@ -142,8 +143,8 @@ export function buildRatingDistribution(input: {
       .map((employee) => employee.reportsToId)
       .filter((id): id is number => typeof id === 'number' && Number.isInteger(id)),
   )
-  const guideline = input.cycle.calibration.gradeDistribution
   const overallCounts = emptyCounts()
+  const gradedEmployeeIds: number[] = []
   const seriesCounts = new Map<
     string,
     { label: string; counts: Record<GradeBandId, number> }
@@ -153,6 +154,7 @@ export function buildRatingDistribution(input: {
     if (!memberIds.has(packet.employeeId)) continue
     const grade = officialGrade(packet)
     if (!grade) continue
+    gradedEmployeeIds.push(packet.employeeId)
     overallCounts[grade] += 1
     const employee = employeeById.get(packet.employeeId)
     const group = groupLabel(
@@ -169,6 +171,7 @@ export function buildRatingDistribution(input: {
     seriesCounts.set(group.id, current)
   }
 
+  const guideline = guidelineForEmployees(input.cycle, gradedEmployeeIds)
   const total = OVERALL_GRADE_ORDER.reduce((sum, id) => sum + overallCounts[id], 0)
   const bands = toBands(overallCounts, total, guideline)
   const series = sortSeries(

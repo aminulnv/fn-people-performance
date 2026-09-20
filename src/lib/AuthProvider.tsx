@@ -7,6 +7,7 @@ import {
 } from 'react'
 import {
   type AuthSession,
+  clearSession,
   fetchAuthSession,
   signInWithEmailPassword as apiSignInWithEmailPassword,
   signInWithGoogle as apiSignInWithGoogle,
@@ -73,6 +74,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })()
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    const onUnauthorized = () => {
+      clearSession()
+      setSession(null)
+    }
+    window.addEventListener('platform-unauthorized', onUnauthorized)
+    return () => {
+      window.removeEventListener('platform-unauthorized', onUnauthorized)
     }
   }, [])
 

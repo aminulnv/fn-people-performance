@@ -17,6 +17,14 @@ async function assertCanReadEmployeeOkrs(user, subjectEmployeeId) {
 
 export function registerOkrRoutes(app) {
   app.get(
+    '/api/platform/okr/status',
+    requirePlatformAuth,
+    asyncHandler(async (_req, res) => {
+      res.json({ configured: okrApiConfigured() })
+    }),
+  )
+
+  app.get(
     '/api/platform/okr/employee-krs',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {

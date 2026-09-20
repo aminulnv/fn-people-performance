@@ -62,13 +62,33 @@ const otherDept = person({
 })
 
 describe('directoryStats', () => {
-  it('counts people, activity, and unique org labels', () => {
-    expect(directoryStats([manager, report, otherDept])).toEqual({
+  it('counts people from the directory and departments and teams from the catalogue', () => {
+    expect(
+      directoryStats([manager, report, otherDept], {
+        departments: [{ name: 'Product' }, { name: 'Empty' }, { name: 'Finance' }],
+        teams: [{ name: 'Core' }, { name: 'No one yet' }],
+      }),
+    ).toEqual({
       total: 3,
       active: 2,
       inactive: 1,
-      departments: 2,
-      teams: 1,
+      departments: 3,
+      teams: 2,
+    })
+  })
+
+  it('ignores blank catalogue names', () => {
+    expect(
+      directoryStats([], {
+        departments: [{ name: 'Product' }, { name: '  ' }],
+        teams: [{ name: '' }],
+      }),
+    ).toEqual({
+      total: 0,
+      active: 0,
+      inactive: 0,
+      departments: 1,
+      teams: 0,
     })
   })
 })
@@ -141,6 +161,45 @@ describe('filterDirectory', () => {
         me: manager,
       }).map((row) => row.employeeId),
     ).toEqual([1, 2])
+  })
+
+  it('finds a person by role name', () => {
+    const analyst = person({
+      employeeId: 4,
+      fullName: 'Dana Role',
+      role: 'Risk Analyst',
+    })
+    expect(employeeSearchHaystack(analyst)).toContain('risk analyst')
+    expect(
+      filterDirectory([analyst, manager], {
+        query: 'risk analyst',
+        scope: 'all',
+        statusFilter: null,
+        me: manager,
+      }).map((row) => row.employeeId),
+    ).toEqual([4])
+    expect(
+      filterDirectory([analyst, manager], {
+        query: '',
+        scope: 'all',
+        statusFilter: null,
+        me: manager,
+        attributeFilters: { role: ['Risk Analyst'] },
+      }).map((row) => row.employeeId),
+    ).toEqual([4])
+  })
+
+  it('lists role names next to the other directory filters', () => {
+    const analyst = person({
+      employeeId: 4,
+      fullName: 'Dana Role',
+      role: 'Risk Analyst',
+    })
+    expect(
+      directoryAttributeValues([analyst, manager], 'role').map(
+        (option) => option.label,
+      ),
+    ).toEqual(['Risk Analyst', 'None'])
   })
 
   it('uses a precomputed haystack so search does not rebuild strings', () => {

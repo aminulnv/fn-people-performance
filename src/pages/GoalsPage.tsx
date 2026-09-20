@@ -92,7 +92,7 @@ import {
   resolveGoalDeadline,
 } from "@/lib/goals/goalExtensions";
 import { useAuth } from "@/lib/auth";
-import { hasSystemPermission } from "@/lib/accessControl/types";
+import { canViewAllReviews, hasSystemPermission } from "@/lib/accessControl/types";
 import {
   hydrateManagerDelegations,
   listActiveDelegatedManagerIds,
@@ -103,6 +103,7 @@ import { approverDisplayName } from "@/lib/delegations/actingApprover";
 import { avatarStyle } from "@/lib/employees/avatar";
 import { getEmployee } from "@/lib/employees/store";
 import { applyOkrPayloadToGoal, type OkrGoalDropPayload } from "@/lib/okr/applyToGoal";
+import { useOkrConnection } from "@/lib/okr/performance";
 import { okrQuarterFromLabel } from "@/lib/okr/quarter";
 import type { OkrReferenceScope } from "@/lib/okr/reference";
 import {
@@ -283,9 +284,11 @@ function goalApplyDisabledReason({
 /** Bookmark tab that pulls the read-only OKRs out from behind the goal drawer. */
 function okrSideSheetFor(
   personId: string,
-  cycleLabel?: string,
-  applyToGoalDisabledReason?: string,
+  cycleLabel: string | undefined,
+  applyToGoalDisabledReason: string | undefined,
+  okr: { configured: boolean | null; showNote: boolean },
 ) {
+  if (okr.configured === false && !okr.showNote) return undefined;
   const employeeId = Number(personId);
   if (!Number.isInteger(employeeId) || employeeId <= 0) return undefined;
   return {
@@ -430,6 +433,12 @@ function GoalsOverviewGoalPanel({
     subjectId: personId,
     syncActiveSelection: false,
   });
+  const { user } = useAuth();
+  const okrConnection = useOkrConnection();
+  const okrAvailability = {
+    configured: okrConnection.configured,
+    showNote: canViewAllReviews(user?.permissions),
+  };
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null);
   const showOverviewGoalToast = (message: string) => {
     setToastNotice(successNotice(message));
@@ -578,6 +587,7 @@ function GoalsOverviewGoalPanel({
         personId,
         snapshot.cycle.label,
         applyToGoalDisabledReason,
+        okrAvailability,
       )}
       onClose={() => unsavedClose.requestLeave(onClose)}
       ribbon={
@@ -1951,10 +1961,12 @@ export function GoalsPersonDetail({
           title="No People Yet"
           description="Add employees in People to start setting and reviewing goals."
           action={
-            <Link to="/people/new" className="pd-people__create-btn">
-              <Plus size={18} strokeWidth={2} aria-hidden />
-              Add Employee
-            </Link>
+            canManageCycles ? (
+              <Link to="/people/new" className="pd-people__create-btn">
+                <Plus size={18} strokeWidth={2} aria-hidden />
+                Add Employee
+              </Link>
+            ) : undefined
           }
         />
       </div>
@@ -3178,6 +3190,12 @@ function EmployeePanel({
   ) => Promise<void>;
   onSubmit: (goals: Goal[], lateJustification?: string) => Promise<boolean>;
 }) {
+  const { user } = useAuth();
+  const okrConnection = useOkrConnection();
+  const okrAvailability = {
+    configured: okrConnection.configured,
+    showNote: canViewAllReviews(user?.permissions),
+  };
   const { goals, setGoals, creatingIds, startCreating, stopCreating } =
     useGoalDraftState({
       personId,
@@ -3373,6 +3391,7 @@ function EmployeePanel({
           personId,
           cycleLabel,
           applyToGoalDisabledReason,
+          okrAvailability,
         )}
         onClose={requestCloseGoal}
         ribbon={

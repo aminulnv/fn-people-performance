@@ -7,6 +7,11 @@ import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
 import { publicationExclusionClause } from './publicationFilter.mjs'
 import { calibrationIsEditable, managerReviewWriteAllowed } from './visibility.mjs'
+import {
+  assertCalibrationOverrideAllowed,
+  assertCalibrationUnlocked,
+  notifyManagerOfCalibrationOverride,
+} from '../calibrationGovernance.mjs'
 
 const REVIEW_GRADES = new Set([
   'exceptional',
@@ -429,20 +434,24 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
         'Calibration cannot start until the manager review is submitted.',
       )
     }
-    if (!input.toGrade || !String(input.reason ?? '').trim()) {
+    const reason = String(input.reason ?? '').trim()
+    if (!input.toGrade || !reason) {
       throw new HttpError(400, 'A new grade and a written reason are required.')
     }
+    await assertCalibrationUnlocked(client, row.cycle_id)
+    await assertCalibrationOverrideAllowed(client, platformUser, row.employee_id)
+    const eventId = `cal-${crypto.randomUUID()}`
     await client.query(
       `INSERT INTO platform.review_calibration_events (
          id, packet_id, stage_id, from_grade, to_grade, reason, actor_employee_id
        ) VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
-        `cal-${crypto.randomUUID()}`,
+        eventId,
         packetId,
         input.stageId ?? 'calibration_hod_hrbp',
         row.calibrated_overall_grade ?? row.manager_overall_grade,
         input.toGrade,
-        String(input.reason).trim(),
+        reason,
         platformUser?.employeeId ?? null,
       ],
     )
@@ -466,8 +475,17 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       cycleId: row.cycle_id,
       summary: `Calibrated grade from ${fromGrade || 'unset'} to ${input.toGrade}`,
       changes: [{ field: 'grade', from: fromGrade, to: input.toGrade }],
-      metadata: { reason: String(input.reason).trim().slice(0, 500) },
+      metadata: { reason: reason.slice(0, 500) },
       source: 'api',
+    })
+    await notifyManagerOfCalibrationOverride(client, {
+      packetId,
+      eventId,
+      cycleId: row.cycle_id,
+      subjectEmployeeId: Number(row.employee_id),
+      actorEmployeeId: platformUser?.employeeId ?? null,
+      toGrade: input.toGrade,
+      reason,
     })
     await client.query('COMMIT')
     const children = await loadChildren(client, [packetId])

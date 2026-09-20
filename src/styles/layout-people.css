@@ -1,6 +1,6 @@
 .pd-page.pd-people,
 .pd-people {
-  /* Default People/Org UI: pill controls. Soft-rect lives on .pd-people--v3 */
+  /* Pill controls, matching Organisation. */
   --people-radius: 999px;
   --people-radius-sm: 999px;
   --people-radius-panel: 16px;
@@ -2795,4 +2795,32 @@ body>.pd-people-filters__panel {
   .pd-profile__name {
     font-size: 1.25rem;
   }
+}
+
+.pd-pip-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2, 0.5rem);
+  min-width: 0;
+}
+
+.pd-pip-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--color-red);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.pd-pip-mark:focus-visible {
+  outline: 2px solid var(--color-red);
+  outline-offset: 2px;
 }

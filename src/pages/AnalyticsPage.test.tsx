@@ -10,7 +10,7 @@ import {
 } from '@/lib/reviews/store'
 import AnalyticsPage from './AnalyticsPage'
 
-const { employeesState, authState, packetsState } = vi.hoisted(() => ({
+const { employeesState, authState, packetsState, goalsFetch } = vi.hoisted(() => ({
   employeesState: {
     employees: [] as PlatformEmployee[],
     loadState: 'ready' as 'idle' | 'loading' | 'ready' | 'error',
@@ -28,6 +28,7 @@ const { employeesState, authState, packetsState } = vi.hoisted(() => ({
   packetsState: {
     packets: [] as ReviewPacket[],
   },
+  goalsFetch: vi.fn(async () => [] as never[]),
 }))
 
 vi.mock('@/lib/employees/useEmployees', () => ({
@@ -47,7 +48,7 @@ vi.mock('@/lib/reviews/packetsApi', () => ({
 }))
 
 vi.mock('@/lib/goals/remoteApi', () => ({
-  fetchCycleGoalSubmissionsRemote: async () => [],
+  fetchCycleGoalSubmissionsRemote: (...args: unknown[]) => goalsFetch(...args),
 }))
 
 function employee(
@@ -102,6 +103,8 @@ function packet(
 }
 
 beforeEach(async () => {
+  goalsFetch.mockReset()
+  goalsFetch.mockResolvedValue([])
   resetReviewsStoreForTests()
   const manager = employee({
     employeeId: 1,
@@ -201,5 +204,21 @@ describe('AnalyticsPage', () => {
     expect(
       screen.queryByRole('heading', { name: 'Needs Attention' }),
     ).not.toBeInTheDocument()
+  })
+
+  it('shows a goals error instead of treating a failed load as missing goals', async () => {
+    goalsFetch.mockRejectedValue(new Error('down'))
+    renderPage()
+
+    expect(
+      await screen.findByRole('heading', { name: 'Could not load goals' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Missing goals')).not.toBeInTheDocument()
+
+    goalsFetch.mockResolvedValue([])
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(
+      await screen.findByRole('heading', { name: 'Needs Attention' }),
+    ).toBeInTheDocument()
   })
 })
