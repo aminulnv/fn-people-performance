@@ -1,11 +1,22 @@
+import { useMemo } from 'react'
 import { HomeBanner } from '@/components/home/HomeBanner'
-import { useHomeBanners } from '@/lib/home/useHomeBanners'
+import { previewAllHomeBanners } from '@/lib/home/homeBanner'
+import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import '@/styles/layout-home.css'
 
+/**
+ * TEMPORARY: every home card is shown so they can be reviewed together.
+ * Restore `useHomeBanners` (and delete `previewAllHomeBanners`) to return
+ * to eligibility-driven banners.
+ */
 export default function HomePage() {
-  const { banners, ready } = useHomeBanners()
+  const person = useCurrentPerson()
+  const banners = useMemo(
+    () => (person ? previewAllHomeBanners(person) : []),
+    [person],
+  )
 
-  if (!ready) {
+  if (!person) {
     return (
       <div className="pd-page pd-page--home" aria-label="Home" aria-busy="true" />
     )
@@ -13,11 +24,7 @@ export default function HomePage() {
 
   return (
     <div
-      className={
-        banners.length > 1
-          ? 'pd-page pd-page--home pd-page--home-multiple'
-          : 'pd-page pd-page--home'
-      }
+      className="pd-page pd-page--home pd-page--home-multiple"
       aria-label="Home"
     >
       {banners.map((banner) => (

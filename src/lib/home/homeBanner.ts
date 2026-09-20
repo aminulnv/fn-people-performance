@@ -403,3 +403,128 @@ export function resolveHomeBanners(
 
   return banners
 }
+
+function shiftDateKey(todayKey: string, days: number): string {
+  const date = new Date(`${todayKey}T12:00:00.000Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+/**
+ * TEMPORARY design preview. Renders every Home card with sample copy so they
+ * can be reviewed together. Delete this and restore `useHomeBanners` on
+ * HomePage to return to eligibility-driven banners.
+ */
+export function previewAllHomeBanners(person: DemoPerson): HomeBannerContent[] {
+  const now = new Date()
+  const todayKey = dateKey(now)
+  const cycleId = 'preview'
+  const cycleLabel = 'Q3 2026'
+  const href = goalsHref(cycleId, person.id)
+  const upcoming = toDeadlineContext(shiftDateKey(todayKey, 7), todayKey)
+  const overdue = toDeadlineContext(shiftDateKey(todayKey, -2), todayKey)
+  const progressDue = formatGoalDeadlineLabel(shiftDateKey(todayKey, 12))
+
+  const setGoals = deadlineBannerCopy(
+    buildGoalDeadlineHeadline(cycleLabel),
+    upcoming,
+    now,
+    { artwork: 'calendar' },
+  )
+  const submitGoals = deadlineBannerCopy(
+    buildGoalSubmitHeadline(cycleLabel),
+    upcoming,
+    now,
+    { artwork: 'calendar' },
+  )
+  const approveGoals = deadlineBannerCopy(
+    buildApproveHeadline(cycleLabel),
+    upcoming,
+    now,
+    { artwork: 'approve' },
+  )
+  const progressOverdue = deadlineBannerCopy(
+    'Update Goal Progress',
+    overdue,
+    now,
+    { artwork: 'logbook' },
+  )
+
+  return [
+    {
+      id: 'preview:set_goals',
+      variant: 'set_goals',
+      cycleId,
+      personId: person.id,
+      href,
+      icon: 'none',
+      ...setGoals,
+    },
+    {
+      id: 'preview:submit_goals',
+      variant: 'set_goals',
+      cycleId,
+      personId: person.id,
+      href,
+      icon: 'none',
+      ...submitGoals,
+    },
+    {
+      id: 'preview:modify_goals',
+      variant: 'modify_goals',
+      cycleId,
+      personId: person.id,
+      headline: 'Your Goals Were Sent Back',
+      subline: `${person.name} sent your goals back.`,
+      sublineActor: {
+        name: person.name,
+        avatarUrl: person.avatarUrl,
+      },
+      href,
+      icon: 'none',
+      artwork: 'return',
+      aside: {
+        kind: 'action',
+        primary: 'Modify Now',
+        secondary: '',
+      },
+      ariaLabel: `Your goals were sent back. ${person.name} sent your goals back.`,
+    },
+    {
+      id: 'preview:approve_team_goals',
+      variant: 'approve_team_goals',
+      cycleId,
+      personId: person.id,
+      href: goalsMyReportsPath(cycleId, person.id),
+      icon: 'none',
+      ...approveGoals,
+    },
+    {
+      id: 'preview:update_progress',
+      variant: 'update_progress',
+      cycleId,
+      personId: person.id,
+      href,
+      icon: 'none',
+      artwork: 'logbook',
+      headline: 'Update Goal Progress',
+      subline: 'Due by ',
+      sublineEmphasis: progressDue,
+      aside: {
+        kind: 'action',
+        primary: 'Update Now',
+        secondary: '',
+      },
+      ariaLabel: `Update goal progress, due by ${progressDue}.`,
+    },
+    {
+      id: 'preview:update_progress_overdue',
+      variant: 'update_progress',
+      cycleId,
+      personId: person.id,
+      href,
+      icon: 'none',
+      ...progressOverdue,
+    },
+  ]
+}
