@@ -75,7 +75,10 @@ export function suggestedSourceLinks(
 }
 
 export function cyclePurposeOf(
-  cycle: Pick<ReviewCycle, 'periodKey' | 'type'> | null | undefined,
+  cycle:
+    | (Pick<ReviewCycle, 'periodKey'> & Partial<Pick<ReviewCycle, 'type'>>)
+    | null
+    | undefined,
 ): CyclePurpose {
   if (!cycle) return 'quarterly_checkin'
   return inferPurpose(
@@ -86,7 +89,10 @@ export function cyclePurposeOf(
 
 /** Calibration belongs to annual appraisals, not quarterly or custom cycles. */
 export function cycleSupportsCalibration(
-  cycle: Pick<ReviewCycle, 'periodKey' | 'type'> | null | undefined,
+  cycle:
+    | (Pick<ReviewCycle, 'periodKey'> & Partial<Pick<ReviewCycle, 'type'>>)
+    | null
+    | undefined,
 ): boolean {
   return cyclePurposeOf(cycle) === 'annual_appraisal'
 }

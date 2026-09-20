@@ -196,7 +196,7 @@ function yearLabelFromCycle(
   cycle: Pick<ReviewCycle, 'yearKey' | 'startDate' | 'name' | 'periodKey'> | null | undefined,
 ): string {
   if (!cycle) return 'Prior'
-  if (isHalfYearPeriodKey(cycle.periodKey)) {
+  if (cycle.periodKey && isHalfYearPeriodKey(cycle.periodKey)) {
     return findPeriod(cycle.periodKey)?.label ?? cycle.name ?? 'Prior'
   }
   if (cycle.yearKey) return cycle.yearKey
