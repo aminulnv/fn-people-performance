@@ -750,6 +750,7 @@ export function EmployeeRatingTable({
                           Boolean(sitting?.lockedAt) ||
                           !canOverrideCalibrationGrade({
                             viewerEmployeeId,
+                            permissions: user?.permissions,
                             subject:
                               employees.find(
                                 (employee) =>
@@ -940,6 +941,7 @@ export function EmployeeRatingTable({
           sessionLocked={Boolean(sitting?.lockedAt)}
           canOverride={canOverrideCalibrationGrade({
             viewerEmployeeId,
+            permissions: user?.permissions,
             subject:
               selectedEmployee ?? {
                 employeeId: selectedRow.employeeId,

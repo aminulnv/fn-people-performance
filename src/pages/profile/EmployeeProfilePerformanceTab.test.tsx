@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewCycle } from '@/lib/reviews/types'
 import { fetchReviewCyclesRemote } from '@/lib/reviews/remoteApi'
+import * as packetsApi from '@/lib/reviews/packetsApi'
 import {
   createCycleGroup,
   ensureReviewCyclesLoaded,
@@ -11,6 +12,7 @@ import {
   resetReviewsStoreForTests,
   setReviewsLocalModeForTests,
 } from '@/lib/reviews/store'
+import type { ReviewPacket } from '@/lib/reviews/types'
 import { EmployeeProfilePerformanceTab } from './EmployeeProfilePerformanceTab'
 
 vi.mock('@/lib/reviews/remoteApi', async (importOriginal) => {
@@ -66,6 +68,7 @@ describe('EmployeeProfilePerformanceTab', () => {
   afterEach(() => {
     cleanup()
     resetReviewsStoreForTests()
+    vi.restoreAllMocks()
   })
 
   it('waits for review-cycle hydration instead of showing an empty state', async () => {
@@ -119,5 +122,43 @@ describe('EmployeeProfilePerformanceTab', () => {
     ).toBeInTheDocument()
     expect(screen.getByText('No grade')).toBeInTheDocument()
     expect(screen.getByText(/Quarterly|Annual|Custom/)).toBeInTheDocument()
+  })
+
+  it('shows completed status and grade from the review packet', async () => {
+    const cycle = listReviewCycles()[0]
+    if (!cycle) throw new Error('Expected a seeded review cycle')
+    await createCycleGroup(cycle.id, {
+      name: 'Everyone',
+      memberIds: [employee.employeeId],
+    })
+    const packet: ReviewPacket = {
+      id: `pkt-${cycle.id}-${employee.employeeId}`,
+      cycleId: cycle.id,
+      groupId: null,
+      employeeId: employee.employeeId,
+      managerEmployeeId: null,
+      status: 'released_to_employees',
+      selfOverallGrade: null,
+      managerOverallGrade: 'performing',
+      calibratedOverallGrade: null,
+      publishedOverallGrade: 'performing',
+      managerOverrideReason: '',
+      goalsComponent: null,
+      answers: [],
+      pillarScores: [],
+      calibrationEvents: [],
+      appeals: [],
+      version: 1,
+    }
+    vi.spyOn(packetsApi, 'fetchReviewPacket').mockResolvedValue(packet)
+
+    renderTab()
+
+    expect(
+      await screen.findByRole('link', { name: /Completed/i }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Performing')).toBeInTheDocument()
+    expect(screen.queryByText('Not started')).not.toBeInTheDocument()
+    expect(screen.queryByText('No grade')).not.toBeInTheDocument()
   })
 })

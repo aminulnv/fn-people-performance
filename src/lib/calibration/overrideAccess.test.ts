@@ -82,6 +82,39 @@ describe('canOverrideCalibrationGrade', () => {
     ).toBe(false)
   })
 
+  it('lets an admin with write access override someone else', () => {
+    expect(
+      canOverrideCalibrationGrade({
+        viewerEmployeeId: 9,
+        subject,
+        assignments: empty,
+        permissions: ['platform.write_all'],
+      }),
+    ).toBe(true)
+  })
+
+  it('does not treat read-only admin access as an override', () => {
+    expect(
+      canOverrideCalibrationGrade({
+        viewerEmployeeId: 9,
+        subject,
+        assignments: empty,
+        permissions: ['platform.read_all'],
+      }),
+    ).toBe(false)
+  })
+
+  it('still blocks an admin with write access from overriding their own grade', () => {
+    expect(
+      canOverrideCalibrationGrade({
+        viewerEmployeeId: 10,
+        subject,
+        assignments: empty,
+        permissions: ['platform.write_all'],
+      }),
+    ).toBe(false)
+  })
+
   it('allows a calibrator assigned only to this person', () => {
     const assignments: CalibratorAssignments = {
       ...empty,

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Building2,
@@ -9,10 +9,13 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { Badge, EmptyState, type BadgeVariant } from '@/components/ui'
+import { ApiError } from '@/lib/apiClient'
 import { cx } from '@/lib/cx'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { formatLocalDateRange } from '@/lib/dates/timezone'
+import { findCycleGroupForPerson } from '@/lib/reviews/cycleGroups'
+import { fetchReviewPacket } from '@/lib/reviews/packetsApi'
 import { cyclePurposeOf, cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
@@ -23,11 +26,12 @@ import {
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
-import type { CyclePurpose, ReviewCycle } from '@/lib/reviews/types'
+import type { CyclePurpose, ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
 } from '@/lib/reviews/useReviews'
+import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { useAuth } from '@/lib/useAuth'
 
 const PURPOSE_ICON: Record<CyclePurpose, LucideIcon> = {
@@ -69,13 +73,77 @@ export function EmployeeProfilePerformanceTab({
   const { employees } = useEmployees({ load: false })
   const { cycles } = useReviewsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
+  const memberCycleIds = useMemo(
+    () =>
+      cycles
+        .filter(
+          (cycle) => findCycleGroupForPerson(cycle, employee.employeeId) != null,
+        )
+        .map((cycle) => cycle.id),
+    [cycles, employee.employeeId],
+  )
+  const memberCycleKey = memberCycleIds.join('\0')
+  const [packetLoad, setPacketLoad] = useState<{
+    key: string
+    packets: ReviewPacket[]
+  } | null>(null)
+
+  const loadPackets = useCallback(async (cycleIds: string[], employeeId: number) => {
+    const loaded = await Promise.all(
+      cycleIds.map(async (cycleId) => {
+        try {
+          return await fetchReviewPacket(cycleId, employeeId)
+        } catch (error) {
+          if (error instanceof ApiError && error.status === 404) return null
+          throw error
+        }
+      }),
+    )
+    return loaded.filter((packet): packet is ReviewPacket => packet != null)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    void loadPackets(memberCycleIds, employee.employeeId)
+      .then((packets) => {
+        if (!cancelled) setPacketLoad({ key: memberCycleKey, packets })
+      })
+      .catch(() => {
+        if (!cancelled) setPacketLoad({ key: memberCycleKey, packets: [] })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [employee.employeeId, loadPackets, memberCycleIds, memberCycleKey])
+
+  const refreshLivePackets = useCallback(
+    (event: { cycleId?: string; employeeId?: string }) => {
+      if (
+        event.employeeId != null &&
+        event.employeeId !== String(employee.employeeId)
+      ) {
+        return
+      }
+      if (event.cycleId && !memberCycleIds.includes(event.cycleId)) return
+      void loadPackets(memberCycleIds, employee.employeeId)
+        .then((packets) => setPacketLoad({ key: memberCycleKey, packets }))
+        .catch(() => {
+          /* Keep the current history until the next event. */
+        })
+    },
+    [employee.employeeId, loadPackets, memberCycleIds, memberCycleKey],
+  )
+  useLiveTopic('packets', refreshLivePackets, cyclesHydrated)
+
+  const packetsReady = packetLoad?.key === memberCycleKey
+  const packets = packetsReady ? packetLoad.packets : []
   const rows = useMemo(
     () =>
-      buildEmployeeScorecardHistory(employee, employees, user?.email),
-    [cycles, employee, employees, user?.email],
+      buildEmployeeScorecardHistory(employee, employees, user?.email, packets),
+    [employee, employees, packets, user?.email],
   )
 
-  if (!cyclesHydrated && rows.length === 0) {
+  if (!cyclesHydrated || !packetsReady) {
     return (
       <div
         className="pd-profile__placeholder"

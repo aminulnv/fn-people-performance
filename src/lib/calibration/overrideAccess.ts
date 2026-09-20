@@ -1,3 +1,4 @@
+import { hasSystemPermission, type SystemPermission } from '@/lib/accessControl/types'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { CalibratorAssignments } from './sessionApi'
 
@@ -13,9 +14,11 @@ export function canOverrideCalibrationGrade(input: {
     | 'hrbpId'
   >
   assignments: CalibratorAssignments
+  permissions?: readonly SystemPermission[]
 }): boolean {
   const viewerId = input.viewerEmployeeId
   if (!viewerId || viewerId === input.subject.employeeId) return false
+  if (hasSystemPermission(input.permissions, 'platform.write_all')) return true
   if (
     input.subject.departmentHeadId === viewerId ||
     input.subject.hrbpId === viewerId

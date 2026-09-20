@@ -1,5 +1,6 @@
 import { getPool } from '../db.mjs'
 import { HttpError } from '../errors.mjs'
+import { permissionsForPlatformUser } from './auth.mjs'
 import { createPlatformNotification } from './notifications.mjs'
 
 function actorId(platformUser) {
@@ -34,6 +35,8 @@ export async function assertCalibrationOverrideAllowed(
   if (viewerId === Number(subjectEmployeeId)) {
     throw new HttpError(403, 'You cannot calibrate your own packet.')
   }
+  const permissions = await permissionsForPlatformUser(platformUser)
+  if (permissions.includes('platform.write_all')) return
   const { rows } = await db.query(
     `SELECT e.department_id,
             e.team_id,
@@ -79,7 +82,7 @@ export async function assertCalibrationOverrideAllowed(
   if (personal.rows[0]) return
   throw new HttpError(
     403,
-    'Only the head of department, the HRBP, or a calibrator assigned to this department, team, or person can change this grade.',
+    'Only an admin with write access, the head of department, the HRBP, or a calibrator assigned to this department, team, or person can change this grade.',
   )
 }
 
