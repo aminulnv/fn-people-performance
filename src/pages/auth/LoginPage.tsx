@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { layoutConfig } from '@/config/layout'
 import { ApiError } from '@/lib/apiClient'
@@ -126,7 +126,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="pd-login">
+    <div
+      className="pd-login"
+      style={
+        {
+          '--login-bg-jpg': `url("${publicUrl('images/login-f1-bg.jpg')}")`,
+          '--login-bg-avif': `url("${publicUrl('images/login-f1-bg.avif')}")`,
+        } as CSSProperties
+      }
+    >
       <img
         src={publicUrl('images/FN Logo.svg')}
         alt="FundedNext"

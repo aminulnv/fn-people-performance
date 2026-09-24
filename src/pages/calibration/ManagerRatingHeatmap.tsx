@@ -1,3 +1,4 @@
+import { Users } from 'lucide-react'
 import { HintIcon } from '@/pages/reviews/HintIcon'
 import {
   HEATMAP_BAND_ORDER,
@@ -130,7 +131,8 @@ export function ManagerRatingHeatmap({
                             <>
                               <strong>{cell.percent}%</strong>
                               <em>
-                                {cell.count} pax
+                                <Users size={10} strokeWidth={2.25} aria-hidden />
+                                {cell.count}
                               </em>
                             </>
                           ) : (

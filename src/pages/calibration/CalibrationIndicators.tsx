@@ -39,10 +39,14 @@ export function CalibrationIndicators({
           </span>
           Calibration Indicators
           <HintIcon
-            content="Open a card to see who matches. Each card’s icon explains the rule."
+            content="Click a card to see who matches. Hover an info icon for the rule."
             label="About calibration indicators"
           />
         </h2>
+        <p className="pd-cal-ind__copy">
+          Click any card to view employee list · Includes Q1–Q4 vs annual rating
+          divergence
+        </p>
       </header>
 
       <ul className="pd-cal-ind__grid">

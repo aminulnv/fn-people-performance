@@ -2,6 +2,10 @@
 
 Project-specific guidance for AI coding agents.
 
+## Public assets (`public/`)
+
+Production is served under Vite `base: /platform/`. Always resolve files from `public/` with `publicUrl('images/…')` from `src/lib/publicUrl.ts`. Never hardcode root-absolute paths like `/images/…` (they 404 in production). Enforced by `src/lib/publicUrl.test.ts`.
+
 <!-- ASTRYX:START -->
 Astryx v0.4.5 · 158 components
 CLI: run every command as `npx astryx <cmd>` (shown below as `astryx ...`).

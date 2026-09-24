@@ -19,17 +19,17 @@ afterEach(() => {
 
 const indicators: CalibrationIndicator[] = [
   {
-    id: 'previous_cycle_gap',
-    title: '2+ bands from the previous cycle',
-    definition: 'More than one band from the previous annual cycle.',
-    tone: 'positive',
+    id: 'improved_two_tiers',
+    title: 'Improved 2+ tiers from previous cycle',
+    definition: 'Rose by two or more bands versus the previous cycle.',
+    tone: 'info',
     count: 2,
     employeeIds: [1, 2],
   },
   {
     id: 'self_higher_than_manager',
     title: 'Self-rating 2+ tiers higher than manager',
-    definition: 'Fell by two or more bands.',
+    definition: 'Self grade is two or more bands above manager grade.',
     tone: 'warning',
     count: 0,
     employeeIds: [],
@@ -89,12 +89,12 @@ describe('CalibrationIndicators', () => {
       screen.getByRole('heading', { name: /Calibration Indicators/i }),
     ).toBeTruthy()
     expect(
-      screen.getByLabelText(/About 2\+ bands from the previous cycle/i),
+      screen.getByLabelText(/About Improved 2\+ tiers from previous cycle/i),
     ).toBeTruthy()
 
     fireEvent.click(
       screen.getByRole('button', {
-        name: /2\+ bands from the previous cycle: 2 people/i,
+        name: /Improved 2\+ tiers from previous cycle: 2 people/i,
       }),
     )
 

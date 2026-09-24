@@ -462,6 +462,13 @@
   line-height: 1;
 }
 
+.pd-cal-ind__copy {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
 .pd-cal-ind__grid {
   list-style: none;
   display: grid;
@@ -731,10 +738,14 @@
 }
 
 .pd-cal-heat__cell em {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
   color: var(--color-text-secondary);
   font-size: 0.68rem;
   font-style: normal;
   font-weight: 550;
+  font-variant-numeric: tabular-nums;
 }
 
 .pd-cal-heat__cell.is-unsatisfactory.is-i1,
@@ -885,13 +896,13 @@
 
 .pd-cal-cmp {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.55rem;
   min-width: 0;
 }
 
 .pd-cal-cmp__head {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
@@ -899,24 +910,24 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 0.45rem 0.55rem;
+  gap: 0.35rem 0.45rem;
   margin: 0;
   color: var(--color-text);
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.25;
+  line-height: 1.2;
 }
 
 .pd-cal-cmp__step {
   display: inline-grid;
   place-items: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.2rem;
+  height: 1.2rem;
   border-radius: 999px;
   background: var(--color-cta);
   color: var(--color-white);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -924,9 +935,9 @@
 
 .pd-cal-cmp__panel {
   display: grid;
-  gap: 1rem;
+  gap: 0.65rem;
   min-width: 0;
-  padding: 1rem 1.1rem 1.05rem;
+  padding: 0.7rem 0.85rem 0.75rem;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
@@ -936,72 +947,81 @@
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.85rem 1.25rem;
+  gap: 0.55rem 0.9rem;
 }
 
 .pd-cal-cmp__filter {
   display: grid;
-  gap: 0.4rem;
+  gap: 0.25rem;
   min-width: 0;
 }
 
 .pd-cal-cmp__filter-label {
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .pd-cal-cmp__filter--compare {
-  flex: 1 1 18rem;
+  flex: 1 1 16rem;
 }
 
 .pd-cal-cmp__compare {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.55rem;
+  gap: 0.4rem;
   min-width: 0;
 }
 
 .pd-cal-cmp__compare .pd-listbox {
-  flex: 1 1 10rem;
-  min-width: 9rem;
-  max-width: 16rem;
+  flex: 1 1 8.5rem;
+  min-width: 7.5rem;
+  max-width: 14rem;
 }
 
 .pd-cal-cmp__vs {
   color: var(--color-text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.72rem;
   font-weight: 600;
 }
 
 .pd-cal-cmp__rows {
   list-style: none;
   display: grid;
-  gap: 0.7rem;
+  grid-template-columns:
+    max-content
+    minmax(4rem, 1fr)
+    minmax(5.5rem, 6.75rem)
+    minmax(3.5rem, 4.25rem)
+    2.5rem;
+  row-gap: 0.3rem;
+  column-gap: 0.55rem;
   margin: 0;
   padding: 0;
 }
 
 .pd-cal-cmp__row {
   display: grid;
-  grid-template-columns: minmax(6.5rem, 8.5rem) minmax(0, 1fr) minmax(8.5rem, 11rem) 3.5rem;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
   align-items: center;
-  gap: 0.75rem 0.9rem;
   min-width: 0;
 }
 
 .pd-cal-cmp__name {
   color: var(--color-text);
-  font-size: 0.9rem;
+  font-size: 0.78rem;
   font-weight: 650;
-  line-height: 1.25;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .pd-cal-cmp__track {
   position: relative;
   min-width: 0;
-  height: 2rem;
+  height: 0.85rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
   overflow: hidden;
@@ -1009,26 +1029,21 @@
 
 .pd-cal-cmp__line {
   position: absolute;
-  top: 0.15rem;
-  bottom: 0.15rem;
+  top: 0.05rem;
+  bottom: 0.05rem;
   z-index: 1;
   width: 0;
-  border-left: 1.5px solid color-mix(in srgb, var(--color-text) 45%, transparent);
+  border-left: 1.5px solid color-mix(in srgb, var(--color-text) 50%, transparent);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .pd-cal-cmp__bar {
-  position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
   height: 100%;
-  min-width: 4.5rem;
-  padding-inline: 0.75rem;
+  min-width: 0.35rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-text) 28%, var(--color-surface));
-  color: var(--color-white);
-  overflow: hidden;
 }
 
 .pd-cal-cmp__bar.is-below {
@@ -1043,19 +1058,37 @@
   background: color-mix(in srgb, var(--color-text) 32%, var(--color-surface));
 }
 
-.pd-cal-cmp__bar-label {
-  font-size: 0.78rem;
+.pd-cal-cmp__score {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.pd-cal-cmp__score strong {
+  color: var(--color-text);
+  font-size: 0.8rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+}
+
+.pd-cal-cmp__score span {
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 550;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .pd-cal-cmp__delta {
   color: var(--color-text);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 650;
-  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .pd-cal-cmp__delta.is-on {
@@ -1070,23 +1103,27 @@
   color: var(--color-text-secondary);
 }
 
-.pd-cal-cmp__pax {
+.pd-cal-cmp__people {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.7rem;
   font-weight: 550;
   font-variant-numeric: tabular-nums;
-  text-align: right;
   white-space: nowrap;
 }
 
 .pd-cal-cmp__empty {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 0.88rem;
-  line-height: 1.45;
+  font-size: 0.8rem;
+  line-height: 1.4;
 }
 
 .pd-cal-grid {
+  --pd-cal-grid-cell: 4rem;
   display: grid;
   gap: 0.85rem;
   min-width: 0;
@@ -1094,7 +1131,7 @@
 
 .pd-cal-grid__head {
   display: grid;
-  gap: 0.25rem;
+  gap: 0.2rem;
   min-width: 0;
 }
 
@@ -1125,12 +1162,20 @@
   line-height: 1;
 }
 
+.pd-cal-grid__sub {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .pd-cal-grid__panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(14rem, 0.9fr);
-  gap: 1.1rem 1.35rem;
+  grid-template-columns: minmax(0, 1fr) 16.25rem;
+  gap: 1rem;
   min-width: 0;
-  padding: 1rem 1.1rem 1.1rem;
+  padding: 1.1rem 1.15rem 1.15rem;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
@@ -1138,127 +1183,173 @@
 
 .pd-cal-grid__main {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.75rem;
   min-width: 0;
+  overflow-x: auto;
 }
 
 .pd-cal-grid__chart {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
-  grid-template-areas:
-    'y-label y-ticks matrix'
-    '. . x-ticks'
-    '. . x-label';
-  gap: 0.45rem 0.55rem;
-  align-items: stretch;
+  grid-template-columns: 0.9rem 4.5rem auto;
+  align-items: start;
+  gap: 0;
   min-width: 0;
+  width: max-content;
+}
+
+.pd-cal-grid__axis-y-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(var(--pd-cal-grid-cell) * 5);
+  padding: 0;
 }
 
 .pd-cal-grid__axis-y-label {
-  grid-area: y-label;
-  align-self: center;
   color: var(--color-text-secondary);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   line-height: 1.2;
   text-transform: uppercase;
+  white-space: nowrap;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
 }
 
 .pd-cal-grid__y-labels {
-  grid-area: y-ticks;
-  display: grid;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
-  align-items: center;
-  justify-items: end;
-  gap: 1px;
+  display: flex;
+  flex-direction: column;
+  height: calc(var(--pd-cal-grid-cell) * 5);
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 550;
+}
+
+.pd-cal-grid__y-lbl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: var(--pd-cal-grid-cell);
+  padding-right: 0.5rem;
+  text-align: right;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
-.pd-cal-grid__matrix {
-  grid-area: matrix;
+.pd-cal-grid__plot {
   display: grid;
-  gap: 1px;
-  width: min(100%, 24rem);
-  min-width: 0;
-  aspect-ratio: 1;
-  justify-self: start;
-  border-radius: var(--radius-md, 0.5rem);
-  overflow: hidden;
-  background: var(--color-border);
-  box-shadow: 0 0 0 1px var(--color-border);
+  gap: 0.4rem;
+  width: max-content;
 }
 
-.pd-cal-grid__matrix-row {
+.pd-cal-grid__matrix {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  min-height: 0;
+  grid-template-columns: repeat(5, var(--pd-cal-grid-cell));
+  grid-template-rows: repeat(5, var(--pd-cal-grid-cell));
+  width: calc(var(--pd-cal-grid-cell) * 5);
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  overflow: hidden;
+  background: var(--color-surface);
+}
+
+.pd-cal-grid__tip.pd-tooltip,
+.pd-cal-grid__tip .pd-tooltip__trigger {
+  display: block;
+  width: var(--pd-cal-grid-cell);
+  height: var(--pd-cal-grid-cell);
+}
+
+.pd-cal-grid__tip .pd-tooltip__trigger {
+  height: 100%;
 }
 
 .pd-cal-grid__cell {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 0;
+  box-sizing: border-box;
+  width: var(--pd-cal-grid-cell);
+  height: var(--pd-cal-grid-cell);
   margin: 0;
   padding: 0;
   border: 0;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   border-radius: 0;
   background: var(--color-surface);
+  cursor: default;
+  transition: background 0.12s ease;
+}
+
+.pd-cal-grid__tip .pd-cal-grid__cell {
+  width: 100%;
+  height: 100%;
   cursor: pointer;
 }
 
-.pd-cal-grid__cell.is-zone-aligned {
+.pd-cal-grid__matrix > :nth-child(5n) .pd-cal-grid__cell,
+.pd-cal-grid__matrix > .pd-cal-grid__cell:nth-child(5n) {
+  border-right: 0;
+}
+
+.pd-cal-grid__matrix > :nth-child(n + 21) .pd-cal-grid__cell,
+.pd-cal-grid__matrix > .pd-cal-grid__cell:nth-child(n + 21) {
+  border-bottom: 0;
+}
+
+.pd-cal-grid__cell.is-zone-diag {
   background: color-mix(
     in srgb,
-    var(--color-status-completed) 10%,
+    var(--color-status-completed) 7%,
     var(--color-surface)
   );
 }
 
-.pd-cal-grid__cell.is-zone-mgr_higher {
-  background: color-mix(in srgb, var(--color-blue) 10%, var(--color-surface));
+.pd-cal-grid__cell.is-zone-above1,
+.pd-cal-grid__cell.is-zone-above2 {
+  background: color-mix(in srgb, var(--color-blue) 5%, var(--color-surface));
 }
 
-.pd-cal-grid__cell.is-zone-self_higher {
-  background: color-mix(in srgb, var(--color-red) 8%, var(--color-surface));
+.pd-cal-grid__cell.is-zone-below1 {
+  background: color-mix(
+    in srgb,
+    var(--color-status-pending) 5%,
+    var(--color-surface)
+  );
 }
 
-.pd-cal-grid__cell:hover,
-.pd-cal-grid__cell:focus-visible,
-.pd-cal-grid__cell.is-active {
-  outline: none;
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-text) 35%, transparent);
+.pd-cal-grid__cell.is-zone-below2 {
+  background: color-mix(in srgb, var(--color-red) 7%, var(--color-surface));
+}
+
+.pd-cal-grid__cell:hover {
+  background: color-mix(in srgb, var(--color-text) 2.5%, var(--color-surface));
 }
 
 .pd-cal-grid__dot {
   display: inline-grid;
   place-items: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.75rem;
+  height: 1.75rem;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 35%, var(--color-surface));
+  background: #9ca3af;
   color: var(--color-white);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--color-text) 15%, transparent);
+  transition: transform 0.15s ease;
 }
 
-.pd-cal-grid__dot.has-count {
-  width: 1.55rem;
-  height: 1.55rem;
+.pd-cal-grid__cell:hover .pd-cal-grid__dot {
+  transform: scale(1.15);
 }
 
 .pd-cal-grid__dot.is-aligned {
-  background: color-mix(in srgb, var(--color-text) 40%, var(--color-surface));
+  background: #9ca3af;
 }
 
 .pd-cal-grid__dot.is-mgr_higher {
@@ -1273,34 +1364,99 @@
   background: var(--color-red);
 }
 
-.pd-cal-grid__x-labels {
-  grid-area: x-ticks;
+.pd-cal-grid__tip-card {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 1px;
-  width: min(100%, 24rem);
-  justify-self: start;
+  gap: 0.55rem;
+  min-width: 14rem;
+  max-width: 18rem;
+  text-align: start;
+}
+
+.pd-cal-grid__tip-head {
+  display: grid;
+  gap: 0.1rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pd-cal-grid__tip-title {
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.pd-cal-grid__tip-meta {
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
+.pd-cal-grid__tip-list {
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+  max-height: 14rem;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.pd-cal-grid__tip-person {
+  display: grid;
+  gap: 0.3rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--color-text) 2.5%, var(--color-surface));
+}
+
+.pd-cal-grid__tip-name {
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.pd-tooltip__content:has(.pd-cal-grid__tip-card) {
+  max-width: none;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.65rem;
+  background: var(--color-surface-raised, var(--color-surface));
+  color: var(--color-text);
+  text-align: start;
+  box-shadow:
+    0 8px 24px color-mix(in srgb, var(--color-text) 12%, transparent),
+    0 1px 2px color-mix(in srgb, var(--color-text) 6%, transparent);
+}
+
+.pd-cal-grid__x-labels {
+  display: grid;
+  grid-template-columns: repeat(5, var(--pd-cal-grid-cell));
+  width: calc(var(--pd-cal-grid-cell) * 5);
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
   font-weight: 550;
   text-align: center;
 }
 
-.pd-cal-grid__x-labels span {
+.pd-cal-grid__x-lbl {
   min-width: 0;
   text-align: center;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
 .pd-cal-grid__axis-x-label {
-  grid-area: x-label;
-  width: min(100%, 24rem);
-  justify-self: start;
+  display: block;
+  width: calc(var(--pd-cal-grid-cell) * 5);
   text-align: center;
   color: var(--color-text-secondary);
-  font-size: 0.68rem;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -1308,11 +1464,11 @@
   list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem 1rem;
+  gap: 0.45rem 0.9rem;
   margin: 0;
   padding: 0;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 550;
 }
 
@@ -1323,43 +1479,39 @@
 }
 
 .pd-cal-grid__legend .pd-cal-grid__dot {
-  width: 0.7rem;
-  height: 0.7rem;
+  width: 0.65rem;
+  height: 0.65rem;
+  box-shadow: none;
 }
 
 .pd-cal-grid__side {
-  display: grid;
-  align-content: start;
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   min-width: 0;
 }
 
 .pd-cal-grid__stats {
   list-style: none;
   display: grid;
-  gap: 0.55rem;
+  gap: 0.5rem;
   margin: 0;
   padding: 0;
 }
 
 .pd-cal-grid__stat {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.7rem 0.8rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 0.5rem);
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
 }
 
 .pd-cal-grid__stat-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
   color: var(--color-text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 550;
+  line-height: 1.3;
 }
 
 .pd-cal-grid__stat strong {
@@ -1379,50 +1531,57 @@
   color: var(--color-status-pending);
 }
 
+.pd-cal-grid__outliers {
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
 .pd-cal-grid__outliers-title {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.45rem;
   color: var(--color-text);
-  font-size: 0.92rem;
-  font-weight: 700;
+  font-size: 0.75rem;
+  font-weight: 650;
 }
 
 .pd-cal-grid__outlier-list {
   list-style: none;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  max-height: 15rem;
   margin: 0;
   padding: 0;
+  overflow-y: auto;
 }
 
 .pd-cal-grid__outlier {
   display: grid;
-  gap: 0.4rem;
-  padding: 0.65rem 0.7rem;
+  gap: 0.3rem;
+  padding: 0.6rem 0.7rem;
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md, 0.5rem);
+  border-radius: 0.45rem;
   background: var(--color-surface);
 }
 
 .pd-cal-grid__outlier-name {
   color: var(--color-text);
-  font-size: 0.88rem;
-  font-weight: 700;
+  font-size: 0.8rem;
+  font-weight: 650;
 }
 
 .pd-cal-grid__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .pd-cal-grid__chip {
   display: inline-flex;
   align-items: center;
-  padding: 0.18rem 0.45rem;
+  padding: 0.15rem 0.4rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
   color: var(--color-text);
-  font-size: 0.7rem;
+  font-size: 0.65rem;
   font-weight: 650;
   line-height: 1.25;
   white-space: nowrap;
@@ -1455,37 +1614,6 @@
   line-height: 1.45;
 }
 
-.pd-cal-grid__people {
-  list-style: none;
-  display: grid;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0;
-}
-
-.pd-cal-grid__people li {
-  display: grid;
-  gap: 0.15rem;
-  padding: 0.45rem 0;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.pd-cal-grid__people li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.pd-cal-grid__people strong {
-  color: var(--color-text);
-  font-size: 0.92rem;
-  font-weight: 650;
-}
-
-.pd-cal-grid__people span {
-  color: var(--color-text-secondary);
-  font-size: 0.8rem;
-}
-
 @media (max-width: 52rem) {
   .pd-cal-dist {
     grid-template-columns: 1fr;
@@ -1510,12 +1638,21 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .pd-cal-cmp__rows {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+  }
+
   .pd-cal-cmp__row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-column: auto;
     grid-template-areas:
-      'name pax'
-      'track track'
-      'delta delta';
+      'name name name'
+      'score score people'
+      'track track track'
+      'delta delta delta';
+    gap: 0.3rem 0.55rem;
   }
 
   .pd-cal-cmp__name {
@@ -1526,22 +1663,22 @@
     grid-area: track;
   }
 
+  .pd-cal-cmp__score {
+    grid-area: score;
+    justify-items: start;
+    text-align: left;
+  }
+
   .pd-cal-cmp__delta {
     grid-area: delta;
   }
 
-  .pd-cal-cmp__pax {
-    grid-area: pax;
+  .pd-cal-cmp__people {
+    grid-area: people;
   }
 
   .pd-cal-grid__panel {
     grid-template-columns: 1fr;
-  }
-
-  .pd-cal-grid__matrix,
-  .pd-cal-grid__x-labels,
-  .pd-cal-grid__axis-x-label {
-    width: 100%;
   }
 }
 

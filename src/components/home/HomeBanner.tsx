@@ -10,12 +10,13 @@ import {
   type GoalDeadlineTimerUnit,
 } from '@/lib/home/goalDeadlineBanner'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { publicUrl } from '@/lib/publicUrl'
 
 const ARTWORK_SRC: Record<Exclude<HomeBannerContent['artwork'], 'none' | undefined>, string> = {
-  calendar: '/images/3D%20Icons/Calendar.svg',
-  approve: '/images/3D%20Icons/Approve.png',
-  return: '/images/3D%20Icons/Return.png',
-  logbook: '/images/3D%20Icons/Logbook.png',
+  calendar: publicUrl('images/3D Icons/Calendar.svg'),
+  approve: publicUrl('images/3D Icons/Approve.png'),
+  return: publicUrl('images/3D Icons/Return.png'),
+  logbook: publicUrl('images/3D Icons/Logbook.png'),
 }
 
 function resolveArtworkSrc(artwork: HomeBannerContent['artwork']): string {

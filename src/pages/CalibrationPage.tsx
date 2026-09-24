@@ -18,7 +18,6 @@ import {
 import {
   buildCalibrationIndicators,
   previousCyclesOfSamePurpose,
-  promotionYearWindow,
 } from '@/lib/calibration/indicators'
 import { buildManagerRatingHeatmap } from '@/lib/calibration/managerHeatmap'
 import { useEmployees } from '@/lib/employees/useEmployees'
@@ -323,23 +322,44 @@ export default function CalibrationPage() {
 
   const indicators = useMemo(() => {
     if (!cycle) return []
-    const window = promotionYearWindow(cycle)
-    const promotedInWindowEmployeeIds = new Set(
+    const previousCycle = previousCyclesOfSamePurpose(cycle, cycles, 1)[0]
+    const promotedEmployeeIds = new Set(
       employees
         .filter((employee) => {
+          if (!previousCycle) return false
           const day = employee.lastPromotionOn?.slice(0, 10)
-          return Boolean(day && day >= window.start && day <= window.end)
+          return Boolean(
+            day &&
+              day >= previousCycle.startDate &&
+              day <= previousCycle.endDate,
+          )
         })
+        .map((employee) => employee.employeeId),
+    )
+    const pipEmployeeIds = new Set(
+      employees
+        .filter((employee) => employee.onPip)
         .map((employee) => employee.employeeId),
     )
     return buildCalibrationIndicators({
       cycle,
+      cycles,
       employees: cohortEmployees,
       packets: cyclePackets,
       previousPackets: historyPackets,
-      promotedInWindowEmployeeIds,
+      linkedPacketsByCycleId,
+      promotedEmployeeIds,
+      pipEmployeeIds,
     })
-  }, [cohortEmployees, cycle, cyclePackets, employees, historyPackets])
+  }, [
+    cohortEmployees,
+    cycle,
+    cyclePackets,
+    cycles,
+    employees,
+    historyPackets,
+    linkedPacketsByCycleId,
+  ])
 
   const heatmap = useMemo(() => {
     if (!cycle) return { rows: [], orgAverageScore: null }

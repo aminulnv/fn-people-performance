@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Users } from 'lucide-react'
 import { ListboxSelect, SegmentedControl } from '@/components/ui'
 import {
   COMPARISON_VIEWS,
@@ -26,6 +27,10 @@ const COMPARISON_HINT = (
       <strong>Color</strong>
       On par is within ±0.25 of that line. Below is red, above is blue.
     </li>
+    <li>
+      <strong>Delta</strong>
+      Difference vs the baseline (hover for baseline name).
+    </li>
   </ul>
 )
 
@@ -34,10 +39,10 @@ function formatDelta(delta: number): string {
   return `${rounded > 0 ? '+' : ''}${rounded.toFixed(2)}`
 }
 
-function deltaCopy(tone: 'on' | 'above' | 'below', delta: number, baselineLabel: string) {
-  if (tone === 'on') return `≈ On par with ${baselineLabel}`
-  if (tone === 'above') return `↑ ${formatDelta(delta)} vs ${baselineLabel}`
-  return `↓ ${formatDelta(delta)} vs ${baselineLabel}`
+function deltaCopy(tone: 'on' | 'above' | 'below', delta: number) {
+  if (tone === 'on') return '≈ On par'
+  if (tone === 'above') return `↑ ${formatDelta(delta)}`
+  return `↓ ${formatDelta(delta)}`
 }
 
 export function RatingComparison({
@@ -167,19 +172,26 @@ export function RatingComparison({
                   <span
                     className={cx('pd-cal-cmp__bar', `is-${row.tone}`)}
                     style={{ width: `${row.barPercent}%` }}
-                  >
-                    <span className="pd-cal-cmp__bar-label">
-                      {row.averageScore.toFixed(2)} ·{' '}
-                      {ratingBandCaption(row.averageBand)}
-                    </span>
-                  </span>
+                    aria-hidden
+                  />
                 </div>
+                <span className="pd-cal-cmp__score">
+                  <strong>{row.averageScore.toFixed(2)}</strong>
+                  <span>{ratingBandCaption(row.averageBand)}</span>
+                </span>
                 <span
                   className={cx('pd-cal-cmp__delta', `is-${row.tone}`)}
+                  title={`vs ${model.baselineLabel}`}
                 >
-                  {deltaCopy(row.tone, row.delta, model.baselineLabel)}
+                  {deltaCopy(row.tone, row.delta)}
                 </span>
-                <span className="pd-cal-cmp__pax">{row.count} pax</span>
+                <span
+                  className="pd-cal-cmp__people"
+                  aria-label={`${row.count} ${row.count === 1 ? 'person' : 'people'}`}
+                >
+                  <Users size={11} strokeWidth={2.25} aria-hidden />
+                  {row.count}
+                </span>
               </li>
             ))}
           </ul>
