@@ -61,7 +61,7 @@ export default function RoleDetailPage() {
 
   useEffect(() => {
     if (!roleId) return
-    void loadRole(roleId).catch(() => {})
+    void loadRole(roleId).catch(() => { })
   }, [roleId])
 
   const members = useMemo(
@@ -184,9 +184,6 @@ export default function RoleDetailPage() {
           <div className="pd-org-detail__hero-text">
             <p className="pd-org-detail__eyebrow">Role</p>
             <h1 className="pd-org-detail__title">{role.name}</h1>
-            <p className="pd-org-detail__meta pd-org-role__chips">
-              <span className="pd-org-role__chip">Role</span>
-            </p>
           </div>
         </div>
         {canEdit ? (

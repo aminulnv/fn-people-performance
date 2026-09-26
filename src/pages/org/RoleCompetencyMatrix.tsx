@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Button, ListboxSelect } from '@/components/ui'
+import { skillEditPath } from '@/lib/reviews/paths'
 import { expectedLevelLabel, roleWeightTotal } from '@/lib/roles/labels'
 import { matrixGrades } from '@/lib/roles/inheritedSkills'
 import { updateRoleMatrix } from '@/lib/roles/store'
@@ -160,9 +162,12 @@ export function RoleCompetencyMatrix({
               {rows.map((row) => (
                 <tr key={row.skillId}>
                   <td className="pd-org-role-matrix__col-skill">
-                    <span className="pd-org-role-matrix__skill-name">
+                    <Link
+                      to={skillEditPath(row.skillId)}
+                      className="pd-org-role-matrix__skill-name pd-org-role-matrix__skill-link"
+                    >
                       {row.skillName}
-                    </span>
+                    </Link>
                   </td>
                   {grades.map((grade) => {
                     const value = row.expectations[grade] ?? 'none'

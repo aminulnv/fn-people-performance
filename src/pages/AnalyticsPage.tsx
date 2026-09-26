@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import {
   AlertTriangle,
@@ -41,14 +41,13 @@ import {
   useManagerDelegationsRevision,
 } from '@/lib/delegations/useManagerDelegations'
 import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
-import { fetchCycleGoalSubmissionsRemote } from '@/lib/goals/remoteApi'
-import type { PersonGoals } from '@/lib/goals/types'
+import { useCycleGoalSubmissions } from '@/lib/goals/useCycleGoalSubmissions'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
-import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
 import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
-import type { ReviewPacket } from '@/lib/reviews/types'
+import {
+  useReviewPackets,
+} from '@/lib/reviews/useReviewPackets'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
@@ -468,24 +467,10 @@ export default function AnalyticsPage() {
 
   const [cycleId, setCycleId] = useState('')
   const [cyclePicked, setCyclePicked] = useState(false)
-  const [packets, setPackets] = useState<ReviewPacket[]>([])
-  const [submissions, setSubmissions] = useState<PersonGoals[]>([])
-  const [dataState, setDataState] = useState<
-    'idle' | 'loading' | 'ready' | 'error'
-  >('idle')
-  const [dataError, setDataError] = useState<string | null>(null)
 
   function handleCycleChange(nextId: string) {
     setCyclePicked(true)
     setCycleId(nextId)
-    if (!nextId) {
-      setPackets([])
-      setSubmissions([])
-      setDataState('ready')
-      setDataError(null)
-      return
-    }
-    setDataState('loading')
   }
 
   useEffect(() => {
@@ -503,91 +488,45 @@ export default function AnalyticsPage() {
     if (next && next !== cycleId) setCycleId(next)
   }, [cycleId, cycleOptions, cyclePicked, cycles])
 
-  const loadCycleData = useCallback(async (selectedCycleId: string) => {
-    const nextPackets = await fetchReviewPackets(selectedCycleId)
-    let nextSubmissions: PersonGoals[]
-    try {
-      nextSubmissions = await fetchCycleGoalSubmissionsRemote(selectedCycleId)
-    } catch {
-      throw new Error('Could not load goals')
-    }
-    return { packets: nextPackets, submissions: nextSubmissions }
-  }, [])
+  const activeCycleId =
+    cycleId && cycleId !== CYCLE_SELECT_CLEAR_ID ? cycleId : null
 
-  const applyCycleData = useCallback(
-    (result: { packets: ReviewPacket[]; submissions: PersonGoals[] }) => {
-      setPackets(result.packets)
-      setSubmissions(result.submissions)
-      setDataState('ready')
-      setDataError(null)
-    },
-    [],
-  )
+  const {
+    data: packetsData,
+    isPending: packetsPending,
+    isError: packetsError,
+    error: packetsQueryError,
+    refetch: refetchPackets,
+  } = useReviewPackets(activeCycleId)
 
-  useEffect(() => {
-    if (!cycleId) {
-      setPackets([])
-      setSubmissions([])
-      setDataState('ready')
-      setDataError(null)
-      return
-    }
-    let cancelled = false
-    setDataState('loading')
-    setDataError(null)
-    setPackets([])
-    setSubmissions([])
-    void loadCycleData(cycleId)
-      .then((result) => {
-        if (cancelled) return
-        applyCycleData(result)
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setPackets([])
-        setSubmissions([])
-        setDataState('error')
-        setDataError(
-          error instanceof Error
-            ? error.message
-            : 'Could not load cycle analytics.',
-        )
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [applyCycleData, cycleId, loadCycleData])
+  const {
+    data: submissionsData,
+    isPending: submissionsPending,
+    isError: submissionsError,
+    error: submissionsQueryError,
+    refetch: refetchSubmissions,
+  } = useCycleGoalSubmissions(activeCycleId)
 
-  const retryLoad = useCallback(() => {
-    if (!cycleId) return
-    setDataState('loading')
-    setDataError(null)
-    void loadCycleData(cycleId)
-      .then(applyCycleData)
-      .catch((error: unknown) => {
-        setDataState('error')
-        setDataError(
-          error instanceof Error
-            ? error.message
-            : 'Could not load cycle analytics.',
-        )
-      })
-  }, [applyCycleData, cycleId, loadCycleData])
+  const packets = packetsData ?? []
+  const submissions = submissionsData ?? []
 
-  const refreshLive = useCallback(
-    (event: { cycleId?: string }) => {
-      const target = event.cycleId ?? cycleId
-      if (!target || (event.cycleId && event.cycleId !== cycleId)) return
-      void loadCycleData(target)
-        .then(applyCycleData)
-        .catch(() => {
-          /* Keep the last good snapshot. */
-        })
-    },
-    [applyCycleData, cycleId, loadCycleData],
-  )
-  useLiveTopic('packets', refreshLive)
-  useLiveTopic('goals', refreshLive)
+  const dataError =
+    activeCycleId &&
+    ((packetsError && packetsData === undefined) ||
+      (submissionsError && submissionsData === undefined))
+      ? submissionsError && submissionsData === undefined
+        ? 'Could not load goals'
+        : packetsQueryError instanceof Error
+          ? packetsQueryError.message
+          : submissionsQueryError instanceof Error
+            ? submissionsQueryError.message
+            : 'Could not load cycle analytics.'
+      : null
+
+  const retryLoad = () => {
+    void refetchPackets()
+    void refetchSubmissions()
+  }
 
   const cycle = cycles.find((item) => item.id === cycleId) ?? null
   const dashboard = useMemo(() => {
@@ -614,7 +553,7 @@ export default function AnalyticsPage() {
       />
     )
   }
-  if (dataState === 'error') {
+  if (dataError) {
     const goalsFailed = dataError === 'Could not load goals'
     return (
       <PageStatus
@@ -623,7 +562,7 @@ export default function AnalyticsPage() {
         description={
           goalsFailed
             ? 'Goal submissions did not load. This is not the same as nobody having goals.'
-            : (dataError ?? 'Reload and try again.')
+            : dataError
         }
         action={<PageStatusRetry label="Retry" onClick={retryLoad} />}
       />
@@ -631,11 +570,15 @@ export default function AnalyticsPage() {
   }
   const waitingForDefaultCycle =
     !cyclePicked && cycleOptions.length > 0 && !cycleId
+  const cycleDataPending =
+    Boolean(activeCycleId) &&
+    ((packetsPending && packetsData === undefined) ||
+      (submissionsPending && submissionsData === undefined))
   if (
     directoryLoading ||
     !cyclesHydrated ||
     waitingForDefaultCycle ||
-    (Boolean(cycleId) && dataState !== 'ready')
+    cycleDataPending
   ) {
     return <PageStatus variant="loading" title="Loading Analytics" />
   }

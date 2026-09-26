@@ -1,7 +1,12 @@
 import { getPool } from '../db.mjs'
 import { assertCalibrationUnlocked } from './calibrationGovernance.mjs'
 
-const STATUSES = new Set(['not_reviewed', 'discussed', 'confirmed'])
+const STATUSES = new Set([
+  'not_reviewed',
+  'discussed',
+  'confirmed',
+  'rating_changed',
+])
 const NOTES_LIMIT = 4000
 
 function iso(value) {
@@ -110,18 +115,62 @@ export async function saveCalibrationSittingEmployee(
   return getCalibrationSitting(cycleId)
 }
 
-export async function confirmCalibrationClean(cycleId, actorEmployeeId) {
+export async function confirmCalibrationClean(
+  cycleId,
+  actorEmployeeId,
+  employeeIds = [],
+) {
   await assertCalibrationUnlocked(getPool(), cycleId)
-  await getPool().query(
-    `INSERT INTO platform.calibration_sittings (
-       cycle_id, clean_confirmed_at, clean_confirmed_by_employee_id
-     ) VALUES ($1, now(), $2)
-     ON CONFLICT (cycle_id) DO UPDATE SET
-       clean_confirmed_at = now(),
-       clean_confirmed_by_employee_id = EXCLUDED.clean_confirmed_by_employee_id,
-       updated_at = now()`,
-    [cycleId, actorEmployeeId],
-  )
+  const ids = [
+    ...new Set(
+      (Array.isArray(employeeIds) ? employeeIds : [])
+        .map((value) => Number(value))
+        .filter((value) => Number.isInteger(value) && value > 0),
+    ),
+  ]
+  if (ids.length === 0) {
+    const err = new Error('No clean employees to confirm.')
+    err.statusCode = 400
+    throw err
+  }
+
+  const pool = getPool()
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query(
+      `INSERT INTO platform.calibration_sittings (
+         cycle_id, clean_confirmed_at, clean_confirmed_by_employee_id
+       ) VALUES ($1, now(), $2)
+       ON CONFLICT (cycle_id) DO UPDATE SET
+         clean_confirmed_at = now(),
+         clean_confirmed_by_employee_id = EXCLUDED.clean_confirmed_by_employee_id,
+         updated_at = now()`,
+      [cycleId, actorEmployeeId],
+    )
+    await client.query(
+      `INSERT INTO platform.calibration_sitting_employees (
+         cycle_id, employee_id, status, notes, updated_by_employee_id
+       )
+       SELECT $1, employee_id, 'confirmed', '', $3
+       FROM unnest($2::int[]) AS employee_id
+       ON CONFLICT (cycle_id, employee_id) DO UPDATE SET
+         status = CASE
+           WHEN platform.calibration_sitting_employees.status = 'rating_changed'
+             THEN platform.calibration_sitting_employees.status
+           ELSE 'confirmed'
+         END,
+         updated_by_employee_id = EXCLUDED.updated_by_employee_id,
+         updated_at = now()`,
+      [cycleId, ids, actorEmployeeId],
+    )
+    await client.query('COMMIT')
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
   return getCalibrationSitting(cycleId)
 }
 
@@ -146,6 +195,26 @@ export async function lockCalibrationSession(cycleId, actorEmployeeId) {
        ),
        updated_at = now()`,
     [cycleId, actorEmployeeId],
+  )
+  return getCalibrationSitting(cycleId)
+}
+
+export async function unlockCalibrationSession(cycleId, _actorEmployeeId) {
+  const pool = getPool()
+  const existing = await pool.query(
+    `SELECT locked_at FROM platform.calibration_sittings WHERE cycle_id = $1`,
+    [cycleId],
+  )
+  if (!existing.rows[0]?.locked_at) {
+    return getCalibrationSitting(cycleId)
+  }
+  await pool.query(
+    `UPDATE platform.calibration_sittings
+     SET locked_at = NULL,
+         locked_by_employee_id = NULL,
+         updated_at = now()
+     WHERE cycle_id = $1`,
+    [cycleId],
   )
   return getCalibrationSitting(cycleId)
 }

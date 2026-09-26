@@ -23,6 +23,9 @@ conext_docs/
 # Local marketing creatives (not for repo)
 creatives/
 
+# Client prototypes (local reference only)
+prototypes/
+
 # Local HR source data / generated PII (never publish)
 *.csv
 db/migrations/*_seed*.sql

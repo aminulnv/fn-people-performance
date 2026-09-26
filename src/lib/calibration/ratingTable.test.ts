@@ -119,12 +119,20 @@ describe('formatGapLabel', () => {
 describe('buildEmployeeRatingRows', () => {
   const people = [
     employee({
+      employeeId: 1,
+      fullName: 'Ada Manager',
+      reportsToName: '',
+      avatarUrl: 'https://example.com/ada.png',
+      jobGrade: 'M2',
+    }),
+    employee({
       employeeId: 10,
       fullName: 'Ahmad R.',
       department: 'Technology',
       site: 'BD',
       jobGrade: 'IC3',
       reportsToName: 'Ada Manager',
+      reportsToId: 1,
     }),
     employee({
       employeeId: 11,
@@ -133,6 +141,7 @@ describe('buildEmployeeRatingRows', () => {
       site: 'MY',
       jobGrade: 'IC2',
       reportsToName: 'Ada Manager',
+      reportsToId: 1,
     }),
   ]
   const current = makeCycle('annual-2025', [10, 11], 'annual-2025', '2025-01-01')
@@ -172,6 +181,8 @@ describe('buildEmployeeRatingRows', () => {
 
     expect(rows).toHaveLength(2)
     const ahmad = rows.find((row) => row.employeeId === 10)!
+    expect(ahmad.managerName).toBe('Ada Manager')
+    expect(ahmad.managerAvatarUrl).toBe('https://example.com/ada.png')
     expect(ahmad.isFlagged).toBe(true)
     expect(ahmad.gapTiers).toBe(-2)
     expect(formatGapLabel(ahmad.gapTiers)).toBe('−2 Self')

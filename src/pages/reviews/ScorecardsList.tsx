@@ -49,8 +49,6 @@ import {
 } from '@/lib/delegations/useManagerDelegations'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { fetchReviewPackets } from '@/lib/reviews/packetsApi'
-import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import {
   defaultScorecardScope,
   hashForScorecardScope,
@@ -68,9 +66,9 @@ import {
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
-import type { ReviewPacket } from '@/lib/reviews/types'
 import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
+import { useReviewPacketsForCycles } from '@/lib/reviews/useReviewPackets'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
@@ -241,7 +239,7 @@ export function ScorecardsList() {
   }, [cycles])
 
   const [cycleKeys, setCycleKeys] = useState<string[]>(['q3-2026'])
-  const [packets, setPackets] = useState<ReviewPacket[]>([])
+  const { packets } = useReviewPacketsForCycles(cycleKeys)
 
   useEffect(() => {
     const availableIds = cycleOptions.map((option) => option.id)
@@ -258,48 +256,6 @@ export function ScorecardsList() {
     }
     setCycleKeys(next)
   }, [cycleKeys, cycleOptions])
-
-  const loadPackets = useCallback((keys: string[]) => {
-    return Promise.all(keys.map((cycleKey) => fetchReviewPackets(cycleKey)))
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    setPackets([])
-    void loadPackets(cycleKeys)
-      .then((groups) => {
-        if (!cancelled) setPackets(groups.flat())
-      })
-      .catch(() => {
-        if (!cancelled) setPackets([])
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [cycleKeys, loadPackets])
-
-  const refreshLivePackets = useCallback(
-    (event: { cycleId?: string }) => {
-      const keys = event.cycleId ? [event.cycleId] : cycleKeys
-      if (keys.length === 0) return
-      void loadPackets(keys)
-        .then((groups) => {
-          const incoming = groups.flat()
-          setPackets((current) => {
-            if (!event.cycleId) return incoming
-            return [
-              ...current.filter((packet) => packet.cycleId !== event.cycleId),
-              ...incoming,
-            ]
-          })
-        })
-        .catch(() => {
-          /* Keep the current list until the next event. */
-        })
-    },
-    [cycleKeys, loadPackets],
-  )
-  useLiveTopic('packets', refreshLivePackets)
 
   const rows = useMemo(
     () =>

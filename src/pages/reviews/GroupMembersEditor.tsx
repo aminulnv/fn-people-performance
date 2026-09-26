@@ -233,6 +233,289 @@ export type ColumnFilterOption = {
   label: string
 }
 
+export type NumericRangeFilterMode = 'gt' | 'lt' | 'between'
+
+export type NumericRangeFilter = {
+  mode: NumericRangeFilterMode | null
+  gt: string
+  lt: string
+  min: string
+  max: string
+}
+
+export const EMPTY_NUMERIC_RANGE_FILTER: NumericRangeFilter = {
+  mode: null,
+  gt: '',
+  lt: '',
+  min: '',
+  max: '',
+}
+
+function parseFilterNumber(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
+export function numericRangeFilterActive(filter: NumericRangeFilter): boolean {
+  if (filter.mode === 'gt') return parseFilterNumber(filter.gt) != null
+  if (filter.mode === 'lt') return parseFilterNumber(filter.lt) != null
+  if (filter.mode === 'between') {
+    return (
+      parseFilterNumber(filter.min) != null &&
+      parseFilterNumber(filter.max) != null
+    )
+  }
+  return false
+}
+
+export function matchesNumericRangeFilter(
+  value: number | null,
+  filter: NumericRangeFilter,
+): boolean {
+  if (!numericRangeFilterActive(filter)) return true
+  if (value == null) return false
+  if (filter.mode === 'gt') {
+    const threshold = parseFilterNumber(filter.gt)
+    return threshold != null && value > threshold
+  }
+  if (filter.mode === 'lt') {
+    const threshold = parseFilterNumber(filter.lt)
+    return threshold != null && value < threshold
+  }
+  if (filter.mode === 'between') {
+    const min = parseFilterNumber(filter.min)
+    const max = parseFilterNumber(filter.max)
+    if (min == null || max == null) return true
+    const low = Math.min(min, max)
+    const high = Math.max(min, max)
+    return value >= low && value <= high
+  }
+  return true
+}
+
+/** Renders a numeric range filter menu for table headers (gt / lt / between). */
+export function ColumnNumericRangeFilter({
+  label,
+  unit,
+  value,
+  onChange,
+}: {
+  label: string
+  /** Optional unit hint shown beside inputs, e.g. `%`. */
+  unit?: string
+  value: NumericRangeFilter
+  onChange: (next: NumericRangeFilter) => void
+}) {
+  const panelId = useId()
+  const containerRef = useRef<HTMLSpanElement>(null)
+  const panelRef = useRef<HTMLSpanElement>(null)
+  const [open, setOpen] = useState(false)
+  const panelStyle = useFloatingPanel({
+    open,
+    anchorRef: containerRef,
+    panelRef,
+  })
+  const isActive = numericRangeFilterActive(value)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (
+        !containerRef.current?.contains(event.target as Node) &&
+        !panelRef.current?.contains(event.target as Node)
+      ) {
+        setOpen(false)
+      }
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
+  const setMode = (mode: NumericRangeFilterMode) => {
+    onChange({ ...value, mode })
+  }
+
+  return (
+    <span
+      ref={containerRef}
+      className="pd-cycle-groups-members__column-filter-menu"
+    >
+      <button
+        type="button"
+        className={[
+          'pd-cycle-groups-members__column-filter-trigger',
+          isActive ? 'is-active' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+        aria-label={isActive ? `Filter ${label}, active` : `Filter ${label}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <ListFilter size={15} strokeWidth={1.8} aria-hidden />
+      </button>
+      {open
+        ? createPortal(
+            <span
+              ref={panelRef}
+              id={panelId}
+              className="pd-cycle-groups-members__column-filter-panel pd-column-numeric-filter"
+              role="dialog"
+              aria-label={`Filter ${label}`}
+              style={{
+                ...panelStyle,
+                visibility: panelStyle ? 'visible' : 'hidden',
+              }}
+            >
+              <div
+                className="pd-column-numeric-filter__rows"
+                role="radiogroup"
+                aria-label={`${label} range`}
+              >
+                <label className="pd-column-numeric-filter__row">
+                  <span className="pd-column-numeric-filter__choice">
+                    <input
+                      type="radio"
+                      name={`${panelId}-mode`}
+                      checked={value.mode === 'gt'}
+                      onChange={() => setMode('gt')}
+                    />
+                    <span>Greater Than</span>
+                  </span>
+                  <span className="pd-column-numeric-filter__fields">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={value.gt}
+                      onChange={(event) =>
+                        onChange({
+                          ...value,
+                          mode: 'gt',
+                          gt: event.target.value,
+                        })
+                      }
+                      onFocus={() => {
+                        if (value.mode !== 'gt') setMode('gt')
+                      }}
+                      aria-label={`${label} greater than`}
+                    />
+                    {unit ? (
+                      <span className="pd-column-numeric-filter__unit">{unit}</span>
+                    ) : null}
+                  </span>
+                </label>
+                <label className="pd-column-numeric-filter__row">
+                  <span className="pd-column-numeric-filter__choice">
+                    <input
+                      type="radio"
+                      name={`${panelId}-mode`}
+                      checked={value.mode === 'lt'}
+                      onChange={() => setMode('lt')}
+                    />
+                    <span>Less Than</span>
+                  </span>
+                  <span className="pd-column-numeric-filter__fields">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={value.lt}
+                      onChange={(event) =>
+                        onChange({
+                          ...value,
+                          mode: 'lt',
+                          lt: event.target.value,
+                        })
+                      }
+                      onFocus={() => {
+                        if (value.mode !== 'lt') setMode('lt')
+                      }}
+                      aria-label={`${label} less than`}
+                    />
+                    {unit ? (
+                      <span className="pd-column-numeric-filter__unit">{unit}</span>
+                    ) : null}
+                  </span>
+                </label>
+                <label className="pd-column-numeric-filter__row">
+                  <span className="pd-column-numeric-filter__choice">
+                    <input
+                      type="radio"
+                      name={`${panelId}-mode`}
+                      checked={value.mode === 'between'}
+                      onChange={() => setMode('between')}
+                    />
+                    <span>Between</span>
+                  </span>
+                  <span className="pd-column-numeric-filter__fields is-between">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={value.min}
+                      onChange={(event) =>
+                        onChange({
+                          ...value,
+                          mode: 'between',
+                          min: event.target.value,
+                        })
+                      }
+                      onFocus={() => {
+                        if (value.mode !== 'between') setMode('between')
+                      }}
+                      aria-label={`${label} between minimum`}
+                    />
+                    <span className="pd-column-numeric-filter__sep" aria-hidden>
+                      ,
+                    </span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={value.max}
+                      onChange={(event) =>
+                        onChange({
+                          ...value,
+                          mode: 'between',
+                          max: event.target.value,
+                        })
+                      }
+                      onFocus={() => {
+                        if (value.mode !== 'between') setMode('between')
+                      }}
+                      aria-label={`${label} between maximum`}
+                    />
+                    {unit ? (
+                      <span className="pd-column-numeric-filter__unit">{unit}</span>
+                    ) : null}
+                  </span>
+                </label>
+              </div>
+              {isActive ? (
+                <button
+                  type="button"
+                  className="pd-column-numeric-filter__clear"
+                  onClick={() => onChange(EMPTY_NUMERIC_RANGE_FILTER)}
+                >
+                  Clear filter
+                </button>
+              ) : null}
+            </span>,
+            document.body,
+          )
+        : null}
+    </span>
+  )
+}
+
 /** Renders the shared searchable multi-select menu used in table headers. */
 export function ColumnMultiSelectFilter({
   label,

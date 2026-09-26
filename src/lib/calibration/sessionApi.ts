@@ -4,10 +4,22 @@ export const CALIBRATION_SITTING_STATUSES = [
   'not_reviewed',
   'discussed',
   'confirmed',
+  'rating_changed',
 ] as const
 
 export type CalibrationSittingStatus =
   (typeof CALIBRATION_SITTING_STATUSES)[number]
+
+/** Labels match the FN calibration dashboard status wording. */
+export const CALIBRATION_SITTING_STATUS_LABEL: Record<
+  CalibrationSittingStatus,
+  string
+> = {
+  not_reviewed: 'Not Reviewed',
+  discussed: 'Under Discussion',
+  confirmed: 'Confirmed',
+  rating_changed: 'Rating Changed',
+}
 
 export type CalibrationSittingEmployee = {
   employeeId: number
@@ -80,10 +92,11 @@ export function saveCalibrationSittingEmployee(
 
 export function confirmCalibrationClean(
   cycleId: string,
+  employeeIds: readonly number[],
 ): Promise<CalibrationSitting> {
   return apiFetch<CalibrationSitting>(
     `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/calibration-sitting/confirm-clean`,
-    { method: 'POST', body: {} },
+    { method: 'POST', body: { employeeIds } },
   )
 }
 
@@ -92,6 +105,15 @@ export function lockCalibrationSession(
 ): Promise<CalibrationSitting> {
   return apiFetch<CalibrationSitting>(
     `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/calibration-sitting/lock`,
+    { method: 'POST', body: {} },
+  )
+}
+
+export function unlockCalibrationSession(
+  cycleId: string,
+): Promise<CalibrationSitting> {
+  return apiFetch<CalibrationSitting>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/calibration-sitting/unlock`,
     { method: 'POST', body: {} },
   )
 }

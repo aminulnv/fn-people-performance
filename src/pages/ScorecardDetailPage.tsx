@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Pencil } from 'lucide-react'
 import {
   Link,
@@ -16,8 +16,9 @@ import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store
 import { useAuth } from '@/lib/auth'
 import { canWriteManagerReview } from '@/lib/reviews/managerReviewAccess'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
-import { fetchReviewPacket } from '@/lib/reviews/packetsApi'
-import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
+import {
+  useReviewPacket,
+} from '@/lib/reviews/useReviewPackets'
 import { reviewsTabPath } from '@/lib/reviews/paths'
 import {
   buildScorecardDetail,
@@ -51,7 +52,7 @@ import {
 } from '@/lib/reviews/useReviews'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
 import { getReviewStage } from '@/lib/reviews/reviewStages'
-import type { ReviewPacket } from '@/lib/reviews/types'
+import type { GradeBandId } from '@/lib/reviews/types'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ReviewPacketView } from '@/pages/reviews/ReviewPacketView'
 import { ReviewQuestionField } from '@/pages/reviews/ReviewQuestionField'
@@ -76,7 +77,6 @@ import {
   valuesWithStoredGrades,
 } from '@/lib/values/reviewScores'
 import { useEnabledValues } from '@/lib/values/useValues'
-import type { GradeBandId } from '@/lib/reviews/types'
 import {
   ReviewActionIsland,
   ReviewSaveBanner,
@@ -108,14 +108,22 @@ export default function ScorecardDetailPage() {
     [cycleKey, cycles],
   )
   const [goalsRevision, setGoalsRevision] = useState(0)
-  const [packet, setPacket] = useState<ReviewPacket | null>(null)
-  const [packetReady, setPacketReady] = useState(false)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
   const editing = searchParams.get('mode') === 'edit'
   const incomingNotice = (
     location.state as { reviewNotice?: ReviewSaveNotice } | null
   )?.reviewNotice
   const cycle = getReviewCycle(resolvedCycleId)
+  const {
+    data: packetData,
+    isPending: packetPending,
+    isFetched: packetFetched,
+  } = useReviewPacket(
+    resolvedCycleId,
+    Number.isInteger(employeeId) && employeeId > 0 ? employeeId : null,
+  )
+  const packet = packetData ?? null
+  const packetReady = packetFetched || packetData !== undefined
   const policyResolution = cycle
     ? resolveCyclePolicyForPerson(cycle, employeeId, forms)
     : null
@@ -149,40 +157,6 @@ export default function ScorecardDetailPage() {
     setSaveNotice(incomingNotice)
     navigate('.', { replace: true, state: null })
   }, [incomingNotice, navigate])
-
-  useEffect(() => {
-    if (!Number.isInteger(employeeId) || employeeId <= 0) return
-    let cancelled = false
-    setPacketReady(false)
-    void fetchReviewPacket(resolvedCycleId, employeeId)
-      .then((next) => {
-        if (!cancelled) setPacket(next)
-      })
-      .catch(() => {
-        if (!cancelled) setPacket(null)
-      })
-      .finally(() => {
-        if (!cancelled) setPacketReady(true)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [employeeId, resolvedCycleId])
-
-  const refreshLivePacket = useCallback(
-    (event: { cycleId?: string; employeeId?: string }) => {
-      if (!Number.isInteger(employeeId) || employeeId <= 0) return
-      if (event.cycleId && event.cycleId !== resolvedCycleId) return
-      if (event.employeeId && event.employeeId !== String(employeeId)) return
-      void fetchReviewPacket(resolvedCycleId, employeeId)
-        .then(setPacket)
-        .catch(() => {
-          /* Keep the open packet until the next event or navigation. */
-        })
-    },
-    [employeeId, resolvedCycleId],
-  )
-  useLiveTopic('packets', refreshLivePacket)
 
   const detail = useMemo(() => {
     if (!Number.isInteger(employeeId) || employeeId <= 0) return null
@@ -299,7 +273,7 @@ export default function ScorecardDetailPage() {
   }
 
   if (!detail) {
-    if (isLoading || !packetReady || !cyclesHydrated) {
+    if (isLoading || (!packetReady && packetPending) || !cyclesHydrated) {
       return (
         <PageStatus
           variant="loading"

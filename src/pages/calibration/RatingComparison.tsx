@@ -5,10 +5,11 @@ import {
   COMPARISON_VIEWS,
   buildRatingComparisonGroups,
   buildRatingComparisonModel,
-  ratingBandCaption,
+  type RatingComparisonTone,
   type RatingComparisonViewId,
 } from '@/lib/calibration/ratingComparison'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
 import { HintIcon } from '@/pages/reviews/HintIcon'
@@ -17,7 +18,8 @@ const COMPARISON_HINT = (
   <ul className="pd-help-tip">
     <li>
       <strong>Bars</strong>
-      Each group’s mean official grade, on a 1–5 scale.
+      Each group’s mean official grade, on a 1–5 scale. Color shows how it
+      compares to the baseline.
     </li>
     <li>
       <strong>Vertical line</strong>
@@ -25,11 +27,7 @@ const COMPARISON_HINT = (
     </li>
     <li>
       <strong>Color</strong>
-      On par is within ±0.25 of that line. Below is red, above is blue.
-    </li>
-    <li>
-      <strong>Delta</strong>
-      Difference vs the baseline (hover for baseline name).
+      Within ±0.3 is grey (near baseline). Below is red, above is blue.
     </li>
   </ul>
 )
@@ -39,10 +37,14 @@ function formatDelta(delta: number): string {
   return `${rounded > 0 ? '+' : ''}${rounded.toFixed(2)}`
 }
 
-function deltaCopy(tone: 'on' | 'above' | 'below', delta: number) {
-  if (tone === 'on') return '≈ On par'
-  if (tone === 'above') return `↑ ${formatDelta(delta)}`
-  return `↓ ${formatDelta(delta)}`
+function deltaCopy(
+  tone: RatingComparisonTone,
+  delta: number,
+  baselineLabel: string,
+): string {
+  if (tone === 'on') return `≈ ${baselineLabel}`
+  if (tone === 'above') return `↑ ${formatDelta(delta)} vs ${baselineLabel}`
+  return `↓ ${formatDelta(delta)} vs ${baselineLabel}`
 }
 
 export function RatingComparison({
@@ -102,7 +104,7 @@ export function RatingComparison({
     ...groups.map((group) => ({ value: group.id, label: group.label })),
   ]
   const baselineOptions = [
-    { value: 'avg', label: 'Average of Group A' },
+    { value: 'avg', label: 'Average of above' },
     ...groups.map((group) => ({ value: group.id, label: group.label })),
   ]
 
@@ -120,35 +122,30 @@ export function RatingComparison({
 
       <div className="pd-cal-cmp__panel">
         <div className="pd-cal-cmp__filters">
-          <label className="pd-cal-cmp__filter">
-            <span className="pd-cal-cmp__filter-label">View by</span>
-            <SegmentedControl
-              options={[...COMPARISON_VIEWS]}
-              value={view}
-              onChange={setView}
-              aria-label="Comparison view"
-            />
-          </label>
-          <div className="pd-cal-cmp__filter pd-cal-cmp__filter--compare">
-            <span className="pd-cal-cmp__filter-label">Compare</span>
-            <div className="pd-cal-cmp__compare">
-              <ListboxSelect
-                value={scopeId}
-                onValueChange={setScopeId}
-                options={scopeOptions}
-                allowEmpty={false}
-                aria-label="Comparison group A"
-              />
-              <span className="pd-cal-cmp__vs">vs</span>
-              <ListboxSelect
-                value={baselineId}
-                onValueChange={setBaselineId}
-                options={baselineOptions}
-                allowEmpty={false}
-                aria-label="Comparison baseline"
-              />
-            </div>
-          </div>
+          <span className="pd-cal-cmp__filter-label">View by:</span>
+          <SegmentedControl
+            options={[...COMPARISON_VIEWS]}
+            value={view}
+            onChange={setView}
+            aria-label="Comparison view"
+          />
+          <span className="pd-cal-cmp__sep" aria-hidden />
+          <span className="pd-cal-cmp__filter-label">Compare:</span>
+          <ListboxSelect
+            value={scopeId}
+            onValueChange={setScopeId}
+            options={scopeOptions}
+            allowEmpty={false}
+            aria-label="Comparison group A"
+          />
+          <span className="pd-cal-cmp__vs">vs</span>
+          <ListboxSelect
+            value={baselineId}
+            onValueChange={setBaselineId}
+            options={baselineOptions}
+            allowEmpty={false}
+            aria-label="Comparison baseline"
+          />
         </div>
 
         {model.rows.length === 0 ? (
@@ -162,6 +159,15 @@ export function RatingComparison({
               <li key={row.id} className="pd-cal-cmp__row">
                 <span className="pd-cal-cmp__name">{row.label}</span>
                 <div className="pd-cal-cmp__track">
+                  <span
+                    className={cx('pd-cal-cmp__bar', `is-${row.tone}`)}
+                    style={{ width: `${row.barPercent}%` }}
+                  >
+                    <span className="pd-cal-cmp__bar-label">
+                      {row.averageScore.toFixed(2)} ·{' '}
+                      {GRADE_BAND_META[row.averageBand].label}
+                    </span>
+                  </span>
                   {model.baselineLinePercent != null ? (
                     <span
                       className="pd-cal-cmp__line"
@@ -169,21 +175,12 @@ export function RatingComparison({
                       aria-hidden
                     />
                   ) : null}
-                  <span
-                    className={cx('pd-cal-cmp__bar', `is-${row.tone}`)}
-                    style={{ width: `${row.barPercent}%` }}
-                    aria-hidden
-                  />
                 </div>
-                <span className="pd-cal-cmp__score">
-                  <strong>{row.averageScore.toFixed(2)}</strong>
-                  <span>{ratingBandCaption(row.averageBand)}</span>
-                </span>
                 <span
                   className={cx('pd-cal-cmp__delta', `is-${row.tone}`)}
                   title={`vs ${model.baselineLabel}`}
                 >
-                  {deltaCopy(row.tone, row.delta)}
+                  {deltaCopy(row.tone, row.delta, model.baselineLabel)}
                 </span>
                 <span
                   className="pd-cal-cmp__people"
@@ -196,6 +193,11 @@ export function RatingComparison({
             ))}
           </ul>
         )}
+
+        <p className="pd-cal-cmp__guide">
+          <span className="pd-cal-cmp__guide-mark" aria-hidden />
+          Vertical line = average rating of selected comparison group
+        </p>
       </div>
     </section>
   )

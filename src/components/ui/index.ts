@@ -97,6 +97,13 @@ export type {
 
 export { MetricTile } from './MetricTile'
 
+export { NumericStatCard } from './NumericStatCard'
+export type {
+  NumericStatCardProps,
+  NumericStatPoint,
+  NumericStatTone,
+} from './NumericStatCard'
+
 export { Tooltip } from './Tooltip'
 export type { TooltipProps } from './Tooltip'
 

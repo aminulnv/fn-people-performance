@@ -32,6 +32,7 @@ import {
   confirmCalibrationClean,
   getCalibrationSitting,
   lockCalibrationSession,
+  unlockCalibrationSession,
   saveCalibrationSittingEmployee,
 } from '../calibrationSession.mjs'
 import {
@@ -430,6 +431,7 @@ export function registerReviewCycleRoutes(app) {
         const sitting = await confirmCalibrationClean(
           req.params.cycleId,
           req.platformUser?.employeeId ?? null,
+          req.body?.employeeIds,
         )
         await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
         res.json(sitting)
@@ -448,6 +450,26 @@ export function registerReviewCycleRoutes(app) {
       if (!cycle) throw new HttpError(404, 'Review cycle not found')
       try {
         const sitting = await lockCalibrationSession(
+          req.params.cycleId,
+          req.platformUser?.employeeId ?? null,
+        )
+        await publishWrite(req, ['reviews'], { cycleId: req.params.cycleId })
+        res.json(sitting)
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-cycles/:cycleId/calibration-sitting/unlock',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      const cycle = await getReviewCycle(req.params.cycleId)
+      if (!cycle) throw new HttpError(404, 'Review cycle not found')
+      try {
+        const sitting = await unlockCalibrationSession(
           req.params.cycleId,
           req.platformUser?.employeeId ?? null,
         )

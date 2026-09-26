@@ -24,14 +24,6 @@ import {
   type CalibrationIndicator,
 } from './indicators'
 
-export const GRADE_SHORT_LABEL: Record<GradeBandId, string> = {
-  exceptional: 'Excp',
-  exceeding: 'Exce',
-  performing: 'Perf',
-  developing: 'Deve',
-  unsatisfactory: 'Unsa',
-}
-
 const JOB_LEVEL_ORDER = ['IC1', 'IC2', 'IC3+', 'Manager']
 
 /** IC1, IC2, and IC3+ (IC3 and above). Manager grades stay in their own bucket. */
@@ -93,6 +85,7 @@ export type RatingTableTrend = number | null
 export type RatingTableRow = {
   employeeId: number
   fullName: string
+  avatarUrl: string
   department: string
   team: string
   market: string
@@ -312,6 +305,7 @@ export function buildEmployeeRatingRows(input: {
     rows.push({
       employeeId,
       fullName: employee.fullName,
+      avatarUrl: employee.avatarUrl?.trim() ?? '',
       department: employee.department.trim() || '—',
       team: employee.team.trim() || '—',
       market: employee.site.trim() || '—',
@@ -384,15 +378,18 @@ export function employeeMatchesCohort(
     team?: readonly string[]
     market?: readonly string[]
     jobLevel?: readonly string[]
+    manager?: readonly string[]
   },
 ): boolean {
   const department = employee.department.trim() || '—'
   const team = employee.team.trim() || '—'
   const market = employee.site.trim() || '—'
+  const manager = employee.reportsToName.trim() || '—'
   if (!matchesSelection(department, filters.department)) return false
   if (!matchesSelection(team, filters.team)) return false
   if (!matchesSelection(market, filters.market)) return false
   if (!matchesSelection(jobLevelOf(employee.jobGrade), filters.jobLevel)) return false
+  if (!matchesSelection(manager, filters.manager)) return false
   return true
 }
 

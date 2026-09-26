@@ -45,11 +45,11 @@ function BandColumn({
   })
   const headline = grouped
     ? cells
-        .map(
-          (cell) =>
-            `${cell.seriesLabel} ${cell.percent}% (${peopleLabel(cell.count)})`,
-        )
-        .join(', ')
+      .map(
+        (cell) =>
+          `${cell.seriesLabel} ${cell.percent}% (${peopleLabel(cell.count)})`,
+      )
+      .join(', ')
     : `${band.percent}% · ${peopleLabel(band.count)}`
 
   return (
@@ -244,33 +244,33 @@ export function RatingDistributionChart({
       ) : null}
 
       {hideSummary ? null : (
-      <aside className="pd-cal-dist__stats" aria-label="Calibration totals">
-        <p className="pd-cal-dist__stat">
-          <span>Total in calibration</span>
-          <strong>{summary.total}</strong>
-        </p>
-        <p className="pd-cal-dist__stat">
-          <span>Exceeding & above</span>
-          <strong className="is-high">
-            {summary.exceedingAndAbove.count}
-            <em>({summary.exceedingAndAbove.percent}%)</em>
-          </strong>
-        </p>
-        <p className="pd-cal-dist__stat">
-          <span>Performing</span>
-          <strong className="is-mid">
-            {summary.performing.count}
-            <em>({summary.performing.percent}%)</em>
-          </strong>
-        </p>
-        <p className="pd-cal-dist__stat">
-          <span>Developing & below</span>
-          <strong className="is-low">
-            {summary.developingAndBelow.count}
-            <em>({summary.developingAndBelow.percent}%)</em>
-          </strong>
-        </p>
-      </aside>
+        <aside className="pd-cal-dist__stats" aria-label="Calibration totals">
+          <p className="pd-cal-dist__stat">
+            <span>Total in calibration</span>
+            <strong>{summary.total}</strong>
+          </p>
+          <p className="pd-cal-dist__stat">
+            <span>Exceeding & above</span>
+            <strong className="is-high">
+              {summary.exceedingAndAbove.count}
+              <em>({summary.exceedingAndAbove.percent}%)</em>
+            </strong>
+          </p>
+          <p className="pd-cal-dist__stat">
+            <span>Performing</span>
+            <strong className="is-mid">
+              {summary.performing.count}
+              <em>({summary.performing.percent}%)</em>
+            </strong>
+          </p>
+          <p className="pd-cal-dist__stat">
+            <span>Developing & below</span>
+            <strong className="is-low">
+              {summary.developingAndBelow.count}
+              <em>({summary.developingAndBelow.percent}%)</em>
+            </strong>
+          </p>
+        </aside>
       )}
     </section>
   )

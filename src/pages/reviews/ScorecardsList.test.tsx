@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import {
@@ -122,10 +123,15 @@ afterEach(() => {
 })
 
 function renderList(hash = '') {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
   return render(
-    <MemoryRouter initialEntries={[`/reviews/scorecards${hash}`]}>
-      <ScorecardsList />
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/reviews/scorecards${hash}`]}>
+        <ScorecardsList />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

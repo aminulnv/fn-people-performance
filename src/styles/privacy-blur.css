@@ -1,0 +1,103 @@
+.privacy-blur {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: var(--spacing-6, 1.5rem);
+  border: 0;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--color-text-primary, inherit);
+  font-family: var(--font-body, inherit);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Frosted glass only — sits under the icon/text so their motion stays sharp */
+.privacy-blur__veil {
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--color-surface, #fff) 55%, transparent);
+  backdrop-filter: blur(28px) saturate(0.72);
+  -webkit-backdrop-filter: blur(28px) saturate(0.72);
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .privacy-blur__veil {
+    background: color-mix(in srgb, var(--color-surface, #fff) 94%, transparent);
+  }
+}
+
+.privacy-blur__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-4, 1rem);
+  pointer-events: none;
+}
+
+.privacy-blur__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 9rem;
+  height: 9rem;
+}
+
+.privacy-blur__shadow {
+  position: absolute;
+  bottom: 0.35rem;
+  left: 50%;
+  width: 5.5rem;
+  height: 0.85rem;
+  margin-left: -2.75rem;
+  border-radius: 999px;
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, black 28%, transparent) 0%,
+    transparent 72%
+  );
+  transform-origin: center center;
+  filter: blur(2px);
+}
+
+.privacy-blur__icon {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 7.5rem;
+  height: 7.5rem;
+  object-fit: contain;
+  transform-origin: 50% 85%;
+  filter: drop-shadow(0 10px 22px color-mix(in srgb, black 24%, transparent));
+  will-change: transform, opacity;
+}
+
+.privacy-blur__message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-2, 0.5rem);
+  margin: 0;
+  font-size: var(--text-lg, 1.125rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-align: center;
+}
+
+.privacy-blur__hint {
+  display: block;
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 500;
+  color: var(--color-text-secondary, inherit);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .privacy-blur__icon {
+    will-change: opacity;
+  }
+}

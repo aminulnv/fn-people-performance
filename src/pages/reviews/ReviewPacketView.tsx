@@ -22,10 +22,13 @@ import {
 import {
   appealReviewPacket,
   calibrateReviewPacket,
-  fetchReviewPacket,
   resolveReviewAppeal,
   saveReviewPacket,
 } from '@/lib/reviews/packetsApi'
+import {
+  usePatchReviewPacketCache,
+  useReviewPacket,
+} from '@/lib/reviews/useReviewPackets'
 import {
   annualGoalsComponent,
   outcomeForAnnualQuarter,
@@ -57,7 +60,6 @@ import {
   stageShowsReviewForm,
 } from '@/lib/reviews/scorecardStages'
 import { officialReviewReleasedToEmployee } from '@/lib/reviews/packetVisibility'
-import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
@@ -155,7 +157,13 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   useHydrateManagerDelegations(user?.employeeId ?? undefined)
   useManagerDelegationsRevision()
   const { employees, isLoading: employeesLoading } = useEmployees()
-  const [packet, setPacket] = useState<ReviewPacket | null>(null)
+  const patchPacketCache = usePatchReviewPacketCache()
+  const {
+    data: cachedPacket,
+    isError: packetQueryError,
+    error: packetLoadError,
+  } = useReviewPacket(cycleId, employeeId)
+  const [packet, setPacketState] = useState<ReviewPacket | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [goalsRevision, setGoalsRevision] = useState(0)
@@ -181,6 +189,28 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const forms = useScorecardFormsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
   const cycle = getReviewCycle(cycleId)
+  const setPacket = useCallback(
+    (next: ReviewPacket) => {
+      setPacketState(next)
+      patchPacketCache(next)
+    },
+    [patchPacketCache],
+  )
+
+  useEffect(() => {
+    if (!cachedPacket || isDirty) return
+    setPacketState(cachedPacket)
+    setError(null)
+  }, [cachedPacket, isDirty])
+
+  useEffect(() => {
+    if (!packetQueryError || packet) return
+    setError(
+      packetLoadError instanceof Error
+        ? packetLoadError.message
+        : 'Could not load this review.',
+    )
+  }, [packet, packetLoadError, packetQueryError])
   const policyResolution = cycle
     ? resolveCyclePolicyForPerson(cycle, employeeId, forms)
     : null
@@ -226,37 +256,6 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       buildScorecardDetail(cycleId, employeeId, employees, user?.email, packet),
     [cycleId, cycles, employeeId, employees, goalsRevision, packet, user?.email],
   )
-
-  useEffect(() => {
-    let cancelled = false
-    void fetchReviewPacket(cycleId, employeeId)
-      .then((next) => {
-        if (!cancelled) setPacket(next)
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Could not load this review.')
-        }
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [cycleId, employeeId])
-
-  const refreshLivePacket = useCallback(
-    (event: { cycleId?: string; employeeId?: string }) => {
-      if (isDirty) return
-      if (event.cycleId && event.cycleId !== cycleId) return
-      if (event.employeeId && event.employeeId !== String(employeeId)) return
-      void fetchReviewPacket(cycleId, employeeId)
-        .then(setPacket)
-        .catch(() => {
-          /* Keep the open packet until the next event or navigation. */
-        })
-    },
-    [cycleId, employeeId, isDirty],
-  )
-  useLiveTopic('packets', refreshLivePacket)
 
   const stages = policyResolution?.stagesConfig.reviewStages
   const stageView = useScorecardViewStage({

@@ -37,7 +37,7 @@ export type RatingComparisonModel = {
   baselineLinePercent: number | null
 }
 
-const ON_AVG_DELTA = 0.25
+const ON_AVG_DELTA = 0.3
 const SCORE_MAX = 5
 
 function managerIdFor(
@@ -170,7 +170,8 @@ export function buildRatingComparisonModel(input: {
 
   if (input.baselineId === 'avg') {
     baselineScore = avgOfScoped
-    baselineLabel = 'Avg of All'
+    baselineLabel =
+      input.scopeId === 'all' ? 'Avg of All' : `Avg of ${scoped[0]?.label ?? 'above'}`
   } else {
     const baselineGroup =
       input.groups.find((group) => group.id === input.baselineId) ?? null

@@ -28,7 +28,7 @@ import {
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { queryKeys } from '@/lib/queryClient'
+import { PACKET_STALE_MS, queryKeys } from '@/lib/queryClient'
 import {
   cycleGroupByEmployeeId,
   findCycleGroupForPerson,
@@ -292,7 +292,7 @@ function CyclePeopleTable({
   const { data: packets = [] } = useQuery({
     queryKey: queryKeys.reviewPacketSummaries(cycle.id),
     queryFn: () => fetchReviewPacketSummaries(cycle.id),
-    staleTime: 60_000,
+    staleTime: PACKET_STALE_MS,
     placeholderData: (previous) => previous,
   })
   const packetByEmployee = useMemo(

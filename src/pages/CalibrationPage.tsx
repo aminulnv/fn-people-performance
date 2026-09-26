@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { Scale } from 'lucide-react'
 import {
-  CYCLE_SELECT_CLEAR_ID,
   CycleSelect,
   EmptyState,
   PageStatus,
@@ -20,26 +19,34 @@ import {
   previousCyclesOfSamePurpose,
 } from '@/lib/calibration/indicators'
 import { buildManagerRatingHeatmap } from '@/lib/calibration/managerHeatmap'
-import { useEmployees } from '@/lib/employees/useEmployees'
-import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
-import { cycleMemberIds } from '@/lib/reviews/cycleGroups'
-import { cycleSupportsCalibration } from '@/lib/reviews/purpose'
-import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
-import { fetchReviewPacketSummaries } from '@/lib/reviews/packetsApi'
-import { formatDateRange } from '@/lib/reviews/periods'
-import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
-import type { ReviewPacket } from '@/lib/reviews/types'
 import {
-  useReviewCyclesHydrated,
-  useReviewsSnapshot,
-} from '@/lib/reviews/useReviews'
-import {
+  buildEmployeeRatingRows,
   employeeMatchesCohort,
   jobLevelOf,
   sortJobLevels,
   uniqueSortedValues,
 } from '@/lib/calibration/ratingTable'
+import { useEmployees } from '@/lib/employees/useEmployees'
+import { cycleMemberIds } from '@/lib/reviews/cycleGroups'
+import { cycleSupportsCalibration } from '@/lib/reviews/purpose'
+import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
+import { formatDateRange } from '@/lib/reviews/periods'
+import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
+import {
+  usePatchReviewPacketCache,
+  useReviewPacketSummaries,
+  useReviewPacketSummariesForCycles,
+  prefetchReviewPacketsForCycle,
+} from '@/lib/reviews/useReviewPackets'
+import { prefetchCalibrationSession } from '@/lib/calibration/useCalibrationSession'
+import { queryClient } from '@/lib/queryClient'
+import {
+  useReviewCyclesHydrated,
+  useReviewsSnapshot,
+} from '@/lib/reviews/useReviews'
+import { CalibrationEmployeePanelHost } from '@/pages/calibration/CalibrationEmployeePanelHost'
 import { CalibrationIndicators } from '@/pages/calibration/CalibrationIndicators'
+import { CalibrationSessionBadge } from '@/pages/calibration/CalibrationSessionBadge'
 import { EmployeeRatingTable } from '@/pages/calibration/EmployeeRatingTable'
 import { ManagerRatingHeatmap } from '@/pages/calibration/ManagerRatingHeatmap'
 import { RatingComparison } from '@/pages/calibration/RatingComparison'
@@ -84,22 +91,21 @@ export default function CalibrationPage() {
   const { employees, loadState, loadError } = useEmployees()
   const { cycles } = useReviewsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
+  const patchPacketCache = usePatchReviewPacketCache()
   const [breakdown, setBreakdown] = useState<RatingBreakdownId>('overall')
   const [cycleId, setCycleId] = useState('')
   const [cyclePicked, setCyclePicked] = useState(false)
-  const [packets, setPackets] = useState<ReviewPacket[]>([])
-  const [historyPackets, setHistoryPackets] = useState<ReviewPacket[][]>([])
-  const [linkedPacketsByCycleId, setLinkedPacketsByCycleId] = useState<
-    Map<string, ReviewPacket[]>
-  >(() => new Map())
-  const [dataState, setDataState] = useState<
-    'idle' | 'loading' | 'ready' | 'error'
-  >('idle')
-  const [dataError, setDataError] = useState<string | null>(null)
   const [departments, setDepartments] = useState<string[]>([])
   const [teams, setTeams] = useState<string[]>([])
   const [markets, setMarkets] = useState<string[]>([])
   const [jobLevels, setJobLevels] = useState<string[]>([])
+  const [managers, setManagers] = useState<string[]>([])
+  const [panelEmployeeId, setPanelEmployeeId] = useState<number | null>(null)
+  const [sittingEpoch, setSittingEpoch] = useState(0)
+
+  useEffect(() => {
+    setPanelEmployeeId(null)
+  }, [cycleId])
 
   const cycleOptions = useMemo<CycleSelectOption[]>(
     () =>
@@ -119,17 +125,9 @@ export default function CalibrationPage() {
   function handleCycleChange(nextId: string) {
     setCyclePicked(true)
     setCycleId(nextId)
-    if (!nextId) {
-      setPackets([])
-      setHistoryPackets([])
-      setLinkedPacketsByCycleId(new Map())
-      setDataState('ready')
-      setDataError(null)
-    }
   }
 
   useEffect(() => {
-    if (cyclePicked && cycleId === CYCLE_SELECT_CLEAR_ID) return
     const availableIds = cycleOptions.map((option) => option.id)
     const fallback =
       cycles.find(
@@ -145,124 +143,76 @@ export default function CalibrationPage() {
       fallback,
     )[0]
     if (next && next !== cycleId) setCycleId(next)
-  }, [cycleId, cycleOptions, cyclePicked, cycles])
-
-  const loadPackets = useCallback(async (selectedCycleId: string) => {
-    return fetchReviewPacketSummaries(selectedCycleId)
-  }, [])
-
-  const loadIndicatorContext = useCallback(
-    async (selectedCycleId: string) => {
-      const selected = cycles.find((item) => item.id === selectedCycleId)
-      if (!selected) {
-        return {
-          history: [] as ReviewPacket[][],
-          linked: new Map<string, ReviewPacket[]>(),
-        }
-      }
-      const previous = previousCyclesOfSamePurpose(selected, cycles, 2)
-      const linkedIds = annualSourceLinks(selected, cycles).map(
-        (link) => link.sourceCycleId,
-      )
-      const [historyRows, linkedRows] = await Promise.all([
-        Promise.all(previous.map((cycle) => loadPackets(cycle.id))),
-        Promise.all(
-          linkedIds.map(async (id) => [id, await loadPackets(id)] as const),
-        ),
-      ])
-      return {
-        history: historyRows,
-        linked: new Map(linkedRows),
-      }
-    },
-    [cycles, loadPackets],
-  )
-
-  useEffect(() => {
-    if (!cycleId) {
-      setPackets([])
-      setHistoryPackets([])
-      setLinkedPacketsByCycleId(new Map())
-      setDataState('ready')
-      setDataError(null)
-      return
-    }
-    let cancelled = false
-    setDataState('loading')
-    setDataError(null)
-    setPackets([])
-    setHistoryPackets([])
-    setLinkedPacketsByCycleId(new Map())
-    void Promise.all([loadPackets(cycleId), loadIndicatorContext(cycleId)])
-      .then(([nextPackets, context]) => {
-        if (cancelled) return
-        setPackets(nextPackets)
-        setHistoryPackets(context.history)
-        setLinkedPacketsByCycleId(context.linked)
-        setDataState('ready')
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return
-        setPackets([])
-        setHistoryPackets([])
-        setLinkedPacketsByCycleId(new Map())
-        setDataState('error')
-        setDataError(
-          error instanceof Error
-            ? error.message
-            : 'Could not load calibration.',
-        )
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [cycleId, loadIndicatorContext, loadPackets])
-
-  const retryLoad = useCallback(() => {
-    if (!cycleId) return
-    setDataState('loading')
-    setDataError(null)
-    void Promise.all([loadPackets(cycleId), loadIndicatorContext(cycleId)])
-      .then(([nextPackets, context]) => {
-        setPackets(nextPackets)
-        setHistoryPackets(context.history)
-        setLinkedPacketsByCycleId(context.linked)
-        setDataState('ready')
-      })
-      .catch((error: unknown) => {
-        setDataState('error')
-        setDataError(
-          error instanceof Error
-            ? error.message
-            : 'Could not load calibration.',
-        )
-      })
-  }, [cycleId, loadIndicatorContext, loadPackets])
-
-  const refreshLive = useCallback(
-    (event: { cycleId?: string }) => {
-      const target = event.cycleId ?? cycleId
-      if (!target || (event.cycleId && event.cycleId !== cycleId)) return
-      void Promise.all([loadPackets(target), loadIndicatorContext(target)])
-        .then(([nextPackets, context]) => {
-          setPackets(nextPackets)
-          setHistoryPackets(context.history)
-          setLinkedPacketsByCycleId(context.linked)
-        })
-        .catch(() => {
-          /* Keep the last good snapshot. */
-        })
-    },
-    [cycleId, loadIndicatorContext, loadPackets],
-  )
-  useLiveTopic('packets', refreshLive)
+  }, [cycleId, cycleOptions, cycles])
 
   const cycle = cycles.find((item) => item.id === cycleId) ?? null
+  const historyCycleIds = useMemo(() => {
+    if (!cycle) return [] as string[]
+    return previousCyclesOfSamePurpose(cycle, cycles, 3).map((item) => item.id)
+  }, [cycle, cycles])
+  const linkedCycleIds = useMemo(() => {
+    if (!cycle) return [] as string[]
+    return annualSourceLinks(cycle, cycles).map((link) => link.sourceCycleId)
+  }, [cycle, cycles])
+  const contextCycleIds = useMemo(
+    () => [...historyCycleIds, ...linkedCycleIds],
+    [historyCycleIds, linkedCycleIds],
+  )
+
+  const {
+    data: packetsData,
+    isPending: packetsPending,
+    isError: packetsError,
+    error: packetsQueryError,
+    refetch: refetchPackets,
+  } = useReviewPacketSummaries(cycleId || null)
+
+  const {
+    byCycleId: contextByCycleId,
+    isError: contextError,
+    error: contextQueryError,
+  } = useReviewPacketSummariesForCycles(contextCycleIds)
+
+  // Warm full packets + sitting so employee drawers open without a wait.
+  useEffect(() => {
+    if (!cycleId) return
+    prefetchCalibrationSession(cycleId)
+    prefetchReviewPacketsForCycle(queryClient, cycleId)
+  }, [cycleId])
+
+  const packets = packetsData ?? []
+  const historyPackets = useMemo(
+    () =>
+      historyCycleIds.map(
+        (id) => contextByCycleId.get(id) ?? ([] as typeof packets),
+      ),
+    [contextByCycleId, historyCycleIds, packets],
+  )
+  const linkedPacketsByCycleId = useMemo(() => {
+    const map = new Map<string, typeof packets>()
+    for (const id of linkedCycleIds) {
+      map.set(id, contextByCycleId.get(id) ?? [])
+    }
+    return map
+  }, [contextByCycleId, linkedCycleIds, packets])
+
+  const dataError =
+    (packetsError && packetsData === undefined) ||
+      (contextError && packetsData === undefined)
+      ? ((packetsQueryError ?? contextQueryError) instanceof Error
+        ? (packetsQueryError ?? contextQueryError)!.message
+        : 'Could not load calibration.')
+      : null
+
+  const retryLoad = () => {
+    void refetchPackets()
+  }
   const cohortActive =
     departments.length > 0 ||
     teams.length > 0 ||
     markets.length > 0 ||
-    jobLevels.length > 0
+    jobLevels.length > 0 ||
+    managers.length > 0
   const cohortEmployees = useMemo(() => {
     if (!cycle) return []
     const members = new Set(cycleMemberIds(cycle))
@@ -274,16 +224,23 @@ export default function CalibrationPage() {
           team: teams,
           market: markets,
           jobLevel: jobLevels,
+          manager: managers,
         }),
     )
-  }, [cycle, departments, employees, jobLevels, markets, teams])
+  }, [cycle, departments, employees, jobLevels, managers, markets, teams])
   const cohortIds = useMemo(
     () => new Set(cohortEmployees.map((employee) => employee.employeeId)),
     [cohortEmployees],
   )
   const cohortOptions = useMemo(() => {
     if (!cycle) {
-      return { departments: [], teams: [], markets: [], jobLevels: [] }
+      return {
+        departments: [],
+        teams: [],
+        markets: [],
+        jobLevels: [],
+        managers: [],
+      }
     }
     const members = new Set(cycleMemberIds(cycle))
     const people = employees.filter((employee) =>
@@ -300,6 +257,9 @@ export default function CalibrationPage() {
         people.map((employee) => employee.site.trim() || '—'),
       ),
       jobLevels: sortJobLevels(people.map((employee) => jobLevelOf(employee.jobGrade))),
+      managers: uniqueSortedValues(
+        people.map((employee) => employee.reportsToName.trim() || '—'),
+      ),
     }
   }, [cycle, employees])
   const cyclePackets = useMemo(
@@ -330,8 +290,8 @@ export default function CalibrationPage() {
           const day = employee.lastPromotionOn?.slice(0, 10)
           return Boolean(
             day &&
-              day >= previousCycle.startDate &&
-              day <= previousCycle.endDate,
+            day >= previousCycle.startDate &&
+            day <= previousCycle.endDate,
           )
         })
         .map((employee) => employee.employeeId),
@@ -370,6 +330,27 @@ export default function CalibrationPage() {
     })
   }, [cycle, cyclePackets, employees])
 
+  const insightRows = useMemo(() => {
+    if (!cycle) return []
+    return buildEmployeeRatingRows({
+      cycle,
+      cycles,
+      employees: cohortEmployees,
+      packets: cyclePackets,
+      previousPackets: historyPackets[0] ?? [],
+      linkedPacketsByCycleId,
+      indicators,
+    })
+  }, [
+    cohortEmployees,
+    cycle,
+    cyclePackets,
+    cycles,
+    historyPackets,
+    indicators,
+    linkedPacketsByCycleId,
+  ])
+
   const directoryLoading = loadState === 'idle' || loadState === 'loading'
   const waitingForDefaultCycle =
     !cyclePicked && cycleOptions.length > 0 && !cycleId
@@ -377,7 +358,7 @@ export default function CalibrationPage() {
     directoryLoading ||
     !cyclesHydrated ||
     waitingForDefaultCycle ||
-    (Boolean(cycleId) && dataState !== 'ready' && dataState !== 'error')
+    (Boolean(cycleId) && packetsPending && packetsData === undefined)
 
   if (viewParam !== 'insights' && viewParam !== 'ratings') {
     return <Navigate to={calibrationTabPath('insights')} replace />
@@ -385,65 +366,81 @@ export default function CalibrationPage() {
 
   return (
     <div
-      className="pd-page pd-page--pane pd-page--wide pd-people pd-calibration"
+      className="pd-page pd-page--wide pd-people pd-calibration"
       aria-label="Calibration"
     >
       {cycleOptions.length > 0 ? (
         <div className="pd-people__header pd-people__header--bar">
-          <div className="pd-cal-rt__filters">
-            <CohortFilter
-              label="Departments"
-              emptyLabel="All Departments"
-              options={cohortOptions.departments}
-              values={departments}
-              onChange={setDepartments}
-            />
-            <CohortFilter
-              label="Teams"
-              emptyLabel="All Teams"
-              options={cohortOptions.teams}
-              values={teams}
-              onChange={setTeams}
-            />
-            <CohortFilter
-              label="Markets"
-              emptyLabel="All Markets"
-              options={cohortOptions.markets}
-              values={markets}
-              onChange={setMarkets}
-            />
-            <CohortFilter
-              label="Job levels"
-              emptyLabel="All Job Levels"
-              options={cohortOptions.jobLevels}
-              values={jobLevels}
-              onChange={setJobLevels}
-            />
-            {cohortActive ? (
-              <button
-                type="button"
-                className="pd-people__ghost-btn"
-                onClick={() => {
-                  setDepartments([])
-                  setTeams([])
-                  setMarkets([])
-                  setJobLevels([])
-                }}
-              >
-                Reset
-              </button>
-            ) : null}
+          <div className="pd-people__bar-start">
+            <div className="pd-cal-rt__filters">
+              <CycleSelect
+                label="Cycle"
+                options={cycleOptions}
+                value={cycleId}
+                onChange={handleCycleChange}
+              />
+              <CohortFilter
+                label="Departments"
+                emptyLabel="All Departments"
+                options={cohortOptions.departments}
+                values={departments}
+                onChange={setDepartments}
+              />
+              <CohortFilter
+                label="Teams"
+                emptyLabel="All Teams"
+                options={cohortOptions.teams}
+                values={teams}
+                onChange={setTeams}
+              />
+              <CohortFilter
+                label="Markets"
+                emptyLabel="All Markets"
+                options={cohortOptions.markets}
+                values={markets}
+                onChange={setMarkets}
+              />
+              <CohortFilter
+                label="Job levels"
+                emptyLabel="All Job Levels"
+                options={cohortOptions.jobLevels}
+                values={jobLevels}
+                onChange={setJobLevels}
+              />
+              <CohortFilter
+                label="Managers"
+                emptyLabel="All Managers"
+                options={cohortOptions.managers}
+                values={managers}
+                onChange={setManagers}
+              />
+              {cohortActive ? (
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn"
+                  onClick={() => {
+                    setDepartments([])
+                    setTeams([])
+                    setMarkets([])
+                    setJobLevels([])
+                    setManagers([])
+                  }}
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
           </div>
-          <div className="pd-people__bar-end">
-            <CycleSelect
-              label="Cycle"
-              options={cycleOptions}
-              value={cycleId}
-              onChange={handleCycleChange}
-              allowEmpty
-              emptyLabel="Clear"
-            />
-          </div>
+          {cycleId ? (
+            <div className="pd-people__bar-end">
+              <CalibrationSessionBadge
+                cycleId={cycleId}
+                onSittingChange={() =>
+                  setSittingEpoch((epoch) => epoch + 1)
+                }
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -453,11 +450,11 @@ export default function CalibrationPage() {
           title="Could Not Load People"
           description={loadError ?? 'Reload and try again.'}
         />
-      ) : dataState === 'error' ? (
+      ) : dataError ? (
         <PageStatus
           variant="error"
           title="Could Not Load Calibration"
-          description={dataError ?? 'Reload and try again.'}
+          description={dataError}
           action={<PageStatusRetry onClick={retryLoad} />}
         />
       ) : pageLoading ? (
@@ -488,13 +485,9 @@ export default function CalibrationPage() {
             teams={teams}
             markets={markets}
             jobLevels={jobLevels}
-            onPacketUpdated={(next) => {
-              setPackets((current) =>
-                current.map((packet) =>
-                  packet.id === next.id ? next : packet,
-                ),
-              )
-            }}
+            managers={managers}
+            sittingEpoch={sittingEpoch}
+            onPacketUpdated={patchPacketCache}
           />
         )
       ) : !cycle ? (
@@ -527,6 +520,9 @@ export default function CalibrationPage() {
           <CalibrationIndicators
             indicators={indicators}
             employees={employees}
+            packets={cyclePackets}
+            rows={insightRows}
+            onSelectEmployee={setPanelEmployeeId}
           />
           <ManagerRatingHeatmap heatmap={heatmap} />
           <RatingComparison
@@ -538,7 +534,22 @@ export default function CalibrationPage() {
             cycle={cycle}
             employees={employees}
             packets={cyclePackets}
+            onSelectEmployee={setPanelEmployeeId}
           />
+          {panelEmployeeId != null ? (
+            <CalibrationEmployeePanelHost
+              employeeId={panelEmployeeId}
+              rows={insightRows}
+              cycle={cycle}
+              cycles={cycles}
+              employees={employees}
+              packets={cyclePackets}
+              historyPackets={historyPackets}
+              sittingEpoch={sittingEpoch}
+              onClose={() => setPanelEmployeeId(null)}
+              onPacketUpdated={patchPacketCache}
+            />
+          ) : null}
         </>
       )}
     </div>

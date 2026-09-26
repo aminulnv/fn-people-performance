@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import {
   MemoryRouter,
   Route,
@@ -7,6 +8,7 @@ import {
   useLocation,
   useSearchParams,
 } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { SystemPermission } from '@/lib/accessControl/types'
 import type { ReviewPacket } from '@/lib/reviews/types'
@@ -265,30 +267,41 @@ function ScorecardRoute() {
   )
 }
 
+function withQuery(ui: ReactNode) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
+  return <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+}
+
 function renderEdit() {
   return render(
-    <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2?mode=edit`]}>
-      <Routes>
-        <Route
-          path="/reviews/scorecards/:cycleKey/:employeeId"
-          element={<ScorecardRoute />}
-        />
-      </Routes>
-    </MemoryRouter>,
+    withQuery(
+      <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2?mode=edit`]}>
+        <Routes>
+          <Route
+            path="/reviews/scorecards/:cycleKey/:employeeId"
+            element={<ScorecardRoute />}
+          />
+        </Routes>
+      </MemoryRouter>,
+    ),
   )
 }
 
 describe('ScorecardDetailPage', () => {
   it('floats Edit in the same action island as the editor', async () => {
     render(
-      <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2`]}>
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter initialEntries={[`/reviews/scorecards/${cycleId}/2`]}>
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     const toolbar = await screen.findByRole('toolbar', { name: 'Review actions' })
@@ -302,18 +315,20 @@ describe('ScorecardDetailPage', () => {
 
   it('sends Edit from Published to the manager review form stage', async () => {
     render(
-      <MemoryRouter
-        initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?stage=publish_employees`,
-        ]}
-      >
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardDetailPage />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?stage=publish_employees`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     expect(await screen.findByRole('link', { name: 'Edit' })).toHaveAttribute(
@@ -532,18 +547,20 @@ describe('ReviewPacketView', () => {
 
   it('does not offer calibration while the manager review is still open', async () => {
     render(
-      <MemoryRouter
-        initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
-        ]}
-      >
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardRoute />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardRoute />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     await screen.findByRole('button', { name: 'Cancel' })
@@ -664,18 +681,20 @@ describe('ReviewPacketView', () => {
     })
 
     render(
-      <MemoryRouter
-        initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
-        ]}
-      >
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardRoute />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardRoute />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     fireEvent.click(await screen.findByLabelText('Calibrated grade'))
@@ -742,18 +761,20 @@ describe('ReviewPacketView', () => {
     })
 
     render(
-      <MemoryRouter
-        initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
-        ]}
-      >
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardRoute />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardRoute />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     fireEvent.change(await screen.findByLabelText('Written record'), {
@@ -818,18 +839,20 @@ describe('ReviewPacketView', () => {
     })
 
     render(
-      <MemoryRouter
-        initialEntries={[
-          `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
-        ]}
-      >
-        <Routes>
-          <Route
-            path="/reviews/scorecards/:cycleKey/:employeeId"
-            element={<ScorecardRoute />}
-          />
-        </Routes>
-      </MemoryRouter>,
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=appeal`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardRoute />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
     )
 
     fireEvent.click(await screen.findByLabelText('Final rating'))

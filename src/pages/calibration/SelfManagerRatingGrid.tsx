@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Tooltip } from '@/components/ui'
+import { useMemo, useState } from 'react'
+import { Avatar, Tooltip } from '@/components/ui'
 import {
   RATING_GRID_BAND_ORDER,
   buildSelfManagerRatingGrid,
@@ -12,18 +12,23 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
+import {
+  CalibrationPeopleListPanel,
+  type CalibrationListPerson,
+} from '@/pages/calibration/CalibrationPeopleListPanel'
 import { HintIcon } from '@/pages/reviews/HintIcon'
 
 const RATING_GRID_HINT = (
   <ul className="pd-help-tip">
     <li>
       <strong>Dots</strong>
-      People with both a self and a manager grade. Hover a dot to see who is in
-      that cell.
+      People with both a self and a manager grade. Click a cell to open the list
+      (or the person when there is only one).
     </li>
     <li>
       <strong>Diagonal</strong>
-      Self and manager ratings match. The legend under the grid shows the gap.
+      Self and manager ratings match (aligned). Legend and stats use the same
+      four gap categories.
     </li>
   </ul>
 )
@@ -41,28 +46,116 @@ function zoneClass(tierDelta: number): string {
   return 'above2'
 }
 
-function OutlierCard({ person }: { person: RatingGridPerson }) {
-  const gapTone =
-    person.tierDelta > 0
-      ? 'mgr'
-      : person.tierDelta < 0
-        ? 'self'
-        : 'aligned'
+function toListPerson(
+  person: RatingGridPerson,
+  employee: PlatformEmployee | undefined,
+): CalibrationListPerson {
+  return {
+    employeeId: person.employeeId,
+    fullName: person.fullName,
+    avatarUrl: employee?.avatarUrl || undefined,
+    metaLine: [employee?.department, employee?.site, employee?.jobGrade]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(' · '),
+    finalGrade: person.managerGrade,
+    selfGrade: person.selfGrade,
+    gapTiers: person.tierDelta,
+  }
+}
+
+function OutlierTable({
+  people,
+  employeeById,
+  onSelect,
+}: {
+  people: readonly RatingGridPerson[]
+  employeeById: ReadonlyMap<number, PlatformEmployee>
+  onSelect: (employeeId: number) => void
+}) {
   return (
-    <li className="pd-cal-grid__outlier">
-      <span className="pd-cal-grid__outlier-name">{person.shortName}</span>
-      <span className="pd-cal-grid__chips">
-        <span className="pd-cal-grid__chip is-self">
-          Self: {GRADE_BAND_META[person.selfGrade].label}
-        </span>
-        <span className="pd-cal-grid__chip is-mgr">
-          Mgr: {GRADE_BAND_META[person.managerGrade].label}
-        </span>
-        <span className={cx('pd-cal-grid__chip', `is-gap-${gapTone}`)}>
-          {formatTierGap(person.tierDelta)}
-        </span>
-      </span>
-    </li>
+    <div className="pd-cal-grid__outlier-wrap">
+      <table className="pd-cal-grid__outlier-table">
+        <thead>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Self</th>
+            <th scope="col">Manager</th>
+            <th scope="col">Gap</th>
+          </tr>
+        </thead>
+        <tbody>
+          {people.map((person) => {
+            const gapTone =
+              person.tierDelta > 0
+                ? 'mgr'
+                : person.tierDelta < 0
+                  ? 'self'
+                  : 'aligned'
+            const avatarUrl = employeeById.get(person.employeeId)?.avatarUrl
+            return (
+              <tr
+                key={person.employeeId}
+                className="pd-cal-grid__outlier-row"
+                onClick={() => onSelect(person.employeeId)}
+              >
+                <th scope="row">
+                  <button
+                    type="button"
+                    className="pd-cal-grid__outlier-person"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onSelect(person.employeeId)
+                    }}
+                  >
+                    <Avatar
+                      name={person.fullName}
+                      src={avatarUrl || undefined}
+                      size="sm"
+                    />
+                    <span className="pd-cal-grid__outlier-name">
+                      {person.fullName}
+                    </span>
+                  </button>
+                </th>
+                <td>
+                  <span
+                    className={cx(
+                      'pd-cal-heat__avg',
+                      'pd-cal-grid__grade-chip',
+                      `is-${person.selfGrade}`,
+                    )}
+                  >
+                    {GRADE_BAND_META[person.selfGrade].label}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className={cx(
+                      'pd-cal-heat__avg',
+                      'pd-cal-grid__grade-chip',
+                      `is-${person.managerGrade}`,
+                    )}
+                  >
+                    {GRADE_BAND_META[person.managerGrade].label}
+                  </span>
+                </td>
+                <td>
+                  <span
+                    className={cx(
+                      'pd-cal-grid__outlier-gap',
+                      `is-gap-${gapTone}`,
+                    )}
+                  >
+                    {formatTierGap(person.tierDelta)}
+                  </span>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -83,7 +176,7 @@ function CellPeopleTip({
           {count} {count === 1 ? 'person' : 'people'}
         </span>
         <span className="pd-cal-grid__tip-meta">
-          Self {shortBandLabel(selfGrade)} · Mgr {shortBandLabel(managerGrade)}
+          Self {shortBandLabel(selfGrade)} · Manager {shortBandLabel(managerGrade)}
         </span>
       </header>
       <ul className="pd-cal-grid__tip-list">
@@ -102,7 +195,7 @@ function CellPeopleTip({
                   Self: {GRADE_BAND_META[person.selfGrade].label}
                 </span>
                 <span className="pd-cal-grid__chip is-mgr">
-                  Mgr: {GRADE_BAND_META[person.managerGrade].label}
+                  Manager: {GRADE_BAND_META[person.managerGrade].label}
                 </span>
                 {person.tierDelta !== 0 ? (
                   <span className={cx('pd-cal-grid__chip', `is-gap-${gapTone}`)}>
@@ -114,6 +207,7 @@ function CellPeopleTip({
           )
         })}
       </ul>
+      <p className="pd-cal-grid__tip-hint">Click to open</p>
     </div>
   )
 }
@@ -124,26 +218,39 @@ function GridCell({
   people,
   tone,
   tierDelta,
+  onOpen,
 }: {
   selfGrade: (typeof RATING_GRID_BAND_ORDER)[number]
   managerGrade: (typeof RATING_GRID_BAND_ORDER)[number]
   people: RatingGridPerson[]
   tone: RatingGridCell['tone']
   tierDelta: number
+  onOpen: (people: readonly RatingGridPerson[]) => void
 }) {
   const count = people.length
   const label = `${shortBandLabel(selfGrade)} self / ${shortBandLabel(managerGrade)} manager: ${count} ${count === 1 ? 'person' : 'people'}`
   const cell = (
-    <span
-      className={cx('pd-cal-grid__cell', `is-zone-${zoneClass(tierDelta)}`)}
+    <button
+      type="button"
+      className={cx(
+        'pd-cal-grid__cell',
+        `is-zone-${zoneClass(tierDelta)}`,
+        count === 0 && 'is-empty',
+        count > 0 && 'is-clickable',
+      )}
       aria-label={label}
+      disabled={count === 0}
+      onClick={() => {
+        if (count === 0) return
+        onOpen(people)
+      }}
     >
       {count > 0 ? (
         <span className={cx('pd-cal-grid__dot', `is-${tone}`)}>
-          {count > 1 ? count : null}
+          {count}
         </span>
       ) : null}
-    </span>
+    </button>
   )
 
   if (count === 0) return cell
@@ -168,15 +275,28 @@ function GridCell({
   )
 }
 
+type CellListState = {
+  title: string
+  subtitle: string
+  people: CalibrationListPerson[]
+}
+
 export function SelfManagerRatingGrid({
   cycle,
   employees,
   packets,
+  onSelectEmployee,
 }: {
   cycle: Pick<ReviewCycle, 'groups'>
   employees: readonly PlatformEmployee[]
   packets: readonly ReviewPacket[]
+  onSelectEmployee: (employeeId: number) => void
 }) {
+  const [cellList, setCellList] = useState<CellListState | null>(null)
+  const employeeById = useMemo(
+    () => new Map(employees.map((employee) => [employee.employeeId, employee])),
+    [employees],
+  )
   const model = useMemo(
     () =>
       buildSelfManagerRatingGrid({
@@ -219,6 +339,22 @@ export function SelfManagerRatingGrid({
     return cells
   }, [model.cells])
 
+  function openCellPeople(people: readonly RatingGridPerson[]) {
+    if (people.length === 0) return
+    if (people.length === 1) {
+      onSelectEmployee(people[0].employeeId)
+      return
+    }
+    const first = people[0]
+    setCellList({
+      title: 'Self vs Manager',
+      subtitle: `Self: ${GRADE_BAND_META[first.selfGrade].label} · Manager: ${GRADE_BAND_META[first.managerGrade].label}`,
+      people: people.map((person) =>
+        toListPerson(person, employeeById.get(person.employeeId)),
+      ),
+    })
+  }
+
   return (
     <section
       className="pd-cal-grid"
@@ -235,9 +371,6 @@ export function SelfManagerRatingGrid({
             label="About self vs manager rating grid"
           />
         </h2>
-        <p className="pd-cal-grid__sub">
-          Diagonal = aligned · Hover any dot to view employees
-        </p>
       </header>
 
       <div className="pd-cal-grid__panel">
@@ -248,21 +381,31 @@ export function SelfManagerRatingGrid({
             </div>
             <div className="pd-cal-grid__y-labels" aria-hidden>
               {yLabels.map((bandId) => (
-                <span key={bandId} className="pd-cal-grid__y-lbl">
-                  {shortBandLabel(bandId)}
+                <span
+                  key={bandId}
+                  className="pd-cal-grid__y-lbl"
+                >
+                  {GRADE_BAND_META[bandId].label}
                 </span>
               ))}
             </div>
             <div className="pd-cal-grid__plot">
               <div className="pd-cal-grid__matrix">
                 {flatCells.map((cell) => (
-                  <GridCell key={cellKey(cell)} {...cell} />
+                  <GridCell
+                    key={cellKey(cell)}
+                    {...cell}
+                    onOpen={openCellPeople}
+                  />
                 ))}
               </div>
               <div className="pd-cal-grid__x-labels" aria-hidden>
                 {RATING_GRID_BAND_ORDER.map((bandId) => (
-                  <span key={bandId} className="pd-cal-grid__x-lbl">
-                    {shortBandLabel(bandId)}
+                  <span
+                    key={bandId}
+                    className="pd-cal-grid__x-lbl"
+                  >
+                    {GRADE_BAND_META[bandId].label}
                   </span>
                 ))}
               </div>
@@ -279,53 +422,81 @@ export function SelfManagerRatingGrid({
             </li>
             <li>
               <span className="pd-cal-grid__dot is-mgr_higher" aria-hidden />
-              Mgr rated higher
+              Manager Rated Higher
             </li>
             <li>
               <span className="pd-cal-grid__dot is-amber_gap" aria-hidden />
-              1 tier gap
+              Self Rated Higher
             </li>
             <li>
               <span className="pd-cal-grid__dot is-red_gap" aria-hidden />
-              2+ tier gap
+              2+ Tier Gap
             </li>
           </ul>
         </div>
 
-        <aside className="pd-cal-grid__side">
+        <div className="pd-cal-grid__outliers">
+          <h3 className="pd-cal-grid__outliers-title">
+            Red Flag Outliers
+            {model.redFlagOutliers.length > 0 ? (
+              <span className="pd-cal-grid__outliers-count">
+                {model.redFlagOutliers.length}
+              </span>
+            ) : null}
+          </h3>
+          {model.redFlagOutliers.length === 0 ? (
+            <p className="pd-cal-grid__empty">
+              No 2+ Tier Gaps In This Cycle Yet.
+            </p>
+          ) : (
+            <OutlierTable
+              people={model.redFlagOutliers}
+              employeeById={employeeById}
+              onSelect={onSelectEmployee}
+            />
+          )}
+        </div>
+
+        <aside className="pd-cal-grid__side" aria-label="Summary stats">
           <ul className="pd-cal-grid__stats">
             <li className="pd-cal-grid__stat">
               <strong>{model.total}</strong>
-              <span className="pd-cal-grid__stat-label">Total employees</span>
+              <span className="pd-cal-grid__stat-label">Total</span>
+            </li>
+            <li className="pd-cal-grid__stat">
+              <strong className="is-aligned">{model.alignedCount}</strong>
+              <span className="pd-cal-grid__stat-label">Aligned</span>
+            </li>
+            <li className="pd-cal-grid__stat">
+              <strong className="is-mgr">{model.mgrHigherCount}</strong>
+              <span className="pd-cal-grid__stat-label">Manager Rated Higher</span>
+            </li>
+            <li className="pd-cal-grid__stat">
+              <strong className="is-amber">{model.selfHigherCount}</strong>
+              <span className="pd-cal-grid__stat-label">Self Rated Higher</span>
             </li>
             <li className="pd-cal-grid__stat">
               <strong className="is-red">{model.redFlagCount}</strong>
               <span className="pd-cal-grid__stat-label">
-                Red flag (2+ tier gap)
+                Red Flag (2+ Tier Gap)
               </span>
             </li>
-            <li className="pd-cal-grid__stat">
-              <strong className="is-amber">{model.amberCount}</strong>
-              <span className="pd-cal-grid__stat-label">Amber (1 tier gap)</span>
-            </li>
           </ul>
-
-          <div className="pd-cal-grid__outliers">
-            <h3 className="pd-cal-grid__outliers-title">Red Flag Outliers</h3>
-            {model.redFlagOutliers.length === 0 ? (
-              <p className="pd-cal-grid__empty">
-                No 2+ tier gaps in this cycle yet.
-              </p>
-            ) : (
-              <ul className="pd-cal-grid__outlier-list">
-                {model.redFlagOutliers.map((person) => (
-                  <OutlierCard key={person.employeeId} person={person} />
-                ))}
-              </ul>
-            )}
-          </div>
         </aside>
       </div>
+
+      {cellList ? (
+        <CalibrationPeopleListPanel
+          title={cellList.title}
+          subtitle={cellList.subtitle}
+          people={cellList.people}
+          onClose={() => setCellList(null)}
+          onSelectPerson={(employeeId) => {
+            setCellList(null)
+            onSelectEmployee(employeeId)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

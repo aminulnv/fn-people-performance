@@ -855,6 +855,15 @@
   color: var(--color-text);
 }
 
+.pd-org-role-matrix__skill-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.pd-org-role-matrix__skill-link:hover {
+  text-decoration: underline;
+}
+
 .pd-org-role-matrix__col-grade {
   text-align: center;
   width: 1%;
@@ -1055,12 +1064,21 @@
 .pd-org-role__tab-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0.1rem 0.45rem;
+  justify-content: center;
+  min-width: 1.15rem;
+  padding: 0.06rem 0.35rem;
   border-radius: 999px;
-  background: var(--color-background-muted);
-  font-size: 0.72rem;
-  font-weight: 650;
-  color: var(--color-text-secondary);
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  background: color-mix(in srgb, var(--color-divider) 60%, transparent);
+  color: var(--color-text-muted);
+}
+
+.pd-org-role__tabs .pd-segmented__btn.is-active .pd-org-role__tab-badge {
+  background: color-mix(in srgb, var(--color-on-cta) 20%, transparent);
+  color: inherit;
 }
 
 .pd-org-role__chips {

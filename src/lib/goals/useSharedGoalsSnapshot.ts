@@ -60,7 +60,8 @@ function onStoreChange() {
 function stopSharedWatch() {
   stopStoreWatch?.()
   stopStoreWatch = null
-  latest = null
+  // Keep `latest` so remounted surfaces (Home) paint instantly while a
+  // background refresh catches up.
   requestId += 1
   if (refreshTimer == null) return
   window.clearTimeout(refreshTimer)
@@ -93,6 +94,7 @@ export function resetSharedGoalsSnapshotForTests() {
   listeners.clear()
   peekListeners.clear()
   stopSharedWatch()
+  latest = null
   resetGoalsHydrationForTests()
 }
 

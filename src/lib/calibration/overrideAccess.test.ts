@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { CalibratorAssignments } from './sessionApi'
-import { canOverrideCalibrationGrade } from './overrideAccess'
+import {
+  canOverrideCalibrationGrade,
+  HRBP_COSIGN_REASON_TAG,
+  overrideTierSpan,
+  reasonWithHrbpCosign,
+  requiresHrbpCosign,
+} from './overrideAccess'
 
 const subject = {
   employeeId: 10,
@@ -141,5 +147,24 @@ describe('canOverrideCalibrationGrade', () => {
         assignments,
       }),
     ).toBe(false)
+  })
+})
+
+describe('HRBP co-sign override helpers', () => {
+  it('flags 3+ tier overrides for HRBP co-sign', () => {
+    expect(overrideTierSpan('unsatisfactory', 'performing')).toBe(2)
+    expect(requiresHrbpCosign('unsatisfactory', 'performing')).toBe(false)
+    expect(overrideTierSpan('unsatisfactory', 'exceeding')).toBe(3)
+    expect(requiresHrbpCosign('unsatisfactory', 'exceeding')).toBe(true)
+  })
+
+  it('appends the pending co-sign tag once', () => {
+    expect(reasonWithHrbpCosign('Scope change', false)).toBe('Scope change')
+    expect(reasonWithHrbpCosign('Scope change', true)).toBe(
+      `Scope change ${HRBP_COSIGN_REASON_TAG}`,
+    )
+    expect(
+      reasonWithHrbpCosign(`Already ${HRBP_COSIGN_REASON_TAG}`, true),
+    ).toBe(`Already ${HRBP_COSIGN_REASON_TAG}`)
   })
 })

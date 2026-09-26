@@ -64,6 +64,16 @@
   --color-red-light: color-mix(in srgb, var(--color-red) 12%, white);
 
   /*
+   * Grade scale - ONE place for performance-band colors.
+   * Calibration, reviews distribution, and chips all read these.
+   */
+  --grade-unsatisfactory: #921a1a;
+  --grade-developing: #d06a1e;
+  --grade-performing: #7a9e28;
+  --grade-exceeding: #1e8f3e;
+  --grade-exceptional: #0b5c32;
+
+  /*
    * Solid affirmative fills (Approve). Brighter than --color-status-completed,
    * which has to stay dark enough to read as chip text.
    */

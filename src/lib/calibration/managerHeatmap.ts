@@ -8,9 +8,10 @@ import { sharePercent } from './distribution'
 
 export const HEATMAP_BAND_ORDER: GradeBandId[] = [...OVERALL_GRADE_ORDER]
 
-const LOW_OUTLIER_PERCENT = 40
-const HIGH_OUTLIER_PERCENT = 60
-const ON_AVG_DELTA = 0.25
+/** Match FN_Calibration_Dashboard.html: share > 40% / > 60% (strict). */
+const LOW_OUTLIER_SHARE = 0.4
+const HIGH_OUTLIER_SHARE = 0.6
+const ON_AVG_DELTA = 0.3
 
 export type HeatmapCell = {
   bandId: GradeBandId
@@ -24,6 +25,7 @@ export type HeatmapVsOrgKind = 'on' | 'above' | 'below'
 export type ManagerHeatmapRow = {
   managerEmployeeId: number
   managerName: string
+  managerAvatarUrl: string
   shortName: string
   teamSize: number
   cells: HeatmapCell[]
@@ -127,17 +129,17 @@ export function buildManagerRatingHeatmap(input: {
       const manager = employeeById.get(managerEmployeeId)
       const managerName = manager?.fullName.trim() || `Manager ${managerEmployeeId}`
       const lowShare =
-        sharePercent(
-          bucket.counts.developing + bucket.counts.unsatisfactory,
-          bucket.total,
-        )
+        bucket.total > 0
+          ? (bucket.counts.developing + bucket.counts.unsatisfactory) /
+            bucket.total
+          : 0
       const highShare =
-        sharePercent(
-          bucket.counts.exceeding + bucket.counts.exceptional,
-          bucket.total,
-        )
-      const lowOutlier = lowShare >= LOW_OUTLIER_PERCENT
-      const highOutlier = highShare > HIGH_OUTLIER_PERCENT
+        bucket.total > 0
+          ? (bucket.counts.exceeding + bucket.counts.exceptional) /
+            bucket.total
+          : 0
+      const lowOutlier = lowShare > LOW_OUTLIER_SHARE
+      const highOutlier = highShare > HIGH_OUTLIER_SHARE
 
       const cells = HEATMAP_BAND_ORDER.map((bandId) => {
         const count = bucket.counts[bandId]
@@ -168,6 +170,7 @@ export function buildManagerRatingHeatmap(input: {
       return {
         managerEmployeeId,
         managerName,
+        managerAvatarUrl: manager?.avatarUrl?.trim() || '',
         shortName: shortManagerName(managerName),
         teamSize: bucket.total,
         cells,
@@ -189,11 +192,19 @@ export function heatmapBandLabel(bandId: GradeBandId): string {
   return GRADE_BAND_META[bandId].label
 }
 
-/** Intensity bucket for cell fill (0 empty → 4 peak). */
-export function heatmapIntensity(percent: number, count: number): 0 | 1 | 2 | 3 | 4 {
+/**
+ * Intensity bucket for cell fill (0 empty → 5 peak).
+ * Matches FN_Calibration_Dashboard.html alpha steps exactly:
+ * ≤10% → 0.12, ≤25% → 0.25, ≤50% → 0.45, ≤75% → 0.65, >75% → 0.85.
+ */
+export function heatmapIntensity(
+  percent: number,
+  count: number,
+): 0 | 1 | 2 | 3 | 4 | 5 {
   if (count <= 0 || percent <= 0) return 0
-  if (percent >= 60) return 4
-  if (percent >= 40) return 3
-  if (percent >= 25) return 2
-  return 1
+  if (percent <= 10) return 1
+  if (percent <= 25) return 2
+  if (percent <= 50) return 3
+  if (percent <= 75) return 4
+  return 5
 }

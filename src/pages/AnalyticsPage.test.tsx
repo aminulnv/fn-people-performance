@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewPacket } from '@/lib/reviews/types'
@@ -152,10 +153,15 @@ afterEach(() => {
 })
 
 function renderPage(hash = '#everyone') {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, staleTime: Infinity } },
+  })
   return render(
-    <MemoryRouter initialEntries={[`/analytics${hash}`]}>
-      <AnalyticsPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[`/analytics${hash}`]}>
+        <AnalyticsPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

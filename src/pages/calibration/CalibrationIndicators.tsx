@@ -1,20 +1,74 @@
 import { useMemo, useState } from 'react'
-import { Modal } from '@/components/ui'
-import type { CalibrationIndicator } from '@/lib/calibration/indicators'
+import { officialGrade } from '@/lib/analytics/dashboard'
+import {
+  gradeTierDelta,
+  type CalibrationIndicator,
+} from '@/lib/calibration/indicators'
+import type { RatingTableRow } from '@/lib/calibration/ratingTable'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import { GRADE_BAND_META } from '@/lib/reviews/labels'
+import type { ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
+import {
+  CalibrationPeopleListPanel,
+  type CalibrationListPerson,
+} from '@/pages/calibration/CalibrationPeopleListPanel'
 import { HintIcon } from '@/pages/reviews/HintIcon'
 
 function peopleLabel(count: number): string {
   return `${count} ${count === 1 ? 'person' : 'people'}`
 }
 
+function listMetaLine(employee: PlatformEmployee): string {
+  return [employee.department, employee.site, employee.jobGrade]
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function detailChipFor(
+  indicatorId: CalibrationIndicator['id'],
+  row: RatingTableRow | undefined,
+): string | null {
+  if (indicatorId !== 'annual_vs_quarterly' || !row) return null
+  if (!row.quarterAverageGrade || !row.annualGrade) return null
+  return `Q avg: ${GRADE_BAND_META[row.quarterAverageGrade].label} · Annual: ${GRADE_BAND_META[row.annualGrade].label}`
+}
+
+function toListPerson(
+  employee: PlatformEmployee,
+  packet: ReviewPacket | undefined,
+  row: RatingTableRow | undefined,
+  indicatorId: CalibrationIndicator['id'],
+): CalibrationListPerson {
+  const finalGrade = row?.annualGrade ?? officialGrade(packet) ?? null
+  const selfGrade = row?.selfGrade ?? packet?.selfOverallGrade ?? null
+  const gapTiers =
+    row?.gapTiers ?? gradeTierDelta(selfGrade, finalGrade)
+  return {
+    employeeId: employee.employeeId,
+    fullName: employee.fullName,
+    avatarUrl: employee.avatarUrl || undefined,
+    metaLine: listMetaLine(employee),
+    finalGrade,
+    selfGrade,
+    gapTiers,
+    detailChip: detailChipFor(indicatorId, row),
+  }
+}
+
 export function CalibrationIndicators({
   indicators,
   employees,
+  packets,
+  rows,
+  onSelectEmployee,
 }: {
   indicators: readonly CalibrationIndicator[]
   employees: readonly PlatformEmployee[]
+  packets: readonly ReviewPacket[]
+  rows: readonly RatingTableRow[]
+  onSelectEmployee: (employeeId: number) => void
 }) {
   const [activeId, setActiveId] = useState<CalibrationIndicator['id'] | null>(
     null,
@@ -23,12 +77,29 @@ export function CalibrationIndicators({
     () => new Map(employees.map((employee) => [employee.employeeId, employee])),
     [employees],
   )
+  const packetById = useMemo(
+    () => new Map(packets.map((packet) => [packet.employeeId, packet])),
+    [packets],
+  )
+  const rowById = useMemo(
+    () => new Map(rows.map((row) => [row.employeeId, row])),
+    [rows],
+  )
   const active = indicators.find((row) => row.id === activeId) ?? null
-  const activePeople = active
-    ? active.employeeIds
-        .map((employeeId) => employeeById.get(employeeId))
-        .filter((employee): employee is PlatformEmployee => Boolean(employee))
-    : []
+  const activePeople = useMemo(() => {
+    if (!active) return []
+    return active.employeeIds
+      .map((employeeId) => employeeById.get(employeeId))
+      .filter((employee): employee is PlatformEmployee => Boolean(employee))
+      .map((employee) =>
+        toListPerson(
+          employee,
+          packetById.get(employee.employeeId),
+          rowById.get(employee.employeeId),
+          active.id,
+        ),
+      )
+  }, [active, employeeById, packetById, rowById])
 
   return (
     <section className="pd-cal-ind" aria-label="Calibration indicators">
@@ -43,10 +114,6 @@ export function CalibrationIndicators({
             label="About calibration indicators"
           />
         </h2>
-        <p className="pd-cal-ind__copy">
-          Click any card to view employee list · Includes Q1–Q4 vs annual rating
-          divergence
-        </p>
       </header>
 
       <ul className="pd-cal-ind__grid">
@@ -81,37 +148,19 @@ export function CalibrationIndicators({
         ))}
       </ul>
 
-      <Modal
-        open={active != null}
-        onClose={() => setActiveId(null)}
-        title={active?.title ?? 'Indicator'}
-        titleHint={active?.definition}
-        titleHintLabel={active ? `About ${active.title}` : 'About indicator'}
-        description={
-          active
-            ? `${peopleLabel(active.count)} match this indicator.`
-            : undefined
-        }
-      >
-        {activePeople.length === 0 ? (
-          <p className="pd-cal-ind__empty">No matching people in this cycle.</p>
-        ) : (
-          <ul className="pd-cal-ind__people">
-            {activePeople.map((employee) => (
-              <li key={employee.employeeId}>
-                <span className="pd-cal-ind__person-name">
-                  {employee.fullName}
-                </span>
-                <span className="pd-cal-ind__person-meta">
-                  {[employee.jobTitle, employee.department]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Modal>
+      {active ? (
+        <CalibrationPeopleListPanel
+          title={active.title}
+          subtitle={`${peopleLabel(active.count)} match this indicator.`}
+          hint={active.definition}
+          people={activePeople}
+          onClose={() => setActiveId(null)}
+          onSelectPerson={(employeeId) => {
+            setActiveId(null)
+            onSelectEmployee(employeeId)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

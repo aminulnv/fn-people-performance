@@ -1,17 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { CalibrationIndicator } from '@/lib/calibration/indicators'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { CalibrationIndicators } from './CalibrationIndicators'
-
-beforeAll(() => {
-  HTMLDialogElement.prototype.showModal = function showModal() {
-    this.setAttribute('open', '')
-  }
-  HTMLDialogElement.prototype.close = function close() {
-    this.removeAttribute('open')
-  }
-})
 
 afterEach(() => {
   cleanup()
@@ -80,9 +71,16 @@ const employees: PlatformEmployee[] = [
 ]
 
 describe('CalibrationIndicators', () => {
-  it('renders cards with info hints and opens the employee list', () => {
+  it('renders cards with info hints and opens the employee list in a side panel', () => {
+    const onSelectEmployee = vi.fn()
     render(
-      <CalibrationIndicators indicators={indicators} employees={employees} />,
+      <CalibrationIndicators
+        indicators={indicators}
+        employees={employees}
+        packets={[]}
+        rows={[]}
+        onSelectEmployee={onSelectEmployee}
+      />,
     )
 
     expect(
@@ -98,7 +96,15 @@ describe('CalibrationIndicators', () => {
       }),
     )
 
+    expect(
+      screen.getByRole('dialog', {
+        name: /Improved 2\+ tiers from previous cycle/i,
+      }),
+    ).toBeTruthy()
     expect(screen.getByText('Ada Lovelace')).toBeTruthy()
     expect(screen.getByText('Grace Hopper')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /Ada Lovelace/i }))
+    expect(onSelectEmployee).toHaveBeenCalledWith(1)
   })
 })

@@ -97,9 +97,9 @@ describe('ratingGridTone', () => {
 
 describe('formatTierGap', () => {
   it('formats signed tier gaps', () => {
-    expect(formatTierGap(2)).toBe('+2 tiers')
-    expect(formatTierGap(-3)).toBe('-3 tiers')
-    expect(formatTierGap(-1)).toBe('-1 tier')
+    expect(formatTierGap(2)).toBe('+2 Tiers')
+    expect(formatTierGap(-3)).toBe('-3 Tiers')
+    expect(formatTierGap(-1)).toBe('-1 Tier')
   })
 })
 
@@ -122,8 +122,11 @@ describe('buildSelfManagerRatingGrid', () => {
     })
 
     expect(grid.total).toBe(4)
-    expect(grid.redFlagCount).toBe(2)
+    expect(grid.alignedCount).toBe(1)
+    expect(grid.mgrHigherCount).toBe(0)
+    expect(grid.selfHigherCount).toBe(1)
     expect(grid.amberCount).toBe(1)
+    expect(grid.redFlagCount).toBe(2)
     expect(grid.redFlagOutliers.map((row) => row.shortName)).toEqual([
       'Kevin M.',
       'Aisha B.',

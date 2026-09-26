@@ -1,5 +1,6 @@
 .pd-page.pd-calibration,
 .pd-calibration {
+  --cal-pane-pad-block: clamp(1rem, 1.8vw, 1.75rem);
   display: grid;
   align-content: start;
   gap: 0.85rem;
@@ -9,12 +10,26 @@
   min-height: 0;
 }
 
+.pd-app-shell--mobile .pd-page.pd-calibration,
+.pd-app-shell--mobile .pd-calibration {
+  --cal-pane-pad-block: 1rem;
+}
+
+/* Cohort filters — pinned at the scrollport top from the first paint */
+.pd-calibration>.pd-people__header--bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  /* Cancel .pd-app-main top padding so the bar starts already at top: 0 */
+  margin-block-start: calc(-1 * var(--cal-pane-pad-block));
+  padding-block: 0.55rem;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg, var(--color-surface));
+  /* Cover content that scrolls underneath */
+  box-shadow: 0 1px 0 var(--color-bg, var(--color-surface));
+}
+
 .pd-cal-dist {
-  --grade-exceptional: var(--color-status-completed);
-  --grade-exceeding: var(--color-blue);
-  --grade-performing: var(--color-status-on-hold);
-  --grade-developing: var(--color-status-pending);
-  --grade-unsatisfactory: var(--color-red);
   --series-1: var(--color-cta);
   --series-2: var(--color-status-on-hold);
   --series-3: var(--color-blue);
@@ -125,6 +140,7 @@
   height: 12.5rem;
   border-radius: var(--radius-md, 0.5rem) var(--radius-md, 0.5rem) 0 0;
   background: color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
+  overflow: visible;
 }
 
 .pd-cal-dist__cluster {
@@ -209,37 +225,39 @@
 
 .pd-cal-dist__guide {
   position: absolute;
-  left: -0.15rem;
-  right: -0.15rem;
-  z-index: 1;
+  left: 0;
+  right: 0;
+  z-index: 2;
   height: 0;
   border-top: 0.1rem solid var(--color-red);
   transform: translateY(50%);
   pointer-events: none;
 }
 
-.pd-cal-dist__guide > .pd-cal-dist__guide-tip.pd-tooltip {
+.pd-cal-dist__guide-tip.pd-tooltip {
   position: absolute;
-  inset-block: -0.45rem;
-  inset-inline: 0;
-  display: flex;
+  top: 0;
+  left: calc(100% + 0.2rem);
+  right: auto;
+  bottom: auto;
+  display: block;
+  transform: translateY(-50%);
   pointer-events: auto;
   cursor: help;
 }
 
 .pd-cal-dist__guide-tip .pd-tooltip__trigger {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 100%;
+  display: block;
 }
 
 .pd-cal-dist__guide-label {
+  display: block;
   color: var(--color-red);
   font-size: 0.65rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .pd-cal-dist__count {
@@ -557,7 +575,7 @@
   text-transform: uppercase;
 }
 
-.pd-cal-ind__card-title > span:first-child {
+.pd-cal-ind__card-title>span:first-child {
   min-width: 0;
 }
 
@@ -609,6 +627,132 @@
 }
 
 .pd-cal-ind__empty {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+/* —— Insight people list panel (indicator / grid drill-down) —— */
+.pd-cal-people-panel__list {
+  list-style: none;
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.pd-cal-people-panel__row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.75rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pd-cal-people-panel__list li:last-child .pd-cal-people-panel__row {
+  border-bottom: 0;
+}
+
+.pd-cal-people-panel__row:hover {
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+}
+
+.pd-cal-people-panel__row:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.pd-cal-people-panel__copy {
+  display: grid;
+  gap: 0.2rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.pd-cal-people-panel__name {
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 650;
+}
+
+.pd-cal-people-panel__meta {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pd-cal-people-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+
+.pd-cal-people-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  background: var(--color-bg-muted, var(--color-surface));
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-people-panel__chip.is-self {
+  background: color-mix(in srgb, var(--color-blue) 12%, var(--color-surface));
+  color: var(--color-blue);
+}
+
+.pd-cal-people-panel__chip.is-exceptional,
+.pd-cal-people-panel__chip.is-exceeding {
+  background: color-mix(in srgb, var(--color-status-completed) 12%, var(--color-surface));
+  color: var(--color-status-completed);
+}
+
+.pd-cal-people-panel__chip.is-performing {
+  background: var(--color-bg-muted, var(--color-surface));
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-people-panel__chip.is-developing {
+  background: color-mix(in srgb, var(--color-status-pending) 14%, var(--color-surface));
+  color: var(--color-status-pending);
+}
+
+.pd-cal-people-panel__chip.is-unsatisfactory,
+.pd-cal-people-panel__chip.is-gap-self {
+  background: color-mix(in srgb, var(--color-red) 12%, var(--color-surface));
+  color: var(--color-red);
+}
+
+.pd-cal-people-panel__chip.is-gap-mgr {
+  background: color-mix(in srgb, var(--color-blue) 12%, var(--color-surface));
+  color: var(--color-blue);
+}
+
+.pd-cal-people-panel__chip.is-detail {
+  background: color-mix(in srgb, var(--color-amber) 14%, var(--color-surface));
+  color: var(--color-amber);
+}
+
+.pd-cal-people-panel__chevron {
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-people-panel__empty {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.9rem;
@@ -689,6 +833,18 @@
   background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
 }
 
+.pd-cal-heat__table thead th .pd-cycle-groups-members__column-heading {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+}
+
+.pd-cal-heat__table thead th:first-child .pd-cycle-groups-members__column-heading {
+  justify-content: flex-start;
+}
+
 .pd-cal-heat__table thead th:first-child,
 .pd-cal-heat__table tbody th {
   text-align: left;
@@ -701,8 +857,20 @@
 }
 
 .pd-cal-heat__manager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--avatar-name-gap, 0.5rem);
+  min-width: 0;
+}
+
+.pd-cal-heat__manager .pd-avatar {
+  flex-shrink: 0;
+}
+
+.pd-cal-heat__manager-copy {
   display: grid;
   gap: 0.1rem;
+  min-width: 0;
 }
 
 .pd-cal-heat__manager-name {
@@ -713,27 +881,35 @@
 }
 
 .pd-cal-heat__manager-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   color: var(--color-text-secondary);
   font-size: 0.75rem;
   font-weight: 500;
 }
 
 .pd-cal-heat__cell {
-  display: grid;
-  justify-items: center;
-  gap: 0.08rem;
-  min-width: max-content;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  min-width: 3.25rem;
+  min-height: 2.15rem;
   margin-inline: auto;
-  padding: 0.35rem 0.7rem;
-  border: 1.5px solid transparent;
+  padding: 0.25rem 0.35rem;
+  border: 2px solid transparent;
   border-radius: var(--radius-sm, 0.375rem);
-  background: color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
-  line-height: 1.2;
+  background: var(--color-bg, var(--color-surface));
+  color: var(--color-text-primary, var(--color-text));
+  line-height: 1.15;
 }
 
 .pd-cal-heat__cell strong {
-  font-size: 0.75rem;
-  font-weight: 650;
+  font-size: 0.72rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
@@ -741,78 +917,68 @@
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  color: var(--color-text-secondary);
-  font-size: 0.68rem;
+  color: inherit;
+  opacity: 0.75;
+  font-size: 0.58rem;
   font-style: normal;
-  font-weight: 550;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
-.pd-cal-heat__cell.is-unsatisfactory.is-i1,
-.pd-cal-heat__cell.is-unsatisfactory.is-i2 {
-  background: color-mix(in srgb, var(--color-red) 10%, var(--color-surface));
+.pd-cal-heat__cell>.pd-cal-heat__dash {
+  margin-block: auto;
+  color: var(--color-text-secondary);
 }
 
-.pd-cal-heat__cell.is-developing.is-i1,
-.pd-cal-heat__cell.is-developing.is-i2 {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 18%,
-    var(--color-surface)
-  );
+/* Per-tier shades from --grade-* with HTML alpha steps */
+.pd-cal-heat__cell.is-unsatisfactory {
+  --heat: var(--grade-unsatisfactory);
 }
 
-.pd-cal-heat__cell.is-developing.is-i3,
-.pd-cal-heat__cell.is-developing.is-i4 {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 32%,
-    var(--color-surface)
-  );
+.pd-cal-heat__cell.is-developing {
+  --heat: var(--grade-developing);
 }
 
-.pd-cal-heat__cell.is-performing.is-i1,
-.pd-cal-heat__cell.is-performing.is-i2 {
-  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+.pd-cal-heat__cell.is-performing {
+  --heat: var(--grade-performing);
 }
 
-.pd-cal-heat__cell.is-performing.is-i3,
-.pd-cal-heat__cell.is-performing.is-i4 {
-  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+.pd-cal-heat__cell.is-exceeding {
+  --heat: var(--grade-exceeding);
 }
 
-.pd-cal-heat__cell.is-exceeding.is-i1,
-.pd-cal-heat__cell.is-exceeding.is-i2 {
-  background: color-mix(in srgb, var(--color-blue) 16%, var(--color-surface));
+.pd-cal-heat__cell.is-exceptional {
+  --heat: var(--grade-exceptional);
 }
 
-.pd-cal-heat__cell.is-exceeding.is-i3 {
-  background: color-mix(in srgb, var(--color-blue) 35%, var(--color-surface));
+.pd-cal-heat__cell.is-i1 {
+  background: color-mix(in srgb, var(--heat) 12%, transparent);
 }
 
-.pd-cal-heat__cell.is-exceeding.is-i4,
-.pd-cal-heat__cell.is-exceptional.is-i4 {
-  background: color-mix(in srgb, var(--color-blue) 62%, var(--color-surface));
-  color: var(--color-white);
+.pd-cal-heat__cell.is-i2 {
+  background: color-mix(in srgb, var(--heat) 25%, transparent);
 }
 
-.pd-cal-heat__cell.is-exceeding.is-i4 em,
-.pd-cal-heat__cell.is-exceptional.is-i4 em {
-  color: color-mix(in srgb, var(--color-white) 80%, transparent);
+.pd-cal-heat__cell.is-i3 {
+  background: color-mix(in srgb, var(--heat) 45%, transparent);
 }
 
-.pd-cal-heat__cell.is-exceptional.is-i1,
-.pd-cal-heat__cell.is-exceptional.is-i2,
-.pd-cal-heat__cell.is-exceptional.is-i3 {
-  background: color-mix(
-    in srgb,
-    var(--color-status-completed) 18%,
-    var(--color-surface)
-  );
+.pd-cal-heat__cell.is-i4 {
+  background: color-mix(in srgb, var(--heat) 65%, transparent);
 }
 
-.pd-cal-heat__cell.is-outlier {
-  border-color: var(--color-red);
+.pd-cal-heat__cell.is-i5 {
+  background: color-mix(in srgb, var(--heat) 85%, transparent);
+}
+
+.pd-cal-heat__cell.is-outlier.is-unsatisfactory,
+.pd-cal-heat__cell.is-outlier.is-developing {
+  border-color: var(--grade-unsatisfactory);
+}
+
+.pd-cal-heat__cell.is-outlier.is-exceeding,
+.pd-cal-heat__cell.is-outlier.is-exceptional {
+  border-color: var(--grade-exceptional);
 }
 
 .pd-cal-heat__dash {
@@ -823,38 +989,59 @@
 
 .pd-cal-heat__avg {
   display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
   max-width: none;
-  padding: 0.28rem 0.6rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--heat, var(--color-text)) 42%, transparent);
   border-radius: 999px;
   background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
-  color: var(--color-text);
+  color: var(--color-text-primary, var(--color-text));
   font-size: 0.78rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
-.pd-cal-heat__avg.is-exceeding,
+.pd-cal-heat__avg-score,
+.pd-cal-heat__avg-band {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.55rem;
+}
+
+.pd-cal-heat__avg-score {
+  font-weight: 700;
+}
+
+.pd-cal-heat__avg-band {
+  border-left: 1px solid color-mix(in srgb, var(--heat, var(--color-text)) 42%, transparent);
+  font-weight: 600;
+}
+
 .pd-cal-heat__avg.is-exceptional {
-  background: color-mix(in srgb, var(--color-blue) 16%, var(--color-surface));
-  color: var(--color-blue);
+  --heat: var(--grade-exceptional);
+  background: color-mix(in srgb, var(--grade-exceptional) 36%, var(--color-surface));
+}
+
+.pd-cal-heat__avg.is-exceeding {
+  --heat: var(--grade-exceeding);
+  background: color-mix(in srgb, var(--grade-exceeding) 36%, var(--color-surface));
 }
 
 .pd-cal-heat__avg.is-performing {
-  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
-  color: var(--color-text);
+  --heat: var(--grade-performing);
+  background: color-mix(in srgb, var(--grade-performing) 36%, var(--color-surface));
 }
 
-.pd-cal-heat__avg.is-developing,
+.pd-cal-heat__avg.is-developing {
+  --heat: var(--grade-developing);
+  background: color-mix(in srgb, var(--grade-developing) 38%, var(--color-surface));
+}
+
 .pd-cal-heat__avg.is-unsatisfactory {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 18%,
-    var(--color-surface)
-  );
-  color: var(--color-text);
+  --heat: var(--grade-unsatisfactory);
+  background: color-mix(in srgb, var(--grade-unsatisfactory) 32%, var(--color-surface));
 }
 
 .pd-cal-heat__vs {
@@ -892,6 +1079,52 @@
   font-weight: 500;
   line-height: 1.45;
   text-align: left !important;
+}
+
+.pd-cal-heat__pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem 0.85rem;
+  min-width: 0;
+}
+
+.pd-cal-heat__page-size {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  width: auto;
+  min-width: 0;
+}
+
+.pd-cal-heat__page-size-label {
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 550;
+  white-space: nowrap;
+}
+
+.pd-cal-heat__page-size .pd-listbox {
+  width: auto;
+  min-width: 4.25rem;
+}
+
+.pd-cal-heat__page-size .pd-listbox__trigger {
+  min-height: 2rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.6rem;
+  font-size: 0.8125rem;
+}
+
+.pd-cal-heat__range {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  font-weight: 550;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .pd-cal-cmp {
@@ -933,9 +1166,17 @@
   line-height: 1;
 }
 
+.pd-cal-cmp__sub {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
 .pd-cal-cmp__panel {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.75rem;
   min-width: 0;
   padding: 0.7rem 0.85rem 0.75rem;
   border: 1px solid var(--color-border);
@@ -946,60 +1187,48 @@
 .pd-cal-cmp__filters {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.55rem 0.9rem;
-}
-
-.pd-cal-cmp__filter {
-  display: grid;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.5rem 0.65rem;
   min-width: 0;
 }
 
 .pd-cal-cmp__filter-label {
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 
-.pd-cal-cmp__filter--compare {
-  flex: 1 1 16rem;
+.pd-cal-cmp__sep {
+  width: 1px;
+  height: 1.25rem;
+  margin: 0 0.15rem;
+  background: var(--color-border);
+  flex-shrink: 0;
 }
 
-.pd-cal-cmp__compare {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
-.pd-cal-cmp__compare .pd-listbox {
-  flex: 1 1 8.5rem;
-  min-width: 7.5rem;
+.pd-cal-cmp__filters .pd-listbox {
+  flex: 0 1 12rem;
+  min-width: 8rem;
   max-width: 14rem;
 }
 
 .pd-cal-cmp__vs {
   color: var(--color-text-secondary);
-  font-size: 0.72rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .pd-cal-cmp__rows {
   list-style: none;
   display: grid;
-  grid-template-columns:
-    max-content
-    minmax(4rem, 1fr)
-    minmax(5.5rem, 6.75rem)
-    minmax(3.5rem, 4.25rem)
-    2.5rem;
-  row-gap: 0.3rem;
-  column-gap: 0.55rem;
+  grid-template-columns: max-content minmax(6rem, 1fr) max-content 2.5rem;
+  row-gap: 0.5rem;
+  column-gap: 0.65rem;
   margin: 0;
   padding: 0;
+  align-items: center;
 }
 
 .pd-cal-cmp__row {
@@ -1012,8 +1241,8 @@
 
 .pd-cal-cmp__name {
   color: var(--color-text);
-  font-size: 0.78rem;
-  font-weight: 650;
+  font-size: 0.75rem;
+  font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -1021,29 +1250,33 @@
 .pd-cal-cmp__track {
   position: relative;
   min-width: 0;
-  height: 0.85rem;
-  border-radius: 999px;
+  height: 1.875rem;
+  border-radius: var(--radius-sm, 0.25rem);
   background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
-  overflow: hidden;
+  overflow: visible;
 }
 
 .pd-cal-cmp__line {
   position: absolute;
-  top: 0.05rem;
-  bottom: 0.05rem;
+  top: -0.2rem;
+  bottom: -0.2rem;
   z-index: 1;
-  width: 0;
-  border-left: 1.5px solid color-mix(in srgb, var(--color-text) 50%, transparent);
+  width: 0.125rem;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--color-text) 35%, transparent);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .pd-cal-cmp__bar {
-  display: block;
+  display: flex;
+  align-items: center;
   height: 100%;
-  min-width: 0.35rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 28%, var(--color-surface));
+  min-width: 0;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  background: var(--color-status-on-hold);
+  overflow: hidden;
 }
 
 .pd-cal-cmp__bar.is-below {
@@ -1055,39 +1288,24 @@
 }
 
 .pd-cal-cmp__bar.is-on {
-  background: color-mix(in srgb, var(--color-text) 32%, var(--color-surface));
+  background: var(--color-status-on-hold);
 }
 
-.pd-cal-cmp__score {
-  display: grid;
-  gap: 0.05rem;
-  min-width: 0;
-  line-height: 1.1;
-}
-
-.pd-cal-cmp__score strong {
-  color: var(--color-text);
-  font-size: 0.8rem;
-  font-weight: 700;
+.pd-cal-cmp__bar-label {
+  color: var(--color-white);
+  font-size: 0.7rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.pd-cal-cmp__score span {
-  overflow: hidden;
-  color: var(--color-text-secondary);
-  font-size: 0.65rem;
-  font-weight: 550;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1;
 }
 
 .pd-cal-cmp__delta {
   color: var(--color-text);
-  font-size: 0.72rem;
-  font-weight: 650;
+  font-size: 0.7rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  line-height: 1.2;
+  line-height: 1.25;
   white-space: nowrap;
 }
 
@@ -1100,7 +1318,7 @@
 }
 
 .pd-cal-cmp__delta.is-below {
-  color: var(--color-text-secondary);
+  color: var(--color-red);
 }
 
 .pd-cal-cmp__people {
@@ -1109,8 +1327,8 @@
   justify-content: flex-end;
   gap: 0.25rem;
   color: var(--color-text-secondary);
-  font-size: 0.7rem;
-  font-weight: 550;
+  font-size: 0.65rem;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1122,8 +1340,28 @@
   line-height: 1.4;
 }
 
+.pd-cal-cmp__guide {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.pd-cal-cmp__guide-mark {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.2rem;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+  flex-shrink: 0;
+}
+
 .pd-cal-grid {
-  --pd-cal-grid-cell: 4rem;
+  --pd-cal-grid-cell: 4.75rem;
   display: grid;
   gap: 0.85rem;
   min-width: 0;
@@ -1172,8 +1410,9 @@
 
 .pd-cal-grid__panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 16.25rem;
-  gap: 1rem;
+  grid-template-columns: max-content minmax(14rem, 1fr) 11.5rem;
+  gap: 1.15rem;
+  align-items: start;
   min-width: 0;
   padding: 1.1rem 1.15rem 1.15rem;
   border: 1px solid var(--color-border);
@@ -1186,13 +1425,15 @@
   gap: 0.75rem;
   min-width: 0;
   overflow-x: auto;
+  justify-items: start;
+  align-content: end;
 }
 
 .pd-cal-grid__chart {
   display: grid;
-  grid-template-columns: 0.9rem 4.5rem auto;
+  grid-template-columns: 0.9rem max-content auto;
   align-items: start;
-  gap: 0;
+  column-gap: 0.25rem;
   min-width: 0;
   width: max-content;
 }
@@ -1231,9 +1472,9 @@
   align-items: center;
   justify-content: flex-end;
   height: var(--pd-cal-grid-cell);
-  padding-right: 0.5rem;
+  padding-right: 0.15rem;
   text-align: right;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
 }
 
@@ -1279,8 +1520,18 @@
   border-bottom: 1px solid var(--color-border);
   border-radius: 0;
   background: var(--color-surface);
+  color: inherit;
+  font: inherit;
   cursor: default;
   transition: background 0.12s ease;
+}
+
+.pd-cal-grid__cell:disabled {
+  cursor: default;
+}
+
+.pd-cal-grid__cell.is-clickable {
+  cursor: pointer;
 }
 
 .pd-cal-grid__tip .pd-cal-grid__cell {
@@ -1289,22 +1540,26 @@
   cursor: pointer;
 }
 
-.pd-cal-grid__matrix > :nth-child(5n) .pd-cal-grid__cell,
-.pd-cal-grid__matrix > .pd-cal-grid__cell:nth-child(5n) {
+.pd-cal-grid__matrix> :nth-child(5n) .pd-cal-grid__cell,
+.pd-cal-grid__matrix>.pd-cal-grid__cell:nth-child(5n) {
   border-right: 0;
 }
 
-.pd-cal-grid__matrix > :nth-child(n + 21) .pd-cal-grid__cell,
-.pd-cal-grid__matrix > .pd-cal-grid__cell:nth-child(n + 21) {
+.pd-cal-grid__matrix> :nth-child(n + 21) .pd-cal-grid__cell,
+.pd-cal-grid__matrix>.pd-cal-grid__cell:nth-child(n + 21) {
   border-bottom: 0;
 }
 
 .pd-cal-grid__cell.is-zone-diag {
-  background: color-mix(
-    in srgb,
-    var(--color-status-completed) 7%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-completed) 7%,
+      var(--color-surface));
+}
+
+.pd-cal-grid__cell.is-zone-diag.is-empty {
+  background: color-mix(in srgb,
+      var(--color-status-completed) 2.5%,
+      var(--color-surface));
 }
 
 .pd-cal-grid__cell.is-zone-above1,
@@ -1313,11 +1568,9 @@
 }
 
 .pd-cal-grid__cell.is-zone-below1 {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 5%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-pending) 5%,
+      var(--color-surface));
 }
 
 .pd-cal-grid__cell.is-zone-below2 {
@@ -1412,6 +1665,15 @@
   background: color-mix(in srgb, var(--color-text) 2.5%, var(--color-surface));
 }
 
+.pd-cal-grid__tip-hint {
+  margin: 0;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 550;
+}
+
 .pd-cal-grid__tip-name {
   color: var(--color-text);
   font-size: 0.78rem;
@@ -1444,9 +1706,16 @@
 
 .pd-cal-grid__x-lbl {
   min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0.15rem 0.15rem 0;
   text-align: center;
-  line-height: 1.2;
-  white-space: nowrap;
+  line-height: 1.15;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  hyphens: manual;
 }
 
 .pd-cal-grid__axis-x-label {
@@ -1463,8 +1732,9 @@
 .pd-cal-grid__legend {
   list-style: none;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.9rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
   margin: 0;
   padding: 0;
   color: var(--color-text-secondary);
@@ -1494,7 +1764,7 @@
 .pd-cal-grid__stats {
   list-style: none;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.45rem;
   margin: 0;
   padding: 0;
 }
@@ -1502,7 +1772,7 @@
 .pd-cal-grid__stat {
   display: grid;
   gap: 0.15rem;
-  padding: 0.75rem 0.85rem;
+  padding: 0.65rem 0.75rem;
   border-radius: 0.5rem;
   background: color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
 }
@@ -1516,11 +1786,19 @@
 
 .pd-cal-grid__stat strong {
   color: var(--color-text);
-  font-size: 1.35rem;
+  font-size: 1.25rem;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.03em;
   line-height: 1;
+}
+
+.pd-cal-grid__stat strong.is-aligned {
+  color: var(--color-status-completed);
+}
+
+.pd-cal-grid__stat strong.is-mgr {
+  color: var(--color-blue);
 }
 
 .pd-cal-grid__stat strong.is-red {
@@ -1532,40 +1810,185 @@
 }
 
 .pd-cal-grid__outliers {
-  margin-top: 0.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   min-width: 0;
+  min-height: 0;
+  align-self: stretch;
 }
 
 .pd-cal-grid__outliers-title {
-  margin: 0 0 0.45rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
   color: var(--color-text);
   font-size: 0.75rem;
   font-weight: 650;
 }
 
-.pd-cal-grid__outlier-list {
-  list-style: none;
-  display: grid;
-  gap: 0.4rem;
-  max-height: 15rem;
-  margin: 0;
-  padding: 0;
-  overflow-y: auto;
+.pd-cal-grid__outliers-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.25rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-red) 14%, var(--color-surface));
+  color: var(--color-red);
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
-.pd-cal-grid__outlier {
-  display: grid;
-  gap: 0.3rem;
-  padding: 0.6rem 0.7rem;
+.pd-cal-grid__outlier-wrap {
+  max-height: min(28rem, 55vh);
+  overflow: auto;
   border: 1px solid var(--color-border);
-  border-radius: 0.45rem;
+  border-radius: 0.5rem;
   background: var(--color-surface);
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.pd-cal-grid__outlier-wrap::-webkit-scrollbar {
+  width: 0.35rem;
+  height: 0.35rem;
+}
+
+.pd-cal-grid__outlier-wrap:hover,
+.pd-cal-grid__outlier-wrap:focus-within {
+  scrollbar-color: color-mix(in srgb, var(--color-text) 28%, transparent) transparent;
+}
+
+.pd-cal-grid__outlier-wrap::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: transparent;
+}
+
+.pd-cal-grid__outlier-wrap:hover::-webkit-scrollbar-thumb,
+.pd-cal-grid__outlier-wrap:focus-within::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-text) 28%, transparent);
+}
+
+.pd-cal-grid__outlier-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pd-cal-grid__outlier-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  font-size: 0.75rem;
+  line-height: 1.25;
+}
+
+.pd-cal-grid__outlier-table th,
+.pd-cal-grid__outlier-table td {
+  padding: 0.4rem 0.55rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.pd-cal-grid__outlier-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.pd-cal-grid__outlier-table tbody tr:last-child th,
+.pd-cal-grid__outlier-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.pd-cal-grid__outlier-row {
+  cursor: pointer;
+}
+
+.pd-cal-grid__outlier-table tbody tr:hover th,
+.pd-cal-grid__outlier-table tbody tr:hover td {
+  background: color-mix(in srgb, var(--color-red) 4%, var(--color-surface));
+}
+
+.pd-cal-grid__outlier-table th:first-child,
+.pd-cal-grid__outlier-table td:first-child {
+  width: 40%;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pd-cal-grid__outlier-name {
+  display: block;
+  min-width: 0;
   color: var(--color-text);
-  font-size: 0.8rem;
   font-weight: 650;
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pd-cal-grid__outlier-person {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pd-cal-grid__outlier-person > :first-child {
+  flex-shrink: 0;
+}
+
+.pd-cal-grid__outlier-person:hover .pd-cal-grid__outlier-name {
+  color: var(--color-red);
+}
+
+.pd-cal-grid__outlier-person:focus-visible {
+  outline: 2px solid var(--color-cta);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+.pd-cal-grid__outlier-gap {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-cal-grid__outlier-gap.is-gap-self {
+  color: var(--color-red);
+}
+
+.pd-cal-grid__outlier-gap.is-gap-mgr {
+  color: var(--color-blue);
+}
+
+.pd-cal-grid__outlier-gap.is-gap-aligned {
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-grid__grade-chip.pd-cal-heat__avg {
+  padding: 0.15rem 0.45rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
 }
 
 .pd-cal-grid__chips {
@@ -1645,14 +2068,13 @@
 
   .pd-cal-cmp__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-column: auto;
     grid-template-areas:
-      'name name name'
-      'score score people'
-      'track track track'
-      'delta delta delta';
-    gap: 0.3rem 0.55rem;
+      'name people'
+      'track track'
+      'delta delta';
+    gap: 0.35rem 0.55rem;
   }
 
   .pd-cal-cmp__name {
@@ -1661,12 +2083,6 @@
 
   .pd-cal-cmp__track {
     grid-area: track;
-  }
-
-  .pd-cal-cmp__score {
-    grid-area: score;
-    justify-items: start;
-    text-align: left;
   }
 
   .pd-cal-cmp__delta {
@@ -1739,6 +2155,47 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
+}
+
+.pd-cal-rt__progress-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.85rem;
+}
+
+.pd-cal-session-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.pd-cal-session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-status-completed) 14%, var(--color-surface));
+  color: var(--color-status-completed);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pd-cal-session-badge::before {
+  content: '';
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.pd-cal-session-badge.is-locked {
+  background: color-mix(in srgb, var(--color-text-secondary) 14%, var(--color-surface));
+  color: var(--color-text-secondary);
 }
 
 .pd-cal-rt__progress-summary {
@@ -1965,11 +2422,45 @@
 }
 
 .pd-cal-rt__table tbody tr.is-adjusted {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 6%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-pending) 6%,
+      var(--color-surface));
+}
+
+.pd-people__table.pd-cal-rt__table th:first-child,
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--color-surface-raised, var(--color-surface));
+  border-right: 1px solid var(--color-border);
+  box-shadow: 1px 0 0 var(--color-divider);
+}
+
+.pd-people__table.pd-cal-rt__table th:first-child {
+  --pd-table-head-z: 4;
+  z-index: 2;
+  background: var(--people-table-head-bg,
+      color-mix(in srgb,
+        var(--color-text) 2%,
+        var(--color-surface-raised, var(--color-surface))));
+}
+
+.pd-cal-rt__table tbody tr.is-flagged td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-red) 4%, var(--color-surface));
+}
+
+.pd-cal-rt__table tbody tr.is-adjusted td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb,
+      var(--color-status-pending) 6%,
+      var(--color-surface));
+}
+
+.pd-cal-rt__person {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--people-table-person-gap, 0.55rem);
+  min-width: 0;
 }
 
 .pd-cal-rt__name {
@@ -2028,36 +2519,32 @@
 }
 
 .pd-cal-rt__grade.is-exceptional {
-  background: color-mix(
-    in srgb,
-    var(--color-status-completed) 18%,
-    var(--color-surface)
-  );
-  color: var(--color-status-completed);
+  background: color-mix(in srgb,
+      var(--grade-exceptional) 18%,
+      var(--color-surface));
+  color: var(--grade-exceptional);
 }
 
 .pd-cal-rt__grade.is-exceeding {
-  background: color-mix(in srgb, var(--color-blue) 16%, var(--color-surface));
-  color: var(--color-blue);
+  background: color-mix(in srgb, var(--grade-exceeding) 16%, var(--color-surface));
+  color: var(--grade-exceeding);
 }
 
 .pd-cal-rt__grade.is-performing {
-  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
-  color: var(--color-text);
+  background: color-mix(in srgb, var(--grade-performing) 16%, var(--color-surface));
+  color: var(--grade-performing);
 }
 
 .pd-cal-rt__grade.is-developing {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 18%,
-    var(--color-surface)
-  );
-  color: var(--color-text);
+  background: color-mix(in srgb,
+      var(--grade-developing) 18%,
+      var(--color-surface));
+  color: var(--grade-developing);
 }
 
 .pd-cal-rt__grade.is-unsatisfactory {
-  background: color-mix(in srgb, var(--color-red) 14%, var(--color-surface));
-  color: var(--color-red);
+  background: color-mix(in srgb, var(--grade-unsatisfactory) 14%, var(--color-surface));
+  color: var(--grade-unsatisfactory);
 }
 
 .pd-cal-rt__gap {
@@ -2197,6 +2684,29 @@
   line-height: 1.4;
 }
 
+.pd-cal-rt__cosign,
+.pd-cal-drawer__cosign {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--color-amber) 35%, var(--color-border));
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--color-amber) 10%, var(--color-surface));
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 550;
+  line-height: 1.4;
+  cursor: pointer;
+}
+
+.pd-cal-rt__cosign input,
+.pd-cal-drawer__cosign input {
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+}
+
 @media (max-width: 52rem) {
   .pd-cal-rt__progress {
     grid-template-columns: 1fr;
@@ -2223,9 +2733,21 @@
   min-width: 0;
 }
 
+.pd-settings-panel__body:has(> .pd-cal-drawer) {
+  scrollbar-gutter: stable;
+}
+
 .pd-cal-drawer__title-block {
   display: grid;
   gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-cal-drawer__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
   min-width: 0;
 }
 
@@ -2235,6 +2757,40 @@
   font-size: 0.8rem;
   font-weight: 500;
   line-height: 1.35;
+}
+
+.pd-cal-drawer__status-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.pd-cal-drawer__status-chip.is-not_reviewed {
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-drawer__status-chip.is-discussed {
+  background: color-mix(in srgb, var(--color-status-pending) 14%, var(--color-surface));
+  color: var(--color-status-pending);
+}
+
+.pd-cal-drawer__status-chip.is-confirmed {
+  background: color-mix(in srgb, var(--color-status-completed) 14%, var(--color-surface));
+  color: var(--color-status-completed);
+}
+
+.pd-cal-drawer__status-chip.is-rating_changed {
+  background: color-mix(in srgb, var(--color-blue) 14%, var(--color-surface));
+  color: var(--color-blue);
 }
 
 .pd-cal-drawer__summary {
@@ -2322,19 +2878,21 @@
 }
 
 .pd-cal-drawer__tabs.pd-segmented {
-  width: max-content;
+  display: flex;
+  width: 100%;
   max-width: 100%;
+  flex-shrink: 0;
 }
 
-.pd-settings-panel:has(.pd-cal-drawer__tabs) .pd-settings-panel__subnav {
-  width: max-content;
-  min-width: 100%;
-  box-sizing: border-box;
+.pd-cal-drawer__tabs .pd-segmented__btn {
+  flex: 1;
+  justify-content: center;
 }
 
-.pd-cal-drawer__tab-badge {
-  background: color-mix(in srgb, var(--color-red) 14%, var(--color-surface)) !important;
-  color: var(--color-red) !important;
+.pd-cal-drawer__tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
 }
 
 .pd-cal-drawer__stack {
@@ -2354,16 +2912,12 @@
 }
 
 .pd-cal-drawer__card--accent {
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 8%,
-    var(--color-surface)
-  );
-  border-color: color-mix(
-    in srgb,
-    var(--color-status-pending) 28%,
-    var(--color-border)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-pending) 8%,
+      var(--color-surface));
+  border-color: color-mix(in srgb,
+      var(--color-status-pending) 28%,
+      var(--color-border));
 }
 
 .pd-cal-drawer__section-title {
@@ -2391,7 +2945,6 @@
   color: var(--color-text-secondary);
 }
 
-.pd-cal-drawer__quarter-bars,
 .pd-cal-drawer__compare,
 .pd-cal-drawer__year-history {
   list-style: none;
@@ -2401,7 +2954,113 @@
   padding: 0;
 }
 
-.pd-cal-drawer__quarter-bars li,
+.pd-cal-drawer__q-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  min-height: 4.5rem;
+  padding-top: 0.15rem;
+}
+
+.pd-cal-drawer__q-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pd-cal-drawer__q-val {
+  max-width: 100%;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 650;
+  line-height: 1.15;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.pd-cal-drawer__q-val.is-exceptional {
+  color: var(--grade-exceptional);
+}
+
+.pd-cal-drawer__q-val.is-exceeding {
+  color: var(--grade-exceeding);
+}
+
+.pd-cal-drawer__q-val.is-performing {
+  color: var(--grade-performing);
+}
+
+.pd-cal-drawer__q-val.is-developing {
+  color: var(--grade-developing);
+}
+
+.pd-cal-drawer__q-val.is-unsatisfactory {
+  color: var(--grade-unsatisfactory);
+}
+
+.pd-cal-drawer__q-bar {
+  display: block;
+  width: 1.75rem;
+  max-width: 100%;
+  min-height: 0.25rem;
+  border-radius: 0.25rem 0.25rem 0 0;
+  background: color-mix(in srgb, var(--color-text) 18%, var(--color-surface));
+}
+
+.pd-cal-drawer__q-bar.is-exceptional {
+  background: var(--grade-exceptional);
+}
+
+.pd-cal-drawer__q-bar.is-exceeding {
+  background: var(--grade-exceeding);
+}
+
+.pd-cal-drawer__q-bar.is-performing {
+  background: var(--grade-performing);
+}
+
+.pd-cal-drawer__q-bar.is-developing {
+  background: var(--grade-developing);
+}
+
+.pd-cal-drawer__q-bar.is-unsatisfactory {
+  background: var(--grade-unsatisfactory);
+}
+
+.pd-cal-drawer__q-lbl {
+  max-width: 100%;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 550;
+  line-height: 1.2;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.pd-cal-drawer__q-divider {
+  flex-shrink: 0;
+  align-self: flex-end;
+  width: 1px;
+  height: 3rem;
+  margin-inline: 0.15rem;
+  margin-bottom: 1.15rem;
+  background: var(--color-border);
+}
+
+.pd-cal-drawer__diverge-note {
+  margin: 0.35rem 0 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--color-status-pending) 12%, var(--color-surface));
+  color: var(--color-status-pending);
+  font-size: 0.78rem;
+  font-weight: 550;
+  line-height: 1.35;
+}
+
 .pd-cal-drawer__compare li,
 .pd-cal-drawer__year-history li {
   display: grid;
@@ -2434,24 +3093,24 @@
 }
 
 .pd-cal-drawer__fill.is-exceptional {
-  background: var(--color-status-completed);
+  background: var(--grade-exceptional);
 }
 
 .pd-cal-drawer__fill.is-exceeding,
 .pd-cal-drawer__fill.is-self-bar {
-  background: var(--color-blue);
+  background: var(--grade-exceeding);
 }
 
 .pd-cal-drawer__fill.is-performing {
-  background: color-mix(in srgb, var(--color-text) 35%, var(--color-surface));
+  background: var(--grade-performing);
 }
 
 .pd-cal-drawer__fill.is-developing {
-  background: var(--color-status-pending);
+  background: var(--grade-developing);
 }
 
 .pd-cal-drawer__fill.is-unsatisfactory {
-  background: var(--color-red);
+  background: var(--grade-unsatisfactory);
 }
 
 .pd-cal-drawer__pillar-list,
@@ -2474,6 +3133,17 @@
   gap: 0.75rem;
   padding: 0.65rem 0;
   border-bottom: 1px solid var(--color-border);
+}
+
+.pd-cal-drawer__pillar-list .pd-cal-rt__grade,
+.pd-cal-drawer__history-list .pd-cal-rt__grade,
+.pd-cal-drawer__timeline .pd-cal-rt__grade,
+.pd-cal-drawer__final-row .pd-cal-rt__grade,
+.pd-cal-drawer__compare .pd-cal-rt__grade,
+.pd-cal-drawer__year-history .pd-cal-rt__grade,
+.pd-cal-drawer__metrics .pd-cal-rt__grade {
+  flex-shrink: 0;
+  max-width: none;
 }
 
 .pd-cal-drawer__pillar-list li:last-child,
@@ -2536,6 +3206,18 @@
   line-height: 1.45;
 }
 
+.pd-cal-drawer__narratives {
+  list-style: none;
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.pd-cal-drawer__narratives .pd-cal-drawer__eyebrow {
+  margin-bottom: 0.35rem;
+}
+
 .pd-cal-drawer__compare-note {
   margin: 0;
   padding: 0.55rem 0.7rem;
@@ -2587,11 +3269,9 @@
   margin: 0;
   padding: 0.6rem 0.75rem;
   border-radius: var(--radius-md, 0.5rem);
-  background: color-mix(
-    in srgb,
-    var(--color-status-pending) 12%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-pending) 12%,
+      var(--color-surface));
   color: var(--color-text);
   font-size: 0.8rem;
   font-weight: 550;
@@ -2670,7 +3350,6 @@
     grid-template-columns: 1fr;
   }
 
-  .pd-cal-drawer__quarter-bars li,
   .pd-cal-drawer__compare li,
   .pd-cal-drawer__year-history li {
     grid-template-columns: 1fr auto;
@@ -2694,32 +3373,187 @@
   font-weight: 600;
 }
 
-.pd-cal-calibrators {
+/* —— Assign calibrators right panel —— */
+.pd-cal-calibrators-panel {
   display: grid;
-  gap: 1rem;
-  margin: 0.85rem 0 0;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.pd-settings-panel__body:has(> .pd-cal-calibrators-panel) {
+  scrollbar-gutter: stable;
+}
+
+.pd-cal-calibrators-panel__list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.pd-cal-calibrators h3,
-.pd-cal-calibrators p {
-  margin: 0;
+.pd-cal-calibrators-panel__card {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--people-radius-panel, 1rem);
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
 }
 
-.pd-cal-calibrators ul {
+.pd-cal-calibrators-panel__card-head {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__card-title {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.pd-cal-calibrators-panel__card-meta,
+.pd-cal-calibrators-panel__hint,
+.pd-cal-calibrators-panel__empty,
+.pd-cal-calibrators-panel__none {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.pd-cal-calibrators-panel__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0.4rem 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.pd-cal-calibrators li li {
-  display: flex;
+.pd-cal-calibrators-panel__chip {
+  display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  max-width: 100%;
+  padding: 0.15rem 0.2rem 0.15rem 0.2rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.pd-cal-calibrators-panel__chip-name {
+  overflow: hidden;
+  max-width: 10rem;
+  color: var(--color-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-cal-calibrators-panel__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.pd-cal-calibrators-panel__chip-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  color: var(--color-text);
+}
+
+.pd-cal-calibrators-panel__chip-remove:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.pd-cal-calibrators-panel__person {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__existing {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__existing-title {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pd-cal-calibrators-panel__existing-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pd-cal-calibrators-panel__existing-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pd-cal-calibrators-panel__existing-list li:last-child .pd-cal-calibrators-panel__existing-row {
+  border-bottom: 0;
+}
+
+.pd-cal-calibrators-panel__existing-row:hover,
+.pd-cal-calibrators-panel__existing-row.is-active {
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+}
+
+.pd-cal-calibrators-panel__existing-row:focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+
+.pd-cal-calibrators-panel__existing-copy {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__existing-name {
+  color: var(--color-text);
+  font-size: 0.88rem;
+  font-weight: 650;
+}
+
+.pd-cal-calibrators-panel__existing-meta {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
 }
 
 @media (max-width: 52rem) {

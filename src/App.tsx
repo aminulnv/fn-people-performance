@@ -23,6 +23,7 @@ import {
   NavigationProgressProvider,
   RouteLoadingFallback,
 } from '@/components/ui/NavigationProgress'
+import { PrivacyBlur } from '@/components/privacy/PrivacyBlur'
 
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
@@ -58,6 +59,7 @@ const TeamFormPage = lazy(() => import('@/pages/TeamFormPage'))
 const EditRolePage = lazy(() => import('@/pages/EditRolePage'))
 const RoleDetailPage = lazy(() => import('@/pages/RoleDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
+const TestPage = lazy(() => import('@/pages/TestPage'))
 
 function CatchAllRedirect() {
   const { status } = useAuth()
@@ -106,6 +108,7 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
 function App() {
   return (
     <BrowserRouter basename={routerBasename} useTransitions={false}>
+      <PrivacyBlur />
       <NavigationProgressProvider>
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
@@ -299,6 +302,7 @@ function App() {
                 }
               />
               <Route path="settings" element={<SettingsPage />} />
+              <Route path="test" element={<TestPage />} />
             </Route>
             <Route path="*" element={<CatchAllRedirect />} />
           </Routes>

@@ -42,13 +42,19 @@ export type RatingGridModel = {
   cells: RatingGridCell[]
   people: RatingGridPerson[]
   total: number
-  redFlagCount: number
+  alignedCount: number
+  /** Manager rated exactly one tier higher. */
+  mgrHigherCount: number
+  /** Self rated exactly one tier higher (manager lower). */
+  selfHigherCount: number
+  /** Absolute 1-tier gaps (mgr higher + self higher). */
   amberCount: number
+  redFlagCount: number
   redFlagOutliers: RatingGridPerson[]
 }
 
 export function shortBandLabel(bandId: GradeBandId): string {
-  if (bandId === 'unsatisfactory') return 'Unsatis.'
+  if (bandId === 'unsatisfactory') return 'Unsat.'
   return GRADE_BAND_META[bandId].label
 }
 
@@ -121,24 +127,32 @@ export function buildSelfManagerRatingGrid(input: {
   const redFlagOutliers = people.filter(
     (person) => Math.abs(person.tierDelta) >= 2,
   )
-  const amberCount = people.filter(
-    (person) => Math.abs(person.tierDelta) === 1,
-  ).length
+  let alignedCount = 0
+  let mgrHigherCount = 0
+  let selfHigherCount = 0
+  for (const person of people) {
+    if (person.tierDelta === 0) alignedCount += 1
+    else if (person.tierDelta === 1) mgrHigherCount += 1
+    else if (person.tierDelta === -1) selfHigherCount += 1
+  }
 
   return {
     cells,
     people,
     total: people.length,
+    alignedCount,
+    mgrHigherCount,
+    selfHigherCount,
+    amberCount: mgrHigherCount + selfHigherCount,
     redFlagCount: redFlagOutliers.length,
-    amberCount,
     redFlagOutliers,
   }
 }
 
 export function formatTierGap(tierDelta: number): string {
   const abs = Math.abs(tierDelta)
-  const unit = abs === 1 ? 'tier' : 'tiers'
+  const unit = abs === 1 ? 'Tier' : 'Tiers'
   if (tierDelta > 0) return `+${tierDelta} ${unit}`
   if (tierDelta < 0) return `${tierDelta} ${unit}`
-  return '0 tiers'
+  return `0 ${unit}`
 }

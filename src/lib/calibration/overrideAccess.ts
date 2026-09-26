@@ -1,6 +1,40 @@
 import { hasSystemPermission, type SystemPermission } from '@/lib/accessControl/types'
 import type { PlatformEmployee } from '@/lib/employees/types'
+import type { GradeBandId } from '@/lib/reviews/types'
+import { gradeTierDelta } from './indicators'
 import type { CalibratorAssignments } from './sessionApi'
+
+/** Appended to the override reason when a 3+ tier change is flagged for HRBP. */
+export const HRBP_COSIGN_REASON_TAG = '[Pending HRBP co-sign]'
+
+/** Absolute grade-tier change for an override (null if either grade is missing). */
+export function overrideTierSpan(
+  from: GradeBandId | null | undefined,
+  to: GradeBandId | null | undefined,
+): number | null {
+  const delta = gradeTierDelta(from ?? null, to ?? null)
+  return delta == null ? null : Math.abs(delta)
+}
+
+/** HTML rule: changes of 3 or more tiers require HRBP co-sign. */
+export function requiresHrbpCosign(
+  from: GradeBandId | null | undefined,
+  to: GradeBandId | null | undefined,
+): boolean {
+  const span = overrideTierSpan(from, to)
+  return span != null && span >= 3
+}
+
+export function reasonWithHrbpCosign(
+  reason: string,
+  pendingCosign: boolean,
+): string {
+  const trimmed = reason.trim()
+  if (!pendingCosign) return trimmed
+  if (trimmed.includes(HRBP_COSIGN_REASON_TAG)) return trimmed
+  return `${trimmed} ${HRBP_COSIGN_REASON_TAG}`
+}
+
 
 export function canOverrideCalibrationGrade(input: {
   viewerEmployeeId: number | null

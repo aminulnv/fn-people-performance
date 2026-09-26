@@ -2,6 +2,7 @@ import { queryClient, queryKeys } from '@/lib/queryClient'
 import { hydrateManagerDelegations } from '@/lib/delegations/store'
 import { loadEmployees } from '@/lib/employees/store'
 import { refreshRemoteGoals } from '@/lib/goalsApi'
+import { invalidateReviewPacketQueries } from '@/lib/reviews/useReviewPackets'
 import { reloadReviewCycles } from '@/lib/reviews/store'
 import type { PlatformEvent, PlatformTopic } from './event'
 import { emitPlatformEvent } from './invalidation'
@@ -20,6 +21,15 @@ async function applyTopic(event: PlatformEvent): Promise<void> {
         cycleId: event.cycleId,
         employeeId: event.employeeId,
       })
+      if (event.cycleId) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.cycleGoalSubmissions(event.cycleId),
+        })
+      } else {
+        void queryClient.invalidateQueries({
+          queryKey: ['cycle-goal-submissions'],
+        })
+      }
       break
     case 'reviews':
       await reloadReviewCycles()
@@ -42,6 +52,7 @@ async function applyTopic(event: PlatformEvent): Promise<void> {
       await loadEmployees({ reload: true })
       break
     case 'packets':
+      invalidateReviewPacketQueries(queryClient, event.cycleId)
       break
     default:
       break
