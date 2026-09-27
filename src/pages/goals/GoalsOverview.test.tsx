@@ -92,6 +92,20 @@ function signInReport() {
   })
 }
 
+function signInManager() {
+  writeSession({
+    user: {
+      id: MANAGER_ID,
+      email: 'manager@example.com',
+      name: 'Line Manager',
+      personId: MANAGER_ID,
+      permissions: [],
+      title: 'Manager',
+    },
+    signedInAt: '2026-01-01T00:00:00.000Z',
+  })
+}
+
 function renderOverview() {
   return render(
     <MemoryRouter initialEntries={['/goals#my-goals']}>
@@ -268,6 +282,22 @@ describe('Goals overview cycle eligibility', () => {
     expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
     expect(document.querySelector('td.pd-goals-overview__metric')).toBeNull()
     expect(document.querySelector('[data-col="metric"]')).toBeNull()
+  })
+
+  it('shows the attention count on My Reports when a report is waiting', async () => {
+    clearSession()
+    setSignedInPerson(MANAGER_ID)
+    resetGoalsDemo()
+    signInManager()
+    await putPeopleInGroup([1, 2])
+
+    renderOverview()
+
+    expect(
+      await screen.findByRole('button', {
+        name: /My Reports.*item needs attention/,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('opens the goal panel from a nested measure row', async () => {

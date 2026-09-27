@@ -3,7 +3,12 @@ import {
   PageStatus,
   PageStatusLink,
 } from '@/components/ui'
-import { canViewAllReviews, hasSystemPermission, type SystemPermission } from '@/lib/accessControl/types'
+import {
+  canViewAllReviews,
+  canViewAnalytics,
+  hasSystemPermission,
+  type SystemPermission,
+} from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
 
 type RequirePermissionProps = {
@@ -54,14 +59,21 @@ type RequirePlatformReadProps = {
 }
 
 export function RequirePlatformRead({ children }: RequirePlatformReadProps) {
-  return (
-    <RequirePermission
-      permission="platform.read_all"
-      description="Analytics is available to administrators. Contact an administrator if you need access."
-    >
-      {children}
-    </RequirePermission>
-  )
+  const { user } = useAuth()
+  const allowed = canViewAnalytics(user?.email)
+
+  if (!allowed) {
+    return (
+      <PageStatus
+        variant="forbidden"
+        aria-label="Access denied"
+        description="Analytics is available to a limited set of users. Contact an administrator if you need access."
+        action={<PageStatusLink to="/" label="Back to home" />}
+      />
+    )
+  }
+
+  return children
 }
 
 export function RequireReviewOversight({ children }: { children: ReactNode }) {

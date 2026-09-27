@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { AppLayoutConfig, NavItem } from '@/layout/types'
 import {
+  ANALYTICS_ALLOWED_EMAILS,
   hasSystemPermission,
   type SystemPermission,
 } from '@/lib/accessControl/types'
@@ -59,7 +60,7 @@ export const layoutConfig: AppLayoutConfig = {
       path: '/analytics',
       label: 'Analytics',
       icon: BarChart3,
-      requiredPermission: 'platform.read_all',
+      allowedEmails: ANALYTICS_ALLOWED_EMAILS,
     },
   ],
 }
@@ -73,8 +74,15 @@ export const searchablePages: NavItem[] = [
 export function navItemsForPermissions(
   items: NavItem[],
   permissions: readonly SystemPermission[] | undefined,
+  email?: string,
 ): NavItem[] {
+  const normalizedEmail = (email ?? '').trim().toLowerCase()
   return items.filter((item) => {
+    if (item.allowedEmails?.length) {
+      return item.allowedEmails.some(
+        (candidate) => candidate.trim().toLowerCase() === normalizedEmail,
+      )
+    }
     if (item.requiredAnyPermission?.length) {
       return item.requiredAnyPermission.some((permission) =>
         hasSystemPermission(permissions, permission),

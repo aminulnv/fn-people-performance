@@ -262,7 +262,11 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
 
   items.push(...actionItems(user, goals))
 
-  const pages = navItemsForPermissions(searchablePages, user?.permissions)
+  const pages = navItemsForPermissions(
+    searchablePages,
+    user?.permissions,
+    user?.email,
+  )
   for (const page of pages) {
     items.push({
       id: `page:${page.path}`,

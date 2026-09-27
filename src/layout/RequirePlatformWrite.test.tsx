@@ -9,11 +9,15 @@ import {
   RequirePlatformWrite,
 } from './RequirePlatformWrite'
 
-function renderWithPermissions(permissions: string[], children: ReactNode) {
+function renderWithPermissions(
+  permissions: string[],
+  children: ReactNode,
+  email = 'test@example.com',
+) {
   writeSession({
     user: {
       id: 'test',
-      email: 'test@example.com',
+      email,
       name: 'Test User',
       personId: '1',
       permissions,
@@ -57,25 +61,27 @@ describe('RequirePlatformWrite', () => {
 })
 
 describe('RequirePlatformRead', () => {
-  it('blocks users who are not Settings admins', async () => {
+  it('blocks users who are not on the analytics allowlist', async () => {
+    renderWithPermissions(
+      ['platform.read_all', 'platform.write_all'],
+      <RequirePlatformRead>
+        <p>Analytics content</p>
+      </RequirePlatformRead>,
+      'other@nextventures.io',
+    )
+    expect(
+      await screen.findByText(/available to a limited set of users/i),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Analytics content')).not.toBeInTheDocument()
+  })
+
+  it('allows aminul.islam@nextventures.io', async () => {
     renderWithPermissions(
       [],
       <RequirePlatformRead>
         <p>Analytics content</p>
       </RequirePlatformRead>,
-    )
-    expect(
-      await screen.findByText(/available to administrators/i),
-    ).toBeInTheDocument()
-    expect(screen.queryByText('Analytics content')).not.toBeInTheDocument()
-  })
-
-  it('allows Settings admins with platform.read_all', async () => {
-    renderWithPermissions(
-      ['platform.read_all'],
-      <RequirePlatformRead>
-        <p>Analytics content</p>
-      </RequirePlatformRead>,
+      'aminul.islam@nextventures.io',
     )
     expect(await screen.findByText('Analytics content')).toBeInTheDocument()
   })

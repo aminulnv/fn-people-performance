@@ -14,6 +14,8 @@ export interface NavItem {
   requiredPermission?: SystemPermission
   /** Hidden unless the user has at least one of these permissions. */
   requiredAnyPermission?: SystemPermission[]
+  /** When set, the item is hidden unless the user's email is in this list. */
+  allowedEmails?: readonly string[]
 }
 
 export interface BrandConfig {

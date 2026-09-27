@@ -83,6 +83,7 @@ import {
   countReportGoalTodos,
   goalTodoBadgeLabel,
 } from "@/lib/goals/todoCounts";
+import { useGoalTodoCounts } from "@/lib/goals/useGoalTodoCounts";
 import {
   goalEditLockSegments,
   speakGoalEditLockSegments,
@@ -931,6 +932,7 @@ function GoalsOverview() {
     () => (me ? listActiveDelegatedManagerIds(me.id) : []),
     [coverVersion, me],
   );
+  const goalTodos = useGoalTodoCounts();
   const overviewScopes = OVERVIEW_SCOPES.filter((item) => {
     if (item.id === "reports") {
       return Boolean(me?.reportIds.length || coveredManagerIds.length);
@@ -944,6 +946,36 @@ function GoalsOverview() {
       );
     }
     return true;
+  }).map((item) => {
+    if (item.id === "mine") {
+      return {
+        ...item,
+        label: (
+          <>
+            {item.label}
+            <CountBadge
+              count={goalTodos.own}
+              aria-label={goalTodoBadgeLabel(goalTodos.own, "own")}
+            />
+          </>
+        ),
+      };
+    }
+    if (item.id === "reports") {
+      return {
+        ...item,
+        label: (
+          <>
+            {item.label}
+            <CountBadge
+              count={goalTodos.reports}
+              aria-label={goalTodoBadgeLabel(goalTodos.reports, "reports")}
+            />
+          </>
+        ),
+      };
+    }
+    return item;
   });
   const visibleScope = overviewScopes.some((item) => item.id === scope)
     ? scope

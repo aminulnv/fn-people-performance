@@ -103,3 +103,16 @@ export function canViewAllReviews(
     hasSystemPermission(permissions, 'platform.write_all')
   )
 }
+
+/** Analytics stays private until a broader rollout. */
+export const ANALYTICS_ALLOWED_EMAILS = [
+  'aminul.islam@nextventures.io',
+] as const
+
+export function canViewAnalytics(email: string | undefined): boolean {
+  const normalized = (email ?? '').trim().toLowerCase()
+  return (
+    Boolean(normalized) &&
+    ANALYTICS_ALLOWED_EMAILS.some((candidate) => candidate === normalized)
+  )
+}

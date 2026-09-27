@@ -55,12 +55,13 @@ export function AppLayout({
   const goalTodos = useGoalTodoCounts()
   const visibleNavItems = useMemo(
     () =>
-      navItemsForPermissions(navItems, user?.permissions).map((item) =>
-        item.path === '/goals'
-          ? { ...item, badgeCount: goalTodos.total }
-          : item,
+      navItemsForPermissions(navItems, user?.permissions, user?.email).map(
+        (item) =>
+          item.path === '/goals'
+            ? { ...item, badgeCount: goalTodos.total }
+            : item,
       ),
-    [goalTodos.total, navItems, user?.permissions],
+    [goalTodos.total, navItems, user?.email, user?.permissions],
   )
 
   useEffect(() => {
