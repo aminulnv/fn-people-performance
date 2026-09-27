@@ -1,4 +1,5 @@
 import { getPool } from '../db.mjs'
+import { getNotificationRule } from './notificationRules/store.mjs'
 
 function isoTimestamp(value) {
   if (!value) return undefined
@@ -48,6 +49,17 @@ function databaseId(notificationId) {
 }
 
 export async function createPlatformNotification(client, input) {
+  const rule = await getNotificationRule(input.eventKey, client)
+  if (!input.bypassRuleGate && rule && !rule.enabled) return null
+
+  const channels =
+    Array.isArray(input.channels) && input.channels.length > 0
+      ? input.channels
+      : rule?.channels?.length
+        ? rule.channels
+        : ['in_app']
+  if (channels.length === 0) return null
+
   const { rows } = await client.query(
     `INSERT INTO platform.notifications (
        event_key,
@@ -112,14 +124,26 @@ export async function createPlatformNotification(client, input) {
     ],
   )
   const row = rows[0]
-  await client.query(
-    `INSERT INTO platform.notification_deliveries (
-       notification_id, channel, status, attempts, delivered_at
-     ) VALUES ($1, 'in_app', 'delivered', 1, now())
-     ON CONFLICT (notification_id, channel) DO NOTHING`,
-    [row.id],
-  )
-  return mapNotification({ ...row, channels: ['in_app'] })
+  for (const channel of channels) {
+    if (channel === 'in_app') {
+      await client.query(
+        `INSERT INTO platform.notification_deliveries (
+           notification_id, channel, status, attempts, delivered_at
+         ) VALUES ($1, 'in_app', 'delivered', 1, now())
+         ON CONFLICT (notification_id, channel) DO NOTHING`,
+        [row.id],
+      )
+      continue
+    }
+    await client.query(
+      `INSERT INTO platform.notification_deliveries (
+         notification_id, channel, status, attempts, next_attempt_at
+       ) VALUES ($1, $2, 'pending', 0, now())
+       ON CONFLICT (notification_id, channel) DO NOTHING`,
+      [row.id, channel],
+    )
+  }
+  return mapNotification({ ...row, channels })
 }
 
 export async function listPlatformNotifications(recipientEmployeeId) {
@@ -193,4 +217,30 @@ export async function markAllPlatformNotificationsRead(recipientEmployeeId) {
      WHERE recipient_employee_id = $1 AND state = 'unread'`,
     [recipientEmployeeId],
   )
+}
+
+/** Client confirms a browser/OS notification was shown. */
+export async function markPlatformBrowserDelivery(
+  recipientEmployeeId,
+  notificationId,
+) {
+  const id = databaseId(notificationId)
+  if (!id) return false
+  const { rowCount } = await getPool().query(
+    `UPDATE platform.notification_deliveries d
+     SET
+       status = 'delivered',
+       attempts = d.attempts + 1,
+       delivered_at = COALESCE(d.delivered_at, now()),
+       next_attempt_at = NULL,
+       last_error = NULL,
+       updated_at = now()
+     FROM platform.notifications n
+     WHERE d.notification_id = n.id
+       AND d.notification_id = $1
+       AND d.channel = 'browser'
+       AND n.recipient_employee_id = $2`,
+    [id, recipientEmployeeId],
+  )
+  return rowCount > 0
 }

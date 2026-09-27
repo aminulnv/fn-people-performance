@@ -11,6 +11,7 @@ import {
 import {
   listPlatformNotifications,
   markAllPlatformNotificationsRead,
+  markPlatformBrowserDelivery,
   markPlatformNotificationRead,
 } from './notifications.mjs'
 import {
@@ -40,6 +41,7 @@ import { registerRealtimeRoutes } from './realtime/routes.mjs'
 import { registerSkillsRoutes } from './skills/routes.mjs'
 import { registerRolesRoutes } from './roles/routes.mjs'
 import { registerValuesRoutes } from './values/routes.mjs'
+import { registerNotificationRuleRoutes } from './notificationRules/routes.mjs'
 import { publishWrite } from './realtime/fromRequest.mjs'
 import {
   assignManagerDelegation,
@@ -119,6 +121,22 @@ export function registerPlatformRoutes(app) {
       }
       await markAllPlatformNotificationsRead(employeeId)
       await publishWrite(req, ['notifications'], { employeeId })
+      res.json({ ok: true })
+    }),
+  )
+
+  app.post(
+    '/api/platform/notifications/:notificationId/browser-delivered',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const employeeId = Number(req.platformUser.employeeId)
+      if (!Number.isInteger(employeeId)) {
+        throw new HttpError(400, 'Signed-in employee is required')
+      }
+      await markPlatformBrowserDelivery(
+        employeeId,
+        String(req.params.notificationId),
+      )
       res.json({ ok: true })
     }),
   )
@@ -515,4 +533,5 @@ export function registerPlatformRoutes(app) {
   registerSkillsRoutes(app)
   registerRolesRoutes(app)
   registerValuesRoutes(app)
+  registerNotificationRuleRoutes(app)
 }

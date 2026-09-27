@@ -49,6 +49,12 @@ describe('viewerMayHearEvent', () => {
     assert.equal(viewerMayHearEvent(reader, event), false)
   })
 
+  it('lets platform readers hear notification rule changes', () => {
+    const event = { topic: 'notification-rules' }
+    assert.equal(viewerMayHearEvent(reader, event), true)
+    assert.equal(viewerMayHearEvent(report, event), false)
+  })
+
   it('keeps packet updates inside the manager scope', () => {
     const event = { topic: 'packets', employeeId: '1' }
     assert.equal(viewerMayHearEvent(manager, event), true)

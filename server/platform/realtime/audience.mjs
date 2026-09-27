@@ -67,6 +67,11 @@ export function viewerMayHearEvent(viewer, event) {
     case 'access':
       if (permissions.has('access.manage')) return true
       return viewerId != null && subjectId === viewerId
+    case 'notification-rules':
+      return (
+        permissions.has('platform.read_all') ||
+        permissions.has('platform.write_all')
+      )
     case 'activity':
       if (
         permissions.has('activity.read_all') ||

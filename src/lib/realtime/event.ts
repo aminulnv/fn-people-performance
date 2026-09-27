@@ -5,6 +5,7 @@ export const PLATFORM_TOPICS = [
   'employees',
   'delegations',
   'notifications',
+  'notification-rules',
   'activity',
   'access',
 ] as const

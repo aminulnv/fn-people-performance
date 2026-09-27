@@ -9,6 +9,7 @@ describe('settingsSectionFromHash', () => {
   it('maps settings section hashes', () => {
     expect(settingsSectionFromHash('#appearance')).toBe('appearance')
     expect(settingsSectionFromHash('#assistant')).toBe('assistant')
+    expect(settingsSectionFromHash('#notifications')).toBe('notifications')
     expect(settingsSectionFromHash('#access')).toBe('access')
     expect(settingsSectionFromHash('#activity')).toBe('activity')
     expect(settingsSectionFromHash('#about')).toBe('about')

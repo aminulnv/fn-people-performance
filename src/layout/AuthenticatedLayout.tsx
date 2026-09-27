@@ -5,6 +5,7 @@ import { AppLayout } from './AppLayout'
 import { useAuth } from '@/lib/auth'
 import { layoutConfig } from '@/config/layout'
 import { queryClient } from '@/lib/queryClient'
+import { useBrowserNotificationDelivery } from '@/lib/notifications/useBrowserNotificationDelivery'
 import { PlatformRealtime } from '@/lib/realtime/usePlatformRealtime'
 import '@/styles/layout-shell.css'
 import '@/styles/layout-assistant.css'
@@ -13,6 +14,11 @@ import '@/styles/layout-search.css'
 /* Shell-only font weights - login already has Inter 400/500 + PJ 800 */
 import '@fontsource/inter/latin-600.css'
 import '@fontsource/inter/latin-700.css'
+
+function BrowserNotificationDelivery() {
+  useBrowserNotificationDelivery()
+  return null
+}
 
 export default function AuthenticatedLayout() {
   const navigate = useNavigate()
@@ -39,6 +45,7 @@ export default function AuthenticatedLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <PlatformRealtime />
+      <BrowserNotificationDelivery />
       <AppLayout {...layoutConfig} onSignOut={handleSignOut} />
     </QueryClientProvider>
   )

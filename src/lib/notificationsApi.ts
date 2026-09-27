@@ -2,6 +2,7 @@ import { apiFetch } from '@/lib/apiClient'
 import type { DemoPerson } from '@/lib/goals/types'
 import { evaluateNotificationReminders } from './notifications/reminders'
 import { evaluateReviewNotifications } from './notifications/reviewReminders'
+import { ensureNotificationRulesLoaded } from './notifications/rulesCache'
 import {
   getNotificationFeed,
   markAllNotificationsRead,
@@ -32,10 +33,12 @@ export async function fetchNotifications(
   recipient: DemoPerson,
 ): Promise<NotificationFeed> {
   if (useLocalNotifications()) {
+    await ensureNotificationRulesLoaded()
     evaluateNotificationReminders(recipient.id)
     evaluateReviewNotifications(recipient)
     return getNotificationFeed(recipient.id)
   }
+  void ensureNotificationRulesLoaded()
   return apiFetch<NotificationFeed>('/api/platform/notifications')
 }
 

@@ -401,6 +401,11 @@ function renderCopy(
 export function renderNotificationTemplate(
   eventKey: NotificationEventKey,
   variables: Record<string, string | number | undefined>,
+  overrides?: {
+    channels?: NotificationTemplate['channels']
+    titleTemplate?: string
+    bodyTemplate?: string
+  },
 ): NotificationTemplate {
   const definition = NOTIFICATION_CATALOGUE.get(eventKey)
   if (!definition) {
@@ -409,8 +414,8 @@ export function renderNotificationTemplate(
   return {
     kind: definition.kind,
     icon: definition.icon,
-    channels: [...definition.channels],
-    title: renderCopy(definition.title, variables),
-    body: renderCopy(definition.body, variables),
+    channels: [...(overrides?.channels ?? definition.channels)],
+    title: renderCopy(overrides?.titleTemplate ?? definition.title, variables),
+    body: renderCopy(overrides?.bodyTemplate ?? definition.body, variables),
   }
 }

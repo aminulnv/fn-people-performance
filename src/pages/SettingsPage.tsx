@@ -38,10 +38,12 @@ import { locationWithHash, useUrlHashTab } from '@/lib/routing/urlHash'
 import { useAuth } from '@/lib/useAuth'
 import { AccessControlPanel } from './settings/AccessControlPanel'
 import { ActivitySettingsPanel } from './settings/ActivitySettingsPanel'
+import { NotificationRulesPanel } from './settings/NotificationRulesPanel'
 
 const SETTINGS_SECTIONS: { id: SettingsSectionId; label: string }[] = [
   { id: 'appearance', label: 'Appearance' },
   { id: 'assistant', label: 'Assistant' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'access', label: 'Admin Access' },
   { id: 'activity', label: 'Activity Log' },
   { id: 'about', label: 'About' },
@@ -286,6 +288,8 @@ function SettingsPanel({ section }: { section: SettingsSectionId }) {
       return <AppearancePanel />
     case 'assistant':
       return <AssistantPanel />
+    case 'notifications':
+      return <NotificationRulesPanel />
     case 'access':
       return <AccessControlPanel />
     case 'activity':
@@ -303,10 +307,12 @@ export default function SettingsPage() {
     user?.permissions,
     'platform.read_all',
   )
+  const canReadNotifications = canReadAccess
   const canReadActivity =
     hasSystemPermission(user?.permissions, 'activity.read_all') ||
     canReadAccess
   const sections = SETTINGS_SECTIONS.filter((section) => {
+    if (section.id === 'notifications') return canReadNotifications
     if (section.id === 'access') return canReadAccess
     if (section.id === 'activity') return canReadActivity
     return true
@@ -315,6 +321,7 @@ export default function SettingsPage() {
     defaultTab: 'appearance',
     tabFromHash: (hash) => {
       const section = settingsSectionFromHash(hash)
+      if (section === 'notifications' && !canReadNotifications) return null
       if (section === 'access' && !canReadAccess) return null
       if (section === 'activity' && !canReadActivity) return null
       return section
@@ -328,6 +335,7 @@ export default function SettingsPage() {
     const fromQuery = settingsSectionFromQuery(raw)
     const allowed =
       fromQuery &&
+      !(fromQuery === 'notifications' && !canReadNotifications) &&
       !(fromQuery === 'access' && !canReadAccess) &&
       !(fromQuery === 'activity' && !canReadActivity)
     navigate(
@@ -337,7 +345,13 @@ export default function SettingsPage() {
       ),
       { replace: true },
     )
-  }, [canReadAccess, canReadActivity, navigate, searchParams])
+  }, [
+    canReadAccess,
+    canReadActivity,
+    canReadNotifications,
+    navigate,
+    searchParams,
+  ])
 
   return (
     <div className="pd-page pd-settings" aria-label="Settings">

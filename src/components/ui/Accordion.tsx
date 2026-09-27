@@ -4,7 +4,7 @@ import { cx } from '@/lib/cx'
 
 export type AccordionItem = {
   id: string
-  title: string
+  title: ReactNode
   content: ReactNode
   disabled?: boolean
 }

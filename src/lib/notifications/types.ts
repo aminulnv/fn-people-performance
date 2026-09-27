@@ -5,7 +5,7 @@ export type NotificationKind =
   | 'summary'
   | 'security'
 
-export type NotificationChannel = 'in_app' | 'email' | 'clickup'
+export type NotificationChannel = 'in_app' | 'email' | 'clickup' | 'browser'
 
 export type NotificationIconName =
   | 'target'

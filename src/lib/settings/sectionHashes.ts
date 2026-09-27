@@ -3,6 +3,7 @@ import { normalizeUrlHash } from '@/lib/routing/urlHash'
 export type SettingsSectionId =
   | 'appearance'
   | 'assistant'
+  | 'notifications'
   | 'access'
   | 'activity'
   | 'about'
@@ -10,6 +11,7 @@ export type SettingsSectionId =
 const SETTINGS_SECTION_HASHES: Record<SettingsSectionId, string> = {
   appearance: 'appearance',
   assistant: 'assistant',
+  notifications: 'notifications',
   access: 'access',
   activity: 'activity',
   about: 'about',
@@ -20,6 +22,7 @@ export function settingsSectionFromHash(hash: string): SettingsSectionId | null 
   if (
     normalized === 'appearance' ||
     normalized === 'assistant' ||
+    normalized === 'notifications' ||
     normalized === 'access' ||
     normalized === 'activity' ||
     normalized === 'about'

@@ -363,6 +363,304 @@
   color: var(--color-text-muted);
 }
 
+.pd-notify-rules {
+  gap: 0;
+}
+
+.pd-notify-rules__header {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+}
+
+.pd-notify-rules__heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.pd-notify-rules__header-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.pd-notify-rules__heading-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 0.55rem;
+  color: var(--color-cta);
+  background: color-mix(in srgb, var(--color-cta) 11%, transparent);
+}
+
+.pd-notify-rules__tabs {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.75rem 0 0.25rem;
+}
+
+.pd-notify-rules__channels-help {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.65rem 0 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md, 0.625rem);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-text) 2.5%, transparent);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.pd-notify-rules__channels-help p {
+  margin: 0;
+}
+
+.pd-notify-rules__channels-help strong {
+  color: var(--color-text);
+  font-weight: 650;
+}
+
+
+.pd-notify-rules__channels-warn,
+.pd-notify-rules__channels-tip {
+  margin: 0;
+}
+
+.pd-notify-rules__channels-warn {
+  color: var(--color-text);
+  padding: 0.55rem 0.65rem;
+  border-radius: var(--radius-sm, 0.5rem);
+  background: color-mix(in srgb, var(--color-cta) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-cta) 25%, transparent);
+}
+
+.pd-notify-rules__channels-tip {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.pd-notify-rules__notice,
+.pd-notify-rules__error,
+.pd-notify-rules__empty {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.pd-notify-rules__notice {
+  padding: 0.75rem 0;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.pd-notify-rules__error {
+  padding: 0.6rem 0;
+  color: var(--color-red);
+}
+
+.pd-notify-rules__empty {
+  padding: 1rem 0.25rem;
+  color: var(--color-text-muted);
+}
+
+.pd-notify-rules__accordion {
+  margin-top: 0.5rem;
+}
+
+.pd-notify-rules__accordion .pd-accordion__trigger {
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding-block: 0.85rem;
+}
+
+.pd-notify-rules__accordion .pd-accordion__content {
+  padding-top: 0.15rem;
+  padding-bottom: 0.85rem;
+}
+
+.pd-notify-rules__section-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+.pd-notify-rules__section-icon,
+.pd-notify-rules__group-icon {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm, 0.5rem);
+  color: var(--color-cta);
+  background: color-mix(in srgb, var(--color-cta) 11%, transparent);
+}
+
+.pd-notify-rules__group-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.pd-notify-rules__section-copy,
+.pd-notify-rules__group-copy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pd-notify-rules__section-label,
+.pd-notify-rules__group-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
+}
+
+.pd-notify-rules__section-label strong,
+.pd-notify-rules__group-title h3,
+.pd-notify-rules__row-name {
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.pd-notify-rules__group-title h3 {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.pd-notify-rules__section-meta {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-notify-rules__section-desc,
+.pd-notify-rules__group-copy p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  font-weight: 400;
+}
+
+.pd-notify-rules__nested {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pd-notify-rules__group {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.65rem 0.75rem 0.35rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.625rem);
+  background: color-mix(in srgb, var(--color-text) 2.5%, transparent);
+}
+
+.pd-notify-rules__group-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.15rem 0.15rem 0.45rem;
+}
+
+.pd-notify-rules__list {
+  display: grid;
+  min-width: 0;
+}
+
+.pd-notify-rules__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.4rem;
+  padding: 0.65rem 0.15rem;
+  border-top: 1px solid var(--color-border);
+}
+
+.pd-notify-rules__group .pd-notify-rules__row:first-child {
+  border-top-color: color-mix(in srgb, var(--color-border) 70%, transparent);
+}
+
+.pd-notify-rules__copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pd-notify-rules__summary {
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+
+.pd-notify-rules__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.pd-notify-rules__editor {
+  display: grid;
+  gap: 0.875rem;
+}
+
+.pd-notify-rules__channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.pd-notify-rules__preview {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.75rem 0.875rem;
+  border-radius: var(--radius-md, 0.625rem);
+  background: color-mix(in srgb, var(--color-text) 4%, transparent);
+  border: 1px solid var(--color-border);
+}
+
+.pd-notify-rules__preview-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+  color: var(--color-text-muted);
+}
+
+.pd-notify-rules__preview strong {
+  font-size: 0.875rem;
+  color: var(--color-text);
+}
+
+.pd-notify-rules__preview span {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-notify-rules__modal-summary {
+  display: block;
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+}
+
 @media (max-width: 767px) {
   .pd-settings__layout {
     gap: 0.875rem;
@@ -388,5 +686,14 @@
   .pd-access__row .pd-listbox {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .pd-notify-rules__row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .pd-notify-rules__actions {
+    justify-content: flex-start;
   }
 }

@@ -131,6 +131,7 @@ import {
   measurePanelProgress,
   measurePanelTableWeight,
 } from "./goals/measurePanelDisplay";
+import { GoalApprovalCard } from "./goals/GoalApprovalCard";
 import { GoalSendBackNotice } from "./goals/GoalSendBackNotice";
 import { GoalSubmitBlockNotice } from "./goals/GoalSubmitBlockNotice";
 import { GoalCountNotice } from "./goals/GoalCountNotice";
@@ -3689,27 +3690,44 @@ function EmployeePanel({
   const submitBlockNotice =
     canSubmitBatch && !submitCheck.ok && submitBlockers.length > 0 ? (
       <GoalSubmitBlockNotice
-        layout="ribbon"
+        layout="card"
         blockers={submitBlockers}
         onOpenGoal={onOpenGoal}
         onAddGoal={canEditDraft ? () => requestAddGoal() : undefined}
-        addGoalLabel={goals.length > 0 ? 'Add Another Goal' : 'Add A Goal'}
+        addGoalLabel={goals.length > 0 ? "Add Another Goal" : "Add A Goal"}
       />
     ) : null;
   const sendBackNotice = sendBackReason ? (
     <GoalSendBackNotice
-      layout={goals.length > 0 ? 'ribbon' : 'card'}
+      layout={goals.length > 0 ? "ribbon" : "card"}
       reason={sendBackReason}
       author={
         row.sendBackBy ??
         (cascadeFrom.managerId && cascadeFrom.managerName
           ? {
-            id: cascadeFrom.managerId,
-            name: cascadeFrom.managerName,
-            avatarUrl: cascadeFrom.managerAvatarUrl,
-          }
+              id: cascadeFrom.managerId,
+              name: cascadeFrom.managerName,
+              avatarUrl: cascadeFrom.managerAvatarUrl,
+            }
           : undefined)
       }
+    />
+  ) : null;
+  const lateStage = row.postWindowApprovalStage;
+  const showApprovalCard =
+    !lateStage &&
+    !sendBackReason &&
+    row.status !== "draft" &&
+    row.status !== "incomplete" &&
+    row.status !== "not_eligible";
+  const approvalStatusNotice = showApprovalCard ? (
+    <GoalApprovalCard
+      status={row.status}
+      postWindowApprovalStage={row.postWindowApprovalStage}
+      sendBackReason={row.sendBackReason}
+      sendBackBy={row.sendBackBy}
+      approvedBy={row.approvedBy}
+      cascadeFrom={cascadeFrom}
     />
   ) : null;
   const lockBanner = ineligibility ? (
@@ -3727,8 +3745,9 @@ function EmployeePanel({
   ) : null;
   const ownerNotices = showsGoals ? (
     <div className="pd-goals__notices">
+      {approvalStatusNotice}
+      {submitBlockNotice}
       {goals.length === 0 ? sendBackNotice : null}
-      {goals.length === 0 ? submitBlockNotice : null}
     </div>
   ) : null;
 
@@ -3764,7 +3783,6 @@ function EmployeePanel({
     ) : (
       <GoalsTable
         leadBanner={sendBackNotice}
-        banner={submitBlockNotice}
         rows={goals.map((goal, index) => ({
           goal,
           title: goalTitle(goal, index),
@@ -3903,6 +3921,7 @@ function EmployeePanel({
           }}
           lockBanner={lockBanner}
           preferLockBanner={Boolean(ineligibility)}
+          suppressTrail={Boolean(approvalStatusNotice)}
         >
           {ownerNotices}
           {goalsBody}

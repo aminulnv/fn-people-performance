@@ -1,4 +1,5 @@
 import { renderNotificationTemplate } from './catalogue'
+import { getCachedNotificationRule } from './rulesCache'
 import type {
   NotificationFeed,
   NotificationRecord,
@@ -19,6 +20,8 @@ export type DuplicateNotificationPolicy = 'ignore' | 'refresh' | 'reopen'
 export type EmitNotificationOptions = {
   duplicate?: DuplicateNotificationPolicy
   now?: Date
+  /** Send even when the admin rule is turned off (used for “Send test”). */
+  bypassRuleGate?: boolean
 }
 
 function emptyState(): NotificationStateSnapshot {
@@ -94,7 +97,31 @@ function applyEmit(
   record: NotificationRecord
   changed: boolean
 } {
-  const template = renderNotificationTemplate(input.eventKey, input.variables)
+  const rule = getCachedNotificationRule(input.eventKey)
+  if (rule && !rule.enabled && !options.bypassRuleGate) {
+    const skipped: NotificationRecord = {
+      id: `skipped-${input.dedupeKey}`,
+      eventKey: input.eventKey,
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      title: '',
+      body: '',
+      icon: 'target',
+      kind: 'info',
+      state: 'superseded',
+      channels: [],
+      dedupeKey: input.dedupeKey,
+      createdAt: (options.now ?? new Date()).toISOString(),
+      updatedAt: (options.now ?? new Date()).toISOString(),
+    }
+    return { state, record: skipped, changed: false }
+  }
+
+  const template = renderNotificationTemplate(input.eventKey, input.variables, {
+    channels: options.bypassRuleGate ? ['in_app'] : rule?.channels,
+    titleTemplate: rule?.titleTemplate,
+    bodyTemplate: rule?.bodyTemplate,
+  })
   const now = (options.now ?? new Date()).toISOString()
   const duplicate = state.items.find(
     (item) =>
@@ -196,6 +223,44 @@ export function emitNotification(
   const result = applyEmit(readState(), input, options)
   if (result.changed) writeState(result.state)
   return result.record
+}
+
+/** Admin preview: always writes an in-app item with a Test prefix. */
+export function emitTestNotification(input: {
+  eventKey: string
+  recipientId: string
+  title: string
+  body: string
+  icon?: NotificationRecord['icon']
+  kind?: NotificationRecord['kind']
+  channels?: NotificationRecord['channels']
+}): NotificationRecord {
+  const now = new Date().toISOString()
+  const channels = input.channels?.length
+    ? [...new Set(['in_app' as const, ...input.channels])]
+    : (['in_app'] as const)
+  const record: NotificationRecord = {
+    id: newNotificationId(),
+    eventKey: input.eventKey,
+    recipientId: input.recipientId,
+    actorId: input.recipientId,
+    title: input.title.startsWith('Test · ')
+      ? input.title
+      : `Test · ${input.title}`,
+    body: input.body,
+    icon: input.icon ?? 'target',
+    kind: input.kind ?? 'info',
+    state: 'unread',
+    destination: '/settings#notifications',
+    channels: [...channels],
+    dedupeKey: `test:${input.eventKey}:${Date.now()}`,
+    createdAt: now,
+    updatedAt: now,
+    metadata: { test: true },
+  }
+  const state = readState()
+  writeState({ ...state, items: [...state.items, record] })
+  return record
 }
 
 /** Apply many emits with a single localStorage write. */

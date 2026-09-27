@@ -109,6 +109,11 @@ type ReportGoalsCardProps = {
   lockBanner?: ReactNode
   /** Cycle ineligibility should not be hidden by a late-submission trail. */
   preferLockBanner?: boolean
+  /**
+   * Owner surfaces Pending approval copy inside the card - skip the floating
+   * trail so it does not duplicate that notice.
+   */
+  suppressTrail?: boolean
   children: ReactNode
 }
 
@@ -287,6 +292,7 @@ export function ReportGoalsCard({
   activityFilters,
   lockBanner,
   preferLockBanner = false,
+  suppressTrail = false,
   children,
 }: ReportGoalsCardProps) {
   const {
@@ -329,25 +335,28 @@ export function ReportGoalsCard({
   })
   const showLockBanner =
     Boolean(lockBanner) && (preferLockBanner || !trail?.late)
+  const showLateBanner = !suppressTrail && Boolean(trail?.late) && !showLockBanner
+  const showApprovalTrail =
+    !suppressTrail && Boolean(trail) && !trail?.late && !showLockBanner
 
   return (
     <div
       className={cx(
         'pd-goals-approval-wrap',
-        trail?.late && !showLockBanner && 'pd-goals-approval-wrap--late',
+        showLateBanner && 'pd-goals-approval-wrap--late',
         showLockBanner && 'pd-goals-approval-wrap--lock',
       )}
     >
       {showLockBanner && lockBanner ? (
         lockBanner
-      ) : trail?.late ? (
+      ) : showLateBanner && trail ? (
         <LateSubmissionBanner
           model={trail}
           deadlineMissedAt={deadlineMissedAt}
           lateJustification={lateJustification}
         />
       ) : null}
-      {trail && !trail.late && !showLockBanner ? (
+      {showApprovalTrail && trail ? (
         <ApprovalTrail model={trail} />
       ) : null}
       <section
