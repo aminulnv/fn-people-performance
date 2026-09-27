@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Users } from 'lucide-react'
 import { Avatar, ListboxSelect, Pagination } from '@/components/ui'
+import { officialGrade } from '@/lib/analytics/dashboard'
 import { avatarStyle } from '@/lib/employees/avatar'
+import type { PlatformEmployee } from '@/lib/employees/types'
 import { HintIcon } from '@/pages/reviews/HintIcon'
 import {
   ColumnMultiSelectFilter,
@@ -15,18 +17,24 @@ import {
   HEATMAP_BAND_ORDER,
   heatmapBandLabel,
   heatmapIntensity,
+  type HeatmapCell,
   type ManagerHeatmapRow,
   type ManagerRatingHeatmap,
 } from '@/lib/calibration/managerHeatmap'
 import { GRADE_BAND_META } from '@/lib/reviews/labels'
-import type { GradeBandId } from '@/lib/reviews/types'
+import type { GradeBandId, ReviewPacket } from '@/lib/reviews/types'
 import { cx } from '@/lib/cx'
+import {
+  CalibrationPeopleListPanel,
+  type CalibrationListPerson,
+} from '@/pages/calibration/CalibrationPeopleListPanel'
 
 const HEATMAP_HINT = (
   <ul className="pd-help-tip">
     <li>
       <strong>Cells</strong>
       Share of that manager’s graded team. Band colour intensity = share %.
+      Click a cell to open the people in that band.
     </li>
     <li>
       <strong>Outline</strong>
@@ -146,10 +154,42 @@ function VsOrgCell({ row }: { row: ManagerHeatmapRow }) {
   )
 }
 
+function listPersonFromIds(
+  employeeIds: readonly number[],
+  employeeById: ReadonlyMap<number, PlatformEmployee>,
+  packetByEmployeeId: ReadonlyMap<number, ReviewPacket>,
+): CalibrationListPerson[] {
+  return employeeIds.flatMap((employeeId) => {
+    const employee = employeeById.get(employeeId)
+    if (!employee) return []
+    const packet = packetByEmployeeId.get(employeeId)
+    return [
+      {
+        employeeId,
+        fullName: employee.fullName,
+        avatarUrl: employee.avatarUrl || undefined,
+        metaLine: [employee.department, employee.site, employee.jobGrade]
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .join(' · '),
+        finalGrade: officialGrade(packet) ?? null,
+        selfGrade: packet?.selfOverallGrade ?? null,
+        gapTiers: null,
+      },
+    ]
+  })
+}
+
 export function ManagerRatingHeatmap({
   heatmap,
+  employees,
+  packets,
+  onSelectEmployee,
 }: {
   heatmap: ManagerRatingHeatmap
+  employees: readonly PlatformEmployee[]
+  packets: readonly ReviewPacket[]
+  onSelectEmployee: (employeeId: number) => void
 }) {
   const [pageSize, setPageSize] = useState<HeatmapPageSize>(readHeatmapPageSize)
   const [page, setPage] = useState(1)
@@ -159,6 +199,37 @@ export function ManagerRatingHeatmap({
   const [numericFilters, setNumericFilters] = useState<
     Partial<Record<NumericColumnId, NumericRangeFilter>>
   >({})
+  const [cellList, setCellList] = useState<{
+    title: string
+    subtitle: string
+    people: CalibrationListPerson[]
+  } | null>(null)
+
+  const employeeById = useMemo(
+    () => new Map(employees.map((employee) => [employee.employeeId, employee])),
+    [employees],
+  )
+  const packetByEmployeeId = useMemo(
+    () => new Map(packets.map((packet) => [packet.employeeId, packet])),
+    [packets],
+  )
+
+  function openCellPeople(row: ManagerHeatmapRow, cell: HeatmapCell) {
+    if (cell.employeeIds.length === 0) return
+    if (cell.employeeIds.length === 1) {
+      onSelectEmployee(cell.employeeIds[0]!)
+      return
+    }
+    setCellList({
+      title: 'Manager band',
+      subtitle: `${row.managerName} · ${heatmapBandLabel(cell.bandId)}`,
+      people: listPersonFromIds(
+        cell.employeeIds,
+        employeeById,
+        packetByEmployeeId,
+      ),
+    })
+  }
 
   const categoricalFilterOptions = useMemo(() => {
     const entries = CATEGORICAL_COLUMN_IDS.map((columnId) => {
@@ -361,29 +432,42 @@ export function ManagerRatingHeatmap({
                       cell.count > 0
                         ? `${cell.percent}% · ${cell.count} ${cell.count === 1 ? 'person' : 'people'}`
                         : 'No people in this band'
+                    const cellClass = cx(
+                      'pd-cal-heat__cell',
+                      `is-${cell.bandId}`,
+                      `is-i${intensity}`,
+                      cell.outlier && 'is-outlier',
+                      cell.count > 0 && 'is-clickable',
+                    )
+                    const body =
+                      cell.count > 0 ? (
+                        <>
+                          <strong>{cell.percent}%</strong>
+                          <em>
+                            <Users size={10} strokeWidth={2.25} aria-hidden />
+                            {cell.count}
+                          </em>
+                        </>
+                      ) : (
+                        <span className="pd-cal-heat__dash">—</span>
+                      )
                     return (
                       <td key={cell.bandId}>
-                        <span
-                          className={cx(
-                            'pd-cal-heat__cell',
-                            `is-${cell.bandId}`,
-                            `is-i${intensity}`,
-                            cell.outlier && 'is-outlier',
-                          )}
-                          title={title}
-                        >
-                          {cell.count > 0 ? (
-                            <>
-                              <strong>{cell.percent}%</strong>
-                              <em>
-                                <Users size={10} strokeWidth={2.25} aria-hidden />
-                                {cell.count}
-                              </em>
-                            </>
-                          ) : (
-                            <span className="pd-cal-heat__dash">—</span>
-                          )}
-                        </span>
+                        {cell.count > 0 ? (
+                          <button
+                            type="button"
+                            className={cellClass}
+                            title={title}
+                            aria-label={`${heatmapBandLabel(cell.bandId)} for ${row.managerName}: ${title}. Open people.`}
+                            onClick={() => openCellPeople(row, cell)}
+                          >
+                            {body}
+                          </button>
+                        ) : (
+                          <span className={cellClass} title={title}>
+                            {body}
+                          </span>
+                        )}
                       </td>
                     )
                   })}
@@ -439,6 +523,19 @@ export function ManagerRatingHeatmap({
             />
           ) : null}
         </footer>
+      ) : null}
+
+      {cellList ? (
+        <CalibrationPeopleListPanel
+          title={cellList.title}
+          subtitle={cellList.subtitle}
+          people={cellList.people}
+          onClose={() => setCellList(null)}
+          onSelectPerson={(employeeId) => {
+            setCellList(null)
+            onSelectEmployee(employeeId)
+          }}
+        />
       ) : null}
     </section>
   )

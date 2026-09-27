@@ -113,6 +113,7 @@ export function GroupSettingsView({
   const showCalibration = cycleSupportsCalibration(cycle)
   const [modules, setModules] = useState(storedModules)
   const [name, setName] = useState(group.name)
+  const [moduleError, setModuleError] = useState<string | null>(null)
   const [peopleDirty, setPeopleDirty] = useState(false)
   const [calibrationDirty, setCalibrationDirty] = useState(false)
   const calibrationSaveRef = useRef<(() => Promise<boolean>) | null>(null)
@@ -298,10 +299,29 @@ export function GroupSettingsView({
       cyclePurposeOf(cycle),
       cycle.periodKey,
     )
+    const previous = modules
     setModules(next)
+    setModuleError(null)
     reviewDraft.replaceStagesConfig(stagesConfig)
     try {
-      void updateCycleGroup(cycle.id, group.id, { stagesConfig }).catch(() => { })
+      void updateCycleGroup(cycle.id, group.id, { stagesConfig }).catch(
+        (err: unknown) => {
+          setModules(previous)
+          reviewDraft.replaceStagesConfig(
+            applyCycleModules(
+              reviewDraft.stagesConfig,
+              previous,
+              cyclePurposeOf(cycle),
+              cycle.periodKey,
+            ),
+          )
+          setModuleError(
+            err instanceof Error
+              ? err.message
+              : 'Could not update cycle modules.',
+          )
+        },
+      )
     } catch {
       /* Keep the local switch when the cycle is not in the store. */
     }
@@ -446,6 +466,11 @@ export function GroupSettingsView({
           </div>
           {nav}
         </header>
+        {moduleError ? (
+          <p className="pd-reviews-modal__error" role="alert">
+            {moduleError}
+          </p>
+        ) : null}
         {reviewFormSheet ? (
           <SettingsSideSheetPageHost
             sideSheet={reviewFormSheet}
@@ -488,6 +513,11 @@ export function GroupSettingsView({
       sideSheetOpen={reviewFormOpen}
       onSideSheetOpenChange={setReviewFormOpen}
     >
+      {moduleError ? (
+        <p className="pd-reviews-modal__error" role="alert">
+          {moduleError}
+        </p>
+      ) : null}
       {body}
       <ConfirmDialog
         open={pendingPeopleLeave !== null}

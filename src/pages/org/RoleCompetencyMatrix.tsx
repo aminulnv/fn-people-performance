@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
-import { Button, ListboxSelect } from '@/components/ui'
+import { Button, EmptyState, ListboxSelect } from '@/components/ui'
 import { skillEditPath } from '@/lib/reviews/paths'
 import { expectedLevelLabel, roleWeightTotal } from '@/lib/roles/labels'
 import { matrixGrades } from '@/lib/roles/inheritedSkills'
@@ -132,10 +132,26 @@ export function RoleCompetencyMatrix({
       ) : null}
 
       {rows.length === 0 ? (
-        <p className="pd-people__empty">
-          No skills on this role yet. Add skills from the library to set
-          expected levels by job grade.
-        </p>
+        <div className="pd-people__empty-state">
+          <EmptyState
+            className="pd-empty--inline"
+            title="No skills on this role yet"
+            description="Add skills from the library to set expected levels by job grade."
+            action={
+              canEdit ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  pill
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <Plus size={14} strokeWidth={2} aria-hidden />
+                  Add skill
+                </Button>
+              ) : null
+            }
+          />
+        </div>
       ) : (
         <div className="pd-people__table-wrap">
           <table className="pd-people__table pd-org-role-matrix__table">

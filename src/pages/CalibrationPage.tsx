@@ -550,7 +550,12 @@ export default function CalibrationPage() {
             rows={insightRows}
             onSelectEmployee={setPanelEmployeeId}
           />
-          <ManagerRatingHeatmap heatmap={heatmap} />
+          <ManagerRatingHeatmap
+            heatmap={heatmap}
+            employees={employees}
+            packets={cyclePackets}
+            onSelectEmployee={setPanelEmployeeId}
+          />
           <RatingComparison
             cycle={cycle}
             employees={employees}

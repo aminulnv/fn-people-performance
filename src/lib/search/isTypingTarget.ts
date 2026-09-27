@@ -13,7 +13,7 @@ const TYPING_INPUT_TYPES = new Set([
   'time',
 ])
 
-/** True when `/` should type a character instead of opening search. */
+/** True when Space / `/` should type a character instead of a global shortcut. */
 export function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
   if (target.isContentEditable) return true
@@ -26,6 +26,8 @@ export function isTypingTarget(target: EventTarget | null): boolean {
   }
 
   return Boolean(
-    target.closest('[contenteditable="true"], [role="textbox"]'),
+    target.closest(
+      '[contenteditable="true"], [role="textbox"], [role="combobox"], [role="listbox"], [role="option"], [role="menu"], [role="menuitem"], [role="dialog"]',
+    ),
   )
 }

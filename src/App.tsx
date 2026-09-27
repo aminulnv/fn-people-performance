@@ -23,8 +23,6 @@ import {
   NavigationProgressProvider,
   RouteLoadingFallback,
 } from '@/components/ui/NavigationProgress'
-import { PrivacyBlur } from '@/components/privacy/PrivacyBlur'
-
 const AuthenticatedLayout = lazy(() => import('@/layout/AuthenticatedLayout'))
 const HomePage = lazy(() => import('@/pages/HomePage'))
 const AnalyticsPage = lazy(() => import('@/pages/AnalyticsPage'))
@@ -108,7 +106,6 @@ const routerBasename = import.meta.env.BASE_URL.replace(/\/$/, '') || undefined
 function App() {
   return (
     <BrowserRouter basename={routerBasename} useTransitions={false}>
-      <PrivacyBlur />
       <NavigationProgressProvider>
         <Suspense fallback={<RouteLoadingFallback />}>
           <Routes>
@@ -138,7 +135,7 @@ function App() {
               <Route
                 path="organisation/departments/new"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to create departments. Contact an administrator if you need access.">
                     <CreateDepartmentPage />
                   </RequirePlatformWrite>
                 }
@@ -146,7 +143,7 @@ function App() {
               <Route
                 path="organisation/departments/:departmentId/edit"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to edit departments. Contact an administrator if you need access.">
                     <EditDepartmentPage />
                   </RequirePlatformWrite>
                 }
@@ -158,7 +155,7 @@ function App() {
               <Route
                 path="organisation/teams/new"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to create teams. Contact an administrator if you need access.">
                     <TeamFormPage />
                   </RequirePlatformWrite>
                 }
@@ -166,7 +163,7 @@ function App() {
               <Route
                 path="organisation/teams/:teamId/edit"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to edit teams. Contact an administrator if you need access.">
                     <TeamFormPage />
                   </RequirePlatformWrite>
                 }
@@ -178,7 +175,7 @@ function App() {
               <Route
                 path="organisation/roles/:roleId/edit"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to edit roles. Contact an administrator if you need access.">
                     <EditRolePage />
                   </RequirePlatformWrite>
                 }
@@ -209,7 +206,7 @@ function App() {
               <Route
                 path="reviews/scorecards-library/:formId"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to edit the scorecards library. Contact an administrator if you need access.">
                     <ScorecardsBuilderPage />
                   </RequirePlatformWrite>
                 }
@@ -217,7 +214,7 @@ function App() {
               <Route
                 path="reviews/scorecards-library"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to edit the scorecards library. Contact an administrator if you need access.">
                     <ScorecardsBuilderPage />
                   </RequirePlatformWrite>
                 }
@@ -264,7 +261,7 @@ function App() {
               <Route
                 path="cycles"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to manage cycles. Contact an administrator if you need access.">
                     <CyclesPage />
                   </RequirePlatformWrite>
                 }
@@ -272,7 +269,7 @@ function App() {
               <Route
                 path="cycles/:cycleId/groups/:groupId"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to manage cycles. Contact an administrator if you need access.">
                     <GroupSettingsPage />
                   </RequirePlatformWrite>
                 }
@@ -280,7 +277,7 @@ function App() {
               <Route
                 path="cycles/:cycleId/:section"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to manage cycles. Contact an administrator if you need access.">
                     <CycleDetailPage />
                   </RequirePlatformWrite>
                 }
@@ -288,7 +285,7 @@ function App() {
               <Route
                 path="cycles/:cycleId"
                 element={
-                  <RequirePlatformWrite>
+                  <RequirePlatformWrite description="You do not have permission to manage cycles. Contact an administrator if you need access.">
                     <Navigate to="settings" replace />
                   </RequirePlatformWrite>
                 }
@@ -302,7 +299,9 @@ function App() {
                 }
               />
               <Route path="settings" element={<SettingsPage />} />
-              <Route path="test" element={<TestPage />} />
+              {import.meta.env.DEV ? (
+                <Route path="test" element={<TestPage />} />
+              ) : null}
             </Route>
             <Route path="*" element={<CatchAllRedirect />} />
           </Routes>

@@ -308,6 +308,43 @@ export async function createSkill(input, platformUser) {
   }
 }
 
+export async function archiveSkill(skillId, platformUser) {
+  const id = String(skillId ?? '').trim()
+  if (!id) throw new HttpError(400, 'Skill id is required.')
+  const actor = actorFromUser(platformUser)
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const { rows } = await client.query(
+      `UPDATE platform.skills
+       SET deleted_at = now(),
+           deleted_by_employee_id = $2,
+           updated_by_employee_id = $2,
+           updated_at = now()
+       WHERE id = $1 AND deleted_at IS NULL
+       RETURNING id, name`,
+      [id, actor.actorEmployeeId],
+    )
+    if (!rows[0]) throw new HttpError(404, 'This skill was not found.')
+    await appendActivityEvent(client, {
+      eventKey: 'skill.archived',
+      entityType: 'skill',
+      entityId: rows[0].id,
+      ...actor,
+      summary: `Archived skill ${rows[0].name}`,
+      metadata: { skillId: rows[0].id },
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    return { id: rows[0].id, name: rows[0].name, archived: true }
+  } catch (err) {
+    await client.query('ROLLBACK')
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 export async function updateSkill(skillId, input, platformUser) {
   const id = String(skillId ?? '').trim()
   if (!id) throw new HttpError(400, 'Skill id is required.')

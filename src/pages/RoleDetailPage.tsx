@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import {
   Button,
+  EmptyState,
   PageSkeleton,
   PageStatus,
   PageStatusLink,
@@ -305,7 +306,23 @@ export default function RoleDetailPage() {
               {headcount} {headcount === 1 ? 'Employee' : 'Employees'}
             </p>
           </header>
-          <OrgMembersTable members={activeMembers} variant="talent" />
+          {headcount === 0 ? (
+            <EmptyState
+              className="pd-empty--inline"
+              title="No one linked to this role"
+              description="People appear here when their profile has this role assigned. Job titles alone do not count."
+              action={
+                <Link
+                  to="/people"
+                  className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
+                >
+                  Open People
+                </Link>
+              }
+            />
+          ) : (
+            <OrgMembersTable members={activeMembers} variant="talent" />
+          )}
         </section>
       ) : null}
     </div>

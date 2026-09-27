@@ -1,5 +1,6 @@
 import { SEED_SKILLS } from './seed'
 import {
+  archiveSkillRemote,
   createSkillRemote,
   fetchSkillsSnapshotRemote,
   updateSkillRemote,
@@ -274,6 +275,34 @@ export async function createSkill(input: {
     skills: [...state.skills.filter((item) => item.id !== skill.id), skill],
   })
   return clone(skill)
+}
+
+export async function archiveSkill(id: string): Promise<void> {
+  if (useLocalSkills()) {
+    const state = getState()
+    if (!state.skills.some((skill) => skill.id === id)) {
+      throw new Error('This skill was not found.')
+    }
+    commit({
+      ...state,
+      skills: state.skills.filter((skill) => skill.id !== id),
+      assignments: state.assignments.map((assignment) => ({
+        ...assignment,
+        skillIds: assignment.skillIds.filter((skillId) => skillId !== id),
+      })),
+    })
+    return
+  }
+  await archiveSkillRemote(id)
+  const state = getState()
+  commit({
+    ...state,
+    skills: state.skills.filter((skill) => skill.id !== id),
+    assignments: state.assignments.map((assignment) => ({
+      ...assignment,
+      skillIds: assignment.skillIds.filter((skillId) => skillId !== id),
+    })),
+  })
 }
 
 export async function updateSkill(

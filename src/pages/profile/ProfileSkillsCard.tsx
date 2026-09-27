@@ -33,8 +33,12 @@ export function ProfileSkillsCard({
             roleHref
               ? 'Skills come from the role on this profile.'
               : canEdit
-                ? 'Assign a role on this profile. Skills come from the role, not from the person.'
-                : 'A role has not been assigned yet. Skills come from the role, not from the person.'
+                ? employee?.role?.trim()
+                  ? `“${employee.role.trim()}” is a job title only. Assign a role on this profile so Skills can load from the competency matrix.`
+                  : 'Assign a role on this profile. Skills come from the role, not from the person.'
+                : employee?.role?.trim()
+                  ? `“${employee.role.trim()}” is shown as text, but no role is linked yet. Skills come from the role, not from the person.`
+                  : 'A role has not been assigned yet. Skills come from the role, not from the person.'
           }
           action={
             roleHref ? (

@@ -41,14 +41,16 @@ export function RequirePermission({
 
 type RequirePlatformWriteProps = {
   children: ReactNode
+  /** Shown when the viewer lacks write access. */
+  description?: string
 }
 
-export function RequirePlatformWrite({ children }: RequirePlatformWriteProps) {
+export function RequirePlatformWrite({
+  children,
+  description = 'You do not have permission to make this change. Contact an administrator if you need access.',
+}: RequirePlatformWriteProps) {
   return (
-    <RequirePermission
-      permission="platform.write_all"
-      description="You do not have permission to manage cycles. Contact an administrator if you need access."
-    >
+    <RequirePermission permission="platform.write_all" description={description}>
       {children}
     </RequirePermission>
   )

@@ -3,12 +3,13 @@ import { departmentKey } from '@/lib/organisation/fromEmployees'
 
 /** URL helpers for organisation unit detail pages. */
 
-export type OrganisationTabId = 'departments' | 'teams' | 'roles'
+export type OrganisationTabId = 'departments' | 'teams' | 'roles' | 'chart'
 
 const ORGANISATION_TAB_ROOTS = new Set([
   '/organisation/departments',
   '/organisation/teams',
   '/organisation/roles',
+  '/organisation/chart',
 ])
 
 export function organisationTabPath(

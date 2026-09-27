@@ -42,6 +42,13 @@ export async function updateSkillRemote(
   return response.skill
 }
 
+export async function archiveSkillRemote(skillId: string): Promise<void> {
+  await apiFetch(`/api/platform/skills/${encodeURIComponent(skillId)}/archive`, {
+    method: 'POST',
+    body: {},
+  })
+}
+
 export async function setEmployeeSkillIdsRemote(
   employeeId: number,
   skillIds: string[],

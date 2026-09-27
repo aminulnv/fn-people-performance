@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/ui'
 import type { HomeBannerContent } from '@/lib/home/homeBanner'
@@ -56,12 +56,53 @@ function useDeadlineTimerUnits(
       setLiveUnits(formatDeadlineTimerUnits(remainingTimeUntilDeadline(deadline)))
     }
     tick()
-    const id = window.setInterval(tick, 30_000)
+    const id = window.setInterval(tick, 1_000)
     return () => window.clearInterval(id)
   }, [deadline])
 
   if (!deadline) return seed
   return liveUnits ?? seed
+}
+
+function AnimatedTimerValue({ value }: { value: string }) {
+  const [current, setCurrent] = useState(value)
+  const [outgoing, setOutgoing] = useState<string | null>(null)
+  const hasMounted = useRef(false)
+
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true
+      setCurrent(value)
+      return
+    }
+    if (value === current) return
+    setOutgoing(current)
+    setCurrent(value)
+  }, [value, current])
+
+  return (
+    <span className="pd-home-banner__timer-value-slot">
+      {outgoing != null ? (
+        <span
+          key={`out-${outgoing}`}
+          className="pd-home-banner__timer-value pd-home-banner__timer-value--out"
+          onAnimationEnd={() => setOutgoing(null)}
+        >
+          {outgoing}
+        </span>
+      ) : null}
+      <span
+        key={`in-${current}`}
+        className={
+          outgoing != null
+            ? 'pd-home-banner__timer-value pd-home-banner__timer-value--in'
+            : 'pd-home-banner__timer-value'
+        }
+      >
+        {current}
+      </span>
+    </span>
+  )
 }
 
 function BannerChips({
@@ -71,12 +112,15 @@ function BannerChips({
 }) {
   return (
     <div className="pd-home-banner__timer" aria-hidden>
-      {units.map((unit) => (
-        <div key={`${unit.label}-${unit.value}`} className="pd-home-banner__timer-unit">
+      {units.map((unit, index) => (
+        <div
+          key={unit.label || `chip-${index}`}
+          className="pd-home-banner__timer-unit"
+        >
           {unit.label ? (
             <span className="pd-home-banner__timer-label">{unit.label}</span>
           ) : null}
-          <span className="pd-home-banner__timer-value">{unit.value}</span>
+          <AnimatedTimerValue value={unit.value} />
         </div>
       ))}
     </div>

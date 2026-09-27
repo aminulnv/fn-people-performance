@@ -8,6 +8,7 @@ const TABS: Array<{ id: OrganisationTabId; label: string }> = [
   { id: 'departments', label: 'Departments' },
   { id: 'teams', label: 'Teams' },
   { id: 'roles', label: 'Roles' },
+  { id: 'chart', label: 'Org Chart' },
 ]
 
 export function OrganisationTabs({ current }: { current?: OrganisationTabId }) {

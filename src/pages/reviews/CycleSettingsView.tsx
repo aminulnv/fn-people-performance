@@ -58,6 +58,13 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
   const skipEmptyGroupProvision = useRef(false)
   const groups = cycle.groups ?? []
+  const showErrorToast = (message: string) => {
+    setToastNotice({
+      variant: 'error',
+      message,
+      shownAt: Date.now(),
+    })
+  }
   const showSuccessToast = (message: string) => {
     setToastNotice(successNotice(message))
   }
@@ -66,7 +73,11 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
     if (skipEmptyGroupProvision.current || groups.length > 0) return
     const latest = getReviewCycle(cycle.id)
     if (!latest || (latest.groups?.length ?? 0) > 0) return
-    void createCycleGroup(cycle.id, { name: 'Group 1' }).catch(() => { })
+    void createCycleGroup(cycle.id, { name: 'Group 1' }).catch((err: unknown) => {
+      showErrorToast(
+        err instanceof Error ? err.message : 'Could not create the first group.',
+      )
+    })
   }, [cycle.id, groups.length])
 
   // Follow hash for deep links and back/forward; local open sets state first.
@@ -193,7 +204,13 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
             .then((group) => {
               openGroup(group)
             })
-            .catch(() => { })
+            .catch((err: unknown) => {
+              showErrorToast(
+                err instanceof Error
+                  ? err.message
+                  : 'Could not create the group.',
+              )
+            })
         }}
         onDelete={(groupId) => {
           skipEmptyGroupProvision.current = true
@@ -208,7 +225,13 @@ export function CycleSettingsView({ cycle }: CycleSettingsViewProps) {
               }
               showSuccessToast('Group deleted.')
             })
-            .catch(() => { })
+            .catch((err: unknown) => {
+              showErrorToast(
+                err instanceof Error
+                  ? err.message
+                  : 'Could not delete the group.',
+              )
+            })
         }}
         onOpenGroup={(groupId) => {
           const group = groups.find((item) => item.id === groupId)

@@ -7,7 +7,7 @@ export function PipDisplayOnlyMark() {
     <Tooltip
       side="top"
       portal
-      content="Shown for reference only. Starting and ending a PIP is not connected yet."
+      content="Shown for reference only. Starting and ending a PIP is not available in this release."
     >
       <span className="pd-pip-mark" tabIndex={0}>
         <CircleAlert size={12} strokeWidth={2.25} aria-hidden />

@@ -280,8 +280,8 @@ export function SkillsLibrary() {
                     roles={roleUsage[skill.id] ?? []}
                     talent={talentCounts[skill.id] ?? 0}
                     selected={selectedId === skill.id}
+                    interactive={canWrite}
                     onOpen={() => {
-                      if (!canWrite) return
                       navigate(skillEditPath(skill.id))
                     }}
                   />
@@ -357,30 +357,40 @@ function SkillRow({
   roles,
   talent,
   selected,
+  interactive,
   onOpen,
 }: {
   skill: Skill
   roles: SkillRoleRef[]
   talent: number
   selected: boolean
+  interactive: boolean
   onOpen: () => void
 }) {
   const usedBy = formatRoleUsageLabel(roles)
   return (
     <tr
-      className={['pd-people__row-link', selected ? 'is-selected' : '']
-        .filter(Boolean)
-        .join(' ')}
-      data-selected={selected || undefined}
-      tabIndex={0}
-      aria-selected={selected}
-      onClick={onOpen}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault()
-          onOpen()
-        }
-      }}
+      className={
+        interactive
+          ? ['pd-people__row-link', selected ? 'is-selected' : '']
+              .filter(Boolean)
+              .join(' ')
+          : undefined
+      }
+      data-selected={interactive && selected ? true : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-selected={interactive ? selected : undefined}
+      onClick={interactive ? onOpen : undefined}
+      onKeyDown={
+        interactive
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onOpen()
+              }
+            }
+          : undefined
+      }
     >
       <td>{skill.name}</td>
       <td>{skill.department || '—'}</td>

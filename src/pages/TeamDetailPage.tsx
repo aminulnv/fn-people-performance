@@ -1,13 +1,32 @@
-import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import { ArrowLeft, Building2, Network, Pencil, UsersRound } from 'lucide-react'
-import { Avatar, PageSkeleton, PageStatus, PageStatusLink, PageStatusRetry } from '@/components/ui'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  Archive,
+  ArrowLeft,
+  Building2,
+  Network,
+  Pencil,
+  UsersRound,
+} from 'lucide-react'
+import {
+  Avatar,
+  Button,
+  PageSkeleton,
+  PageStatus,
+  PageStatusLink,
+  PageStatusRetry,
+} from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { getEmployee } from '@/lib/employees/store'
+import { archiveTeam, getEmployee } from '@/lib/employees/store'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
-import { departmentDetailPath, teamEditPath } from '@/lib/organisation/paths'
+import {
+  departmentDetailPath,
+  organisationTabPath,
+  teamEditPath,
+  teamKey,
+} from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
@@ -15,12 +34,15 @@ import '@/styles/layout-organisation.css'
 export default function TeamDetailPage() {
   const { teamId: rawId = '' } = useParams()
   const teamId = decodeURIComponent(rawId)
+  const navigate = useNavigate()
   const catalogs = useOrganisationCatalogs()
   const { user } = useAuth()
   const canEdit = hasSystemPermission(user?.permissions, 'platform.write_all')
   const { organisation, isLoading } = useOrganisation(catalogs.departments, {
     teams: catalogs.teams,
   })
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { team, departmentId, members } = useMemo(() => {
     const found = organisation.teams.find((t) => t.id === teamId) ?? null
@@ -40,6 +62,28 @@ export default function TeamDetailPage() {
       members: people,
     }
   }, [organisation, teamId])
+
+  const catalogTeam = useMemo(
+    () =>
+      catalogs.teams.find(
+        (row) => teamKey(row.departmentName, row.name) === teamId,
+      ) ?? null,
+    [catalogs.teams, teamId],
+  )
+
+  async function onArchive() {
+    if (!catalogTeam || busy) return
+    setBusy(true)
+    setActionError(null)
+    const result = await archiveTeam(catalogTeam.id)
+    if (!result.ok) {
+      setActionError(result.error)
+      setBusy(false)
+      return
+    }
+    catalogs.reload()
+    navigate(organisationTabPath('teams'))
+  }
 
   if (isLoading || !catalogs.ready) {
     return (
@@ -116,6 +160,20 @@ export default function TeamDetailPage() {
           </div>
         </div>
         <div className="pd-org-detail__hero-actions">
+          {canEdit && catalogTeam ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              pill
+              disabled={busy}
+              onClick={() => {
+                void onArchive()
+              }}
+            >
+              <Archive size={14} strokeWidth={1.75} aria-hidden />
+              Archive
+            </Button>
+          ) : null}
           {canEdit ? (
             <Link
               to={teamEditPath(team.id)}
@@ -131,6 +189,12 @@ export default function TeamDetailPage() {
           </Link>
         </div>
       </section>
+
+      {actionError ? (
+        <p className="pd-people__message pd-people__message--error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
 
       <div className="pd-org-detail__stats" aria-label="Team summary">
         <div className="pd-org-detail__stat">

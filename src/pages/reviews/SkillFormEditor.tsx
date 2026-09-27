@@ -2,7 +2,7 @@ import { useId, useMemo, useState } from 'react'
 import { Button, ListboxSelect, Switch } from '@/components/ui'
 import { useOrganisationCatalogs } from '@/lib/employees/useEmployees'
 import { expectedLevelLabel } from '@/lib/roles/labels'
-import { createSkill, updateSkill } from '@/lib/skills/store'
+import { archiveSkill, createSkill, updateSkill } from '@/lib/skills/store'
 import {
   emptySkillMastery,
   SKILL_MASTERY_LEVELS,
@@ -16,11 +16,13 @@ export function SkillFormFields({
   existing,
   onSaved,
   onCancel,
+  onArchived,
 }: {
   mode: 'create' | 'edit'
   existing?: Skill | null
   onSaved: (skill: Skill) => void
   onCancel: () => void
+  onArchived?: () => void
 }) {
   const nameId = useId()
   const departmentId = useId()
@@ -35,6 +37,7 @@ export function SkillFormFields({
   )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
+  const [archiving, setArchiving] = useState(false)
 
   const departmentOptions = useMemo(() => {
     const byKey = new Map<string, string>()
@@ -189,6 +192,35 @@ export function SkillFormFields({
           onChange={(event) => setApproved(event.target.checked)}
         />
         <div className="pd-reviews-value-panel__actions-end">
+          {mode === 'edit' && existing ? (
+            <Button
+              type="button"
+              variant="secondary"
+              pill
+              loading={archiving}
+              disabled={saving}
+              onClick={() => {
+                if (archiving || saving) return
+                setArchiving(true)
+                setError(null)
+                void archiveSkill(existing.id)
+                  .then(() => {
+                    onArchived?.()
+                    onCancel()
+                  })
+                  .catch((err: unknown) => {
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : 'Could not archive this skill.',
+                    )
+                    setArchiving(false)
+                  })
+              }}
+            >
+              Archive
+            </Button>
+          ) : null}
           <Button type="button" variant="secondary" pill onClick={onCancel}>
             Cancel
           </Button>

@@ -176,7 +176,7 @@ describe('AnalyticsPage', () => {
     expect(screen.getByRole('heading', { name: 'Goals' })).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: /Reviews Not Started/i }),
-    ).toHaveAttribute('href', '/reviews')
+    ).toHaveAttribute('href', '/reviews/scorecards?status=not_started')
     expect(
       screen.getByRole('link', { name: /Manager Reviews Still Open/i }),
     ).toBeInTheDocument()

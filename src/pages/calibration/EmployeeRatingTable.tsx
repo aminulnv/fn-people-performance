@@ -556,7 +556,7 @@ export function EmployeeRatingTable({
     const needsCosign = requiresHrbpCosign(overrideRow.annualGrade, overrideGrade)
     if (needsCosign && !hrbpCosign) {
       setOverrideError(
-        'This is a 3+ tier change. Confirm HRBP co-sign before saving.',
+        'This is a 3+ tier change. Check the HRBP co-sign flag before saving.',
       )
       return
     }
@@ -1215,7 +1215,8 @@ export function EmployeeRatingTable({
                   onChange={(event) => setHrbpCosign(event.target.checked)}
                 />
                 <span>
-                  This is a 3+ tier change. Flag for HRBP co-sign and continue.
+                  This is a 3+ tier change. Add an HRBP co-sign flag to the
+                  reason (this does not wait for HRBP approval).
                 </span>
               </label>
             ) : null}

@@ -145,7 +145,7 @@ export default function CycleDetailPage() {
               },
               {
                 id: 'create-test',
-                label: 'Create Test Cycle',
+                label: 'Duplicate as test cycle',
                 icon: <Plus size={16} strokeWidth={1.75} />,
                 onSelect: () => {
                   void handleCreateTest()

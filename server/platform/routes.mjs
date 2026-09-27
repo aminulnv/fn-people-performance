@@ -14,6 +14,8 @@ import {
   markPlatformNotificationRead,
 } from './notifications.mjs'
 import {
+  archivePlatformDepartment,
+  archivePlatformTeam,
   createPlatformDepartment,
   createPlatformTeam,
   getPlatformEmployee,
@@ -384,6 +386,24 @@ export function registerPlatformRoutes(app) {
     }),
   )
 
+  app.post(
+    '/api/platform/departments/:departmentId/archive',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const department = await archivePlatformDepartment(
+          req.params.departmentId,
+          req.platformUser,
+        )
+        await publishWrite(req, ['employees', 'activity'])
+        res.json({ department })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
   app.get(
     '/api/platform/teams',
     requirePlatformAuth,
@@ -417,6 +437,24 @@ export function registerPlatformRoutes(app) {
         const team = await updatePlatformTeam(
           req.params.teamId,
           req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['employees', 'activity'])
+        res.json({ team })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/teams/:teamId/archive',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const team = await archivePlatformTeam(
+          req.params.teamId,
           req.platformUser,
         )
         await publishWrite(req, ['employees', 'activity'])

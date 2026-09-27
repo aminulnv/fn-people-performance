@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
+  Archive,
   ArrowLeft,
   Building2,
   Network,
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  Button,
   PageSkeleton,
   PageStatus,
   PageStatusLink,
@@ -19,9 +21,14 @@ import {
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
 import { avatarStyle } from '@/lib/employees/avatar'
-import { getEmployee } from '@/lib/employees/store'
+import { archiveDepartment, getEmployee } from '@/lib/employees/store'
 import { useOrganisation, useOrganisationCatalogs } from '@/lib/employees/useEmployees'
-import { departmentEditPath, teamDetailPath } from '@/lib/organisation/paths'
+import { departmentKey } from '@/lib/organisation/fromEmployees'
+import {
+  departmentEditPath,
+  organisationTabPath,
+  teamDetailPath,
+} from '@/lib/organisation/paths'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
 import {
   ReviewSaveBanner,
@@ -39,6 +46,7 @@ const DEPARTMENT_TEAM_COLUMNS: ResizableColumn[] = [
 export default function DepartmentDetailPage() {
   const { departmentId: rawId = '' } = useParams()
   const departmentId = decodeURIComponent(rawId)
+  const navigate = useNavigate()
   const catalogs = useOrganisationCatalogs()
   const { user } = useAuth()
   const canEdit = hasSystemPermission(user?.permissions, 'platform.write_all')
@@ -46,6 +54,8 @@ export default function DepartmentDetailPage() {
     teams: catalogs.teams,
   })
   const [toastNotice, setToastNotice] = useLocationSaveNotice()
+  const [busy, setBusy] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { department, members } = useMemo(() => {
     const found =
@@ -58,6 +68,28 @@ export default function DepartmentDetailPage() {
       : []
     return { department: found, members: people }
   }, [departmentId, organisation])
+
+  const catalogDepartment = useMemo(
+    () =>
+      catalogs.departments.find(
+        (row) => departmentKey(row.name) === departmentId,
+      ) ?? null,
+    [catalogs.departments, departmentId],
+  )
+
+  async function onArchive() {
+    if (!catalogDepartment || busy) return
+    setBusy(true)
+    setActionError(null)
+    const result = await archiveDepartment(catalogDepartment.id)
+    if (!result.ok) {
+      setActionError(result.error)
+      setBusy(false)
+      return
+    }
+    catalogs.reload()
+    navigate(organisationTabPath('departments'))
+  }
 
   if (isLoading || !catalogs.ready) {
     return (
@@ -128,6 +160,20 @@ export default function DepartmentDetailPage() {
           </div>
         </div>
         <div className="pd-org-detail__hero-actions">
+          {canEdit && catalogDepartment ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              pill
+              disabled={busy}
+              onClick={() => {
+                void onArchive()
+              }}
+            >
+              <Archive size={14} strokeWidth={1.75} aria-hidden />
+              Archive
+            </Button>
+          ) : null}
           {canEdit ? (
             <Link
               to={departmentEditPath(department.id)}
@@ -143,6 +189,12 @@ export default function DepartmentDetailPage() {
           </Link>
         </div>
       </section>
+
+      {actionError ? (
+        <p className="pd-people__message pd-people__message--error" role="alert">
+          {actionError}
+        </p>
+      ) : null}
 
       <div className="pd-org-detail__stats" aria-label="Department summary">
         <div className="pd-org-detail__stat">

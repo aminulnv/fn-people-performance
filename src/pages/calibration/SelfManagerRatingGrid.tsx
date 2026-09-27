@@ -59,6 +59,7 @@ function toListPerson(
       .filter(Boolean)
       .join(' · '),
     finalGrade: person.managerGrade,
+    finalLabel: 'Manager',
     selfGrade: person.selfGrade,
     gapTiers: person.tierDelta,
   }

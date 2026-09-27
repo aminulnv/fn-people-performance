@@ -716,3 +716,54 @@ export async function updateTeam(input: UpdateTeamInput): Promise<TeamWriteResul
     return { ok: false, error: apiError(err, 'Could not update the team.') }
   }
 }
+
+export type ArchiveResult = { ok: true } | { ok: false; error: string }
+
+export async function archiveDepartment(
+  departmentId: number,
+): Promise<ArchiveResult> {
+  if (!Number.isInteger(departmentId) || departmentId <= 0) {
+    return { ok: false, error: 'Department not found.' }
+  }
+  if (useMemoryBackend()) {
+    const existing = memoryDepartments.find((row) => row.id === departmentId)
+    if (!existing) return { ok: false, error: 'Department not found.' }
+    memoryDepartments = memoryDepartments.filter((row) => row.id !== departmentId)
+    memoryTeams = memoryTeams.filter((row) => row.departmentId !== departmentId)
+    notify()
+    return { ok: true }
+  }
+  try {
+    await apiFetch(`/api/platform/departments/${departmentId}/archive`, {
+      method: 'POST',
+      body: {},
+    })
+    notify()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: apiError(err, 'Could not archive the department.') }
+  }
+}
+
+export async function archiveTeam(teamId: number): Promise<ArchiveResult> {
+  if (!Number.isInteger(teamId) || teamId <= 0) {
+    return { ok: false, error: 'Team not found.' }
+  }
+  if (useMemoryBackend()) {
+    const existing = memoryTeams.find((row) => row.id === teamId)
+    if (!existing) return { ok: false, error: 'Team not found.' }
+    memoryTeams = memoryTeams.filter((row) => row.id !== teamId)
+    notify()
+    return { ok: true }
+  }
+  try {
+    await apiFetch(`/api/platform/teams/${teamId}/archive`, {
+      method: 'POST',
+      body: {},
+    })
+    notify()
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: apiError(err, 'Could not archive the team.') }
+  }
+}

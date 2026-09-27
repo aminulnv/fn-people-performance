@@ -49,6 +49,7 @@ export type RemainingTimeParts = {
   days: number
   hours: number
   mins: number
+  secs: number
 }
 
 /** Remaining time until end of the deadline day (UTC). */
@@ -58,11 +59,12 @@ export function remainingTimeUntilDeadline(
 ): RemainingTimeParts {
   const end = new Date(`${deadline}T23:59:59.999Z`)
   const ms = Math.max(0, end.getTime() - now.getTime())
-  const totalMins = Math.floor(ms / 60_000)
+  const totalSecs = Math.floor(ms / 1000)
   return {
-    days: Math.floor(totalMins / (60 * 24)),
-    hours: Math.floor((totalMins % (60 * 24)) / 60),
-    mins: totalMins % 60,
+    days: Math.floor(totalSecs / (60 * 60 * 24)),
+    hours: Math.floor((totalSecs % (60 * 60 * 24)) / (60 * 60)),
+    mins: Math.floor((totalSecs % (60 * 60)) / 60),
+    secs: totalSecs % 60,
   }
 }
 
@@ -78,6 +80,7 @@ export function formatDeadlineTimerUnits(
     { label: 'Days', value: String(parts.days) },
     { label: 'Hours', value: String(parts.hours) },
     { label: 'Mins', value: String(parts.mins) },
+    { label: 'Secs', value: String(parts.secs) },
   ]
 }
 

@@ -538,7 +538,7 @@ export default function AnalyticsPage() {
       submissions,
       scope: visibleScope,
       viewer: me,
-      reviewsHref: '/reviews',
+      reviewsHref: '/reviews/scorecards',
       goalsHref: '/goals',
     })
   }, [coversRevision, cycle, employees, me, packets, submissions, visibleScope])

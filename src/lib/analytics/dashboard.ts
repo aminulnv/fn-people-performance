@@ -372,7 +372,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Reviews Not Started',
       count: notStarted,
       why: 'Nobody has opened this person’s review yet.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=not_started`,
     })
   }
   if (showReviews && statusCounts.self_in_progress > 0) {
@@ -381,7 +381,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Self-Reviews Still Open',
       count: statusCounts.self_in_progress,
       why: 'The employee started and has not submitted.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=in_progress`,
     })
   }
   if (showReviews && statusCounts.manager_in_progress > 0) {
@@ -390,7 +390,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Manager Reviews Still Open',
       count: statusCounts.manager_in_progress,
       why: 'The line manager has a draft and has not submitted.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=in_progress`,
     })
   }
   const readyToRelease =
@@ -403,7 +403,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Waiting On Release',
       count: readyToRelease,
       why: 'Manager review is in or past submit - still not with the employee.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=in_progress`,
     })
   }
   if (showReviews && statusCounts.released_to_managers > 0) {
@@ -412,7 +412,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Released To Managers Only',
       count: statusCounts.released_to_managers,
       why: 'Employees cannot see the official grade yet.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=completed`,
     })
   }
   const openAppeals = packets.reduce(
@@ -425,7 +425,7 @@ export function buildAnalyticsDashboard(input: {
       title: 'Open Appeals',
       count: openAppeals,
       why: 'An employee recorded a challenge after release.',
-      href: reviewsHref,
+      href: `${reviewsHref}?status=completed`,
     })
   }
   if (showGoals && (goals?.missing ?? 0) > 0) {

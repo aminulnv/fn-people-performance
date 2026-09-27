@@ -18,6 +18,7 @@ export type HeatmapCell = {
   count: number
   percent: number
   outlier: boolean
+  employeeIds: number[]
 }
 
 export type HeatmapVsOrgKind = 'on' | 'above' | 'below'
@@ -96,7 +97,11 @@ export function buildManagerRatingHeatmap(input: {
 
   const byManager = new Map<
     number,
-    { counts: Record<GradeBandId, number>; total: number }
+    {
+      counts: Record<GradeBandId, number>
+      employeeIds: Record<GradeBandId, number[]>
+      total: number
+    }
   >()
   let orgTotal = 0
   let orgScoreSum = 0
@@ -111,9 +116,17 @@ export function buildManagerRatingHeatmap(input: {
 
     const bucket = byManager.get(managerId) ?? {
       counts: emptyCounts(),
+      employeeIds: {
+        exceptional: [],
+        exceeding: [],
+        performing: [],
+        developing: [],
+        unsatisfactory: [],
+      },
       total: 0,
     }
     bucket.counts[grade] += 1
+    bucket.employeeIds[grade].push(packet.employeeId)
     bucket.total += 1
     byManager.set(managerId, bucket)
 
@@ -149,7 +162,13 @@ export function buildManagerRatingHeatmap(input: {
             (bandId === 'unsatisfactory' || bandId === 'developing')) ||
           (highOutlier &&
             (bandId === 'exceeding' || bandId === 'exceptional'))
-        return { bandId, count, percent, outlier }
+        return {
+          bandId,
+          count,
+          percent,
+          outlier,
+          employeeIds: bucket.employeeIds[bandId],
+        }
       })
 
       let scoreSum = 0

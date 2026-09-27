@@ -907,6 +907,18 @@
   line-height: 1.15;
 }
 
+button.pd-cal-heat__cell {
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+}
+
+button.pd-cal-heat__cell.is-clickable:hover,
+button.pd-cal-heat__cell.is-clickable:focus-visible {
+  outline: 2px solid var(--color-border-strong, var(--color-border));
+  outline-offset: 1px;
+}
+
 .pd-cal-heat__cell strong {
   font-size: 0.72rem;
   font-weight: 700;

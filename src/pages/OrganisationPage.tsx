@@ -11,7 +11,6 @@ import {
   Users,
   UsersRound,
 } from 'lucide-react'
-import { OrgChartLink } from '@/components/OrgChartLink'
 import {
   AttributeFilters,
   Avatar,
@@ -49,7 +48,7 @@ import { SettingsSidePanel } from '@/pages/reviews/SettingsSidePanel'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
 
-type StructureView = OrganisationTabId
+type StructureView = Exclude<OrganisationTabId, 'chart'>
 
 function tabFromPathname(pathname: string): StructureView {
   if (pathname.startsWith('/organisation/roles')) return 'roles'
@@ -532,7 +531,6 @@ export default function OrganisationPage() {
             onChange={setAttributeFilters}
             sectionLabel="Organisation attributes"
           />
-          <OrgChartLink />
           {activeView === 'roles' ? (
             canCreateRole ? (
               <Link
@@ -855,7 +853,9 @@ export default function OrganisationPage() {
         >
           <RoleFormFields
             onCancel={closeCreateRolePanel}
-            onSaved={closeCreateRolePanel}
+            onSaved={(role) => {
+              navigate(roleDetailPath(role.id))
+            }}
           />
         </SettingsSidePanel>
       ) : null}

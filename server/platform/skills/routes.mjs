@@ -5,6 +5,7 @@ import {
 } from '../auth.mjs'
 import { publishWrite } from '../realtime/fromRequest.mjs'
 import {
+  archiveSkill,
   createSkill,
   listSkillsSnapshot,
   updateSkill,
@@ -58,6 +59,21 @@ export function registerSkillsRoutes(app) {
           req.body ?? {},
           req.platformUser,
         )
+        await publishWrite(req, ['reviews', 'activity'], { skillId: skill.id })
+        res.json({ skill })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/skills/:skillId/archive',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const skill = await archiveSkill(req.params.skillId, req.platformUser)
         await publishWrite(req, ['reviews', 'activity'], { skillId: skill.id })
         res.json({ skill })
       } catch (err) {

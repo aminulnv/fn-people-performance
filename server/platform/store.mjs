@@ -804,6 +804,7 @@ function mapDepartmentRow(row) {
     hrbpEmail: row.hrbp_email,
     headcount: row.headcount ?? 0,
     teamCount: row.team_count ?? 0,
+    archivedAt: row.archived_at ? isoTimestamp(row.archived_at) : null,
   }
 }
 
@@ -813,6 +814,7 @@ const DEPARTMENT_SELECT = `
     d.name,
     d.head_employee_id,
     d.hrbp_employee_id,
+    d.archived_at,
     head.name AS head_name,
     head.email AS head_email,
     hrbp.name AS hrbp_name,
@@ -820,7 +822,7 @@ const DEPARTMENT_SELECT = `
     (SELECT count(*)::int FROM platform.employees e
       WHERE e.department_id = d.id AND e.status = 'active') AS headcount,
     (SELECT count(*)::int FROM platform.teams t
-      WHERE t.department_id = d.id) AS team_count
+      WHERE t.department_id = d.id AND t.status = 'active') AS team_count
   FROM platform.departments d
   LEFT JOIN platform.employees head ON head.employee_id = d.head_employee_id
   LEFT JOIN platform.employees hrbp ON hrbp.employee_id = d.hrbp_employee_id
@@ -828,7 +830,9 @@ const DEPARTMENT_SELECT = `
 
 export async function listPlatformDepartments() {
   const { rows } = await getPool().query(
-    `${DEPARTMENT_SELECT} ORDER BY d.name ASC`,
+    `${DEPARTMENT_SELECT}
+     WHERE d.archived_at IS NULL
+     ORDER BY d.name ASC`,
   )
   return rows.map(mapDepartmentRow)
 }
@@ -837,7 +841,9 @@ export async function getPlatformDepartment(departmentId) {
   const id = Number(departmentId)
   if (!Number.isInteger(id) || id <= 0) return null
   const { rows } = await getPool().query(
-    `${DEPARTMENT_SELECT} WHERE d.id = $1 LIMIT 1`,
+    `${DEPARTMENT_SELECT}
+     WHERE d.id = $1 AND d.archived_at IS NULL
+     LIMIT 1`,
     [id],
   )
   return rows[0] ? mapDepartmentRow(rows[0]) : null
@@ -867,7 +873,9 @@ export async function createPlatformDepartment(input = {}, actorInput = {}) {
     await client.query('BEGIN')
 
     const existing = await client.query(
-      `SELECT id FROM platform.departments WHERE lower(name) = lower($1) LIMIT 1`,
+      `SELECT id FROM platform.departments
+       WHERE lower(name) = lower($1) AND archived_at IS NULL
+       LIMIT 1`,
       [name],
     )
     if (existing.rows[0]) {
@@ -994,7 +1002,9 @@ export async function updatePlatformDepartment(departmentId, input = {}, actorIn
   try {
     await client.query('BEGIN')
     const current = await client.query(
-      `SELECT id, name FROM platform.departments WHERE id = $1 LIMIT 1`,
+      `SELECT id, name FROM platform.departments
+       WHERE id = $1 AND archived_at IS NULL
+       LIMIT 1`,
       [id],
     )
     if (!current.rows[0]) {
@@ -1004,7 +1014,7 @@ export async function updatePlatformDepartment(departmentId, input = {}, actorIn
     }
     const clash = await client.query(
       `SELECT id FROM platform.departments
-       WHERE lower(name) = lower($1) AND id <> $2
+       WHERE lower(name) = lower($1) AND id <> $2 AND archived_at IS NULL
        LIMIT 1`,
       [name, id],
     )
@@ -1066,7 +1076,9 @@ export async function createPlatformTeam(input = {}, actorInput = {}) {
   try {
     await client.query('BEGIN')
     const department = await client.query(
-      `SELECT id, name FROM platform.departments WHERE id = $1 LIMIT 1`,
+      `SELECT id, name FROM platform.departments
+       WHERE id = $1 AND archived_at IS NULL
+       LIMIT 1`,
       [departmentId],
     )
     if (!department.rows[0]) {
@@ -1076,7 +1088,7 @@ export async function createPlatformTeam(input = {}, actorInput = {}) {
     }
     const clash = await client.query(
       `SELECT id FROM platform.teams
-       WHERE department_id = $1 AND lower(name) = lower($2)
+       WHERE department_id = $1 AND lower(name) = lower($2) AND status = 'active'
        LIMIT 1`,
       [departmentId, name],
     )
@@ -1143,7 +1155,7 @@ export async function updatePlatformTeam(teamId, input = {}, actorInput = {}) {
   try {
     await client.query('BEGIN')
     const current = await client.query(
-      `SELECT id FROM platform.teams WHERE id = $1 LIMIT 1`,
+      `SELECT id FROM platform.teams WHERE id = $1 AND status = 'active' LIMIT 1`,
       [id],
     )
     if (!current.rows[0]) {
@@ -1152,7 +1164,9 @@ export async function updatePlatformTeam(teamId, input = {}, actorInput = {}) {
       throw err
     }
     const department = await client.query(
-      `SELECT id FROM platform.departments WHERE id = $1 LIMIT 1`,
+      `SELECT id FROM platform.departments
+       WHERE id = $1 AND archived_at IS NULL
+       LIMIT 1`,
       [departmentId],
     )
     if (!department.rows[0]) {
@@ -1162,7 +1176,8 @@ export async function updatePlatformTeam(teamId, input = {}, actorInput = {}) {
     }
     const clash = await client.query(
       `SELECT id FROM platform.teams
-       WHERE department_id = $1 AND lower(name) = lower($2) AND id <> $3
+       WHERE department_id = $1 AND lower(name) = lower($2)
+         AND id <> $3 AND status = 'active'
        LIMIT 1`,
       [departmentId, name, id],
     )
@@ -1202,6 +1217,119 @@ export async function updatePlatformTeam(teamId, input = {}, actorInput = {}) {
   return teams.find((team) => Number(team.id) === id) ?? null
 }
 
+export async function archivePlatformDepartment(
+  departmentId,
+  actorInput = {},
+) {
+  const id = Number(departmentId)
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('Department not found')
+    err.statusCode = 404
+    throw err
+  }
+  const actor = activityActor(actorInput)
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const current = await client.query(
+      `SELECT id, name FROM platform.departments
+       WHERE id = $1 AND archived_at IS NULL
+       LIMIT 1
+       FOR UPDATE`,
+      [id],
+    )
+    if (!current.rows[0]) {
+      const err = new Error('Department not found')
+      err.statusCode = 404
+      throw err
+    }
+    const name = current.rows[0].name
+    await client.query(
+      `UPDATE platform.departments
+       SET archived_at = now()
+       WHERE id = $1 AND archived_at IS NULL`,
+      [id],
+    )
+    await client.query(
+      `UPDATE platform.teams
+       SET status = 'archived'
+       WHERE department_id = $1 AND status = 'active'`,
+      [id],
+    )
+    await appendActivityEvent(client, {
+      eventKey: 'department.archived',
+      entityType: 'department',
+      entityId: String(id),
+      ...actor,
+      summary: `Archived department ${name}`,
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    return { id, name, archived: true }
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
+export async function archivePlatformTeam(teamId, actorInput = {}) {
+  const id = Number(teamId)
+  if (!Number.isInteger(id) || id <= 0) {
+    const err = new Error('Team not found')
+    err.statusCode = 404
+    throw err
+  }
+  const actor = activityActor(actorInput)
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const current = await client.query(
+      `SELECT id, name FROM platform.teams
+       WHERE id = $1 AND status = 'active'
+       LIMIT 1
+       FOR UPDATE`,
+      [id],
+    )
+    if (!current.rows[0]) {
+      const err = new Error('Team not found')
+      err.statusCode = 404
+      throw err
+    }
+    const name = current.rows[0].name
+    await client.query(
+      `UPDATE platform.teams
+       SET status = 'archived'
+       WHERE id = $1 AND status = 'active'`,
+      [id],
+    )
+    await appendActivityEvent(client, {
+      eventKey: 'team.archived',
+      entityType: 'team',
+      entityId: String(id),
+      ...actor,
+      summary: `Archived team ${name}`,
+      source: 'api',
+    })
+    await client.query('COMMIT')
+    return { id, name, archived: true }
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK')
+    } catch {
+      /* ignore */
+    }
+    throw err
+  } finally {
+    client.release()
+  }
+}
+
 export async function listPlatformDivisions() {
   const { rows } = await getPool().query(
     `SELECT
@@ -1221,11 +1349,12 @@ export async function listPlatformDivisions() {
 
 export async function listPlatformTeams(departmentId) {
   const params = []
-  let where = ''
+  const clauses = [`t.status = 'active'`, `d.archived_at IS NULL`]
   if (departmentId != null && departmentId !== '') {
     params.push(Number(departmentId))
-    where = `WHERE t.department_id = $1`
+    clauses.push(`t.department_id = $${params.length}`)
   }
+  const where = `WHERE ${clauses.join(' AND ')}`
   const { rows } = await getPool().query(
     `SELECT
        t.id,

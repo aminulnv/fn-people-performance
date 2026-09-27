@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Award,
   Briefcase,
@@ -121,6 +121,13 @@ function statusClass(status: ScorecardStatus): string {
 
 type StatusFilter = 'all' | ScorecardStatus
 
+function statusFilterFromSearch(raw: string | null): StatusFilter {
+  if (raw === 'not_started' || raw === 'in_progress' || raw === 'completed') {
+    return raw
+  }
+  return 'all'
+}
+
 type ScorecardColumnId =
   | 'employee'
   | 'cycle'
@@ -166,11 +173,14 @@ export function ScorecardsList() {
   const { employees, loadState, loadError } = useEmployees()
   const { cycles } = useReviewsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [query, setQuery] = useState('')
   const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
     {},
   )
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>(() =>
+    statusFilterFromSearch(searchParams.get('status')),
+  )
   const [visibleColumnIds, setVisibleColumnIds] = useState<string[]>(() =>
     readVisibleColumnIds(
       SCORECARD_COLUMNS_STORAGE_KEY,
@@ -259,7 +269,8 @@ export function ScorecardsList() {
       ),
     [cycleKeys, cycleOptions, preferredCycleId],
   )
-  const { packets } = useReviewPacketsForCycles(selectedCycleKeys)
+  const { packets, isError: packetsError, error: packetsQueryError } =
+    useReviewPacketsForCycles(selectedCycleKeys)
   const canManageCycles = hasSystemPermission(
     user?.permissions,
     'platform.write_all',
@@ -419,10 +430,23 @@ export function ScorecardsList() {
     Record<string, boolean>
   >({})
 
+  function applyStatusFilter(next: StatusFilter) {
+    setStatusFilter(next)
+    if (statusFilterFromSearch(searchParams.get('status')) === next) return
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev)
+        if (next === 'all') params.delete('status')
+        else params.set('status', next)
+        return params
+      },
+      { replace: true },
+    )
+  }
+
   useEffect(() => {
     setGradesRevealed(false)
     setGradeOverrides({})
-    setStatusFilter('all')
     setAttributeFilters({})
   }, [selectedCycleKeys])
 
@@ -448,7 +472,7 @@ export function ScorecardsList() {
   }
 
   function toggleStatusFilter(next: StatusFilter) {
-    setStatusFilter((current) => (current === next ? 'all' : next))
+    applyStatusFilter(statusFilter === next ? 'all' : next)
   }
 
   const scorecardColumns: ResizableColumn[] = useMemo(() => {
@@ -602,9 +626,9 @@ export function ScorecardsList() {
             onChange={(next) => {
               const { status, ...rest } = next
               if (status?.length === 1) {
-                setStatusFilter(status[0] as StatusFilter)
-              } else {
-                setStatusFilter('all')
+                applyStatusFilter(status[0] as StatusFilter)
+              } else if (status) {
+                applyStatusFilter('all')
               }
               setAttributeFilters(rest)
             }}
@@ -631,6 +655,12 @@ export function ScorecardsList() {
         ) : loadState === 'error' && employees.length === 0 ? (
           <p className="pd-people__empty">
             {loadError ?? 'Failed to load people for performance reviews.'}
+          </p>
+        ) : packetsError ? (
+          <p className="pd-people__empty">
+            {packetsQueryError instanceof Error
+              ? packetsQueryError.message
+              : 'Failed to load performance reviews.'}
           </p>
         ) : hasNoCycles ? (
           <div className="pd-people__empty-state">

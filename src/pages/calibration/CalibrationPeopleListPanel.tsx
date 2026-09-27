@@ -14,6 +14,8 @@ export type CalibrationListPerson = {
   avatarUrl?: string
   metaLine: string
   finalGrade: GradeBandId | null
+  /** Chip label for finalGrade. Defaults to "Final". Use "Manager" on the grid. */
+  finalLabel?: string
   selfGrade: GradeBandId | null
   gapTiers: number | null
   detailChip?: string | null
@@ -117,7 +119,10 @@ export function CalibrationPeopleListPanel({
                     </span>
                   ) : null}
                   <span className="pd-cal-people-panel__chips">
-                    <GradeChip label="Final" grade={person.finalGrade} />
+                    <GradeChip
+                      label={person.finalLabel ?? 'Final'}
+                      grade={person.finalGrade}
+                    />
                     <GradeChip
                       label="Self"
                       grade={person.selfGrade}

@@ -106,6 +106,32 @@ type PacketDraft = {
   goalsComponent?: ReviewPacket['goalsComponent']
 }
 
+function packetDraftFromPacket(
+  packet: ReviewPacket,
+  actorRole: 'self' | 'manager',
+): PacketDraft {
+  return {
+    answers: packet.answers
+      .filter((answer) => answer.actorRole === actorRole)
+      .map((answer) => ({
+        questionId: answer.questionId,
+        body: answer.body,
+      })),
+    pillarScores: packet.pillarScores
+      .filter((score) => score.actorRole === actorRole)
+      .map((score) => ({
+        pillarId: score.pillarId,
+        grade: score.grade,
+        comment: score.comment ?? '',
+      })),
+    overallGrade:
+      actorRole === 'self'
+        ? packet.selfOverallGrade
+        : packet.managerOverallGrade,
+    goalsComponent: packet.goalsComponent,
+  }
+}
+
 function GradeField({
   id,
   label,
@@ -507,7 +533,8 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   }
 
   const savePacket = async (submit: boolean) => {
-    if (!packetDraft) return
+    const draft =
+      packetDraft ?? packetDraftFromPacket(packet, formActorRole)
     setSaving(true)
     setSaveNotice(null)
     try {
@@ -557,7 +584,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       const valuesRollup = valuesPillarOn
         ? averageValueGrade(enabledValues.map((value) => valueGrades[value.id]))
         : null
-      const basePillars = packetDraft.pillarScores.filter(
+      const basePillars = draft.pillarScores.filter(
         (score) =>
           score.pillarId !== 'skills' &&
           !isSkillScorePillarId(score.pillarId) &&
@@ -565,7 +592,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
           !isValueScorePillarId(score.pillarId),
       )
       const next = await saveReviewPacket(packet.id, {
-        ...packetDraft,
+        ...draft,
         pillarScores: [
           ...basePillars,
           ...skillPillarScores,
@@ -579,7 +606,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
         ],
         goalsComponent: useWeightedSuggest
           ? annualGoalsComponent(q4Grade || null)
-          : packetDraft.goalsComponent,
+          : draft.goalsComponent,
         actorRole: formActorRole,
         submit,
       })
@@ -886,7 +913,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
                 <Button
                   variant="secondary"
                   pill
-                  disabled={saving || packetDraft == null}
+                  disabled={saving}
                   onClick={() => void savePacket(false)}
                 >
                   Save Draft
@@ -894,7 +921,7 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
                 <Button
                   variant="primary"
                   pill
-                  disabled={saving || packetDraft == null}
+                  disabled={saving}
                   onClick={() => void savePacket(true)}
                 >
                   Submit

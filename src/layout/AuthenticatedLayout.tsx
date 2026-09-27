@@ -25,7 +25,11 @@ export default function AuthenticatedLayout() {
   }, [navigate, signOut])
 
   if (status === 'loading') {
-    return null
+    return (
+      <div className="pd-page" aria-label="Loading" aria-busy="true">
+        <p className="pd-people__empty">Loading…</p>
+      </div>
+    )
   }
 
   if (status !== 'authenticated' || !user) {

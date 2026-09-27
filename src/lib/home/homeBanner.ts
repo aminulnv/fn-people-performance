@@ -82,7 +82,7 @@ export type HomeBannerContent = {
   urgency?: GoalDeadlineUrgency
   /** Calendar state of the deadline - due later, due today, or already past. */
   timing?: GoalDeadlineTiming
-  /** YYYY-MM-DD deadline used for live Days/Hours/Mins units. */
+  /** YYYY-MM-DD deadline used for live Days/Hours/Mins/Secs units. */
   deadline?: string
 }
 

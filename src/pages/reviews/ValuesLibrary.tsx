@@ -141,28 +141,35 @@ export function ValuesLibrary() {
                 {visible.map((value) => {
                   const isSelected = selectedId === value.id
                   const openValue = () => {
-                    if (!canWrite) return
                     navigate(valueEditPath(value.id))
                   }
                   return (
                     <tr
                       key={value.id}
-                      className={[
-                        'pd-people__row-link',
-                        isSelected ? 'is-selected' : '',
-                      ]
-                        .filter(Boolean)
-                        .join(' ')}
-                      data-selected={isSelected || undefined}
-                      tabIndex={0}
-                      aria-selected={isSelected}
-                      onClick={openValue}
-                      onKeyDown={(event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault()
-                          openValue()
-                        }
-                      }}
+                      className={
+                        canWrite
+                          ? [
+                              'pd-people__row-link',
+                              isSelected ? 'is-selected' : '',
+                            ]
+                              .filter(Boolean)
+                              .join(' ')
+                          : undefined
+                      }
+                      data-selected={canWrite && isSelected ? true : undefined}
+                      tabIndex={canWrite ? 0 : undefined}
+                      aria-selected={canWrite ? isSelected : undefined}
+                      onClick={canWrite ? openValue : undefined}
+                      onKeyDown={
+                        canWrite
+                          ? (event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault()
+                                openValue()
+                              }
+                            }
+                          : undefined
+                      }
                     >
                       <td>
                         <span className="pd-reviews-skills__name">
