@@ -41,7 +41,7 @@ describe('cycleIneligibilityEmptyState', () => {
     ).toEqual({
       title: 'Not In This Cycle',
       description:
-        'Aminul Islam Borhan is not assigned to a group for this cycle.',
+        'Aminul Islam Borhan is not assigned to a group for this cycle. An admin can add them on the cycle settings page.',
     })
     expect(cycleIneligibilityStatusLabel('not_in_cycle')).toBe(
       'Not in this cycle',

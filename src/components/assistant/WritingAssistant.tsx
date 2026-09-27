@@ -1,22 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { AnimatePresence, motion, type Transition } from 'motion/react'
+import { Mascot } from 'page-mascot'
 import { X } from 'lucide-react'
-import {
-  AssistantCharacter,
-  type AssistantLook,
-  type AssistantMood,
-} from './AssistantCharacter'
 import { tipForPath } from './tips'
 import { cx } from '@/lib/cx'
+import { publicUrl } from '@/lib/publicUrl'
 
 const STORAGE_KEY = 'pd-assistant-dismissed'
 const WELCOME_DELAY_MS = 380
-const LOOK_FULL_DISTANCE_PX = 140
-const EYE_VIEWBOX = { x: 48 / 96, y: 27 / 112 }
+const MASCOT_SIZE = 120
 
 /**
- * Peek uses a clipped stage: only the top of the character (eyes) can stick
+ * Peek uses a clipped stage: only the top of the character can stick
  * into view from the bottom-right corner. Positive y pushes the body down
  * out of the clip; positive x tucks it further behind the right edge.
  *
@@ -34,8 +30,6 @@ const DUCK_SPRING: Transition = { type: 'spring', stiffness: 460, damping: 28 }
 const WALK_SPRING: Transition = { type: 'spring', stiffness: 180, damping: 18, mass: 1.05 }
 const HOVER_SPRING: Transition = { type: 'spring', stiffness: 420, damping: 24 }
 
-const PEEK_LOOK: AssistantLook = { x: -0.9, y: -0.25 }
-
 type EnterStage = 'waiting' | 'peek' | 'walk' | 'done'
 type AssistantPose = typeof HIDDEN_POSE
 
@@ -49,12 +43,8 @@ export function WritingAssistant() {
   const titleId = useId()
   const panelId = useId()
   const panelFocusRef = useRef<HTMLButtonElement>(null)
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const lookFrameRef = useRef(0)
   const [isOpen, setIsOpen] = useState(false)
-  const [mood, setMood] = useState<AssistantMood>('idle')
   const [hasAutoShown, setHasAutoShown] = useState(false)
-  const [look, setLook] = useState<AssistantLook>({ x: 0, y: 0 })
   const [enterStage, setEnterStage] = useState<EnterStage>('waiting')
   const [pose, setPose] = useState<AssistantPose>(HIDDEN_POSE)
   const [poseTransition, setPoseTransition] = useState<Transition>(SNAP)
@@ -82,8 +72,6 @@ export function WritingAssistant() {
       if (prefersReducedMotion()) {
         goTo(HOME_POSE, SNAP)
         setEnterStage('done')
-        setMood('idle')
-        setLook({ x: 0, y: 0 })
         return
       }
 
@@ -93,46 +81,30 @@ export function WritingAssistant() {
       await wait(380)
       if (cancelled) return
 
-      // Only the eyes / top rim peep through the clipped stage
       setEnterStage('peek')
-      setMood('tip')
-      setLook(PEEK_LOOK)
       goTo(PEEK_POSE, PEEK_SPRING)
 
       await wait(720)
       if (cancelled) return
 
-      setLook({ x: -1, y: -0.05 })
       await wait(240)
       if (cancelled) return
-      setLook({ x: -0.65, y: -0.55 })
       await wait(280)
       if (cancelled) return
 
-      // Duck back behind the corner
-      setLook({ x: -0.4, y: -0.2 })
       goTo(DUCK_POSE, DUCK_SPRING)
 
       await wait(320)
       if (cancelled) return
 
-      // Walk fully into the stage frame
       setEnterStage('walk')
-      setMood('idle')
-      setLook({ x: -0.2, y: -0.08 })
       goTo(HOME_POSE, WALK_SPRING)
 
       await wait(700)
       if (cancelled) return
 
       setEnterStage('done')
-      // Keep HOME on the animate prop permanently - gesture props exit to this
       goTo(HOME_POSE, SNAP)
-      setMood('celebrate')
-      await wait(420)
-      if (cancelled) return
-      setMood('idle')
-      setLook({ x: 0, y: 0 })
     }
 
     void runEntrance()
@@ -152,7 +124,6 @@ export function WritingAssistant() {
 
     const timer = window.setTimeout(() => {
       setIsOpen(true)
-      setMood('tip')
       setHasAutoShown(true)
     }, WELCOME_DELAY_MS)
 
@@ -175,76 +146,16 @@ export function WritingAssistant() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen])
 
-  useEffect(() => {
-    if (isEntering) return
-    if (isOpen) {
-      setMood('tip')
-      return
-    }
-    setMood('idle')
-  }, [isOpen, pathname, isEntering])
-
-  useEffect(() => {
-    if (prefersReducedMotion()) return
-
-    const updateLook = (clientX: number, clientY: number) => {
-      if (enterStage !== 'done') return
-      const el = triggerRef.current
-      if (!el) return
-
-      const rect = el.getBoundingClientRect()
-      const eyeX = rect.left + rect.width * EYE_VIEWBOX.x
-      const eyeY = rect.top + rect.height * EYE_VIEWBOX.y
-      const dx = clientX - eyeX
-      const dy = clientY - eyeY
-      const distance = Math.hypot(dx, dy)
-
-      if (distance < 0.5) {
-        setLook({ x: 0, y: 0 })
-        return
-      }
-
-      const strength = Math.min(1, distance / LOOK_FULL_DISTANCE_PX)
-      setLook({
-        x: (dx / distance) * strength,
-        y: (dy / distance) * strength,
-      })
-    }
-
-    const onPointerMove = (event: PointerEvent) => {
-      if (lookFrameRef.current) return
-      const { clientX, clientY } = event
-      lookFrameRef.current = window.requestAnimationFrame(() => {
-        lookFrameRef.current = 0
-        updateLook(clientX, clientY)
-      })
-    }
-
-    window.addEventListener('pointermove', onPointerMove, { passive: true })
-    return () => {
-      window.removeEventListener('pointermove', onPointerMove)
-      if (lookFrameRef.current) window.cancelAnimationFrame(lookFrameRef.current)
-    }
-  }, [enterStage])
-
   const close = (persistDismiss = false) => {
     setIsOpen(false)
-    setMood('idle')
     if (persistDismiss && typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem(STORAGE_KEY, '1')
     }
   }
 
-  const toggle = () => {
+  const toggleTip = () => {
     if (isEntering) return
-    setIsOpen((open) => {
-      const next = !open
-      setMood(next ? 'celebrate' : 'idle')
-      if (next) {
-        window.setTimeout(() => setMood('tip'), 420)
-      }
-      return next
-    })
+    setIsOpen((open) => !open)
   }
 
   return (
@@ -302,9 +213,7 @@ export function WritingAssistant() {
       </AnimatePresence>
 
       <div className="pd-assistant__stage" aria-hidden={isEntering || undefined}>
-        <motion.button
-          ref={triggerRef}
-          type="button"
+        <motion.div
           className={cx(
             'pd-assistant__trigger',
             isOpen && 'is-open',
@@ -312,17 +221,21 @@ export function WritingAssistant() {
           )}
           aria-expanded={isOpen}
           aria-controls={panelId}
-          aria-label={isOpen ? 'Hide Tip' : 'Show Tip'}
-          tabIndex={isEntering ? -1 : 0}
           initial={HIDDEN_POSE}
           animate={pose}
           transition={poseTransition}
           whileHover={isEntering ? undefined : { y: -3, scale: 1.04, transition: HOVER_SPRING }}
           whileTap={isEntering ? undefined : { scale: 0.96 }}
-          onClick={toggle}
+          onClick={toggleTip}
         >
-          <AssistantCharacter mood={mood} look={look} />
-        </motion.button>
+          <Mascot
+            directions={publicUrl('mascots/owl-directions.webp')}
+            reactions={publicUrl('mascots/owl-reactions.webp')}
+            size={MASCOT_SIZE}
+            label="owl assistant"
+            className="pd-assistant__mascot"
+          />
+        </motion.div>
       </div>
     </div>
   )

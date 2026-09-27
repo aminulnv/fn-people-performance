@@ -82,7 +82,7 @@ describe('GoalsSettingsEditPage', () => {
     expect(toggle).toHaveTextContent(/Late OK/)
   })
 
-  it('shows deadline extensions and keeps them when settings are saved', () => {
+  it('shows deadline extensions and keeps them when settings are saved', async () => {
     const { cycle, group } = seededGroup()
     const onSuccess = vi.fn()
     render(
@@ -104,11 +104,13 @@ describe('GoalsSettingsEditPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    const saved = getReviewCycle(cycle.id)?.groups?.find(
-      (item) => item.id === group.id,
-    )
-    expect(saved?.stagesConfig.goals.extensions).toEqual([extension])
-    expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+    await waitFor(() => {
+      const saved = getReviewCycle(cycle.id)?.groups?.find(
+        (item) => item.id === group.id,
+      )
+      expect(saved?.stagesConfig.goals.extensions).toEqual([extension])
+      expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+    })
   })
 
   it('shows recommended goal count in advanced without collapsing it', () => {

@@ -19,6 +19,11 @@ import type {
   ReviewPacket,
 } from '@/lib/reviews/types'
 import {
+  CALIBRATION_SITTING_STATUS_LABEL,
+  type CalibrationSittingEmployee,
+  type CalibrationSittingStatus,
+} from './sessionApi'
+import {
   gradeTierDelta,
   previousCyclesOfSamePurpose,
   type CalibrationIndicator,
@@ -61,6 +66,7 @@ export const RATING_TABLE_QUICK_FILTERS = [
   { id: 'exceeding_above', label: 'Exceeding & above' },
   { id: 'previous_cycle_gap', label: '2+ from previous cycle' },
   { id: 'adjusted', label: 'Adjusted this session' },
+  { id: 'clean', label: 'Clean (no flags)' },
 ] as const
 
 export type RatingTableQuickFilterId =
@@ -92,6 +98,7 @@ export type RatingTableRow = {
   jobGrade: string
   jobLevel: string
   managerName: string
+  managerAvatarUrl: string
   packetId: string | null
   quarters: RatingTableQuarter[]
   quarterAverageScore: number | null
@@ -109,6 +116,9 @@ export type RatingTableRow = {
   joinDateLabel: string
   timeInGradeLabel: string
   lastPromoLabel: string
+  onPip: boolean
+  calibrationStatus: CalibrationSittingStatus
+  sessionNotes: string
   flags: RatingTableFlag[]
   isFlagged: boolean
   isAdjusted: boolean
@@ -124,9 +134,11 @@ export type RatingTableProgress = {
 export type RatingTableColumnId =
   | 'employee'
   | 'department'
+  | 'team'
   | 'market'
   | 'jobGrade'
   | 'manager'
+  | 'calibrationStatus'
   | 'q1'
   | 'q2'
   | 'q3'
@@ -140,6 +152,9 @@ export type RatingTableColumnId =
   | 'joinDate'
   | 'timeInGrade'
   | 'lastPromo'
+  | 'pip'
+  | 'adjusted'
+  | 'notes'
   | 'flags'
   | 'action'
 
@@ -151,9 +166,11 @@ export const RATING_TABLE_COLUMN_OPTIONS: ReadonlyArray<{
 }> = [
   { id: 'employee', label: 'Employee', required: true },
   { id: 'department', label: 'Dept.' },
+  { id: 'team', label: 'Team' },
   { id: 'market', label: 'Market' },
   { id: 'jobGrade', label: 'Grade' },
   { id: 'manager', label: 'Manager' },
+  { id: 'calibrationStatus', label: 'Status' },
   { id: 'q1', label: 'Q1', annualOnly: true },
   { id: 'q2', label: 'Q2', annualOnly: true },
   { id: 'q3', label: 'Q3', annualOnly: true },
@@ -167,6 +184,9 @@ export const RATING_TABLE_COLUMN_OPTIONS: ReadonlyArray<{
   { id: 'joinDate', label: 'Join Date' },
   { id: 'timeInGrade', label: 'In Grade' },
   { id: 'lastPromo', label: 'Last Promo' },
+  { id: 'pip', label: 'PIP' },
+  { id: 'adjusted', label: 'Adjusted' },
+  { id: 'notes', label: 'Notes' },
   { id: 'flags', label: 'Flags' },
   { id: 'action', label: 'Action', required: true },
 ]
@@ -239,6 +259,8 @@ export function buildEmployeeRatingRows(input: {
   previousPackets?: readonly ReviewPacket[]
   linkedPacketsByCycleId?: ReadonlyMap<string, readonly ReviewPacket[]>
   indicators?: readonly CalibrationIndicator[]
+  /** Per-employee sitting state (status, notes, adjusted) for this cycle. */
+  sittingEmployees?: readonly CalibrationSittingEmployee[]
   /** Employees whose grade was overridden in this calibration sitting. */
   adjustedEmployeeIds?: ReadonlySet<number>
 }): RatingTableRow[] {
@@ -253,6 +275,9 @@ export function buildEmployeeRatingRows(input: {
   )
   const previousByEmployee = new Map(
     (input.previousPackets ?? []).map((packet) => [packet.employeeId, packet]),
+  )
+  const sittingByEmployee = new Map(
+    (input.sittingEmployees ?? []).map((person) => [person.employeeId, person]),
   )
   const previousCycle =
     previousCyclesOfSamePurpose(input.cycle, input.cycles, 1)[0] ?? null
@@ -277,6 +302,7 @@ export function buildEmployeeRatingRows(input: {
     const employee = employeeById.get(employeeId)
     if (!employee) continue
     const packet = packetByEmployee.get(employeeId) ?? null
+    const sitting = sittingByEmployee.get(employeeId)
     const quarters: RatingTableQuarter[] = links.map((link, index) => {
       const sourcePackets =
         input.linkedPacketsByCycleId?.get(link.sourceCycleId) ?? []
@@ -300,7 +326,14 @@ export function buildEmployeeRatingRows(input: {
       previousByEmployee.get(employeeId) ?? null,
     )
     const flags = flagsByEmployee.get(employeeId) ?? []
-    const isAdjusted = Boolean(input.adjustedEmployeeIds?.has(employeeId))
+    const isAdjusted =
+      Boolean(sitting?.adjustedAt) ||
+      Boolean(input.adjustedEmployeeIds?.has(employeeId))
+    const manager =
+      employee.reportsToId != null
+        ? employeeById.get(employee.reportsToId)
+        : undefined
+    const managerName = employee.reportsToName.trim() || '—'
 
     rows.push({
       employeeId,
@@ -311,7 +344,8 @@ export function buildEmployeeRatingRows(input: {
       market: employee.site.trim() || '—',
       jobGrade: employee.jobGrade.trim() || '—',
       jobLevel: jobLevelOf(employee.jobGrade),
-      managerName: employee.reportsToName.trim() || '—',
+      managerName,
+      managerAvatarUrl: manager?.avatarUrl?.trim() ?? '',
       packetId: packet?.id ?? null,
       quarters,
       quarterAverageScore: quarterAvg.score,
@@ -327,6 +361,9 @@ export function buildEmployeeRatingRows(input: {
         : '—',
       timeInGradeLabel: inGradeLabel(employee.gradeEffectiveOn),
       lastPromoLabel: lastPromoLabel(employee.lastPromotionOn),
+      onPip: Boolean(employee.onPip),
+      calibrationStatus: sitting?.status ?? 'not_reviewed',
+      sessionNotes: sitting?.notes?.trim() ?? '',
       flags,
       isFlagged: flags.length > 0,
       isAdjusted,
@@ -417,7 +454,8 @@ export function filterRatingTableRows(
       case 'all':
         return true
       case 'flagged':
-        return row.isFlagged
+        // Same exclusive bucket as progress: flagged but not already adjusted.
+        return row.isFlagged && !row.isAdjusted
       case 'gap_2':
         return row.gapTiers != null && Math.abs(row.gapTiers) >= 2
       case 'developing_below':
@@ -435,6 +473,8 @@ export function filterRatingTableRows(
       }
       case 'adjusted':
         return row.isAdjusted
+      case 'clean':
+        return !row.isFlagged && !row.isAdjusted
       default:
         return true
     }
@@ -462,16 +502,19 @@ export function formatGapLabel(gapTiers: number | null): string {
 }
 
 export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
+  const sampleQuarters = rows[0]?.quarters ?? []
   const headers = [
     'Employee',
     'Department',
+    'Team',
     'Market',
     'Grade',
     'Manager',
-    'Q1',
-    'Q2',
-    'Q3',
-    'Q4',
+    'Status',
+    sampleQuarters[0]?.label || 'Q1',
+    sampleQuarters[1]?.label || 'Q2',
+    sampleQuarters[2]?.label || 'Q3',
+    sampleQuarters[3]?.label || 'Q4',
     'Q Avg',
     'Annual',
     'Self',
@@ -481,6 +524,9 @@ export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
     'Join Date',
     'In Grade',
     'Last Promo',
+    'PIP',
+    'Adjusted',
+    'Notes',
     'Flags',
   ]
   const lines = rows.map((row) => {
@@ -491,9 +537,11 @@ export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
     return [
       row.fullName,
       row.department,
+      row.team,
       row.market,
       row.jobGrade,
       row.managerName,
+      CALIBRATION_SITTING_STATUS_LABEL[row.calibrationStatus],
       ...q,
       row.quarterAverageScore?.toFixed(1) ?? '',
       gradeLabel(row.annualGrade),
@@ -504,6 +552,9 @@ export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
       row.joinDateLabel,
       row.timeInGradeLabel,
       row.lastPromoLabel,
+      row.onPip ? 'Active PIP' : 'No PIP on record',
+      row.isAdjusted ? 'Yes' : 'No',
+      row.sessionNotes,
       row.flags.map((flag) => flag.title).join('; '),
     ]
       .map(csvEscape)

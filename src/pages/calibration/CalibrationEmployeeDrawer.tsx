@@ -330,7 +330,7 @@ export function CalibrationEmployeeDrawer({
   }, [row.employeeId, sittingEmployee?.notes, sittingEmployee?.status])
 
   useEffect(() => {
-    if (!sittingReady || sessionLocked) return
+    if (!sittingReady || sessionLocked || !canOverride) return
     const savedNotes = sittingEmployee?.notes ?? ''
     if (sessionNotes === savedNotes) return
     const handle = window.setTimeout(() => {
@@ -352,6 +352,7 @@ export function CalibrationEmployeeDrawer({
     }, 500)
     return () => window.clearTimeout(handle)
   }, [
+    canOverride,
     cycle.id,
     onSittingSaved,
     row.employeeId,
@@ -1091,11 +1092,11 @@ export function CalibrationEmployeeDrawer({
               <h3 className="pd-cal-drawer__section-title">Calibration Status</h3>
               <ListboxSelect
                 value={sessionStatus}
-                disabled={!sittingReady || sessionLocked}
+                disabled={!sittingReady || sessionLocked || !canOverride}
                 onValueChange={(value) => {
                   const next = value as CalibrationSittingStatus
                   setSessionStatus(next)
-                  if (!sittingReady || sessionLocked) return
+                  if (!sittingReady || sessionLocked || !canOverride) return
                   setSessionError(null)
                   void saveCalibrationSittingEmployee(cycle.id, row.employeeId, {
                     status: next,
@@ -1130,7 +1131,7 @@ export function CalibrationEmployeeDrawer({
               <h3 className="pd-cal-drawer__section-title">Session Notes</h3>
               <Textarea
                 value={sessionNotes}
-                disabled={sessionLocked}
+                disabled={sessionLocked || !canOverride}
                 onChange={(event) => setSessionNotes(event.target.value)}
                 rows={4}
                 placeholder="Add calibration notes for this employee"

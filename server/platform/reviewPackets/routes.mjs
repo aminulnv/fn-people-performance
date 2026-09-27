@@ -107,7 +107,6 @@ export function registerReviewPacketRoutes(app) {
     '/api/platform/review-cycles/:cycleId/packets',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
-      const cycle = await getReviewCycle(req.params.cycleId)
       const summary =
         req.query.summary === '1' ||
         req.query.summary === 'true' ||
@@ -115,8 +114,22 @@ export function registerReviewPacketRoutes(app) {
       const packets = summary
         ? await listReviewPacketSummaries(req.params.cycleId)
         : await listReviewPackets(req.params.cycleId)
-      const questions = await questionsByPacketId(cycle, packets)
       const access = await viewerReviewAccess(req)
+      // Summaries have no answers — question visibility is unused and was
+      // fetching scorecard forms for every packet on the cold path.
+      if (summary) {
+        res.json({
+          packets: packetsForViewer(
+            packets,
+            viewerEmployeeId(req),
+            () => [],
+            access,
+          ),
+        })
+        return
+      }
+      const cycle = await getReviewCycle(req.params.cycleId)
+      const questions = await questionsByPacketId(cycle, packets)
       res.json({
         packets: packetsForViewer(
           packets,

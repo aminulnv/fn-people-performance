@@ -33,6 +33,7 @@ vi.mock('@/lib/reviews/cycleGroups', () => ({
 }))
 
 import {
+  resolveHomeAbsence,
   resolveHomeOrientation,
   resolveHomeRhythmPhase,
   resolveNextMilestone,
@@ -295,5 +296,56 @@ describe('resolveHomeOrientation', () => {
       goalsPending: 1,
       href: expect.stringContaining('/goals/'),
     })
+  })
+
+  it('links calibration milestones to Reviews when the viewer cannot open Calibration', () => {
+    const result = resolveHomeOrientation(
+      person(),
+      new Date('2026-09-05T12:00:00Z'),
+      snapshot(),
+      review(),
+      { canOpenCalibration: false },
+    )
+    expect(result?.activePhase).toBe('calibrate')
+    expect(result?.nextMilestone?.href).toBe('/reviews/scorecards')
+  })
+
+  it('links calibration milestones to Calibration when the viewer has oversight', () => {
+    const result = resolveHomeOrientation(
+      person(),
+      new Date('2026-09-05T12:00:00Z'),
+      snapshot(),
+      review(),
+      { canOpenCalibration: true },
+    )
+    expect(result?.nextMilestone?.href).toBe('/calibration')
+  })
+})
+
+describe('resolveHomeAbsence', () => {
+  beforeEach(() => {
+    mockAreReviewCyclesHydrated.mockReturnValue(true)
+    mockGetCurrentReviewCycleId.mockReturnValue('q3-2026')
+    mockResolveGoalsCycle.mockImplementation(() =>
+      cycle({ assignedGroupId: null }),
+    )
+  })
+
+  it('explains when the person is not in a cycle group', () => {
+    expect(
+      resolveHomeAbsence(person(), new Date('2026-07-10T12:00:00Z'), snapshot()),
+    ).toMatchObject({
+      kind: 'not_in_cycle',
+      cycleId: 'q3-2026',
+      cycleLabel: 'Q3 2026',
+      title: 'You’re not in this cycle',
+    })
+  })
+
+  it('returns null when the person is in the cycle', () => {
+    mockResolveGoalsCycle.mockImplementation(() => cycle())
+    expect(
+      resolveHomeAbsence(person(), new Date('2026-07-10T12:00:00Z'), snapshot()),
+    ).toBeNull()
   })
 })

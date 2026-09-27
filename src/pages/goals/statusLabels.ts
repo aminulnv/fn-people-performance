@@ -69,7 +69,7 @@ export function cycleIneligibilityEmptyState(
   if (reason === 'not_in_cycle') {
     return {
       title: 'Not In This Cycle',
-      description: `${personName} is not assigned to a group for this cycle.`,
+      description: `${personName} is not assigned to a group for this cycle. An admin can add them on the cycle settings page.`,
     }
   }
   return {

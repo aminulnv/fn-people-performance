@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Layers,
+  Plus,
   Search,
   UserRound,
   UsersRound,
@@ -41,7 +42,7 @@ import {
   writeVisibleColumnIds,
 } from '@/lib/ui/columnVisibility'
 import { useAuth } from '@/lib/auth'
-import { canViewAllReviews } from '@/lib/accessControl/types'
+import { canViewAllReviews, hasSystemPermission } from '@/lib/accessControl/types'
 import { viewerHasEffectiveReports } from '@/lib/delegations/roles'
 import {
   useHydrateManagerDelegations,
@@ -66,6 +67,8 @@ import {
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
 import { useUrlHashTab } from '@/lib/routing/urlHash'
+import { cycleMemberIds } from '@/lib/reviews/cycleGroups'
+import { cycleDetailPath, cyclesListPath } from '@/lib/reviews/paths'
 import { formatDateRange } from '@/lib/reviews/periods'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import { useReviewPacketsForCycles } from '@/lib/reviews/useReviewPackets'
@@ -220,46 +223,62 @@ export function ScorecardsList() {
   })
   const visibleScope = resolveScorecardScope(scope, overviewScopes)
 
-  const cycleOptions = useMemo<CycleSelectOption[]>(() => {
-    const fromStore = cycles
-      .filter((cycle) => cycle.type === 'regular')
-      .map((cycle) => {
-        const status = resolveCycleStatus(cycle)
-        return {
-          id: cycle.id,
-          label: cycle.name,
-          status,
-          statusLabel: cycleStatusLabel(status),
-          dateLabel: formatDateRange(cycle.startDate, cycle.endDate),
-        }
-      })
-    return fromStore.length > 0
-      ? fromStore
-      : [{ id: 'q3-2026', label: 'Q3 2026' }]
-  }, [cycles])
+  const cycleOptions = useMemo<CycleSelectOption[]>(
+    () =>
+      cycles
+        .filter((cycle) => cycle.type === 'regular')
+        .map((cycle) => {
+          const status = resolveCycleStatus(cycle)
+          return {
+            id: cycle.id,
+            label: cycle.name,
+            status,
+            statusLabel: cycleStatusLabel(status),
+            dateLabel: formatDateRange(cycle.startDate, cycle.endDate),
+          }
+        }),
+    [cycles],
+  )
 
-  const [cycleKeys, setCycleKeys] = useState<string[]>(['q3-2026'])
-  const { packets } = useReviewPacketsForCycles(cycleKeys)
+  const [cycleKeys, setCycleKeys] = useState<string[]>([])
+  const preferredCycleId = useMemo(() => {
+    const currentId = cycles.find(
+      (cycle) => resolveCycleStatus(cycle) === 'current',
+    )?.id
+    if (currentId && cycleOptions.some((option) => option.id === currentId)) {
+      return currentId
+    }
+    return cycleOptions[0]?.id ?? ''
+  }, [cycleOptions, cycles])
+  const selectedCycleKeys = useMemo(
+    () =>
+      sanitizeCycleSelection(
+        cycleKeys,
+        cycleOptions.map((option) => option.id),
+        preferredCycleId,
+      ),
+    [cycleKeys, cycleOptions, preferredCycleId],
+  )
+  const { packets } = useReviewPacketsForCycles(selectedCycleKeys)
+  const canManageCycles = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
+  const hasNoCycles = cyclesHydrated && cycleOptions.length === 0
 
   useEffect(() => {
-    const availableIds = cycleOptions.map((option) => option.id)
-    const next = sanitizeCycleSelection(
-      cycleKeys,
-      availableIds,
-      cycleOptions[0]?.id ?? 'q3-2026',
-    )
     if (
-      next.length === cycleKeys.length &&
-      next.every((id, index) => id === cycleKeys[index])
+      selectedCycleKeys.length === cycleKeys.length &&
+      selectedCycleKeys.every((id, index) => id === cycleKeys[index])
     ) {
       return
     }
-    setCycleKeys(next)
-  }, [cycleKeys, cycleOptions])
+    setCycleKeys(selectedCycleKeys)
+  }, [cycleKeys, selectedCycleKeys])
 
   const rows = useMemo(
     () =>
-      cycleKeys.flatMap((cycleKey) =>
+      selectedCycleKeys.flatMap((cycleKey) =>
         buildScorecardsForCycle(
           cycleKey,
           employees,
@@ -268,7 +287,14 @@ export function ScorecardsList() {
           { canViewAllReviews: canViewAllReviews(user?.permissions) },
         ),
       ),
-    [coversRevision, cycleKeys, employees, packets, user?.email, user?.permissions],
+    [
+      coversRevision,
+      selectedCycleKeys,
+      employees,
+      packets,
+      user?.email,
+      user?.permissions,
+    ],
   )
 
   const queueRows = useMemo(
@@ -278,6 +304,15 @@ export function ScorecardsList() {
       ),
     [me?.employeeId, rows, visibleScope],
   )
+
+  const viewerNotInSelectedCycles = useMemo(() => {
+    if (!me || selectedCycleKeys.length === 0) return false
+    return selectedCycleKeys.every((cycleKey) => {
+      const cycle = cycles.find((item) => item.id === cycleKey)
+      if (!cycle) return true
+      return !cycleMemberIds(cycle).includes(me.employeeId)
+    })
+  }, [cycles, me, selectedCycleKeys])
 
   const stats = useMemo(() => {
     let completed = 0
@@ -389,7 +424,7 @@ export function ScorecardsList() {
     setGradeOverrides({})
     setStatusFilter('all')
     setAttributeFilters({})
-  }, [cycleKeys])
+  }, [selectedCycleKeys])
 
   const isGradeRevealed = (row: ScorecardRow) => {
     return gradeOverrides[row.id] ?? gradesRevealed
@@ -532,7 +567,7 @@ export function ScorecardsList() {
             label="Cycle"
             multiple
             options={cycleOptions}
-            value={cycleKeys}
+            value={selectedCycleKeys}
             onChange={setCycleKeys}
           />
 
@@ -597,32 +632,81 @@ export function ScorecardsList() {
           <p className="pd-people__empty">
             {loadError ?? 'Failed to load people for performance reviews.'}
           </p>
+        ) : hasNoCycles ? (
+          <div className="pd-people__empty-state">
+            <EmptyState
+              className="pd-people__empty-panel"
+              icon={Award}
+              title="No Review Cycles Yet"
+              description={
+                canManageCycles
+                  ? 'Create a cycle, then add people to a group to open scorecards.'
+                  : 'Ask an administrator to add a cycle before opening scorecards.'
+              }
+              action={
+                canManageCycles ? (
+                  <Link to={cyclesListPath()} className="pd-people__create-btn">
+                    <Plus size={18} strokeWidth={2} aria-hidden />
+                    Add Cycle
+                  </Link>
+                ) : undefined
+              }
+            />
+          </div>
         ) : filtered.length === 0 ? (
           <div className="pd-people__empty-state">
             <EmptyState
               className="pd-people__empty-panel"
               icon={Award}
-              title={queueRows.length === 0 ? 'No Performance Reviews Yet' : 'No Matches'}
+              title={
+                queueRows.length === 0 && viewerNotInSelectedCycles
+                  ? 'Not In This Cycle'
+                  : queueRows.length === 0
+                    ? 'No Performance Reviews Yet'
+                    : 'No Matches'
+              }
               description={
                 queueRows.length === 0
-                  ? visibleScope === 'mine'
-                    ? cycleKeys.length > 1
+                  ? viewerNotInSelectedCycles
+                    ? selectedCycleKeys.length > 1
+                      ? 'You are not assigned to a group for the selected cycles. An admin can add you on the cycle settings page.'
+                      : 'You are not assigned to a group for this cycle. An admin can add you on the cycle settings page.'
+                    : visibleScope === 'mine'
+                    ? selectedCycleKeys.length > 1
                     ? 'You do not have a performance review in the selected cycles yet.'
                     : 'You do not have a performance review in this cycle yet.'
                     : visibleScope === 'reports'
                       ? hasDirectReports
-                        ? cycleKeys.length > 1
+                        ? selectedCycleKeys.length > 1
                           ? 'No direct reports match the selected cycles.'
                           : 'No direct reports match this cycle.'
-                        : cycleKeys.length > 1
+                        : selectedCycleKeys.length > 1
                           ? 'You have no direct reports to review for the selected cycles.'
                           : 'You have no direct reports to review for this cycle.'
-                      : cycleKeys.length > 1
+                      : selectedCycleKeys.length > 1
                         ? 'Add people to a group on the cycle settings page to open reviews for the selected cycles.'
                         : 'Add people to a group on the cycle settings page to open reviews for this cycle.'
                   : statusFilter !== 'all'
                     ? 'No performance reviews match this status. Try another filter or clear it.'
                     : 'Try a different search or cycle.'
+              }
+              action={
+                queueRows.length === 0 &&
+                canManageCycles &&
+                (viewerNotInSelectedCycles || visibleScope !== 'mine')
+                  ? (
+                      <Link
+                        to={
+                          selectedCycleKeys.length === 1
+                            ? cycleDetailPath(selectedCycleKeys[0]!)
+                            : cyclesListPath()
+                        }
+                        className="pd-people__create-btn"
+                      >
+                        Open Cycle Settings
+                      </Link>
+                    )
+                  : undefined
               }
             />
           </div>

@@ -167,18 +167,44 @@ export default function CalibrationPage() {
     refetch: refetchPackets,
   } = useReviewPacketSummaries(cycleId || null)
 
+  // History / linked summaries are non-blocking — wait until the paint-critical
+  // cycle summaries land so they do not compete for bandwidth on cold load.
+  const contextReady = packetsData !== undefined
   const {
     byCycleId: contextByCycleId,
     isError: contextError,
     error: contextQueryError,
-  } = useReviewPacketSummariesForCycles(contextCycleIds)
+  } = useReviewPacketSummariesForCycles(
+    contextReady ? contextCycleIds : [],
+  )
 
-  // Warm full packets + sitting so employee drawers open without a wait.
+  // Sitting is cheap; warm it as soon as the cycle is known.
   useEffect(() => {
     if (!cycleId) return
     prefetchCalibrationSession(cycleId)
-    prefetchReviewPacketsForCycle(queryClient, cycleId)
   }, [cycleId])
+
+  // Full packets are heavy — only warm drawers after summaries unblock the page.
+  useEffect(() => {
+    if (!cycleId || packetsData === undefined) return
+    let cancelled = false
+    const run = () => {
+      if (!cancelled) prefetchReviewPacketsForCycle(queryClient, cycleId)
+    }
+    const idleId =
+      typeof requestIdleCallback === 'function'
+        ? requestIdleCallback(run, { timeout: 2_000 })
+        : null
+    const timeoutId =
+      idleId == null ? window.setTimeout(run, 0) : null
+    return () => {
+      cancelled = true
+      if (idleId != null && typeof cancelIdleCallback === 'function') {
+        cancelIdleCallback(idleId)
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId)
+    }
+  }, [cycleId, packetsData])
 
   const packets = packetsData ?? []
   const historyPackets = useMemo(

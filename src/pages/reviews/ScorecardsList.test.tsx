@@ -6,6 +6,7 @@ import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   createCycleGroup,
   createReviewCycle,
+  deleteReviewCycle,
   listReviewCycles,
   resetReviewsStoreForTests,
 } from '@/lib/reviews/store'
@@ -252,12 +253,36 @@ describe('ScorecardsList', () => {
     renderList('#everyone')
 
     fireEvent.click(await screen.findByRole('button', { name: /Cycle:/ }))
-    fireEvent.click(screen.getByRole('option', { name: new RegExp(extra.name) }))
+    fireEvent.click(
+      await screen.findByRole('option', { name: new RegExp(extra.name) }),
+    )
 
     expect(
       await screen.findByRole('button', { name: /and 1 more/ }),
     ).toBeInTheDocument()
     expect(screen.getAllByText(extra.name).length).toBeGreaterThan(0)
+  })
+
+  it('shows a no-cycles empty state instead of a phantom Q3 2026 cycle', async () => {
+    for (const cycle of [...listReviewCycles()]) {
+      await deleteReviewCycle(cycle.id)
+    }
+    authState.user = {
+      email: 'alex.manager@example.com',
+      name: 'Alex Manager',
+      permissions: ['platform.write_all'],
+    }
+
+    renderList()
+
+    expect(
+      await screen.findByRole('heading', { name: 'No Review Cycles Yet' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Q3 2026')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Add Cycle' })).toHaveAttribute(
+      'href',
+      '/cycles',
+    )
   })
 
   it('hides optional columns from the Columns menu', async () => {

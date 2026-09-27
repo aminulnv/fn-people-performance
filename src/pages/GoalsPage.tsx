@@ -200,7 +200,7 @@ import {
 import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
 import { cycleIneligibilityReason } from "@/lib/goals/demoData";
 import { goalsCycleForPerson } from "@/lib/goals/cyclesFromReviews";
-import { cyclesListPath } from "@/lib/reviews/paths";
+import { cycleDetailPath, cyclesListPath } from "@/lib/reviews/paths";
 import { useReviewCyclesHydrated } from "@/lib/reviews/useReviews";
 import "@/styles/layout-people.css";
 import "@/styles/layout-goals.css";
@@ -1353,6 +1353,16 @@ function GoalsOverview() {
               icon={Target}
               title={ownCycleEmpty.title}
               description={ownCycleEmpty.description}
+              action={
+                canManageCycles ? (
+                  <Link
+                    to={cyclesListPath()}
+                    className="pd-people__create-btn"
+                  >
+                    Open Cycle Settings
+                  </Link>
+                ) : undefined
+              }
             />
           </div>
         ) : filtered.length === 0 ? (
@@ -3191,6 +3201,10 @@ function EmployeePanel({
   onSubmit: (goals: Goal[], lateJustification?: string) => Promise<boolean>;
 }) {
   const { user } = useAuth();
+  const canManageCycles = hasSystemPermission(
+    user?.permissions,
+    "platform.write_all",
+  );
   const okrConnection = useOkrConnection();
   const okrAvailability = {
     configured: okrConnection.configured,
@@ -3352,6 +3366,13 @@ function EmployeePanel({
           icon={Target}
           title={empty.title}
           description={empty.description}
+          action={
+            canManageCycles && ineligibility === "not_in_cycle" ? (
+              <Link to={cycleDetailPath(cycleId)} className="pd-people__create-btn">
+                Open Cycle Settings
+              </Link>
+            ) : undefined
+          }
         />
       </>
     );

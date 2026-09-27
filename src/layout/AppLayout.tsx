@@ -289,10 +289,10 @@ export function AppLayout({
               >
                 <span className="pd-app-footer__version">{APP_VERSION_LABEL}</span>
               </footer>
+              {assistantEnabled ? <WritingAssistant /> : null}
             </div>
           </div>
         </div>
-        {assistantEnabled ? <WritingAssistant /> : null}
       </div>
     </GlobalSearchProvider>
   )

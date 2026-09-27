@@ -40,7 +40,9 @@ import {
   setDepartmentCalibrators,
   setPersonCalibrators,
   setTeamCalibrators,
+  assertCalibrationOverrideAllowed,
 } from '../calibrationGovernance.mjs'
+import { getPool } from '../../db.mjs'
 
 function toHttp(err) {
   if (err instanceof HttpError) return err
@@ -397,7 +399,6 @@ export function registerReviewCycleRoutes(app) {
   app.patch(
     '/api/platform/review-cycles/:cycleId/calibration-sitting/employees/:employeeId',
     requirePlatformAuth,
-    requirePlatformPermission('platform.write_all'),
     asyncHandler(async (req, res) => {
       const cycle = await getReviewCycle(req.params.cycleId)
       if (!cycle) throw new HttpError(404, 'Review cycle not found')
@@ -406,6 +407,13 @@ export function registerReviewCycleRoutes(app) {
         throw new HttpError(400, 'Invalid employee id')
       }
       try {
+        // Same people who may override a grade may update that person's sitting
+        // notes / status / adjusted flag. Session lock + confirm stay write_all.
+        await assertCalibrationOverrideAllowed(
+          getPool(),
+          req.platformUser,
+          employeeId,
+        )
         const sitting = await saveCalibrationSittingEmployee(
           req.params.cycleId,
           employeeId,

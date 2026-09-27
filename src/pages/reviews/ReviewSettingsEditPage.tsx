@@ -62,7 +62,7 @@ export type ReviewSettingsDraft = {
   ) => void
   replaceStagesConfig: (next: CycleStagesConfig) => void
   patchPolicy: (partial: Partial<ReviewPolicy>) => void
-  save: () => boolean
+  save: () => Promise<boolean>
   saving: boolean
 }
 
@@ -134,8 +134,8 @@ export function useReviewSettingsDraft(
     }))
   }
 
-  const save = () => {
-    if (saving) return false
+  const save = (): Promise<boolean> => {
+    if (saving) return Promise.resolve(false)
     setError(null)
     const purpose = cyclePurposeOf(cycle)
     const gradeLocks = lockedGradeTogglesForCycle(purpose, cycle.periodKey)
@@ -154,29 +154,30 @@ export function useReviewSettingsDraft(
       setError(
         `Enabled pillars must add up to 100%. They currently add up to ${weight}%. Open the review form to adjust the mix.`,
       )
-      return false
+      return Promise.resolve(false)
     }
-    try {
-      setSaving(true)
-      void updateCycleGroup(cycle.id, group.id, {
-        settings: {
-          reviewTypes: settings.reviewTypes,
-          excludedEmployeeIds: settings.excludedEmployeeIds,
-          autoScorecardGeneration: settings.autoScorecardGeneration,
-          scorecardFormId: settings.scorecardFormId ?? null,
-          reviewPolicy,
-        },
-        stagesConfig,
+    setSaving(true)
+    return updateCycleGroup(cycle.id, group.id, {
+      settings: {
+        reviewTypes: settings.reviewTypes,
+        excludedEmployeeIds: settings.excludedEmployeeIds,
+        autoScorecardGeneration: settings.autoScorecardGeneration,
+        scorecardFormId: settings.scorecardFormId ?? null,
+        reviewPolicy,
+      },
+      stagesConfig,
+    })
+      .then(() => {
+        if (!embedded) onClose()
+        return true
       })
-        .catch(() => { })
-        .finally(() => setSaving(false))
-      if (!embedded) onClose()
-      return true
-    } catch (err) {
-      setSaving(false)
-      setError(err instanceof Error ? err.message : 'Could not save settings.')
-      return false
-    }
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : 'Could not save settings.',
+        )
+        return false
+      })
+      .finally(() => setSaving(false))
   }
 
   return {
@@ -284,7 +285,9 @@ export function ReviewSettingsEditPage({
       }
       onBack={onClose}
       onSave={() => {
-        if (save()) onSuccess?.('Settings saved.')
+        void save().then((ok) => {
+          if (ok) onSuccess?.('Settings saved.')
+        })
       }}
       saving={saving}
       error={error}

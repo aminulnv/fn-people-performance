@@ -1,6 +1,9 @@
+import { HomeAbsencePanel } from '@/components/home/HomeAbsencePanel'
 import { HomeActionsIdle } from '@/components/home/HomeActionsIdle'
 import { HomeBanner } from '@/components/home/HomeBanner'
 import { HomeOrientationPanel } from '@/components/home/HomeOrientationPanel'
+import { hasSystemPermission } from '@/lib/accessControl/types'
+import { useAuth } from '@/lib/auth'
 import { useHomeBanners } from '@/lib/home/useHomeBanners'
 import { useHomeOrientation } from '@/lib/home/useHomeOrientation'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
@@ -8,8 +11,13 @@ import '@/styles/layout-home.css'
 
 export default function HomePage() {
   const person = useCurrentPerson()
+  const { user } = useAuth()
   const { banners, ready: bannersReady } = useHomeBanners()
-  const { orientation, ready: orientationReady } = useHomeOrientation()
+  const { orientation, absence, ready: orientationReady } = useHomeOrientation()
+  const canManageCycles = hasSystemPermission(
+    user?.permissions,
+    'platform.write_all',
+  )
 
   if (!person || !bannersReady || !orientationReady) {
     return (
@@ -35,6 +43,11 @@ export default function HomePage() {
             personName={person.name}
             isClear={!hasActions}
           />
+        ) : absence ? (
+          <HomeAbsencePanel
+            absence={absence}
+            canManageCycles={canManageCycles}
+          />
         ) : (
           <div className="pd-home-orientation pd-home-orientation--empty" />
         )}
@@ -52,7 +65,11 @@ export default function HomePage() {
               <HomeBanner key={banner.id} content={banner} />
             ))
           ) : (
-            <HomeActionsIdle orientation={orientation} />
+            <HomeActionsIdle
+              orientation={orientation}
+              absence={absence}
+              canManageCycles={canManageCycles}
+            />
           )}
         </div>
       </div>

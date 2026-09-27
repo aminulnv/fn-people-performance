@@ -189,6 +189,10 @@ describe('buildEmployeeRatingRows', () => {
     expect(ahmad.priorGrade).toBe('performing')
     expect(ahmad.priorYearLabel).toBe('2024')
     expect(ahmad.trend).toBe(-1)
+    expect(ahmad.calibrationStatus).toBe('not_reviewed')
+    expect(ahmad.sessionNotes).toBe('')
+    expect(ahmad.onPip).toBe(false)
+    expect(ahmad.team).toBe('Core')
     expect(formatRatingTrend(ahmad.trend)).toBe('↓1')
     expect(formatRatingTrend(2)).toBe('↑2')
     expect(formatRatingTrend(0)).toBe('→')
@@ -205,6 +209,61 @@ describe('buildEmployeeRatingRows', () => {
       adjusted: 0,
       clean: 1,
     })
+  })
+
+  it('maps sitting status, notes, pip, and adjusted onto rows', () => {
+    const rows = buildEmployeeRatingRows({
+      cycle: current,
+      cycles: [current, previous],
+      employees: [
+        ...people.slice(0, 2),
+        employee({
+          employeeId: 11,
+          fullName: 'Bea C.',
+          department: 'Commercial',
+          site: 'MY',
+          jobGrade: 'IC2',
+          reportsToName: 'Ada Manager',
+          reportsToId: 1,
+          onPip: true,
+        }),
+      ],
+      packets: [
+        packet('annual-2025', 10, {
+          manager: 'developing',
+          self: 'exceeding',
+        }),
+        packet('annual-2025', 11, {
+          manager: 'performing',
+          self: 'exceeding',
+        }),
+      ],
+      sittingEmployees: [
+        {
+          employeeId: 10,
+          status: 'discussed',
+          notes: 'Needs HRBP co-sign',
+          adjustedAt: null,
+        },
+        {
+          employeeId: 11,
+          status: 'rating_changed',
+          notes: '',
+          adjustedAt: '2026-03-01T00:00:00.000Z',
+        },
+      ],
+    })
+
+    const ahmad = rows.find((row) => row.employeeId === 10)!
+    expect(ahmad.calibrationStatus).toBe('discussed')
+    expect(ahmad.sessionNotes).toBe('Needs HRBP co-sign')
+    expect(ahmad.isAdjusted).toBe(false)
+    expect(ahmad.onPip).toBe(false)
+
+    const bea = rows.find((row) => row.employeeId === 11)!
+    expect(bea.calibrationStatus).toBe('rating_changed')
+    expect(bea.isAdjusted).toBe(true)
+    expect(bea.onPip).toBe(true)
   })
 
   it('counts adjusted only when this sitting recorded an override', () => {
@@ -251,13 +310,26 @@ describe('buildEmployeeRatingRows', () => {
           employeeIds: [10],
         },
       ],
+      adjustedEmployeeIds: new Set([10]),
     })
 
+    // Flagged+adjusted counts under Adjusted in progress, not Flagged.
     expect(
       filterRatingTableRows(rows, { quickFilter: 'flagged' }).map(
         (row) => row.employeeId,
       ),
+    ).toEqual([])
+    expect(
+      filterRatingTableRows(rows, { quickFilter: 'adjusted' }).map(
+        (row) => row.employeeId,
+      ),
     ).toEqual([10])
+    expect(ratingTableProgress(rows)).toEqual({
+      total: 2,
+      flagged: 0,
+      adjusted: 1,
+      clean: 1,
+    })
     expect(
       filterRatingTableRows(rows, { quickFilter: 'gap_2' }).map(
         (row) => row.employeeId,
@@ -265,6 +337,11 @@ describe('buildEmployeeRatingRows', () => {
     ).toEqual([10])
     expect(
       filterRatingTableRows(rows, { quickFilter: 'exceeding_above' }).map(
+        (row) => row.employeeId,
+      ),
+    ).toEqual([11])
+    expect(
+      filterRatingTableRows(rows, { quickFilter: 'clean' }).map(
         (row) => row.employeeId,
       ),
     ).toEqual([11])

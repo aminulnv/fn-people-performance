@@ -350,7 +350,7 @@ describe('GoalsPersonDetail manager review', () => {
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('status', {
-        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle/,
       }),
     ).not.toBeInTheDocument()
     expect(
@@ -995,7 +995,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
     ).not.toBeInTheDocument()
     expect(
       await screen.findByRole('status', {
-        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle/,
       }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Action Required')).not.toBeInTheDocument()
@@ -1027,7 +1027,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle/,
       }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByText(leftover.description))
@@ -1058,7 +1058,7 @@ describe('GoalsPersonDetail cycle eligibility', () => {
 
     expect(
       await screen.findByRole('status', {
-        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle\./,
+        name: /Not In This Cycle\. Direct Report is not assigned to a group for this cycle/,
       }),
     ).toBeInTheDocument()
     expect(screen.queryByText(/joined after Day 1/)).not.toBeInTheDocument()

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Lock, LockOpen } from 'lucide-react'
 import { Modal } from '@/components/ui'
 import { cx } from '@/lib/cx'
 import { useAuth } from '@/lib/useAuth'
@@ -13,7 +14,7 @@ import {
   useCalibrationSitting,
 } from '@/lib/calibration/useCalibrationSession'
 
-/** Live / Locked chip + session lock control for the page header. */
+/** Lock / Unlock control for the calibration page header. */
 export function CalibrationSessionBadge({
   cycleId,
   sitting: sittingProp,
@@ -38,6 +39,22 @@ export function CalibrationSessionBadge({
   const changes =
     sitting?.employees.filter((person) => person.adjustedAt != null).length ?? 0
   const locked = Boolean(sitting?.lockedAt)
+  // Action affordance for editors; state icon for read-only viewers.
+  const Icon = canLock
+    ? locked
+      ? LockOpen
+      : Lock
+    : locked
+      ? Lock
+      : LockOpen
+  const label = canLock
+    ? locked
+      ? 'Unlock'
+      : 'Lock'
+    : locked
+      ? 'Locked'
+      : 'Unlocked'
+  const changesHint = changes ? `, ${changes} rating changes` : ''
 
   async function applyLock() {
     setLocking(true)
@@ -62,33 +79,43 @@ export function CalibrationSessionBadge({
     }
   }
 
+  const badgeClass = cx(
+    'pd-cal-session-badge',
+    locked ? 'is-locked' : 'is-unlocked',
+  )
+
+  const badgeBody = (
+    <>
+      <Icon className="pd-cal-session-badge__icon" aria-hidden size={14} strokeWidth={2.25} />
+      {label}
+    </>
+  )
+
   return (
     <>
       {canLock ? (
         <button
           type="button"
-          className={cx('pd-cal-session-badge', locked && 'is-locked')}
+          className={badgeClass}
           onClick={() => setLockOpen(true)}
           aria-label={
             locked
-              ? `Session locked${changes ? `, ${changes} rating changes` : ''}. Change lock.`
-              : `Session live${changes ? `, ${changes} rating changes` : ''}. Change lock.`
+              ? `Session locked${changesHint}. Unlock session.`
+              : `Session unlocked${changesHint}. Lock session.`
           }
         >
-          {locked ? 'Locked' : 'Live'}
-          {changes > 0 ? ` · ${changes}` : null}
+          {badgeBody}
         </button>
       ) : (
         <span
-          className={cx('pd-cal-session-badge', locked && 'is-locked')}
+          className={badgeClass}
           aria-label={
             locked
-              ? `Session locked${changes ? `, ${changes} rating changes` : ''}`
-              : `Session live${changes ? `, ${changes} rating changes` : ''}`
+              ? `Session locked${changesHint}`
+              : `Session unlocked${changesHint}`
           }
         >
-          {locked ? 'Locked' : 'Live'}
-          {changes > 0 ? ` · ${changes}` : null}
+          {badgeBody}
         </span>
       )}
 

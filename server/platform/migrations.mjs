@@ -51,6 +51,7 @@ export const REQUIRED_MIGRATIONS = [
   '00043_calibration_sitting.sql',
   '00044_calibration_governance.sql',
   '00045_calibration_calibrator_scope.sql',
+  '00046_calibration_sitting_rating_changed.sql',
 ]
 
 export async function assertPlatformMigrations() {

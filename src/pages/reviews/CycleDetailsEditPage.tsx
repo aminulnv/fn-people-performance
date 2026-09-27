@@ -72,23 +72,24 @@ export function CycleDetailsEditPage({
       setError('Cycle must end on or after its start date.')
       return
     }
-    try {
-      setSaving(true)
-      void updateReviewCycle(cycle.id, {
-        name,
-        ...(showPerformanceYear ? { yearKey: yearKey || undefined } : {}),
-        startDate: toUtcIso(startDate) || startDate,
-        endDate: toUtcIso(endDate) || endDate,
-        sourceLinks: sourceLinksFromIds(sourceIds),
+    setSaving(true)
+    void updateReviewCycle(cycle.id, {
+      name,
+      ...(showPerformanceYear ? { yearKey: yearKey || undefined } : {}),
+      startDate: toUtcIso(startDate) || startDate,
+      endDate: toUtcIso(endDate) || endDate,
+      sourceLinks: sourceLinksFromIds(sourceIds),
+    })
+      .then(() => {
+        onSuccess?.('Settings saved.')
+        if (!embedded) onClose()
       })
-        .catch(() => {})
-        .finally(() => setSaving(false))
-      onSuccess?.('Settings saved.')
-      if (!embedded) onClose()
-    } catch (err) {
-      setSaving(false)
-      setError(err instanceof Error ? err.message : 'Could not save settings.')
-    }
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : 'Could not save settings.',
+        )
+      })
+      .finally(() => setSaving(false))
   }
 
   return (

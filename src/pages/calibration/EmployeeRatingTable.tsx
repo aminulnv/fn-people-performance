@@ -1,5 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Check, Download, Flag, Scale, Users } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowLeftRight,
+  Check,
+  Download,
+  Flag,
+  PenLine,
+  Scale,
+  StickyNote,
+  TrendingDown,
+  TrendingUp,
+  Users,
+} from 'lucide-react'
 import {
   Avatar,
   ColumnVisibility,
@@ -14,6 +25,7 @@ import {
 } from '@/components/ui'
 import { cx } from '@/lib/cx'
 import { avatarStyle } from '@/lib/employees/avatar'
+import { pipStatusLabel } from '@/lib/employees/career'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { calibrateReviewPacket } from '@/lib/reviews/packetsApi'
 import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
@@ -32,10 +44,9 @@ import {
   requiresHrbpCosign,
 } from '@/lib/calibration/overrideAccess'
 import {
+  CALIBRATION_SITTING_STATUS_LABEL,
   confirmCalibrationClean,
   EMPTY_CALIBRATOR_ASSIGNMENTS,
-  lockCalibrationSession,
-  unlockCalibrationSession,
   saveCalibrationSittingEmployee,
   type CalibrationSitting,
   type CalibratorAssignments,
@@ -64,6 +75,7 @@ import {
   type RatingTableRow,
 } from '@/lib/calibration/ratingTable'
 import { CalibrationEmployeeDrawer } from '@/pages/calibration/CalibrationEmployeeDrawer'
+import { PipDisplayOnlyMark } from '@/pages/profile/PipDisplayOnlyMark'
 
 type EmployeeRatingTableProps = {
   cycle: ReviewCycle
@@ -189,9 +201,6 @@ export function EmployeeRatingTable({
   }, [cycle.id, sittingEpoch])
 
   const [calibratorsOpen, setCalibratorsOpen] = useState(false)
-  const [lockOpen, setLockOpen] = useState(false)
-  const [locking, setLocking] = useState(false)
-  const [lockError, setLockError] = useState<string | null>(null)
   const [confirmingClean, setConfirmingClean] = useState(false)
   const [confirmCleanOpen, setConfirmCleanOpen] = useState(false)
   const [flagRow, setFlagRow] = useState<RatingTableRow | null>(null)
@@ -233,6 +242,7 @@ export function EmployeeRatingTable({
         previousPackets,
         linkedPacketsByCycleId,
         indicators,
+        sittingEmployees: sitting?.employees,
         adjustedEmployeeIds,
       }),
     [
@@ -243,6 +253,7 @@ export function EmployeeRatingTable({
       previousPackets,
       linkedPacketsByCycleId,
       indicators,
+      sitting?.employees,
       adjustedEmployeeIds,
     ],
   )
@@ -261,6 +272,25 @@ export function EmployeeRatingTable({
   )
 
   const priorYearLabel = rows[0]?.priorYearLabel ?? 'Prior'
+  const quarterColumnLabels = useMemo(() => {
+    const fromRow = rows[0]?.quarters
+    if (fromRow && fromRow.length > 0) {
+      return fromRow.map((quarter) => quarter.label)
+    }
+    return annualSourceLinks(cycle, [...cycles]).map((link, index) => {
+      const source = cycles.find((item) => item.id === link.sourceCycleId)
+      return source?.name?.trim() || `Q${index + 1}`
+    })
+  }, [rows, cycle, cycles])
+
+  function columnTitle(columnId: RatingTableColumnId, fallback: string): string {
+    if (columnId === 'prior') return `${priorYearLabel} Rating`
+    if (columnId === 'q1') return quarterColumnLabels[0] || fallback
+    if (columnId === 'q2') return quarterColumnLabels[1] || fallback
+    if (columnId === 'q3') return quarterColumnLabels[2] || fallback
+    if (columnId === 'q4') return quarterColumnLabels[3] || fallback
+    return fallback
+  }
 
   const resolvedColumnOptions = useMemo<ColumnVisibilityOption[]>(
     () =>
@@ -268,11 +298,10 @@ export function EmployeeRatingTable({
         (column) => !column.annualOnly || hasQuarters,
       ).map((column) => ({
         id: column.id,
-        label:
-          column.id === 'prior' ? `${priorYearLabel} Rating` : column.label,
+        label: columnTitle(column.id, column.label),
         required: column.required,
       })),
-    [hasQuarters, priorYearLabel],
+    [hasQuarters, priorYearLabel, quarterColumnLabels],
   )
 
   const filteredRows = useMemo(
@@ -288,7 +317,100 @@ export function EmployeeRatingTable({
     [rows, quickFilter, departments, teams, markets, jobLevels, managers],
   )
 
+  const tableWrapRef = useRef<HTMLDivElement>(null)
+  const [isScrolledX, setIsScrolledX] = useState(false)
+
+  useEffect(() => {
+    const el = tableWrapRef.current
+    if (!el) {
+      setIsScrolledX(false)
+      return
+    }
+    const syncScrolledX = () => {
+      setIsScrolledX(el.scrollLeft > 0)
+    }
+    syncScrolledX()
+    el.addEventListener('scroll', syncScrolledX, { passive: true })
+    return () => el.removeEventListener('scroll', syncScrolledX)
+  }, [filteredRows.length, visibleColumnIds])
+
+  const tableFilterSignature = useMemo(
+    () =>
+      [
+        quickFilter,
+        departments.join('\0'),
+        teams.join('\0'),
+        markets.join('\0'),
+        jobLevels.join('\0'),
+        managers.join('\0'),
+      ].join('|'),
+    [quickFilter, departments, teams, markets, jobLevels, managers],
+  )
+  const tableFilterReady = useRef(false)
+  const [tableEnterKey, setTableEnterKey] = useState(0)
+
+  useEffect(() => {
+    if (!tableFilterReady.current) {
+      tableFilterReady.current = true
+      return
+    }
+    setTableEnterKey((current) => current + 1)
+  }, [tableFilterSignature])
+
   const progress = useMemo(() => ratingTableProgress(rows), [rows])
+
+  const summaryItems = useMemo(() => {
+    let gap2 = 0
+    let developingBelow = 0
+    let exceedingAbove = 0
+    for (const row of rows) {
+      if (row.gapTiers != null && Math.abs(row.gapTiers) >= 2) gap2 += 1
+      if (
+        row.annualGrade === 'developing' ||
+        row.annualGrade === 'unsatisfactory'
+      ) {
+        developingBelow += 1
+      }
+      if (
+        row.annualGrade === 'exceeding' ||
+        row.annualGrade === 'exceptional'
+      ) {
+        exceedingAbove += 1
+      }
+    }
+    // Flagged / Adjusted / Clean live in Calibration Progress (bar + legend).
+    return [
+      {
+        id: 'all' as const,
+        label: 'Employees',
+        value: progress.total,
+        icon: Users,
+      },
+      {
+        id: 'gap_2' as const,
+        label: 'Gap 2+',
+        value: gap2,
+        icon: ArrowLeftRight,
+      },
+      {
+        id: 'developing_below' as const,
+        label: 'Developing & below',
+        value: developingBelow,
+        icon: TrendingDown,
+      },
+      {
+        id: 'exceeding_above' as const,
+        label: 'Exceeding & above',
+        value: exceedingAbove,
+        icon: TrendingUp,
+      },
+    ]
+  }, [rows, progress])
+
+  function toggleQuickFilter(next: RatingTableQuickFilterId) {
+    setQuickFilter((current) => (current === next ? 'all' : next))
+  }
+
   const visibleSet = useMemo(() => new Set(visibleColumnIds), [visibleColumnIds])
   const selectedRow =
     rows.find((row) => row.employeeId === selectedEmployeeId) ?? null
@@ -302,9 +424,11 @@ export function EmployeeRatingTable({
     const defs: Array<{ id: RatingTableColumnId; grow?: boolean }> = [
       { id: 'employee', grow: true },
       { id: 'department' },
+      { id: 'team' },
       { id: 'market' },
       { id: 'jobGrade' },
       { id: 'manager' },
+      { id: 'calibrationStatus' },
       { id: 'q1' },
       { id: 'q2' },
       { id: 'q3' },
@@ -318,6 +442,9 @@ export function EmployeeRatingTable({
       { id: 'joinDate' },
       { id: 'timeInGrade' },
       { id: 'lastPromo' },
+      { id: 'pip' },
+      { id: 'adjusted' },
+      { id: 'notes' },
       { id: 'flags' },
       { id: 'action' },
     ]
@@ -327,17 +454,13 @@ export function EmployeeRatingTable({
         const meta = RATING_TABLE_COLUMN_OPTIONS.find(
           (item) => item.id === column.id,
         )
-        const label =
-          column.id === 'prior'
-            ? `${priorYearLabel} Rating`
-            : (meta?.label ?? column.id)
         return {
           id: column.id,
-          label,
+          label: columnTitle(column.id, meta?.label ?? column.id),
           grow: column.grow,
         }
       })
-  }, [visibleSet, priorYearLabel])
+  }, [visibleSet, priorYearLabel, quarterColumnLabels])
 
   async function rememberAdjusted(employeeId: number) {
     const previous = sitting
@@ -409,38 +532,6 @@ export function EmployeeRatingTable({
     }
   }
 
-  async function lockSession() {
-    setLocking(true)
-    setLockError(null)
-    try {
-      setSitting(await lockCalibrationSession(cycle.id))
-      setLockOpen(false)
-    } catch (error) {
-      setLockError(
-        error instanceof Error ? error.message : 'Could not lock the session.',
-      )
-    } finally {
-      setLocking(false)
-    }
-  }
-
-  async function unlockSession() {
-    setLocking(true)
-    setLockError(null)
-    try {
-      setSitting(await unlockCalibrationSession(cycle.id))
-      setLockOpen(false)
-    } catch (error) {
-      setLockError(
-        error instanceof Error
-          ? error.message
-          : 'Could not unlock the session.',
-      )
-    } finally {
-      setLocking(false)
-    }
-  }
-
   function exportCsv() {
     const csv = ratingTableCsv(filteredRows)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
@@ -495,6 +586,29 @@ export function EmployeeRatingTable({
     progress.total > 0 ? (progress.adjusted / progress.total) * 100 : 0
   const cleanPct =
     progress.total > 0 ? (progress.clean / progress.total) * 100 : 0
+  const cleanShare =
+    progress.total > 0 ? Math.round((progress.clean / progress.total) * 100) : 0
+
+  const progressLegend = [
+    {
+      id: 'flagged' as const,
+      label: 'Flagged',
+      value: progress.flagged,
+      icon: Flag,
+    },
+    {
+      id: 'adjusted' as const,
+      label: 'Adjusted',
+      value: progress.adjusted,
+      icon: PenLine,
+    },
+    {
+      id: 'clean' as const,
+      label: 'Clean',
+      value: progress.clean,
+      icon: Check,
+    },
+  ]
 
   if (rows.length === 0) {
     return (
@@ -509,22 +623,100 @@ export function EmployeeRatingTable({
 
   return (
     <section className="pd-cal-rt" aria-label="Employee rating table">
+      <div
+        className="pd-people__summary pd-people__summary--stretch"
+        role="group"
+        aria-label="Calibration rating totals"
+      >
+        {summaryItems.map((item) => {
+          const Icon = item.icon
+          return (
+            <button
+              key={item.id}
+              type="button"
+              className={cx(
+                'pd-people__summary-btn',
+                quickFilter === item.id && 'is-active',
+              )}
+              aria-pressed={quickFilter === item.id}
+              onClick={() => toggleQuickFilter(item.id)}
+            >
+              <span className="pd-people__summary-label">
+                <Icon size={14} strokeWidth={1.75} aria-hidden />
+                {item.label}
+              </span>
+              <span className="pd-people__summary-value">{item.value}</span>
+            </button>
+          )
+        })}
+      </div>
+
       <div className="pd-cal-rt__progress">
-        <div className="pd-cal-rt__progress-copy">
-          <div className="pd-cal-rt__progress-title-row">
-            <h2 className="pd-cal-rt__progress-title">Calibration Progress</h2>
+        <div className="pd-cal-rt__progress-head">
+          <div className="pd-cal-rt__progress-copy">
+            <div className="pd-cal-rt__progress-title-row">
+              <h2 className="pd-cal-rt__progress-title">Calibration Progress</h2>
+              {progress.total > 0 ? (
+                <span
+                  className="pd-cal-rt__progress-pct"
+                  title={`${progress.clean} of ${progress.total} clean`}
+                >
+                  {cleanShare}% clean
+                </span>
+              ) : null}
+            </div>
+            {progress.total === 0 ? (
+              <p className="pd-cal-rt__progress-summary">
+                No employees in this sitting yet.
+              </p>
+            ) : null}
+            {sittingError ? (
+              <p className="pd-cal-rt__override-error" role="alert">
+                {sittingError}
+              </p>
+            ) : null}
+            {actionError ? (
+              <p className="pd-cal-rt__override-error" role="alert">
+                {actionError}
+              </p>
+            ) : null}
           </div>
-          {sittingError ? (
-            <p className="pd-cal-rt__override-error" role="alert">
-              {sittingError}
-            </p>
-          ) : null}
-          {actionError ? (
-            <p className="pd-cal-rt__override-error" role="alert">
-              {actionError}
-            </p>
+          {canAssignCalibrators ? (
+            <div className="pd-cal-rt__progress-actions">
+              <button
+                type="button"
+                className="pd-people__ghost-btn pd-people__ghost-btn--outline"
+                onClick={() => {
+                  setActionError(null)
+                  setConfirmCleanOpen(true)
+                }}
+                disabled={
+                  sitting == null ||
+                  Boolean(sitting.lockedAt) ||
+                  cleanPendingConfirmIds.length === 0 ||
+                  confirmingClean
+                }
+              >
+                <Check size={16} strokeWidth={1.75} aria-hidden />
+                {sitting?.cleanConfirmedAt && cleanPendingConfirmIds.length > 0
+                  ? `Confirm remaining (${cleanPendingConfirmIds.length})`
+                  : 'Confirm all clean'}
+              </button>
+              <button
+                type="button"
+                className="pd-people__ghost-btn"
+                onClick={() => {
+                  setSelectedEmployeeId(null)
+                  setCalibratorsOpen(true)
+                }}
+              >
+                <Users size={16} strokeWidth={1.75} aria-hidden />
+                Assign calibrators
+              </button>
+            </div>
           ) : null}
         </div>
+
         <div
           className="pd-cal-rt__bar"
           role="img"
@@ -543,79 +735,33 @@ export function EmployeeRatingTable({
             style={{ width: `${cleanPct}%` }}
           />
         </div>
-        <ul className="pd-cal-rt__legend">
-          <li>
-            <Flag size={12} strokeWidth={2.25} aria-hidden />
-            {progress.flagged} flagged
-          </li>
-          <li>
-            <span className="pd-cal-rt__legend-dot is-adjusted" aria-hidden />
-            {progress.adjusted} adjusted
-          </li>
-          <li>
-            <Check size={12} strokeWidth={2.25} aria-hidden />
-            {progress.clean} clean
-          </li>
-        </ul>
-        <div className="pd-cal-rt__progress-actions">
-          <button
-            type="button"
-            className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-            onClick={() => {
-              setActionError(null)
-              setConfirmCleanOpen(true)
-            }}
-            disabled={
-              sitting == null ||
-              Boolean(sitting.lockedAt) ||
-              cleanPendingConfirmIds.length === 0 ||
-              confirmingClean
-            }
-          >
-            <Check size={14} strokeWidth={2} aria-hidden />
-            {sitting?.cleanConfirmedAt && cleanPendingConfirmIds.length > 0
-              ? `Confirm remaining clean (${cleanPendingConfirmIds.length})`
-              : 'Confirm all clean (no flags)'}
-          </button>
-          {canAssignCalibrators ? (
-            <button
-              type="button"
-              className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
-              onClick={() => {
-                setSelectedEmployeeId(null)
-                setCalibratorsOpen(true)
-              }}
-            >
-              Assign calibrators
-            </button>
-          ) : null}
-          {canAssignCalibrators ? (
-            <button
-              type="button"
-              className={
-                sitting?.lockedAt
-                  ? 'pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill'
-                  : 'pd-btn pd-btn--primary pd-btn--sm pd-btn--pill'
-              }
-              disabled={sitting == null || locking}
-              onClick={() => {
-                setLockError(null)
-                setLockOpen(true)
-              }}
-            >
-              {sitting?.lockedAt
-                ? 'Unlock calibration session'
-                : 'Lock calibration session'}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
-            onClick={exportCsv}
-          >
-            <Download size={14} strokeWidth={2} aria-hidden />
-            Export CSV
-          </button>
+
+        <div
+          className="pd-cal-rt__legend"
+          role="group"
+          aria-label="Progress breakdown"
+        >
+          {progressLegend.map((item) => {
+            const Icon = item.icon
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={cx(
+                  'pd-cal-rt__legend-chip',
+                  `is-${item.id}`,
+                  quickFilter === item.id && 'is-active',
+                )}
+                aria-pressed={quickFilter === item.id}
+                onClick={() => toggleQuickFilter(item.id)}
+              >
+                <span className="pd-cal-rt__legend-swatch" aria-hidden />
+                <Icon size={13} strokeWidth={2} aria-hidden />
+                <span className="pd-cal-rt__legend-value">{item.value}</span>
+                <span className="pd-cal-rt__legend-label">{item.label}</span>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -628,14 +774,24 @@ export function EmployeeRatingTable({
             Employee Rating Table
           </h3>
         </div>
-        <ColumnVisibility
-          columns={resolvedColumnOptions}
-          visibleIds={visibleColumnIds}
-          onChange={(next) =>
-            setVisibleColumnIds(next as RatingTableColumnId[])
-          }
-          defaultVisibleIds={defaultVisibleColumnIds(hasQuarters)}
-        />
+        <div className="pd-cal-rt__toolbar-end">
+          <ColumnVisibility
+            columns={resolvedColumnOptions}
+            visibleIds={visibleColumnIds}
+            onChange={(next) =>
+              setVisibleColumnIds(next as RatingTableColumnId[])
+            }
+            defaultVisibleIds={defaultVisibleColumnIds(hasQuarters)}
+          />
+          <button
+            type="button"
+            className="pd-people__ghost-btn"
+            onClick={exportCsv}
+          >
+            <Download size={16} strokeWidth={1.75} aria-hidden />
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div
@@ -652,7 +808,7 @@ export function EmployeeRatingTable({
               quickFilter === filter.id && 'is-active',
             )}
             aria-pressed={quickFilter === filter.id}
-            onClick={() => setQuickFilter(filter.id)}
+            onClick={() => toggleQuickFilter(filter.id)}
           >
             {filter.id === 'flagged' ? (
               <Flag size={12} strokeWidth={2.25} aria-hidden />
@@ -663,29 +819,50 @@ export function EmployeeRatingTable({
       </div>
 
       {filteredRows.length === 0 ? (
-        <EmptyState
-          className="pd-people__empty-panel"
-          icon={Users}
-          title="No Matches"
-          description="Try a different filter or reset the table filters."
-        />
+        <div
+          key={tableEnterKey}
+          className={cx(
+            'pd-cal-rt__table-stage',
+            tableEnterKey > 0 && 'pd-cal-rt__table-stage--enter',
+          )}
+        >
+          <EmptyState
+            className="pd-people__empty-panel"
+            icon={Users}
+            title="No Matches"
+            description="Try a different filter or reset the table filters."
+          />
+        </div>
       ) : (
-        <div className="pd-people__table-wrap pd-cal-rt__table-wrap">
-          <ResizableTable
-            className="pd-people__table pd-cal-rt__table"
-            storageKey="calibration-rating-table-v2"
-            columns={tableColumns}
-            fitKey={`${visibleColumnIds.join('|')}:${filteredRows.length}`}
+        <div
+          key={tableEnterKey}
+          className={cx(
+            'pd-cal-rt__table-stage',
+            tableEnterKey > 0 && 'pd-cal-rt__table-stage--enter',
+          )}
+        >
+          <div
+            ref={tableWrapRef}
+            className={cx(
+              'pd-people__table-wrap pd-cal-rt__table-wrap',
+              isScrolledX && 'is-scrolled-x',
+            )}
           >
-            <tbody>
-              {filteredRows.map((row) => (
-                <tr
-                  key={row.employeeId}
-                  className={cx(
-                    row.isFlagged && 'is-flagged',
-                    row.isAdjusted && 'is-adjusted',
-                  )}
-                >
+            <ResizableTable
+              className="pd-people__table pd-cal-rt__table"
+              storageKey="calibration-rating-table-v3"
+              columns={tableColumns}
+              fitKey={`${visibleColumnIds.join('|')}:${filteredRows.length}`}
+            >
+              <tbody>
+                {filteredRows.map((row) => (
+                  <tr
+                    key={row.employeeId}
+                    className={cx(
+                      row.isFlagged && 'is-flagged',
+                      row.isAdjusted && 'is-adjusted',
+                    )}
+                  >
                   {visibleSet.has('employee') ? (
                     <td className="pd-cal-rt__employee-cell">
                       <span className="pd-cal-rt__person">
@@ -708,10 +885,43 @@ export function EmployeeRatingTable({
                   {visibleSet.has('department') ? (
                     <td>{row.department}</td>
                   ) : null}
+                  {visibleSet.has('team') ? <td>{row.team}</td> : null}
                   {visibleSet.has('market') ? <td>{row.market}</td> : null}
                   {visibleSet.has('jobGrade') ? <td>{row.jobGrade}</td> : null}
                   {visibleSet.has('manager') ? (
-                    <td>{row.managerName}</td>
+                    <td>
+                      {row.managerName === '—' ? (
+                        '—'
+                      ) : (
+                        <span className="pd-cal-rt__person">
+                          <Avatar
+                            name={row.managerName}
+                            src={row.managerAvatarUrl || undefined}
+                            size="sm"
+                            style={avatarStyle(row.managerName)}
+                          />
+                          <span className="pd-cal-rt__manager-name">
+                            {row.managerName}
+                          </span>
+                        </span>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleSet.has('calibrationStatus') ? (
+                    <td>
+                      <span
+                        className={cx(
+                          'pd-cal-rt__status-chip',
+                          `is-${row.calibrationStatus}`,
+                        )}
+                      >
+                        {
+                          CALIBRATION_SITTING_STATUS_LABEL[
+                            row.calibrationStatus
+                          ]
+                        }
+                      </span>
+                    </td>
                   ) : null}
                   {visibleSet.has('q1') ? (
                     <td>
@@ -772,16 +982,61 @@ export function EmployeeRatingTable({
                   {visibleSet.has('lastPromo') ? (
                     <td>{row.lastPromoLabel}</td>
                   ) : null}
-                  {visibleSet.has('flags') ? (
+                  {visibleSet.has('pip') ? (
                     <td>
+                      {row.onPip ? (
+                        <span className="pd-cal-rt__pip">
+                          <span>{pipStatusLabel(true)}</span>
+                          <PipDisplayOnlyMark />
+                        </span>
+                      ) : (
+                        <span className="pd-cal-rt__muted">—</span>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleSet.has('adjusted') ? (
+                    <td className="pd-cal-rt__center">
+                      {row.isAdjusted ? (
+                        <span className="pd-cal-rt__adjusted-yes" title="Adjusted this session">
+                          <Check size={14} strokeWidth={2.25} aria-hidden />
+                          Yes
+                        </span>
+                      ) : (
+                        <span className="pd-cal-rt__muted">—</span>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleSet.has('notes') ? (
+                    <td className="pd-cal-rt__center">
+                      {row.sessionNotes ? (
+                        <span
+                          className="pd-cal-rt__notes"
+                          title={row.sessionNotes}
+                        >
+                          <StickyNote size={14} strokeWidth={2.25} aria-hidden />
+                          <span className="pd-sr-only">Has notes</span>
+                        </span>
+                      ) : (
+                        <span className="pd-cal-rt__muted">—</span>
+                      )}
+                    </td>
+                  ) : null}
+                  {visibleSet.has('flags') ? (
+                    <td className="pd-cal-rt__center">
                       {row.isFlagged ? (
                         <button
                           type="button"
-                          className="pd-cal-rt__flag-btn"
-                          aria-label={`View flags for ${row.fullName}`}
+                          className="pd-cal-rt__flag-chip"
+                          aria-label={
+                            row.flags.length === 1
+                              ? `1 flag for ${row.fullName}. View details.`
+                              : `${row.flags.length} flags for ${row.fullName}. View details.`
+                          }
+                          title={row.flags.map((flag) => flag.title).join(' · ')}
                           onClick={() => setFlagRow(row)}
                         >
-                          <Flag size={14} strokeWidth={2.25} aria-hidden />
+                          <Flag size={12} strokeWidth={2.25} aria-hidden />
+                          <span>{row.flags.length}</span>
                         </button>
                       ) : (
                         <span className="pd-cal-rt__muted">—</span>
@@ -792,7 +1047,7 @@ export function EmployeeRatingTable({
                     <td>
                       <button
                         type="button"
-                        className="pd-btn pd-btn--ghost pd-btn--sm"
+                        className="pd-people__ghost-btn pd-people__ghost-btn--outline pd-cal-rt__override-btn"
                         disabled={
                           !row.packetId ||
                           Boolean(sitting?.lockedAt) ||
@@ -813,6 +1068,7 @@ export function EmployeeRatingTable({
                         }
                         onClick={() => openOverride(row)}
                       >
+                        <PenLine size={15} strokeWidth={1.75} aria-hidden />
                         Override
                       </button>
                     </td>
@@ -821,6 +1077,7 @@ export function EmployeeRatingTable({
               ))}
             </tbody>
           </ResizableTable>
+          </div>
         </div>
       )}
 
@@ -968,58 +1225,6 @@ export function EmployeeRatingTable({
               </p>
             ) : null}
           </div>
-        ) : null}
-      </Modal>
-
-      <Modal
-        open={lockOpen}
-        onClose={() => {
-          if (locking) return
-          setLockOpen(false)
-        }}
-        title={
-          sitting?.lockedAt
-            ? 'Unlock calibration session?'
-            : 'Lock calibration session'
-        }
-        description={
-          sitting?.lockedAt
-            ? 'Ratings and overrides can be edited again until you lock the session.'
-            : 'Ratings stay as they are and cannot be changed until you unlock.'
-        }
-        actions={
-          <>
-            <button
-              type="button"
-              className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
-              disabled={locking}
-              onClick={() => setLockOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
-              disabled={locking}
-              onClick={() => {
-                void (sitting?.lockedAt ? unlockSession() : lockSession())
-              }}
-            >
-              {locking
-                ? sitting?.lockedAt
-                  ? 'Unlocking…'
-                  : 'Locking…'
-                : sitting?.lockedAt
-                  ? 'Unlock session'
-                  : 'Lock session'}
-            </button>
-          </>
-        }
-      >
-        {lockError ? (
-          <p className="pd-cal-rt__override-error" role="alert">
-            {lockError}
-          </p>
         ) : null}
       </Modal>
 

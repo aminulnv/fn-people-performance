@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import * as reviewsStore from '@/lib/reviews/store'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
@@ -129,14 +129,16 @@ describe('CycleDetailsEditPage', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: /Q1 2026/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(update).toHaveBeenCalledWith(
-      annual.id,
-      expect.objectContaining({
-        sourceLinks: [
-          expect.objectContaining({ sourceCycleId: 'q1-2026' }),
-        ],
-      }),
-    )
+    await waitFor(() => {
+      expect(update).toHaveBeenCalledWith(
+        annual.id,
+        expect.objectContaining({
+          sourceLinks: [
+            expect.objectContaining({ sourceCycleId: 'q1-2026' }),
+          ],
+        }),
+      )
+    })
     expect(
       reviewsStore
         .getReviewCycle(annual.id)
@@ -144,7 +146,7 @@ describe('CycleDetailsEditPage', () => {
     ).toEqual(['q1-2026'])
   })
 
-  it('notifies the parent after a successful save', () => {
+  it('notifies the parent after a successful save', async () => {
     const onSuccess = vi.fn()
     vi.spyOn(reviewsStore, 'updateReviewCycle').mockResolvedValue(sampleCycle())
 
@@ -157,6 +159,29 @@ describe('CycleDetailsEditPage', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+    await waitFor(() => {
+      expect(onSuccess).toHaveBeenCalledWith('Settings saved.')
+    })
+  })
+
+  it('keeps the panel open and shows an error when save fails', async () => {
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    vi.spyOn(reviewsStore, 'updateReviewCycle').mockRejectedValue(
+      new Error('Network down'),
+    )
+
+    render(
+      <CycleDetailsEditPage
+        cycle={sampleCycle()}
+        onClose={onClose}
+        onSuccess={onSuccess}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Network down')
+    expect(onSuccess).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
   })
 })

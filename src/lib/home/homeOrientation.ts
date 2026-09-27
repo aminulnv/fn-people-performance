@@ -77,6 +77,15 @@ export type HomeOrientation = {
   reviewsHref: string
 }
 
+/** Why Home has no cycle rhythm (viewer excluded or no current cycle). */
+export type HomeAbsence = {
+  kind: 'not_in_cycle' | 'no_current_cycle'
+  title: string
+  description: string
+  cycleId?: string
+  cycleLabel?: string
+}
+
 type WindowCandidate = {
   phase: HomeRhythmPhaseId
   label: string
@@ -101,6 +110,7 @@ function collectWindows(
   stages: CycleStagesConfig,
   cycleId: string,
   personId: string,
+  calibrateHref: string,
 ): WindowCandidate[] {
   const goalsHref = goalsMyGoalsPath(cycleId, personId)
   const reviewsHref = reviewsTabPath('scorecards')
@@ -170,7 +180,7 @@ function collectWindows(
       label: 'HOD / HRBP calibration',
       start: hod.start.date,
       end: hod.end.date,
-      href: '/calibration',
+      href: calibrateHref,
     })
   }
   if (slt?.start?.date && slt.end?.date) {
@@ -179,7 +189,7 @@ function collectWindows(
       label: 'SLT calibration',
       start: slt.start.date,
       end: slt.end.date,
-      href: '/calibration',
+      href: calibrateHref,
     })
   }
   if (
@@ -193,7 +203,7 @@ function collectWindows(
       label: 'Calibration',
       start: stages.calibration.start.date,
       end: stages.calibration.end.date,
-      href: '/calibration',
+      href: calibrateHref,
     })
   }
 
@@ -314,6 +324,7 @@ export function resolveHomeOrientation(
   today = new Date(),
   snapshot: GoalsSnapshot,
   reviewCycle: ReviewCycle | null = null,
+  options: { canOpenCalibration?: boolean } = {},
 ): HomeOrientation | null {
   if (!areReviewCyclesHydrated()) return null
 
@@ -347,8 +358,17 @@ export function resolveHomeOrientation(
     listScorecardForms(),
   )
   const todayKey = isoToday(today)
+  const reviewsHref = reviewsTabPath('scorecards')
+  const calibrateHref = options.canOpenCalibration
+    ? '/calibration'
+    : reviewsHref
 
-  const windows = collectWindows(policy.stagesConfig, cycleId, person.id)
+  const windows = collectWindows(
+    policy.stagesConfig,
+    cycleId,
+    person.id,
+    calibrateHref,
+  )
   const activePhase = resolveHomeRhythmPhase(windows, todayKey)
   const phases = buildPhaseSteps(activePhase)
   const activeIndex = Math.max(
@@ -374,6 +394,56 @@ export function resolveHomeOrientation(
     teamAttention,
     clearCopy: clearCopyFor(activePhase, nextMilestone),
     goalsHref: goalsMyGoalsPath(cycleId, person.id),
-    reviewsHref: reviewsTabPath('scorecards'),
+    reviewsHref,
+  }
+}
+
+/** Explains an empty Home when the person is outside the current cycle. */
+export function resolveHomeAbsence(
+  person: DemoPerson,
+  today = new Date(),
+  snapshot: GoalsSnapshot,
+): HomeAbsence | null {
+  if (!areReviewCyclesHydrated()) return null
+
+  const cycleId = getCurrentReviewCycleId(today) ?? snapshot.cycle.id
+  if (!cycleId) {
+    return {
+      kind: 'no_current_cycle',
+      title: 'No current cycle',
+      description:
+        'There isn’t an active review cycle right now, so Home has nothing to track.',
+    }
+  }
+
+  const cycleStatus =
+    snapshot.availableCycles.find((option) => option.id === cycleId)?.status ??
+    snapshot.cycleStatus
+  if (cycleStatus !== 'current') {
+    return {
+      kind: 'no_current_cycle',
+      title: 'No current cycle',
+      description:
+        'There isn’t an active review cycle right now, so Home has nothing to track.',
+      cycleId,
+    }
+  }
+
+  const goalsCycle =
+    resolveGoalsCycle(
+      cycleId,
+      snapshot.cycle.phase,
+      today,
+      parseGoalsEmployeeId(person.id),
+    ) ?? snapshot.cycle
+
+  if (goalsCycle.assignedGroupId !== null) return null
+
+  return {
+    kind: 'not_in_cycle',
+    cycleId,
+    cycleLabel: goalsCycle.label,
+    title: 'You’re not in this cycle',
+    description: `You’re not assigned to a group for ${goalsCycle.label}. Goals and reviews stay off Home until an admin adds you.`,
   }
 }

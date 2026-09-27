@@ -1954,7 +1954,7 @@
   cursor: pointer;
 }
 
-.pd-cal-grid__outlier-person > :first-child {
+.pd-cal-grid__outlier-person> :first-child {
   flex-shrink: 0;
 }
 
@@ -2109,6 +2109,14 @@
   display: grid;
   gap: 0.85rem;
   min-width: 0;
+  max-width: 100%;
+}
+
+/* Keep summary cards within the page width so auto-fit wraps instead of
+   stretching into one ultra-wide row beside the rating table. */
+.pd-cal-rt > .pd-people__summary {
+  min-width: 0;
+  max-width: 100%;
 }
 
 .pd-cal-rt__filters {
@@ -2127,25 +2135,29 @@
 
 .pd-cal-rt__progress {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    'copy actions'
-    'bar actions'
-    'legend actions';
-  gap: 0.55rem 1.25rem;
-  align-items: center;
+  gap: 0.85rem;
   min-width: 0;
-  padding: 1rem 1.1rem 1.05rem;
+  padding: 1.1rem 1.2rem 1.15rem;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
+}
+
+.pd-cal-rt__progress-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  min-width: 0;
 }
 
 .pd-cal-rt__progress-copy {
-  grid-area: copy;
   display: grid;
-  gap: 0.2rem;
+  gap: 0.25rem;
   min-width: 0;
+  flex: 1 1 12rem;
 }
 
 .pd-cal-rt__progress-title {
@@ -2164,6 +2176,25 @@
   gap: 0.55rem 0.85rem;
 }
 
+.pd-cal-rt__progress-pct {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    var(--color-status-completed) 12%,
+    var(--color-surface)
+  );
+  color: var(--color-status-completed);
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
 .pd-cal-session-controls {
   display: inline-flex;
   align-items: center;
@@ -2174,51 +2205,75 @@
 .pd-cal-session-badge {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.7rem;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--color-status-completed) 14%, var(--color-surface));
-  color: var(--color-status-completed);
-  font-size: 0.72rem;
+  gap: 0.4rem;
+  min-height: 2.25rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  font: inherit;
+  font-size: 0.8125rem;
   font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
+  line-height: 1;
+  box-sizing: border-box;
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
+  cursor: default;
 }
 
-.pd-cal-session-badge::before {
-  content: '';
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 999px;
-  background: currentColor;
+button.pd-cal-session-badge {
+  cursor: pointer;
 }
 
+.pd-cal-session-badge__icon {
+  flex-shrink: 0;
+}
+
+/* Unlocked session → Lock action (red) */
+.pd-cal-session-badge.is-unlocked {
+  background: var(--color-danger, var(--color-red));
+  border-color: var(--color-danger, var(--color-red));
+  color: var(--color-white);
+}
+
+button.pd-cal-session-badge.is-unlocked:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-danger, var(--color-red)) 88%, black);
+  border-color: color-mix(in srgb, var(--color-danger, var(--color-red)) 88%, black);
+}
+
+/* Locked session → Unlock action (green, solid) */
 .pd-cal-session-badge.is-locked {
-  background: color-mix(in srgb, var(--color-text-secondary) 14%, var(--color-surface));
-  color: var(--color-text-secondary);
+  background: var(--color-success);
+  border-color: var(--color-success);
+  color: var(--color-on-success, var(--color-white));
+}
+
+button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-success) 90%, black);
+  border-color: color-mix(in srgb, var(--color-success) 90%, black);
 }
 
 .pd-cal-rt__progress-summary {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.85rem;
+  font-weight: 500;
   line-height: 1.4;
 }
 
 .pd-cal-rt__bar {
-  grid-area: bar;
   display: flex;
   width: 100%;
-  height: 0.45rem;
+  height: 0.65rem;
   overflow: hidden;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+  background: color-mix(in srgb, var(--color-text) 7%, var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-text) 6%, transparent);
 }
 
 .pd-cal-rt__bar-seg {
   display: block;
   height: 100%;
   min-width: 0;
+  transition: width 180ms ease;
 }
 
 .pd-cal-rt__bar-seg.is-flagged {
@@ -2234,46 +2289,97 @@
 }
 
 .pd-cal-rt__legend {
-  grid-area: legend;
-  list-style: none;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.45rem 1rem;
+  gap: 0.45rem;
   margin: 0;
   padding: 0;
+}
+
+.pd-cal-rt__legend-chip {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.4rem 0.7rem 0.4rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
+}
+
+.pd-cal-rt__legend-chip:hover {
+  border-color: color-mix(in srgb, var(--color-text) 18%, transparent);
+  color: var(--color-text);
+}
+
+.pd-cal-rt__legend-chip.is-active {
+  color: var(--color-text);
+  border-color: color-mix(in srgb, var(--legend-accent, var(--color-theme)) 40%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--legend-accent, var(--color-theme)) 10%,
+    var(--color-surface)
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--legend-accent, var(--color-theme)) 16%, transparent);
+}
+
+.pd-cal-rt__legend-chip.is-flagged {
+  --legend-accent: var(--color-red);
+}
+
+.pd-cal-rt__legend-chip.is-adjusted {
+  --legend-accent: var(--color-status-pending);
+}
+
+.pd-cal-rt__legend-chip.is-clean {
+  --legend-accent: var(--color-status-completed);
+}
+
+.pd-cal-rt__legend-swatch {
+  flex-shrink: 0;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--legend-accent, var(--color-text-secondary));
+}
+
+.pd-cal-rt__legend-chip svg {
+  flex-shrink: 0;
+  color: var(--legend-accent, currentColor);
+}
+
+.pd-cal-rt__legend-value {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.pd-cal-rt__legend-label {
+  color: inherit;
   font-weight: 550;
 }
 
-.pd-cal-rt__legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-
-.pd-cal-rt__legend li svg {
-  color: var(--color-red);
-}
-
-.pd-cal-rt__legend li:last-child svg {
-  color: var(--color-status-completed);
-}
-
-.pd-cal-rt__legend-dot {
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 999px;
-  background: var(--color-status-pending);
-}
-
 .pd-cal-rt__progress-actions {
-  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 0.45rem;
-  align-self: start;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pd-cal-rt__progress-actions .pd-people__ghost-btn {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.84rem;
 }
 
 .pd-cal-rt__toolbar {
@@ -2289,6 +2395,15 @@
   display: grid;
   gap: 0.2rem;
   min-width: 0;
+}
+
+.pd-cal-rt__toolbar-end {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-inline-start: auto;
 }
 
 .pd-cal-rt__title {
@@ -2372,10 +2487,46 @@
   outline-offset: 2px;
 }
 
+.pd-cal-rt__table-stage {
+  min-width: 0;
+  max-width: 100%;
+  /* Contain the max-content table so it doesn't widen the page/stat cards. */
+  overflow-x: clip;
+}
+
 .pd-cal-rt__table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: var(--people-control-shadow, var(--shadow-card));
+}
+
+.pd-cal-rt__table-stage--enter {
+  animation: pd-cal-rt-table-in var(--pd-page-enter-duration, 280ms)
+    var(--pd-page-enter-ease, cubic-bezier(0.23, 1, 0.32, 1)) both;
+}
+
+@keyframes pd-cal-rt-table-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--pd-page-enter-distance, 0.75rem));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pd-cal-rt__table-stage--enter {
+    animation: pd-cal-rt-table-in-reduced 160ms ease-out both;
+  }
+
+  @keyframes pd-cal-rt-table-in-reduced {
+    from {
+      opacity: 0;
+    }
+  }
 }
 
 .pd-people__table.pd-cal-rt__table col {
@@ -2432,9 +2583,31 @@
   position: sticky;
   left: 0;
   z-index: 1;
+  overflow: visible;
   background: var(--color-surface-raised, var(--color-surface));
   border-right: 1px solid var(--color-border);
-  box-shadow: 1px 0 0 var(--color-divider);
+}
+
+/* Shadow must be a ::after — box-shadow on td/th is painted under the next column. */
+.pd-people__table.pd-cal-rt__table th:first-child::after,
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 0.75rem;
+  transform: translateX(100%);
+  pointer-events: none;
+  background: linear-gradient(to right,
+      color-mix(in srgb, var(--color-text) 14%, transparent),
+      transparent);
+}
+
+/* Beat .pd-table-resize--laid-out/--sized overflow:hidden so the edge shadow isn't clipped. */
+.pd-people__table.pd-cal-rt__table.pd-table-resize--laid-out td.pd-cal-rt__employee-cell,
+.pd-people__table.pd-cal-rt__table.pd-table-resize--sized td.pd-cal-rt__employee-cell {
+  overflow: visible;
 }
 
 .pd-people__table.pd-cal-rt__table th:first-child {
@@ -2463,6 +2636,13 @@
   min-width: 0;
 }
 
+.pd-cal-rt__manager-name {
+  min-width: 0;
+  color: var(--color-text);
+  font-weight: 550;
+  line-height: var(--people-table-person-line, 1.35);
+}
+
 .pd-cal-rt__name {
   margin: 0;
   padding: 0;
@@ -2472,15 +2652,12 @@
   font: inherit;
   font-weight: 650;
   text-align: left;
-  text-decoration: underline;
-  text-decoration-color: color-mix(in srgb, var(--color-text) 28%, transparent);
-  text-underline-offset: 0.15em;
+  text-decoration: none;
   cursor: pointer;
 }
 
 .pd-cal-rt__name:hover {
   color: var(--color-cta);
-  text-decoration-color: var(--color-cta);
 }
 
 .pd-cal-rt__name:focus-visible {
@@ -2602,25 +2779,97 @@
   color: var(--color-text-secondary);
 }
 
-.pd-cal-rt__flag-btn {
-  display: inline-grid;
-  place-items: center;
+.pd-cal-rt__flag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   margin: 0;
-  padding: 0.25rem;
+  padding: 0.2rem 0.55rem 0.2rem 0.45rem;
   border: 0;
-  border-radius: var(--radius-sm, 0.375rem);
-  background: transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-red) 12%, var(--color-surface));
   color: var(--color-red);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.pd-cal-rt__flag-btn:hover {
-  background: color-mix(in srgb, var(--color-red) 10%, var(--color-surface));
+.pd-cal-rt__flag-chip:hover {
+  background: color-mix(in srgb, var(--color-red) 18%, var(--color-surface));
 }
 
-.pd-cal-rt__flag-btn:focus-visible {
+.pd-cal-rt__flag-chip:focus-visible {
   outline: 2px solid var(--color-red);
   outline-offset: 2px;
+}
+
+.pd-cal-rt__status-chip {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 650;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.pd-cal-rt__status-chip.is-not_reviewed {
+  background: color-mix(in srgb, var(--color-text) 8%, var(--color-surface));
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-rt__status-chip.is-discussed {
+  background: color-mix(in srgb, var(--color-status-pending) 14%, var(--color-surface));
+  color: var(--color-status-pending);
+}
+
+.pd-cal-rt__status-chip.is-confirmed {
+  background: color-mix(in srgb, var(--color-status-completed) 14%, var(--color-surface));
+  color: var(--color-status-completed);
+}
+
+.pd-cal-rt__status-chip.is-rating_changed {
+  background: color-mix(in srgb, var(--color-blue) 14%, var(--color-surface));
+  color: var(--color-blue);
+}
+
+.pd-cal-rt__pip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.pd-cal-rt__adjusted-yes {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--color-blue);
+  font-size: 0.8rem;
+  font-weight: 650;
+}
+
+.pd-cal-rt__notes {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-secondary);
+}
+
+.pd-cal-rt__override-btn {
+  min-height: 1.85rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
+  box-shadow: none;
 }
 
 .pd-cal-rt__flag-list {
@@ -2708,13 +2957,9 @@
 }
 
 @media (max-width: 52rem) {
-  .pd-cal-rt__progress {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      'copy'
-      'bar'
-      'legend'
-      'actions';
+  .pd-cal-rt__progress-head {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .pd-cal-rt__progress-actions {

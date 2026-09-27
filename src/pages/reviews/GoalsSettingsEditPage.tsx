@@ -117,30 +117,28 @@ export function GoalsSettingsEditPage({
   const save = () => {
     if (saving) return;
     setError(null);
-    try {
-      setSaving(true);
-      const stagesConfig = {
-        ...source.stagesConfig,
-        goals: {
-          ...goals,
-          extensions: goals.extensions ?? [],
-        },
-      };
-      const pending = updateCycleGroup(cycle.id, group.id, {
-        settings,
-        stagesConfig,
-      });
-      void pending
-        .catch(() => {
-          /* Shown on the cycle page after close. */
-        })
-        .finally(() => setSaving(false));
-      onSuccess?.("Settings saved.");
-      if (!embedded) onClose();
-    } catch (err) {
-      setSaving(false);
-      setError(err instanceof Error ? err.message : "Could not save settings.");
-    }
+    setSaving(true);
+    const stagesConfig = {
+      ...source.stagesConfig,
+      goals: {
+        ...goals,
+        extensions: goals.extensions ?? [],
+      },
+    };
+    void updateCycleGroup(cycle.id, group.id, {
+      settings,
+      stagesConfig,
+    })
+      .then(() => {
+        onSuccess?.("Settings saved.");
+        if (!embedded) onClose();
+      })
+      .catch((err: unknown) => {
+        setError(
+          err instanceof Error ? err.message : "Could not save settings.",
+        );
+      })
+      .finally(() => setSaving(false));
   };
 
   return (
