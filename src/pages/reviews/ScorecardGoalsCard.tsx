@@ -131,11 +131,6 @@ export function ScorecardGoalsCard({
             </span>
           ) : null}
         </div>
-        {goals.length > 0 ? (
-          <span className="pd-reviews-scorecard__goals-percent">
-            {overallPercent}% complete
-          </span>
-        ) : null}
       </header>
       )}
 

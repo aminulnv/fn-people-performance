@@ -5,12 +5,12 @@ export function formatCareerTenure(fromIso: string, toIso?: string): string {
     fromIso,
     toIso ?? new Date().toISOString(),
   )
-  if (months < 1) return '<1 mo'
+  if (months < 1) return '<1 Mo'
   const years = Math.floor(months / 12)
   const rest = months % 12
-  if (years === 0) return `${months} mo`
-  if (rest === 0) return years === 1 ? '1 yr' : `${years} yr`
-  return `${years} yr ${rest} mo`
+  if (years === 0) return `${months} Mo`
+  if (rest === 0) return years === 1 ? '1 Yr' : `${years} Yr`
+  return `${years} Yr ${rest} Mo`
 }
 
 export function inGradeLabel(gradeEffectiveOn: string | undefined): string {
@@ -24,5 +24,5 @@ export function lastPromoLabel(lastPromotionOn: string | undefined): string {
 }
 
 export function pipStatusLabel(onPip: boolean | undefined): string {
-  return onPip ? 'Active PIP' : 'No PIP on record'
+  return onPip ? 'Active PIP' : 'No PIP On Record'
 }

@@ -81,7 +81,15 @@ describe('packetForViewer', () => {
 
   it('shows the official review after it is published to employees', () => {
     const source = packet({ status: 'released_to_employees' })
-    expect(packetForViewer(source, 754)).toEqual(source)
+    const visible = packetForViewer(source, 754)
+    expect(visible.publishedOverallGrade).toBe('exceptional')
+    expect(visible.selfOverallGrade).toBe('performing')
+    expect(visible.managerOverallGrade).toBeNull()
+    expect(visible.calibratedOverallGrade).toBeNull()
+    expect(visible.managerOverrideReason).toBe('')
+    expect(visible.calibrationEvents).toEqual([])
+    expect(visible.answers).toEqual(source.answers)
+    expect(visible.pillarScores).toEqual(source.pillarScores)
   })
 
   it('removes answers hidden from the employee output', () => {

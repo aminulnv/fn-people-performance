@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth'
 import { useHydrateManagerDelegations, useManagerDelegationsRevision } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import { canWriteManagerReview } from '@/lib/reviews/managerReviewAccess'
-import { selectGoalCycle } from '@/lib/goalsApi'
+import { ensurePersonGoalsHydrated } from '@/lib/goalsApi'
 import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store'
 import {
   answersFromFeedbackText,
@@ -45,7 +45,9 @@ import {
   gradesOverall,
   scorecardFeedbackOf,
 } from '@/lib/reviews/reviewPolicy'
-import { describeEnabledFlow, getReviewStage } from '@/lib/reviews/reviewStages'
+import { describeEnabledFlow, getReviewStage, isGoalsOnlyQuarter } from '@/lib/reviews/reviewStages'
+import { describeReviewEditWindowLock } from '@/lib/reviews/editWindow'
+import { ReviewEditLockRibbon } from '@/pages/reviews/ReviewEditLockRibbon'
 import { combinePillarScores, rollupGoalsPillar } from '@/lib/reviews/rollup'
 import { getReviewCycle } from '@/lib/reviews/store'
 import {
@@ -70,6 +72,7 @@ import {
   ScorecardGoalsCard,
 } from '@/pages/reviews/ScorecardGoalsCard'
 import { ScorecardHero } from '@/pages/reviews/ScorecardHero'
+import { ScorecardStageNav } from '@/pages/reviews/ScorecardStageNav'
 import {
   ReviewActionIsland,
   ReviewSaveBanner,
@@ -261,17 +264,18 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     employeeId,
     goalsPillar,
     goalsRevision,
+    enabled: Boolean(packet),
   })
 
   useEffect(() => {
     let cancelled = false
-    void selectGoalCycle(cycleId).then(() => {
+    void ensurePersonGoalsHydrated(cycleId, employeeId).then(() => {
       if (!cancelled) setGoalsRevision((value) => value + 1)
     })
     return () => {
       cancelled = true
     }
-  }, [cycleId])
+  }, [cycleId, employeeId])
 
   useEffect(() => {
     return subscribeGoalsStore(() => setGoalsRevision((value) => value + 1))
@@ -389,10 +393,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       : null
   const outputQuestionIds = outputAudience
     ? new Set(
-        enabledOutputQuestions(policy, outputAudience).map(
-          (question) => question.id,
-        ),
-      )
+      enabledOutputQuestions(policy, outputAudience).map(
+        (question) => question.id,
+      ),
+    )
     : null
   const forCurrentAudience = (question: ReviewPolicy['scorecard']['questions'][number]) =>
     outputQuestionIds == null || outputQuestionIds.has(question.id)
@@ -416,10 +420,10 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const feedbackLocked =
     feedbackRole === 'manager'
       ? packet.status === 'released_to_employees' ||
-        packet.status === 'released_to_managers'
+      packet.status === 'released_to_managers'
       : !isSubject ||
-        packet.status === 'self_submitted' ||
-        packet.status === 'manager_submitted'
+      packet.status === 'self_submitted' ||
+      packet.status === 'manager_submitted'
   const feedbackQuestions =
     feedbackRole === 'manager' ? managerQuestions : selfQuestions
   const feedbackAnswers = answersFromFeedbackText(
@@ -434,21 +438,21 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   const rollupGoalsFromQuarters = (includeQ4: boolean) =>
     useWeightedSuggest
       ? rollupGoalsPillar({
-          links: linkedQuarters.rows.map((row) => ({
-            sourceCycleId: row.sourceCycleId,
-            weightPercent: 25,
-            excluded: row.excluded,
-          })),
-          quarters: linkedQuarters.rows.map((row) => ({
-            sourceCycleId: row.sourceCycleId,
-            label: row.label,
-            outcome: outcomeForAnnualQuarter(
-              row,
-              includeQ4 && q4Grade ? q4Grade : null,
-            ),
-          })),
-          bands: policy.scorecard.bands,
-        })
+        links: linkedQuarters.rows.map((row) => ({
+          sourceCycleId: row.sourceCycleId,
+          weightPercent: 25,
+          excluded: row.excluded,
+        })),
+        quarters: linkedQuarters.rows.map((row) => ({
+          sourceCycleId: row.sourceCycleId,
+          label: row.label,
+          outcome: outcomeForAnnualQuarter(
+            row,
+            includeQ4 && q4Grade ? q4Grade : null,
+          ),
+        })),
+        bands: policy.scorecard.bands,
+      })
       : null
   const selfGoalsRollup = rollupGoalsFromQuarters(false)
   const managerGoalsRollup = rollupGoalsFromQuarters(true)
@@ -503,8 +507,20 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     !isSubject ||
     packet.status === 'self_submitted' ||
     packet.status === 'manager_submitted'
+  const windowLock = describeReviewEditWindowLock({
+    cycle,
+    stages,
+    formStage:
+      feedbackRole === 'manager'
+        ? 'manager_review'
+        : feedbackRole === 'self'
+          ? 'self_review'
+          : stageView.viewing,
+  })
+  const windowClosed = Boolean(windowLock)
   const goalsGradeLocked =
-    goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked
+    windowClosed ||
+    (goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked)
   const q4GradeLocked = goalsGradeLocked
   const viewingManagerForm = stageView.viewing === 'manager_review'
   const viewingSelfForm = stageView.viewing === 'self_review'
@@ -517,7 +533,8 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
     gradeOverall && (showSelfPacket || showManagerPacket)
   const formActorRole = viewingSelfForm && showSelfPacket ? 'self' : 'manager'
   const formLocked =
-    formActorRole === 'manager' ? managerFormLocked : selfFormLocked
+    windowClosed ||
+    (formActorRole === 'manager' ? managerFormLocked : selfFormLocked)
 
   const viewHref = `${scorecardDetailPath(
     detail?.cycleKey ?? cycleId,
@@ -543,44 +560,44 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
       // grades on the packet but do not roll them into the overall.
       const skillPillarScores = skillsPillarOn
         ? assignedSkills.map((skill) => ({
-            pillarId: skillScorePillarId(skill.id),
-            grade: (skillGrades[skill.id] || null) as GradeBandId | null,
-            comment: '',
-          }))
+          pillarId: skillScorePillarId(skill.id),
+          grade: (skillGrades[skill.id] || null) as GradeBandId | null,
+          comment: '',
+        }))
         : packet.pillarScores
-            .filter(
-              (score) =>
-                score.actorRole === formActorRole &&
-                isSkillScorePillarId(score.pillarId),
-            )
-            .map((score) => ({
-              pillarId: score.pillarId,
-              grade: score.grade,
-              comment: score.comment,
-            }))
+          .filter(
+            (score) =>
+              score.actorRole === formActorRole &&
+              isSkillScorePillarId(score.pillarId),
+          )
+          .map((score) => ({
+            pillarId: score.pillarId,
+            grade: score.grade,
+            comment: score.comment,
+          }))
       const skillsRollup = skillsPillarOn
         ? averageSkillGrade(
-            assignedSkills.map((skill) => skillGrades[skill.id]),
-          )
+          assignedSkills.map((skill) => skillGrades[skill.id]),
+        )
         : null
       const valuesPillarOn = pillars.some((pillar) => pillar.id === 'values')
       const valuePillarScores = valuesPillarOn
         ? enabledValues.map((value) => ({
-            pillarId: valueScorePillarId(value.id),
-            grade: (valueGrades[value.id] || null) as GradeBandId | null,
-            comment: '',
-          }))
+          pillarId: valueScorePillarId(value.id),
+          grade: (valueGrades[value.id] || null) as GradeBandId | null,
+          comment: '',
+        }))
         : packet.pillarScores
-            .filter(
-              (score) =>
-                score.actorRole === formActorRole &&
-                isValueScorePillarId(score.pillarId),
-            )
-            .map((score) => ({
-              pillarId: score.pillarId,
-              grade: score.grade,
-              comment: score.comment,
-            }))
+          .filter(
+            (score) =>
+              score.actorRole === formActorRole &&
+              isValueScorePillarId(score.pillarId),
+          )
+          .map((score) => ({
+            pillarId: score.pillarId,
+            grade: score.grade,
+            comment: score.comment,
+          }))
       const valuesRollup = valuesPillarOn
         ? averageValueGrade(enabledValues.map((value) => valueGrades[value.id]))
         : null
@@ -634,410 +651,430 @@ export function ReviewPacketView({ cycleId, employeeId }: ReviewPacketViewProps)
   }
 
   return (
-    <div className="pd-page pd-page--wide pd-reviews pd-reviews-scorecard pd-review-packet">
-      {detail ? (
-        <ScorecardHero
-          detail={detail}
+    <>
+      {windowLock ? <ReviewEditLockRibbon lock={windowLock} /> : null}
+      <div className="pd-page pd-page--wide pd-reviews pd-reviews-scorecard pd-review-packet">
+        <ScorecardStageNav
           packet={packet}
           stages={stages}
           viewerEmployeeId={viewerId}
-          viewingStage={stageView.viewing}
+          viewing={stageView.viewing}
           onViewStage={stageView.selectStage}
         />
-      ) : null}
-      <p className="pd-reviews-flow__path">
-        {describeEnabledFlow(stages)}
-      </p>
-      <ActivityLogTrigger
-        label="View Review Activity"
-        onClick={() => setActivityOpen(true)}
-      />
+        {detail ? (
+          <ScorecardHero
+            detail={detail}
+            packet={packet}
+            viewerEmployeeId={viewerId}
+            viewingStage={stageView.viewing}
+          />
+        ) : null}
+        <p className="pd-reviews-flow__path">
+          {describeEnabledFlow(stages)}
+        </p>
+        <ActivityLogTrigger
+          label="View Review Activity"
+          onClick={() => setActivityOpen(true)}
+        />
 
-      {detail && linkedQuarters.enabled ? (
-        <AnnualGoalsQuarters
-          rows={linkedQuarters.rows}
-          goalsByCycleId={linkedQuarters.goalsByCycleId}
-          q4Goals={linkedQuarters.q4Goals}
-          q4CycleId={linkedQuarters.progressRow?.sourceCycleId}
-          personId={String(employeeId)}
-          owner={{
-            id: String(detail.employeeId),
-            name: detail.employeeName,
-            avatarUrl: detail.employeeAvatarUrl || undefined,
-          }}
-          q4Grade={isManager && gradeGoals ? q4Grade || null : null}
-          onQ4GradeChange={
-            isManager && goalsGradeRole && gradeGoals
-              ? (next) => {
+        {detail && linkedQuarters.enabled ? (
+          <AnnualGoalsQuarters
+            rows={linkedQuarters.rows}
+            goalsByCycleId={linkedQuarters.goalsByCycleId}
+            q4Goals={linkedQuarters.q4Goals}
+            q4CycleId={linkedQuarters.progressRow?.sourceCycleId}
+            personId={String(employeeId)}
+            owner={{
+              id: String(detail.employeeId),
+              name: detail.employeeName,
+              avatarUrl: detail.employeeAvatarUrl || undefined,
+            }}
+            q4Grade={isManager && gradeGoals ? q4Grade || null : null}
+            onQ4GradeChange={
+              isManager && goalsGradeRole && gradeGoals
+                ? (next) => {
                   setQ4Grade(next)
                   setDirty(true)
                 }
-              : undefined
-          }
-          q4GradeLocked={q4GradeLocked}
-          goalsRollupGrade={rolledGoalsGrade}
-        />
-      ) : detail ? (
-        <ScorecardGoalsCard
-          cycleId={cycleId}
-          personId={String(employeeId)}
-          owner={{
-            id: String(detail.employeeId),
-            name: detail.employeeName,
-            avatarUrl: detail.employeeAvatarUrl || undefined,
-          }}
-          cycleLabel={detail.cycleLabel}
-          goals={
-            getGoalsSnapshotForCycle(cycleId).byPerson[String(employeeId)]
-              ?.goals ?? []
-          }
-          overallPercent={detail.goalsOverallPercent}
-          overallBand={
-            gradeGoals
-              ? showManagerForm
-                ? packet.pillarScores.find(
-                    (score) =>
-                      score.pillarId === 'goals' && score.actorRole === 'manager',
-                  )?.grade ?? null
-                : detail.goalsOverallBand
-              : null
-          }
-          goalsHref={goalsDetailPath(cycleId, String(employeeId))}
-          editing={gradeGoals}
-          goalsWeight={goalsPillar?.weight}
-          goalsGrade={gradeGoals ? goalsGrade || null : null}
-          onGoalsGradeChange={
-            gradeGoals && goalsGradeRole && goalsPillar
-              ? (next) => {
-                  setGoalsGrade(next)
-                  setDirty(true)
-                }
-              : undefined
-          }
-          gradeLocked={goalsGradeLocked}
-        />
-      ) : null}
+                : undefined
+            }
+            q4GradeLocked={q4GradeLocked}
+            goalsRollupGrade={rolledGoalsGrade}
+          />
+        ) : detail ? (
+          <>
+            {isGoalsOnlyQuarter(cycle.periodKey) ? (
+              <p className="pd-reviews-flow__hint">
+                Progress only — the manager sets the Goals grade in the annual
+                review.
+              </p>
+            ) : null}
+            <ScorecardGoalsCard
+              cycleId={cycleId}
+              personId={String(employeeId)}
+              owner={{
+                id: String(detail.employeeId),
+                name: detail.employeeName,
+                avatarUrl: detail.employeeAvatarUrl || undefined,
+              }}
+              cycleLabel={detail.cycleLabel}
+              goals={
+                getGoalsSnapshotForCycle(cycleId).byPerson[String(employeeId)]
+                  ?.goals ?? []
+              }
+              overallPercent={detail.goalsOverallPercent}
+              overallBand={
+                gradeGoals
+                  ? showManagerForm
+                    ? packet.pillarScores.find(
+                      (score) =>
+                        score.pillarId === 'goals' && score.actorRole === 'manager',
+                    )?.grade ?? null
+                    : detail.goalsOverallBand
+                  : null
+              }
+              goalsHref={goalsDetailPath(cycleId, String(employeeId))}
+              editing={gradeGoals}
+              goalsWeight={goalsPillar?.weight}
+              goalsGrade={gradeGoals ? goalsGrade || null : null}
+              onGoalsGradeChange={
+                gradeGoals && goalsGradeRole && goalsPillar
+                  ? (next) => {
+                    setGoalsGrade(next)
+                    setDirty(true)
+                  }
+                  : undefined
+              }
+              gradeLocked={goalsGradeLocked}
+            />
+          </>
+        ) : null}
 
-      {skillsPillarOn && (showSelfPacket || showManagerPacket) ? (
-        <ScorecardSkillsGradeCard
-          skills={assignedSkills}
-          grades={skillGrades}
-          editing={Boolean(goalsGradeRole)}
-          locked={
-            formActorRole === 'manager' ? managerFormLocked : selfFormLocked
-          }
-          profileHref={`/people/${employeeId}`}
-          onGradeChange={
-            goalsGradeRole
-              ? (skillId, next) => {
+        {skillsPillarOn && (showSelfPacket || showManagerPacket) ? (
+          <ScorecardSkillsGradeCard
+            skills={assignedSkills}
+            grades={skillGrades}
+            editing={Boolean(goalsGradeRole)}
+            locked={formLocked}
+            profileHref={`/people/${employeeId}`}
+            onGradeChange={
+              goalsGradeRole
+                ? (skillId, next) => {
                   setSkillGrades((current) => ({
                     ...current,
                     [skillId]: next,
                   }))
                   setDirty(true)
                 }
-              : undefined
-          }
-        />
-      ) : !skillsPillarOn &&
-        hasPriorSkillGrades &&
-        (showSelfPacket || showManagerPacket) ? (
-        <ScorecardSkillsGradeCard
-          skills={priorSkills}
-          grades={skillGrades}
-          priorOnly
-        />
-      ) : null}
+                : undefined
+            }
+          />
+        ) : !skillsPillarOn &&
+          hasPriorSkillGrades &&
+          (showSelfPacket || showManagerPacket) ? (
+          <ScorecardSkillsGradeCard
+            skills={priorSkills}
+            grades={skillGrades}
+            priorOnly
+          />
+        ) : null}
 
-      {valuesPillarOn && (showSelfPacket || showManagerPacket) ? (
-        <ScorecardValuesGradeCard
-          values={enabledValues}
-          grades={valueGrades}
-          editing={Boolean(goalsGradeRole)}
-          locked={
-            formActorRole === 'manager' ? managerFormLocked : selfFormLocked
-          }
-          onGradeChange={
-            goalsGradeRole
-              ? (valueId, next) => {
+        {valuesPillarOn && (showSelfPacket || showManagerPacket) ? (
+          <ScorecardValuesGradeCard
+            values={enabledValues}
+            grades={valueGrades}
+            editing={Boolean(goalsGradeRole)}
+            locked={formLocked}
+            onGradeChange={
+              goalsGradeRole
+                ? (valueId, next) => {
                   setValueGrades((current) => ({
                     ...current,
                     [valueId]: next,
                   }))
                   setDirty(true)
                 }
-              : undefined
-          }
-        />
-      ) : !valuesPillarOn &&
-        hasPriorValueGrades &&
-        (showSelfPacket || showManagerPacket) ? (
-        <ScorecardValuesGradeCard
-          values={priorValues}
-          grades={valueGrades}
-          priorOnly
-        />
-      ) : null}
-
-      {showSelfPacket ? (
-        <PacketForm
-          title="Self-Review"
-          locked={!isSubject || packet.status === 'self_submitted' || packet.status === 'manager_submitted' || viewingPublishedForm}
-          questions={selfQuestions}
-          pillars={pillars}
-          policy={policy}
-          packet={packet}
-          actorRole="self"
-          overall={packet.selfOverallGrade}
-          extraAnswers={feedbackRole === 'self' ? feedbackAnswers : undefined}
-          extraGrades={
-            Object.keys(selfExtraGrades).length > 0 ? selfExtraGrades : undefined
-          }
-          hidePillarIds={[
-            'skills',
-            'values',
-            ...(useWeightedSuggest ||
-            !gradeGoals ||
-            goalsGradeRole === 'self' ||
-            hideEmployeeGoalsGrade
-              ? (['goals'] as const)
-              : []),
-          ]}
-          showOverall={gradeOverall}
-          suggestOverall={useWeightedSuggest}
-          onDraftChange={setPacketDraft}
-          onUserEdit={() => setDirty(true)}
-        />
-      ) : null}
-
-      {showManagerPacket ? (
-        <PacketForm
-          title="Manager Review"
-          locked={
-            viewingPublishedForm ||
-            packet.status === 'released_to_employees' ||
-            packet.status === 'released_to_managers'
-          }
-          questions={managerQuestions}
-          pillars={pillars}
-          policy={policy}
-          packet={packet}
-          actorRole="manager"
-          overall={packet.managerOverallGrade}
-          extraAnswers={feedbackRole === 'manager' ? feedbackAnswers : undefined}
-          extraGrades={
-            Object.keys(managerExtraGrades).length > 0
-              ? managerExtraGrades
-              : undefined
-          }
-          hidePillarIds={[
-            'skills',
-            'values',
-            ...(useWeightedSuggest || !gradeGoals || goalsGradeRole === 'manager'
-              ? (['goals'] as const)
-              : []),
-          ]}
-          showOverall={gradeOverall}
-          suggestOverall={useWeightedSuggest}
-          onDraftChange={setPacketDraft}
-          onUserEdit={() => setDirty(true)}
-        />
-      ) : null}
-
-      {gradeOverall && !formOwnsOverall ? (
-        <section className="pd-reviews-scorecard__card">
-          <OverallGradePicker
-            name="scorecard-overall-grade-readonly"
-            value={
-              packet.publishedOverallGrade ??
-              packet.calibratedOverallGrade ??
-              packet.managerOverallGrade ??
-              ''
+                : undefined
             }
-            disabled
           />
-        </section>
-      ) : null}
+        ) : !valuesPillarOn &&
+          hasPriorValueGrades &&
+          (showSelfPacket || showManagerPacket) ? (
+          <ScorecardValuesGradeCard
+            values={priorValues}
+            grades={valueGrades}
+            priorOnly
+          />
+        ) : null}
 
-      {stageShowsReviewForm(stageView.viewing) &&
-      feedbackEnabledForVisibility(
-        policy,
-        feedbackRole === 'self' ? 'employee' : 'manager',
-      ) ? (
-        <ScorecardFeedbackCard
-          feedback={
-            detail?.feedback ?? {
-              authorName: '',
-              authorRole: '',
-              dateLabel: '',
-              strengths: '',
-              developments: '',
+        {showSelfPacket ? (
+          <PacketForm
+            title="Self-Review"
+            locked={
+              windowClosed ||
+              !isSubject ||
+              packet.status === 'self_submitted' ||
+              packet.status === 'manager_submitted' ||
+              viewingPublishedForm
             }
-          }
-          editing
-          locked={
-            viewingPublishedForm ||
-            feedbackRole == null ||
-            feedbackLocked
-          }
-          title={scorecardFeedbackOf(policy).title}
-          labels={scorecardFeedbackOf(policy).labels}
-          strengths={strengths}
-          developments={developments}
-          onStrengthsChange={(next) => {
-            setStrengths(next)
-            setDirty(true)
-          }}
-          onDevelopmentsChange={(next) => {
-            setDevelopments(next)
-            setDirty(true)
-          }}
-        />
-      ) : null}
+            questions={selfQuestions}
+            pillars={pillars}
+            policy={policy}
+            packet={packet}
+            actorRole="self"
+            overall={packet.selfOverallGrade}
+            extraAnswers={feedbackRole === 'self' ? feedbackAnswers : undefined}
+            extraGrades={
+              Object.keys(selfExtraGrades).length > 0 ? selfExtraGrades : undefined
+            }
+            hidePillarIds={[
+              'skills',
+              'values',
+              ...(useWeightedSuggest ||
+                !gradeGoals ||
+                goalsGradeRole === 'self' ||
+                hideEmployeeGoalsGrade
+                ? (['goals'] as const)
+                : []),
+            ]}
+            showOverall={gradeOverall}
+            suggestOverall={useWeightedSuggest}
+            onDraftChange={setPacketDraft}
+            onUserEdit={() => setDirty(true)}
+          />
+        ) : null}
 
-      <ReviewSaveBanner
-        notice={saveNotice}
-        onDismiss={() => setSaveNotice(null)}
-      />
-      <ReviewActionIsland>
-        <div className="pd-review-packet__island">
-          <div className="pd-review-packet__actions">
-            <Button variant="secondary" pill disabled={saving} onClick={requestLeave}>
-              Cancel
-            </Button>
-            {!formLocked &&
-            !viewingPublishedForm &&
-            ((showSelfForm && viewingSelfForm) ||
-              (showManagerForm && viewingManagerForm)) ? (
-              <>
-                <Button
-                  variant="secondary"
-                  pill
-                  disabled={saving}
-                  onClick={() => void savePacket(false)}
-                >
-                  Save Draft
-                </Button>
-                <Button
-                  variant="primary"
-                  pill
-                  disabled={saving}
-                  onClick={() => void savePacket(true)}
-                >
-                  Submit
-                </Button>
-              </>
-            ) : null}
+        {showManagerPacket ? (
+          <PacketForm
+            title="Manager Review"
+            locked={
+              windowClosed ||
+              viewingPublishedForm ||
+              packet.status === 'released_to_employees' ||
+              packet.status === 'released_to_managers'
+            }
+            questions={managerQuestions}
+            pillars={pillars}
+            policy={policy}
+            packet={packet}
+            actorRole="manager"
+            overall={packet.managerOverallGrade}
+            extraAnswers={feedbackRole === 'manager' ? feedbackAnswers : undefined}
+            extraGrades={
+              Object.keys(managerExtraGrades).length > 0
+                ? managerExtraGrades
+                : undefined
+            }
+            hidePillarIds={[
+              'skills',
+              'values',
+              ...(useWeightedSuggest || !gradeGoals || goalsGradeRole === 'manager'
+                ? (['goals'] as const)
+                : []),
+            ]}
+            showOverall={gradeOverall}
+            suggestOverall={useWeightedSuggest}
+            onDraftChange={setPacketDraft}
+            onUserEdit={() => setDirty(true)}
+          />
+        ) : null}
+
+        {gradeOverall && !formOwnsOverall ? (
+          <section className="pd-reviews-scorecard__card">
+            <OverallGradePicker
+              name="scorecard-overall-grade-readonly"
+              value={
+                packet.publishedOverallGrade ??
+                packet.calibratedOverallGrade ??
+                packet.managerOverallGrade ??
+                ''
+              }
+              disabled
+            />
+          </section>
+        ) : null}
+
+        {stageShowsReviewForm(stageView.viewing) &&
+          feedbackEnabledForVisibility(
+            policy,
+            feedbackRole === 'self' ? 'employee' : 'manager',
+          ) ? (
+          <ScorecardFeedbackCard
+            feedback={
+              detail?.feedback ?? {
+                authorName: '',
+                authorRole: '',
+                dateLabel: '',
+                strengths: '',
+                developments: '',
+              }
+            }
+            editing
+            locked={
+              windowClosed ||
+              viewingPublishedForm ||
+              feedbackRole == null ||
+              feedbackLocked
+            }
+            title={scorecardFeedbackOf(policy).title}
+            labels={scorecardFeedbackOf(policy).labels}
+            strengths={strengths}
+            developments={developments}
+            onStrengthsChange={(next) => {
+              setStrengths(next)
+              setDirty(true)
+            }}
+            onDevelopmentsChange={(next) => {
+              setDevelopments(next)
+              setDirty(true)
+            }}
+          />
+        ) : null}
+
+        <ReviewSaveBanner
+          notice={saveNotice}
+          onDismiss={() => setSaveNotice(null)}
+        />
+        <ReviewActionIsland>
+          <div className="pd-review-packet__island">
+            <div className="pd-review-packet__actions">
+              <Button variant="secondary" pill disabled={saving} onClick={requestLeave}>
+                Cancel
+              </Button>
+              {!formLocked &&
+                !viewingPublishedForm &&
+                ((showSelfForm && viewingSelfForm) ||
+                  (showManagerForm && viewingManagerForm)) ? (
+                <>
+                  <Button
+                    variant="secondary"
+                    pill
+                    disabled={saving}
+                    onClick={() => void savePacket(false)}
+                  >
+                    Save Draft
+                  </Button>
+                  <Button
+                    variant="primary"
+                    pill
+                    disabled={saving}
+                    onClick={() => void savePacket(true)}
+                  >
+                    Submit
+                  </Button>
+                </>
+              ) : null}
+            </div>
           </div>
-        </div>
-      </ReviewActionIsland>
+        </ReviewActionIsland>
 
-      <ConfirmDialog
-        open={leaveOpen}
-        onClose={() => setLeaveOpen(false)}
-        onConfirm={() => {
-          setLeaveOpen(false)
-          navigate(viewHref)
-        }}
-        title="Unsaved Changes"
-        description="Leave without saving? Your edits will be lost."
-        confirmLabel="Discard"
-        cancelLabel="Stay"
-        confirmVariant="danger"
-      />
-
-      {showCalibrationForm && stageView.viewing === 'calibration_hod_hrbp' ? (
-        <CalibrationBlock
-          packet={packet}
-          onSave={async (toGrade, reason) => {
-            try {
-              const next = await calibrateReviewPacket(packet.id, {
-                toGrade,
-                reason,
-                stageId: 'calibration_hod_hrbp',
-              })
-              setPacket(next)
-              setSaveNotice({
-                variant: 'success',
-                message: 'Calibration recorded.',
-                shownAt: Date.now(),
-              })
-            } catch (err: unknown) {
-              setSaveNotice({
-                variant: 'error',
-                message:
-                  err instanceof Error
-                    ? err.message
-                    : 'Could not record calibration.',
-                shownAt: Date.now(),
-              })
-            }
+        <ConfirmDialog
+          open={leaveOpen}
+          onClose={() => setLeaveOpen(false)}
+          onConfirm={() => {
+            setLeaveOpen(false)
+            navigate(viewHref)
           }}
+          title="Unsaved Changes"
+          description="Leave without saving? Your edits will be lost."
+          confirmLabel="Discard"
+          cancelLabel="Stay"
+          confirmVariant="danger"
         />
-      ) : null}
 
-      {stageView.viewing === 'appeal' &&
-      (showAppealForm || packet.appeals.length > 0) ? (
-        <AppealBlock
-          packet={packet}
-          onSave={async (body) => {
-            try {
-              setPacket(await appealReviewPacket(packet.id, body))
-              setSaveNotice({
-                variant: 'success',
-                message: 'Appeal submitted.',
-                shownAt: Date.now(),
-              })
-            } catch (err: unknown) {
-              setSaveNotice({
-                variant: 'error',
-                message:
-                  err instanceof Error
-                    ? err.message
-                    : 'Could not submit this appeal.',
-                shownAt: Date.now(),
-              })
-            }
-          }}
-        />
-      ) : null}
-      {stageView.viewing === 'appeal' && canResolveAppeal && openAppeal ? (
-        <AppealOverrideBlock
-          packet={packet}
-          onSave={async (toGrade, justification) => {
-            try {
-              setPacket(
-                await resolveReviewAppeal(packet.id, openAppeal.id, {
+        {showCalibrationForm && stageView.viewing === 'calibration_hod_hrbp' ? (
+          <CalibrationBlock
+            packet={packet}
+            onSave={async (toGrade, reason) => {
+              try {
+                const next = await calibrateReviewPacket(packet.id, {
                   toGrade,
-                  justification,
-                }),
-              )
-              setSaveNotice({
-                variant: 'success',
-                message: 'Appeal resolved and final rating updated.',
-                shownAt: Date.now(),
-              })
-            } catch (err: unknown) {
-              setSaveNotice({
-                variant: 'error',
-                message:
-                  err instanceof Error
-                    ? err.message
-                    : 'Could not resolve this appeal.',
-                shownAt: Date.now(),
-              })
-            }
-          }}
+                  reason,
+                  stageId: 'calibration_hod_hrbp',
+                })
+                setPacket(next)
+                setSaveNotice({
+                  variant: 'success',
+                  message: 'Calibration recorded.',
+                  shownAt: Date.now(),
+                })
+              } catch (err: unknown) {
+                setSaveNotice({
+                  variant: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not record calibration.',
+                  shownAt: Date.now(),
+                })
+              }
+            }}
+          />
+        ) : null}
+
+        {stageView.viewing === 'appeal' &&
+          (showAppealForm || packet.appeals.length > 0) ? (
+          <AppealBlock
+            packet={packet}
+            onSave={async (body) => {
+              try {
+                setPacket(await appealReviewPacket(packet.id, body))
+                setSaveNotice({
+                  variant: 'success',
+                  message: 'Appeal submitted.',
+                  shownAt: Date.now(),
+                })
+              } catch (err: unknown) {
+                setSaveNotice({
+                  variant: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not submit this appeal.',
+                  shownAt: Date.now(),
+                })
+              }
+            }}
+          />
+        ) : null}
+        {stageView.viewing === 'appeal' && canResolveAppeal && openAppeal ? (
+          <AppealOverrideBlock
+            packet={packet}
+            onSave={async (toGrade, justification) => {
+              try {
+                setPacket(
+                  await resolveReviewAppeal(packet.id, openAppeal.id, {
+                    toGrade,
+                    justification,
+                  }),
+                )
+                setSaveNotice({
+                  variant: 'success',
+                  message: 'Appeal resolved and final rating updated.',
+                  shownAt: Date.now(),
+                })
+              } catch (err: unknown) {
+                setSaveNotice({
+                  variant: 'error',
+                  message:
+                    err instanceof Error
+                      ? err.message
+                      : 'Could not resolve this appeal.',
+                  shownAt: Date.now(),
+                })
+              }
+            }}
+          />
+        ) : null}
+        <ActivityLogDrawer
+          open={activityOpen}
+          onClose={() => setActivityOpen(false)}
+          title="Review activity"
+          description="Self-review, manager review, calibration, and release for this person."
+          filters={{ cycleId, subjectEmployeeId: employeeId }}
         />
-      ) : null}
-      <ActivityLogDrawer
-        open={activityOpen}
-        onClose={() => setActivityOpen(false)}
-        title="Review activity"
-        description="Self-review, manager review, calibration, and release for this person."
-        filters={{ cycleId, subjectEmployeeId: employeeId }}
-      />
-    </div>
+      </div>
+    </>
   )
 }
 
@@ -1102,14 +1139,14 @@ function PacketForm({
   )
   const suggestedOverall = suggestOverall
     ? combinePillarScores({
-        policy,
-        pillarGrades: Object.fromEntries(
-          Object.entries(mergedGrades).map(([id, grade]) => [
-            id,
-            grade || null,
-          ]),
-        ),
-      }).suggestedGrade
+      policy,
+      pillarGrades: Object.fromEntries(
+        Object.entries(mergedGrades).map(([id, grade]) => [
+          id,
+          grade || null,
+        ]),
+      ),
+    }).suggestedGrade
     : null
 
   useEffect(() => {

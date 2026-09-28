@@ -284,6 +284,30 @@ describe('CycleGroupsSection', () => {
     expect(within(table).queryByText('Growth Person')).not.toBeInTheDocument()
   })
 
+  it('filters the people table from the search field', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Ada Lovelace', team: 'Core' }),
+      person(2, { fullName: 'Grace Hopper', team: 'Growth' }),
+    ]
+
+    renderSection(
+      <CycleGroupsSection
+        cycle={sampleCycle([sampleGroup()])}
+        onAddGroup={() => {}}
+        onDelete={() => {}}
+        onOpenGroup={() => {}}
+      />,
+    )
+
+    const table = screen.getByRole('table')
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Search people' }), {
+      target: { value: 'ada' },
+    })
+
+    expect(within(table).getByText('Ada Lovelace')).toBeInTheDocument()
+    expect(within(table).queryByText('Grace Hopper')).not.toBeInTheDocument()
+  })
+
   it('bulk assigns the filtered people to a cycle group', async () => {
     employeesState.employees = [
       person(2, {

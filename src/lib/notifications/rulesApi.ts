@@ -7,6 +7,7 @@ import {
 } from './ruleDefaults'
 import type { NotificationRule, NotificationRulePatch } from './ruleTypes'
 import { emitTestNotification } from './store'
+import { sampleDaysForEvent } from './sampleDays'
 
 const TEST_VARIABLES: Record<string, string | number | undefined> = {
   cycle: 'H2 2026',
@@ -33,6 +34,14 @@ const TEST_VARIABLES: Record<string, string | number | undefined> = {
   message: 'Please submit your goals this week',
   thresholdDate: '1 Sep',
   grade: 'Exceeds',
+}
+
+function testVariablesForEvent(
+  eventKey: string,
+): Record<string, string | number | undefined> {
+  const days = sampleDaysForEvent(eventKey)
+  if (days == null) return TEST_VARIABLES
+  return { ...TEST_VARIABLES, days }
 }
 
 const LOCAL_RULES_KEY = 'pd-notification-rules-v1'
@@ -179,9 +188,10 @@ export async function sendTestNotificationRule(
     if (!rule) throw new Error('Unknown notification rule')
 
     const channels = ['in_app' as const, ...rule.channels.filter((c) => c === 'browser')]
+    const variables = testVariablesForEvent(eventKey)
 
     if (NOTIFICATION_CATALOGUE.has(eventKey)) {
-      const template = renderNotificationTemplate(eventKey, TEST_VARIABLES, {
+      const template = renderNotificationTemplate(eventKey, variables, {
         channels,
         titleTemplate: rule.titleTemplate,
         bodyTemplate: rule.bodyTemplate,
@@ -204,8 +214,8 @@ export async function sendTestNotificationRule(
       return
     }
 
-    const title = renderCopy(rule.titleTemplate, TEST_VARIABLES)
-    const body = renderCopy(rule.bodyTemplate, TEST_VARIABLES)
+    const title = renderCopy(rule.titleTemplate, variables)
+    const body = renderCopy(rule.bodyTemplate, variables)
     const record = emitTestNotification({
       eventKey,
       recipientId,

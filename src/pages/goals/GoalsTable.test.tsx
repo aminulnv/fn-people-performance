@@ -366,6 +366,83 @@ describe('GoalsTable nested measures', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('colors the Progress total by completion band', () => {
+    const { rerender } = render(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              weight: 100,
+              measurements: [
+                {
+                  ...goalWithMeasures.measurements[0]!,
+                  currentValue: 0,
+                  targetValue: 100,
+                },
+              ],
+            },
+            title: 'Quality',
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('columnheader', { name: 'Progress 0%' })).toBeTruthy()
+    expect(
+      document.querySelector('.pd-goals-table__progress-head-total'),
+    ).toHaveClass('pd-goals-table__progress-head-total--low')
+
+    rerender(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              weight: 100,
+              measurements: [
+                {
+                  ...goalWithMeasures.measurements[0]!,
+                  currentValue: 50,
+                  targetValue: 100,
+                },
+              ],
+            },
+            title: 'Quality',
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('columnheader', { name: 'Progress 50%' })).toBeTruthy()
+    expect(
+      document.querySelector('.pd-goals-table__progress-head-total'),
+    ).toHaveClass('pd-goals-table__progress-head-total--mid')
+
+    rerender(
+      <GoalsTable
+        rows={[
+          {
+            goal: {
+              ...goalWithMeasures,
+              weight: 100,
+              measurements: [
+                {
+                  ...goalWithMeasures.measurements[0]!,
+                  currentValue: 90,
+                  targetValue: 100,
+                },
+              ],
+            },
+            title: 'Quality',
+          },
+        ]}
+      />,
+    )
+    expect(screen.getByRole('columnheader', { name: 'Progress 90%' })).toBeTruthy()
+    expect(
+      document.querySelector('.pd-goals-table__progress-head-total'),
+    ).toHaveClass('pd-goals-table__progress-head-total--high')
+  })
+
   it('treats a 100% total as an error when a goal has no weight', () => {
     const onDistributeWeights = vi.fn()
     render(
@@ -1085,7 +1162,7 @@ describe('GoalsTable nested measures', () => {
       </MemoryRouter>,
     )
 
-    const progressHead = screen.getByRole('columnheader', { name: 'Progress' })
+    const progressHead = screen.getByRole('columnheader', { name: 'Progress 60%' })
     const actionsHead = screen.getByRole('columnheader', { name: 'Actions' })
     expect(progressHead).not.toContainElement(actionsHead)
     expect(actionsHead).toHaveClass('pd-goals-table__actions-head')

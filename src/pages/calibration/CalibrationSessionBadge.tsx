@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Lock, LockOpen } from 'lucide-react'
-import { Modal } from '@/components/ui'
+import { ConfirmDialog } from '@/components/ui'
 import { cx } from '@/lib/cx'
 import { useAuth } from '@/lib/useAuth'
 import { hasSystemPermission } from '@/lib/accessControl/types'
@@ -49,12 +49,12 @@ export function CalibrationSessionBadge({
       : LockOpen
   const label = canLock
     ? locked
-      ? 'Unlock'
-      : 'Lock'
+      ? 'Unlock Calibration'
+      : 'Lock Calibration'
     : locked
       ? 'Locked'
       : 'Unlocked'
-  const changesHint = changes ? `, ${changes} rating changes` : ''
+  const changesHint = changes ? `, ${changes} Rating Changes` : ''
 
   async function applyLock() {
     setLocking(true)
@@ -71,8 +71,8 @@ export function CalibrationSessionBadge({
         error instanceof Error
           ? error.message
           : locked
-            ? 'Could not unlock the session.'
-            : 'Could not lock the session.',
+            ? 'Could Not Unlock The Session.'
+            : 'Could Not Lock The Session.',
       )
     } finally {
       setLocking(false)
@@ -97,11 +97,14 @@ export function CalibrationSessionBadge({
         <button
           type="button"
           className={badgeClass}
-          onClick={() => setLockOpen(true)}
+          onClick={() => {
+            setLockError(null)
+            setLockOpen(true)
+          }}
           aria-label={
             locked
-              ? `Session locked${changesHint}. Unlock session.`
-              : `Session unlocked${changesHint}. Lock session.`
+              ? `Session Locked${changesHint}. Unlock Session.`
+              : `Session Unlocked${changesHint}. Lock Session.`
           }
         >
           {badgeBody}
@@ -111,60 +114,35 @@ export function CalibrationSessionBadge({
           className={badgeClass}
           aria-label={
             locked
-              ? `Session locked${changesHint}`
-              : `Session unlocked${changesHint}`
+              ? `Session Locked${changesHint}`
+              : `Session Unlocked${changesHint}`
           }
         >
           {badgeBody}
         </span>
       )}
 
-      <Modal
+      <ConfirmDialog
         open={lockOpen}
-        onClose={() => {
-          if (!locking) setLockOpen(false)
+        onClose={() => setLockOpen(false)}
+        onConfirm={() => {
+          void applyLock()
         }}
-        title={locked ? 'Unlock session?' : 'Lock session?'}
+        title={locked ? 'Unlock Session?' : 'Lock Session?'}
         description={
           locked
-            ? 'Unlocking lets calibrators edit ratings and notes again.'
-            : 'Locking freezes ratings and notes for this sitting.'
+            ? 'Unlocking Lets Calibrators Edit Ratings And Notes Again.'
+            : 'Locking Freezes Ratings And Notes For This Sitting.'
         }
-        actions={
-          <>
-            <button
-              type="button"
-              className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-              disabled={locking}
-              onClick={() => setLockOpen(false)}
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
-              disabled={locking}
-              onClick={() => {
-                void applyLock()
-              }}
-            >
-              {locking
-                ? locked
-                  ? 'Unlocking…'
-                  : 'Locking…'
-                : locked
-                  ? 'Unlock session'
-                  : 'Lock session'}
-            </button>
-          </>
-        }
+        confirmLabel={locked ? 'Unlock Session' : 'Lock Session'}
+        confirmLoading={locking}
       >
         {lockError ? (
           <p className="pd-cal-rt__override-error" role="alert">
             {lockError}
           </p>
         ) : null}
-      </Modal>
+      </ConfirmDialog>
     </>
   )
 }

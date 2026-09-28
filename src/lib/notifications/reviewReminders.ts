@@ -4,6 +4,7 @@ import { buildScorecardsForCycle } from '@/lib/reviews/scorecards'
 import { listReviewCycles } from '@/lib/reviews/store'
 import type { DemoPerson } from '@/lib/goals/types'
 import { NOTIFICATION_EVENTS } from './catalogue'
+import { REVIEW_DUE_SOON_DAYS } from './reminderCadence'
 import { emitNotification, supersedeNotification } from './store'
 
 function dateKey(value: Date): string {
@@ -68,7 +69,7 @@ export function evaluateReviewNotifications(
       })
 
       const remainingDays = daysBetween(today, managerEnd)
-      if (remainingDays <= 3) {
+      if (remainingDays <= REVIEW_DUE_SOON_DAYS) {
         emitNotification(
           {
             eventKey: NOTIFICATION_EVENTS.REVIEW_DUE_SOON,

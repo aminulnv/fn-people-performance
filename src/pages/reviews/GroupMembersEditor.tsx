@@ -589,6 +589,10 @@ export function ColumnMultiSelectFilter({
     onChange([...new Set([...selected, ...visibleValues])])
   }
 
+  // Treat "all selected" like "none selected" — nothing is filtered out.
+  const isFilterApplied =
+    selected.length > 0 && selected.length < options.length
+
   return (
     <span
       ref={containerRef}
@@ -598,12 +602,12 @@ export function ColumnMultiSelectFilter({
         type="button"
         className={[
           'pd-cycle-groups-members__column-filter-trigger',
-          selected.length > 0 ? 'is-active' : '',
+          isFilterApplied ? 'is-active' : '',
         ]
           .filter(Boolean)
           .join(' ')}
         aria-label={
-          selected.length > 0
+          isFilterApplied
             ? `Filter ${label}, ${selected.length} selected`
             : `Filter ${label}`
         }

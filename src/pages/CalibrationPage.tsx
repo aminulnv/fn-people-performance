@@ -36,10 +36,8 @@ import {
   usePatchReviewPacketCache,
   useReviewPacketSummaries,
   useReviewPacketSummariesForCycles,
-  prefetchReviewPacketsForCycle,
 } from '@/lib/reviews/useReviewPackets'
 import { prefetchCalibrationSession } from '@/lib/calibration/useCalibrationSession'
-import { queryClient } from '@/lib/queryClient'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
@@ -76,8 +74,8 @@ function CohortFilter({
       allowEmpty
       label={label}
       emptyLabel={emptyLabel}
-      searchPlaceholder={`Search ${label.toLowerCase()}`}
-      noResultsText={`No ${label.toLowerCase()} match`}
+      searchPlaceholder={`Search ${label}`}
+      noResultsText={`No ${label} Match`}
       options={options.map((option) => ({ id: option, label: option }))}
       value={values}
       onChange={onChange}
@@ -178,33 +176,11 @@ export default function CalibrationPage() {
     contextReady ? contextCycleIds : [],
   )
 
-  // Sitting is cheap; warm it as soon as the cycle is known.
+  // Sitting + calibrator assignments are cheap; warm as soon as the cycle is known.
   useEffect(() => {
     if (!cycleId) return
     prefetchCalibrationSession(cycleId)
   }, [cycleId])
-
-  // Full packets are heavy — only warm drawers after summaries unblock the page.
-  useEffect(() => {
-    if (!cycleId || packetsData === undefined) return
-    let cancelled = false
-    const run = () => {
-      if (!cancelled) prefetchReviewPacketsForCycle(queryClient, cycleId)
-    }
-    const idleId =
-      typeof requestIdleCallback === 'function'
-        ? requestIdleCallback(run, { timeout: 2_000 })
-        : null
-    const timeoutId =
-      idleId == null ? window.setTimeout(run, 0) : null
-    return () => {
-      cancelled = true
-      if (idleId != null && typeof cancelIdleCallback === 'function') {
-        cancelIdleCallback(idleId)
-      }
-      if (timeoutId != null) window.clearTimeout(timeoutId)
-    }
-  }, [cycleId, packetsData])
 
   const packets = packetsData ?? []
   const historyPackets = useMemo(
@@ -227,7 +203,7 @@ export default function CalibrationPage() {
       (contextError && packetsData === undefined)
       ? ((packetsQueryError ?? contextQueryError) instanceof Error
         ? (packetsQueryError ?? contextQueryError)!.message
-        : 'Could not load calibration.')
+        : 'Could Not Load Calibration.')
       : null
 
   const retryLoad = () => {
@@ -392,7 +368,11 @@ export default function CalibrationPage() {
 
   return (
     <div
-      className="pd-page pd-page--wide pd-people pd-calibration"
+      className={
+        view === 'ratings'
+          ? 'pd-page pd-page--pane pd-page--wide pd-people pd-calibration'
+          : 'pd-page pd-page--wide pd-people pd-calibration'
+      }
       aria-label="Calibration"
     >
       {cycleOptions.length > 0 ? (
@@ -427,7 +407,7 @@ export default function CalibrationPage() {
                 onChange={setMarkets}
               />
               <CohortFilter
-                label="Job levels"
+                label="Job Levels"
                 emptyLabel="All Job Levels"
                 options={cohortOptions.jobLevels}
                 values={jobLevels}
@@ -474,7 +454,7 @@ export default function CalibrationPage() {
         <PageStatus
           variant="error"
           title="Could Not Load People"
-          description={loadError ?? 'Reload and try again.'}
+          description={loadError ?? 'Reload And Try Again.'}
         />
       ) : dataError ? (
         <PageStatus
@@ -493,8 +473,8 @@ export default function CalibrationPage() {
             title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
             description={
               cycleOptions.length === 0
-                ? 'Create a review cycle to start calibration.'
-                : 'Choose a cycle to see the employee rating table.'
+                ? 'Create A Review Cycle To Start Calibration.'
+                : 'Choose A Cycle To See The Employee Rating Table.'
             }
           />
         ) : (
@@ -523,8 +503,8 @@ export default function CalibrationPage() {
           title={cycleOptions.length === 0 ? 'No Cycles Yet' : 'Pick A Cycle'}
           description={
             cycleOptions.length === 0
-              ? 'Create a review cycle to start calibration.'
-              : 'Choose a cycle to see the rating distribution.'
+              ? 'Create A Review Cycle To Start Calibration.'
+              : 'Choose A Cycle To See The Rating Distribution.'
           }
         />
       ) : (
@@ -534,7 +514,7 @@ export default function CalibrationPage() {
               className="pd-people__empty-panel"
               icon={Scale}
               title="No Grades Yet"
-              description="Rating distribution appears once people in this cycle have an official grade."
+              description="Rating Distribution Appears Once People In This Cycle Have An Official Grade."
             />
           ) : (
             <RatingDistributionChart

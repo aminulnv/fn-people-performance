@@ -55,6 +55,8 @@ export const REQUIRED_MIGRATIONS = [
   '00047_archive_departments_and_teams.sql',
   '00048_notification_rules.sql',
   '00049_notification_browser_channel.sql',
+  '00050_notification_rules_enable_browser.sql',
+  '00051_notification_rules_fixed_day_labels.sql',
 ]
 
 export async function assertPlatformMigrations() {

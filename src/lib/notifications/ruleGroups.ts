@@ -126,7 +126,7 @@ export const NOTIFICATION_RULE_GROUPS: NotificationRuleGroup[] = [
     id: 'reviews-cycle',
     category: 'reviews',
     label: 'Self & manager reviews',
-    description: 'Stage opens, assignments, due soon, and overdue.',
+    description: 'Stage opens, assignments, 3-day due reminders, and overdue.',
     icon: ClipboardCheck,
     match: (rule) => REVIEW_CYCLE_KEYS.has(rule.eventKey),
   },

@@ -22,6 +22,8 @@ export type TooltipProps = {
   portal?: boolean
   /** Keep the tip open while the pointer is over it (for links). */
   interactive?: boolean
+  /** Suppress the tip (e.g. while a hover panel is already open). */
+  disabled?: boolean
 }
 
 const PORTAL_SIDES: TooltipSide[] = ['left', 'right']
@@ -120,6 +122,7 @@ export function Tooltip({
   delayMs = 120,
   portal,
   interactive = false,
+  disabled = false,
 }: TooltipProps) {
   const tipId = useId()
   const [open, setOpen] = useState(false)
@@ -146,6 +149,7 @@ export function Tooltip({
   }
 
   const show = () => {
+    if (disabled) return
     clearShowTimer()
     clearHideTimer()
     if (delayMs <= 0) {
@@ -168,6 +172,13 @@ export function Tooltip({
     clearShowTimer()
     clearHideTimer()
   }, [])
+
+  useLayoutEffect(() => {
+    if (!disabled) return
+    clearShowTimer()
+    clearHideTimer()
+    setOpen(false)
+  }, [disabled])
 
   useLayoutEffect(() => {
     if (!open) {

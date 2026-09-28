@@ -75,13 +75,13 @@ describe('RatingDistributionChart', () => {
 
     expect(
       screen.getByRole('img', {
-        name: /Developing: 20% · 4 people\. Guideline 28%\./,
+        name: /Developing: 20% · 4 People\. Guideline 28%\./,
       }),
     ).toBeTruthy()
-    expect(screen.getByText('Total in calibration')).toBeTruthy()
+    expect(screen.getByText('Total In Calibration')).toBeTruthy()
     expect(screen.getByText('20')).toBeTruthy()
-    expect(screen.getByText('Exceeding & above')).toBeTruthy()
-    expect(screen.getByText('Share of people')).toBeTruthy()
+    expect(screen.getByText('Exceeding & Above')).toBeTruthy()
+    expect(screen.getByText('Share Of People')).toBeTruthy()
     expect(screen.getByText('Guideline')).toBeTruthy()
     expect(screen.queryByText(/Bar height is the share/)).toBeNull()
   })

@@ -33,17 +33,17 @@ const HEATMAP_HINT = (
   <ul className="pd-help-tip">
     <li>
       <strong>Cells</strong>
-      Share of that manager’s graded team. Band colour intensity = share %.
-      Click a cell to open the people in that band.
+      Share Of That Manager’s Graded Team. Band Colour Intensity = Share %.
+      Click A Cell To Open The People In That Band.
     </li>
     <li>
       <strong>Outline</strong>
-      Outlier: &gt;40% of team at Developing & below (red), or &gt;60% at
-      Exceeding & above (green).
+      Outlier: &gt;40% Of Team At Developing & Below (Red), Or &gt;60% At
+      Exceeding & Above (Green).
     </li>
     <li>
-      <strong>Team avg / Vs org</strong>
-      Mean score from 1–5, compared with the cycle overall.
+      <strong>Team Avg / Vs Org</strong>
+      Mean Score From 1–5, Compared With The Cycle Overall.
     </li>
   </ul>
 )
@@ -96,7 +96,7 @@ function writeHeatmapPageSize(size: HeatmapPageSize) {
 }
 
 function peopleLabel(count: number): string {
-  return `${count} ${count === 1 ? 'employee' : 'employees'}`
+  return `${count} ${count === 1 ? 'Employee' : 'Employees'}`
 }
 
 function formatDelta(delta: number): string {
@@ -106,9 +106,9 @@ function formatDelta(delta: number): string {
 
 function vsOrgValue(row: ManagerHeatmapRow): string {
   if (row.vsOrgKind == null) return '—'
-  if (row.vsOrgKind === 'on') return '≈ On avg'
-  if (row.vsOrgKind === 'above') return '↑ Above avg'
-  return '↓ Below avg'
+  if (row.vsOrgKind === 'on') return '≈ On Avg'
+  if (row.vsOrgKind === 'above') return '↑ Above Avg'
+  return '↓ Below Avg'
 }
 
 function categoricalValue(
@@ -142,10 +142,10 @@ function VsOrgCell({ row }: { row: ManagerHeatmapRow }) {
   }
   const label =
     row.vsOrgKind === 'on'
-      ? '≈ On avg'
+      ? '≈ On Avg'
       : row.vsOrgKind === 'above'
-        ? '↑ Above avg'
-        : '↓ Below avg'
+        ? '↑ Above Avg'
+        : '↓ Below Avg'
   return (
     <span className={cx('pd-cal-heat__vs', `is-${row.vsOrgKind}`)}>
       <span className="pd-cal-heat__vs-label">{label}</span>
@@ -221,7 +221,7 @@ export function ManagerRatingHeatmap({
       return
     }
     setCellList({
-      title: 'Manager band',
+      title: 'Manager Band',
       subtitle: `${row.managerName} · ${heatmapBandLabel(cell.bandId)}`,
       people: listPersonFromIds(
         cell.employeeIds,
@@ -359,14 +359,14 @@ export function ManagerRatingHeatmap({
   )
 
   return (
-    <section className="pd-cal-heat" aria-label="Manager rating heatmap">
+    <section className="pd-cal-heat" aria-label="Manager Rating Heatmap">
       <header className="pd-cal-heat__head">
         <h2 className="pd-cal-heat__title">
           <span className="pd-cal-heat__step" aria-hidden>
             3
           </span>
           Manager Rating Heatmap
-          <HintIcon content={HEATMAP_HINT} label="About manager rating heatmap" />
+          <HintIcon content={HEATMAP_HINT} label="About Manager Rating Heatmap" />
         </h2>
       </header>
 
@@ -391,8 +391,8 @@ export function ManagerRatingHeatmap({
                   className="pd-cal-heat__empty"
                   colSpan={HEATMAP_BAND_ORDER.length + 3}
                 >
-                  No graded manager teams in this cycle yet. Rows appear once
-                  reports have an official grade.
+                  No Graded Manager Teams In This Cycle Yet. Rows Appear Once
+                  Reports Have An Official Grade.
                 </td>
               </tr>
             ) : totalRows === 0 ? (
@@ -401,7 +401,7 @@ export function ManagerRatingHeatmap({
                   className="pd-cal-heat__empty"
                   colSpan={HEATMAP_BAND_ORDER.length + 3}
                 >
-                  No managers match the current column filters.
+                  No Managers Match The Current Column Filters.
                 </td>
               </tr>
             ) : (
@@ -430,8 +430,8 @@ export function ManagerRatingHeatmap({
                     const intensity = heatmapIntensity(cell.percent, cell.count)
                     const title =
                       cell.count > 0
-                        ? `${cell.percent}% · ${cell.count} ${cell.count === 1 ? 'person' : 'people'}`
-                        : 'No people in this band'
+                        ? `${cell.percent}% · ${cell.count} ${cell.count === 1 ? 'Person' : 'People'}`
+                        : 'No People In This Band'
                     const cellClass = cx(
                       'pd-cal-heat__cell',
                       `is-${cell.bandId}`,
@@ -458,7 +458,7 @@ export function ManagerRatingHeatmap({
                             type="button"
                             className={cellClass}
                             title={title}
-                            aria-label={`${heatmapBandLabel(cell.bandId)} for ${row.managerName}: ${title}. Open people.`}
+                            aria-label={`${heatmapBandLabel(cell.bandId)} For ${row.managerName}: ${title}. Open People.`}
                             onClick={() => openCellPeople(row, cell)}
                           >
                             {body}
@@ -503,17 +503,17 @@ export function ManagerRatingHeatmap({
       {sourceTotal > 0 ? (
         <footer className="pd-cal-heat__pager">
           <label className="pd-cal-heat__page-size">
-            <span className="pd-cal-heat__page-size-label">Rows per page</span>
+            <span className="pd-cal-heat__page-size-label">Rows Per Page</span>
             <ListboxSelect
               value={String(pageSize)}
               onValueChange={handlePageSizeChange}
               options={[...PAGE_SIZE_OPTIONS]}
               allowEmpty={false}
-              aria-label="Rows per page"
+              aria-label="Rows Per Page"
             />
           </label>
           <p className="pd-cal-heat__range" aria-live="polite">
-            {rangeStart}–{rangeEnd} of {totalRows}
+            {rangeStart}–{rangeEnd} Of {totalRows}
           </p>
           {pageCount > 1 ? (
             <Pagination

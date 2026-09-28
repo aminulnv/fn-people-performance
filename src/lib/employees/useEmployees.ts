@@ -123,7 +123,12 @@ export function useOrganisation(
   const organisation = useMemo(() => {
     const base = buildOrganisationFromEmployees(employeesState.employees)
     return catalog.length > 0 || teams.length > 0
-      ? mergeOrganisationWithCatalog(base, catalog, teams)
+      ? mergeOrganisationWithCatalog(
+          base,
+          catalog,
+          teams,
+          employeesState.employees,
+        )
       : base
   }, [catalog, employeesState.employees, teams])
 

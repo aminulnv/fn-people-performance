@@ -3,8 +3,8 @@
  * labels. ensureSeeded() inserts any missing event_key from this list.
  */
 
-const inApp = ['in_app']
-const inAppAndEmail = ['in_app', 'email']
+const inApp = ['in_app', 'browser']
+const inAppAndEmail = ['in_app', 'email', 'browser']
 
 function rule(definition) {
   return definition
@@ -308,11 +308,11 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.results_reminder',
-    name: 'Update goal results',
+    name: 'Update goal results (14 days before cycle end)',
     category: 'goals',
     audienceKey: 'employee',
     audienceLabel: 'Employees with open results',
-    whenLabel: 'When results updates are due',
+    whenLabel: '14 days before the cycle ends',
     timingKind: 'reminder',
     enabled: true,
     channels: [...inAppAndEmail],
@@ -322,11 +322,11 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.team.stale_summary',
-    name: 'Stale progress on the team',
+    name: 'Stale progress on the team (14 days)',
     category: 'goals',
     audienceKey: 'manager',
     audienceLabel: 'Managers with stale reports',
-    whenLabel: 'When reports have not updated progress recently',
+    whenLabel: 'When reports have no progress update for 14 days',
     timingKind: 'reminder',
     enabled: true,
     channels: [...inApp],
@@ -421,11 +421,11 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.due_soon',
-    name: 'Review due soon',
+    name: 'Review due in 3 days',
     category: 'reviews',
     audienceKey: 'manager',
     audienceLabel: 'The reviewer',
-    whenLabel: 'A few days before a review is due',
+    whenLabel: '3 days before a review is due',
     timingKind: 'reminder',
     enabled: true,
     channels: [...inAppAndEmail],
@@ -505,11 +505,11 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.calibration.due_soon',
-    name: 'Calibration due soon',
+    name: 'Calibration closes in 3 days',
     category: 'reviews',
     audienceKey: 'administrators',
     audienceLabel: 'Calibrators',
-    whenLabel: 'A few days before calibration closes',
+    whenLabel: '3 days before calibration closes',
     timingKind: 'reminder',
     enabled: true,
     channels: [...inAppAndEmail],

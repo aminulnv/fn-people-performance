@@ -29,12 +29,29 @@ export type RatingComparisonRow = RatingComparisonGroup & {
   barPercent: number
 }
 
+export type RatingComparisonSeriesBar = {
+  id: string
+  label: string
+  count: number
+  averageScore: number
+  averageBand: GradeBandId
+  barPercent: number
+  role: 'subject' | 'baseline'
+  tone: RatingComparisonTone
+}
+
 export type RatingComparisonModel = {
   groups: RatingComparisonGroup[]
   rows: RatingComparisonRow[]
+  /** When comparing one group to a named baseline, both series as bars. */
+  series: RatingComparisonSeriesBar[]
   baselineScore: number | null
+  baselineBand: GradeBandId | null
+  baselineCount: number | null
   baselineLabel: string
   baselineLinePercent: number | null
+  /** True when scope is a single group and baseline is another named group. */
+  isPairwise: boolean
 }
 
 const ON_AVG_DELTA = 0.3
@@ -166,16 +183,26 @@ export function buildRatingComparisonModel(input: {
         ) / 100
 
   let baselineScore: number | null = null
-  let baselineLabel = 'Avg of All'
+  let baselineBand: GradeBandId | null = null
+  let baselineCount: number | null = null
+  let baselineLabel = 'Avg Of All'
+  let baselineGroup: RatingComparisonGroup | null = null
 
   if (input.baselineId === 'avg') {
     baselineScore = avgOfScoped
+    baselineBand = avgOfScoped == null ? null : bandForScore(avgOfScoped)
+    baselineCount =
+      scoped.length === 0
+        ? null
+        : scoped.reduce((sum, group) => sum + group.count, 0)
     baselineLabel =
-      input.scopeId === 'all' ? 'Avg of All' : `Avg of ${scoped[0]?.label ?? 'above'}`
+      input.scopeId === 'all' ? 'Avg Of All' : `Avg Of ${scoped[0]?.label ?? 'Above'}`
   } else {
-    const baselineGroup =
+    baselineGroup =
       input.groups.find((group) => group.id === input.baselineId) ?? null
     baselineScore = baselineGroup?.averageScore ?? null
+    baselineBand = baselineGroup?.averageBand ?? null
+    baselineCount = baselineGroup?.count ?? null
     baselineLabel = baselineGroup?.label ?? 'Baseline'
   }
 
@@ -192,13 +219,58 @@ export function buildRatingComparisonModel(input: {
     }
   })
 
+  const isPairwise =
+    input.scopeId !== 'all' &&
+    input.baselineId !== 'avg' &&
+    rows.length === 1 &&
+    baselineGroup != null &&
+    baselineGroup.id !== rows[0]?.id
+
+  const series: RatingComparisonSeriesBar[] = isPairwise
+    ? [
+        {
+          id: rows[0]!.id,
+          label: rows[0]!.label,
+          count: rows[0]!.count,
+          averageScore: rows[0]!.averageScore,
+          averageBand: rows[0]!.averageBand,
+          barPercent: rows[0]!.barPercent,
+          role: 'subject',
+          tone: rows[0]!.tone,
+        },
+        {
+          id: baselineGroup!.id,
+          label: baselineGroup!.label,
+          count: baselineGroup!.count,
+          averageScore: baselineGroup!.averageScore,
+          averageBand: baselineGroup!.averageBand,
+          barPercent: scoreToBarPercent(baselineGroup!.averageScore),
+          role: 'baseline',
+          tone: 'on',
+        },
+      ]
+    : rows.map((row) => ({
+        id: row.id,
+        label: row.label,
+        count: row.count,
+        averageScore: row.averageScore,
+        averageBand: row.averageBand,
+        barPercent: row.barPercent,
+        role: 'subject' as const,
+        tone: row.tone,
+      }))
+
   return {
     groups: [...input.groups],
     rows,
+    series,
     baselineScore,
+    baselineBand,
+    baselineCount,
     baselineLabel,
     baselineLinePercent:
       baselineScore == null ? null : scoreToBarPercent(baselineScore),
+    isPairwise,
   }
 }
 

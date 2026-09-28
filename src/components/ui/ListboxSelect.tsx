@@ -1,6 +1,7 @@
 import {
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -41,6 +42,8 @@ export type ListboxSelectProps = {
   portal?: boolean
   /** Open the list when first mounted (e.g. after a lazy placeholder click). */
   defaultOpen?: boolean
+  /** Called when the open state changes. */
+  onOpenChange?: (open: boolean) => void
   /** Show the selected option’s description beside the label in the closed trigger. */
   showDescriptionInTrigger?: boolean
   'aria-label'?: string
@@ -62,6 +65,7 @@ export function ListboxSelect({
   noResultsText = 'No options found',
   portal = true,
   defaultOpen = false,
+  onOpenChange,
   showDescriptionInTrigger = false,
   'aria-label': ariaLabel,
 }: ListboxSelectProps) {
@@ -80,6 +84,10 @@ export function ListboxSelect({
     panelRef,
     fitContent: true,
   })
+
+  useEffect(() => {
+    onOpenChange?.(open)
+  }, [onOpenChange, open])
 
   const items = useMemo(() => {
     const next = [...options]
@@ -136,6 +144,15 @@ export function ListboxSelect({
     if (!open || searchable) return
     optionRefs.current[activeIndex]?.focus()
   }, [open, activeIndex, searchable])
+
+  const panelReady = !portal || portalStyle != null
+
+  useLayoutEffect(() => {
+    if (!open || !searchable || !panelReady) return
+    // Portalled panels stay visibility:hidden until positioned; focusing
+    // earlier can leave the caret on the trigger (e.g. defaultOpen adders).
+    searchRef.current?.focus()
+  }, [open, panelReady, searchable])
 
   const enabledIndexes = filteredItems
     .map((item, index) => (item.disabled ? -1 : index))
@@ -244,6 +261,32 @@ export function ListboxSelect({
           : undefined
       }
     >
+      {searchable ? (
+        <div className="pd-listbox__search">
+          <Search
+            size={16}
+            strokeWidth={1.8}
+            className="pd-listbox__search-icon"
+            aria-hidden
+          />
+          <input
+            ref={searchRef}
+            type="search"
+            role="combobox"
+            disabled={disabled}
+            placeholder={searchPlaceholder}
+            value={query}
+            autoFocus
+            aria-label={ariaLabel ? `${ariaLabel} search` : searchPlaceholder}
+            aria-expanded={open}
+            aria-controls={`${listboxId}-list`}
+            aria-autocomplete="list"
+            aria-activedescendant={activeOptionId}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={onComboboxKeyDown}
+          />
+        </div>
+      ) : null}
       <div
         id={`${listboxId}-list`}
         role="listbox"
@@ -309,88 +352,44 @@ export function ListboxSelect({
       {name ? (
         <input type="hidden" name={name} value={value} readOnly />
       ) : null}
-      {searchable ? (
-        <div
-          className={cx(
-            'pd-listbox__trigger',
-            'pd-listbox__trigger--combobox',
-            showPlaceholder && !open && 'pd-listbox__trigger--placeholder',
-          )}
-        >
-          <Search
-            size={16}
-            strokeWidth={1.8}
-            className="pd-listbox__search-icon"
-            aria-hidden
-          />
-          {!open && selected?.leading ? selected.leading : null}
-          <input
-            ref={searchRef}
-            id={listboxId}
-            type="search"
-            role="combobox"
-            className="pd-listbox__trigger-input"
-            disabled={disabled}
-            placeholder={searchPlaceholder || placeholder}
-            value={open ? query : displayLabel}
-            aria-label={ariaLabel}
-            aria-expanded={open}
-            aria-controls={`${listboxId}-list`}
-            aria-autocomplete="list"
-            aria-activedescendant={activeOptionId}
-            onFocus={() => {
-              if (disabled) return
-              setOpen(true)
-            }}
-            onChange={(event) => {
-              setQuery(event.target.value)
-              setOpen(true)
-            }}
-            onKeyDown={onComboboxKeyDown}
-          />
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            className={cx('pd-listbox__chevron', open && 'is-open')}
-            aria-hidden
-          />
-        </div>
-      ) : (
-        <button
-          type="button"
-          id={listboxId}
-          className={cx(
-            'pd-listbox__trigger',
-            showPlaceholder && 'pd-listbox__trigger--placeholder',
-          )}
-          disabled={disabled}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          aria-controls={`${listboxId}-list`}
-          aria-label={ariaLabel}
-          onClick={() => {
-            if (disabled) return
-            setOpen((previousOpen) => !previousOpen)
-          }}
-          onKeyDown={onTriggerKeyDown}
-        >
-          <span className="pd-listbox__value">
-            {!showPlaceholder && selected?.leading ? selected.leading : null}
-            <span className="pd-listbox__value-text">
-              {showPlaceholder ? placeholder : displayLabel}
-            </span>
-            {showDescriptionInTrigger && !showPlaceholder && selected?.description ? (
-              <span className="pd-listbox__value-hint">{selected.description}</span>
-            ) : null}
+      <button
+        type="button"
+        id={listboxId}
+        className={cx(
+          'pd-listbox__trigger',
+          showPlaceholder && 'pd-listbox__trigger--placeholder',
+        )}
+        disabled={disabled}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={`${listboxId}-list`}
+        aria-label={ariaLabel}
+        onClick={() => {
+          if (disabled) return
+          setOpen((previousOpen) => !previousOpen)
+        }}
+        onKeyDown={onTriggerKeyDown}
+      >
+        <span className="pd-listbox__value">
+          {!showPlaceholder && selected?.leading ? selected.leading : null}
+          <span className="pd-listbox__value-text">
+            {showPlaceholder ? placeholder : displayLabel}
           </span>
-          <ChevronDown
-            size={16}
-            strokeWidth={2}
-            className={cx('pd-listbox__chevron', open && 'is-open')}
-            aria-hidden
-          />
-        </button>
-      )}
+          {showDescriptionInTrigger &&
+          !showPlaceholder &&
+          selected?.description ? (
+            <span className="pd-listbox__value-hint">
+              {selected.description}
+            </span>
+          ) : null}
+        </span>
+        <ChevronDown
+          size={16}
+          strokeWidth={2}
+          className={cx('pd-listbox__chevron', open && 'is-open')}
+          aria-hidden
+        />
+      </button>
       {portal && optionsPanel
         ? createPortal(optionsPanel, document.body)
         : optionsPanel}

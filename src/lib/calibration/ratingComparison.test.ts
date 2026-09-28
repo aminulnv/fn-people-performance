@@ -144,7 +144,72 @@ describe('buildRatingComparisonModel', () => {
       'Commercial',
     ])
     expect(model.baselineScore).toBe(3.25)
+    expect(model.baselineBand).toBe('performing')
+    expect(model.baselineCount).toBe(4)
+    expect(model.isPairwise).toBe(false)
+    expect(model.series).toHaveLength(2)
     expect(model.rows[0]?.tone).toBe('above')
     expect(model.rows[1]?.tone).toBe('below')
+  })
+
+  it('builds a pairwise series when comparing two named groups', () => {
+    const employees = [
+      employee({ employeeId: 1, fullName: 'Mgr', department: 'Technology' }),
+      employee({
+        employeeId: 10,
+        fullName: 'A',
+        department: 'Technology',
+        reportsToId: 1,
+      }),
+      employee({
+        employeeId: 11,
+        fullName: 'B',
+        department: 'Technology',
+        reportsToId: 1,
+      }),
+      employee({
+        employeeId: 12,
+        fullName: 'C',
+        department: 'Commercial',
+        reportsToId: 1,
+      }),
+      employee({
+        employeeId: 13,
+        fullName: 'D',
+        department: 'Commercial',
+        reportsToId: 1,
+      }),
+    ]
+    const groups = buildRatingComparisonGroups({
+      cycle: cycle([10, 11, 12, 13]),
+      employees,
+      packets: [
+        packet(10, 1, 'exceeding'),
+        packet(11, 1, 'exceeding'),
+        packet(12, 1, 'performing'),
+        packet(13, 1, 'developing'),
+      ],
+      view: 'department',
+    })
+    const tech = groups.find((group) => group.label === 'Technology')
+    const commercial = groups.find((group) => group.label === 'Commercial')
+    expect(tech && commercial).toBeTruthy()
+
+    const model = buildRatingComparisonModel({
+      groups,
+      scopeId: tech!.id,
+      baselineId: commercial!.id,
+    })
+
+    expect(model.isPairwise).toBe(true)
+    expect(model.series.map((bar) => bar.role)).toEqual([
+      'subject',
+      'baseline',
+    ])
+    expect(model.baselineScore).toBe(commercial!.averageScore)
+    expect(model.baselineCount).toBe(2)
+    expect(model.rows[0]?.delta).toBe(
+      Math.round((tech!.averageScore - commercial!.averageScore) * 100) / 100,
+    )
   })
 })

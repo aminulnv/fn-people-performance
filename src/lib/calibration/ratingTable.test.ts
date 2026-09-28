@@ -170,7 +170,7 @@ describe('buildEmployeeRatingRows', () => {
       indicators: [
         {
           id: 'self_higher_than_manager',
-          title: 'Self-rating 2+ tiers higher than manager',
+          title: 'Self-Rating 2+ Tiers Higher Than Manager',
           definition: 'Gap flag',
           tone: 'warning',
           count: 1,
@@ -201,6 +201,7 @@ describe('buildEmployeeRatingRows', () => {
     const bea = rows.find((row) => row.employeeId === 11)!
     expect(bea.isAdjusted).toBe(false)
     expect(bea.gapTiers).toBe(0)
+    expect(bea.managerGrade).toBe('performing')
     expect(bea.annualGrade).toBe('exceeding')
 
     expect(ratingTableProgress(rows)).toEqual({
@@ -209,6 +210,33 @@ describe('buildEmployeeRatingRows', () => {
       adjusted: 0,
       clean: 1,
     })
+  })
+
+  it('leaves final rating empty until the manager has rated', () => {
+    const rows = buildEmployeeRatingRows({
+      cycle: current,
+      cycles: [current, previous],
+      employees: people,
+      packets: [
+        packet('annual-2025', 10, {
+          self: 'performing',
+        }),
+        packet('annual-2025', 11, {
+          manager: 'performing',
+          self: 'exceeding',
+        }),
+      ],
+    })
+
+    const withoutManager = rows.find((row) => row.employeeId === 10)!
+    expect(withoutManager.selfGrade).toBe('performing')
+    expect(withoutManager.managerGrade).toBeNull()
+    expect(withoutManager.annualGrade).toBeNull()
+    expect(withoutManager.gapTiers).toBeNull()
+
+    const withManager = rows.find((row) => row.employeeId === 11)!
+    expect(withManager.managerGrade).toBe('performing')
+    expect(withManager.annualGrade).toBe('performing')
   })
 
   it('maps sitting status, notes, pip, and adjusted onto rows', () => {
@@ -356,6 +384,27 @@ describe('buildEmployeeRatingRows', () => {
         quickFilter: 'all',
         department: ['Technology', 'Commercial'],
         jobLevel: ['IC3+'],
+      }).map((row) => row.employeeId),
+    ).toEqual([10])
+    expect(
+      filterRatingTableRows(rows, {
+        quickFilter: 'all',
+        columnFilters: { market: ['MY'] },
+      }).map((row) => row.employeeId),
+    ).toEqual([11])
+    expect(
+      filterRatingTableRows(rows, {
+        quickFilter: 'all',
+        columnFilters: {
+          annual: ['Exceeding'],
+          department: ['Technology'],
+        },
+      }).map((row) => row.employeeId),
+    ).toEqual([])
+    expect(
+      filterRatingTableRows(rows, {
+        quickFilter: 'all',
+        columnFilters: { gap: ['−2 Self'] },
       }).map((row) => row.employeeId),
     ).toEqual([10])
   })

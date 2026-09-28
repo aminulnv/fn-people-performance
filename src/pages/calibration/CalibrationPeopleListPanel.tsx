@@ -76,7 +76,7 @@ export function CalibrationPeopleListPanel({
   return (
     <SettingsSidePanel
       label={title}
-      closeLabel="Close employee list"
+      closeLabel="Close Employee List"
       defaultWidth={480}
       onClose={onClose}
       title={
@@ -93,7 +93,7 @@ export function CalibrationPeopleListPanel({
     >
       {people.length === 0 ? (
         <p className="pd-cal-people-panel__empty">
-          No matching people in this cycle.
+          No Matching People In This Cycle.
         </p>
       ) : (
         <ul className="pd-cal-people-panel__list">

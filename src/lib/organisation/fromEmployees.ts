@@ -262,12 +262,18 @@ export function buildOrganisationFromEmployees(
 function catalogPerson(
   employeeId: number | null,
   name: string | null,
+  employeesById?: Map<number, PlatformEmployee>,
 ): OrgPersonRef | null {
   const fullName = name?.trim() ?? ''
   if (employeeId == null && !fullName) return null
+  const match =
+    employeeId != null ? employeesById?.get(employeeId) : undefined
+  const resolvedName = match?.fullName?.trim() || fullName
+  const avatarUrl = match?.avatarUrl?.trim()
   return {
     ...(employeeId != null ? { employeeId } : {}),
-    fullName,
+    fullName: resolvedName,
+    ...(avatarUrl ? { avatarUrl } : {}),
   }
 }
 
@@ -287,8 +293,12 @@ export function mergeOrganisationWithCatalog(
   snapshot: OrganisationSnapshot,
   catalog: PlatformDepartment[],
   teams: PlatformTeam[] = [],
+  employees: readonly PlatformEmployee[] = [],
 ): OrganisationSnapshot {
   const matchCatalog = catalog.length > 0 || teams.length > 0
+  const employeesById = new Map(
+    employees.map((employee) => [employee.employeeId, employee]),
+  )
   const byKey = new Map(
     snapshot.departments
       .filter((department) => !matchCatalog || department.name !== UNASSIGNED)
@@ -308,13 +318,17 @@ export function mergeOrganisationWithCatalog(
     if (!name) continue
     const key = departmentKey(name)
     const existing = byKey.get(key)
-    const catalogHead = catalogPerson(row.headEmployeeId, row.headName)
+    const catalogHead = catalogPerson(
+      row.headEmployeeId,
+      row.headName,
+      employeesById,
+    )
 
     if (existing) {
       byKey.set(key, {
         ...existing,
         head: catalogHead,
-        hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName),
+        hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName, employeesById),
         headcount: Math.max(existing.headcount, row.headcount),
       })
       continue
@@ -324,7 +338,7 @@ export function mergeOrganisationWithCatalog(
       id: key,
       name,
       head: catalogHead,
-      hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName),
+      hrbp: catalogPerson(row.hrbpEmployeeId, row.hrbpName, employeesById),
       headcount: row.headcount,
       teams: [],
       memberIds: [],
@@ -346,7 +360,11 @@ export function mergeOrganisationWithCatalog(
       memberIds: [],
     }
     const id = teamKey(departmentName, teamName)
-    const catalogManager = catalogPerson(row.ownerEmployeeId, row.ownerName)
+    const catalogManager = catalogPerson(
+      row.ownerEmployeeId,
+      row.ownerName,
+      employeesById,
+    )
     const existingTeam = existingDept.teams.find((team) => team.id === id)
     const nextTeams = existingTeam
         ? existingDept.teams.map((team) =>

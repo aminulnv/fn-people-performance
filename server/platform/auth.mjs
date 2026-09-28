@@ -20,7 +20,7 @@ import { getPool } from '../db.mjs'
 import { asyncHandler, HttpError } from '../errors.mjs'
 import { authRateLimit } from '../rateLimit.mjs'
 import { sessionSecret } from './sessionSecret.mjs'
-import { getEmployeeAccess, hasAccessAssignments } from './store.mjs'
+import { getEmployeeAccess } from './store.mjs'
 
 const COOKIE_NAME = 'pd_platform_sid'
 const OAUTH_STATE_COOKIE = 'pd_platform_oauth'
@@ -266,7 +266,7 @@ function bootstrapAdminEmails() {
     .split(',')
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean)
-  // First read+write admin until a persistent assignment exists.
+  // Always-on read+write admins (alongside Settings → Admin Access).
   if (configured.length === 0) {
     configured.push('aminul.islam@nextventures.io')
   }
@@ -274,17 +274,16 @@ function bootstrapAdminEmails() {
 }
 
 /**
- * The built-in admin email only applies while Settings has no access
- * assignments. Once any assignment exists, Admin Access is the real list.
+ * Bootstrap admin emails always keep full access. Everyone else uses their
+ * Admin Access assignment (empty list = no elevated permissions).
  */
 export function permissionsForAccessRules({
   email,
   bootstrapEmails,
-  rulesExist,
   assignedPermissions,
 }) {
   const normalized = String(email ?? '').trim().toLowerCase()
-  if (!rulesExist && normalized && bootstrapEmails.has(normalized)) {
+  if (normalized && bootstrapEmails.has(normalized)) {
     return BOOTSTRAP_PERMISSIONS
   }
   return assignedPermissions ?? []
@@ -292,11 +291,9 @@ export function permissionsForAccessRules({
 
 export async function permissionsForPlatformUser(user) {
   const access = await getEmployeeAccess(user?.employeeId ?? null)
-  const rulesExist = await hasAccessAssignments()
   return permissionsForAccessRules({
     email: user?.email,
     bootstrapEmails: bootstrapAdminEmails(),
-    rulesExist,
     assignedPermissions: access.permissions,
   })
 }

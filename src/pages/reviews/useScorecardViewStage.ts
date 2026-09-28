@@ -4,7 +4,7 @@ import {
   parseScorecardViewStage,
   resolveScorecardViewStage,
   scorecardStageIsOpen,
-  visibleScorecardSteps,
+  visibleScorecardStepsForViewer,
   type ScorecardViewStage,
 } from '@/lib/reviews/scorecardStages'
 import type { ReviewPacket, ReviewStageConfig } from '@/lib/reviews/types'
@@ -15,7 +15,11 @@ export function useScorecardViewStage(input: {
   viewerEmployeeId?: number | null
 }) {
   const [searchParams, setSearchParams] = useSearchParams()
-  const steps = visibleScorecardSteps(input.stages, input.packet)
+  const steps = visibleScorecardStepsForViewer(
+    input.stages,
+    input.packet,
+    input.viewerEmployeeId,
+  )
   const currentIndex = currentScorecardStepIndex(
     steps,
     input.packet?.status ?? 'not_started',

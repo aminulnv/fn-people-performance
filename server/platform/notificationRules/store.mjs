@@ -40,6 +40,19 @@ function renderTemplate(template, variables) {
   })
 }
 
+function testVariablesForEvent(eventKey) {
+  const key = String(eventKey)
+  const dayMatch = /\.day_(\d+)$/.exec(key)
+  if (dayMatch) return { ...TEST_VARIABLES, days: dayMatch[1] }
+  if (key === 'review.due_soon' || key === 'review.calibration.due_soon') {
+    return { ...TEST_VARIABLES, days: '3' }
+  }
+  if (key === 'goal.results_reminder' || key === 'goal.team.stale_summary') {
+    return { ...TEST_VARIABLES, days: '14' }
+  }
+  return TEST_VARIABLES
+}
+
 function mapRule(row) {
   return {
     eventKey: row.event_key,
@@ -315,8 +328,9 @@ export async function sendTestNotificationRule(eventKey, actor) {
     throw error
   }
 
-  const title = `Test · ${renderTemplate(rule.titleTemplate, TEST_VARIABLES)}`
-  const body = renderTemplate(rule.bodyTemplate, TEST_VARIABLES)
+  const variables = testVariablesForEvent(eventKey)
+  const title = `Test · ${renderTemplate(rule.titleTemplate, variables)}`
+  const body = renderTemplate(rule.bodyTemplate, variables)
   const kind =
     rule.category === 'access'
       ? 'security'

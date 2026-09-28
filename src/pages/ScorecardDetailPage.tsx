@@ -11,7 +11,7 @@ import {
 import { PageStatus } from '@/components/ui'
 import { useHydrateManagerDelegations, useManagerDelegationsRevision } from '@/lib/delegations/useManagerDelegations'
 import { useEmployees } from '@/lib/employees/useEmployees'
-import { selectGoalCycle } from '@/lib/goalsApi'
+import { ensurePersonGoalsHydrated } from '@/lib/goalsApi'
 import { getGoalsSnapshotForCycle, subscribeGoalsStore } from '@/lib/goals/store'
 import { useAuth } from '@/lib/auth'
 import { canWriteManagerReview } from '@/lib/reviews/managerReviewAccess'
@@ -32,6 +32,7 @@ import {
   feedbackRoleForViewStage,
   gradeForViewStage,
   scorecardEditStage,
+  scorecardReviewFormIsEditable,
   stageShowsReviewForm,
 } from '@/lib/reviews/scorecardStages'
 import {
@@ -51,7 +52,9 @@ import {
   useScorecardFormsSnapshot,
 } from '@/lib/reviews/useReviews'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
-import { getReviewStage } from '@/lib/reviews/reviewStages'
+import { getReviewStage, isGoalsOnlyQuarter } from '@/lib/reviews/reviewStages'
+import { describeReviewEditWindowLock } from '@/lib/reviews/editWindow'
+import { ReviewEditLockRibbon } from '@/pages/reviews/ReviewEditLockRibbon'
 import type { GradeBandId } from '@/lib/reviews/types'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ReviewPacketView } from '@/pages/reviews/ReviewPacketView'
@@ -64,6 +67,7 @@ import { ScorecardSkillsGradeCard } from '@/pages/reviews/ScorecardSkillsGradeCa
 import { ScorecardValuesGradeCard } from '@/pages/reviews/ScorecardValuesGradeCard'
 import { useAnnualLinkedQuarters } from '@/pages/reviews/useAnnualLinkedQuarters'
 import { ScorecardHero } from '@/pages/reviews/ScorecardHero'
+import { ScorecardStageNav } from '@/pages/reviews/ScorecardStageNav'
 import { useScorecardViewStage } from '@/pages/reviews/useScorecardViewStage'
 import {
   skillIdFromScorePillarId,
@@ -85,12 +89,38 @@ import {
 import '@/styles/layout-reviews.css'
 import '@/styles/layout-people.css'
 
+/** Thin shell — edit mode must not mount the view-mode data waterfall. */
 export default function ScorecardDetailPage() {
   const { cycleKey = '', employeeId: employeeIdParam } = useParams()
   const [searchParams] = useSearchParams()
+  const employeeId = Number(employeeIdParam)
+  const editing = searchParams.get('mode') === 'edit'
+  const { cycles } = useReviewsSnapshot()
+  const resolvedCycleId = useMemo(
+    () => resolveReviewCycleKey(cycleKey),
+    [cycleKey, cycles],
+  )
+
+  if (!Number.isInteger(employeeId) || employeeId <= 0) {
+    return <Navigate to={reviewsTabPath('scorecards')} replace />
+  }
+
+  if (editing) {
+    return <ReviewPacketView cycleId={resolvedCycleId} employeeId={employeeId} />
+  }
+
+  return <ScorecardDetailView cycleKey={cycleKey} employeeId={employeeId} />
+}
+
+function ScorecardDetailView({
+  cycleKey,
+  employeeId,
+}: {
+  cycleKey: string
+  employeeId: number
+}) {
   const location = useLocation()
   const navigate = useNavigate()
-  const employeeId = Number(employeeIdParam)
   const { user } = useAuth()
   const { employees, isLoading } = useEmployees()
   useHydrateManagerDelegations(user?.employeeId ?? undefined)
@@ -109,7 +139,6 @@ export default function ScorecardDetailPage() {
   )
   const [goalsRevision, setGoalsRevision] = useState(0)
   const [saveNotice, setSaveNotice] = useState<ReviewSaveNotice | null>(null)
-  const editing = searchParams.get('mode') === 'edit'
   const incomingNotice = (
     location.state as { reviewNotice?: ReviewSaveNotice } | null
   )?.reviewNotice
@@ -136,17 +165,18 @@ export default function ScorecardDetailPage() {
     employeeId,
     goalsPillar,
     goalsRevision,
+    enabled: Boolean(packet),
   })
 
   useEffect(() => {
     let cancelled = false
-    void selectGoalCycle(resolvedCycleId).then(() => {
+    void ensurePersonGoalsHydrated(resolvedCycleId, employeeId).then(() => {
       if (!cancelled) setGoalsRevision((value) => value + 1)
     })
     return () => {
       cancelled = true
     }
-  }, [resolvedCycleId])
+  }, [employeeId, resolvedCycleId])
 
   useEffect(() => {
     return subscribeGoalsStore(() => setGoalsRevision((value) => value + 1))
@@ -200,8 +230,21 @@ export default function ScorecardDetailPage() {
     directory: employees,
     permissions: user?.permissions,
   })
+  const formStillEditable = scorecardReviewFormIsEditable(
+    editStage,
+    packet,
+    isSubject,
+  )
+  const windowLock = describeReviewEditWindowLock({
+    cycle,
+    stages,
+    formStage: editStage,
+  })
   const showEdit =
-    editStage === 'self_review' ? isSubject : canEditManagerReview
+    Boolean(packet) &&
+    !windowLock &&
+    formStillEditable &&
+    (editStage === 'self_review' ? isSubject : canEditManagerReview)
   const formVisibility =
     viewingFeedbackRole === 'self' ? 'employee' : 'manager'
   const viewQuestions = stageShowsReviewForm(stageView.viewing)
@@ -264,14 +307,6 @@ export default function ScorecardDetailPage() {
   const priorSkills = skillsWithStoredGrades(skillGrades, skillsCatalog)
   const priorValues = valuesWithStoredGrades(valueGrades)
 
-  if (!Number.isInteger(employeeId) || employeeId <= 0) {
-    return <Navigate to={reviewsTabPath('scorecards')} replace />
-  }
-
-  if (editing) {
-    return <ReviewPacketView cycleId={resolvedCycleId} employeeId={employeeId} />
-  }
-
   if (!detail) {
     if (isLoading || (!packetReady && packetPending) || !cyclesHydrated) {
       return (
@@ -287,21 +322,28 @@ export default function ScorecardDetailPage() {
   }
 
   return (
-    <div
-      className="pd-page pd-page--wide pd-reviews pd-reviews-scorecard pd-review-packet"
-      aria-label={`${detail.employeeName} performance review`}
-    >
+    <>
+      {windowLock ? <ReviewEditLockRibbon lock={windowLock} /> : null}
+      <div
+        className="pd-page pd-page--wide pd-reviews pd-reviews-scorecard pd-review-packet"
+        aria-label={`${detail.employeeName} performance review`}
+      >
       <ReviewSaveBanner
         notice={saveNotice}
         onDismiss={() => setSaveNotice(null)}
       />
-      <ScorecardHero
-        detail={detail}
+      <ScorecardStageNav
         packet={packet}
         stages={stages}
         viewerEmployeeId={user?.employeeId}
-        viewingStage={stageView.viewing}
+        viewing={stageView.viewing}
         onViewStage={stageView.selectStage}
+      />
+      <ScorecardHero
+        detail={detail}
+        packet={packet}
+        viewerEmployeeId={user?.employeeId}
+        viewingStage={stageView.viewing}
       />
 
       {linkedQuarters.enabled ? (
@@ -318,26 +360,34 @@ export default function ScorecardDetailPage() {
           }}
         />
       ) : (
-        <ScorecardGoalsCard
-          cycleId={resolvedCycleId}
-          personId={String(detail.employeeId)}
-          owner={{
-            id: String(detail.employeeId),
-            name: detail.employeeName,
-            avatarUrl: detail.employeeAvatarUrl || undefined,
-          }}
-          cycleLabel={detail.cycleLabel}
-          goals={
-            getGoalsSnapshotForCycle(resolvedCycleId).byPerson[
-              String(detail.employeeId)
-            ]?.goals ?? []
-          }
-          overallPercent={detail.goalsOverallPercent}
-          overallBand={
-            gradesGoalsSeparately(policy) ? detail.goalsOverallBand : null
-          }
-          goalsHref={goalsDetailPath(resolvedCycleId, String(detail.employeeId))}
-        />
+        <>
+          {isGoalsOnlyQuarter(cycle?.periodKey) ? (
+            <p className="pd-reviews-flow__hint">
+              Progress only — the manager sets the Goals grade in the annual
+              review.
+            </p>
+          ) : null}
+          <ScorecardGoalsCard
+            cycleId={resolvedCycleId}
+            personId={String(detail.employeeId)}
+            owner={{
+              id: String(detail.employeeId),
+              name: detail.employeeName,
+              avatarUrl: detail.employeeAvatarUrl || undefined,
+            }}
+            cycleLabel={detail.cycleLabel}
+            goals={
+              getGoalsSnapshotForCycle(resolvedCycleId).byPerson[
+                String(detail.employeeId)
+              ]?.goals ?? []
+            }
+            overallPercent={detail.goalsOverallPercent}
+            overallBand={
+              gradesGoalsSeparately(policy) ? detail.goalsOverallBand : null
+            }
+            goalsHref={goalsDetailPath(resolvedCycleId, String(detail.employeeId))}
+          />
+        </>
       )}
 
       {showSkillsForm && skillsPillarOn ? (
@@ -473,5 +523,6 @@ export default function ScorecardDetailPage() {
         </ReviewActionIsland>
       ) : null}
     </div>
+    </>
   )
 }

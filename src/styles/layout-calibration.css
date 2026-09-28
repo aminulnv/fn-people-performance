@@ -836,13 +836,9 @@
 .pd-cal-heat__table thead th .pd-cycle-groups-members__column-heading {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 0.25rem;
   width: 100%;
-}
-
-.pd-cal-heat__table thead th:first-child .pd-cycle-groups-members__column-heading {
-  justify-content: flex-start;
 }
 
 .pd-cal-heat__table thead th:first-child,
@@ -1188,7 +1184,7 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 
 .pd-cal-cmp__panel {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.85rem;
   min-width: 0;
   padding: 0.7rem 0.85rem 0.75rem;
   border: 1px solid var(--color-border);
@@ -1220,10 +1216,15 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   flex-shrink: 0;
 }
 
-.pd-cal-cmp__filters .pd-listbox {
-  flex: 0 1 12rem;
-  min-width: 8rem;
-  max-width: 14rem;
+.pd-cal-cmp__filters .pd-cycle-select {
+  flex: 0 1 14rem;
+  min-width: 9rem;
+  max-width: 16rem;
+}
+
+.pd-cal-cmp__filters .pd-cycle-select__trigger {
+  width: 100%;
+  justify-content: space-between;
 }
 
 .pd-cal-cmp__vs {
@@ -1232,18 +1233,154 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   font-weight: 500;
 }
 
-.pd-cal-cmp__rows {
-  list-style: none;
+.pd-cal-cmp__summary {
   display: grid;
-  grid-template-columns: max-content minmax(6rem, 1fr) max-content 2.5rem;
-  row-gap: 0.5rem;
-  column-gap: 0.65rem;
-  margin: 0;
-  padding: 0;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 0.65rem;
+  min-width: 0;
 }
 
-.pd-cal-cmp__row {
+.pd-cal-cmp__callout {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'label n'
+    'score score'
+    'band band';
+  gap: 0.1rem 0.5rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+}
+
+.pd-cal-cmp__callout.is-muted {
+  background: transparent;
+}
+
+.pd-cal-cmp__callout.is-above {
+  border-color: color-mix(in srgb, var(--color-blue) 35%, var(--color-border));
+}
+
+.pd-cal-cmp__callout.is-below {
+  border-color: color-mix(in srgb, var(--color-red) 35%, var(--color-border));
+}
+
+.pd-cal-cmp__callout-label {
+  grid-area: label;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pd-cal-cmp__callout-score {
+  grid-area: score;
+  color: var(--color-text);
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+
+.pd-cal-cmp__callout-band {
+  grid-area: band;
+  color: var(--color-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.pd-cal-cmp__callout-n {
+  grid-area: n;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.2rem;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.pd-cal-cmp__delta-pill {
+  display: grid;
+  place-content: center;
+  align-self: center;
+  gap: 0.05rem;
+  min-width: 3.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: var(--radius-md, 0.5rem);
+  text-align: center;
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
+}
+
+.pd-cal-cmp__delta-pill.is-above {
+  color: var(--color-blue);
+  background: color-mix(in srgb, var(--color-blue) 12%, var(--color-surface));
+}
+
+.pd-cal-cmp__delta-pill.is-below {
+  color: var(--color-red);
+  background: color-mix(in srgb, var(--color-red) 12%, var(--color-surface));
+}
+
+.pd-cal-cmp__delta-pill.is-on {
+  color: var(--color-status-completed);
+}
+
+.pd-cal-cmp__delta-pill-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.pd-cal-cmp__delta-pill-caption {
+  color: var(--color-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.pd-cal-cmp__chart {
+  --pd-cal-cmp-name: max-content;
+  --pd-cal-cmp-score: 5.75rem;
+  --pd-cal-cmp-delta: 3.25rem;
+  --pd-cal-cmp-people: 2.5rem;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.pd-cal-cmp__chart.has-summary {
+  --pd-cal-cmp-delta: 0rem;
+}
+
+.pd-cal-cmp__chart.has-summary .pd-cal-cmp__delta,
+.pd-cal-cmp__chart.has-summary .pd-cal-cmp__marker-row> :nth-child(4),
+.pd-cal-cmp__chart.has-summary .pd-cal-cmp__axis> :nth-child(4) {
+  display: none;
+}
+
+.pd-cal-cmp__chart.has-summary .pd-cal-cmp__rows {
+  column-gap: 0.65rem;
+  grid-template-columns:
+    var(--pd-cal-cmp-name) minmax(6rem, 1fr) var(--pd-cal-cmp-score) var(--pd-cal-cmp-people);
+}
+
+.pd-cal-cmp__marker-row,
+.pd-cal-cmp__row,
+.pd-cal-cmp__axis {
   display: grid;
   grid-template-columns: subgrid;
   grid-column: 1 / -1;
@@ -1251,10 +1388,69 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   min-width: 0;
 }
 
+.pd-cal-cmp__marker-track {
+  position: relative;
+  min-width: 0;
+  min-height: 1.55rem;
+}
+
+.pd-cal-cmp__baseline-tag {
+  position: absolute;
+  bottom: 0.1rem;
+  z-index: 2;
+  display: grid;
+  gap: 0.05rem;
+  max-width: 8rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: var(--radius-sm, 0.25rem);
+  background: var(--color-surface-raised, var(--color-surface));
+  border: 1px solid var(--color-border);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text) 8%, transparent);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.pd-cal-cmp__baseline-tag-value {
+  color: var(--color-text);
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.pd-cal-cmp__baseline-tag-label {
+  color: var(--color-text-secondary);
+  font-size: 0.6rem;
+  font-weight: 500;
+  line-height: 1.15;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pd-cal-cmp__rows {
+  list-style: none;
+  display: grid;
+  grid-template-columns:
+    var(--pd-cal-cmp-name) minmax(6rem, 1fr) var(--pd-cal-cmp-score) var(--pd-cal-cmp-delta) var(--pd-cal-cmp-people);
+  row-gap: 0.55rem;
+  column-gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  align-items: center;
+}
+
+.pd-cal-cmp__row.is-baseline .pd-cal-cmp__name {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
 .pd-cal-cmp__name {
   color: var(--color-text);
   font-size: 0.75rem;
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -1262,33 +1458,35 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 .pd-cal-cmp__track {
   position: relative;
   min-width: 0;
-  height: 1.875rem;
+  height: 1.5rem;
   border-radius: var(--radius-sm, 0.25rem);
-  background: color-mix(in srgb, var(--color-text) 5%, var(--color-surface));
+  background:
+    repeating-linear-gradient(to right,
+      transparent 0,
+      transparent calc(20% - 1px),
+      color-mix(in srgb, var(--color-text) 8%, transparent) calc(20% - 1px),
+      color-mix(in srgb, var(--color-text) 8%, transparent) 20%),
+    color-mix(in srgb, var(--color-text) 4%, var(--color-surface));
   overflow: visible;
 }
 
 .pd-cal-cmp__line {
   position: absolute;
-  top: -0.2rem;
-  bottom: -0.2rem;
+  top: -0.35rem;
+  bottom: -0.35rem;
   z-index: 1;
-  width: 0.125rem;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--color-text) 35%, transparent);
+  width: 0;
+  border-left: 1.5px dashed color-mix(in srgb, var(--color-text) 45%, transparent);
   transform: translateX(-50%);
   pointer-events: none;
 }
 
 .pd-cal-cmp__bar {
-  display: flex;
-  align-items: center;
+  display: block;
   height: 100%;
-  min-width: 0;
-  padding: 0 0.5rem;
+  min-width: 0.25rem;
   border-radius: var(--radius-sm, 0.25rem);
   background: var(--color-status-on-hold);
-  overflow: hidden;
 }
 
 .pd-cal-cmp__bar.is-below {
@@ -1303,22 +1501,45 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   background: var(--color-status-on-hold);
 }
 
-.pd-cal-cmp__bar-label {
-  color: var(--color-white);
-  font-size: 0.7rem;
-  font-weight: 600;
+.pd-cal-cmp__bar.is-baseline-bar {
+  background: color-mix(in srgb, var(--color-text) 28%, transparent);
+}
+
+.pd-cal-cmp__score {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+  line-height: 1.1;
+}
+
+.pd-cal-cmp__score-num {
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.pd-cal-cmp__score-band {
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 500;
   white-space: nowrap;
-  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pd-cal-cmp__delta {
   color: var(--color-text);
-  font-size: 0.7rem;
-  font-weight: 500;
+  font-size: 0.75rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.25;
+  text-align: right;
   white-space: nowrap;
+}
+
+.pd-cal-cmp__delta.is-spacer {
+  visibility: hidden;
 }
 
 .pd-cal-cmp__delta.is-on {
@@ -1326,7 +1547,7 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 }
 
 .pd-cal-cmp__delta.is-above {
-  color: var(--color-status-pending);
+  color: var(--color-blue);
 }
 
 .pd-cal-cmp__delta.is-below {
@@ -1343,6 +1564,31 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.pd-cal-cmp__axis-track {
+  position: relative;
+  min-width: 0;
+  height: 0.9rem;
+}
+
+.pd-cal-cmp__tick {
+  position: absolute;
+  top: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.65rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transform: translateX(-50%);
+}
+
+.pd-cal-cmp__tick:first-child {
+  transform: translateX(0);
+}
+
+.pd-cal-cmp__tick:last-child {
+  transform: translateX(-100%);
 }
 
 .pd-cal-cmp__empty {
@@ -1365,10 +1611,9 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 
 .pd-cal-cmp__guide-mark {
   display: inline-block;
-  width: 0.625rem;
-  height: 0.2rem;
-  border-radius: 2px;
-  background: color-mix(in srgb, var(--color-text) 40%, transparent);
+  width: 0.75rem;
+  height: 0;
+  border-top: 1.5px dashed color-mix(in srgb, var(--color-text) 45%, transparent);
   flex-shrink: 0;
 }
 
@@ -2073,20 +2318,43 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .pd-cal-cmp__summary {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .pd-cal-cmp__delta-pill {
+    justify-self: center;
+  }
+
   .pd-cal-cmp__rows {
     grid-template-columns: minmax(0, 1fr);
     column-gap: 0;
   }
 
+  .pd-cal-cmp__marker-row {
+    display: none;
+  }
+
   .pd-cal-cmp__row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     grid-column: auto;
     grid-template-areas:
-      'name people'
-      'track track'
-      'delta delta';
+      'name score people'
+      'track track track'
+      'delta delta delta';
     gap: 0.35rem 0.55rem;
+  }
+
+  .pd-cal-cmp__axis {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: auto;
+  }
+
+  .pd-cal-cmp__axis> :not(.pd-cal-cmp__axis-track) {
+    display: none;
   }
 
   .pd-cal-cmp__name {
@@ -2097,8 +2365,14 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
     grid-area: track;
   }
 
+  .pd-cal-cmp__score {
+    grid-area: score;
+    text-align: right;
+  }
+
   .pd-cal-cmp__delta {
     grid-area: delta;
+    text-align: left;
   }
 
   .pd-cal-cmp__people {
@@ -2126,7 +2400,7 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 
 /* Keep summary cards within the page width so auto-fit wraps instead of
    stretching into one ultra-wide row beside the rating table. */
-.pd-cal-rt > .pd-people__summary {
+.pd-cal-rt>.pd-people__summary {
   min-width: 0;
   max-width: 100%;
 }
@@ -2147,9 +2421,9 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 
 .pd-cal-rt__progress {
   display: grid;
-  gap: 0.85rem;
+  gap: 0.7rem;
   min-width: 0;
-  padding: 1.1rem 1.2rem 1.15rem;
+  padding: 1rem 1.2rem;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
@@ -2159,9 +2433,9 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
 .pd-cal-rt__progress-head {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1.25rem;
+  gap: 0.55rem 1rem;
   min-width: 0;
 }
 
@@ -2194,11 +2468,9 @@ button.pd-cal-heat__cell.is-clickable:focus-visible {
   min-height: 1.5rem;
   padding: 0.15rem 0.55rem;
   border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--color-status-completed) 12%,
-    var(--color-surface)
-  );
+  background: color-mix(in srgb,
+      var(--color-status-completed) 12%,
+      var(--color-surface));
   color: var(--color-status-completed);
   font-size: 0.78rem;
   font-weight: 700;
@@ -2303,9 +2575,12 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 .pd-cal-rt__legend {
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.45rem;
   margin: 0;
   padding: 0;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .pd-cal-rt__legend-chip {
@@ -2335,13 +2610,10 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 .pd-cal-rt__legend-chip.is-active {
   color: var(--color-text);
   border-color: color-mix(in srgb, var(--legend-accent, var(--color-theme)) 40%, transparent);
-  background: color-mix(
-    in srgb,
-    var(--legend-accent, var(--color-theme)) 10%,
-    var(--color-surface)
-  );
-  box-shadow: inset 0 0 0 1px
-    color-mix(in srgb, var(--legend-accent, var(--color-theme)) 16%, transparent);
+  background: color-mix(in srgb,
+      var(--legend-accent, var(--color-theme)) 10%,
+      var(--color-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--legend-accent, var(--color-theme)) 16%, transparent);
 }
 
 .pd-cal-rt__legend-chip.is-flagged {
@@ -2459,11 +2731,104 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   color: var(--color-red);
 }
 
+.pd-cal-rt__filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem 0.85rem;
+  min-width: 0;
+}
+
 .pd-cal-rt__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
   min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.pd-cal-rt__filter-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
+
+.pd-cal-rt__filter-actions .pd-people__ghost-btn {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.84rem;
+}
+
+.pd-cal-rt__select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-1, 0.25rem);
+  cursor: pointer;
+}
+
+.pd-cal-rt__select .pd-cycle-extensions__search-check {
+  position: relative;
+  width: 1.05rem;
+  height: 1.05rem;
+  border-radius: 0.3rem;
+  border: 1.5px solid color-mix(in srgb, var(--color-text) 24%, transparent);
+  background: var(--color-surface, var(--color-bg));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pd-cal-rt__select .pd-cycle-extensions__search-check.is-checked {
+  background: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.pd-cal-rt__select .pd-cycle-extensions__search-check.is-checked::after {
+  content: '';
+  width: 0.28rem;
+  height: 0.5rem;
+  border: solid var(--color-on-success, var(--color-surface));
+  border-width: 0 0.125rem 0.125rem 0;
+  transform: rotate(45deg) translate(-0.04rem, -0.06rem);
+}
+
+.pd-cal-rt__select-cell {
+  width: 2.75rem;
+  max-width: 2.75rem;
+  padding-inline: var(--spacing-2, 0.5rem) !important;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.pd-people__table.pd-cal-rt__table th[data-col='select'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__select-cell {
+  width: 2.75rem;
+  max-width: 2.75rem;
+  padding-inline: var(--spacing-2, 0.5rem) !important;
+  text-align: center;
+}
+
+.pd-people__table.pd-cal-rt__table .pd-cal-rt__select .pd-cycle-extensions__search-check.is-partial {
+  background: color-mix(in srgb, var(--color-cta) 18%, var(--color-surface));
+  border-color: var(--color-cta);
+}
+
+.pd-people__table.pd-cal-rt__table .pd-cal-rt__select .pd-cycle-extensions__search-check.is-partial::after {
+  content: '';
+  position: absolute;
+  inset: 50% 0.22rem auto;
+  height: 0.12rem;
+  width: auto;
+  border: none;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: var(--color-cta);
 }
 
 .pd-cal-rt__chip {
@@ -2502,24 +2867,49 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 .pd-cal-rt__table-stage {
   min-width: 0;
   max-width: 100%;
-  /* Contain the max-content table so it doesn't widen the page/stat cards. */
-  overflow-x: clip;
 }
 
 .pd-cal-rt__table-wrap {
   min-width: 0;
   max-width: 100%;
   width: 100%;
-  overflow-x: auto;
+  overflow: auto;
+  max-height: min(70dvh, 40rem);
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
   background: var(--color-surface-raised, var(--color-surface));
   box-shadow: var(--people-control-shadow, var(--shadow-card));
 }
 
+/*
+ * Ratings view uses `.pd-page--pane` so the table owns leftover viewport height.
+ * Keep scroll on the wrap (not the page) so thead sticky can freeze the header.
+ */
+@media (min-width: 700px) {
+  .pd-page--pane.pd-calibration>.pd-cal-rt {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .pd-page--pane.pd-calibration .pd-cal-rt__table-stage {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .pd-page--pane.pd-calibration .pd-cal-rt__table-wrap {
+    flex: 1;
+    min-height: 14rem;
+    max-height: none;
+  }
+}
+
 .pd-cal-rt__table-stage--enter {
-  animation: pd-cal-rt-table-in var(--pd-page-enter-duration, 280ms)
-    var(--pd-page-enter-ease, cubic-bezier(0.23, 1, 0.32, 1)) both;
+  /* `backwards` only — avoid `both`/`forwards` so transform clears and sticky headers work. */
+  animation: pd-cal-rt-table-in var(--pd-page-enter-duration, 280ms) var(--pd-page-enter-ease, cubic-bezier(0.23, 1, 0.32, 1)) backwards;
 }
 
 @keyframes pd-cal-rt-table-in {
@@ -2531,7 +2921,7 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 
 @media (prefers-reduced-motion: reduce) {
   .pd-cal-rt__table-stage--enter {
-    animation: pd-cal-rt-table-in-reduced 160ms ease-out both;
+    animation: pd-cal-rt-table-in-reduced 160ms ease-out backwards;
   }
 
   @keyframes pd-cal-rt-table-in-reduced {
@@ -2543,6 +2933,11 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 
 .pd-people__table.pd-cal-rt__table col {
   width: auto !important;
+}
+
+.pd-people__table.pd-cal-rt__table {
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .pd-people__table.pd-cal-rt__table.pd-table-resize--laid-out,
@@ -2574,10 +2969,38 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   text-overflow: clip;
 }
 
+.pd-people__table.pd-cal-rt__table .pd-table-resize__heading:has(.pd-cycle-groups-members__column-filter-menu) {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pd-people__table.pd-cal-rt__table .pd-table-resize__heading:has(.pd-cycle-groups-members__column-filter-menu) > .pd-cycle-groups-members__column-heading {
+  flex: 1 1 auto;
+}
+
 .pd-people__table.pd-cal-rt__table .pd-cal-rt__grade,
 .pd-people__table.pd-cal-rt__table .pd-cal-rt__gap {
   width: max-content;
   max-width: none;
+}
+
+/* Center every column by default; identity columns stay start-aligned. */
+.pd-people__table.pd-cal-rt__table th,
+.pd-people__table.pd-cal-rt__table td {
+  text-align: center;
+}
+
+.pd-people__table.pd-cal-rt__table th[data-col='employee'],
+.pd-people__table.pd-cal-rt__table th[data-col='manager'],
+.pd-people__table.pd-cal-rt__table th[data-col='department'],
+.pd-people__table.pd-cal-rt__table th[data-col='team'],
+.pd-people__table.pd-cal-rt__table th[data-col='market'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell,
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__start {
+  text-align: left;
 }
 
 .pd-cal-rt__table tbody tr.is-flagged {
@@ -2590,55 +3013,174 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
       var(--color-surface));
 }
 
-.pd-people__table.pd-cal-rt__table th:first-child,
-.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell {
+.pd-cal-rt__table tbody tr.is-selected {
+  background: color-mix(in srgb, var(--color-cta) 8%, var(--color-surface));
+}
+
+.pd-cal-rt__table tbody tr.is-selected.is-flagged {
+  background: color-mix(in srgb, var(--color-red) 5%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
+}
+
+.pd-cal-rt__table tbody tr.is-selected.is-adjusted {
+  background: color-mix(in srgb, var(--color-status-pending) 6%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
+}
+
+/*
+ * Freeze header row while the body scrolls inside the wrap.
+ * Specificity must beat `.pd-people__table … th:has(.pd-table-resize__handle)
+ * { position: relative }` so resize handles don't unpin the row.
+ */
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th,
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th:has(.pd-table-resize__handle),
+.pd-people__table.pd-cal-rt__table thead th,
+.pd-people__table.pd-cal-rt__table thead th:has(.pd-table-resize__handle) {
   position: sticky;
-  left: 0;
-  z-index: 1;
-  overflow: visible;
-  background: var(--color-surface-raised, var(--color-surface));
-  border-right: 1px solid var(--color-border);
-}
-
-/* Shadow must be a ::after — box-shadow on td/th is painted under the next column. */
-.pd-people__table.pd-cal-rt__table th:first-child::after,
-.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell::after {
-  content: '';
-  position: absolute;
   top: 0;
-  right: 0;
-  bottom: 0;
-  width: 0.75rem;
-  transform: translateX(100%);
-  pointer-events: none;
-  background: linear-gradient(to right,
-      color-mix(in srgb, var(--color-text) 14%, transparent),
-      transparent);
-}
-
-/* Beat .pd-table-resize--laid-out/--sized overflow:hidden so the edge shadow isn't clipped. */
-.pd-people__table.pd-cal-rt__table.pd-table-resize--laid-out td.pd-cal-rt__employee-cell,
-.pd-people__table.pd-cal-rt__table.pd-table-resize--sized td.pd-cal-rt__employee-cell {
-  overflow: visible;
-}
-
-.pd-people__table.pd-cal-rt__table th:first-child {
-  --pd-table-head-z: 4;
-  z-index: 2;
+  z-index: var(--pd-table-head-z, 3);
   background: var(--people-table-head-bg,
       color-mix(in srgb,
         var(--color-text) 2%,
         var(--color-surface-raised, var(--color-surface))));
 }
 
-.pd-cal-rt__table tbody tr.is-flagged td.pd-cal-rt__employee-cell {
-  background: color-mix(in srgb, var(--color-red) 4%, var(--color-surface));
+.pd-people__table.pd-cal-rt__table th[data-col='select'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table th[data-col='employee'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell {
+  position: sticky;
+  /* Above scrolling body cells (avatars are position:relative and would otherwise
+     paint over the frozen columns when the table is scrolled horizontally). */
+  z-index: 2;
+  overflow: hidden;
+  background-color: var(--color-surface-raised, var(--color-surface));
+  background-image: none;
 }
 
+.pd-people__table.pd-cal-rt__table th[data-col='select'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__select-cell {
+  left: 0;
+  z-index: 2;
+  border-right: none;
+}
+
+.pd-people__table.pd-cal-rt__table th[data-col='employee'],
+.pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell {
+  left: 2.75rem;
+  z-index: 3;
+  border-right: 1px solid var(--color-border);
+}
+
+/* No select column: employee pins at the left edge. */
+.pd-people__table.pd-cal-rt__table thead:not(:has(th[data-col='select'])) th[data-col='employee'],
+.pd-people__table.pd-cal-rt__table tbody:not(:has(td.pd-cal-rt__select-cell)) td.pd-cal-rt__employee-cell {
+  left: 0;
+}
+
+/* Keep non-frozen cells under the sticky columns while scrolling. */
+.pd-people__table.pd-cal-rt__table tbody td:not(.pd-cal-rt__select-cell):not(.pd-cal-rt__employee-cell) {
+  position: relative;
+  z-index: 0;
+}
+
+/* Scroll shadow via box-shadow so sticky cells can keep overflow:hidden. */
+.pd-cal-rt__table-wrap.is-scrolled-x .pd-people__table.pd-cal-rt__table th[data-col='employee'],
+.pd-cal-rt__table-wrap.is-scrolled-x .pd-people__table.pd-cal-rt__table td.pd-cal-rt__employee-cell {
+  box-shadow: 0.45rem 0 0.55rem -0.35rem color-mix(in srgb, var(--color-text) 28%, transparent);
+}
+
+.pd-people__table.pd-cal-rt__table th[data-col='select'],
+.pd-people__table.pd-cal-rt__table th[data-col='employee'] {
+  --pd-table-head-z: 4;
+  z-index: 4;
+  background-color: var(--people-table-head-bg,
+      color-mix(in srgb,
+        var(--color-text) 2%,
+        var(--color-surface-raised, var(--color-surface))));
+}
+
+/* Corner: stay pinned on both axes above header + body sticky cells. */
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th[data-col='select'],
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th[data-col='select']:has(.pd-table-resize__handle),
+.pd-people__table.pd-cal-rt__table thead th[data-col='select'],
+.pd-people__table.pd-cal-rt__table thead th[data-col='select']:has(.pd-table-resize__handle),
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th[data-col='employee'],
+.pd-page--pane .pd-people__table.pd-cal-rt__table thead th[data-col='employee']:has(.pd-table-resize__handle),
+.pd-people__table.pd-cal-rt__table thead th[data-col='employee'],
+.pd-people__table.pd-cal-rt__table thead th[data-col='employee']:has(.pd-table-resize__handle) {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background-color: var(--people-table-head-bg,
+      color-mix(in srgb,
+        var(--color-text) 2%,
+        var(--color-surface-raised, var(--color-surface))));
+}
+
+.pd-cal-rt__table tbody tr.is-flagged td.pd-cal-rt__select-cell,
+.pd-cal-rt__table tbody tr.is-flagged td.pd-cal-rt__employee-cell {
+  background-color: color-mix(in srgb, var(--color-red) 4%, var(--color-surface));
+}
+
+.pd-cal-rt__table tbody tr.is-adjusted td.pd-cal-rt__select-cell,
 .pd-cal-rt__table tbody tr.is-adjusted td.pd-cal-rt__employee-cell {
-  background: color-mix(in srgb,
+  background-color: color-mix(in srgb,
       var(--color-status-pending) 6%,
       var(--color-surface));
+}
+
+/* Must stay opaque — invalid color-mix (e.g. missing token) unset → transparent
+   and scrolled manager cells show through the frozen columns. */
+.pd-cal-rt__table tbody tr.is-selected td.pd-cal-rt__select-cell,
+.pd-cal-rt__table tbody tr.is-selected td.pd-cal-rt__employee-cell {
+  background-color: color-mix(in srgb, var(--color-cta) 8%, var(--color-surface));
+}
+
+.pd-cal-rt__table tbody tr.is-selected.is-flagged td.pd-cal-rt__select-cell,
+.pd-cal-rt__table tbody tr.is-selected.is-flagged td.pd-cal-rt__employee-cell {
+  background-color: color-mix(in srgb, var(--color-red) 5%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
+}
+
+.pd-cal-rt__table tbody tr.is-selected.is-adjusted td.pd-cal-rt__select-cell,
+.pd-cal-rt__table tbody tr.is-selected.is-adjusted td.pd-cal-rt__employee-cell {
+  background-color: color-mix(in srgb, var(--color-status-pending) 6%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
+}
+
+/* Beat `.pd-people__table tbody tr:hover td { background: … transparent }` so
+   scrolled manager/avatar cells cannot show through the frozen columns. */
+.pd-people__table.pd-cal-rt__table tbody tr:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-text) 3.5%, var(--color-surface));
+}
+
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-cta) 11%, var(--color-surface));
+}
+
+.pd-people__table.pd-cal-rt__table tbody tr.is-flagged:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr.is-flagged:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-red) 6%, var(--color-surface));
+}
+
+.pd-people__table.pd-cal-rt__table tbody tr.is-adjusted:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr.is-adjusted:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-status-pending) 8%, var(--color-surface));
+}
+
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected.is-flagged:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected.is-flagged:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-red) 6%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
+}
+
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected.is-adjusted:hover td.pd-cal-rt__select-cell,
+.pd-people__table.pd-cal-rt__table tbody tr.is-selected.is-adjusted:hover td.pd-cal-rt__employee-cell {
+  background: color-mix(in srgb, var(--color-status-pending) 8%,
+      color-mix(in srgb, var(--color-cta) 6%, var(--color-surface)));
 }
 
 .pd-cal-rt__person {
@@ -2922,13 +3464,6 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   min-width: 0;
 }
 
-.pd-cal-rt__override-current {
-  margin: 0;
-  color: var(--color-text-secondary);
-  font-size: 0.85rem;
-  line-height: 1.4;
-}
-
 .pd-cal-rt__override-field {
   display: grid;
   gap: 0.4rem;
@@ -2938,6 +3473,16 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   font-weight: 600;
 }
 
+.pd-cal-rt__override-field .pd-field__control {
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: none;
+}
+
+.pd-cal-rt__override-field .pd-reviews-scorecard__goals-grade {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .pd-cal-rt__override-error {
   margin: 0;
   color: var(--color-red);
@@ -2945,33 +3490,14 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   line-height: 1.4;
 }
 
-.pd-cal-rt__cosign,
-.pd-cal-drawer__cosign {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.55rem;
-  margin: 0;
-  padding: 0.65rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--color-amber) 35%, var(--color-border));
-  border-radius: var(--radius-md, 0.5rem);
-  background: color-mix(in srgb, var(--color-amber) 10%, var(--color-surface));
-  color: var(--color-text);
-  font-size: 0.82rem;
-  font-weight: 550;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-.pd-cal-rt__cosign input,
-.pd-cal-drawer__cosign input {
-  margin-top: 0.15rem;
-  flex-shrink: 0;
-}
-
 @media (max-width: 52rem) {
   .pd-cal-rt__progress-head {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .pd-cal-rt__legend {
+    justify-content: flex-start;
   }
 
   .pd-cal-rt__progress-actions {
@@ -3583,6 +4109,16 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   font-weight: 600;
 }
 
+.pd-cal-drawer__field .pd-field__control {
+  background: var(--color-surface-raised, var(--color-surface));
+  box-shadow: none;
+}
+
+.pd-cal-drawer__field .pd-reviews-scorecard__goals-grade {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .pd-cal-drawer__override {
   display: grid;
   gap: 0.75rem;
@@ -3637,39 +4173,154 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   min-width: 0;
 }
 
+.pd-settings-panel__sheet:has(.pd-cal-calibrators-panel),
+.pd-settings-panel__sheet:has(.pd-cal-calibrators-panel) .pd-settings-panel__chrome,
+.pd-settings-panel__sheet:has(.pd-cal-calibrators-panel) .pd-settings-panel__subnav,
+.pd-settings-panel__body:has(> .pd-cal-calibrators-panel) {
+  background: var(--color-surface);
+}
+
 .pd-settings-panel__body:has(> .pd-cal-calibrators-panel) {
   scrollbar-gutter: stable;
 }
 
-.pd-cal-calibrators-panel__list {
-  display: grid;
-  gap: 0.75rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.pd-settings-panel__sheet:has(.pd-cal-calibrators-panel) .pd-settings-panel__subnav .pd-segmented,
+.pd-cal-calibrators-panel .pd-search__control,
+.pd-cal-calibrators-panel .pd-listbox__trigger {
+  background: var(--color-surface);
+  box-shadow: none;
 }
 
-.pd-cal-calibrators-panel__card {
-  display: grid;
-  gap: 0.65rem;
-  padding: 0.85rem 0.95rem;
+.pd-cal-calibrators-panel .pd-listbox__trigger:hover:not(:disabled),
+.pd-cal-calibrators-panel .pd-listbox__trigger:focus-visible,
+.pd-cal-calibrators-panel .pd-listbox.is-open .pd-listbox__trigger,
+.pd-cal-calibrators-panel .pd-search__control:focus-within {
+  background: var(--color-surface);
+}
+
+.pd-cal-calibrators-panel__table-wrap {
+  min-width: 0;
+  overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--people-radius-panel, 1rem);
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  background: var(--color-surface);
 }
 
-.pd-cal-calibrators-panel__card-head {
-  display: grid;
-  gap: 0.15rem;
+.pd-cal-calibrators-panel__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.pd-cal-calibrators-panel__table th,
+.pd-cal-calibrators-panel__table td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.pd-cal-calibrators-panel__table th {
+  color: var(--color-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--color-surface);
+}
+
+.pd-cal-calibrators-panel__table th:first-child,
+.pd-cal-calibrators-panel__table td:first-child {
+  width: 48%;
+}
+
+.pd-cal-calibrators-panel__table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.pd-cal-calibrators-panel__cell-label {
   min-width: 0;
 }
 
-.pd-cal-calibrators-panel__card-title {
-  margin: 0;
+.pd-cal-calibrators-panel__row-label {
+  display: block;
   color: var(--color-text);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
   font-weight: 650;
   line-height: 1.3;
+}
+
+.pd-cal-calibrators-panel__row-meta {
+  display: block;
+  margin-top: 0.15rem;
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
+.pd-cal-calibrators-panel__cell-calibrators {
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__calibrators {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__card-add {
+  position: relative;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  min-width: 0;
+}
+
+.pd-cal-calibrators-panel__add-listbox {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.pd-cal-calibrators-panel__add-listbox .pd-listbox__trigger {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pd-cal-calibrators-panel__add-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.5rem);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.pd-cal-calibrators-panel__add-btn.is-open,
+.pd-cal-calibrators-panel__add-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-text) 22%, var(--color-border));
+}
+
+.pd-cal-calibrators-panel__add-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .pd-cal-calibrators-panel__card-meta,
@@ -3685,39 +4336,62 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 .pd-cal-calibrators-panel__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.28rem;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.pd-cal-calibrators-panel__chip {
+.pd-cal-calibrators-panel__chip,
+.pd-cal-calibrators-panel__chip.is-locked {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.25rem;
   max-width: 100%;
-  padding: 0.15rem 0.2rem 0.15rem 0.2rem;
+  min-height: 1.35rem;
+  padding: 0.05rem 0.15rem 0.05rem 0.1rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
   background: var(--color-surface);
 }
 
+.pd-cal-calibrators-panel__chip .pd-avatar {
+  width: 1.05rem;
+  height: 1.05rem;
+  font-size: 0.55rem;
+}
+
+.pd-cal-calibrators-panel__chip .pd-avatar__image {
+  width: 100%;
+  height: 100%;
+}
+
 .pd-cal-calibrators-panel__chip-name {
   overflow: hidden;
-  max-width: 10rem;
+  max-width: 7.5rem;
   color: var(--color-text);
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 600;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pd-cal-calibrators-panel__chip-role {
+  padding-right: 0.25rem;
+  color: var(--color-text-secondary);
+  font-size: 0.58rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .pd-cal-calibrators-panel__chip-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.05rem;
+  height: 1.05rem;
   margin: 0;
   padding: 0;
   border: 0;
@@ -3728,7 +4402,7 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 }
 
 .pd-cal-calibrators-panel__chip-remove:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+  background: color-mix(in srgb, var(--color-text) 6%, var(--color-surface));
   color: var(--color-text);
 }
 
@@ -3775,7 +4449,7 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   padding: 0.65rem 0;
   border: 0;
   border-bottom: 1px solid var(--color-border);
-  background: transparent;
+  background: var(--color-surface);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -3788,7 +4462,7 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
 
 .pd-cal-calibrators-panel__existing-row:hover,
 .pd-cal-calibrators-panel__existing-row.is-active {
-  background: color-mix(in srgb, var(--color-text) 3%, var(--color-surface));
+  background: var(--color-surface);
 }
 
 .pd-cal-calibrators-panel__existing-row:focus-visible {

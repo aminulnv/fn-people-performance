@@ -39,5 +39,6 @@ describe('notification rules api (local)', () => {
     const reset = await resetNotificationRule(NOTIFICATION_EVENTS.GOAL_SUBMITTED)
     expect(reset.enabled).toBe(true)
     expect(reset.channels).toContain('email')
+    expect(reset.channels).toContain('browser')
   })
 })

@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CalibratorAssignments } from './sessionApi'
-import {
-  canOverrideCalibrationGrade,
-  HRBP_COSIGN_REASON_TAG,
-  overrideTierSpan,
-  reasonWithHrbpCosign,
-  requiresHrbpCosign,
-} from './overrideAccess'
+import { canOverrideCalibrationGrade, listEffectiveCalibrators } from './overrideAccess'
 
 const subject = {
   employeeId: 10,
@@ -150,21 +144,24 @@ describe('canOverrideCalibrationGrade', () => {
   })
 })
 
-describe('HRBP co-sign override helpers', () => {
-  it('flags 3+ tier overrides for HRBP co-sign', () => {
-    expect(overrideTierSpan('unsatisfactory', 'performing')).toBe(2)
-    expect(requiresHrbpCosign('unsatisfactory', 'performing')).toBe(false)
-    expect(overrideTierSpan('unsatisfactory', 'exceeding')).toBe(3)
-    expect(requiresHrbpCosign('unsatisfactory', 'exceeding')).toBe(true)
-  })
-
-  it('appends the pending co-sign tag once', () => {
-    expect(reasonWithHrbpCosign('Scope change', false)).toBe('Scope change')
-    expect(reasonWithHrbpCosign('Scope change', true)).toBe(
-      `Scope change ${HRBP_COSIGN_REASON_TAG}`,
-    )
+describe('listEffectiveCalibrators', () => {
+  it('lists head, HRBP, and department extras without duplicates', () => {
+    const assignments: CalibratorAssignments = {
+      ...empty,
+      departments: [
+        {
+          departmentId: 1,
+          department: 'Product',
+          headEmployeeId: 2,
+          hrbpEmployeeId: 3,
+          employeeIds: [2, 4],
+        },
+      ],
+    }
     expect(
-      reasonWithHrbpCosign(`Already ${HRBP_COSIGN_REASON_TAG}`, true),
-    ).toBe(`Already ${HRBP_COSIGN_REASON_TAG}`)
+      listEffectiveCalibrators({ subject, assignments }).map(
+        (row) => `${row.employeeId}:${row.source}`,
+      ),
+    ).toEqual(['2:head', '3:hrbp', '4:department'])
   })
 })

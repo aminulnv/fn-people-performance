@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import {
   Avatar,
+  Button,
   CountBadge,
   ListboxSelect,
   PageStatus,
@@ -15,8 +16,8 @@ import {
   Textarea,
 } from '@/components/ui'
 import { cx } from '@/lib/cx'
-import { officialGrade } from '@/lib/analytics/dashboard'
 import {
+  calibrationFinalGrade,
   formatGapLabel,
   type RatingTableRow,
 } from '@/lib/calibration/ratingTable'
@@ -33,16 +34,12 @@ import {
   type CalibrationSittingEmployee,
   type CalibrationSittingStatus,
 } from '@/lib/calibration/sessionApi'
-import {
-  reasonWithHrbpCosign,
-  requiresHrbpCosign,
-} from '@/lib/calibration/overrideAccess'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { pipStatusLabel } from '@/lib/employees/career'
 import { PipDisplayOnlyMark } from '@/pages/profile/PipDisplayOnlyMark'
 import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
 import { resolveCyclePolicyForPerson } from '@/lib/reviews/cycleGroups'
-import { GRADE_BAND_META, OVERALL_GRADE_ORDER } from '@/lib/reviews/labels'
+import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import {
   calibrateReviewPacket,
 } from '@/lib/reviews/packetsApi'
@@ -60,8 +57,18 @@ import type {
   ReviewQuestion,
   ScorecardPillar,
 } from '@/lib/reviews/types'
+import { GRADE_LISTBOX_OPTIONS } from '@/pages/reviews/ScorecardGoalsCard'
 import { SettingsSidePanel } from '@/pages/reviews/SettingsSidePanel'
 import '@/styles/layout-reviews.css'
+
+function overrideGradeSelectClass(grade: GradeBandId | null | '') {
+  return [
+    'pd-reviews-scorecard__goals-grade',
+    grade ? `pd-reviews-scorecard__grade-select--${grade}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
 
 const DRAWER_TABS = [
   { id: 'overview', label: 'Overview' },
@@ -161,20 +168,20 @@ function pillarGrade(
 function pillarHint(pillar: DisplayPillar, actor: 'self' | 'manager'): string {
   if (pillar.kind === 'goals' || pillar.id === 'goals') {
     return actor === 'self'
-      ? 'Based on Q1–Q4 reflection'
-      : `${pillar.weight}% weight`
+      ? 'Based On Q1–Q4 Reflection'
+      : `${pillar.weight}% Weight`
   }
   if (pillar.kind === 'skills' || pillar.id === 'skills') {
     return actor === 'self'
-      ? 'Own assessment of competency level'
-      : `${pillar.weight}% weight`
+      ? 'Own Assessment Of Competency Level'
+      : `${pillar.weight}% Weight`
   }
   if (pillar.kind === 'values' || pillar.id === 'values') {
     return actor === 'self'
-      ? 'Own assessment across values'
-      : `${pillar.weight}% weight`
+      ? 'Own Assessment Across Values'
+      : `${pillar.weight}% Weight`
   }
-  return pillar.weight > 0 ? `${pillar.weight}% weight` : ''
+  return pillar.weight > 0 ? `${pillar.weight}% Weight` : ''
 }
 
 /** Real packet answers + pillar comments — never canned HTML templates. */
@@ -191,7 +198,7 @@ function narrativesFromPacket(
       id: `answer:${answer.questionId}`,
       label:
         questionById.get(answer.questionId)?.prompt.trim() ||
-        'Written response',
+        'Written Response',
       body: answer.body.trim(),
     }))
   for (const score of packet.pillarScores) {
@@ -200,7 +207,7 @@ function narrativesFromPacket(
       id: `pillar:${score.pillarId}`,
       label:
         PILLAR_FALLBACK_LABEL[score.pillarId] ??
-        `${score.pillarId} comment`,
+        `${score.pillarId} Comment`,
       body: score.comment.trim(),
     })
   }
@@ -283,12 +290,16 @@ export function CalibrationEmployeeDrawer({
   const {
     data: fullPacket,
     isPending: packetPending,
+    isPlaceholderData: packetIsPlaceholder,
     isError: packetQueryError,
     error: packetLoadError,
-  } = useReviewPacket(cycle.id, row.employeeId)
-  const packet = fullPacket ?? summaryPacket ?? null
+  } = useReviewPacket(cycle.id, row.employeeId, true, summaryPacket)
+  // Placeholder is the summary — only treat non-placeholder query data as full.
+  const resolvedFullPacket =
+    fullPacket && !packetIsPlaceholder ? fullPacket : null
+  const packet = resolvedFullPacket ?? summaryPacket ?? null
   const loadState: 'idle' | 'loading' | 'ready' | 'error' =
-    fullPacket || summaryPacket
+    resolvedFullPacket || summaryPacket
       ? 'ready'
       : packetPending
         ? 'loading'
@@ -299,7 +310,7 @@ export function CalibrationEmployeeDrawer({
     packetQueryError && !packet
       ? packetLoadError instanceof Error
         ? packetLoadError.message
-        : 'Could not load review packet.'
+        : 'Could Not Load Review Packet.'
       : null
   const [sessionStatus, setSessionStatus] =
     useState<CalibrationSessionStatus>('not_reviewed')
@@ -312,7 +323,6 @@ export function CalibrationEmployeeDrawer({
   const [overrideError, setOverrideError] = useState<string | null>(null)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [overrideOpen, setOverrideOpen] = useState(false)
-  const [hrbpCosign, setHrbpCosign] = useState(false)
 
   useEffect(() => {
     setTab('overview')
@@ -320,7 +330,6 @@ export function CalibrationEmployeeDrawer({
     setOverrideReason('')
     setOverrideError(null)
     setOverrideOpen(false)
-    setHrbpCosign(false)
   }, [row.employeeId, row.annualGrade])
 
   useEffect(() => {
@@ -346,7 +355,7 @@ export function CalibrationEmployeeDrawer({
           setSessionError(
             error instanceof Error
               ? error.message
-              : 'Could not save the calibration notes.',
+              : 'Could Not Save The Calibration Notes.',
           )
         })
     }, 500)
@@ -453,23 +462,16 @@ export function CalibrationEmployeeDrawer({
 
   const selfGrade = packet?.selfOverallGrade ?? row.selfGrade
   const managerGrade = packet?.managerOverallGrade ?? null
-  const finalGrade = officialGrade(packet) ?? row.annualGrade
+  const finalGrade = calibrationFinalGrade(packet) ?? row.annualGrade
+  const canOverrideNow = canOverride && Boolean(managerGrade)
   const selfNarratives = narrativesFromPacket(packet, 'self', questions)
   const managerNarratives = narrativesFromPacket(packet, 'manager', questions)
-  const overrideNeedsCosign = requiresHrbpCosign(finalGrade, overrideGrade || null)
   const q4Quarter = row.quarters.find((quarter) =>
     /q\s*4/i.test(quarter.shortLabel) || /q\s*4/i.test(quarter.label),
   )
 
   async function saveOverride() {
-    if (!packet || !overrideGrade || !overrideReason.trim() || sessionLocked || !canOverride) {
-      return
-    }
-    const needsCosign = requiresHrbpCosign(finalGrade, overrideGrade)
-    if (needsCosign && !hrbpCosign) {
-      setOverrideError(
-        'This is a 3+ tier change. Check the HRBP co-sign flag before saving.',
-      )
+    if (!packet || !overrideGrade || !overrideReason.trim() || sessionLocked || !canOverrideNow) {
       return
     }
     setOverrideSaving(true)
@@ -477,7 +479,7 @@ export function CalibrationEmployeeDrawer({
     try {
       const next = await calibrateReviewPacket(packet.id, {
         toGrade: overrideGrade,
-        reason: reasonWithHrbpCosign(overrideReason, needsCosign),
+        reason: overrideReason.trim(),
       })
       patchPacketCache(next)
       onPacketUpdated(next)
@@ -496,10 +498,9 @@ export function CalibrationEmployeeDrawer({
       }
       onRatingAdjusted()
       setOverrideOpen(false)
-      setHrbpCosign(false)
     } catch (error: unknown) {
       setOverrideError(
-        error instanceof Error ? error.message : 'Could not save override.',
+        error instanceof Error ? error.message : 'Could Not Save Override.',
       )
     } finally {
       setOverrideSaving(false)
@@ -584,7 +585,7 @@ export function CalibrationEmployeeDrawer({
           options={tabOptions}
           value={tab}
           onChange={setTab}
-          aria-label="Employee calibration sections"
+          aria-label="Employee Calibration Sections"
         />
 
         {loadState === 'loading' && !packet ? (
@@ -593,14 +594,14 @@ export function CalibrationEmployeeDrawer({
           <PageStatus
             variant="error"
             title="Could Not Load Review"
-            description={loadError ?? 'Try again.'}
+            description={loadError ?? 'Try Again.'}
           />
         ) : null}
 
         {tab === 'overview' ? (
           <div className="pd-cal-drawer__stack">
             {hasAnnualQuarters ? (
-              <section className="pd-cal-drawer__card" aria-label="Quarterly ratings">
+              <section className="pd-cal-drawer__card" aria-label="Quarterly Ratings">
                 <h3 className="pd-cal-drawer__section-title">
                   Quarterly Goal Ratings → Annual
                 </h3>
@@ -613,12 +614,12 @@ export function CalibrationEmployeeDrawer({
                         (quarter) =>
                           `${quarter.label}: ${quarter.grade
                             ? GRADE_BAND_META[quarter.grade].label
-                            : 'none'
+                            : 'None'
                           }`,
                       ),
                       `Annual: ${finalGrade
                         ? GRADE_BAND_META[finalGrade].label
-                        : 'none'
+                        : 'None'
                       }`,
                     ].join('. ')
                   }
@@ -676,14 +677,14 @@ export function CalibrationEmployeeDrawer({
                 {row.flags.some((flag) => flag.id === 'annual_vs_quarterly') &&
                   row.quarterAverageGrade ? (
                   <p className="pd-cal-drawer__diverge-note">
-                    Annual rating diverges from quarterly average (Q avg:{' '}
+                    Annual Rating Diverges From Quarterly Average (Q Avg:{' '}
                     {GRADE_BAND_META[row.quarterAverageGrade].label})
                   </p>
                 ) : null}
               </section>
             ) : null}
 
-            <section className="pd-cal-drawer__card" aria-label="Rating breakdown">
+            <section className="pd-cal-drawer__card" aria-label="Rating Breakdown">
               <h3 className="pd-cal-drawer__section-title">Rating Breakdown</h3>
               <ul className="pd-cal-drawer__pillar-list">
                 {pillars.map((pillar) => {
@@ -691,10 +692,10 @@ export function CalibrationEmployeeDrawer({
                     pillarGrade(packet?.pillarScores ?? [], pillar.id, 'manager') ??
                     pillarGrade(packet?.pillarScores ?? [], pillar.id, 'self')
                   const weightHint =
-                    pillar.weight > 0 ? `${pillar.weight}% weight` : null
+                    pillar.weight > 0 ? `${pillar.weight}% Weight` : null
                   const qAvgHint =
                     pillar.id === 'goals' && row.quarterAverageScore != null
-                      ? `Q avg: ${row.quarterAverageScore.toFixed(2)}`
+                      ? `Q Avg: ${row.quarterAverageScore.toFixed(2)}`
                       : null
                   return (
                     <li key={pillar.id}>
@@ -716,9 +717,9 @@ export function CalibrationEmployeeDrawer({
               </div>
             </section>
 
-            <section className="pd-cal-drawer__card" aria-label="Self vs manager">
+            <section className="pd-cal-drawer__card" aria-label="Self Vs Manager">
               <h3 className="pd-cal-drawer__section-title">
-                Self vs Manager Comparison
+                Self Vs Manager Comparison
               </h3>
               <ul className="pd-cal-drawer__compare">
                 <li>
@@ -759,8 +760,8 @@ export function CalibrationEmployeeDrawer({
                 {row.gapTiers == null || row.gapTiers === 0
                   ? 'Aligned'
                   : row.gapTiers < 0
-                    ? `Self-rated ${Math.abs(row.gapTiers)} tier${Math.abs(row.gapTiers) === 1 ? '' : 's'} higher`
-                    : `Manager rated ${row.gapTiers} tier${row.gapTiers === 1 ? '' : 's'} higher`}
+                    ? `Self-Rated ${Math.abs(row.gapTiers)} Tier${Math.abs(row.gapTiers) === 1 ? '' : 's'} Higher`
+                    : `Manager Rated ${row.gapTiers} Tier${row.gapTiers === 1 ? '' : 's'} Higher`}
               </p>
             </section>
           </div>
@@ -776,7 +777,7 @@ export function CalibrationEmployeeDrawer({
             </section>
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">
-                Self-Ratings by Pillar
+                Self-Ratings By Pillar
               </h3>
               <ul className="pd-cal-drawer__pillar-list">
                 {pillars.map((pillar) => (
@@ -798,10 +799,10 @@ export function CalibrationEmployeeDrawer({
             </section>
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">Full Year Narrative</h3>
-              <p className="pd-cal-drawer__eyebrow">Written by Employee</p>
+              <p className="pd-cal-drawer__eyebrow">Written By Employee</p>
               <NarrativeBlocks
                 blocks={selfNarratives}
-                emptyLabel="No self narrative submitted yet."
+                emptyLabel="No Self Narrative Submitted Yet."
               />
             </section>
             {hasAnnualQuarters ? (
@@ -829,12 +830,12 @@ export function CalibrationEmployeeDrawer({
             </p>
             <section className="pd-cal-drawer__card pd-cal-drawer__card--accent">
               <div className="pd-cal-drawer__final-row">
-                <span>Final Rating Given by Manager</span>
+                <span>Final Rating Given By Manager</span>
                 <GradePill grade={managerGrade ?? finalGrade} />
               </div>
             </section>
             <section className="pd-cal-drawer__card">
-              <h3 className="pd-cal-drawer__section-title">Ratings by Pillar</h3>
+              <h3 className="pd-cal-drawer__section-title">Ratings By Pillar</h3>
               <ul className="pd-cal-drawer__pillar-list">
                 {pillars.map((pillar) => {
                   const grade = pillarGrade(
@@ -845,7 +846,7 @@ export function CalibrationEmployeeDrawer({
                   const hint = pillarHint(pillar, 'manager')
                   const qAvgHint =
                     pillar.id === 'goals' && row.quarterAverageScore != null
-                      ? `Q avg ${row.quarterAverageScore.toFixed(2)}`
+                      ? `Q Avg ${row.quarterAverageScore.toFixed(2)}`
                       : null
                   return (
                     <li key={pillar.id}>
@@ -864,11 +865,11 @@ export function CalibrationEmployeeDrawer({
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">Manager Comment</h3>
               <p className="pd-cal-drawer__eyebrow">
-                Written by {row.managerName !== '—' ? row.managerName : 'manager'}
+                Written By {row.managerName !== '—' ? row.managerName : 'Manager'}
               </p>
               <NarrativeBlocks
                 blocks={managerNarratives}
-                emptyLabel="No manager comment submitted yet."
+                emptyLabel="No Manager Comment Submitted Yet."
               />
             </section>
             <section className="pd-cal-drawer__card">
@@ -907,16 +908,16 @@ export function CalibrationEmployeeDrawer({
                 {row.gapTiers == null || row.gapTiers === 0
                   ? 'Aligned'
                   : row.gapTiers < 0
-                    ? `Self-rated ${Math.abs(row.gapTiers)} tier${Math.abs(row.gapTiers) === 1 ? '' : 's'} higher`
-                    : `Manager rated ${row.gapTiers} tier${row.gapTiers === 1 ? '' : 's'} higher`}
+                    ? `Self-Rated ${Math.abs(row.gapTiers)} Tier${Math.abs(row.gapTiers) === 1 ? '' : 's'} Higher`
+                    : `Manager Rated ${row.gapTiers} Tier${row.gapTiers === 1 ? '' : 's'} Higher`}
               </p>
             </section>
             {hasAnnualQuarters && q4Quarter ? (
               <section className="pd-cal-drawer__card">
                 <h3 className="pd-cal-drawer__section-title">Q4 Goal Rating</h3>
                 <p className="pd-cal-drawer__hint">
-                  Q4 is rated by the manager inside the annual review (no
-                  standalone Q4 check-in).
+                  Q4 Is Rated By The Manager Inside The Annual Review (No
+                  Standalone Q4 Check-In).
                 </p>
                 <div className="pd-cal-drawer__final-row">
                   <span>{q4Quarter.label}</span>
@@ -978,7 +979,7 @@ export function CalibrationEmployeeDrawer({
                       .map((entry) => entry.grade)
                       .filter((grade): grade is GradeBandId => grade != null)
                     if (grades.length < 2) {
-                      return 'Not enough prior ratings to summarize a trend.'
+                      return 'Not Enough Prior Ratings To Summarize A Trend.'
                     }
                     const newest = grades[0]
                     const previous = grades[1]
@@ -1004,24 +1005,24 @@ export function CalibrationEmployeeDrawer({
                       grades.length >= 3 &&
                       grades.every((grade) => grade === newest)
                     if (allUp) {
-                      return 'Consistently improving across available cycles.'
+                      return 'Consistently Improving Across Available Cycles.'
                     }
                     if (allDown) {
-                      return 'Consistently declining across available cycles — review needed.'
+                      return 'Consistently Declining Across Available Cycles — Review Needed.'
                     }
                     if (allSame) {
-                      return `Stable — same rating for ${grades.length} consecutive cycles.`
+                      return `Stable — Same Rating For ${grades.length} Consecutive Cycles.`
                     }
                     if (recentDelta != null && recentDelta > 0) {
-                      return `Improved in ${historyRows[0].yearLabel} vs ${historyRows[1].yearLabel} (${GRADE_BAND_META[previous].label} → ${GRADE_BAND_META[newest].label}).`
+                      return `Improved In ${historyRows[0].yearLabel} Vs ${historyRows[1].yearLabel} (${GRADE_BAND_META[previous].label} → ${GRADE_BAND_META[newest].label}).`
                     }
                     if (recentDelta != null && recentDelta < 0) {
-                      return `Declined in ${historyRows[0].yearLabel} vs ${historyRows[1].yearLabel} (${GRADE_BAND_META[previous].label} → ${GRADE_BAND_META[newest].label}) — discuss in calibration.`
+                      return `Declined In ${historyRows[0].yearLabel} Vs ${historyRows[1].yearLabel} (${GRADE_BAND_META[previous].label} → ${GRADE_BAND_META[newest].label}) — Discuss In Calibration.`
                     }
                     if (oldest && newest && oldest !== newest) {
-                      return `Mixed trend across cycles (${GRADE_BAND_META[oldest].label} → ${GRADE_BAND_META[newest].label}).`
+                      return `Mixed Trend Across Cycles (${GRADE_BAND_META[oldest].label} → ${GRADE_BAND_META[newest].label}).`
                     }
-                    return 'No change vs the previous cycle.'
+                    return 'No Change Vs The Previous Cycle.'
                   })()}
                 </p>
               ) : null}
@@ -1034,7 +1035,7 @@ export function CalibrationEmployeeDrawer({
                   <strong>
                     {row.joinDateLabel}
                     {employee?.startDate
-                      ? ` · ${formatTenureMonths(tenureMonths)} ago`
+                      ? ` · ${formatTenureMonths(tenureMonths)} Ago`
                       : ''}
                   </strong>
                 </li>
@@ -1043,7 +1044,7 @@ export function CalibrationEmployeeDrawer({
                   <strong>
                     {row.jobGrade}
                     {row.timeInGradeLabel !== '—'
-                      ? ` · in grade ${row.timeInGradeLabel}`
+                      ? ` · In Grade ${row.timeInGradeLabel}`
                       : ''}
                   </strong>
                 </li>
@@ -1069,7 +1070,7 @@ export function CalibrationEmployeeDrawer({
           <div className="pd-cal-drawer__stack">
             {row.flags.length === 0 ? (
               <p className="pd-cal-drawer__empty-flags">
-                No calibration flags for this employee.
+                No Calibration Flags For This Employee.
               </p>
             ) : (
               <section className="pd-cal-drawer__card">
@@ -1111,14 +1112,14 @@ export function CalibrationEmployeeDrawer({
                       setSessionError(
                         error instanceof Error
                           ? error.message
-                          : 'Could not save the calibration status.',
+                          : 'Could Not Save The Calibration Status.',
                       )
                     })
                 }}
                 options={[...CALIBRATION_STATUS_OPTIONS]}
                 allowEmpty={false}
                 portal={false}
-                aria-label="Calibration status"
+                aria-label="Calibration Status"
               />
               {sessionError ? (
                 <p className="pd-cal-drawer__error" role="alert">
@@ -1134,7 +1135,7 @@ export function CalibrationEmployeeDrawer({
                 disabled={sessionLocked || !canOverride}
                 onChange={(event) => setSessionNotes(event.target.value)}
                 rows={4}
-                placeholder="Add calibration notes for this employee"
+                placeholder="Add Calibration Notes For This Employee"
               />
             </section>
 
@@ -1145,16 +1146,17 @@ export function CalibrationEmployeeDrawer({
                 <GradePill grade={finalGrade} />
               </div>
               <p className="pd-cal-drawer__hint">
-                Written reason required · Permanently audit logged
+                {managerGrade
+                  ? 'Written Reason Required · Permanently Audit Logged'
+                  : 'Manager Rating Required Before Override'}
               </p>
               {!overrideOpen ? (
                 <button
                   type="button"
                   className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-                  disabled={!packet || sessionLocked || !canOverride}
+                  disabled={!packet || sessionLocked || !canOverrideNow}
                   onClick={() => {
-                    setOverrideGrade(finalGrade ?? '')
-                    setHrbpCosign(false)
+                    setOverrideGrade(finalGrade ?? managerGrade ?? '')
                     setOverrideOpen(true)
                   }}
                 >
@@ -1165,16 +1167,13 @@ export function CalibrationEmployeeDrawer({
                   <label className="pd-cal-drawer__field">
                     <span>Calibrated Grade</span>
                     <ListboxSelect
+                      className={overrideGradeSelectClass(overrideGrade)}
                       value={overrideGrade}
                       onValueChange={(value) => {
                         setOverrideGrade((value as GradeBandId) || '')
-                        setHrbpCosign(false)
                         setOverrideError(null)
                       }}
-                      options={OVERALL_GRADE_ORDER.map((id) => ({
-                        value: id,
-                        label: GRADE_BAND_META[id].label,
-                      }))}
+                      options={GRADE_LISTBOX_OPTIONS}
                       allowEmpty={false}
                       portal={false}
                       aria-label="Calibrated Grade"
@@ -1186,52 +1185,37 @@ export function CalibrationEmployeeDrawer({
                       value={overrideReason}
                       onChange={(event) => setOverrideReason(event.target.value)}
                       rows={3}
-                      placeholder="Why is this grade changing?"
+                      placeholder="Why Is This Grade Changing?"
                     />
                   </label>
-                  {overrideNeedsCosign ? (
-                    <label className="pd-cal-drawer__cosign">
-                      <input
-                        type="checkbox"
-                        checked={hrbpCosign}
-                        onChange={(event) => setHrbpCosign(event.target.checked)}
-                      />
-                      <span>
-                        This is a 3+ tier change. Add an HRBP co-sign flag to
-                        the reason (this does not wait for HRBP approval).
-                      </span>
-                    </label>
-                  ) : null}
                   {overrideError ? (
                     <p className="pd-cal-drawer__error" role="alert">
                       {overrideError}
                     </p>
                   ) : null}
                   <div className="pd-cal-drawer__override-actions">
-                    <button
-                      type="button"
-                      className="pd-btn pd-btn--ghost pd-btn--sm pd-btn--pill"
+                    <Button
+                      variant="secondary"
                       disabled={overrideSaving}
                       onClick={() => setOverrideOpen(false)}
                     >
                       Cancel
-                    </button>
-                    <button
-                      type="button"
-                      className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
+                    </Button>
+                    <Button
+                      variant="primary"
+                      loading={overrideSaving}
                       disabled={
-                        overrideSaving ||
                         !overrideGrade ||
                         !overrideReason.trim() ||
                         !packet ||
-                        (overrideNeedsCosign && !hrbpCosign)
+                        !canOverrideNow
                       }
                       onClick={() => {
                         void saveOverride()
                       }}
                     >
-                      {overrideSaving ? 'Saving…' : 'Save Override'}
-                    </button>
+                      Save Override
+                    </Button>
                   </div>
                 </div>
               )}

@@ -155,9 +155,10 @@ const SCORECARD_COLUMN_IDS = SCORECARD_COLUMN_OPTIONS.map(
   (column) => column.id,
 ) as ScorecardColumnId[]
 
-/** Default view: skip Cycle + Seniority; users can turn them back on. */
+/** Default view: skip Seniority; users can turn it back on. */
 const SCORECARD_DEFAULT_VISIBLE_IDS: readonly ScorecardColumnId[] = [
   'employee',
+  'cycle',
   'role',
   'team',
   'department',
@@ -166,7 +167,7 @@ const SCORECARD_DEFAULT_VISIBLE_IDS: readonly ScorecardColumnId[] = [
   'status',
 ]
 
-const SCORECARD_COLUMNS_STORAGE_KEY = 'reviews-scorecards-visible-columns-v2'
+const SCORECARD_COLUMNS_STORAGE_KEY = 'reviews-scorecards-visible-columns-v3'
 
 export function ScorecardsList() {
   const { user } = useAuth()
@@ -477,13 +478,13 @@ export function ScorecardsList() {
 
   const scorecardColumns: ResizableColumn[] = useMemo(() => {
     const all: ResizableColumn[] = [
-      { id: 'employee', label: 'Employee' },
-      { id: 'cycle', label: 'Cycle' },
-      { id: 'role', label: 'Role' },
+      { id: 'employee', label: 'Employee', grow: true, growWeight: 2 },
+      { id: 'cycle', label: 'Cycle', grow: true },
+      { id: 'role', label: 'Role', grow: true },
       { id: 'seniority', label: 'Seniority' },
-      { id: 'team', label: 'Team' },
-      { id: 'department', label: 'Department' },
-      { id: 'reviewer', label: 'Reviewer' },
+      { id: 'team', label: 'Team', grow: true },
+      { id: 'department', label: 'Department', grow: true },
+      { id: 'reviewer', label: 'Reviewer', grow: true, growWeight: 2 },
       {
         id: 'grade',
         label: (
@@ -744,7 +745,7 @@ export function ScorecardsList() {
           <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-scorecards__table"
-              storageKey="reviews-scorecards-column-widths-v2"
+              storageKey="reviews-scorecards-column-widths-v3"
               columns={scorecardColumns}
               fitKey={`${visibleColumnIds.join('|')}:${filtered.length}`}
             >
@@ -825,7 +826,7 @@ function ScorecardTableRow({
         <td className="pd-reviews-scorecards__muted">{row.department}</td>
       ) : null}
       {visibleColumnIds.has('reviewer') ? (
-        <td>
+        <td className="pd-reviews-scorecards__reviewer">
           <PersonCell
             name={row.reviewerName}
             avatarUrl={row.reviewerAvatarUrl}

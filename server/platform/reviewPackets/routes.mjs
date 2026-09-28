@@ -1,4 +1,5 @@
 import { asyncHandler, HttpError } from '../../errors.mjs'
+import { getPool } from '../../db.mjs'
 import {
   permissionsForPlatformUser,
   requirePlatformAuth,
@@ -39,20 +40,52 @@ async function viewerReviewAccess(req) {
   }
 }
 
-async function questionsForPacket(cycle, packet) {
-  const group = (cycle?.groups ?? []).find((item) => item.id === packet.groupId)
-  const formId = group?.settings?.scorecardFormId
-  if (formId) {
-    const form = await getScorecardForm(formId)
-    if (form?.policy?.scorecard?.questions) {
-      return form.policy.scorecard.questions
+/**
+ * Questions for one packet without loading the cycle's full member roster.
+ * Reads group + cycle settings only.
+ */
+async function questionsForPacketLite(packet) {
+  const client = await getPool().connect()
+  try {
+    const { rows } = await client.query(
+      `SELECT
+         grp.scorecard_form_id AS group_form_id,
+         grp.review_policy AS group_review_policy,
+         cycle.review_policy AS cycle_review_policy
+       FROM platform.review_cycles cycle
+       LEFT JOIN platform.review_cycle_groups grp
+         ON grp.id = $2
+        AND grp.cycle_id = cycle.id
+        AND grp.deleted_at IS NULL
+       WHERE cycle.id = $1
+       LIMIT 1`,
+      [packet.cycleId, packet.groupId ?? null],
+    )
+    const row = rows[0]
+    if (!row) return []
+    const formId = row.group_form_id ?? null
+    if (formId) {
+      const form = await getScorecardForm(formId)
+      if (form?.policy?.scorecard?.questions) {
+        return form.policy.scorecard.questions
+      }
     }
+    const groupPolicy =
+      typeof row.group_review_policy === 'string'
+        ? JSON.parse(row.group_review_policy)
+        : row.group_review_policy
+    const cyclePolicy =
+      typeof row.cycle_review_policy === 'string'
+        ? JSON.parse(row.cycle_review_policy)
+        : row.cycle_review_policy
+    return (
+      groupPolicy?.scorecard?.questions ??
+      cyclePolicy?.scorecard?.questions ??
+      []
+    )
+  } finally {
+    client.release()
   }
-  return (
-    group?.settings?.reviewPolicy?.scorecard?.questions ??
-    cycle?.settings?.reviewPolicy?.scorecard?.questions ??
-    []
-  )
 }
 
 async function questionsByPacketId(cycle, packets) {
@@ -84,12 +117,15 @@ async function questionsByPacketId(cycle, packets) {
 }
 
 async function visiblePacket(req, packet) {
-  const cycle = await getReviewCycle(packet.cycleId)
+  const [questions, access] = await Promise.all([
+    questionsForPacketLite(packet),
+    viewerReviewAccess(req),
+  ])
   return packetForViewer(
     packet,
     viewerEmployeeId(req),
-    await questionsForPacket(cycle, packet),
-    await viewerReviewAccess(req),
+    questions,
+    access,
   )
 }
 

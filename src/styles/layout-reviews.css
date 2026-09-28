@@ -1,3 +1,26 @@
+/* Full-bleed under the top bar (sibling of `.pd-page`, child of `.pd-app-main`). */
+.pd-reviews-lock-ribbon {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  margin-top: calc(-1 * clamp(1rem, 1.8vw, 1.75rem));
+  margin-inline: calc(-1 * clamp(1rem, 2.8vw, 2.5rem));
+  margin-bottom: clamp(1rem, 1.8vw, 1.75rem);
+  width: auto;
+}
+
+.pd-app-shell--mobile .pd-reviews-lock-ribbon {
+  margin-top: -1rem;
+  margin-inline: -1rem;
+  margin-bottom: 1rem;
+}
+
+.pd-reviews-lock-ribbon .pd-goals-sendback--ribbon {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 0;
+}
+
 .pd-page.pd-reviews,
 .pd-reviews {
   --people-radius: 999px;
@@ -357,8 +380,8 @@
   color: var(--color-text-secondary);
 }
 
-.pd-reviews-scorecards__table td:nth-child(7) .pd-people__person-name,
-.pd-reviews-scorecards__table td:nth-child(7) .pd-people__person-link {
+.pd-reviews-scorecards__table td.pd-reviews-scorecards__reviewer .pd-people__person-name,
+.pd-reviews-scorecards__table td.pd-reviews-scorecards__reviewer .pd-people__person-link {
   font-weight: 400;
 }
 
@@ -472,10 +495,33 @@
 }
 
 .pd-reviews-scorecard__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.4rem;
+  row-gap: 0.15rem;
   margin: 0;
   color: var(--color-text-secondary);
   font-size: 0.875rem;
   line-height: 1.4;
+}
+
+.pd-reviews-scorecard__reviewer {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.pd-reviews-scorecard__reviewer-avatar.pd-avatar {
+  width: 1.125rem;
+  height: 1.125rem;
+  font-size: 0.5rem;
+}
+
+.pd-reviews-scorecard__reviewer-name {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .pd-reviews-scorecard__hero-aside {
@@ -506,104 +552,24 @@
   padding: 0.25rem 0.75rem;
 }
 
-.pd-reviews-scorecard__steps {
-  --step-dot-size: 1.5rem;
+/* Scorecard stage switcher — same width as the profile/hero card. */
+.pd-reviews-scorecard__stage-nav {
   display: flex;
-  align-items: flex-start;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  background: none;
-  border: 0;
-}
-
-.pd-reviews-scorecard__step {
-  position: relative;
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.4rem;
-  flex: 1 1 0;
-  min-width: 0;
-  color: var(--color-text);
-  font-size: 0.875rem;
-  font-weight: 400;
-  text-align: center;
-}
-
-.pd-reviews-scorecard__step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: calc(var(--step-dot-size) / 2);
-  left: calc(50% + (var(--step-dot-size) / 2));
-  width: calc(100% - var(--step-dot-size));
-  height: 2px;
-  transform: translateY(-50%);
-  background: var(--color-divider);
-  pointer-events: none;
-}
-
-.pd-reviews-scorecard__step-dot {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  width: var(--step-dot-size);
-  height: var(--step-dot-size);
-  border: 2px solid var(--color-divider);
-  border-radius: 999px;
-  background: var(--color-surface);
-  color: var(--color-text-secondary);
-}
-
-.pd-reviews-scorecard__step-label {
-  display: block;
-  min-width: 0;
-  line-height: 1.25;
-}
-
-.pd-reviews-scorecard__step.is-done:not(:last-child)::after {
-  background: var(--color-status-completed);
-}
-
-.pd-reviews-scorecard__step.is-done .pd-reviews-scorecard__step-dot {
-  border-color: var(--color-status-completed);
-  background: var(--color-status-completed);
-  color: var(--color-white);
-}
-
-.pd-reviews-scorecard__step.is-active .pd-reviews-scorecard__step-dot {
-  border-color: var(--color-cta, var(--color-theme));
-  background: var(--color-cta, var(--color-theme));
-  color: var(--color-on-theme, var(--color-white));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-cta, var(--color-theme)) 18%, transparent);
-}
-
-.pd-reviews-scorecard__step-button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.35rem;
   width: 100%;
   margin: 0;
   padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
+  box-sizing: border-box;
+  min-width: 0;
 }
 
-.pd-reviews-scorecard__step-button:focus-visible {
-  outline: 2px solid var(--color-cta, var(--color-theme));
-  outline-offset: 0.2rem;
-  border-radius: var(--radius-sm, 0.25rem);
+.pd-reviews-scorecard__stage-segmented {
+  width: 100%;
 }
 
-.pd-reviews-scorecard__step.is-viewing .pd-reviews-scorecard__step-label {
-  font-weight: 500;
+.pd-reviews-scorecard__stage-segmented .pd-segmented__btn {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .pd-reviews-scorecard__events {
@@ -710,6 +676,10 @@
   font-size: 0.875rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+}
+
+.pd-reviews-scorecard__goals-percent--complete {
+  color: var(--color-success);
 }
 
 .pd-reviews-quarters__heading {
@@ -1011,11 +981,9 @@
   border: 0;
   border-radius: var(--radius-md, 0.75rem);
   /* Match review-form feedback fields: slight lift from the panel surface. */
-  background: color-mix(
-    in srgb,
-    var(--color-text) 5%,
-    var(--color-surface-raised, var(--color-surface))
-  );
+  background: color-mix(in srgb,
+      var(--color-text) 5%,
+      var(--color-surface-raised, var(--color-surface)));
   color: var(--color-text);
   font-family: inherit;
   font-weight: 400;
@@ -1027,11 +995,9 @@
 .pd-reviews-value-panel__form .pd-field__control.pd-reviews-scorecard__feedback-box:hover:not(:disabled),
 .pd-settings-panel .pd-reviews-value-panel__form .pd-field__control.pd-reviews-scorecard__feedback-box:hover:not(:disabled) {
   border: 0;
-  background: color-mix(
-    in srgb,
-    var(--color-text) 7%,
-    var(--color-surface-raised, var(--color-surface))
-  );
+  background: color-mix(in srgb,
+      var(--color-text) 7%,
+      var(--color-surface-raised, var(--color-surface)));
 }
 
 .pd-reviews-value-panel__form .pd-field__control.pd-reviews-scorecard__feedback-box:focus,
@@ -1040,11 +1006,9 @@
   outline-offset: 2px;
   border: 0;
   box-shadow: none;
-  background: color-mix(
-    in srgb,
-    var(--color-text) 5%,
-    var(--color-surface-raised, var(--color-surface))
-  );
+  background: color-mix(in srgb,
+      var(--color-text) 5%,
+      var(--color-surface-raised, var(--color-surface)));
 }
 
 .pd-reviews-value-panel__title.pd-reviews-scorecard__feedback-box {
@@ -1630,10 +1594,6 @@
   .pd-reviews-scorecard__hero-aside {
     width: 100%;
     justify-content: space-between;
-  }
-
-  .pd-reviews-scorecard__step-label {
-    font-size: 0.6875rem;
   }
 }
 
@@ -2622,11 +2582,23 @@
   flex-wrap: wrap;
 }
 
-.pd-cycle-setup__people-bulk {
+.pd-cycle-setup__people-table-toolbar-start {
   display: flex;
   align-items: center;
   gap: var(--spacing-2, 0.5rem);
   margin-right: auto;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.pd-cycle-setup__people-search {
+  width: min(100%, 16rem);
+}
+
+.pd-cycle-setup__people-bulk {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2, 0.5rem);
   min-width: 0;
 }
 
@@ -7042,6 +7014,8 @@ a.pd-reviews-form-sheet__edit {
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-2, 0.5rem);
+  width: 100%;
+  min-width: 0;
 }
 
 .pd-cycle-groups-members__column-filter-menu {
@@ -7277,9 +7251,7 @@ body>.pd-cycle-groups-members__column-filter-panel {
   cursor: not-allowed;
 }
 
-.pd-column-numeric-filter__row:not(:has(input[type='radio']:checked))
-  .pd-column-numeric-filter__fields
-  input {
+.pd-column-numeric-filter__row:not(:has(input[type='radio']:checked)) .pd-column-numeric-filter__fields input {
   opacity: 0.72;
 }
 

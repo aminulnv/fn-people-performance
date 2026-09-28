@@ -17,6 +17,7 @@ import {
   goalWeightIssue,
   hasUnassignedGoalWeight,
   measurementWeightIssue,
+  overallCompletion,
   sumGoalWeights,
   isMeasureGoalIssue,
   measureIssueLabel,
@@ -403,6 +404,12 @@ export function GoalsTable({
       : allocatedWeight > 100
         ? 'over'
         : 'short'
+  const overallProgress = Math.round(
+    overallCompletion(rows.map((row) => row.goal)),
+  )
+  const progressTone =
+    overallProgress >= 90 ? 'high' : overallProgress >= 50 ? 'mid' : 'low'
+  const progressTotalClass = `pd-goals-table__progress-head-total pd-goals-table__progress-head-total--${progressTone}`
   const weightError = Boolean(weightIssue)
   const statusChip = status
     ? batchStatusLabel(status, rows.length, postWindowApprovalStage)
@@ -530,8 +537,19 @@ export function GoalsTable({
             </div>
           ) : null}
         </div>
-        <div className="pd-goals-table__progress-head" role="columnheader">
+        <div
+          className="pd-goals-table__progress-head"
+          role="columnheader"
+          aria-label={
+            rows.length > 0 ? `Progress ${overallProgress}%` : 'Progress'
+          }
+        >
           Progress
+          {rows.length > 0 ? (
+            <span className={progressTotalClass} aria-hidden>
+              {overallProgress}%
+            </span>
+          ) : null}
         </div>
         {showActions ? (
           <div className="pd-goals-table__actions-head" role="columnheader">

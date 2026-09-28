@@ -65,7 +65,8 @@ describe('ScorecardFormEditor', () => {
 
     expect(screen.queryByRole('group', { name: 'Preview as' })).not.toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Employee Name' })).toBeInTheDocument()
-    expect(screen.getByText(/Reviewer Reviewer Name/)).toBeInTheDocument()
+    expect(screen.getByText(/Reviewer:/)).toBeInTheDocument()
+    expect(screen.getByText('Reviewer Name')).toBeInTheDocument()
     expect(screen.getByRole('region', { name: 'Goals' })).toBeInTheDocument()
     expect(screen.getByText('Example Goal 1')).toBeInTheDocument()
     expect(screen.getByText('Example Goal 2')).toBeInTheDocument()

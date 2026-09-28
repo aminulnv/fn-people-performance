@@ -5,10 +5,12 @@ import {
   managerReviewIsComplete,
   resolveScorecardViewStage,
   scorecardEditStage,
+  scorecardReviewFormIsEditable,
   scorecardStageIsOpen,
   stageShowsReviewForm,
   viewerCanOpenStage,
   visibleScorecardSteps,
+  visibleScorecardStepsForViewer,
 } from './scorecardStages'
 import type { ReviewPacket, ReviewStageConfig } from './types'
 
@@ -136,6 +138,30 @@ describe('scorecard stage viewing', () => {
     ).toBe('appeal')
   })
 
+  it('never opens manager or calibration stages for the employee', () => {
+    const source = packet({
+      status: 'released_to_employees',
+      publishedOverallGrade: 'performing',
+    })
+    expect(viewerCanOpenStage('manager_review', source, 871)).toBe(false)
+    expect(viewerCanOpenStage('calibration_hod_hrbp', source, 871)).toBe(false)
+    expect(viewerCanOpenStage('publish_employees', source, 871)).toBe(true)
+    const steps = visibleScorecardStepsForViewer(stages, source, 871)
+    expect(steps.map((step) => step.id)).toEqual([
+      'self_review',
+      'publish_employees',
+      'appeal',
+    ])
+    expect(
+      resolveScorecardViewStage({
+        requested: 'manager_review',
+        steps,
+        packet: source,
+        viewerEmployeeId: 871,
+      }),
+    ).toBe('publish_employees')
+  })
+
   it('keeps the appeal stage closed for everyone except the employee', () => {
     const source = packet({ status: 'released_to_employees' })
     const steps = visibleScorecardSteps(stages, source)
@@ -159,5 +185,62 @@ describe('scorecardEditStage', () => {
   it('routes Published Edit to the manager form', () => {
     expect(scorecardEditStage('publish_employees')).toBe('manager_review')
     expect(stageShowsReviewForm('publish_employees')).toBe(true)
+  })
+})
+
+describe('scorecardReviewFormIsEditable', () => {
+  it('locks the manager form after grades are released', () => {
+    expect(
+      scorecardReviewFormIsEditable(
+        'manager_review',
+        packet({ status: 'manager_in_progress' }),
+        false,
+      ),
+    ).toBe(true)
+    expect(
+      scorecardReviewFormIsEditable(
+        'manager_review',
+        packet({ status: 'manager_submitted' }),
+        false,
+      ),
+    ).toBe(true)
+    expect(
+      scorecardReviewFormIsEditable(
+        'manager_review',
+        packet({ status: 'released_to_managers' }),
+        false,
+      ),
+    ).toBe(false)
+    expect(
+      scorecardReviewFormIsEditable(
+        'manager_review',
+        packet({ status: 'released_to_employees' }),
+        false,
+      ),
+    ).toBe(false)
+  })
+
+  it('locks the self form after it is submitted', () => {
+    expect(
+      scorecardReviewFormIsEditable(
+        'self_review',
+        packet({ status: 'self_in_progress' }),
+        true,
+      ),
+    ).toBe(true)
+    expect(
+      scorecardReviewFormIsEditable(
+        'self_review',
+        packet({ status: 'self_submitted' }),
+        true,
+      ),
+    ).toBe(false)
+    expect(
+      scorecardReviewFormIsEditable(
+        'self_review',
+        packet({ status: 'self_in_progress' }),
+        false,
+      ),
+    ).toBe(false)
   })
 })

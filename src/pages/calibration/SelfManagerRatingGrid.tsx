@@ -22,13 +22,13 @@ const RATING_GRID_HINT = (
   <ul className="pd-help-tip">
     <li>
       <strong>Dots</strong>
-      People with both a self and a manager grade. Click a cell to open the list
-      (or the person when there is only one).
+      People With Both A Self And A Manager Grade. Click A Cell To Open The List
+      (Or The Person When There Is Only One).
     </li>
     <li>
       <strong>Diagonal</strong>
-      Self and manager ratings match (aligned). Legend and stats use the same
-      four gap categories.
+      Self And Manager Ratings Match (Aligned). Legend And Stats Use The Same
+      Four Gap Categories.
     </li>
   </ul>
 )
@@ -174,7 +174,7 @@ function CellPeopleTip({
     <div className="pd-cal-grid__tip-card">
       <header className="pd-cal-grid__tip-head">
         <span className="pd-cal-grid__tip-title">
-          {count} {count === 1 ? 'person' : 'people'}
+          {count} {count === 1 ? 'Person' : 'People'}
         </span>
         <span className="pd-cal-grid__tip-meta">
           Self {shortBandLabel(selfGrade)} · Manager {shortBandLabel(managerGrade)}
@@ -208,7 +208,7 @@ function CellPeopleTip({
           )
         })}
       </ul>
-      <p className="pd-cal-grid__tip-hint">Click to open</p>
+      <p className="pd-cal-grid__tip-hint">Click To Open</p>
     </div>
   )
 }
@@ -229,7 +229,7 @@ function GridCell({
   onOpen: (people: readonly RatingGridPerson[]) => void
 }) {
   const count = people.length
-  const label = `${shortBandLabel(selfGrade)} self / ${shortBandLabel(managerGrade)} manager: ${count} ${count === 1 ? 'person' : 'people'}`
+  const label = `${shortBandLabel(selfGrade)} Self / ${shortBandLabel(managerGrade)} Manager: ${count} ${count === 1 ? 'Person' : 'People'}`
   const cell = (
     <button
       type="button"
@@ -348,7 +348,7 @@ export function SelfManagerRatingGrid({
     }
     const first = people[0]
     setCellList({
-      title: 'Self vs Manager',
+      title: 'Self Vs Manager',
       subtitle: `Self: ${GRADE_BAND_META[first.selfGrade].label} · Manager: ${GRADE_BAND_META[first.managerGrade].label}`,
       people: people.map((person) =>
         toListPerson(person, employeeById.get(person.employeeId)),
@@ -359,24 +359,24 @@ export function SelfManagerRatingGrid({
   return (
     <section
       className="pd-cal-grid"
-      aria-label="Self-rating vs manager rating grid"
+      aria-label="Self-Rating Vs Manager Rating Grid"
     >
       <header className="pd-cal-grid__head">
         <h2 className="pd-cal-grid__title">
           <span className="pd-cal-grid__step" aria-hidden>
             6
           </span>
-          Self-Rating vs Manager Rating Grid
+          Self-Rating Vs Manager Rating Grid
           <HintIcon
             content={RATING_GRID_HINT}
-            label="About self vs manager rating grid"
+            label="About Self Vs Manager Rating Grid"
           />
         </h2>
       </header>
 
       <div className="pd-cal-grid__panel">
         <div className="pd-cal-grid__main">
-          <div className="pd-cal-grid__chart" role="group" aria-label="Rating matrix">
+          <div className="pd-cal-grid__chart" role="group" aria-label="Rating Matrix">
             <div className="pd-cal-grid__axis-y-wrap">
               <span className="pd-cal-grid__axis-y-label">Manager Rating</span>
             </div>
@@ -416,7 +416,7 @@ export function SelfManagerRatingGrid({
             </div>
           </div>
 
-          <ul className="pd-cal-grid__legend" aria-label="Dot legend">
+          <ul className="pd-cal-grid__legend" aria-label="Dot Legend">
             <li>
               <span className="pd-cal-grid__dot is-aligned" aria-hidden />
               Aligned
@@ -458,7 +458,7 @@ export function SelfManagerRatingGrid({
           )}
         </div>
 
-        <aside className="pd-cal-grid__side" aria-label="Summary stats">
+        <aside className="pd-cal-grid__side" aria-label="Summary Stats">
           <ul className="pd-cal-grid__stats">
             <li className="pd-cal-grid__stat">
               <strong>{model.total}</strong>

@@ -1,5 +1,8 @@
-import { officialGrade } from '@/lib/analytics/dashboard'
-import { inGradeLabel, lastPromoLabel } from '@/lib/employees/career'
+import {
+  inGradeLabel,
+  lastPromoLabel,
+  pipStatusLabel,
+} from '@/lib/employees/career'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import {
   annualSourceLinks,
@@ -31,6 +34,25 @@ import {
 
 const JOB_LEVEL_ORDER = ['IC1', 'IC2', 'IC3+', 'Manager']
 
+/**
+ * Live calibrated / final grade for the rating table.
+ * Does not fall back to self — calibration needs a manager rating first.
+ */
+export function calibrationFinalGrade(
+  packet: Pick<
+    ReviewPacket,
+    'publishedOverallGrade' | 'calibratedOverallGrade' | 'managerOverallGrade'
+  > | null | undefined,
+): GradeBandId | null {
+  if (!packet) return null
+  return (
+    packet.publishedOverallGrade ??
+    packet.calibratedOverallGrade ??
+    packet.managerOverallGrade ??
+    null
+  )
+}
+
 /** IC1, IC2, and IC3+ (IC3 and above). Manager grades stay in their own bucket. */
 export function jobLevelOf(jobGrade: string): string {
   const compact = jobGrade.trim().toUpperCase().replace(/[\s_-]+/g, '')
@@ -59,14 +81,14 @@ export function sortJobLevels(values: readonly string[]): string[] {
 }
 
 export const RATING_TABLE_QUICK_FILTERS = [
-  { id: 'all', label: 'All employees' },
-  { id: 'flagged', label: 'Flagged only' },
-  { id: 'gap_2', label: 'Gap 2+ tiers' },
-  { id: 'developing_below', label: 'Developing & below' },
-  { id: 'exceeding_above', label: 'Exceeding & above' },
-  { id: 'previous_cycle_gap', label: '2+ from previous cycle' },
-  { id: 'adjusted', label: 'Adjusted this session' },
-  { id: 'clean', label: 'Clean (no flags)' },
+  { id: 'all', label: 'All Employees' },
+  { id: 'flagged', label: 'Flagged Only' },
+  { id: 'gap_2', label: 'Gap 2+ Tiers' },
+  { id: 'developing_below', label: 'Developing & Below' },
+  { id: 'exceeding_above', label: 'Exceeding & Above' },
+  { id: 'previous_cycle_gap', label: '2+ From Previous Cycle' },
+  { id: 'adjusted', label: 'Adjusted This Session' },
+  { id: 'clean', label: 'Clean (No Flags)' },
 ] as const
 
 export type RatingTableQuickFilterId =
@@ -105,12 +127,16 @@ export type RatingTableRow = {
   quarterAverageGrade: GradeBandId | null
   annualGrade: GradeBandId | null
   selfGrade: GradeBandId | null
+  /** Manager review grade — unchanged by calibration overrides. */
+  managerGrade: GradeBandId | null
   /**
    * Annual tier minus self tier.
    * Negative means self is higher than annual (shown as “−N Self”).
    */
   gapTiers: number | null
   priorGrade: GradeBandId | null
+  /** Display label for the current cycle rating column (cycle name). */
+  cycleLabel: string
   priorYearLabel: string
   trend: RatingTableTrend
   joinDateLabel: string
@@ -133,61 +159,68 @@ export type RatingTableProgress = {
 
 export type RatingTableColumnId =
   | 'employee'
+  | 'manager'
   | 'department'
   | 'team'
   | 'market'
   | 'jobGrade'
-  | 'manager'
-  | 'calibrationStatus'
+  | 'annual'
+  | 'self'
+  | 'managerRating'
+  | 'gap'
+  | 'prior'
+  | 'trend'
   | 'q1'
   | 'q2'
   | 'q3'
   | 'q4'
   | 'qAvg'
-  | 'annual'
-  | 'self'
-  | 'gap'
-  | 'prior'
-  | 'trend'
   | 'joinDate'
   | 'timeInGrade'
   | 'lastPromo'
   | 'pip'
+  | 'calibrationStatus'
   | 'adjusted'
   | 'notes'
   | 'flags'
   | 'action'
 
+/** Catalog order = table/CSV column order. Keep in sync with EmployeeRatingTable. */
 export const RATING_TABLE_COLUMN_OPTIONS: ReadonlyArray<{
   id: RatingTableColumnId
   label: string
   required?: boolean
   annualOnly?: boolean
 }> = [
+  // Identity & ownership
   { id: 'employee', label: 'Employee', required: true },
-  { id: 'department', label: 'Dept.' },
+  { id: 'manager', label: 'Manager' },
+  { id: 'department', label: 'Department' },
   { id: 'team', label: 'Team' },
   { id: 'market', label: 'Market' },
-  { id: 'jobGrade', label: 'Grade' },
-  { id: 'manager', label: 'Manager' },
+  { id: 'jobGrade', label: 'Job Grade' },
+  // Career context
+  { id: 'joinDate', label: 'Join Date' },
+  { id: 'timeInGrade', label: 'Time In Grade' },
+  { id: 'lastPromo', label: 'Last Promotion' },
+  { id: 'pip', label: 'PIP' },
+  // Sitting workflow
   { id: 'calibrationStatus', label: 'Status' },
+  { id: 'adjusted', label: 'Adjusted' },
+  { id: 'notes', label: 'Notes' },
+  { id: 'flags', label: 'Flags' },
+  // Decision ratings last (beside Override) — evidence first, then Self → Manager → live annual
+  { id: 'gap', label: 'Gap' },
+  { id: 'prior', label: 'Prior Rating' },
+  { id: 'trend', label: 'Trend' },
   { id: 'q1', label: 'Q1', annualOnly: true },
   { id: 'q2', label: 'Q2', annualOnly: true },
   { id: 'q3', label: 'Q3', annualOnly: true },
   { id: 'q4', label: 'Q4', annualOnly: true },
-  { id: 'qAvg', label: 'Q Avg', annualOnly: true },
-  { id: 'annual', label: 'Annual' },
-  { id: 'self', label: 'Self' },
-  { id: 'gap', label: 'Gap' },
-  { id: 'prior', label: 'Prior rating' },
-  { id: 'trend', label: 'Trend' },
-  { id: 'joinDate', label: 'Join Date' },
-  { id: 'timeInGrade', label: 'In Grade' },
-  { id: 'lastPromo', label: 'Last Promo' },
-  { id: 'pip', label: 'PIP' },
-  { id: 'adjusted', label: 'Adjusted' },
-  { id: 'notes', label: 'Notes' },
-  { id: 'flags', label: 'Flags' },
+  { id: 'qAvg', label: 'Quarter Average', annualOnly: true },
+  { id: 'self', label: 'Self-Rating' },
+  { id: 'managerRating', label: 'Manager Rating' },
+  { id: 'annual', label: 'Final Rating' },
   { id: 'action', label: 'Action', required: true },
 ]
 
@@ -282,6 +315,8 @@ export function buildEmployeeRatingRows(input: {
   const previousCycle =
     previousCyclesOfSamePurpose(input.cycle, input.cycles, 1)[0] ?? null
   const priorYearLabel = yearLabelFromCycle(previousCycle)
+  const cycleLabel =
+    input.cycle.name?.trim() || yearLabelFromCycle(input.cycle) || 'Rating'
   const links = annualSourceLinks(input.cycle, [...input.cycles])
 
   const flagsByEmployee = new Map<number, RatingTableFlag[]>()
@@ -320,9 +355,10 @@ export function buildEmployeeRatingRows(input: {
       }
     })
     const quarterAvg = averageQuarterScore(quarters.map((row) => row.grade))
-    const annualGrade = officialGrade(packet)
+    const annualGrade = calibrationFinalGrade(packet)
     const selfGrade = packet?.selfOverallGrade ?? null
-    const priorGrade = officialGrade(
+    const managerGrade = packet?.managerOverallGrade ?? null
+    const priorGrade = calibrationFinalGrade(
       previousByEmployee.get(employeeId) ?? null,
     )
     const flags = flagsByEmployee.get(employeeId) ?? []
@@ -352,8 +388,10 @@ export function buildEmployeeRatingRows(input: {
       quarterAverageGrade: quarterAvg.grade,
       annualGrade,
       selfGrade,
+      managerGrade,
       gapTiers: gradeTierDelta(selfGrade, annualGrade),
       priorGrade,
+      cycleLabel,
       priorYearLabel,
       trend: trendBetween(priorGrade, annualGrade),
       joinDateLabel: employee.startDate
@@ -430,6 +468,94 @@ export function employeeMatchesCohort(
   return true
 }
 
+/** Columns that support the Cycles-style header multi-select filter. */
+export type RatingTableFilterableColumnId = Exclude<RatingTableColumnId, 'action'>
+
+export const RATING_TABLE_FILTERABLE_COLUMN_IDS: readonly RatingTableFilterableColumnId[] =
+  RATING_TABLE_COLUMN_OPTIONS.map((column) => column.id).filter(
+    (id): id is RatingTableFilterableColumnId => id !== 'action',
+  )
+
+/** Display string used for column-header filter matching (matches cell copy). */
+export function ratingTableColumnFilterValue(
+  row: RatingTableRow,
+  columnId: RatingTableFilterableColumnId,
+): string {
+  switch (columnId) {
+    case 'employee':
+      return row.fullName
+    case 'manager':
+      return row.managerName
+    case 'department':
+      return row.department
+    case 'team':
+      return row.team
+    case 'market':
+      return row.market
+    case 'jobGrade':
+      return row.jobGrade
+    case 'annual':
+      return gradeLabel(row.annualGrade)
+    case 'self':
+      return gradeLabel(row.selfGrade)
+    case 'managerRating':
+      return gradeLabel(row.managerGrade)
+    case 'gap':
+      if (row.gapTiers == null) return '—'
+      if (row.gapTiers === 0) return 'Aligned'
+      return formatGapLabel(row.gapTiers)
+    case 'prior':
+      return gradeLabel(row.priorGrade)
+    case 'trend': {
+      const label = formatRatingTrend(row.trend)
+      return label || '—'
+    }
+    case 'q1':
+      return gradeLabel(row.quarters[0]?.grade ?? null)
+    case 'q2':
+      return gradeLabel(row.quarters[1]?.grade ?? null)
+    case 'q3':
+      return gradeLabel(row.quarters[2]?.grade ?? null)
+    case 'q4':
+      return gradeLabel(row.quarters[3]?.grade ?? null)
+    case 'qAvg':
+      return row.quarterAverageScore != null
+        ? row.quarterAverageScore.toFixed(1)
+        : '—'
+    case 'joinDate':
+      return row.joinDateLabel
+    case 'timeInGrade':
+      return row.timeInGradeLabel
+    case 'lastPromo':
+      return row.lastPromoLabel
+    case 'pip':
+      return row.onPip ? pipStatusLabel(true) : '—'
+    case 'calibrationStatus':
+      return CALIBRATION_SITTING_STATUS_LABEL[row.calibrationStatus]
+    case 'adjusted':
+      return row.isAdjusted ? 'Yes' : '—'
+    case 'notes':
+      return row.sessionNotes ? 'Has Notes' : '—'
+    case 'flags':
+      return row.isFlagged
+        ? row.flags.map((flag) => flag.title).join(' · ')
+        : '—'
+  }
+}
+
+export function matchesRatingTableColumnFilters(
+  row: RatingTableRow,
+  columnFilters: Partial<Record<RatingTableFilterableColumnId, string[]>>,
+): boolean {
+  return (
+    Object.entries(columnFilters) as [RatingTableFilterableColumnId, string[]][]
+  ).every(
+    ([columnId, selected]) =>
+      selected.length === 0 ||
+      selected.includes(ratingTableColumnFilterValue(row, columnId)),
+  )
+}
+
 export function filterRatingTableRows(
   rows: readonly RatingTableRow[],
   input: {
@@ -440,6 +566,7 @@ export function filterRatingTableRows(
     jobGrade?: string | readonly string[]
     jobLevel?: string | readonly string[]
     manager?: string | readonly string[]
+    columnFilters?: Partial<Record<RatingTableFilterableColumnId, string[]>>
   },
 ): RatingTableRow[] {
   return rows.filter((row) => {
@@ -449,6 +576,12 @@ export function filterRatingTableRows(
     if (!matchesSelection(row.jobGrade, input.jobGrade)) return false
     if (!matchesSelection(row.jobLevel, input.jobLevel)) return false
     if (!matchesSelection(row.managerName, input.manager)) return false
+    if (
+      input.columnFilters &&
+      !matchesRatingTableColumnFilters(row, input.columnFilters)
+    ) {
+      return false
+    }
 
     switch (input.quickFilter) {
       case 'all':
@@ -502,32 +635,38 @@ export function formatGapLabel(gapTiers: number | null): string {
 }
 
 export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
-  const sampleQuarters = rows[0]?.quarters ?? []
+  const sample = rows[0]
+  const sampleQuarters = sample?.quarters ?? []
+  const priorHeader = sample?.priorYearLabel
+    ? `${sample.priorYearLabel} Rating`
+    : 'Prior Rating'
+  const cycleHeader = 'Final Rating'
   const headers = [
     'Employee',
+    'Manager',
     'Department',
     'Team',
     'Market',
-    'Grade',
-    'Manager',
+    'Job Grade',
+    'Join Date',
+    'Time In Grade',
+    'Last Promotion',
+    'PIP',
     'Status',
+    'Adjusted',
+    'Notes',
+    'Flags',
+    'Gap',
+    priorHeader,
+    'Trend',
     sampleQuarters[0]?.label || 'Q1',
     sampleQuarters[1]?.label || 'Q2',
     sampleQuarters[2]?.label || 'Q3',
     sampleQuarters[3]?.label || 'Q4',
-    'Q Avg',
-    'Annual',
-    'Self',
-    'Gap',
-    'Prior rating',
-    'Trend',
-    'Join Date',
-    'In Grade',
-    'Last Promo',
-    'PIP',
-    'Adjusted',
-    'Notes',
-    'Flags',
+    'Quarter Average',
+    'Self-Rating',
+    'Manager Rating',
+    cycleHeader,
   ]
   const lines = rows.map((row) => {
     const q = [0, 1, 2, 3].map((index) => {
@@ -536,26 +675,27 @@ export function ratingTableCsv(rows: readonly RatingTableRow[]): string {
     })
     return [
       row.fullName,
+      row.managerName,
       row.department,
       row.team,
       row.market,
       row.jobGrade,
-      row.managerName,
-      CALIBRATION_SITTING_STATUS_LABEL[row.calibrationStatus],
-      ...q,
-      row.quarterAverageScore?.toFixed(1) ?? '',
-      gradeLabel(row.annualGrade),
-      gradeLabel(row.selfGrade),
-      formatGapLabel(row.gapTiers),
-      gradeLabel(row.priorGrade),
-      formatRatingTrend(row.trend),
       row.joinDateLabel,
       row.timeInGradeLabel,
       row.lastPromoLabel,
-      row.onPip ? 'Active PIP' : 'No PIP on record',
+      row.onPip ? 'Active PIP' : 'No PIP On Record',
+      CALIBRATION_SITTING_STATUS_LABEL[row.calibrationStatus],
       row.isAdjusted ? 'Yes' : 'No',
       row.sessionNotes,
       row.flags.map((flag) => flag.title).join('; '),
+      formatGapLabel(row.gapTiers),
+      gradeLabel(row.priorGrade),
+      formatRatingTrend(row.trend),
+      ...q,
+      row.quarterAverageScore?.toFixed(1) ?? '',
+      gradeLabel(row.selfGrade),
+      gradeLabel(row.managerGrade),
+      gradeLabel(row.annualGrade),
     ]
       .map(csvEscape)
       .join(',')

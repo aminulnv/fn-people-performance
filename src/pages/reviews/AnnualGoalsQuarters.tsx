@@ -126,16 +126,9 @@ export function AnnualGoalsQuarters({
           </nav>
         </div>
       </header>
-      {isProgress ? (
+      {rollupLabel ? (
         <p className="pd-reviews-flow__hint">
-          Progress only - the manager sets this grade in the annual review.
-          {rollupLabel
-            ? ` Overall Goals pillar from linked quarters: ${rollupLabel}.`
-            : ""}
-        </p>
-      ) : rollupLabel ? (
-        <p className="pd-reviews-flow__hint">
-          Overall Goals pillar from linked quarters: {rollupLabel}.
+          Linked-quarter Goals rollup: {rollupLabel}.
         </p>
       ) : null}
       <ScorecardGoalsCard

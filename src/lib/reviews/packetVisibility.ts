@@ -98,11 +98,22 @@ function canSeeUnpublishedReview(
   return (access.managedEmployeeIds ?? []).includes(packet.employeeId)
 }
 
+function stripProvisionalGradesForEmployee(packet: ReviewPacket): ReviewPacket {
+  return {
+    ...packet,
+    managerOverallGrade: null,
+    calibratedOverallGrade: null,
+    managerOverrideReason: '',
+    calibrationEvents: [],
+  }
+}
+
 /**
  * The subject may only see their self-review until results are published
- * to employees. The real manager, the person covering that manager, and
- * people with All read access or All read + write access can see unpublished
- * grades. Everyone else cannot.
+ * to employees. After publish they see the official published grade plus
+ * manager narrative — not the provisional manager / calibrated overalls or
+ * calibration-room history. The real manager, cover, and All read access
+ * keep unpublished grades. Everyone else cannot.
  */
 export function packetForViewer(
   packet: ReviewPacket,
@@ -130,7 +141,9 @@ export function packetForViewer(
     return stripUnpublishedOfficialReview(packet)
   }
   if (isSubject) {
-    return filterAnswersForAudience(packet, questions, 'employee')
+    return stripProvisionalGradesForEmployee(
+      filterAnswersForAudience(packet, questions, 'employee'),
+    )
   }
   if (
     !officialReviewReleasedToEmployee(packet.status) &&

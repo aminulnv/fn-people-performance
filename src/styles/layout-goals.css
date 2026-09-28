@@ -1363,6 +1363,23 @@ ul.pd-goals-sendback__reason {
   text-align: center;
 }
 
+.pd-goals-table__progress-head-total {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.pd-goals-table__progress-head-total--low {
+  color: var(--color-red);
+}
+
+.pd-goals-table__progress-head-total--mid {
+  color: var(--color-amber);
+}
+
+.pd-goals-table__progress-head-total--high {
+  color: var(--color-success);
+}
+
 .pd-goals-table--metric-error .pd-goals-table__metric-head {
   align-self: stretch;
   margin-block: -0.5rem;

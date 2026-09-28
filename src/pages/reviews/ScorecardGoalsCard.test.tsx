@@ -48,6 +48,19 @@ describe('ScorecardGoalsCard', () => {
               id: 'g1',
               description: 'Improve delivery quality',
               weight: 100,
+              measurements: [
+                {
+                  id: 'm1',
+                  kind: 'metric',
+                  title: 'Defects closed',
+                  weight: 100,
+                  unit: 'number',
+                  direction: 'increase',
+                  startValue: 0,
+                  targetValue: 100,
+                  currentValue: 35,
+                },
+              ],
             }),
           ]}
           overallPercent={35}
@@ -56,7 +69,9 @@ describe('ScorecardGoalsCard', () => {
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('35% complete')).toBeTruthy()
+    expect(
+      screen.getByRole('columnheader', { name: 'Progress 35%' }),
+    ).toBeTruthy()
     expect(screen.queryByText('Unsatisfactory')).toBeNull()
   })
 
@@ -94,7 +109,7 @@ describe('ScorecardGoalsCard', () => {
     expect(screen.getByRole('table', { name: 'Goals for Q1 2026' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Goals' })).toBeTruthy()
     expect(screen.getByRole('columnheader', { name: 'Weight 100%' })).toBeTruthy()
-    expect(screen.getByRole('columnheader', { name: 'Progress' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: 'Progress 40%' })).toBeTruthy()
     expect(screen.queryByRole('columnheader', { name: 'Metrics' })).toBeNull()
     expect(screen.queryByText('Defects closed')).toBeNull()
 
@@ -132,7 +147,7 @@ describe('ScorecardGoalsCard', () => {
     const heading = screen.getByRole('heading', { name: 'Goals' })
     const gradeTrigger = screen.getByRole('button', { name: 'Goals (50%)' })
     expect(heading.parentElement?.contains(gradeTrigger)).toBe(true)
-    expect(screen.queryByText('40% complete')).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: 'Progress 0%' })).toBeTruthy()
     expect(gradeTrigger.textContent).toContain('Exceeding')
     expect(screen.queryByRole('combobox')).toBeNull()
 

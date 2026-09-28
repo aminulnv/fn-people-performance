@@ -16,7 +16,7 @@ import {
 import { HintIcon } from '@/pages/reviews/HintIcon'
 
 function peopleLabel(count: number): string {
-  return `${count} ${count === 1 ? 'person' : 'people'}`
+  return `${count} ${count === 1 ? 'Person' : 'People'}`
 }
 
 function listMetaLine(employee: PlatformEmployee): string {
@@ -32,7 +32,7 @@ function detailChipFor(
 ): string | null {
   if (indicatorId !== 'annual_vs_quarterly' || !row) return null
   if (!row.quarterAverageGrade || !row.annualGrade) return null
-  return `Q avg: ${GRADE_BAND_META[row.quarterAverageGrade].label} · Annual: ${GRADE_BAND_META[row.annualGrade].label}`
+  return `Q Avg: ${GRADE_BAND_META[row.quarterAverageGrade].label} · Annual: ${GRADE_BAND_META[row.annualGrade].label}`
 }
 
 function toListPerson(
@@ -102,7 +102,7 @@ export function CalibrationIndicators({
   }, [active, employeeById, packetById, rowById])
 
   return (
-    <section className="pd-cal-ind" aria-label="Calibration indicators">
+    <section className="pd-cal-ind" aria-label="Calibration Indicators">
       <header className="pd-cal-ind__head">
         <h2 className="pd-cal-ind__title">
           <span className="pd-cal-ind__step" aria-hidden>
@@ -110,8 +110,8 @@ export function CalibrationIndicators({
           </span>
           Calibration Indicators
           <HintIcon
-            content="Click a card to see who matches. Hover an info icon for the rule."
-            label="About calibration indicators"
+            content="Click A Card To See Who Matches. Hover An Info Icon For The Rule."
+            label="About Calibration Indicators"
           />
         </h2>
       </header>
@@ -130,7 +130,7 @@ export function CalibrationIndicators({
               type="button"
               className="pd-cal-ind__card-open"
               onClick={() => setActiveId(indicator.id)}
-              aria-label={`${indicator.title}: ${peopleLabel(indicator.count)}. View employee list.`}
+              aria-label={`${indicator.title}: ${peopleLabel(indicator.count)}. View Employee List.`}
             />
             <span className="pd-cal-ind__card-body">
               <span className="pd-cal-ind__card-title">
@@ -151,7 +151,7 @@ export function CalibrationIndicators({
       {active ? (
         <CalibrationPeopleListPanel
           title={active.title}
-          subtitle={`${peopleLabel(active.count)} match this indicator.`}
+          subtitle={`${peopleLabel(active.count)} Match This Indicator.`}
           hint={active.definition}
           people={activePeople}
           onClose={() => setActiveId(null)}

@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { selectGoalCycle } from "@/lib/goalsApi";
+import { useEffect, useMemo } from "react";
+import { useQueries } from "@tanstack/react-query";
+import { ensurePersonGoalsHydrated } from "@/lib/goalsApi";
 import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
+import { PACKET_STALE_MS, queryKeys } from "@/lib/queryClient";
 import {
   annualSourceLinks,
   buildAnnualQuarterRows,
@@ -15,48 +17,51 @@ export function useAnnualLinkedQuarters(input: {
   employeeId: number;
   goalsPillar?: ScorecardPillar;
   goalsRevision?: number;
+  /** When false, skip network work (e.g. wait for main packet first). */
+  enabled?: boolean;
 }) {
   const { cycles: availableCycles } = useReviewsSnapshot();
   const links = annualSourceLinks(input.cycle, availableCycles);
   const sourceIds = links.map((link) => link.sourceCycleId).join("|");
-  const enabled = usesAnnualLinkedQuarters(
-    input.cycle,
-    input.goalsPillar?.pullLinkedQuarters !== false,
-    availableCycles,
-  );
-  const [packetsByCycleId, setPacketsByCycleId] = useState<
-    Record<string, ReviewPacket | null>
-  >({});
+  const enabled =
+    input.enabled !== false &&
+    usesAnnualLinkedQuarters(
+      input.cycle,
+      input.goalsPillar?.pullLinkedQuarters !== false,
+      availableCycles,
+    );
+  const employeeReady =
+    enabled && Number.isInteger(input.employeeId) && input.employeeId > 0;
 
-  useEffect(() => {
-    if (!enabled || !Number.isInteger(input.employeeId)) return;
-    let cancelled = false;
-    void Promise.all(
-      links.map(async (link) => {
-        try {
-          const packet = await fetchReviewPacket(
-            link.sourceCycleId,
-            input.employeeId,
-          );
-          return [link.sourceCycleId, packet] as const;
-        } catch {
-          return [link.sourceCycleId, null] as const;
-        }
-      }),
-    ).then((entries) => {
-      if (!cancelled) setPacketsByCycleId(Object.fromEntries(entries));
+  const packetQueries = useQueries({
+    queries: links.map((link) => ({
+      queryKey: queryKeys.reviewPacket(link.sourceCycleId, input.employeeId),
+      queryFn: () => fetchReviewPacket(link.sourceCycleId, input.employeeId),
+      enabled: employeeReady,
+      staleTime: PACKET_STALE_MS,
+      refetchOnMount: false as const,
+    })),
+  });
+
+  const packetsByCycleId = useMemo(() => {
+    const map: Record<string, ReviewPacket | null> = {};
+    links.forEach((link, index) => {
+      map[link.sourceCycleId] = packetQueries[index]?.data ?? null;
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [enabled, input.employeeId, sourceIds]);
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    sourceIds,
+    input.employeeId,
+    packetQueries.map((query) => query.dataUpdatedAt).join("|"),
+  ]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!employeeReady) return;
     for (const link of links) {
-      void selectGoalCycle(link.sourceCycleId);
+      void ensurePersonGoalsHydrated(link.sourceCycleId, input.employeeId);
     }
-  }, [enabled, sourceIds]);
+  }, [employeeReady, input.employeeId, sourceIds]);
 
   const rows = useMemo(() => {
     if (!enabled) return [];

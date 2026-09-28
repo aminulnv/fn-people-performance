@@ -11,16 +11,16 @@ afterEach(() => {
 const indicators: CalibrationIndicator[] = [
   {
     id: 'improved_two_tiers',
-    title: 'Improved 2+ tiers from previous cycle',
-    definition: 'Rose by two or more bands versus the previous cycle.',
+    title: 'Improved 2+ Tiers From Previous Cycle',
+    definition: 'Rose By Two Or More Bands Versus The Previous Cycle.',
     tone: 'info',
     count: 2,
     employeeIds: [1, 2],
   },
   {
     id: 'self_higher_than_manager',
-    title: 'Self-rating 2+ tiers higher than manager',
-    definition: 'Self grade is two or more bands above manager grade.',
+    title: 'Self-Rating 2+ Tiers Higher Than Manager',
+    definition: 'Self Grade Is Two Or More Bands Above Manager Grade.',
     tone: 'warning',
     count: 0,
     employeeIds: [],

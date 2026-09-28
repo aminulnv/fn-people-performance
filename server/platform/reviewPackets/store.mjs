@@ -197,6 +197,37 @@ async function ensurePacketsForCycle(client, cycle) {
   )
 }
 
+/** Upsert only one member's packet — used on single-packet reads. */
+async function ensurePacketForEmployee(client, cycleId, employeeId) {
+  await client.query(
+    `INSERT INTO platform.review_packets (
+       id, cycle_id, group_id, employee_id, manager_employee_id, status
+     )
+     SELECT
+       'pkt-' || member.cycle_id || '-' || member.employee_id,
+       member.cycle_id,
+       member.group_id,
+       member.employee_id,
+       employee.reports_to_employee_id,
+       'not_started'
+     FROM platform.review_cycle_group_members member
+     JOIN platform.employees employee
+       ON employee.employee_id = member.employee_id
+     JOIN platform.review_cycle_groups grp
+       ON grp.id = member.group_id
+      AND grp.deleted_at IS NULL
+     WHERE member.cycle_id = $1
+       AND member.employee_id = $2
+     ON CONFLICT (cycle_id, employee_id) DO UPDATE
+     SET group_id = EXCLUDED.group_id,
+         manager_employee_id = COALESCE(
+           platform.review_packets.manager_employee_id,
+           EXCLUDED.manager_employee_id
+         )`,
+    [cycleId, Number(employeeId)],
+  )
+}
+
 async function listPacketRows(cycleId, { includeChildren = true } = {}) {
   const cycle = await getReviewCycle(cycleId)
   if (!cycle) throw new HttpError(404, 'Cycle not found')
@@ -233,17 +264,27 @@ export async function listReviewPacketSummaries(cycleId) {
 }
 
 export async function getReviewPacket(cycleId, employeeId) {
-  const cycle = await getReviewCycle(cycleId)
-  if (!cycle) throw new HttpError(404, 'Cycle not found')
+  const eid = Number(employeeId)
   const client = await getPool().connect()
   try {
-    await ensurePacketsForCycle(client, cycle)
-    const { rows } = await client.query(
+    // Hot path: packet already exists — skip cycle-wide upsert + full roster load.
+    let { rows } = await client.query(
       `SELECT * FROM platform.review_packets
        WHERE cycle_id = $1 AND employee_id = $2
        LIMIT 1`,
-      [cycleId, Number(employeeId)],
+      [cycleId, eid],
     )
+    if (!rows[0]) {
+      const cycle = await getReviewCycle(cycleId)
+      if (!cycle) throw new HttpError(404, 'Cycle not found')
+      await ensurePacketForEmployee(client, cycleId, eid)
+      ;({ rows } = await client.query(
+        `SELECT * FROM platform.review_packets
+         WHERE cycle_id = $1 AND employee_id = $2
+         LIMIT 1`,
+        [cycleId, eid],
+      ))
+    }
     const row = rows[0]
     if (!row) return null
     const children = await loadChildren(client, [row.id])
@@ -432,6 +473,12 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       throw new HttpError(
         409,
         'Calibration cannot start until the manager review is submitted.',
+      )
+    }
+    if (!row.manager_overall_grade) {
+      throw new HttpError(
+        409,
+        'Calibration cannot start until the manager has set an overall rating.',
       )
     }
     const reason = String(input.reason ?? '').trim()

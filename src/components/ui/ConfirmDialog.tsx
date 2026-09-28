@@ -20,6 +20,9 @@ export type ConfirmDialogProps = {
   requireText?: string
   /** Label for the type-to-confirm field. */
   requireTextLabel?: string
+  /** Disables actions and blocks dismiss while the confirm request is running. */
+  confirmLoading?: boolean
+  children?: ReactNode
 }
 
 export function ConfirmDialog({
@@ -33,6 +36,8 @@ export function ConfirmDialog({
   confirmVariant = 'primary',
   requireText,
   requireTextLabel,
+  confirmLoading = false,
+  children,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
   const inputId = useId()
@@ -51,23 +56,34 @@ export function ConfirmDialog({
     return () => window.cancelAnimationFrame(frame)
   }, [open, requireText, inputId])
 
+  function handleClose() {
+    if (confirmLoading) return
+    onClose()
+  }
+
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title={title}
       description={description}
       initialFocusRef={requireText ? undefined : cancelRef}
       actions={
         <>
-          <Button ref={cancelRef} variant="secondary" onClick={onClose}>
+          <Button
+            ref={cancelRef}
+            variant="secondary"
+            disabled={confirmLoading}
+            onClick={handleClose}
+          >
             {cancelLabel}
           </Button>
           <Button
             variant={confirmVariant}
+            loading={confirmLoading}
             disabled={!canConfirm}
             onClick={() => {
-              if (!canConfirm) return
+              if (!canConfirm || confirmLoading) return
               onConfirm()
             }}
           >
@@ -85,13 +101,14 @@ export function ConfirmDialog({
           spellCheck={false}
           onChange={(event) => setTyped(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && canConfirm) {
+            if (event.key === 'Enter' && canConfirm && !confirmLoading) {
               event.preventDefault()
               onConfirm()
             }
           }}
         />
       ) : null}
+      {children}
     </Modal>
   )
 }

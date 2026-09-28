@@ -16,7 +16,17 @@ import {
 } from '@/lib/reviews/packetsApi'
 import type { ReviewPacket } from '@/lib/reviews/types'
 
-const packetQueryOptions = {
+/** List/summary caches: show cached data; do not refetch just because the page remounted. */
+const listQueryOptions = {
+  staleTime: PACKET_STALE_MS,
+  refetchOnMount: false as const,
+}
+
+/**
+ * Per-person full packet: use cached data when fresh; background-refetch only
+ * after PACKET_STALE_MS so scorecard opens do not wait on a remount confirm.
+ */
+const detailQueryOptions = {
   staleTime: PACKET_STALE_MS,
   refetchOnMount: true as const,
 }
@@ -30,7 +40,7 @@ export function useReviewPacketSummaries(
     queryKey: queryKeys.reviewPacketSummaries(cycleId ?? ''),
     queryFn: () => fetchReviewPacketSummaries(cycleId!),
     enabled: active,
-    ...packetQueryOptions,
+    ...listQueryOptions,
   })
 }
 
@@ -43,7 +53,7 @@ export function useReviewPackets(
     queryKey: queryKeys.reviewPackets(cycleId ?? ''),
     queryFn: () => fetchReviewPackets(cycleId!),
     enabled: active,
-    ...packetQueryOptions,
+    ...listQueryOptions,
   })
 }
 
@@ -54,7 +64,7 @@ export function useReviewPacketsForCycles(cycleKeys: readonly string[]) {
       queryKey: queryKeys.reviewPackets(cycleId),
       queryFn: () => fetchReviewPackets(cycleId),
       enabled: Boolean(cycleId),
-      ...packetQueryOptions,
+      ...listQueryOptions,
     })),
   })
 
@@ -85,6 +95,8 @@ export function useReviewPacket(
   cycleId: string | null | undefined,
   employeeId: number | null | undefined,
   enabled = true,
+  /** Grades-only summary — paints the drawer while the full packet loads. */
+  placeholder?: ReviewPacket | null,
 ) {
   const active =
     Boolean(cycleId) &&
@@ -96,7 +108,8 @@ export function useReviewPacket(
     queryKey: queryKeys.reviewPacket(cycleId ?? '', employeeId ?? 0),
     queryFn: () => fetchReviewPacket(cycleId!, employeeId!),
     enabled: active,
-    ...packetQueryOptions,
+    placeholderData: placeholder ?? undefined,
+    ...detailQueryOptions,
   })
 }
 
@@ -109,7 +122,7 @@ export function useReviewPacketSummariesForCycles(
       queryKey: queryKeys.reviewPacketSummaries(cycleId),
       queryFn: () => fetchReviewPacketSummaries(cycleId),
       enabled: Boolean(cycleId),
-      ...packetQueryOptions,
+      ...listQueryOptions,
     })),
   })
 
@@ -180,6 +193,7 @@ export function seedReviewPacketDetails(
 /**
  * Background-warm full packets for a cycle so employee drawers open instantly.
  * Seeds per-person detail keys from the list response.
+ * Prefer {@link prefetchReviewPacket} on hover — bulk full-packet fetch is heavy.
  */
 export function prefetchReviewPacketsForCycle(
   client: QueryClient,
@@ -197,6 +211,20 @@ export function prefetchReviewPacketsForCycle(
       )
       if (packets) seedReviewPacketDetails(client, packets)
     })
+}
+
+/** Warm one employee's full packet (e.g. rating-table row hover). */
+export function prefetchReviewPacket(
+  client: QueryClient,
+  cycleId: string,
+  employeeId: number,
+): void {
+  if (!cycleId || !Number.isInteger(employeeId) || employeeId <= 0) return
+  void client.prefetchQuery({
+    queryKey: queryKeys.reviewPacket(cycleId, employeeId),
+    queryFn: () => fetchReviewPacket(cycleId, employeeId),
+    staleTime: PACKET_STALE_MS,
+  })
 }
 
 export function usePatchReviewPacketCache() {

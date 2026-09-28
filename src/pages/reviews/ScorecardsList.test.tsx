@@ -120,7 +120,7 @@ afterEach(() => {
   cleanup()
   employeesState.employees = []
   packetsState.packets = []
-  window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
+  window.localStorage.removeItem('reviews-scorecards-visible-columns-v3')
 })
 
 function renderList(hash = '') {
@@ -291,23 +291,23 @@ describe('ScorecardsList', () => {
       name: 'Alex Manager',
       permissions: ['platform.read_all'],
     }
-    window.localStorage.removeItem('reviews-scorecards-visible-columns-v2')
+    window.localStorage.removeItem('reviews-scorecards-visible-columns-v3')
     renderList('#everyone')
 
     await screen.findByRole('link', { name: 'Casey Peer' })
     expect(screen.getByRole('columnheader', { name: /^Role/ })).toBeInTheDocument()
-    expect(screen.queryByRole('columnheader', { name: /^Cycle/ })).toBeNull()
+    expect(screen.getByRole('columnheader', { name: /^Cycle/ })).toBeInTheDocument()
     expect(screen.queryByRole('columnheader', { name: /^Seniority/ })).toBeNull()
     expect(
-      screen.getByRole('button', { name: 'Columns, 2 hidden' }),
+      screen.getByRole('button', { name: 'Columns, 1 hidden' }),
     ).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Columns, 2 hidden' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Columns, 1 hidden' }))
     fireEvent.click(screen.getByRole('option', { name: 'Role' }))
 
     expect(screen.queryByRole('columnheader', { name: /^Role/ })).toBeNull()
     expect(
-      screen.getByRole('button', { name: 'Columns, 3 hidden' }),
+      screen.getByRole('button', { name: 'Columns, 2 hidden' }),
     ).toBeInTheDocument()
   })
 })

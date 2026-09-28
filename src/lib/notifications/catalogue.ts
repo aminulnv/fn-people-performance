@@ -61,8 +61,8 @@ function entry(
   return { key, ...definition }
 }
 
-const inApp = ['in_app'] as const
-const inAppAndEmail = ['in_app', 'email'] as const
+const inApp = ['in_app', 'browser'] as const
+const inAppAndEmail = ['in_app', 'email', 'browser'] as const
 
 const entries: NotificationCatalogueEntry[] = [
   entry(NOTIFICATION_EVENTS.GOAL_WINDOW_OPENED, {

@@ -545,29 +545,40 @@ export function buildScorecardDetail(
   currentUserEmail?: string | null,
   packet?: ReviewPacket | null,
 ): ScorecardDetail | null {
-  const me = employees.find(
-    (person) =>
-      person.email.trim().toLowerCase() ===
-      (currentUserEmail?.trim().toLowerCase() ?? ''),
+  const resolvedKey = resolveReviewCycleKey(cycleKey)
+  const cycle = getReviewCycle(resolvedKey)
+  const active = scorecardDirectory(employees)
+  const employee = active.find((person) => person.employeeId === employeeId)
+  if (!employee) return null
+
+  const inCycle =
+    cycle != null && findCycleGroupForPerson(cycle, employeeId) != null
+  if (!inCycle && !packet) return null
+
+  const byEmail = new Map(
+    active.map((person) => [person.email.trim().toLowerCase(), person]),
   )
-  const viewerEmployeeId = me?.employeeId ?? null
+  const meEmail = currentUserEmail?.trim().toLowerCase() ?? ''
+  const me = meEmail ? byEmail.get(meEmail) : undefined
+  const access = reviewAccessForDirectory(me, active, sessionReviewAccess())
+  const row = scorecardRowForPerson(
+    cycle?.id ?? resolvedKey,
+    employee,
+    active,
+    byEmail,
+    me,
+    packet ?? undefined,
+    access,
+  )
+
   const visiblePacket = packetForViewer(
     packet,
-    viewerEmployeeId,
+    me?.employeeId ?? null,
     [],
-    reviewAccessForDirectory(me, employees, sessionReviewAccess()),
+    access,
   )
-  const rows = buildScorecardsForCycle(
-    cycleKey,
-    employees,
-    currentUserEmail,
-    visiblePacket ? [visiblePacket] : [],
-  )
-  const row = rows.find((item) => item.employeeId === employeeId)
-  if (!row) return null
-
   const performanceGoals = buildPerformanceGoals(
-    cycleKey,
+    resolvedKey,
     employeeId,
     row.employeeName,
   )

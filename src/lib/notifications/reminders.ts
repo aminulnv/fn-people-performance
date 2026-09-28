@@ -12,6 +12,7 @@ import {
   emitNotification,
   supersedeNotification,
 } from './store'
+import { GOAL_RESULTS_REMINDER_DAYS } from './reminderCadence'
 
 type ReminderPoint = {
   day: 7 | 14 | 25
@@ -195,7 +196,7 @@ function evaluateResultsReminder(
   const reviewCycle = listReviewCycles().find((item) => item.id === cycle.id)
   const cycleEnd = reviewCycle ? datePart(reviewCycle.endDate) : ''
   if (!reviewCycle || !cycleEnd || today > cycleEnd) return
-  const reminderStart = addDays(cycleEnd, -14)
+  const reminderStart = addDays(cycleEnd, -GOAL_RESULTS_REMINDER_DAYS)
   if (today < reminderStart) return
   if (row.status !== 'approved' && row.status !== 'submitted') return
 

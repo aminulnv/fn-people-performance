@@ -10,7 +10,8 @@ import {
 
 const sessionQueryOptions = {
   staleTime: PACKET_STALE_MS,
-  refetchOnMount: true as const,
+  // Cache-first on remount so ratings / drawers do not wait on sitting refetch.
+  refetchOnMount: false as const,
 }
 
 export function useCalibrationSitting(

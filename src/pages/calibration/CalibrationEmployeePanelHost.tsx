@@ -11,9 +11,13 @@ import {
   useCalibrationSitting,
   useCalibratorAssignments,
 } from '@/lib/calibration/useCalibrationSession'
-import { jobLevelOf, type RatingTableRow } from '@/lib/calibration/ratingTable'
-import { officialGrade } from '@/lib/analytics/dashboard'
+import {
+  calibrationFinalGrade,
+  jobLevelOf,
+  type RatingTableRow,
+} from '@/lib/calibration/ratingTable'
 import { queryClient, queryKeys } from '@/lib/queryClient'
+import { prefetchReviewPacket } from '@/lib/reviews/useReviewPackets'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { CalibrationEmployeeDrawer } from '@/pages/calibration/CalibrationEmployeeDrawer'
@@ -37,8 +41,9 @@ function fallbackRow(
   employee: PlatformEmployee | undefined,
   packet: ReviewPacket | null,
 ): RatingTableRow {
-  const annualGrade = officialGrade(packet)
+  const annualGrade = calibrationFinalGrade(packet)
   const selfGrade = packet?.selfOverallGrade ?? null
+  const managerGrade = packet?.managerOverallGrade ?? null
   return {
     employeeId,
     fullName: employee?.fullName.trim() || `Employee ${employeeId}`,
@@ -56,8 +61,10 @@ function fallbackRow(
     quarterAverageGrade: null,
     annualGrade,
     selfGrade,
+    managerGrade,
     gapTiers: gradeTierDelta(selfGrade, annualGrade),
     priorGrade: null,
+    cycleLabel: '',
     priorYearLabel: '',
     trend: null,
     joinDateLabel: '—',
@@ -113,16 +120,9 @@ export function CalibrationEmployeePanelHost({
     return fallbackRow(employeeId, employee, summaryPacket)
   }, [employee, employeeId, rows, summaryPacket])
 
-  // Seed the detail cache from the summary so the drawer paints content
-  // immediately while a full packet prefetch (if any) catches up.
   useEffect(() => {
-    if (!summaryPacket) return
-    const key = queryKeys.reviewPacket(cycle.id, employeeId)
-    const existing = queryClient.getQueryData<ReviewPacket>(key)
-    if (!existing) {
-      queryClient.setQueryData(key, summaryPacket)
-    }
-  }, [cycle.id, employeeId, summaryPacket])
+    prefetchReviewPacket(queryClient, cycle.id, employeeId)
+  }, [cycle.id, employeeId])
 
   return (
     <CalibrationEmployeeDrawer

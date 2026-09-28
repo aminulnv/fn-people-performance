@@ -1652,6 +1652,11 @@ a.pd-btn--secondary:visited {
   color: var(--color-surface);
 }
 
+.pd-count-badge--success {
+  background: var(--color-on-success, #fff);
+  color: var(--color-success);
+}
+
 .pd-segmented__btn:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--color-theme) 55%, transparent);
   outline-offset: 2px;
@@ -2302,6 +2307,10 @@ a.pd-btn--secondary:visited {
   width: max-content;
   max-width: calc(100vw - 1rem);
   overflow-x: hidden;
+}
+
+.pd-listbox__panel--floating:has(.pd-listbox__search) {
+  min-width: min(18rem, calc(100vw - 1rem));
 }
 
 .pd-listbox__panel--floating .pd-listbox__option-content,

@@ -38,6 +38,7 @@ import {
   type NotificationRule,
   type NotificationRuleCategory,
 } from '@/lib/notifications/ruleTypes'
+import { sampleDaysForEvent } from '@/lib/notifications/sampleDays'
 import type { NotificationChannel } from '@/lib/notifications/types'
 import { useAuth } from '@/lib/useAuth'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
@@ -83,6 +84,13 @@ const PREVIEW_VARIABLES: Record<string, string> = {
   message: 'Please submit your goals this week',
   thresholdDate: '1 Sep',
   grade: 'Exceeds',
+}
+
+/** Sample {{days}} so previews match the rule being edited. */
+function previewVariablesForEvent(eventKey: string): Record<string, string> {
+  const days = sampleDaysForEvent(eventKey)
+  if (days == null) return PREVIEW_VARIABLES
+  return { ...PREVIEW_VARIABLES, days }
 }
 
 function renderPreview(
@@ -715,8 +723,18 @@ export function NotificationRulesPanel() {
             </Field>
             <div className="pd-notify-rules__preview" aria-live="polite">
               <span className="pd-notify-rules__preview-label">Preview</span>
-              <strong>{renderPreview(draftTitle, PREVIEW_VARIABLES)}</strong>
-              <span>{renderPreview(draftBody, PREVIEW_VARIABLES)}</span>
+              <strong>
+                {renderPreview(
+                  draftTitle,
+                  previewVariablesForEvent(editing.eventKey),
+                )}
+              </strong>
+              <span>
+                {renderPreview(
+                  draftBody,
+                  previewVariablesForEvent(editing.eventKey),
+                )}
+              </span>
             </div>
           </div>
         ) : null}

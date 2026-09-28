@@ -601,7 +601,6 @@ export function ScorecardFormEditor({
           <ScorecardHero
             detail={FORM_PREVIEW_DETAIL}
             packet={null}
-            hideStages
           />
 
           <ScorecardSetupSection

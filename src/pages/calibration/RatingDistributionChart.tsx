@@ -12,7 +12,7 @@ import { cx } from '@/lib/cx'
 const GROUPED_SERIES_LIMIT = 4
 
 function peopleLabel(count: number): string {
-  return `${count} ${count === 1 ? 'person' : 'people'}`
+  return `${count} ${count === 1 ? 'Person' : 'People'}`
 }
 
 function heightPercent(value: number, scale: number): number {
@@ -88,7 +88,7 @@ function BandColumn({
           >
             <Tooltip
               className="pd-cal-dist__guide-tip"
-              content="This cycle’s target for this band."
+              content="This Cycle’s Target For This Band."
               side="top"
             >
               <span className="pd-cal-dist__guide-label">
@@ -160,7 +160,7 @@ export function RatingDistributionChart({
   return (
     <section
       className={cx('pd-cal-dist', hideSummary && 'pd-cal-dist--solo')}
-      aria-label={title ?? 'Rating distribution'}
+      aria-label={title ?? 'Rating Distribution'}
     >
       <header className="pd-cal-dist__head">
         {hideBreakdown ? (
@@ -171,24 +171,24 @@ export function RatingDistributionChart({
             options={RATING_BREAKDOWNS}
             value={breakdown}
             onChange={onBreakdownChange}
-            aria-label="Rating breakdown"
+            aria-label="Rating Breakdown"
           />
         )}
-        <ul className="pd-cal-dist__key" aria-label="How to read this chart">
+        <ul className="pd-cal-dist__key" aria-label="How To Read This Chart">
           <li>
             <Tooltip
-              content="Bar height is the share of graded people."
+              content="Bar Height Is The Share Of Graded People."
               side="bottom"
             >
               <span className="pd-cal-dist__key-item" tabIndex={0}>
                 <span className="pd-cal-dist__key-bar" aria-hidden />
-                Share of people
+                Share Of People
               </span>
             </Tooltip>
           </li>
           <li>
             <Tooltip
-              content="The red line is this cycle’s target per band."
+              content="The Red Line Is This Cycle’s Target Per Band."
               side="bottom"
             >
               <span className="pd-cal-dist__key-item" tabIndex={0}>
@@ -212,7 +212,7 @@ export function RatingDistributionChart({
                 bands={row.bands}
                 series={[row]}
                 grouped={false}
-                label={`${row.label} rating distribution`}
+                label={`${row.label} Rating Distribution`}
               />
             </li>
           ))}
@@ -222,7 +222,7 @@ export function RatingDistributionChart({
           bands={bands}
           series={grouped ? series : series.slice(0, 1)}
           grouped={grouped}
-          label="Rating distribution by band"
+          label="Rating Distribution By Band"
         />
       )}
 
@@ -244,13 +244,13 @@ export function RatingDistributionChart({
       ) : null}
 
       {hideSummary ? null : (
-        <aside className="pd-cal-dist__stats" aria-label="Calibration totals">
+        <aside className="pd-cal-dist__stats" aria-label="Calibration Totals">
           <p className="pd-cal-dist__stat">
-            <span>Total in calibration</span>
+            <span>Total In Calibration</span>
             <strong>{summary.total}</strong>
           </p>
           <p className="pd-cal-dist__stat">
-            <span>Exceeding & above</span>
+            <span>Exceeding & Above</span>
             <strong className="is-high">
               {summary.exceedingAndAbove.count}
               <em>({summary.exceedingAndAbove.percent}%)</em>
@@ -264,7 +264,7 @@ export function RatingDistributionChart({
             </strong>
           </p>
           <p className="pd-cal-dist__stat">
-            <span>Developing & below</span>
+            <span>Developing & Below</span>
             <strong className="is-low">
               {summary.developingAndBelow.count}
               <em>({summary.developingAndBelow.percent}%)</em>

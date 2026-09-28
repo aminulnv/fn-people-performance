@@ -3,8 +3,8 @@ import { cx } from '@/lib/cx'
 
 export type CountBadgeProps = HTMLAttributes<HTMLSpanElement> & {
   count: number
-  /** `danger` is the sidebar notification. `theme` is brand. `muted` is quiet. */
-  tone?: 'danger' | 'theme' | 'muted'
+  /** `danger` is the sidebar notification. `theme` is brand. `muted` is quiet. `success` is for green CTAs. */
+  tone?: 'danger' | 'theme' | 'muted' | 'success'
 }
 
 /** Numeric pill, shared by My Reports, the Goals sidebar item, and metric counts. */
@@ -21,6 +21,7 @@ export function CountBadge({
         'pd-count-badge',
         tone === 'theme' && 'pd-count-badge--theme',
         tone === 'muted' && 'pd-count-badge--muted',
+        tone === 'success' && 'pd-count-badge--success',
         className,
       )}
       {...props}

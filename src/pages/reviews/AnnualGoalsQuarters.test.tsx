@@ -80,7 +80,7 @@ describe("AnnualGoalsQuarters", () => {
     expect(screen.queryByRole("heading", { name: "Q4 2026" })).toBeNull();
     expect(screen.getByRole("button", { name: "Goal quarter: Q4 2026" })).toBeTruthy();
     expect(screen.getByText("Finish the year plan")).toBeTruthy();
-    expect(screen.getAllByText("40% complete").length).toBeGreaterThan(0);
+    expect(screen.getByRole("columnheader", { name: "Progress 0%" })).toBeTruthy();
     expect(screen.queryByText("Finish the year plan")).toBeTruthy();
     expect(screen.queryByRole("button", { name: /grade/i })).toBeNull();
     expect(screen.getByRole("button", { name: "Next quarter" })).toBeDisabled();

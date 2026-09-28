@@ -16,7 +16,7 @@ export function HomeActionsIdle({
   absence = null,
   canManageCycles = false,
 }: HomeActionsIdleProps) {
-  const artwork = publicUrl('images/3D Icons/Approve.png')
+  const artwork = publicUrl('images/3D Icons/Approve-green.png')
   const cyclesHref =
     absence?.kind === 'not_in_cycle' && absence.cycleId
       ? cycleDetailPath(absence.cycleId)
@@ -24,6 +24,7 @@ export function HomeActionsIdle({
 
   return (
     <div className="pd-home-actions-idle" aria-label="No actions right now">
+      <div className="pd-home-actions-idle__grain" aria-hidden />
       <div className="pd-home-actions-idle__copy">
         {absence ? (
           <>

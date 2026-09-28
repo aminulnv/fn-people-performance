@@ -155,11 +155,7 @@ export async function confirmCalibrationClean(
        SELECT $1, employee_id, 'confirmed', '', $3
        FROM unnest($2::int[]) AS employee_id
        ON CONFLICT (cycle_id, employee_id) DO UPDATE SET
-         status = CASE
-           WHEN platform.calibration_sitting_employees.status = 'rating_changed'
-             THEN platform.calibration_sitting_employees.status
-           ELSE 'confirmed'
-         END,
+         status = 'confirmed',
          updated_by_employee_id = EXCLUDED.updated_by_employee_id,
          updated_at = now()`,
       [cycleId, ids, actorEmployeeId],

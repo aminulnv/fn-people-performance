@@ -1,12 +1,21 @@
 import { useQuery } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronDown, Eye, EyeOff, Plus, Trash2, UsersRound } from 'lucide-react'
+import {
+  ChevronDown,
+  Eye,
+  EyeOff,
+  Plus,
+  Search,
+  Trash2,
+  UsersRound,
+} from 'lucide-react'
 import {
   createContext,
   memo,
   startTransition,
   useCallback,
   useContext,
+  useDeferredValue,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -280,6 +289,8 @@ function CyclePeopleTable({
   const [columnFilters, setColumnFilters] = useState<
     Partial<Record<CyclePeopleColumnId, string[]>>
   >({})
+  const [query, setQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set())
   const [savingEmployeeId, setSavingEmployeeId] = useState<number | null>(null)
   const [bulkSaving, setBulkSaving] = useState(false)
@@ -334,6 +345,7 @@ function CyclePeopleTable({
   useEffect(() => {
     setGradesRevealed(false)
     setGradeOverrides({})
+    setQuery('')
     setSelectedIds(new Set())
     setGroupChangeError(null)
   }, [cycle.id])
@@ -479,22 +491,41 @@ function CyclePeopleTable({
     [employees, valueForColumn],
   )
 
-  const filteredEmployees = useMemo(
-    () =>
-      employees.filter((employee) =>
-        (
-          Object.entries(columnFilters) as [
-            CyclePeopleColumnId,
-            string[],
-          ][]
-        ).every(
-          ([columnId, selected]) =>
-            selected.length === 0 ||
-            selected.includes(valueForColumn(employee, columnId)),
-        ),
-      ),
-    [columnFilters, employees, valueForColumn],
-  )
+  const filteredEmployees = useMemo(() => {
+    const needle = deferredQuery.trim().toLowerCase()
+    return employees.filter((employee) => {
+      const matchesColumns = (
+        Object.entries(columnFilters) as [CyclePeopleColumnId, string[]][]
+      ).every(
+        ([columnId, selected]) =>
+          selected.length === 0 ||
+          selected.includes(valueForColumn(employee, columnId)),
+      )
+      if (!matchesColumns) return false
+      if (!needle) return true
+      const haystack = [
+        employee.fullName,
+        employee.jobTitle,
+        employee.jobGrade,
+        employee.team,
+        employee.department,
+        employee.reportsToName,
+        employee.email,
+        cycle.name,
+        groupByEmployeeId.get(employee.employeeId)?.name ?? 'Not included',
+      ]
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(needle)
+    })
+  }, [
+    columnFilters,
+    cycle.name,
+    deferredQuery,
+    employees,
+    groupByEmployeeId,
+    valueForColumn,
+  ])
 
   const filteredSelectedCount = useMemo(
     () =>
@@ -817,39 +848,52 @@ function CyclePeopleTable({
               {groupChangeError}
             </p>
           ) : null}
-          <div
-            className="pd-cycle-setup__people-bulk"
-            hidden={selectedIds.size === 0}
-            aria-hidden={selectedIds.size === 0}
-          >
-            <p className="pd-cycle-setup__people-bulk-count">
-              {peopleCountLabel(selectedIds.size)} selected
-            </p>
-            <ListboxSelect
-              className="pd-cycle-setup__group-select pd-cycle-setup__people-bulk-assign"
-              value=""
-              options={groupAssignOptions}
-              placeholder={bulkSaving ? 'Assigning…' : 'Assign to group'}
-              emptyLabel="Not included"
-              portal
-              disabled={bulkSaving || selectedIds.size === 0}
-              aria-label="Assign selected people to a cycle group"
-              onValueChange={(value) => {
-                if (value === CREATE_GROUP_OPTION) {
-                  onCreateGroup()
-                  return
-                }
-                void bulkAssignCycleGroup(value)
-              }}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={bulkSaving || selectedIds.size === 0}
-              onClick={() => setSelectedIds(new Set())}
+          <div className="pd-cycle-setup__people-table-toolbar-start">
+            <label className="pd-people__search pd-cycle-setup__people-search">
+              <Search size={16} strokeWidth={1.75} aria-hidden />
+              <span className="pd-sr-only">Search people</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search people…"
+                className="pd-people__search-input"
+              />
+            </label>
+            <div
+              className="pd-cycle-setup__people-bulk"
+              hidden={selectedIds.size === 0}
+              aria-hidden={selectedIds.size === 0}
             >
-              Clear
-            </Button>
+              <p className="pd-cycle-setup__people-bulk-count">
+                {peopleCountLabel(selectedIds.size)} selected
+              </p>
+              <ListboxSelect
+                className="pd-cycle-setup__group-select pd-cycle-setup__people-bulk-assign"
+                value=""
+                options={groupAssignOptions}
+                placeholder={bulkSaving ? 'Assigning…' : 'Assign to group'}
+                emptyLabel="Not included"
+                portal
+                disabled={bulkSaving || selectedIds.size === 0}
+                aria-label="Assign selected people to a cycle group"
+                onValueChange={(value) => {
+                  if (value === CREATE_GROUP_OPTION) {
+                    onCreateGroup()
+                    return
+                  }
+                  void bulkAssignCycleGroup(value)
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={bulkSaving || selectedIds.size === 0}
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Clear
+              </Button>
+            </div>
           </div>
           <ColumnVisibility
             columns={CYCLE_PEOPLE_COLUMN_OPTIONS}

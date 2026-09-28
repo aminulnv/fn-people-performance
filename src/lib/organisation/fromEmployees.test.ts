@@ -231,6 +231,24 @@ describe('buildOrganisationFromEmployees', () => {
   })
 
   it('uses the catalog head and owner instead of a reporting-line guess', () => {
+    const casey = employee({
+      employeeId: 7,
+      fullName: 'Casey Owner',
+      email: 'casey@example.com',
+      avatarUrl: 'https://cdn.example/casey.jpg',
+    })
+    const harper = employee({
+      employeeId: 8,
+      fullName: 'Harper HR',
+      email: 'harper@example.com',
+      avatarUrl: 'https://cdn.example/harper.jpg',
+    })
+    const owner = employee({
+      employeeId: 9,
+      fullName: 'Owner Chosen',
+      email: 'owner@example.com',
+      avatarUrl: 'https://cdn.example/owner.jpg',
+    })
     const snapshot = mergeOrganisationWithCatalog(
       buildOrganisationFromEmployees([
         employee({
@@ -280,13 +298,23 @@ describe('buildOrganisationFromEmployees', () => {
           headcount: 2,
         },
       ],
+      [casey, harper, owner],
     )
     const engineering = snapshot.departments[0]
-    expect(engineering?.head).toEqual({ employeeId: 7, fullName: 'Casey Owner' })
-    expect(engineering?.hrbp).toEqual({ employeeId: 8, fullName: 'Harper HR' })
+    expect(engineering?.head).toEqual({
+      employeeId: 7,
+      fullName: 'Casey Owner',
+      avatarUrl: 'https://cdn.example/casey.jpg',
+    })
+    expect(engineering?.hrbp).toEqual({
+      employeeId: 8,
+      fullName: 'Harper HR',
+      avatarUrl: 'https://cdn.example/harper.jpg',
+    })
     expect(engineering?.teams[0]?.manager).toEqual({
       employeeId: 9,
       fullName: 'Owner Chosen',
+      avatarUrl: 'https://cdn.example/owner.jpg',
     })
   })
 })

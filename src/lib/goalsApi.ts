@@ -242,6 +242,43 @@ export async function ensureGoalCycleHydrated(
   return hydrateGoalsFromApi(cycleId, { activate: false })
 }
 
+const personGoalsInFlight = new Map<string, Promise<void>>()
+
+/**
+ * Scorecard hot path: hydrate one person's goals without downloading the
+ * entire cycle roster. Safe to call repeatedly — dedupes in-flight requests.
+ */
+export async function ensurePersonGoalsHydrated(
+  cycleId: string,
+  employeeId: number | string,
+): Promise<void> {
+  if (!cycleId || employeeId == null || String(employeeId) === '') return
+  if (useLocalGoals()) return
+  if (getGoalsHydration(cycleId).cycleReady) return
+  const personId = String(employeeId)
+  const key = `${cycleId}:${personId}`
+  const pending = personGoalsInFlight.get(key)
+  if (pending) {
+    await pending
+    return
+  }
+  const request = (async () => {
+    await ensureReviewCyclesLoaded()
+    try {
+      const row = await fetchPersonGoalsRemote(cycleId, employeeId)
+      mergeRemotePersonGoals(cycleId, personId, row)
+    } catch {
+      // Leave store empty — scorecard cards handle missing goals.
+    }
+  })().finally(() => {
+    if (personGoalsInFlight.get(key) === request) {
+      personGoalsInFlight.delete(key)
+    }
+  })
+  personGoalsInFlight.set(key, request)
+  await request
+}
+
 /** @deprecated Prefer listGoalCycles / selectGoalCycle */
 export function listDemoCycles() {
   return listGoalCycles()

@@ -11,7 +11,7 @@ const TABS: Array<{ id: CalibrationTabId; label: string }> = [
 
 export function CalibrationTabs({ current }: { current?: CalibrationTabId }) {
   return (
-    <nav className="pd-topbar__reviews-nav" aria-label="Calibration sections">
+    <nav className="pd-topbar__reviews-nav" aria-label="Calibration Sections">
       {TABS.map((tab) => (
         <NavLink
           key={tab.id}

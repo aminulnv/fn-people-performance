@@ -1,40 +1,70 @@
 import { hasSystemPermission, type SystemPermission } from '@/lib/accessControl/types'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import type { GradeBandId } from '@/lib/reviews/types'
-import { gradeTierDelta } from './indicators'
 import type { CalibratorAssignments } from './sessionApi'
 
-/** Appended to the override reason when a 3+ tier change is flagged for HRBP. */
-export const HRBP_COSIGN_REASON_TAG = '[Pending HRBP co-sign]'
-
-/** Absolute grade-tier change for an override (null if either grade is missing). */
-export function overrideTierSpan(
-  from: GradeBandId | null | undefined,
-  to: GradeBandId | null | undefined,
-): number | null {
-  const delta = gradeTierDelta(from ?? null, to ?? null)
-  return delta == null ? null : Math.abs(delta)
+export type EffectiveCalibrator = {
+  employeeId: number
+  source: 'head' | 'hrbp' | 'department' | 'team' | 'person'
 }
 
-/** HTML rule: changes of 3 or more tiers require HRBP co-sign. */
-export function requiresHrbpCosign(
-  from: GradeBandId | null | undefined,
-  to: GradeBandId | null | undefined,
-): boolean {
-  const span = overrideTierSpan(from, to)
-  return span != null && span >= 3
-}
+export function listEffectiveCalibrators(input: {
+  subject: Pick<
+    PlatformEmployee,
+    | 'employeeId'
+    | 'department'
+    | 'team'
+    | 'teamId'
+    | 'departmentHeadId'
+    | 'hrbpId'
+  >
+  assignments: CalibratorAssignments
+}): EffectiveCalibrator[] {
+  const rows: EffectiveCalibrator[] = []
+  const seen = new Set<number>()
+  const add = (
+    employeeId: number | null | undefined,
+    source: EffectiveCalibrator['source'],
+  ) => {
+    if (employeeId == null || employeeId === input.subject.employeeId) return
+    if (seen.has(employeeId)) return
+    seen.add(employeeId)
+    rows.push({ employeeId, source })
+  }
 
-export function reasonWithHrbpCosign(
-  reason: string,
-  pendingCosign: boolean,
-): string {
-  const trimmed = reason.trim()
-  if (!pendingCosign) return trimmed
-  if (trimmed.includes(HRBP_COSIGN_REASON_TAG)) return trimmed
-  return `${trimmed} ${HRBP_COSIGN_REASON_TAG}`
-}
+  add(input.subject.departmentHeadId, 'head')
+  add(input.subject.hrbpId, 'hrbp')
 
+  const department = input.subject.department.trim().toLocaleLowerCase()
+  const departmentMatch = input.assignments.departments.find(
+    (row) => row.department.trim().toLocaleLowerCase() === department,
+  )
+  for (const employeeId of departmentMatch?.employeeIds ?? []) {
+    add(employeeId, 'department')
+  }
+
+  const teamId = input.subject.teamId
+  const teamName = input.subject.team?.trim().toLocaleLowerCase() ?? ''
+  const teamMatch = input.assignments.teams.find((row) => {
+    if (teamId && row.teamId === teamId) return true
+    return (
+      teamName.length > 0 &&
+      row.team.trim().toLocaleLowerCase() === teamName &&
+      row.department.trim().toLocaleLowerCase() === department
+    )
+  })
+  for (const employeeId of teamMatch?.employeeIds ?? []) {
+    add(employeeId, 'team')
+  }
+
+  const personMatch = input.assignments.people.find(
+    (row) => row.subjectEmployeeId === input.subject.employeeId,
+  )
+  for (const employeeId of personMatch?.employeeIds ?? []) {
+    add(employeeId, 'person')
+  }
+
+  return rows
+}
 
 export function canOverrideCalibrationGrade(input: {
   viewerEmployeeId: number | null
@@ -53,32 +83,7 @@ export function canOverrideCalibrationGrade(input: {
   const viewerId = input.viewerEmployeeId
   if (!viewerId || viewerId === input.subject.employeeId) return false
   if (hasSystemPermission(input.permissions, 'platform.write_all')) return true
-  if (
-    input.subject.departmentHeadId === viewerId ||
-    input.subject.hrbpId === viewerId
-  ) {
-    return true
-  }
-  const department = input.subject.department.trim().toLocaleLowerCase()
-  const departmentMatch = input.assignments.departments.find(
-    (row) => row.department.trim().toLocaleLowerCase() === department,
+  return listEffectiveCalibrators(input).some(
+    (row) => row.employeeId === viewerId,
   )
-  if (departmentMatch?.employeeIds.includes(viewerId)) return true
-
-  const teamId = input.subject.teamId
-  const teamName = input.subject.team?.trim().toLocaleLowerCase() ?? ''
-  const teamMatch = input.assignments.teams.find((row) => {
-    if (teamId && row.teamId === teamId) return true
-    return (
-      teamName.length > 0 &&
-      row.team.trim().toLocaleLowerCase() === teamName &&
-      row.department.trim().toLocaleLowerCase() === department
-    )
-  })
-  if (teamMatch?.employeeIds.includes(viewerId)) return true
-
-  const personMatch = input.assignments.people.find(
-    (row) => row.subjectEmployeeId === input.subject.employeeId,
-  )
-  return Boolean(personMatch?.employeeIds.includes(viewerId))
 }

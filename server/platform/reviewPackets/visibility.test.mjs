@@ -46,7 +46,15 @@ test('subject cannot read manager or calibration fields before publish', () => {
 
 test('subject sees the official packet after employee publish', () => {
   const source = packet({ status: 'released_to_employees' })
-  assert.deepEqual(packetForViewer(source, 754), source)
+  const visible = packetForViewer(source, 754)
+  assert.equal(visible.publishedOverallGrade, 'exceptional')
+  assert.equal(visible.selfOverallGrade, 'performing')
+  assert.equal(visible.managerOverallGrade, null)
+  assert.equal(visible.calibratedOverallGrade, null)
+  assert.equal(visible.managerOverrideReason, '')
+  assert.deepEqual(visible.calibrationEvents, [])
+  assert.deepEqual(visible.answers, source.answers)
+  assert.deepEqual(visible.pillarScores, source.pillarScores)
 })
 
 test('calibration stays closed until the manager review is submitted', () => {

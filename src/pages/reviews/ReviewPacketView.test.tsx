@@ -78,6 +78,7 @@ vi.mock('@/lib/useAuth', () => ({
 
 vi.mock('@/lib/goalsApi', () => ({
   selectGoalCycle: async () => {},
+  ensurePersonGoalsHydrated: async () => {},
 }))
 
 vi.mock('@/lib/goals/store', () => ({
@@ -335,6 +336,33 @@ describe('ScorecardDetailPage', () => {
       'href',
       `/reviews/scorecards/${cycleId}/2?mode=edit&stage=manager_review`,
     )
+  })
+
+  it('hides Edit after the review is published', async () => {
+    packetState.packet = packet(cycleId, {
+      status: 'released_to_employees',
+      managerOverallGrade: 'exceeding',
+      publishedOverallGrade: 'exceeding',
+    })
+    render(
+      withQuery(
+        <MemoryRouter
+          initialEntries={[
+            `/reviews/scorecards/${cycleId}/2?stage=publish_employees`,
+          ]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    )
+
+    await screen.findByRole('heading', { name: 'Riley Report' })
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
   })
 })
 

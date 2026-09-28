@@ -7,7 +7,7 @@ import type { GradeBandId, ReviewCycle, ReviewPacket } from '@/lib/reviews/types
 
 export const RATING_BREAKDOWNS = [
   { id: 'overall', label: 'Overall' },
-  { id: 'track', label: 'IC vs Managerial' },
+  { id: 'track', label: 'IC Vs Managerial' },
   { id: 'market', label: 'By Market' },
   { id: 'department', label: 'By Department' },
 ] as const
@@ -104,7 +104,7 @@ function groupLabel(
   if (breakdown === 'track') {
     return employeeTrack(employeeId, managerIds) === 'managerial'
       ? { id: 'managerial', label: 'Managerial' }
-      : { id: 'ic', label: 'Individual contributor' }
+      : { id: 'ic', label: 'Individual Contributor' }
   }
   if (breakdown === 'market') {
     const site = employee?.site.trim() || 'Unassigned'

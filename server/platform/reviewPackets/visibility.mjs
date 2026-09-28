@@ -104,10 +104,23 @@ function canSeeUnpublishedReview(packet, viewerEmployeeId, access) {
   return false
 }
 
+function stripProvisionalGradesForEmployee(packet) {
+  return {
+    ...packet,
+    managerOverallGrade: null,
+    calibratedOverallGrade: null,
+    managerOverrideReason: '',
+    calibrationEvents: [],
+  }
+}
+
 /**
  * Unpublished manager and calibration grades are visible to the employee's
  * real manager, the person covering that manager, and people with All read
  * access or All read + write access. Being stored on the review is not enough.
+ * After publish, the subject still does not see provisional manager /
+ * calibrated overalls or calibration events — only the published grade and
+ * the manager narrative allowed for the employee audience.
  */
 export function packetForViewer(
   packet,
@@ -123,7 +136,9 @@ export function packetForViewer(
     return stripUnpublishedOfficialReview(packet)
   }
   if (isSubject) {
-    return filterAnswersForAudience(packet, questions, 'employee')
+    return stripProvisionalGradesForEmployee(
+      filterAnswersForAudience(packet, questions, 'employee'),
+    )
   }
   if (
     !officialReviewReleasedToEmployee(packet.status) &&

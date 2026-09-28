@@ -21,27 +21,27 @@ export const SCORECARD_FLOW_STEPS: Array<{
   id: ScorecardViewStage
   until: ReviewPacketStatus[]
 }> = [
-  {
-    id: 'self_review',
-    until: ['not_started', 'self_in_progress'],
-  },
-  {
-    id: 'manager_review',
-    until: ['self_submitted', 'manager_in_progress'],
-  },
-  {
-    id: 'calibration_hod_hrbp',
-    until: ['manager_submitted', 'in_calibration'],
-  },
-  {
-    id: 'publish_employees',
-    until: ['calibrated', 'released_to_managers', 'released_to_employees'],
-  },
-  {
-    id: 'appeal',
-    until: ['appealed'],
-  },
-]
+    {
+      id: 'self_review',
+      until: ['not_started', 'self_in_progress'],
+    },
+    {
+      id: 'manager_review',
+      until: ['self_submitted', 'manager_in_progress'],
+    },
+    {
+      id: 'calibration_hod_hrbp',
+      until: ['manager_submitted', 'in_calibration'],
+    },
+    {
+      id: 'publish_employees',
+      until: ['calibrated', 'released_to_managers', 'released_to_employees'],
+    },
+    {
+      id: 'appeal',
+      until: ['appealed'],
+    },
+  ]
 
 const PACKET_STATUS_ORDER: ReviewPacketStatus[] = [
   'not_started',
@@ -90,16 +90,16 @@ export function visibleScorecardSteps(
     if (step.id === 'calibration_hod_hrbp') {
       return Boolean(
         getReviewStage(stages, 'calibration_hod_hrbp')?.enabled ||
-          getReviewStage(stages, 'calibration_slt')?.enabled ||
-          packet?.calibratedOverallGrade ||
-          (packet?.calibrationEvents.length ?? 0) > 0,
+        getReviewStage(stages, 'calibration_slt')?.enabled ||
+        packet?.calibratedOverallGrade ||
+        (packet?.calibrationEvents.length ?? 0) > 0,
       )
     }
     if (step.id === 'appeal') {
       return Boolean(
         getReviewStage(stages, 'appeal')?.enabled ||
-          (packet?.appeals.length ?? 0) > 0 ||
-          packet?.status === 'appealed',
+        (packet?.appeals.length ?? 0) > 0 ||
+        packet?.status === 'appealed',
       )
     }
     if (step.id === 'self_review') {
@@ -171,9 +171,32 @@ export function viewerCanOpenStage(
   ) {
     return true
   }
+  // Employees only see their self-review, then the official published result
+  // (and appeal). Manager / calibration grades stay internal.
   if (stage === 'self_review') return true
+  if (stage === 'manager_review' || stage === 'calibration_hod_hrbp') {
+    return false
+  }
   if (!officialReviewReleasedToEmployee(packet.status)) return false
-  return stage !== 'calibration_hod_hrbp'
+  return true
+}
+
+/** Stages the viewer should see in the scorecard switcher. */
+export function visibleScorecardStepsForViewer(
+  stages: ReviewStageConfig[] | undefined,
+  packet: ReviewPacket | null,
+  viewerEmployeeId?: number | null,
+) {
+  const steps = visibleScorecardSteps(stages, packet)
+  const isSubject =
+    packet != null &&
+    viewerEmployeeId != null &&
+    viewerEmployeeId === packet.employeeId
+  if (!isSubject) return steps
+  return steps.filter(
+    (step) =>
+      step.id !== 'manager_review' && step.id !== 'calibration_hod_hrbp',
+  )
 }
 
 export function scorecardStageIsOpen(
@@ -298,4 +321,31 @@ export function scorecardEditStage(
   if (options.managerOn !== false) return 'manager_review'
   if (options.selfOn) return 'self_review'
   return 'manager_review'
+}
+
+/**
+ * Whether the self/manager review form can still be changed.
+ * Matches the lock rules on the edit page — Edit must not open a dead form.
+ */
+export function scorecardReviewFormIsEditable(
+  stage: ScorecardViewStage,
+  packet: ReviewPacket | null,
+  isSubject: boolean,
+): boolean {
+  if (stage === 'self_review') {
+    if (!isSubject) return false
+    if (!packet) return true
+    return (
+      packet.status !== 'self_submitted' &&
+      packet.status !== 'manager_submitted'
+    )
+  }
+  if (stage === 'manager_review') {
+    if (!packet) return true
+    return (
+      packet.status !== 'released_to_managers' &&
+      packet.status !== 'released_to_employees'
+    )
+  }
+  return false
 }

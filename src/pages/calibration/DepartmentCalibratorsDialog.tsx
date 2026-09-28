@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import {
   Avatar,
   ListboxSelect,
@@ -26,25 +26,30 @@ const SCOPE_OPTIONS = [
 ]
 
 const PANEL_HINT =
-  'A calibrator can change grades for one department, one team, or one person. Heads of department and HRBPs can always change grades in their department.'
+  'A Calibrator Can Change Grades For One Department, One Team, Or One Person. Heads Of Department And HRBPs Can Always Change Grades In Their Department.'
 
 export function DepartmentCalibratorsDialog({
   assignments,
   employees,
   onClose,
   onChange,
+  initialPersonId = null,
 }: {
   assignments: CalibratorAssignments
   employees: readonly PlatformEmployee[]
   onClose: () => void
   onChange: (next: CalibratorAssignments) => void
+  /** Opens on the Person tab with this subject pre-selected. */
+  initialPersonId?: number | null
 }) {
-  const [scope, setScope] = useState<Scope>('department')
+  const [scope, setScope] = useState<Scope>(
+    initialPersonId != null ? 'person' : 'department',
+  )
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query.trim().toLowerCase())
   const [error, setError] = useState<string | null>(null)
   const [savingKey, setSavingKey] = useState<string | null>(null)
-  const [personId, setPersonId] = useState<number | null>(null)
+  const [personId, setPersonId] = useState<number | null>(initialPersonId)
 
   const people = useMemo(
     () =>
@@ -65,19 +70,24 @@ export function DepartmentCalibratorsDialog({
       await run()
     } catch (caught) {
       setError(
-        caught instanceof Error ? caught.message : 'Could not save calibrators.',
+        caught instanceof Error ? caught.message : 'Could Not Save Calibrators.',
       )
     } finally {
       setSavingKey(null)
     }
   }
 
-  function optionsFor(assigned: readonly number[], exceptId?: number) {
+  function optionsFor(
+    assigned: readonly number[],
+    exceptIds: readonly number[] = [],
+  ) {
     const taken = new Set(assigned)
+    const excluded = new Set(exceptIds)
     return people
       .filter(
         (employee) =>
-          employee.employeeId !== exceptId && !taken.has(employee.employeeId),
+          !excluded.has(employee.employeeId) &&
+          !taken.has(employee.employeeId),
       )
       .map((employee) => ({
         value: String(employee.employeeId),
@@ -86,6 +96,76 @@ export function DepartmentCalibratorsDialog({
           .filter(Boolean)
           .join(' · '),
       }))
+  }
+
+  function departmentByName(departmentName: string | null | undefined) {
+    const key = departmentName?.trim().toLocaleLowerCase() ?? ''
+    if (!key) return null
+    return (
+      assignments.departments.find(
+        (row) => row.department.trim().toLocaleLowerCase() === key,
+      ) ?? null
+    )
+  }
+
+  function teamBySubject(subject: {
+    teamId?: number | null
+    team?: string | null
+    department?: string | null
+  }) {
+    const teamId = subject.teamId
+    const teamName = subject.team?.trim().toLocaleLowerCase() ?? ''
+    const department = subject.department?.trim().toLocaleLowerCase() ?? ''
+    return (
+      assignments.teams.find((row) => {
+        if (teamId && row.teamId === teamId) return true
+        return (
+          teamName.length > 0 &&
+          row.team.trim().toLocaleLowerCase() === teamName &&
+          row.department.trim().toLocaleLowerCase() === department
+        )
+      }) ?? null
+    )
+  }
+
+  /** Head, HRBP, and department extras — inherited by every team/person in the dept. */
+  function inheritedDepartmentCalibrators(
+    departmentName: string | null | undefined,
+    exceptId?: number | null,
+  ) {
+    const department = departmentByName(departmentName)
+    if (!department) return [] as { employeeId: number; role: string }[]
+    const rows: { employeeId: number; role: string }[] = []
+    const seen = new Set<number>()
+    const add = (employeeId: number | null | undefined, role: string) => {
+      if (employeeId == null || employeeId === exceptId || seen.has(employeeId)) {
+        return
+      }
+      seen.add(employeeId)
+      rows.push({ employeeId, role })
+    }
+    add(department.headEmployeeId, 'Head')
+    add(department.hrbpEmployeeId, 'HRBP')
+    for (const employeeId of department.employeeIds) {
+      add(employeeId, 'Dept')
+    }
+    return rows
+  }
+
+  /** Department inheritance plus any team-scope extras. */
+  function inheritedForPerson(subject: PlatformEmployee) {
+    const rows = inheritedDepartmentCalibrators(
+      subject.department,
+      subject.employeeId,
+    )
+    const seen = new Set(rows.map((row) => row.employeeId))
+    const team = teamBySubject(subject)
+    for (const employeeId of team?.employeeIds ?? []) {
+      if (employeeId === subject.employeeId || seen.has(employeeId)) continue
+      seen.add(employeeId)
+      rows.push({ employeeId, role: 'Team' })
+    }
+    return rows
   }
 
   function matchesQuery(...parts: Array<string | number | null | undefined>) {
@@ -147,24 +227,24 @@ export function DepartmentCalibratorsDialog({
 
   return (
     <SettingsSidePanel
-      label="Assign calibrators"
-      closeLabel="Close assign calibrators"
-      defaultWidth={520}
+      label="Assign Calibrators"
+      closeLabel="Close Assign Calibrators"
+      defaultWidth={680}
       onClose={onClose}
       title={
         <div className="pd-cal-drawer__title-block">
           <h2 className="pd-settings-panel__title">
-            Assign calibrators
-            <HintIcon content={PANEL_HINT} label="About calibrators" />
+            Assign Calibrators
+            <HintIcon content={PANEL_HINT} label="About Calibrators" />
           </h2>
           <p className="pd-cal-drawer__title-meta">
-            Changes save as you add or remove people.
+            Changes Save As You Add Or Remove People.
           </p>
         </div>
       }
       subnav={
         <SegmentedControl
-          aria-label="Calibrator scope"
+          aria-label="Calibrator Scope"
           value={scope}
           onChange={(next) => {
             setScope(next)
@@ -179,18 +259,18 @@ export function DepartmentCalibratorsDialog({
         <SearchField
           label={
             scope === 'department'
-              ? 'Search departments'
+              ? 'Search Departments'
               : scope === 'team'
-                ? 'Search teams'
-                : 'Search people'
+                ? 'Search Teams'
+                : 'Search People'
           }
           value={query}
           placeholder={
             scope === 'department'
-              ? 'Filter departments'
+              ? 'Filter Departments'
               : scope === 'team'
-                ? 'Filter teams'
-                : 'Filter people with calibrators'
+                ? 'Filter Teams'
+                : 'Filter People With Calibrators'
           }
           onChange={(event) => setQuery(event.target.value)}
           onClear={() => setQuery('')}
@@ -203,70 +283,96 @@ export function DepartmentCalibratorsDialog({
         ) : null}
 
         {scope === 'department' ? (
-          <AssignmentList
+          <AssignmentTable
+            labelColumn="Department"
             empty={
-              deferredQuery
-                ? 'No departments match.'
-                : 'No departments yet.'
+              deferredQuery ? 'No Departments Match.' : 'No Departments Yet.'
             }
-            rows={departmentRows.map((department) => ({
-              key: `department:${department.departmentId}`,
-              title: department.department,
-              meta:
-                [
-                  department.headEmployeeId
-                    ? `Head: ${employeeById.get(department.headEmployeeId)?.fullName ?? department.headEmployeeId}`
-                    : null,
-                  department.hrbpEmployeeId
-                    ? `HRBP: ${employeeById.get(department.hrbpEmployeeId)?.fullName ?? department.hrbpEmployeeId}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ') || 'No head or HRBP set',
-              employeeIds: department.employeeIds,
-              saving: savingKey === `department:${department.departmentId}`,
-              options: optionsFor(department.employeeIds),
-              onChange: (employeeIds) =>
-                void save(`department:${department.departmentId}`, async () => {
-                  const next = await saveDepartmentCalibrators(
-                    department.departmentId,
-                    employeeIds,
-                  )
-                  if (!next) return
-                  onChange({
-                    ...assignments,
-                    departments: assignments.departments.map((row) =>
-                      row.departmentId === next.departmentId ? next : row,
-                    ),
-                  })
-                }),
-            }))}
+            rows={departmentRows.map((department) => {
+              const alwaysOn = [
+                department.headEmployeeId
+                  ? {
+                      employeeId: department.headEmployeeId,
+                      role: 'Head',
+                    }
+                  : null,
+                department.hrbpEmployeeId
+                  ? {
+                      employeeId: department.hrbpEmployeeId,
+                      role: 'HRBP',
+                    }
+                  : null,
+              ].filter(
+                (row): row is { employeeId: number; role: string } =>
+                  row != null,
+              )
+              return {
+                key: `department:${department.departmentId}`,
+                label: department.department,
+                alwaysOn,
+                employeeIds: department.employeeIds,
+                saving: savingKey === `department:${department.departmentId}`,
+                options: optionsFor(
+                  department.employeeIds,
+                  alwaysOn.map((row) => row.employeeId),
+                ),
+                onChange: (employeeIds: number[]) =>
+                  void save(
+                    `department:${department.departmentId}`,
+                    async () => {
+                      const next = await saveDepartmentCalibrators(
+                        department.departmentId,
+                        employeeIds,
+                      )
+                      if (!next) return
+                      onChange({
+                        ...assignments,
+                        departments: assignments.departments.map((row) =>
+                          row.departmentId === next.departmentId ? next : row,
+                        ),
+                      })
+                    },
+                  ),
+              }
+            })}
             employeeById={employeeById}
           />
         ) : null}
 
         {scope === 'team' ? (
-          <AssignmentList
+          <AssignmentTable
+            labelColumn="Team"
             empty={deferredQuery ? 'No teams match.' : 'No teams yet.'}
-            rows={teamRows.map((team) => ({
-              key: `team:${team.teamId}`,
-              title: team.team,
-              meta: team.department,
-              employeeIds: team.employeeIds,
-              saving: savingKey === `team:${team.teamId}`,
-              options: optionsFor(team.employeeIds),
-              onChange: (employeeIds) =>
-                void save(`team:${team.teamId}`, async () => {
-                  const next = await saveTeamCalibrators(team.teamId, employeeIds)
-                  if (!next) return
-                  onChange({
-                    ...assignments,
-                    teams: assignments.teams.map((row) =>
-                      row.teamId === next.teamId ? next : row,
-                    ),
-                  })
-                }),
-            }))}
+            rows={teamRows.map((team) => {
+              const alwaysOn = inheritedDepartmentCalibrators(team.department)
+              const alwaysIds = new Set(alwaysOn.map((row) => row.employeeId))
+              const employeeIds = team.employeeIds.filter(
+                (id) => !alwaysIds.has(id),
+              )
+              return {
+                key: `team:${team.teamId}`,
+                label: team.team,
+                meta: team.department,
+                alwaysOn: alwaysOn.length > 0 ? alwaysOn : undefined,
+                employeeIds,
+                saving: savingKey === `team:${team.teamId}`,
+                options: optionsFor(employeeIds, [...alwaysIds]),
+                onChange: (nextIds) =>
+                  void save(`team:${team.teamId}`, async () => {
+                    const next = await saveTeamCalibrators(
+                      team.teamId,
+                      nextIds,
+                    )
+                    if (!next) return
+                    onChange({
+                      ...assignments,
+                      teams: assignments.teams.map((row) =>
+                        row.teamId === next.teamId ? next : row,
+                      ),
+                    })
+                  }),
+              }
+            })}
             employeeById={employeeById}
           />
         ) : null}
@@ -276,9 +382,9 @@ export function DepartmentCalibratorsDialog({
             <ListboxSelect
               value={personId == null ? '' : String(personId)}
               allowEmpty
-              emptyLabel="Choose a person"
+              emptyLabel="Choose A Person"
               searchable
-              aria-label="Person whose grade can be changed"
+              aria-label="Person Whose Grade Can Be Changed"
               options={people.map((employee) => ({
                 value: String(employee.employeeId),
                 label: employee.fullName,
@@ -293,40 +399,58 @@ export function DepartmentCalibratorsDialog({
             />
 
             {personId != null ? (
-              <AssignmentCard
-                title={
-                  employeeById.get(personId)?.fullName ?? String(personId)
-                }
-                meta={
-                  [
-                    employeeById.get(personId)?.team,
-                    employeeById.get(personId)?.department,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ') || 'Person-specific calibrators'
-                }
-                employeeIds={selectedPerson?.employeeIds ?? []}
-                saving={savingKey === `person:${personId}`}
-                options={optionsFor(
-                  selectedPerson?.employeeIds ?? [],
-                  personId,
-                )}
-                employeeById={employeeById}
-                onChange={(employeeIds) =>
-                  void save(`person:${personId}`, async () => {
-                    const next = await savePersonCalibrators(
-                      personId,
+              <AssignmentTable
+                labelColumn="Person"
+                empty=""
+                rows={(() => {
+                  const subject = employeeById.get(personId)
+                  const alwaysOn = subject
+                    ? inheritedForPerson(subject)
+                    : inheritedDepartmentCalibrators(
+                        employeeById.get(personId)?.department,
+                        personId,
+                      )
+                  const alwaysIds = new Set(
+                    alwaysOn.map((row) => row.employeeId),
+                  )
+                  const employeeIds = (
+                    selectedPerson?.employeeIds ?? []
+                  ).filter((id) => !alwaysIds.has(id))
+                  return [
+                    {
+                      key: `person:${personId}`,
+                      label:
+                        subject?.fullName ?? String(personId),
+                      meta:
+                        [subject?.team, subject?.department]
+                          .filter(Boolean)
+                          .join(' · ') || undefined,
+                      alwaysOn:
+                        alwaysOn.length > 0 ? alwaysOn : undefined,
                       employeeIds,
-                    )
-                    const peopleRows = assignments.people.filter(
-                      (row) => row.subjectEmployeeId !== personId,
-                    )
-                    onChange({
-                      ...assignments,
-                      people: next ? [...peopleRows, next] : peopleRows,
-                    })
-                  })
-                }
+                      saving: savingKey === `person:${personId}`,
+                      options: optionsFor(employeeIds, [
+                        personId,
+                        ...alwaysIds,
+                      ]),
+                      onChange: (nextIds) =>
+                        void save(`person:${personId}`, async () => {
+                          const next = await savePersonCalibrators(
+                            personId,
+                            nextIds,
+                          )
+                          const peopleRows = assignments.people.filter(
+                            (row) => row.subjectEmployeeId !== personId,
+                          )
+                          onChange({
+                            ...assignments,
+                            people: next ? [...peopleRows, next] : peopleRows,
+                          })
+                        }),
+                    },
+                  ]
+                })()}
+                employeeById={employeeById}
               />
             ) : (
               <p className="pd-cal-calibrators-panel__hint">
@@ -337,10 +461,10 @@ export function DepartmentCalibratorsDialog({
             {existingPersonRows.length > 0 ? (
               <section
                 className="pd-cal-calibrators-panel__existing"
-                aria-label="People with calibrators"
+                aria-label="People With Calibrators"
               >
                 <h3 className="pd-cal-calibrators-panel__existing-title">
-                  Already assigned
+                  Already Assigned
                 </h3>
                 <ul className="pd-cal-calibrators-panel__existing-list">
                   {existingPersonRows.map((row) => (
@@ -371,8 +495,8 @@ export function DepartmentCalibratorsDialog({
                           </span>
                           <span className="pd-cal-calibrators-panel__existing-meta">
                             {row.employeeIds.length === 1
-                              ? '1 calibrator'
-                              : `${row.employeeIds.length} calibrators`}
+                              ? '1 Calibrator'
+                              : `${row.employeeIds.length} Calibrators`}
                           </span>
                         </span>
                       </button>
@@ -388,15 +512,18 @@ export function DepartmentCalibratorsDialog({
   )
 }
 
-function AssignmentList({
+function AssignmentTable({
+  labelColumn,
   rows,
   empty,
   employeeById,
 }: {
+  labelColumn: string
   rows: {
     key: string
-    title: string
-    meta: string
+    label: string
+    meta?: string
+    alwaysOn?: { employeeId: number; role: string }[]
     employeeIds: number[]
     saving: boolean
     options: { value: string; label: string; description?: string }[]
@@ -406,75 +533,154 @@ function AssignmentList({
   employeeById: Map<number, PlatformEmployee>
 }) {
   if (rows.length === 0) {
-    return <p className="pd-cal-calibrators-panel__empty">{empty}</p>
+    return empty ? (
+      <p className="pd-cal-calibrators-panel__empty">{empty}</p>
+    ) : null
   }
+
   return (
-    <ul className="pd-cal-calibrators-panel__list">
-      {rows.map((row) => (
-        <li key={row.key}>
-          <AssignmentCard
-            title={row.title}
-            meta={row.meta}
-            employeeIds={row.employeeIds}
-            saving={row.saving}
-            options={row.options}
-            employeeById={employeeById}
-            onChange={row.onChange}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="pd-cal-calibrators-panel__table-wrap">
+      <table className="pd-cal-calibrators-panel__table">
+        <thead>
+          <tr>
+            <th scope="col">{labelColumn}</th>
+            <th scope="col">Calibrators</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <AssignmentRow
+              key={row.key}
+              label={row.label}
+              meta={row.meta}
+              alwaysOn={row.alwaysOn}
+              employeeIds={row.employeeIds}
+              saving={row.saving}
+              options={row.options}
+              employeeById={employeeById}
+              onChange={row.onChange}
+            />
+          ))}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
-function AssignmentCard({
-  title,
+function AssignmentRow({
+  label,
   meta,
+  alwaysOn,
   employeeIds,
   saving,
   options,
   employeeById,
   onChange,
 }: {
-  title: string
-  meta: string
+  label: string
+  meta?: string
+  alwaysOn?: { employeeId: number; role: string }[]
   employeeIds: number[]
   saving: boolean
   options: { value: string; label: string; description?: string }[]
   employeeById: Map<number, PlatformEmployee>
   onChange: (employeeIds: number[]) => void
 }) {
+  const [adding, setAdding] = useState(false)
+  const hasAlways = Boolean(alwaysOn)
+  const alwaysEmpty = hasAlways && (alwaysOn?.length ?? 0) === 0
+  const hasExtras = employeeIds.length > 0
+
   return (
-    <article className="pd-cal-calibrators-panel__card">
-      <header className="pd-cal-calibrators-panel__card-head">
-        <h3 className="pd-cal-calibrators-panel__card-title">{title}</h3>
+    <tr>
+      <td className="pd-cal-calibrators-panel__cell-label">
+        <span className="pd-cal-calibrators-panel__row-label">{label}</span>
         {meta ? (
-          <p className="pd-cal-calibrators-panel__card-meta">{meta}</p>
+          <span className="pd-cal-calibrators-panel__row-meta">{meta}</span>
         ) : null}
-      </header>
-      <AssignedPeople
-        employeeIds={employeeIds}
-        employeeById={employeeById}
-        saving={saving}
-        onRemove={(employeeId) =>
-          onChange(employeeIds.filter((id) => id !== employeeId))
-        }
-      />
-      <ListboxSelect
-        value=""
-        allowEmpty
-        emptyLabel="Add calibrator"
-        searchable
-        aria-label={`Add calibrator for ${title}`}
-        options={options}
-        disabled={saving}
-        onValueChange={(value) => {
-          const employeeId = Number(value)
-          if (!Number.isInteger(employeeId) || employeeId <= 0) return
-          onChange([...employeeIds, employeeId])
-        }}
-      />
-    </article>
+      </td>
+      <td className="pd-cal-calibrators-panel__cell-calibrators">
+        <div className="pd-cal-calibrators-panel__calibrators">
+          {alwaysOn && alwaysOn.length > 0 ? (
+            <ul className="pd-cal-calibrators-panel__chips">
+              {alwaysOn.map((row) => {
+                const employee = employeeById.get(row.employeeId)
+                const name = employee?.fullName ?? String(row.employeeId)
+                return (
+                  <li key={`always:${row.employeeId}`}>
+                    <span className="pd-cal-calibrators-panel__chip is-locked">
+                      <Avatar name={name} src={employee?.avatarUrl} size="sm" />
+                      <span className="pd-cal-calibrators-panel__chip-name">
+                        {name}
+                      </span>
+                      <span className="pd-cal-calibrators-panel__chip-role">
+                        {row.role}
+                      </span>
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
+          {alwaysEmpty ? (
+            <p className="pd-cal-calibrators-panel__none">No Head Or HRBP Set</p>
+          ) : null}
+          <AssignedPeople
+            employeeIds={employeeIds}
+            employeeById={employeeById}
+            saving={saving}
+            hideEmpty={hasAlways}
+            onRemove={(employeeId) =>
+              onChange(employeeIds.filter((id) => id !== employeeId))
+            }
+          />
+          {!hasAlways && !hasExtras ? (
+            <p className="pd-cal-calibrators-panel__none">
+              No Calibrators Assigned
+            </p>
+          ) : null}
+          <div className="pd-cal-calibrators-panel__card-add">
+            <button
+              type="button"
+              className={
+                adding
+                  ? 'pd-cal-calibrators-panel__add-btn is-open'
+                  : 'pd-cal-calibrators-panel__add-btn'
+              }
+              disabled={saving}
+              aria-label={`Add Calibrator For ${label}`}
+              aria-expanded={adding}
+              onClick={() => setAdding(true)}
+            >
+              <Plus size={16} strokeWidth={2} aria-hidden />
+            </button>
+            {adding ? (
+              <ListboxSelect
+                className="pd-cal-calibrators-panel__add-listbox"
+                value=""
+                allowEmpty={false}
+                placeholder="Add Calibrator"
+                searchable
+                searchPlaceholder="Search People…"
+                defaultOpen
+                aria-label={`Add Calibrator For ${label}`}
+                options={options}
+                disabled={saving}
+                onOpenChange={(open) => {
+                  if (!open) setAdding(false)
+                }}
+                onValueChange={(value) => {
+                  setAdding(false)
+                  const employeeId = Number(value)
+                  if (!Number.isInteger(employeeId) || employeeId <= 0) return
+                  onChange([...employeeIds, employeeId])
+                }}
+              />
+            ) : null}
+          </div>
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -482,16 +688,18 @@ function AssignedPeople({
   employeeIds,
   employeeById,
   saving,
+  hideEmpty = false,
   onRemove,
 }: {
   employeeIds: readonly number[]
   employeeById: Map<number, PlatformEmployee>
   saving: boolean
+  hideEmpty?: boolean
   onRemove: (employeeId: number) => void
 }) {
   if (employeeIds.length === 0) {
-    return (
-      <p className="pd-cal-calibrators-panel__none">No calibrators assigned</p>
+    return hideEmpty ? null : (
+      <p className="pd-cal-calibrators-panel__none">No Calibrators Assigned</p>
     )
   }
   return (
@@ -511,7 +719,7 @@ function AssignedPeople({
                 aria-label={`Remove ${name}`}
                 onClick={() => onRemove(employeeId)}
               >
-                <X size={12} strokeWidth={2.25} aria-hidden />
+                <X size={10} strokeWidth={2.25} aria-hidden />
               </button>
             </span>
           </li>

@@ -4,30 +4,36 @@ import { permissionsForAccessRules } from './auth.mjs'
 
 const bootstrap = new Set(['aminul.islam@nextventures.io'])
 
-test('built-in admin applies only before any access assignment exists', () => {
-  const full = permissionsForAccessRules({
+test('built-in admin keeps full access even after access assignments exist', () => {
+  const before = permissionsForAccessRules({
     email: 'aminul.islam@nextventures.io',
     bootstrapEmails: bootstrap,
-    rulesExist: false,
     assignedPermissions: [],
   })
-  assert.ok(full.includes('platform.write_all'))
+  assert.ok(before.includes('platform.write_all'))
 
-  const removed = permissionsForAccessRules({
+  const after = permissionsForAccessRules({
     email: 'aminul.islam@nextventures.io',
     bootstrapEmails: bootstrap,
-    rulesExist: true,
-    assignedPermissions: [],
+    assignedPermissions: ['platform.read_all'],
   })
-  assert.deepEqual(removed, [])
+  assert.ok(after.includes('platform.write_all'))
 })
 
-test('assigned permissions are used once access rules exist', () => {
+test('assigned permissions are used for non-bootstrap emails', () => {
   const rights = permissionsForAccessRules({
     email: 'someone@nextventures.io',
     bootstrapEmails: bootstrap,
-    rulesExist: true,
     assignedPermissions: ['platform.read_all'],
   })
   assert.deepEqual(rights, ['platform.read_all'])
+})
+
+test('non-bootstrap emails with no assignment get no elevated permissions', () => {
+  const rights = permissionsForAccessRules({
+    email: 'someone@nextventures.io',
+    bootstrapEmails: bootstrap,
+    assignedPermissions: [],
+  })
+  assert.deepEqual(rights, [])
 })

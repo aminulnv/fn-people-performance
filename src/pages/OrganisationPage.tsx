@@ -5,6 +5,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  HeartHandshake,
   Plus,
   Search,
   UserRound,
@@ -97,6 +98,7 @@ function departmentMatchesQuery(department: OrgDepartment, q: string): boolean {
   const haystack = [
     department.name,
     department.head?.fullName ?? '',
+    department.hrbp?.fullName ?? '',
     ...department.teams.map((team) =>
       [team.name, team.manager?.fullName ?? ''].join(' '),
     ),
@@ -111,12 +113,17 @@ function departmentTeamNames(department: OrgDepartment): string[] {
   return department.teams.map((team) => team.name.trim())
 }
 
-function teamMatchesQuery(team: OrgTeam, q: string): boolean {
+function teamMatchesQuery(
+  team: OrgTeam,
+  q: string,
+  hrbpName = '',
+): boolean {
   if (!q) return true
   const haystack = [
     team.name,
     team.departmentName,
     team.manager?.fullName ?? '',
+    hrbpName,
   ]
     .join(' ')
     .toLowerCase()
@@ -227,6 +234,7 @@ export default function OrganisationPage() {
           !matchesAttributeFilters(attributeFilters, {
             name: department.name.trim(),
             owner: department.head?.fullName.trim() ?? '',
+            hrbp: department.hrbp?.fullName.trim() ?? '',
             team: departmentTeamNames(department),
           })
         ) {
@@ -239,20 +247,32 @@ export default function OrganisationPage() {
       )
   }, [attributeFilters, employees, mineOnly, q, snapshot.departments, user])
 
+  const departmentHrbpByName = useMemo(() => {
+    const map = new Map<string, OrgPersonRef | null>()
+    for (const department of snapshot.departments) {
+      map.set(department.name.trim().toLowerCase(), department.hrbp)
+    }
+    return map
+  }, [snapshot.departments])
+
   const filteredTeams = useMemo(() => {
     return snapshot.teams
       .filter((team) => {
         if (mineOnly && !isMyTeam(team, user, employees)) return false
+        const hrbp =
+          departmentHrbpByName.get(team.departmentName.trim().toLowerCase()) ??
+          null
         if (
           !matchesAttributeFilters(attributeFilters, {
             name: team.name.trim(),
             department: team.departmentName.trim(),
             owner: team.manager?.fullName.trim() ?? '',
+            hrbp: hrbp?.fullName.trim() ?? '',
           })
         ) {
           return false
         }
-        return teamMatchesQuery(team, q)
+        return teamMatchesQuery(team, q, hrbp?.fullName ?? '')
       })
       .sort((a, b) => {
         const byDept = a.departmentName.localeCompare(b.departmentName, undefined, {
@@ -261,7 +281,15 @@ export default function OrganisationPage() {
         if (byDept !== 0) return byDept
         return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
       })
-  }, [attributeFilters, employees, mineOnly, q, snapshot.teams, user])
+  }, [
+    attributeFilters,
+    departmentHrbpByName,
+    employees,
+    mineOnly,
+    q,
+    snapshot.teams,
+    user,
+  ])
 
   const rolesWithHeadcount = useMemo(
     () => listRolesWithHeadcount(),
@@ -346,12 +374,14 @@ export default function OrganisationPage() {
         { id: 'name', label: 'Department name', icon: Building2 },
         { id: 'team', label: 'Team', icon: UsersRound },
         { id: 'owner', label: 'Owner', icon: UserRound },
+        { id: 'hrbp', label: 'HRBP', icon: HeartHandshake },
       ]
     }
     return [
       { id: 'name', label: 'Team name', icon: UsersRound },
       { id: 'department', label: 'Department', icon: Building2 },
       { id: 'owner', label: 'Owner', icon: UserRound },
+      { id: 'hrbp', label: 'HRBP', icon: HeartHandshake },
     ]
   }, [activeView])
 
@@ -379,6 +409,11 @@ export default function OrganisationPage() {
             (department) => department.head?.fullName ?? '',
           ),
         ),
+        hrbp: uniqueAttributeValues(
+          snapshot.departments.map(
+            (department) => department.hrbp?.fullName ?? '',
+          ),
+        ),
       }
     }
     return {
@@ -389,8 +424,21 @@ export default function OrganisationPage() {
       owner: uniqueAttributeValues(
         snapshot.teams.map((team) => team.manager?.fullName ?? ''),
       ),
+      hrbp: uniqueAttributeValues(
+        snapshot.teams.map(
+          (team) =>
+            departmentHrbpByName.get(team.departmentName.trim().toLowerCase())
+              ?.fullName ?? '',
+        ),
+      ),
     }
-  }, [activeView, rolesWithHeadcount, snapshot.departments, snapshot.teams])
+  }, [
+    activeView,
+    departmentHrbpByName,
+    rolesWithHeadcount,
+    snapshot.departments,
+    snapshot.teams,
+  ])
   const selectedTeams = attributeFilters.team ?? []
   const mineLabel =
     activeView === 'departments'
@@ -407,6 +455,7 @@ export default function OrganisationPage() {
         grow: true,
       },
       { id: 'owner', label: 'Owner' },
+      { id: 'hrbp', label: 'HRBP' },
       { id: 'teams', label: 'Teams' },
       { id: 'headcount', label: 'Headcount' },
     ],
@@ -422,6 +471,7 @@ export default function OrganisationPage() {
       },
       { id: 'department', label: 'Department' },
       { id: 'owner', label: 'Owner' },
+      { id: 'hrbp', label: 'HRBP' },
       { id: 'headcount', label: 'Headcount' },
     ],
     [],
@@ -684,6 +734,9 @@ export default function OrganisationPage() {
                           <td>
                             <PersonCell person={department.head} />
                           </td>
+                          <td>
+                            <PersonCell person={department.hrbp} />
+                          </td>
                           <td>{department.teams.length}</td>
                           <td>{department.headcount}</td>
                         </tr>
@@ -731,6 +784,7 @@ export default function OrganisationPage() {
                                     size="sm"
                                   />
                                 </td>
+                                <td className="pd-org__muted">-</td>
                                 <td className="pd-org__muted">-</td>
                                 <td>{team.headcount}</td>
                               </tr>
@@ -806,7 +860,12 @@ export default function OrganisationPage() {
               columns={teamColumns}
             >
               <tbody>
-                {filteredTeams.map((team) => (
+                {filteredTeams.map((team) => {
+                  const hrbp =
+                    departmentHrbpByName.get(
+                      team.departmentName.trim().toLowerCase(),
+                    ) ?? null
+                  return (
                   <tr key={team.id}>
                     <td>
                       <div className="pd-org__name-cell">
@@ -835,9 +894,13 @@ export default function OrganisationPage() {
                     <td>
                       <PersonCell person={team.manager} />
                     </td>
+                    <td>
+                      <PersonCell person={hrbp} />
+                    </td>
                     <td>{team.headcount}</td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </ResizableTable>
           </div>

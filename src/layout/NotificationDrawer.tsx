@@ -155,6 +155,7 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
         }
         side="bottom"
         portal
+        disabled={open}
       >
         <button
           type="button"
