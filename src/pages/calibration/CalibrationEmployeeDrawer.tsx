@@ -21,6 +21,7 @@ import {
   formatGapLabel,
   type RatingTableRow,
 } from '@/lib/calibration/ratingTable'
+import { officialGrade } from '@/lib/analytics/dashboard'
 import {
   gradeTierDelta,
   monthsBetweenDates,

@@ -33,7 +33,7 @@ export function ScorecardGoalsCard({
   owner,
   cycleLabel,
   goals,
-  overallPercent,
+  overallPercent: _overallPercent,
   overallBand,
   goalsHref,
   editing = false,
