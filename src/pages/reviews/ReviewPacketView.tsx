@@ -88,6 +88,7 @@ import { ScorecardStageNav } from '@/pages/reviews/ScorecardStageNav'
 import {
   ReviewActionIsland,
   ReviewSaveBanner,
+  successNotice,
   type ReviewSaveNotice,
 } from '@/pages/reviews/ReviewSaveBanner'
 import { ScorecardSkillsGradeCard } from '@/pages/reviews/ScorecardSkillsGradeCard'
@@ -391,19 +392,19 @@ export function ReviewPacketView({
       await queryClient.invalidateQueries({
         queryKey: queryKeys.reviewPacket(next.cycleId, next.employeeId),
       })
-      setSaveNotice({
-        tone: 'success',
-        title: 'Saved',
-        description: leave
-          ? 'Quarter marked as leave (O). It is excluded from the annual goals average.'
-          : 'Leave (O) cleared for this quarter.',
-      })
+      setSaveNotice(
+        successNotice(
+          leave
+            ? 'Quarter marked as leave (O). It is excluded from the annual goals average.'
+            : 'Leave (O) cleared for this quarter.',
+        ),
+      )
     } catch (err) {
       setSaveNotice({
-        tone: 'danger',
-        title: 'Could not update leave',
-        description:
+        variant: 'error',
+        message:
           err instanceof Error ? err.message : 'Could not update leave.',
+        shownAt: Date.now(),
       })
     } finally {
       setLeaveBusyPacketId(null)
