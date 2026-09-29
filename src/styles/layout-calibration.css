@@ -2511,7 +2511,7 @@ button.pd-cal-session-badge {
   flex-shrink: 0;
 }
 
-/* Unlocked session → Lock action (red) */
+/* Unlocked session → Lock action */
 .pd-cal-session-badge.is-unlocked {
   background: var(--color-danger, var(--color-red));
   border-color: var(--color-danger, var(--color-red));
@@ -2523,7 +2523,7 @@ button.pd-cal-session-badge.is-unlocked:hover:not(:disabled) {
   border-color: color-mix(in srgb, var(--color-danger, var(--color-red)) 88%, black);
 }
 
-/* Locked session → Unlock action (green, solid) */
+/* Locked session → Unlock action for admins; status for everyone else */
 .pd-cal-session-badge.is-locked {
   background: var(--color-success);
   border-color: var(--color-success);
@@ -3490,6 +3490,17 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   line-height: 1.4;
 }
 
+.pd-cal-rt__override-ack {
+  align-items: flex-start;
+}
+
+.pd-cal-rt__override-ack .pd-check__label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
+}
+
 @media (max-width: 52rem) {
   .pd-cal-rt__progress-head {
     flex-direction: column;
@@ -4123,6 +4134,17 @@ button.pd-cal-session-badge.is-locked:hover:not(:disabled) {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
+}
+
+.pd-cal-drawer__override-ack {
+  align-items: flex-start;
+}
+
+.pd-cal-drawer__override-ack .pd-check__label {
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--color-text-secondary);
 }
 
 .pd-cal-drawer__override-actions {

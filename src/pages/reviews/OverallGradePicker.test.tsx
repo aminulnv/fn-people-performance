@@ -45,8 +45,9 @@ describe('OverallGradePicker', () => {
       />,
     )
 
+    expect(screen.getByText('Suggested: Exceeding')).toBeTruthy()
     expect(
-      screen.getByText(/Suggested from Goals 50% \/ Skills 25% \/ Values 25%: Exceeding/),
+      screen.getByText(/Goals 50% \/ Skills 25% \/ Values 25%/),
     ).toBeTruthy()
     expect(
       screen.getByRole('radio', { name: /Performing/ }),

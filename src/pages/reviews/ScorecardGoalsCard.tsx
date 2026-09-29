@@ -90,10 +90,9 @@ export function ScorecardGoalsCard({
       }
       aria-label={bare ? undefined : title}
     >
-      {bare && hideTitle ? null : (
-      <header className="pd-reviews-scorecard__card-head">
-        <div className="pd-reviews-scorecard__card-title">
-          {hideTitle ? null : (
+      {hideTitle ? null : (
+        <header className="pd-reviews-scorecard__card-head">
+          <div className="pd-reviews-scorecard__card-title">
             <h2 className="pd-reviews-scorecard__section-title">
               {goalsHref ? (
                 <Link to={goalsHref} className="pd-reviews-scorecard__section-link">
@@ -103,35 +102,34 @@ export function ScorecardGoalsCard({
                 heading
               )}
             </h2>
-          )}
-          {showGradeEditor ? (
-            <ListboxSelect
-              className={gradeSelectClass(goalsGrade)}
-              id="scorecard-goals-grade"
-              aria-label={
-                goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals Grading'
-              }
-              value={goalsGrade ?? ''}
-              disabled={gradeLocked}
-              placeholder="Select a grade"
-              emptyLabel="Select a grade"
-              onValueChange={(next) =>
-                onGoalsGradeChange?.(next as GradeBandId | '')
-              }
-              options={GRADE_LISTBOX_OPTIONS}
-            />
-          ) : overallBand ? (
-            <span
-              className={[
-                'pd-reviews-scorecard__band',
-                `pd-reviews-scorecard__band--${overallBand}`,
-              ].join(' ')}
-            >
-              {gradeLabel(overallBand)}
-            </span>
-          ) : null}
-        </div>
-      </header>
+            {showGradeEditor ? (
+              <ListboxSelect
+                className={gradeSelectClass(goalsGrade)}
+                id="scorecard-goals-grade"
+                aria-label={
+                  goalsWeight != null ? `Goals (${goalsWeight}%)` : 'Goals Grading'
+                }
+                value={goalsGrade ?? ''}
+                disabled={gradeLocked}
+                placeholder="Select a grade"
+                emptyLabel="Select a grade"
+                onValueChange={(next) =>
+                  onGoalsGradeChange?.(next as GradeBandId | '')
+                }
+                options={GRADE_LISTBOX_OPTIONS}
+              />
+            ) : overallBand ? (
+              <span
+                className={[
+                  'pd-reviews-scorecard__band',
+                  `pd-reviews-scorecard__band--${overallBand}`,
+                ].join(' ')}
+              >
+                {gradeLabel(overallBand)}
+              </span>
+            ) : null}
+          </div>
+        </header>
       )}
 
       {goals.length === 0 ? (

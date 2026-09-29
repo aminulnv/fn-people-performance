@@ -461,25 +461,45 @@ export function getGoalsSnapshot(): GoalsSnapshot {
 /**
  * Apply an authoritative remote submission into the local projection cache.
  * Used when `VITE_GOALS_BACKEND=api` so UI stays consistent after HTTP commands.
+ *
+ * Intentionally does not backfill the whole org into the cycle bucket — that
+ * freezes the scorecard when several person hydrates run on open.
  */
 export function mergeRemotePersonGoals(
   cycleId: string,
   personId: string,
   row: PersonGoals,
 ): GoalsSnapshot {
-  const snap = getGoalsSnapshotForCycle(cycleId);
+  const state = getPersisted();
+  const phase = phaseFor(state, cycleId);
   const cycle =
     resolveGoalsCycle(
       cycleId,
-      snap.cycle.phase,
+      phase,
       new Date(),
       parseGoalsEmployeeId(personId),
-    ) ?? snap.cycle;
-  return updatePersonGoals(cycleId, personId, () => ({
+    ) ?? getGoalsSnapshotForCycle(cycleId).cycle;
+  const nextRow: PersonGoals = {
     ...row,
     personId,
     status: normalizeGoalSubmissionStatus(row.status, cycle),
-  }));
+  };
+  const bucket = ensureCycleBucket(state, cycleId);
+  const previous = bucket[personId];
+  if (
+    previous &&
+    JSON.stringify(previous) === JSON.stringify(nextRow)
+  ) {
+    return getGoalsSnapshotForCycle(cycleId);
+  }
+  return commit({
+    ...state,
+    activeCycleId: state.activeCycleId || cycleId,
+    byCycle: {
+      ...state.byCycle,
+      [cycleId]: { ...bucket, [personId]: nextRow },
+    },
+  });
 }
 
 function sameCycleRows(

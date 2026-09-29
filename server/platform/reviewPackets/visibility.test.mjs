@@ -4,6 +4,7 @@ import {
   calibrationIsEditable,
   managerReviewIsComplete,
   managerReviewWriteAllowed,
+  nextPacketStatus,
   packetForViewer,
 } from './visibility.mjs'
 
@@ -100,6 +101,52 @@ test('only the real manager, their cover, or All read + write access can write a
       canWriteAll: true,
     }),
     false,
+  )
+})
+
+test('parallel saves do not erase the other review', () => {
+  assert.equal(nextPacketStatus('not_started', 'manager', false), 'manager_in_progress')
+  assert.equal(nextPacketStatus('self_in_progress', 'manager', true), 'manager_submitted')
+  assert.equal(nextPacketStatus('manager_in_progress', 'self', false), 'manager_in_progress')
+  assert.equal(nextPacketStatus('manager_in_progress', 'self', true), 'manager_in_progress')
+  assert.equal(nextPacketStatus('self_in_progress', 'self', true), 'self_submitted')
+  assert.equal(nextPacketStatus('manager_submitted', 'self', true), 'manager_submitted')
+  assert.equal(nextPacketStatus('manager_submitted', 'manager', false), 'manager_submitted')
+})
+
+test('the line manager cannot read the self-review before submitting their own', () => {
+  const source = packet({ status: 'self_in_progress', selfSubmittedAt: null })
+  const visible = packetForViewer(source, 1, [], { managedEmployeeIds: [754] })
+  assert.equal(visible.selfOverallGrade, null)
+  assert.deepEqual(
+    visible.answers.map((answer) => answer.actorRole),
+    ['manager'],
+  )
+  assert.equal(visible.managerOverallGrade, 'exceeding')
+})
+
+test('a submitted manager review still hides an unsubmitted self-review', () => {
+  const visible = packetForViewer(
+    packet({ status: 'manager_submitted', selfSubmittedAt: null }),
+    1,
+    [],
+    { managedEmployeeIds: [754] },
+  )
+  assert.equal(visible.selfOverallGrade, null)
+  assert.deepEqual(
+    visible.answers.map((answer) => answer.actorRole),
+    ['manager'],
+  )
+})
+
+test('the line manager sees the self-review after both are submitted', () => {
+  const source = packet({
+    status: 'manager_submitted',
+    selfSubmittedAt: '2026-01-10T00:00:00.000Z',
+  })
+  assert.deepEqual(
+    packetForViewer(source, 1, [], { managedEmployeeIds: [754] }).answers,
+    source.answers,
   )
 })
 

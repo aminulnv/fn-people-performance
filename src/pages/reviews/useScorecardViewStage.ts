@@ -13,12 +13,15 @@ export function useScorecardViewStage(input: {
   packet: ReviewPacket | null
   stages?: ReviewStageConfig[]
   viewerEmployeeId?: number | null
+  /** Route subject — used for least-privilege tabs before the packet loads. */
+  subjectEmployeeId?: number | null
 }) {
   const [searchParams, setSearchParams] = useSearchParams()
   const steps = visibleScorecardStepsForViewer(
     input.stages,
     input.packet,
     input.viewerEmployeeId,
+    input.subjectEmployeeId,
   )
   const currentIndex = currentScorecardStepIndex(
     steps,
@@ -29,6 +32,7 @@ export function useScorecardViewStage(input: {
     steps,
     packet: input.packet,
     viewerEmployeeId: input.viewerEmployeeId,
+    subjectEmployeeId: input.subjectEmployeeId,
   })
 
   const selectStage = (stage: ScorecardViewStage) => {
@@ -51,6 +55,7 @@ export function useScorecardViewStage(input: {
       currentIndex,
       input.packet,
       input.viewerEmployeeId,
+      input.subjectEmployeeId,
     )
   }
 

@@ -14,8 +14,11 @@ import { cx } from '@/lib/cx'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import { formatLocalDateRange } from '@/lib/dates/timezone'
+import { ensurePersonGoalsHydrated } from '@/lib/goalsApi'
+import { PACKET_STALE_MS, queryClient, queryKeys } from '@/lib/queryClient'
 import { findCycleGroupForPerson } from '@/lib/reviews/cycleGroups'
-import { fetchReviewPacket } from '@/lib/reviews/packetsApi'
+import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
+import { fetchReviewPacketSummary } from '@/lib/reviews/packetsApi'
 import { cyclePurposeOf, cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
@@ -27,6 +30,7 @@ import {
 } from '@/lib/reviews/scorecards'
 import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
 import type { CyclePurpose, ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
+import { prefetchReviewPacket } from '@/lib/reviews/useReviewPackets'
 import {
   useReviewCyclesHydrated,
   useReviewsSnapshot,
@@ -92,7 +96,8 @@ export function EmployeeProfilePerformanceTab({
     const loaded = await Promise.all(
       cycleIds.map(async (cycleId) => {
         try {
-          return await fetchReviewPacket(cycleId, employeeId)
+          // History only needs grades/status — full packets make this tab very slow.
+          return await fetchReviewPacketSummary(cycleId, employeeId)
         } catch (error) {
           if (error instanceof ApiError && error.status === 404) return null
           throw error
@@ -106,6 +111,12 @@ export function EmployeeProfilePerformanceTab({
     let cancelled = false
     void loadPackets(memberCycleIds, employee.employeeId)
       .then((packets) => {
+        for (const packet of packets) {
+          queryClient.setQueryData(
+            queryKeys.reviewPacketSummary(packet.cycleId, packet.employeeId),
+            packet,
+          )
+        }
         if (!cancelled) setPacketLoad({ key: memberCycleKey, packets })
       })
       .catch(() => {
@@ -126,7 +137,15 @@ export function EmployeeProfilePerformanceTab({
       }
       if (event.cycleId && !memberCycleIds.includes(event.cycleId)) return
       void loadPackets(memberCycleIds, employee.employeeId)
-        .then((packets) => setPacketLoad({ key: memberCycleKey, packets }))
+        .then((packets) => {
+          for (const packet of packets) {
+            queryClient.setQueryData(
+              queryKeys.reviewPacketSummary(packet.cycleId, packet.employeeId),
+              packet,
+            )
+          }
+          setPacketLoad({ key: memberCycleKey, packets })
+        })
         .catch(() => {
           /* Keep the current history until the next event. */
         })
@@ -192,6 +211,7 @@ export function EmployeeProfilePerformanceTab({
             key={row.id}
             row={row}
             cycle={cycleForRow(cycles, row.cycleKey)}
+            cycles={cycles}
           />
         ))}
       </ul>
@@ -199,12 +219,42 @@ export function EmployeeProfilePerformanceTab({
   )
 }
 
+function warmScorecardNavigation(
+  cycle: ReviewCycle | undefined,
+  row: ScorecardRow,
+  cycles: readonly ReviewCycle[],
+) {
+  const cycleId = cycle?.id ?? row.cycleKey
+  // Full packet for the destination scorecard only.
+  prefetchReviewPacket(queryClient, cycleId, row.employeeId)
+  void ensurePersonGoalsHydrated(cycleId, row.employeeId)
+  // Linked quarters only need grade summaries + the Q4 goals hydrate.
+  for (const link of annualSourceLinks(cycle, [...cycles])) {
+    void queryClient.prefetchQuery({
+      queryKey: queryKeys.reviewPacketSummary(
+        link.sourceCycleId,
+        row.employeeId,
+      ),
+      queryFn: () =>
+        fetchReviewPacketSummary(link.sourceCycleId, row.employeeId),
+      staleTime: PACKET_STALE_MS,
+    })
+  }
+  const q4 = annualSourceLinks(cycle, [...cycles]).find((link) => {
+    const source = cycles.find((item) => item.id === link.sourceCycleId)
+    return /q4/i.test(source?.periodKey ?? '')
+  })
+  if (q4) void ensurePersonGoalsHydrated(q4.sourceCycleId, row.employeeId)
+}
+
 function ScorecardHistoryRow({
   row,
   cycle,
+  cycles,
 }: {
   row: ScorecardRow
   cycle?: ReviewCycle
+  cycles: readonly ReviewCycle[]
 }) {
   const purpose = cyclePurposeOf(cycle)
   const Icon = PURPOSE_ICON[purpose]
@@ -230,6 +280,8 @@ function ScorecardHistoryRow({
         to={scorecardDetailPath(row.cycleKey, row.employeeId)}
         className="pd-profile__scorecard-row"
         aria-label={`${row.cycleLabel}, ${statusLabel}, ${grade}`}
+        onMouseEnter={() => warmScorecardNavigation(cycle, row, cycles)}
+        onFocus={() => warmScorecardNavigation(cycle, row, cycles)}
       >
         <span
           className={`pd-profile__scorecard-icon pd-profile__scorecard-icon--${purpose}`}

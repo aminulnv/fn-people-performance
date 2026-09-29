@@ -1,12 +1,44 @@
-import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Target } from "lucide-react";
-import { Button, CycleSelect } from "@/components/ui";
-import type { Goal } from "@/lib/goalsApi";
-import { GRADE_BAND_META } from "@/lib/reviews/labels";
+import { useEffect, useId, useState } from "react";
+import { ChevronDown, Target } from "lucide-react";
+import { Button, ListboxSelect } from "@/components/ui";
+import { ensurePersonGoalsHydrated, type Goal } from "@/lib/goalsApi";
+import { gradeLabel } from "@/lib/reviews/scorecards";
 import { goalsDetailPath } from "@/pages/goals/goalHelpers";
 import type { AnnualQuarterRow } from "@/lib/reviews/annualQuarters";
 import type { GradeBandId } from "@/lib/reviews/types";
-import { ScorecardGoalsCard } from "./ScorecardGoalsCard";
+import {
+  GRADE_LISTBOX_OPTIONS,
+  ScorecardGoalsCard,
+} from "./ScorecardGoalsCard";
+
+function gradeSelectClass(grade: GradeBandId | null | "") {
+  return [
+    "pd-reviews-scorecard__goals-grade",
+    grade ? `pd-reviews-scorecard__grade-select--${grade}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function GradeBadge({
+  grade,
+  label,
+}: {
+  grade: GradeBandId;
+  label?: string;
+}) {
+  return (
+    <span
+      className={[
+        "pd-reviews-scorecard__band",
+        `pd-reviews-scorecard__band--${grade}`,
+      ].join(" ")}
+      aria-label={label}
+    >
+      {gradeLabel(grade)}
+    </span>
+  );
+}
 
 export function AnnualGoalsQuarters({
   rows,
@@ -20,7 +52,13 @@ export function AnnualGoalsQuarters({
   q4Grade = null,
   onQ4GradeChange,
   q4GradeLocked = false,
-  goalsRollupGrade = null,
+  annualGoalsGrade = null,
+  onAnnualGoalsGradeChange,
+  annualGoalsGradeLocked = false,
+  goalsWeight,
+  canMarkLeave = false,
+  leaveBusyPacketId = null,
+  onLeaveChange,
 }: {
   rows: AnnualQuarterRow[];
   goalsByCycleId?: Record<string, Goal[] | undefined>;
@@ -33,121 +71,226 @@ export function AnnualGoalsQuarters({
   q4Grade?: GradeBandId | null;
   onQ4GradeChange?: (grade: GradeBandId | "") => void;
   q4GradeLocked?: boolean;
-  /** Rolled-up Goals pillar from linked quarters (display only). */
-  goalsRollupGrade?: GradeBandId | null;
+  /** Employee overall annual Goals rating (not per-goal / not per-quarter). */
+  annualGoalsGrade?: GradeBandId | null;
+  onAnnualGoalsGradeChange?: (grade: GradeBandId | "") => void;
+  annualGoalsGradeLocked?: boolean;
+  goalsWeight?: number;
+  /** PTR / admin can assign leave (O) on a linked quarter. */
+  canMarkLeave?: boolean;
+  leaveBusyPacketId?: string | null;
+  onLeaveChange?: (packetId: string, leave: boolean) => void | Promise<void>;
 }) {
-  const defaultId =
+  const baseId = useId();
+  const subjectId = personId ?? q4PersonId;
+  const showAnnualGradeEditor = Boolean(onAnnualGoalsGradeChange);
+  const showAnnualGrade = showAnnualGradeEditor || Boolean(annualGoalsGrade);
+  const annualGradeLabel =
+    goalsWeight != null ? `Overall grade (${goalsWeight}%)` : "Overall grade";
+  const sourceIds = rows.map((row) => row.sourceCycleId).join("|");
+  const defaultOpenId =
     rows.find((row) => row.kind === "progress")?.sourceCycleId ??
     rows[rows.length - 1]?.sourceCycleId ??
     "";
-  const [selectedId, setSelectedId] = useState(defaultId);
+  const [openId, setOpenId] = useState(defaultOpenId);
 
   useEffect(() => {
-    if (!rows.some((row) => row.sourceCycleId === selectedId)) {
-      setSelectedId(defaultId);
+    if (openId && !rows.some((row) => row.sourceCycleId === openId)) {
+      setOpenId(defaultOpenId);
     }
-  }, [defaultId, rows, selectedId]);
+  }, [defaultOpenId, openId, rows]);
 
-  const selectedIndex = Math.max(
-    0,
-    rows.findIndex((row) => row.sourceCycleId === selectedId),
-  );
-  const selected = rows[selectedIndex] ?? rows[0];
-  const subjectId = personId ?? q4PersonId;
-  const options = useMemo(
-    () =>
-      rows.map((row) => ({
-        id: row.sourceCycleId,
-        label: row.label,
-      })),
-    [rows],
-  );
+  useEffect(() => {
+    if (!subjectId || !sourceIds) return;
+    const employeeId = Number(subjectId);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) return;
+    for (const row of rows) {
+      void ensurePersonGoalsHydrated(row.sourceCycleId, employeeId);
+    }
+  }, [rows, sourceIds, subjectId]);
 
-  if (!selected) return null;
-
-  const goals =
-    goalsByCycleId[selected.sourceCycleId] ??
-    (selected.kind === "progress" ? q4Goals : undefined) ??
-    [];
-  const cycleId =
-    selected.sourceCycleId ||
-    (selected.kind === "progress" ? q4CycleId : undefined);
-  const goalsHref =
-    q4Href && selected.sourceCycleId === q4CycleId
-      ? q4Href
-      : cycleId && subjectId
-        ? goalsDetailPath(cycleId, subjectId)
-        : undefined;
-  const isProgress = selected.kind === "progress";
-  const rollupLabel = goalsRollupGrade
-    ? GRADE_BAND_META[goalsRollupGrade].label
-    : null;
+  if (rows.length === 0) return null;
 
   return (
     <section className="pd-reviews-scorecard__card" aria-label="Goals by quarter">
       <header className="pd-reviews-scorecard__card-head">
-        <div className="pd-reviews-quarters__heading">
-          <h2 className="pd-reviews-scorecard__section-title">
-            <Target size={18} strokeWidth={1.75} aria-hidden />
-            Goals
-          </h2>
-          <nav className="pd-reviews-quarters__nav" aria-label="Goal quarter">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="pd-reviews-quarters__step"
-              aria-label="Previous quarter"
-              disabled={selectedIndex <= 0}
-              onClick={() =>
-                setSelectedId(rows[selectedIndex - 1]?.sourceCycleId ?? selectedId)
-              }
-            >
-              <ChevronLeft size={16} strokeWidth={2} aria-hidden />
-            </Button>
-            <CycleSelect
-              className="pd-reviews-quarters__cycle"
-              label="Goal quarter"
-              options={options}
-              value={selected.sourceCycleId}
-              onChange={setSelectedId}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="pd-reviews-quarters__step"
-              aria-label="Next quarter"
-              disabled={selectedIndex >= rows.length - 1}
-              onClick={() =>
-                setSelectedId(rows[selectedIndex + 1]?.sourceCycleId ?? selectedId)
-              }
-            >
-              <ChevronRight size={16} strokeWidth={2} aria-hidden />
-            </Button>
-          </nav>
-        </div>
+        <h2 className="pd-reviews-scorecard__section-title">
+          <Target size={18} strokeWidth={1.75} aria-hidden />
+          Goals
+        </h2>
+        {showAnnualGrade ? (
+          <div className="pd-reviews-quarters__grade-field">
+            <span className="pd-reviews-quarters__grade-label">Overall grade</span>
+            {showAnnualGradeEditor ? (
+              <ListboxSelect
+                className={gradeSelectClass(annualGoalsGrade)}
+                id="scorecard-annual-goals-grade"
+                aria-label={annualGradeLabel}
+                value={annualGoalsGrade ?? ""}
+                disabled={annualGoalsGradeLocked}
+                placeholder="Select a grade"
+                emptyLabel="Select a grade"
+                onValueChange={(next) =>
+                  onAnnualGoalsGradeChange?.(next as GradeBandId | "")
+                }
+                options={GRADE_LISTBOX_OPTIONS}
+              />
+            ) : annualGoalsGrade ? (
+              <GradeBadge grade={annualGoalsGrade} label="Overall grade" />
+            ) : null}
+          </div>
+        ) : null}
       </header>
-      {rollupLabel ? (
-        <p className="pd-reviews-flow__hint">
-          Linked-quarter Goals rollup: {rollupLabel}.
-        </p>
-      ) : null}
-      <ScorecardGoalsCard
-        cycleId={cycleId}
-        personId={subjectId}
-        owner={owner}
-        cycleLabel={selected.label}
-        title="Goals"
-        embedded
-        hideTitle
-        goals={goals}
-        overallPercent={selected.progressPercent}
-        overallBand={isProgress ? null : selected.grade}
-        goalsHref={goalsHref}
-        editing={isProgress && Boolean(onQ4GradeChange)}
-        goalsGrade={isProgress ? q4Grade : selected.grade}
-        onGoalsGradeChange={isProgress ? onQ4GradeChange : undefined}
-        gradeLocked={isProgress ? q4GradeLocked : true}
-      />
+
+      <div className="pd-reviews-quarters__list" aria-label="Quarter goals">
+        {rows.map((row) => {
+          const isProgress = row.kind === "progress";
+          const open = openId === row.sourceCycleId;
+          const triggerId = `${baseId}-trigger-${row.sourceCycleId}`;
+          const panelId = `${baseId}-panel-${row.sourceCycleId}`;
+          const goals =
+            goalsByCycleId[row.sourceCycleId] ??
+            (isProgress ? q4Goals : undefined) ??
+            [];
+          const cycleId =
+            row.sourceCycleId || (isProgress ? q4CycleId : undefined);
+          const goalsHref =
+            q4Href && row.sourceCycleId === q4CycleId
+              ? q4Href
+              : cycleId && subjectId
+                ? goalsDetailPath(cycleId, subjectId)
+                : undefined;
+          const showQ4GradeEditor =
+            isProgress && Boolean(onQ4GradeChange) && !row.leave;
+          const quarterGrade = isProgress ? q4Grade : row.grade;
+          const leaveBusy =
+            row.packetId != null && leaveBusyPacketId === row.packetId;
+          const canToggleLeave =
+            canMarkLeave && Boolean(row.packetId) && Boolean(onLeaveChange);
+
+          return (
+            <article
+              key={row.sourceCycleId}
+              className={[
+                "pd-reviews-quarters__item",
+                open ? "is-open" : "",
+                row.leave ? "is-leave" : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <div className="pd-reviews-quarters__bar">
+                <button
+                  id={triggerId}
+                  type="button"
+                  className="pd-reviews-quarters__toggle"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() =>
+                    setOpenId((current) =>
+                      current === row.sourceCycleId ? "" : row.sourceCycleId,
+                    )
+                  }
+                >
+                  <ChevronDown
+                    className="pd-reviews-quarters__chevron"
+                    size={16}
+                    strokeWidth={2.25}
+                    aria-hidden
+                  />
+                  <span className="pd-reviews-quarters__quarter-label">
+                    {row.label}
+                  </span>
+                  {row.excluded ? (
+                    <span className="pd-reviews-quarters__quarter-meta">
+                      Excluded
+                    </span>
+                  ) : null}
+                  {row.leave ? (
+                    <span className="pd-reviews-quarters__quarter-meta">
+                      Leave (O)
+                    </span>
+                  ) : null}
+                </button>
+                <div className="pd-reviews-quarters__bar-grade">
+                  {row.leave ? (
+                    <span
+                      className="pd-reviews-quarters__leave-badge"
+                      aria-label={`${row.label} leave`}
+                    >
+                      Leave (O)
+                    </span>
+                  ) : showQ4GradeEditor ? (
+                    <ListboxSelect
+                      className={gradeSelectClass(quarterGrade)}
+                      id={`scorecard-goals-grade-${row.sourceCycleId}`}
+                      aria-label="Q4 Goals Grading"
+                      value={quarterGrade ?? ""}
+                      disabled={q4GradeLocked}
+                      placeholder="Select a grade"
+                      emptyLabel="Select a grade"
+                      onValueChange={(next) =>
+                        onQ4GradeChange?.(next as GradeBandId | "")
+                      }
+                      options={GRADE_LISTBOX_OPTIONS}
+                    />
+                  ) : quarterGrade ? (
+                    <GradeBadge
+                      grade={quarterGrade}
+                      label={`${row.label} grade`}
+                    />
+                  ) : (
+                    <span className="pd-reviews-quarters__grade-empty">—</span>
+                  )}
+                  {canToggleLeave && row.packetId ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={leaveBusy}
+                      onClick={() =>
+                        void onLeaveChange?.(row.packetId!, !row.leave)
+                      }
+                    >
+                      {row.leave ? "Clear leave" : "Mark leave (O)"}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              <div
+                id={panelId}
+                role="region"
+                aria-labelledby={triggerId}
+                className="pd-reviews-quarters__panel"
+                hidden={!open}
+              >
+                {open ? (
+                  <>
+                    {row.leave ? (
+                      <p className="pd-reviews-flow__hint">
+                        Full-quarter leave. This quarter is excluded from the
+                        annual goals average.
+                      </p>
+                    ) : null}
+                    <ScorecardGoalsCard
+                      cycleId={cycleId}
+                      personId={subjectId}
+                      owner={owner}
+                      cycleLabel={row.label}
+                      title="Goals"
+                      embedded
+                      hideTitle
+                      goals={goals}
+                      overallPercent={row.progressPercent}
+                      overallBand={null}
+                      goalsHref={goalsHref}
+                    />
+                  </>
+                ) : null}
+              </div>
+            </article>
+          );
+        })}
+      </div>
     </section>
   );
 }

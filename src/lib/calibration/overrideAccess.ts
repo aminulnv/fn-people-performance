@@ -66,6 +66,12 @@ export function listEffectiveCalibrators(input: {
   return rows
 }
 
+export function canAdminOverrideLockedCalibration(
+  permissions?: readonly SystemPermission[],
+): boolean {
+  return hasSystemPermission(permissions, 'platform.write_all')
+}
+
 export function canOverrideCalibrationGrade(input: {
   viewerEmployeeId: number | null
   subject: Pick<
@@ -79,9 +85,14 @@ export function canOverrideCalibrationGrade(input: {
   >
   assignments: CalibratorAssignments
   permissions?: readonly SystemPermission[]
+  /** When the sitting is locked, only write-all admins may still override. */
+  sessionLocked?: boolean
 }): boolean {
   const viewerId = input.viewerEmployeeId
   if (!viewerId || viewerId === input.subject.employeeId) return false
+  if (input.sessionLocked) {
+    return canAdminOverrideLockedCalibration(input.permissions)
+  }
   if (hasSystemPermission(input.permissions, 'platform.write_all')) return true
   return listEffectiveCalibrators(input).some(
     (row) => row.employeeId === viewerId,

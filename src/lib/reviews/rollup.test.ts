@@ -22,10 +22,34 @@ describe('rollupGoalsPillar', () => {
     expect(result.applicable.map((row) => row.grade)).toEqual([
       'exceptional',
       'exceeding',
-      'unsatisfactory',
+      null,
       'exceeding',
     ])
-    expect(result.averageGrade).toBe('exceeding')
+    // (5 + 4 + 0 + 4) / 4 = 3.25 → Performing. Unsatisfactory would have been 1.
+    expect(result.averageScore).toBeCloseTo(3.25)
+    expect(result.averageGrade).toBe('performing')
+  })
+
+  it('gives a missed quarter an equal share worth zero points', () => {
+    const result = rollupGoalsPillar({
+      links: [
+        { sourceCycleId: 'q2', weightPercent: 25, excluded: false },
+        { sourceCycleId: 'q3', weightPercent: 25, excluded: false },
+        { sourceCycleId: 'q4', weightPercent: 25, excluded: false },
+      ],
+      quarters: [
+        { sourceCycleId: 'q2', label: 'Q2', outcome: { kind: 'zero' } },
+        { sourceCycleId: 'q3', label: 'Q3', outcome: { kind: 'grade', grade: 'performing' } },
+        { sourceCycleId: 'q4', label: 'Q4', outcome: { kind: 'grade', grade: 'exceeding' } },
+      ],
+    })
+
+    expect(result.applicable.map((row) => row.weight)).toEqual([
+      100 / 3,
+      100 / 3,
+      100 / 3,
+    ])
+    expect(result.averageScore).toBeCloseTo((0 + 3 + 4) / 3)
   })
 
   it('excludes leave and inapplicable quarters', () => {

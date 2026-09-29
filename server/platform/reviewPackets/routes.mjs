@@ -15,6 +15,7 @@ import {
   releaseReviewPackets,
   resolveReviewAppeal,
   saveReviewDraft,
+  setReviewPacketLeave,
 } from './store.mjs'
 import { listEmployeesManagedBy } from '../delegations.mjs'
 import { packetForViewer, packetsForViewer } from './visibility.mjs'
@@ -26,18 +27,30 @@ function viewerEmployeeId(req) {
   return req.platformUser?.employeeId ?? null
 }
 
+const viewerAccessCache = new Map()
+const VIEWER_ACCESS_TTL_MS = 15_000
+
 async function viewerReviewAccess(req) {
+  const viewerId = viewerEmployeeId(req)
+  const cacheKey = viewerId == null ? 'anon' : String(viewerId)
+  const cached = viewerAccessCache.get(cacheKey)
+  if (cached && cached.expiresAt > Date.now()) return cached.access
+
   const permissions = await permissionsForPlatformUser(req.platformUser ?? {})
   const list = Array.isArray(permissions) ? permissions : []
-  const viewerId = viewerEmployeeId(req)
   const managedEmployeeIds = viewerId
     ? await listEmployeesManagedBy(viewerId)
     : []
-  return {
+  const access = {
     canViewAllReviews:
       list.includes('platform.read_all') || list.includes('platform.write_all'),
     managedEmployeeIds,
   }
+  viewerAccessCache.set(cacheKey, {
+    access,
+    expiresAt: Date.now() + VIEWER_ACCESS_TTL_MS,
+  })
+  return access
 }
 
 /**
@@ -116,9 +129,10 @@ async function questionsByPacketId(cycle, packets) {
   return new Map(entries)
 }
 
-async function visiblePacket(req, packet) {
+async function visiblePacket(req, packet, { summary = false } = {}) {
+  // Summaries have no answers — skip scorecard-form lookup on the cold path.
   const [questions, access] = await Promise.all([
-    questionsForPacketLite(packet),
+    summary ? Promise.resolve([]) : questionsForPacketLite(packet),
     viewerReviewAccess(req),
   ])
   return packetForViewer(
@@ -181,18 +195,24 @@ export function registerReviewPacketRoutes(app) {
     '/api/platform/review-cycles/:cycleId/packets/:employeeId',
     requirePlatformAuth,
     asyncHandler(async (req, res) => {
+      const summary =
+        req.query.summary === '1' ||
+        req.query.summary === 'true' ||
+        req.query.fields === 'summary'
       const packet = await getReviewPacket(
         req.params.cycleId,
         Number(req.params.employeeId),
+        { includeChildren: !summary },
       )
       if (!packet) throw new HttpError(404, 'Review not found')
       if (
+        !summary &&
         req.platformUser?.employeeId &&
         Number(req.platformUser.employeeId) === packet.employeeId
       ) {
         await markPacketViewed(packet.id)
       }
-      res.json({ packet: await visiblePacket(req, packet) })
+      res.json({ packet: await visiblePacket(req, packet, { summary }) })
     }),
   )
 
@@ -204,6 +224,50 @@ export function registerReviewPacketRoutes(app) {
         const packet = await saveReviewDraft(
           req.params.packetId,
           req.body ?? {},
+          req.platformUser,
+        )
+        await publishWrite(req, ['packets', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
+        res.json({ packet: await visiblePacket(req, packet) })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/review-packets/:packetId/leave',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await setReviewPacketLeave(
+          req.params.packetId,
+          req.body?.leaveQuarter !== false && req.body?.leave !== false,
+          req.platformUser,
+        )
+        await publishWrite(req, ['packets', 'activity'], {
+          cycleId: packet.cycleId,
+          employeeId: packet.employeeId,
+        })
+        res.json({ packet: await visiblePacket(req, packet) })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.delete(
+    '/api/platform/review-packets/:packetId/leave',
+    requirePlatformAuth,
+    requirePlatformPermission('platform.write_all'),
+    asyncHandler(async (req, res) => {
+      try {
+        const packet = await setReviewPacketLeave(
+          req.params.packetId,
+          false,
           req.platformUser,
         )
         await publishWrite(req, ['packets', 'activity'], {

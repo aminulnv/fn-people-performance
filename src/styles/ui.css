@@ -1552,7 +1552,8 @@ a.pd-btn--secondary:visited {
   /* Match NEXT-Performance topbar sub-nav sliding pill */
   --segmented-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --segmented-duration: 0.52s;
-  --segmented-color-duration: 0.52s;
+  /* Color flips early so active label is white while the thumb is still moving. */
+  --segmented-color-duration: 0.18s;
   position: relative;
   display: inline-flex;
   align-items: stretch;

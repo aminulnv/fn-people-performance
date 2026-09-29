@@ -127,6 +127,39 @@ describe('packetForViewer', () => {
     expect(visible.answers.map((answer) => answer.actorRole)).toEqual(['self'])
   })
 
+  it('hides the self-review from the line manager until the manager submits', () => {
+    const source = packet({
+      status: 'self_in_progress',
+      selfSubmittedAt: null,
+    })
+    const visible = packetForViewer(source, 1, [], { managedEmployeeIds: [754] })
+    expect(visible.selfOverallGrade).toBeNull()
+    expect(visible.answers.map((answer) => answer.actorRole)).toEqual(['manager'])
+    expect(visible.pillarScores.map((score) => score.actorRole)).toEqual(['manager'])
+    expect(visible.managerOverallGrade).toBe('exceeding')
+  })
+
+  it('keeps the self-review hidden after the manager submits when the employee has not', () => {
+    const visible = packetForViewer(
+      packet({ status: 'manager_submitted', selfSubmittedAt: null }),
+      1,
+      [],
+      { managedEmployeeIds: [754] },
+    )
+    expect(visible.selfOverallGrade).toBeNull()
+    expect(visible.answers.map((answer) => answer.actorRole)).toEqual(['manager'])
+  })
+
+  it('shows the self-review once both sides have submitted', () => {
+    const source = packet({
+      status: 'manager_submitted',
+      selfSubmittedAt: '2026-01-10T00:00:00.000Z',
+    })
+    expect(
+      packetForViewer(source, 1, [], { managedEmployeeIds: [754] }).answers,
+    ).toEqual(source.answers)
+  })
+
   it('shows unpublished grades to All read access and All read + write access', () => {
     const source = packet()
     expect(

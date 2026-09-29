@@ -7,6 +7,7 @@ import {
   applyNestedWindowsToReviewStages,
   defaultReviewStages,
   deriveReviewStagesFromLegacy,
+  withoutInSystemAppeals,
   withoutUnsupportedCalibration,
   mergeReviewStages,
   syncLegacyStageWindows,
@@ -220,9 +221,11 @@ export function normalizeStagesConfig(
       ? defaultReviewStages(purpose, merged)
       : deriveReviewStagesFromLegacy(purpose, merged),
   );
-  return withoutUnsupportedCalibration(
-    syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
-    purpose,
+  return withoutInSystemAppeals(
+    withoutUnsupportedCalibration(
+      syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+      purpose,
+    ),
   );
 }
 

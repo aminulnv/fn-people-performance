@@ -378,6 +378,17 @@ export type ReviewPacket = {
   employeeId: number;
   managerEmployeeId: number | null;
   status: ReviewPacketStatus;
+  /**
+   * Set when the employee submits their self-review.
+   * Null means it has not been submitted. Omitted on older in-memory packets,
+   * which still infer submission from status.
+   */
+  selfSubmittedAt?: string | null;
+  /**
+   * PTR marked this quarter as full leave (O).
+   * The quarter is dropped from the annual goals average.
+   */
+  leaveQuarter?: boolean;
   selfOverallGrade: GradeBandId | null;
   managerOverallGrade: GradeBandId | null;
   calibratedOverallGrade: GradeBandId | null;

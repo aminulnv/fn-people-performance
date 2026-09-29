@@ -71,8 +71,19 @@ export function resolveQuarterGrade(
   link?: CycleSourceLink,
 ): GradeBandId | null {
   if (!isQuarterApplicable(outcome, link)) return null
-  if (outcome.kind === 'zero') return 'unsatisfactory'
   return outcome.kind === 'grade' ? outcome.grade : null
+}
+
+/** Points a quarter adds to the goals average. A missed quarter is 0, not Unsatisfactory (1). */
+export function scoreForQuarter(
+  outcome: QuarterOutcome,
+  link: CycleSourceLink | undefined,
+  bands: ReviewPolicy['scorecard']['bands'] = DEFAULT_GRADE_BANDS,
+): number | null {
+  if (!link || !isQuarterApplicable(outcome, link)) return null
+  if (outcome.kind === 'zero') return 0
+  if (outcome.kind !== 'grade') return null
+  return scoreForBand(outcome.grade, bands)
 }
 
 export function rollupGoalsPillar(input: {
@@ -80,40 +91,45 @@ export function rollupGoalsPillar(input: {
   links: CycleSourceLink[]
   bands?: ReviewPolicy['scorecard']['bands']
 }): {
-  applicable: Array<{ sourceCycleId: string; label: string; grade: GradeBandId; weight: number }>
+  applicable: Array<{
+    sourceCycleId: string
+    label: string
+    /** Null when the quarter was missed. It still counts, at 0 points. */
+    grade: GradeBandId | null
+    weight: number
+  }>
   averageScore: number | null
   averageGrade: GradeBandId | null
 } {
   const bands = input.bands ?? DEFAULT_GRADE_BANDS
-  const applicable = input.quarters
-    .map((quarter) => {
-      const link = linkForSource(quarter.sourceCycleId, input.links)
-      const grade = resolveQuarterGrade(quarter.outcome, link)
-      if (!grade || !link) return null
-      return {
+  const applicable = input.quarters.flatMap((quarter) => {
+    const link = linkForSource(quarter.sourceCycleId, input.links)
+    const score = scoreForQuarter(quarter.outcome, link, bands)
+    if (score == null || !link) return []
+    return [
+      {
         sourceCycleId: quarter.sourceCycleId,
         label: quarter.label,
-        grade,
+        grade: resolveQuarterGrade(quarter.outcome, link),
         weight: link.weightPercent,
-      }
-    })
-    .filter((row): row is NonNullable<typeof row> => Boolean(row))
+        score,
+      },
+    ]
+  })
 
   if (applicable.length === 0) {
     return { applicable: [], averageScore: null, averageGrade: null }
   }
 
   // Equal share among active quarters (e.g. 3 left → ~33.33% each).
+  // A missed quarter keeps its share and adds 0.
   const equalWeight = 100 / applicable.length
   const equalized = applicable.map((row) => ({ ...row, weight: equalWeight }))
   const averageScore =
-    equalized.reduce(
-      (sum, row) => sum + scoreForBand(row.grade, bands) * row.weight,
-      0,
-    ) / 100
+    equalized.reduce((sum, row) => sum + row.score * row.weight, 0) / 100
 
   return {
-    applicable: equalized,
+    applicable: equalized.map(({ score: _score, ...row }) => row),
     averageScore,
     averageGrade: bandForScore(averageScore, bands),
   }

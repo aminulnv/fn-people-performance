@@ -14,6 +14,7 @@ import {
 import {
   Avatar,
   Button,
+  Checkbox,
   ColumnVisibility,
   ConfirmDialog,
   CountBadge,
@@ -25,6 +26,10 @@ import {
   type ColumnVisibilityOption,
   type ResizableColumn,
 } from '@/components/ui'
+import {
+  LOCKED_OVERRIDE_ACK_LABEL,
+  LOCKED_OVERRIDE_HINT,
+} from '@/lib/calibration/lockedOverrideCopy'
 import { cx } from '@/lib/cx'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { pipStatusLabel } from '@/lib/employees/career'
@@ -244,6 +249,8 @@ export function EmployeeRatingTable({
   const [overrideReason, setOverrideReason] = useState('')
   const [overrideSaving, setOverrideSaving] = useState(false)
   const [overrideError, setOverrideError] = useState<string | null>(null)
+  const [lockedOverrideAck, setLockedOverrideAck] = useState(false)
+  const sessionLocked = Boolean(sitting?.lockedAt)
 
   const hasQuarters = annualSourceLinks(cycle, [...cycles]).length > 0
   const [visibleColumnIds, setVisibleColumnIds] = useState<
@@ -773,6 +780,7 @@ export function EmployeeRatingTable({
     setOverrideGrade(row.annualGrade ?? row.managerGrade)
     setOverrideReason('')
     setOverrideError(null)
+    setLockedOverrideAck(false)
   }
 
   async function saveOverride() {
@@ -784,19 +792,28 @@ export function EmployeeRatingTable({
     ) {
       return
     }
+    if (sessionLocked && !lockedOverrideAck) return
     setOverrideSaving(true)
     setOverrideError(null)
     try {
       const next = await calibrateReviewPacket(overrideRow.packetId, {
         toGrade: overrideGrade,
         reason: overrideReason.trim(),
+        ...(sessionLocked ? { acknowledgedLockedOverride: true } : {}),
       })
       onPacketUpdated(next)
-      void rememberAdjusted(overrideRow.employeeId)
+      if (sessionLocked) {
+        void queryClient.invalidateQueries({
+          queryKey: queryKeys.calibrationSitting(cycle.id),
+        })
+      } else {
+        void rememberAdjusted(overrideRow.employeeId)
+      }
       setOverrideRow(null)
+      setLockedOverrideAck(false)
     } catch (error) {
       setOverrideError(
-        error instanceof Error ? error.message : 'Could Not Save Override.',
+        error instanceof Error ? error.message : 'Could not save override.',
       )
     } finally {
       setOverrideSaving(false)
@@ -1355,7 +1372,6 @@ export function EmployeeRatingTable({
                             disabled={
                               !row.packetId ||
                               !row.managerGrade ||
-                              Boolean(sitting?.lockedAt) ||
                               !canOverrideCalibrationGrade({
                                 viewerEmployeeId,
                                 permissions: user?.permissions,
@@ -1369,12 +1385,15 @@ export function EmployeeRatingTable({
                                     team: row.team,
                                   },
                                 assignments,
+                                sessionLocked,
                               })
                             }
                             title={
                               !row.managerGrade
-                                ? 'Manager Rating Required Before Override'
-                                : undefined
+                                ? 'Manager rating required before override'
+                                : sessionLocked
+                                  ? 'Session locked — administrator exception only'
+                                  : undefined
                             }
                             onClick={() => openOverride(row)}
                           >
@@ -1441,17 +1460,25 @@ export function EmployeeRatingTable({
         onClose={() => {
           if (overrideSaving) return
           setOverrideRow(null)
+          setLockedOverrideAck(false)
         }}
         title={
           overrideRow ? `Override · ${overrideRow.fullName}` : 'Override Rating'
         }
-        description="A Written Reason Is Required. The Person’s Manager Is Notified."
+        description={
+          sessionLocked
+            ? LOCKED_OVERRIDE_HINT
+            : 'A written reason is required. The person’s manager is notified.'
+        }
         actions={
           <>
             <Button
               variant="secondary"
               disabled={overrideSaving}
-              onClick={() => setOverrideRow(null)}
+              onClick={() => {
+                setOverrideRow(null)
+                setLockedOverrideAck(false)
+              }}
             >
               Cancel
             </Button>
@@ -1462,7 +1489,8 @@ export function EmployeeRatingTable({
                 !overrideGrade ||
                 !overrideReason.trim() ||
                 !overrideRow?.packetId ||
-                !overrideRow.managerGrade
+                !overrideRow.managerGrade ||
+                (sessionLocked && !lockedOverrideAck)
               }
               onClick={() => {
                 void saveOverride()
@@ -1496,9 +1524,17 @@ export function EmployeeRatingTable({
                 value={overrideReason}
                 onChange={(event) => setOverrideReason(event.target.value)}
                 rows={3}
-                placeholder="Why Is This Grade Changing?"
+                placeholder="Why is this grade changing?"
               />
             </label>
+            {sessionLocked ? (
+              <Checkbox
+                className="pd-cal-rt__override-ack"
+                label={LOCKED_OVERRIDE_ACK_LABEL}
+                checked={lockedOverrideAck}
+                onChange={(event) => setLockedOverrideAck(event.target.checked)}
+              />
+            ) : null}
             {overrideError ? (
               <p className="pd-cal-rt__override-error" role="alert">
                 {overrideError}
@@ -1537,7 +1573,7 @@ export function EmployeeRatingTable({
             ) ?? null
           }
           sittingReady={sittingFetched || sitting != null}
-          sessionLocked={Boolean(sitting?.lockedAt)}
+          sessionLocked={sessionLocked}
           canOverride={canOverrideCalibrationGrade({
             viewerEmployeeId,
             permissions: user?.permissions,
@@ -1548,9 +1584,18 @@ export function EmployeeRatingTable({
                 team: selectedRow.team,
               },
             assignments,
+            sessionLocked,
           })}
           onSittingSaved={setSitting}
-          onRatingAdjusted={() => void rememberAdjusted(selectedRow.employeeId)}
+          onRatingAdjusted={() => {
+            if (sessionLocked) {
+              void queryClient.invalidateQueries({
+                queryKey: queryKeys.calibrationSitting(cycle.id),
+              })
+              return
+            }
+            void rememberAdjusted(selectedRow.employeeId)
+          }}
         />
       ) : null}
     </section>

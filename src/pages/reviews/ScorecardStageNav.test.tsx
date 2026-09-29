@@ -38,7 +38,7 @@ const stages = [
 ]
 
 describe('ScorecardStageNav', () => {
-  it('renders the segmented stage control at page width', () => {
+  it('renders the segmented stage control', () => {
     render(
       <ScorecardStageNav
         packet={packet()}
@@ -60,10 +60,11 @@ describe('ScorecardStageNav', () => {
       'true',
     )
     expect(screen.queryByRole('button', { name: 'Manager Review' })).toBeNull()
-    expect(screen.getByRole('button', { name: 'Published' })).toHaveAttribute(
+    expect(screen.getByRole('button', { name: 'Published Review' })).toHaveAttribute(
       'aria-disabled',
       'true',
     )
+    expect(screen.queryByRole('button', { name: 'Appeal' })).toBeNull()
   })
 
   it('notifies when an open stage is selected', () => {

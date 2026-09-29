@@ -41,6 +41,41 @@ export function managerReviewIsComplete(status) {
   return statusRank(status) >= statusRank('manager_submitted')
 }
 
+/**
+ * Self-review submit is independent of status so the manager can start first.
+ * Packets without the field still treat a post-self status as submitted.
+ */
+export function selfReviewSubmitted(packet) {
+  if (!packet) return false
+  if (Object.prototype.hasOwnProperty.call(packet, 'selfSubmittedAt')) {
+    return Boolean(packet.selfSubmittedAt)
+  }
+  return statusRank(packet.status) >= statusRank('self_submitted')
+}
+
+/** Line manager sees the self-review only after both sides have submitted. */
+export function managerCanSeeSelfReview(packet) {
+  return managerReviewIsComplete(packet?.status) && selfReviewSubmitted(packet)
+}
+
+/**
+ * Keep the other review's progress when one side saves.
+ * Do not move a submitted manager review backwards.
+ */
+export function nextPacketStatus(current, actorRole, submit) {
+  const rank = statusRank(current)
+  if (rank >= statusRank('manager_submitted')) return current
+  if (actorRole === 'manager') {
+    return submit ? 'manager_submitted' : 'manager_in_progress'
+  }
+  if (submit) {
+    if (rank >= statusRank('manager_in_progress')) return current
+    return 'self_submitted'
+  }
+  if (rank >= statusRank('self_submitted')) return current
+  return 'self_in_progress'
+}
+
 export function calibrationIsEditable(status) {
   return (
     managerReviewIsComplete(status) &&
@@ -104,6 +139,44 @@ function canSeeUnpublishedReview(packet, viewerEmployeeId, access) {
   return false
 }
 
+function stripSelfReview(packet) {
+  return {
+    ...packet,
+    selfOverallGrade: null,
+    answers: (packet.answers ?? []).filter((answer) => answer.actorRole !== 'self'),
+    pillarScores: (packet.pillarScores ?? []).filter(
+      (score) => score.actorRole !== 'self',
+    ),
+  }
+}
+
+function viewerIsLineManager(packet, viewerEmployeeId, access) {
+  const viewer = viewerEmployeeId == null ? null : Number(viewerEmployeeId)
+  if (
+    viewer != null &&
+    packet.managerEmployeeId != null &&
+    viewer === Number(packet.managerEmployeeId)
+  ) {
+    return true
+  }
+  const managed = access?.managedEmployeeIds
+  const subjectId = Number(packet.employeeId)
+  if (managed instanceof Set) return managed.has(subjectId)
+  if (Array.isArray(managed)) return managed.map(Number).includes(subjectId)
+  return false
+}
+
+function withSelfReviewBlind(packet, viewerEmployeeId, access) {
+  if (!packet) return packet
+  const isSubject =
+    viewerEmployeeId != null &&
+    Number(viewerEmployeeId) === Number(packet.employeeId)
+  if (isSubject) return packet
+  if (!viewerIsLineManager(packet, viewerEmployeeId, access)) return packet
+  if (managerCanSeeSelfReview(packet)) return packet
+  return stripSelfReview(packet)
+}
+
 function stripProvisionalGradesForEmployee(packet) {
   return {
     ...packet,
@@ -132,28 +205,26 @@ export function packetForViewer(
   const isSubject =
     viewerEmployeeId != null &&
     Number(viewerEmployeeId) === Number(packet.employeeId)
+  let visible = packet
   if (isSubject && !officialReviewReleasedToEmployee(packet.status)) {
-    return stripUnpublishedOfficialReview(packet)
-  }
-  if (isSubject) {
-    return stripProvisionalGradesForEmployee(
+    visible = stripUnpublishedOfficialReview(packet)
+  } else if (isSubject) {
+    visible = stripProvisionalGradesForEmployee(
       filterAnswersForAudience(packet, questions, 'employee'),
     )
-  }
-  if (
+  } else if (
     !officialReviewReleasedToEmployee(packet.status) &&
     !canSeeUnpublishedReview(packet, viewerEmployeeId, access)
   ) {
-    return stripUnpublishedOfficialReview(packet)
-  }
-  if (
+    visible = stripUnpublishedOfficialReview(packet)
+  } else if (
     viewerEmployeeId != null &&
     Number(viewerEmployeeId) === Number(packet.managerEmployeeId) &&
     outputReleasedToManager(packet.status)
   ) {
-    return filterAnswersForAudience(packet, questions, 'manager')
+    visible = filterAnswersForAudience(packet, questions, 'manager')
   }
-  return packet
+  return withSelfReviewBlind(visible, viewerEmployeeId, access)
 }
 
 export function packetsForViewer(

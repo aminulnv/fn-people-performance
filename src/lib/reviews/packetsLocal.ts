@@ -1,5 +1,9 @@
 import { cycleGroupsOf } from './cycleGroups'
-import { calibrationIsEditable } from './scorecardStages'
+import {
+  calibrationIsEditable,
+  nextPacketStatus,
+  nextSelfSubmittedAt,
+} from './scorecardStages'
 import { getReviewCycle } from './store'
 import type {
   ReviewActorRole,
@@ -100,14 +104,33 @@ export function saveLocalPacket(
         ? input.goalsComponent
         : current.goalsComponent,
     version: current.version + 1,
+    selfSubmittedAt: nextSelfSubmittedAt(
+      current,
+      input.actorRole,
+      input.submit === true,
+    ),
+    status: nextPacketStatus(current.status, input.actorRole, input.submit === true),
   }
   if (input.actorRole === 'self') {
     next.selfOverallGrade = input.overallGrade ?? current.selfOverallGrade
-    next.status = input.submit ? 'self_submitted' : 'self_in_progress'
   } else {
     next.managerOverallGrade = input.overallGrade ?? current.managerOverallGrade
     next.managerOverrideReason = input.overrideReason ?? current.managerOverrideReason
-    next.status = input.submit ? 'manager_submitted' : 'manager_in_progress'
+  }
+  packets.set(packetKey(current.cycleId, current.employeeId), next)
+  return structuredClone(next)
+}
+
+export function setLocalPacketLeave(
+  packetId: string,
+  leaveQuarter: boolean,
+): ReviewPacket {
+  const current = [...packets.values()].find((packet) => packet.id === packetId)
+  if (!current) throw new Error('Review not found')
+  const next: ReviewPacket = {
+    ...current,
+    leaveQuarter: Boolean(leaveQuarter),
+    version: current.version + 1,
   }
   packets.set(packetKey(current.cycleId, current.employeeId), next)
   return structuredClone(next)

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import type { ComponentProps } from "react";
 import type { AnnualQuarterRow } from "@/lib/reviews/annualQuarters";
 import { AnnualGoalsQuarters } from "./AnnualGoalsQuarters";
 
@@ -14,6 +15,8 @@ const rows: AnnualQuarterRow[] = [
     label: "Q1 2026",
     periodKey: "q1-2026",
     excluded: false,
+    leave: false,
+    packetId: "pkt-q1",
     kind: "graded",
     grade: "performing",
     progressPercent: 0,
@@ -24,6 +27,8 @@ const rows: AnnualQuarterRow[] = [
     label: "Q2 2026",
     periodKey: "q2-2026",
     excluded: false,
+    leave: false,
+    packetId: "pkt-q2",
     kind: "graded",
     grade: "exceeding",
     progressPercent: 0,
@@ -34,6 +39,8 @@ const rows: AnnualQuarterRow[] = [
     label: "Q3 2026",
     periodKey: "q3-2026",
     excluded: false,
+    leave: false,
+    packetId: "pkt-q3",
     kind: "graded",
     grade: "unsatisfactory",
     progressPercent: 0,
@@ -44,6 +51,8 @@ const rows: AnnualQuarterRow[] = [
     label: "Q4 2026",
     periodKey: "q4-2026",
     excluded: false,
+    leave: false,
+    packetId: "pkt-q4",
     kind: "progress",
     grade: null,
     progressPercent: 40,
@@ -51,12 +60,22 @@ const rows: AnnualQuarterRow[] = [
   },
 ];
 
-function renderQuarters() {
+function renderQuarters(
+  props: Partial<ComponentProps<typeof AnnualGoalsQuarters>> = {},
+) {
   return render(
     <MemoryRouter>
       <AnnualGoalsQuarters
         rows={rows}
         goalsByCycleId={{
+          "q1-2026": [
+            {
+              id: "g-q1",
+              description: "Ship Q1 foundation",
+              weight: 100,
+              measurements: [],
+            },
+          ],
           "q4-2026": [
             {
               id: "g1",
@@ -67,46 +86,72 @@ function renderQuarters() {
           ],
         }}
         personId="1"
+        {...props}
       />
     </MemoryRouter>,
   );
 }
 
 describe("AnnualGoalsQuarters", () => {
-  it("shows one quarter table and opens on Q4 progress", () => {
+  it("shows quarter bars with grades and expands one goals table at a time", () => {
     renderQuarters();
 
     expect(screen.getByRole("heading", { name: "Goals" })).toBeTruthy();
-    expect(screen.queryByRole("heading", { name: "Q4 2026" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Goal quarter: Q4 2026" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Q1 2026/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /Q4 2026/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+
+    expect(screen.getByLabelText("Q1 2026 grade")).toHaveTextContent("Performing");
+    expect(screen.getByLabelText("Q2 2026 grade")).toHaveTextContent("Exceeding");
+    expect(screen.getByLabelText("Q3 2026 grade")).toHaveTextContent(
+      "Unsatisfactory",
+    );
+
     expect(screen.getByText("Finish the year plan")).toBeTruthy();
-    expect(screen.getByRole("columnheader", { name: "Progress 0%" })).toBeTruthy();
-    expect(screen.queryByText("Finish the year plan")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /grade/i })).toBeNull();
-    expect(screen.getByRole("button", { name: "Next quarter" })).toBeDisabled();
-  });
+    expect(screen.queryByText("Ship Q1 foundation")).toBeNull();
 
-  it("moves between quarters with previous and next arrows", () => {
-    renderQuarters();
-
-    fireEvent.click(screen.getByRole("button", { name: "Previous quarter" }));
-    expect(screen.getByRole("button", { name: "Goal quarter: Q3 2026" })).toBeTruthy();
-    expect(screen.getByText("Unsatisfactory")).toBeTruthy();
-    expect(screen.queryByText("This quarter’s grade stays as it was.")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Q1 2026/ }));
+    expect(screen.getByRole("button", { name: /Q1 2026/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(screen.getByText("Ship Q1 foundation")).toBeTruthy();
     expect(screen.queryByText("Finish the year plan")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Next quarter" }));
-    expect(screen.getByRole("button", { name: "Goal quarter: Q4 2026" })).toBeTruthy();
-    expect(screen.getByText("Finish the year plan")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Q1 2026/ }));
+    expect(screen.getByRole("button", { name: /Q1 2026/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.queryByText("Ship Q1 foundation")).toBeNull();
   });
 
-  it("lets the dropdown jump to a quarter", () => {
-    renderQuarters();
+  it("lets the employee set one overall annual Goals grade", () => {
+    renderQuarters({
+      annualGoalsGrade: "performing",
+      onAnnualGoalsGradeChange: () => undefined,
+      goalsWeight: 50,
+    });
 
-    fireEvent.click(screen.getByRole("button", { name: "Goal quarter: Q4 2026" }));
-    fireEvent.click(screen.getByRole("option", { name: /Q1 2026/ }));
-    expect(screen.getByRole("button", { name: "Goal quarter: Q1 2026" })).toBeTruthy();
-    expect(screen.getByText("Performing")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Previous quarter" })).toBeDisabled();
+    expect(screen.getByText("Overall grade")).toBeTruthy();
+    expect(
+      screen.getByRole("button", { name: "Overall grade (50%)" }),
+    ).toBeTruthy();
+    expect(screen.queryByLabelText("Q4 Goals Grading")).toBeNull();
+  });
+
+  it("keeps Q4 grading for the manager only", () => {
+    renderQuarters({
+      q4Grade: "exceeding",
+      onQ4GradeChange: () => undefined,
+    });
+
+    expect(screen.getByRole("button", { name: "Q4 Goals Grading" })).toBeTruthy();
+    expect(screen.queryByLabelText("Goals (50%)")).toBeNull();
   });
 });

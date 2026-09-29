@@ -48,7 +48,6 @@ export function presetEnabledStages(purpose, periodKey) {
       'calibration_slt',
       'publish_managers',
       'publish_employees',
-      'appeal',
     ]
   }
   if (purpose === 'custom') return ['manager_review', 'publish_employees']
@@ -71,11 +70,13 @@ export function withRequiredReviewStages(config) {
   const reviewsOn = cycleModulesOf(config.reviewStages).reviews
   return syncLegacyStageWindows({
     ...config,
-    reviewStages: (config.reviewStages ?? []).map((stage) =>
-      stage.id === 'publish_employees'
-        ? { ...stage, enabled: reviewsOn }
-        : stage,
-    ),
+    reviewStages: (config.reviewStages ?? []).map((stage) => {
+      if (stage.id === 'appeal') return { ...stage, enabled: false }
+      if (stage.id === 'publish_employees') {
+        return { ...stage, enabled: reviewsOn }
+      }
+      return stage
+    }),
   })
 }
 
@@ -83,6 +84,7 @@ export function applyCycleModules(config, modules, purpose, periodKey) {
   const reviewsWereOn = cycleModulesOf(config.reviewStages).reviews
   const reviewPreset = new Set(presetReviewFlowStages(purpose, periodKey))
   const reviewStages = (config.reviewStages ?? []).map((stage) => {
+    if (stage.id === 'appeal') return { ...stage, enabled: false }
     if (stage.id === 'goals') return { ...stage, enabled: modules.goals }
     if (!modules.reviews) return { ...stage, enabled: false }
     if (
@@ -96,6 +98,15 @@ export function applyCycleModules(config, modules, purpose, periodKey) {
     return { ...stage, enabled: reviewPreset.has(stage.id) }
   })
   return syncLegacyStageWindows({ ...config, reviewStages })
+}
+
+export function withoutInSystemAppeals(config) {
+  return {
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      stage.id === 'appeal' ? { ...stage, enabled: false } : stage,
+    ),
+  }
 }
 
 export function withoutUnsupportedCalibration(config, purpose) {
@@ -127,6 +138,7 @@ export function deriveReviewStagesFromLegacy(purpose, config) {
     if (stage.id === 'publish_managers' || stage.id === 'publish_employees') {
       return { ...stage, enabled: true }
     }
+    if (stage.id === 'appeal') return { ...stage, enabled: false }
     return { ...stage, enabled: annual }
   })
 }

@@ -27,6 +27,8 @@ export const queryKeys = {
     ['review-packet-summaries', cycleId] as const,
   reviewPacket: (cycleId: string, employeeId: number) =>
     ['review-packet', cycleId, employeeId] as const,
+  reviewPacketSummary: (cycleId: string, employeeId: number) =>
+    ['review-packet-summary', cycleId, employeeId] as const,
   cycleGoalSubmissions: (cycleId: string) =>
     ['cycle-goal-submissions', cycleId] as const,
   calibrationSitting: (cycleId: string) =>

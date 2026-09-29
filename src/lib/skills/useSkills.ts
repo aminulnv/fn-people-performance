@@ -16,17 +16,18 @@ import {
 } from './store'
 import type { Skill } from './types'
 
-function useHydrateSkills() {
+function useHydrateSkills(load = true) {
   useEffect(() => {
+    if (!load) return
     void ensureSkillsLoaded().catch(() => {
       /* pages keep last snapshot until the next remount */
     })
     void ensureRolesLoaded().catch(() => {})
-  }, [])
+  }, [load])
 }
 
-export function useSkillsLibrary() {
-  useHydrateSkills()
+export function useSkillsLibrary(options?: { load?: boolean }) {
+  useHydrateSkills(options?.load !== false)
   const [skills, setSkills] = useState<Skill[]>(() => getSkillsSnapshot())
   const [tick, setTick] = useState(0)
 
@@ -54,8 +55,11 @@ export function useSkill(skillId: string) {
   return skillId ? getSkillById(skillId) : null
 }
 
-export function useEmployeeSkills(employeeId: number) {
-  useHydrateSkills()
+export function useEmployeeSkills(
+  employeeId: number,
+  options?: { load?: boolean },
+) {
+  useHydrateSkills(options?.load !== false)
   const [skills, setSkills] = useState<PersonSkill[]>(() =>
     getSkillsForEmployee(employeeId),
   )

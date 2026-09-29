@@ -86,6 +86,39 @@ describe('scorecard stage viewing', () => {
     expect(gradeForViewStage(source, 'manager_review', 871)).toBeNull()
   })
 
+  it('opens manager review while the self-review is still in progress', () => {
+    const source = packet({ status: 'self_in_progress', selfSubmittedAt: null })
+    const steps = visibleScorecardSteps(stages, source)
+    const manager = steps.find((step) => step.id === 'manager_review')
+    const currentIndex = steps.findIndex((step) => step.id === 'self_review')
+    expect(manager).toBeTruthy()
+    expect(
+      scorecardStageIsOpen(
+        manager!,
+        steps.findIndex((step) => step.id === 'manager_review'),
+        currentIndex,
+        source,
+        1,
+      ),
+    ).toBe(true)
+    expect(
+      resolveScorecardViewStage({
+        requested: null,
+        steps,
+        packet: source,
+        viewerEmployeeId: 1,
+      }),
+    ).toBe('manager_review')
+    expect(
+      resolveScorecardViewStage({
+        requested: null,
+        steps,
+        packet: source,
+        viewerEmployeeId: 871,
+      }),
+    ).toBe('self_review')
+  })
+
   it('does not open calibration before the manager review is submitted', () => {
     const source = packet({ status: 'manager_in_progress' })
     const steps = visibleScorecardSteps(stages, source)
@@ -122,12 +155,13 @@ describe('scorecard stage viewing', () => {
     )
   })
 
-  it('opens the separate appeal stage after the final rating is released', () => {
+  it('does not expose an appeal stage after the final rating is released', () => {
     const source = packet({
       status: 'released_to_employees',
       publishedOverallGrade: 'performing',
     })
     const steps = visibleScorecardSteps(stages, source)
+    expect(steps.map((step) => step.id)).not.toContain('appeal')
     expect(
       resolveScorecardViewStage({
         requested: 'appeal',
@@ -135,7 +169,7 @@ describe('scorecard stage viewing', () => {
         packet: source,
         viewerEmployeeId: 871,
       }),
-    ).toBe('appeal')
+    ).toBe('publish_employees')
   })
 
   it('never opens manager or calibration stages for the employee', () => {
@@ -150,7 +184,6 @@ describe('scorecard stage viewing', () => {
     expect(steps.map((step) => step.id)).toEqual([
       'self_review',
       'publish_employees',
-      'appeal',
     ])
     expect(
       resolveScorecardViewStage({
@@ -160,6 +193,35 @@ describe('scorecard stage viewing', () => {
         viewerEmployeeId: 871,
       }),
     ).toBe('publish_employees')
+  })
+
+  it('hides manager and calibration tabs before packet/viewer identity is known', () => {
+    expect(
+      visibleScorecardStepsForViewer(stages, null, 871, 871).map(
+        (step) => step.id,
+      ),
+    ).toEqual(['self_review', 'publish_employees'])
+    expect(
+      visibleScorecardStepsForViewer(stages, null, null, 871).map(
+        (step) => step.id,
+      ),
+    ).toEqual(['self_review', 'publish_employees'])
+    expect(viewerCanOpenStage('manager_review', null, null, 871)).toBe(false)
+    expect(viewerCanOpenStage('manager_review', null, 871, 871)).toBe(false)
+  })
+
+  it('shows manager tabs for a known non-subject even before the packet loads', () => {
+    expect(
+      visibleScorecardStepsForViewer(stages, null, 1, 871).map(
+        (step) => step.id,
+      ),
+    ).toEqual([
+      'self_review',
+      'manager_review',
+      'calibration_hod_hrbp',
+      'publish_employees',
+    ])
+    expect(viewerCanOpenStage('manager_review', null, 1, 871)).toBe(true)
   })
 
   it('keeps the appeal stage closed for everyone except the employee', () => {
@@ -242,5 +304,12 @@ describe('scorecardReviewFormIsEditable', () => {
         false,
       ),
     ).toBe(false)
+    expect(
+      scorecardReviewFormIsEditable(
+        'self_review',
+        packet({ status: 'manager_submitted', selfSubmittedAt: null }),
+        true,
+      ),
+    ).toBe(true)
   })
 })

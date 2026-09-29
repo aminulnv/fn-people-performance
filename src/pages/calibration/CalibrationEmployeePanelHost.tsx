@@ -151,6 +151,7 @@ export function CalibrationEmployeePanelHost({
             team: row.team,
           },
         assignments,
+        sessionLocked: Boolean(sitting?.lockedAt),
       })}
       onSittingSaved={(next: CalibrationSitting) => {
         setCalibrationSittingCache(cycle.id, next)

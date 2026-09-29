@@ -1,3 +1,4 @@
+import { Heart } from 'lucide-react'
 import { ListboxSelect } from '@/components/ui'
 import type { GradeBandId } from '@/lib/reviews/types'
 import type { CompanyValue } from '@/lib/values/types'
@@ -33,7 +34,10 @@ export function ScorecardValuesGradeCard({
       aria-label={priorOnly ? 'Core Values (previously graded)' : 'Core Values'}
     >
       <header className="pd-reviews-scorecard__card-head">
-        <h2 className="pd-reviews-scorecard__section-title">Core Values</h2>
+        <h2 className="pd-reviews-scorecard__section-title">
+          <Heart size={18} strokeWidth={1.75} aria-hidden />
+          Core Values
+        </h2>
         {priorOnly ? (
           <span className="pd-reviews-skills-grade__prior-chip">
             Saved grades. Not counted while Core Values is off.

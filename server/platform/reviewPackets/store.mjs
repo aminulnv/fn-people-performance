@@ -6,10 +6,14 @@ import { listActiveDelegatedManagerIds } from '../delegations.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
 import { publicationExclusionClause } from './publicationFilter.mjs'
-import { calibrationIsEditable, managerReviewWriteAllowed } from './visibility.mjs'
 import {
+  calibrationIsEditable,
+  managerReviewWriteAllowed,
+  nextPacketStatus,
+} from './visibility.mjs'
+import {
+  assertCalibrationGradeChangeAllowed,
   assertCalibrationOverrideAllowed,
-  assertCalibrationUnlocked,
   notifyManagerOfCalibrationOverride,
 } from '../calibrationGovernance.mjs'
 
@@ -53,6 +57,8 @@ function mapPacket(row, extras = {}) {
       ? Number(row.manager_employee_id)
       : null,
     status: row.status,
+    selfSubmittedAt: row.self_submitted_at ? iso(row.self_submitted_at) : null,
+    leaveQuarter: Boolean(row.leave_quarter),
     selfOverallGrade: row.self_overall_grade,
     managerOverallGrade: row.manager_overall_grade,
     calibratedOverallGrade: row.calibrated_overall_grade,
@@ -263,7 +269,11 @@ export async function listReviewPacketSummaries(cycleId) {
   return listPacketRows(cycleId, { includeChildren: false })
 }
 
-export async function getReviewPacket(cycleId, employeeId) {
+export async function getReviewPacket(
+  cycleId,
+  employeeId,
+  { includeChildren = true } = {},
+) {
   const eid = Number(employeeId)
   const client = await getPool().connect()
   try {
@@ -287,6 +297,7 @@ export async function getReviewPacket(cycleId, employeeId) {
     }
     const row = rows[0]
     if (!row) return null
+    if (!includeChildren) return mapPacket(row)
     const children = await loadChildren(client, [row.id])
     return withChildren(row, children)
   } finally {
@@ -381,14 +392,12 @@ export async function saveReviewDraft(packetId, input, platformUser) {
       }
     }
 
-    const nextStatus =
-      input.submit === true
-        ? actorRole === 'self'
-          ? 'self_submitted'
-          : 'manager_submitted'
-        : actorRole === 'self'
-          ? 'self_in_progress'
-          : 'manager_in_progress'
+    const nextStatus = nextPacketStatus(
+      row.status,
+      actorRole,
+      input.submit === true,
+    )
+    const markSelfSubmitted = actorRole === 'self' && input.submit === true
 
     const { rows } = await client.query(
       `UPDATE platform.review_packets
@@ -398,6 +407,10 @@ export async function saveReviewDraft(packetId, input, platformUser) {
            manager_override_reason = CASE WHEN $6 = 'manager' THEN COALESCE($4, manager_override_reason) ELSE manager_override_reason END,
            manager_employee_id = CASE WHEN $6 = 'manager' THEN COALESCE($5, manager_employee_id) ELSE manager_employee_id END,
            goals_component = COALESCE($7::jsonb, goals_component),
+           self_submitted_at = CASE
+             WHEN $8::boolean THEN COALESCE(self_submitted_at, now())
+             ELSE self_submitted_at
+           END,
            version = version + 1,
            updated_at = now()
        WHERE id = $1
@@ -410,6 +423,7 @@ export async function saveReviewDraft(packetId, input, platformUser) {
         platformUser?.employeeId ?? null,
         actorRole,
         input.goalsComponent ? JSON.stringify(input.goalsComponent) : null,
+        markSelfSubmitted,
       ],
     )
     if (input.submit === true) {
@@ -485,9 +499,19 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
     if (!input.toGrade || !reason) {
       throw new HttpError(400, 'A new grade and a written reason are required.')
     }
-    await assertCalibrationUnlocked(client, row.cycle_id)
+    const lockState = await assertCalibrationGradeChangeAllowed(
+      client,
+      platformUser,
+      {
+        cycleId: row.cycle_id,
+        acknowledgedLockedOverride: Boolean(input.acknowledgedLockedOverride),
+      },
+    )
     await assertCalibrationOverrideAllowed(client, platformUser, row.employee_id)
     const eventId = `cal-${crypto.randomUUID()}`
+    const eventReason = lockState.locked
+      ? `[Post-lock exception] ${reason}`
+      : reason
     await client.query(
       `INSERT INTO platform.review_calibration_events (
          id, packet_id, stage_id, from_grade, to_grade, reason, actor_employee_id
@@ -498,7 +522,7 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
         input.stageId ?? 'calibration_hod_hrbp',
         row.calibrated_overall_grade ?? row.manager_overall_grade,
         input.toGrade,
-        reason,
+        eventReason,
         platformUser?.employeeId ?? null,
       ],
     )
@@ -513,6 +537,17 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       [packetId, input.toGrade],
     )
     const fromGrade = row.calibrated_overall_grade ?? row.manager_overall_grade
+    await client.query(
+      `INSERT INTO platform.calibration_sitting_employees (
+         cycle_id, employee_id, status, notes, adjusted_at, updated_by_employee_id
+       ) VALUES ($1, $2, 'rating_changed', '', now(), $3)
+       ON CONFLICT (cycle_id, employee_id) DO UPDATE SET
+         status = 'rating_changed',
+         adjusted_at = now(),
+         updated_by_employee_id = EXCLUDED.updated_by_employee_id,
+         updated_at = now()`,
+      [row.cycle_id, row.employee_id, platformUser?.employeeId ?? null],
+    )
     await appendActivityEvent(client, {
       eventKey: 'review_packet.calibrated',
       entityType: 'review_packet',
@@ -522,7 +557,10 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       cycleId: row.cycle_id,
       summary: `Calibrated grade from ${fromGrade || 'unset'} to ${input.toGrade}`,
       changes: [{ field: 'grade', from: fromGrade, to: input.toGrade }],
-      metadata: { reason: reason.slice(0, 500) },
+      metadata: {
+        reason: reason.slice(0, 500),
+        ...(lockState.locked ? { lockedSessionOverride: true } : {}),
+      },
       source: 'api',
     })
     await notifyManagerOfCalibrationOverride(client, {
@@ -532,7 +570,77 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       subjectEmployeeId: Number(row.employee_id),
       actorEmployeeId: platformUser?.employeeId ?? null,
       toGrade: input.toGrade,
-      reason,
+      reason: eventReason,
+    })
+    await client.query('COMMIT')
+    const children = await loadChildren(client, [packetId])
+    return withChildren(rows[0], children)
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
+export async function setReviewPacketLeave(
+  packetId,
+  leaveQuarter,
+  platformUser,
+) {
+  const client = await getPool().connect()
+  try {
+    await client.query('BEGIN')
+    const row = await getPacketRow(client, packetId, { forUpdate: true })
+    if (!row) throw new HttpError(404, 'Review not found')
+    const permissions = await permissionsForPlatformUser(platformUser ?? {})
+    if (!permissions.includes('platform.write_all')) {
+      throw new HttpError(
+        403,
+        'Only an administrator can mark a quarter as leave.',
+      )
+    }
+    if (
+      platformUser?.employeeId &&
+      Number(platformUser.employeeId) === Number(row.employee_id)
+    ) {
+      throw new HttpError(403, 'You cannot mark your own quarter as leave.')
+    }
+    const nextLeave = Boolean(leaveQuarter)
+    if (Boolean(row.leave_quarter) === nextLeave) {
+      await client.query('COMMIT')
+      const children = await loadChildren(client, [packetId])
+      return withChildren(row, children)
+    }
+    const { rows } = await client.query(
+      `UPDATE platform.review_packets
+       SET leave_quarter = $2,
+           version = version + 1,
+           updated_at = now()
+       WHERE id = $1
+       RETURNING *`,
+      [packetId, nextLeave],
+    )
+    await appendActivityEvent(client, {
+      eventKey: nextLeave
+        ? 'review_packet.leave_marked'
+        : 'review_packet.leave_cleared',
+      entityType: 'review_packet',
+      entityId: packetId,
+      ...actorFromUser(platformUser),
+      subjectEmployeeId: Number(row.employee_id),
+      cycleId: row.cycle_id,
+      summary: nextLeave
+        ? 'Marked quarter as leave (O)'
+        : 'Cleared leave (O) for this quarter',
+      changes: [
+        {
+          field: 'leaveQuarter',
+          from: Boolean(row.leave_quarter) ? 'leave' : null,
+          to: nextLeave ? 'leave' : null,
+        },
+      ],
+      source: 'api',
     })
     await client.query('COMMIT')
     const children = await loadChildren(client, [packetId])

@@ -40,6 +40,11 @@ export type ListboxSelectProps = {
   noResultsText?: string
   /** Render the options panel above clipping scroll containers. */
   portal?: boolean
+  /**
+   * Close when an ancestor scroll container moves (e.g. wide tables).
+   * Avoids the portalled panel drifting away from its cell.
+   */
+  closeOnScroll?: boolean
   /** Open the list when first mounted (e.g. after a lazy placeholder click). */
   defaultOpen?: boolean
   /** Called when the open state changes. */
@@ -64,6 +69,7 @@ export function ListboxSelect({
   searchPlaceholder = 'Search…',
   noResultsText = 'No options found',
   portal = true,
+  closeOnScroll = false,
   defaultOpen = false,
   onOpenChange,
   showDescriptionInTrigger = false,
@@ -88,6 +94,32 @@ export function ListboxSelect({
   useEffect(() => {
     onOpenChange?.(open)
   }, [onOpenChange, open])
+
+  useEffect(() => {
+    if (!open || !closeOnScroll) return
+
+    const onScroll = (event: Event) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      // Ignore scrolls inside the options panel itself.
+      if (panelRef.current?.contains(target)) return
+      const anchor = containerRef.current
+      if (!anchor) return
+      // Close when a scrollable ancestor of the trigger moves.
+      if (target === document || target === document.documentElement) {
+        setQuery('')
+        setOpen(false)
+        return
+      }
+      if (target instanceof Element && target.contains(anchor)) {
+        setQuery('')
+        setOpen(false)
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
+  }, [closeOnScroll, open])
 
   const items = useMemo(() => {
     const next = [...options]

@@ -8,6 +8,7 @@ import {
   mergeReviewStages,
   syncLegacyStageWindows,
   withRequiredReviewStages,
+  withoutInSystemAppeals,
   withoutUnsupportedCalibration,
 } from './reviewConfig.mjs'
 
@@ -248,11 +249,13 @@ export function normalizeStagesConfig(config, quarter = {}) {
       ? defaultReviewStages(purpose, merged)
       : deriveReviewStagesFromLegacy(purpose, merged),
   )
-  return withoutUnsupportedCalibration(
-    withRequiredReviewStages(
-      syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+  return withoutInSystemAppeals(
+    withoutUnsupportedCalibration(
+      withRequiredReviewStages(
+        syncLegacyStageWindows(applyNestedWindowsToReviewStages(merged)),
+      ),
+      purpose,
     ),
-    purpose,
   )
 }
 

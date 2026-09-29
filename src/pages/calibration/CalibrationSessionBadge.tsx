@@ -5,6 +5,16 @@ import { cx } from '@/lib/cx'
 import { useAuth } from '@/lib/useAuth'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import {
+  LOCK_SESSION_CONFIRM,
+  LOCK_SESSION_DESCRIPTION,
+  LOCK_SESSION_TITLE,
+  LOCK_SESSION_TOOLTIP,
+  UNLOCK_SESSION_CONFIRM,
+  UNLOCK_SESSION_DESCRIPTION,
+  UNLOCK_SESSION_TITLE,
+  UNLOCK_SESSION_TOOLTIP,
+} from '@/lib/calibration/lockedOverrideCopy'
+import {
   lockCalibrationSession,
   unlockCalibrationSession,
   type CalibrationSitting,
@@ -14,7 +24,7 @@ import {
   useCalibrationSitting,
 } from '@/lib/calibration/useCalibrationSession'
 
-/** Lock / Unlock control for the calibration page header. */
+/** Lock / Unlock control for the calibration page header (admins only). */
 export function CalibrationSessionBadge({
   cycleId,
   sitting: sittingProp,
@@ -55,6 +65,11 @@ export function CalibrationSessionBadge({
       ? 'Locked'
       : 'Unlocked'
   const changesHint = changes ? `, ${changes} Rating Changes` : ''
+  const tooltip = locked
+    ? canLock
+      ? UNLOCK_SESSION_TOOLTIP
+      : LOCK_SESSION_TOOLTIP
+    : LOCK_SESSION_TOOLTIP
 
   async function applyLock() {
     setLocking(true)
@@ -71,8 +86,8 @@ export function CalibrationSessionBadge({
         error instanceof Error
           ? error.message
           : locked
-            ? 'Could Not Unlock The Session.'
-            : 'Could Not Lock The Session.',
+            ? 'Could not unlock the session.'
+            : 'Could not lock the session.',
       )
     } finally {
       setLocking(false)
@@ -97,14 +112,15 @@ export function CalibrationSessionBadge({
         <button
           type="button"
           className={badgeClass}
+          title={tooltip}
           onClick={() => {
             setLockError(null)
             setLockOpen(true)
           }}
           aria-label={
             locked
-              ? `Session Locked${changesHint}. Unlock Session.`
-              : `Session Unlocked${changesHint}. Lock Session.`
+              ? `Session locked${changesHint}. Unlock session.`
+              : `Session unlocked${changesHint}. Lock session.`
           }
         >
           {badgeBody}
@@ -112,10 +128,11 @@ export function CalibrationSessionBadge({
       ) : (
         <span
           className={badgeClass}
+          title={locked ? LOCK_SESSION_TOOLTIP : undefined}
           aria-label={
             locked
-              ? `Session Locked${changesHint}`
-              : `Session Unlocked${changesHint}`
+              ? `Session locked${changesHint}`
+              : `Session unlocked${changesHint}`
           }
         >
           {badgeBody}
@@ -128,13 +145,11 @@ export function CalibrationSessionBadge({
         onConfirm={() => {
           void applyLock()
         }}
-        title={locked ? 'Unlock Session?' : 'Lock Session?'}
+        title={locked ? UNLOCK_SESSION_TITLE : LOCK_SESSION_TITLE}
         description={
-          locked
-            ? 'Unlocking Lets Calibrators Edit Ratings And Notes Again.'
-            : 'Locking Freezes Ratings And Notes For This Sitting.'
+          locked ? UNLOCK_SESSION_DESCRIPTION : LOCK_SESSION_DESCRIPTION
         }
-        confirmLabel={locked ? 'Unlock Session' : 'Lock Session'}
+        confirmLabel={locked ? UNLOCK_SESSION_CONFIRM : LOCK_SESSION_CONFIRM}
         confirmLoading={locking}
       >
         {lockError ? (

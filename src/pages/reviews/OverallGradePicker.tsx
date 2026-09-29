@@ -29,18 +29,27 @@ export function OverallGradePicker({
     : null
   const body = (
     <>
-      {hideTitle ? null : (
-        <h2 id={headingId} className="pd-reviews-scorecard__section-title">
-          <Trophy size={18} strokeWidth={1.75} aria-hidden />
-          Overall Grading
-        </h2>
-      )}
-      {suggestionLabel ? (
-        <p className="pd-reviews-flow__hint">
-          Suggested from Goals 50% / Skills 25% / Values 25%: {suggestionLabel}.
-          You can change this grade.
-        </p>
-      ) : null}
+      <div className="pd-reviews-scorecard__overall-head">
+        {hideTitle ? null : (
+          <h2 id={headingId} className="pd-reviews-scorecard__section-title">
+            <Trophy size={18} strokeWidth={1.75} aria-hidden />
+            Overall Grading
+          </h2>
+        )}
+        {suggestionLabel ? (
+          <p
+            className="pd-reviews-scorecard__overall-suggest"
+            role="status"
+          >
+            <span className="pd-reviews-scorecard__overall-suggest-grade">
+              Suggested: {suggestionLabel}
+            </span>
+            <span className="pd-reviews-scorecard__overall-suggest-meta">
+              Goals 50% / Skills 25% / Values 25%. You can change this grade.
+            </span>
+          </p>
+        ) : null}
+      </div>
       <div
         className="pd-reviews-scorecard__overall-options"
         role="radiogroup"

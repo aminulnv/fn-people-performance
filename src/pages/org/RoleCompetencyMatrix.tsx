@@ -198,6 +198,7 @@ export function RoleCompetencyMatrix({
                             aria-label={`${row.skillName} expected level for ${grade}`}
                             value={value}
                             allowEmpty={false}
+                            closeOnScroll
                             options={LEVEL_OPTIONS}
                             onValueChange={(next) =>
                               setExpectation(

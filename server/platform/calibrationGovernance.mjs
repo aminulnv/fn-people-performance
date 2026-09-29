@@ -23,6 +23,38 @@ export async function assertCalibrationUnlocked(db, cycleId) {
   }
 }
 
+/**
+ * Grade changes are blocked when the sitting is locked, except for
+ * platform.write_all admins who explicitly acknowledge a post-lock exception.
+ */
+export async function assertCalibrationGradeChangeAllowed(
+  db,
+  platformUser,
+  { cycleId, acknowledgedLockedOverride = false } = {},
+) {
+  const { rows } = await db.query(
+    `SELECT locked_at
+     FROM platform.calibration_sittings
+     WHERE cycle_id = $1`,
+    [cycleId],
+  )
+  if (!rows[0]?.locked_at) return { locked: false }
+  const permissions = await permissionsForPlatformUser(platformUser)
+  if (!permissions.includes('platform.write_all')) {
+    throw new HttpError(
+      409,
+      'This calibration session is locked. Ratings cannot change.',
+    )
+  }
+  if (!acknowledgedLockedOverride) {
+    throw new HttpError(
+      400,
+      'Confirm that HR has agreed this rating should change before saving.',
+    )
+  }
+  return { locked: true }
+}
+
 export async function assertCalibrationOverrideAllowed(
   db,
   platformUser,

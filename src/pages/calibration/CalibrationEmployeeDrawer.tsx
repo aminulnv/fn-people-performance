@@ -9,12 +9,17 @@ import {
 import {
   Avatar,
   Button,
+  Checkbox,
   CountBadge,
   ListboxSelect,
   PageStatus,
   SegmentedControl,
   Textarea,
 } from '@/components/ui'
+import {
+  LOCKED_OVERRIDE_ACK_LABEL,
+  LOCKED_OVERRIDE_HINT,
+} from '@/lib/calibration/lockedOverrideCopy'
 import { cx } from '@/lib/cx'
 import {
   calibrationFinalGrade,
@@ -324,6 +329,7 @@ export function CalibrationEmployeeDrawer({
   const [overrideError, setOverrideError] = useState<string | null>(null)
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [overrideOpen, setOverrideOpen] = useState(false)
+  const [lockedOverrideAck, setLockedOverrideAck] = useState(false)
 
   useEffect(() => {
     setTab('overview')
@@ -331,6 +337,7 @@ export function CalibrationEmployeeDrawer({
     setOverrideReason('')
     setOverrideError(null)
     setOverrideOpen(false)
+    setLockedOverrideAck(false)
   }, [row.employeeId, row.annualGrade])
 
   useEffect(() => {
@@ -472,15 +479,17 @@ export function CalibrationEmployeeDrawer({
   )
 
   async function saveOverride() {
-    if (!packet || !overrideGrade || !overrideReason.trim() || sessionLocked || !canOverrideNow) {
+    if (!packet || !overrideGrade || !overrideReason.trim() || !canOverrideNow) {
       return
     }
+    if (sessionLocked && !lockedOverrideAck) return
     setOverrideSaving(true)
     setOverrideError(null)
     try {
       const next = await calibrateReviewPacket(packet.id, {
         toGrade: overrideGrade,
         reason: overrideReason.trim(),
+        ...(sessionLocked ? { acknowledgedLockedOverride: true } : {}),
       })
       patchPacketCache(next)
       onPacketUpdated(next)
@@ -496,12 +505,15 @@ export function CalibrationEmployeeDrawer({
         )
         setSessionStatus('rating_changed')
         onSittingSaved(saved)
+      } else if (sessionLocked) {
+        setSessionStatus('rating_changed')
       }
       onRatingAdjusted()
       setOverrideOpen(false)
+      setLockedOverrideAck(false)
     } catch (error: unknown) {
       setOverrideError(
-        error instanceof Error ? error.message : 'Could Not Save Override.',
+        error instanceof Error ? error.message : 'Could not save override.',
       )
     } finally {
       setOverrideSaving(false)
@@ -1147,17 +1159,20 @@ export function CalibrationEmployeeDrawer({
                 <GradePill grade={finalGrade} />
               </div>
               <p className="pd-cal-drawer__hint">
-                {managerGrade
-                  ? 'Written Reason Required · Permanently Audit Logged'
-                  : 'Manager Rating Required Before Override'}
+                {!managerGrade
+                  ? 'Manager rating required before override'
+                  : sessionLocked
+                    ? LOCKED_OVERRIDE_HINT
+                    : 'A written reason is required and permanently audit logged.'}
               </p>
               {!overrideOpen ? (
                 <button
                   type="button"
                   className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-                  disabled={!packet || sessionLocked || !canOverrideNow}
+                  disabled={!packet || !canOverrideNow}
                   onClick={() => {
                     setOverrideGrade(finalGrade ?? managerGrade ?? '')
+                    setLockedOverrideAck(false)
                     setOverrideOpen(true)
                   }}
                 >
@@ -1186,9 +1201,19 @@ export function CalibrationEmployeeDrawer({
                       value={overrideReason}
                       onChange={(event) => setOverrideReason(event.target.value)}
                       rows={3}
-                      placeholder="Why Is This Grade Changing?"
+                      placeholder="Why is this grade changing?"
                     />
                   </label>
+                  {sessionLocked ? (
+                    <Checkbox
+                      className="pd-cal-drawer__override-ack"
+                      label={LOCKED_OVERRIDE_ACK_LABEL}
+                      checked={lockedOverrideAck}
+                      onChange={(event) =>
+                        setLockedOverrideAck(event.target.checked)
+                      }
+                    />
+                  ) : null}
                   {overrideError ? (
                     <p className="pd-cal-drawer__error" role="alert">
                       {overrideError}
@@ -1198,7 +1223,10 @@ export function CalibrationEmployeeDrawer({
                     <Button
                       variant="secondary"
                       disabled={overrideSaving}
-                      onClick={() => setOverrideOpen(false)}
+                      onClick={() => {
+                        setOverrideOpen(false)
+                        setLockedOverrideAck(false)
+                      }}
                     >
                       Cancel
                     </Button>
@@ -1209,7 +1237,8 @@ export function CalibrationEmployeeDrawer({
                         !overrideGrade ||
                         !overrideReason.trim() ||
                         !packet ||
-                        !canOverrideNow
+                        !canOverrideNow ||
+                        (sessionLocked && !lockedOverrideAck)
                       }
                       onClick={() => {
                         void saveOverride()

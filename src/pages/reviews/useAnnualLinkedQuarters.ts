@@ -1,16 +1,28 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueries } from "@tanstack/react-query";
 import { ensurePersonGoalsHydrated } from "@/lib/goalsApi";
 import { getGoalsSnapshotForCycle } from "@/lib/goals/store";
-import { PACKET_STALE_MS, queryKeys } from "@/lib/queryClient";
+import { PACKET_STALE_MS, queryClient, queryKeys } from "@/lib/queryClient";
 import {
   annualSourceLinks,
   buildAnnualQuarterRows,
   usesAnnualLinkedQuarters,
 } from "@/lib/reviews/annualQuarters";
-import { fetchReviewPacket } from "@/lib/reviews/packetsApi";
+import { fetchReviewPacketSummary } from "@/lib/reviews/packetsApi";
 import { useReviewsSnapshot } from "@/lib/reviews/useReviews";
 import type { ReviewCycle, ReviewPacket, ScorecardPillar } from "@/lib/reviews/types";
+
+function cachedLinkedPacket(cycleId: string, employeeId: number) {
+  return (
+    queryClient.getQueryData<ReviewPacket>(
+      queryKeys.reviewPacketSummary(cycleId, employeeId),
+    ) ??
+    queryClient.getQueryData<ReviewPacket>(
+      queryKeys.reviewPacket(cycleId, employeeId),
+    ) ??
+    null
+  );
+}
 
 export function useAnnualLinkedQuarters(input: {
   cycle: ReviewCycle | null | undefined;
@@ -21,8 +33,14 @@ export function useAnnualLinkedQuarters(input: {
   enabled?: boolean;
 }) {
   const { cycles: availableCycles } = useReviewsSnapshot();
-  const links = annualSourceLinks(input.cycle, availableCycles);
-  const sourceIds = links.map((link) => link.sourceCycleId).join("|");
+  const links = useMemo(
+    () => annualSourceLinks(input.cycle, availableCycles),
+    [input.cycle, availableCycles],
+  );
+  const sourceIds = useMemo(
+    () => links.map((link) => link.sourceCycleId).join("|"),
+    [links],
+  );
   const enabled =
     input.enabled !== false &&
     usesAnnualLinkedQuarters(
@@ -33,35 +51,66 @@ export function useAnnualLinkedQuarters(input: {
   const employeeReady =
     enabled && Number.isInteger(input.employeeId) && input.employeeId > 0;
 
+  // Let the annual packet + goals paint first; linked quarters are secondary UI.
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
+  useEffect(() => {
+    if (!employeeReady) {
+      setSecondaryOpen(false);
+      return;
+    }
+    const cached = links.every((link) =>
+      cachedLinkedPacket(link.sourceCycleId, input.employeeId),
+    );
+    if (cached) {
+      setSecondaryOpen(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setSecondaryOpen(true), 150);
+    return () => window.clearTimeout(timer);
+  }, [employeeReady, input.employeeId, sourceIds, links]);
+
   const packetQueries = useQueries({
     queries: links.map((link) => ({
-      queryKey: queryKeys.reviewPacket(link.sourceCycleId, input.employeeId),
-      queryFn: () => fetchReviewPacket(link.sourceCycleId, input.employeeId),
-      enabled: employeeReady,
+      queryKey: queryKeys.reviewPacketSummary(
+        link.sourceCycleId,
+        input.employeeId,
+      ),
+      queryFn: () =>
+        fetchReviewPacketSummary(link.sourceCycleId, input.employeeId),
+      enabled: employeeReady && secondaryOpen,
       staleTime: PACKET_STALE_MS,
       refetchOnMount: false as const,
     })),
   });
 
+  const packetsStamp = packetQueries
+    .map((query) => query.dataUpdatedAt)
+    .join("|");
+
   const packetsByCycleId = useMemo(() => {
     const map: Record<string, ReviewPacket | null> = {};
     links.forEach((link, index) => {
-      map[link.sourceCycleId] = packetQueries[index]?.data ?? null;
+      map[link.sourceCycleId] =
+        packetQueries[index]?.data ??
+        cachedLinkedPacket(link.sourceCycleId, input.employeeId);
     });
     return map;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    sourceIds,
-    input.employeeId,
-    packetQueries.map((query) => query.dataUpdatedAt).join("|"),
-  ]);
+  }, [sourceIds, input.employeeId, secondaryOpen, packetsStamp]);
 
+  // Hydrate goals for every linked quarter — the annual scorecard shows them all.
   useEffect(() => {
-    if (!employeeReady) return;
+    if (!employeeReady || !secondaryOpen) return;
     for (const link of links) {
       void ensurePersonGoalsHydrated(link.sourceCycleId, input.employeeId);
     }
-  }, [employeeReady, input.employeeId, sourceIds]);
+  }, [
+    employeeReady,
+    secondaryOpen,
+    input.employeeId,
+    sourceIds,
+    links,
+  ]);
 
   const rows = useMemo(() => {
     if (!enabled) return [];

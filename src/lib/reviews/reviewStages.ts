@@ -28,8 +28,15 @@ export function isCalibrationStage(id: ReviewStageId): boolean {
   return id === 'calibration_hod_hrbp' || id === 'calibration_slt'
 }
 
+/** Appeal is retained in types/history but is not configurable — no in-system appeals. */
+export function isAppealStage(id: ReviewStageId): boolean {
+  return id === 'appeal'
+}
+
 export const REVIEW_ONLY_STAGE_ORDER: ReviewStageId[] =
-  REVIEW_FLOW_STAGE_ORDER.filter((id) => !isCalibrationStage(id))
+  REVIEW_FLOW_STAGE_ORDER.filter(
+    (id) => !isCalibrationStage(id) && !isAppealStage(id),
+  )
 
 export const CALIBRATION_STAGE_ORDER: ReviewStageId[] =
   REVIEW_FLOW_STAGE_ORDER.filter(isCalibrationStage)
@@ -65,7 +72,8 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
     'Optional head start. Publish the official grade to managers before employees, so they can prepare 1:1s.',
   publish_employees:
     'When everyone sees the official review, including the employee. This always happens after a review.',
-  appeal: 'Employee can leave a written record after release.',
+  appeal:
+    'Not used. Rating challenges are handled offline with HR; administrators may correct a locked rating with justification.',
 }
 
 const DEFAULT_TIME = '00:00'
@@ -94,7 +102,6 @@ export function presetEnabledStages(
       'calibration_slt',
       'publish_managers',
       'publish_employees',
-      'appeal',
     ]
   }
   if (purpose === 'custom') {
@@ -156,11 +163,13 @@ export function withRequiredReviewStages(
   const reviewsOn = isReviewsModuleEnabled(config.reviewStages)
   return syncLegacyStageWindows({
     ...config,
-    reviewStages: (config.reviewStages ?? []).map((stage) =>
-      isRequiredReviewStage(stage.id)
-        ? { ...stage, enabled: reviewsOn }
-        : stage,
-    ),
+    reviewStages: (config.reviewStages ?? []).map((stage) => {
+      if (stage.id === 'appeal') return { ...stage, enabled: false }
+      if (isRequiredReviewStage(stage.id)) {
+        return { ...stage, enabled: reviewsOn }
+      }
+      return stage
+    }),
   })
 }
 
@@ -173,6 +182,9 @@ export function applyCycleModules(
   const reviewsWereOn = isReviewsModuleEnabled(config.reviewStages)
   const reviewPreset = new Set(presetReviewFlowStages(purpose, periodKey))
   const reviewStages = (config.reviewStages ?? []).map((stage) => {
+    if (stage.id === 'appeal') {
+      return { ...stage, enabled: false }
+    }
     if (stage.id === 'goals') {
       return { ...stage, enabled: modules.goals }
     }
@@ -192,6 +204,18 @@ export function applyCycleModules(
     ...config,
     reviewStages,
   })
+}
+
+/** Product policy: no in-system appeal workflow. */
+export function withoutInSystemAppeals(
+  config: CycleStagesConfig,
+): CycleStagesConfig {
+  return {
+    ...config,
+    reviewStages: (config.reviewStages ?? []).map((stage) =>
+      stage.id === 'appeal' ? { ...stage, enabled: false } : stage,
+    ),
+  }
 }
 
 /** Drop calibration stages outside annual appraisals. */
@@ -225,6 +249,7 @@ export function deriveReviewStagesFromLegacy(
     if (id === 'publish_managers' || id === 'publish_employees') {
       return { ...base, enabled: true }
     }
+    if (id === 'appeal') return { ...base, enabled: false }
     return { ...base, enabled: annual }
   })
 }

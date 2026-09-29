@@ -13,6 +13,7 @@ import {
   releaseLocalPackets,
   resolveLocalAppeal,
   saveLocalPacket,
+  setLocalPacketLeave,
   useLocalReviewPackets,
 } from './packetsLocal'
 
@@ -90,6 +91,20 @@ export async function fetchReviewPacket(
   return visiblePacket(response.packet)
 }
 
+/** Grades + status only — for history rows and annual linked quarters. */
+export async function fetchReviewPacketSummary(
+  cycleId: string,
+  employeeId: number,
+): Promise<ReviewPacket> {
+  if (useLocalReviewPackets()) {
+    return visiblePacket(getLocalPacket(cycleId, employeeId))
+  }
+  const response = await apiFetch<{ packet: ReviewPacket }>(
+    `/api/platform/review-cycles/${encodeURIComponent(cycleId)}/packets/${employeeId}?summary=1`,
+  )
+  return visiblePacket(response.packet)
+}
+
 export async function saveReviewPacket(
   packetId: string,
   body: Record<string, unknown>,
@@ -113,6 +128,27 @@ export async function saveReviewPacket(
   const response = await apiFetch<{ packet: ReviewPacket }>(
     `/api/platform/review-packets/${encodeURIComponent(packetId)}`,
     { method: 'PATCH', body },
+  )
+  return visiblePacket(response.packet)
+}
+
+export async function setReviewPacketLeave(
+  packetId: string,
+  leaveQuarter: boolean,
+): Promise<ReviewPacket> {
+  if (useLocalReviewPackets()) {
+    return visiblePacket(setLocalPacketLeave(packetId, leaveQuarter))
+  }
+  if (leaveQuarter) {
+    const response = await apiFetch<{ packet: ReviewPacket }>(
+      `/api/platform/review-packets/${encodeURIComponent(packetId)}/leave`,
+      { method: 'POST', body: { leaveQuarter: true } },
+    )
+    return visiblePacket(response.packet)
+  }
+  const response = await apiFetch<{ packet: ReviewPacket }>(
+    `/api/platform/review-packets/${encodeURIComponent(packetId)}/leave`,
+    { method: 'DELETE' },
   )
   return visiblePacket(response.packet)
 }

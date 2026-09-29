@@ -18,14 +18,19 @@ export function useManagerDelegationsRevision(): string {
   )
 }
 
-export function useHydrateManagerDelegations(employeeId?: number): void {
+export function useHydrateManagerDelegations(
+  employeeId?: number,
+  options?: { enabled?: boolean },
+): void {
+  const enabled = options?.enabled !== false
   useEffect(() => {
+    if (!enabled) return
     void hydrateManagerDelegations(
       employeeId == null ? undefined : { employeeId },
     ).catch(() => {
       /* Delegation list stays empty until the viewer can load it. */
     })
-  }, [employeeId])
+  }, [employeeId, enabled])
 }
 
 export function useManagerDelegations(employeeId?: number): {

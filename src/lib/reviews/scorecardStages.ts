@@ -1,4 +1,10 @@
-import { officialReviewReleasedToEmployee, packetForViewer, sessionReviewAccess, type ReviewViewerAccess } from './packetVisibility'
+import {
+  officialReviewReleasedToEmployee,
+  packetForViewer,
+  selfReviewSubmitted,
+  sessionReviewAccess,
+  type ReviewViewerAccess,
+} from './packetVisibility'
 import { REVIEW_STAGE_LABEL, getReviewStage } from './reviewStages'
 import type {
   GradeBandId,
@@ -68,6 +74,44 @@ export function managerReviewIsComplete(status: ReviewPacketStatus) {
   return statusRank(status) >= statusRank('manager_submitted')
 }
 
+/**
+ * Keep the other review's progress when one side saves.
+ * Do not move a submitted manager review backwards.
+ * Matches server/platform/reviewPackets/visibility.mjs.
+ */
+export function nextPacketStatus(
+  current: ReviewPacketStatus,
+  actorRole: 'self' | 'manager',
+  submit: boolean,
+): ReviewPacketStatus {
+  const rank = statusRank(current)
+  if (rank >= statusRank('manager_submitted')) return current
+  if (actorRole === 'manager') {
+    return submit ? 'manager_submitted' : 'manager_in_progress'
+  }
+  if (submit) {
+    if (rank >= statusRank('manager_in_progress')) return current
+    return 'self_submitted'
+  }
+  if (rank >= statusRank('self_submitted')) return current
+  return 'self_in_progress'
+}
+
+/** Preserve an existing self-review submit when the manager saves first. */
+export function nextSelfSubmittedAt(
+  packet: Pick<ReviewPacket, 'status' | 'selfSubmittedAt' | 'updatedAt'>,
+  actorRole: 'self' | 'manager',
+  submit: boolean,
+): string | null {
+  if (packet.selfSubmittedAt) return packet.selfSubmittedAt
+  if (actorRole === 'self' && submit) return new Date().toISOString()
+  if (packet.selfSubmittedAt === null) return null
+  if (statusRank(packet.status) >= statusRank('self_submitted')) {
+    return packet.updatedAt ?? new Date().toISOString()
+  }
+  return null
+}
+
 /** Calibration may be written only after the manager has submitted. */
 export function calibrationIsEditable(status: ReviewPacketStatus) {
   return (
@@ -78,7 +122,7 @@ export function calibrationIsEditable(status: ReviewPacketStatus) {
 
 export function scorecardStepLabel(id: ScorecardViewStage) {
   if (id === 'calibration_hod_hrbp') return 'Calibration'
-  if (id === 'publish_employees') return 'Published'
+  if (id === 'publish_employees') return 'Published Review'
   return REVIEW_STAGE_LABEL[id]
 }
 
@@ -96,11 +140,8 @@ export function visibleScorecardSteps(
       )
     }
     if (step.id === 'appeal') {
-      return Boolean(
-        getReviewStage(stages, 'appeal')?.enabled ||
-        (packet?.appeals.length ?? 0) > 0 ||
-        packet?.status === 'appealed',
-      )
+      // No in-system appeals — challenges are handled offline with HR.
+      return false
     }
     if (step.id === 'self_review') {
       return Boolean(
@@ -159,24 +200,51 @@ export function parseScorecardViewStage(
   return value as ScorecardViewStage
 }
 
+function resolveSubjectEmployeeId(
+  packet: ReviewPacket | null,
+  subjectEmployeeId?: number | null,
+) {
+  return packet?.employeeId ?? subjectEmployeeId ?? null
+}
+
+/**
+ * True only when we know the viewer is someone other than the subject.
+ * Unknown identity defaults to subject-safe access (least privilege).
+ */
+export function viewerIsKnownNonSubject(
+  viewerEmployeeId?: number | null,
+  packet: ReviewPacket | null = null,
+  subjectEmployeeId?: number | null,
+) {
+  const subjectId = resolveSubjectEmployeeId(packet, subjectEmployeeId)
+  return (
+    viewerEmployeeId != null &&
+    subjectId != null &&
+    viewerEmployeeId !== subjectId
+  )
+}
+
 export function viewerCanOpenStage(
   stage: ScorecardViewStage,
   packet: ReviewPacket | null,
   viewerEmployeeId?: number | null,
+  subjectEmployeeId?: number | null,
 ) {
-  if (!packet) return stage === 'self_review'
+  if (stage === 'self_review') return true
+  if (stage === 'manager_review' || stage === 'calibration_hod_hrbp') {
+    return viewerIsKnownNonSubject(
+      viewerEmployeeId,
+      packet,
+      subjectEmployeeId,
+    )
+  }
+  if (!packet) return false
   if (
-    viewerEmployeeId == null ||
-    viewerEmployeeId !== packet.employeeId
+    viewerIsKnownNonSubject(viewerEmployeeId, packet, subjectEmployeeId)
   ) {
     return true
   }
-  // Employees only see their self-review, then the official published result
-  // (and appeal). Manager / calibration grades stay internal.
-  if (stage === 'self_review') return true
-  if (stage === 'manager_review' || stage === 'calibration_hod_hrbp') {
-    return false
-  }
+  // Subject (or unresolved identity): only official published results.
   if (!officialReviewReleasedToEmployee(packet.status)) return false
   return true
 }
@@ -186,13 +254,16 @@ export function visibleScorecardStepsForViewer(
   stages: ReviewStageConfig[] | undefined,
   packet: ReviewPacket | null,
   viewerEmployeeId?: number | null,
+  subjectEmployeeId?: number | null,
 ) {
   const steps = visibleScorecardSteps(stages, packet)
-  const isSubject =
-    packet != null &&
-    viewerEmployeeId != null &&
-    viewerEmployeeId === packet.employeeId
-  if (!isSubject) return steps
+  // Least privilege while loading: hide manager/calibration until the viewer
+  // is confirmed not to be the employee on this scorecard.
+  if (
+    viewerIsKnownNonSubject(viewerEmployeeId, packet, subjectEmployeeId)
+  ) {
+    return steps
+  }
   return steps.filter(
     (step) =>
       step.id !== 'manager_review' && step.id !== 'calibration_hod_hrbp',
@@ -205,6 +276,7 @@ export function scorecardStageIsOpen(
   currentIndex: number,
   packet: ReviewPacket | null,
   viewerEmployeeId?: number | null,
+  subjectEmployeeId?: number | null,
 ) {
   const state = flowStepState(
     step,
@@ -213,18 +285,29 @@ export function scorecardStageIsOpen(
     packet?.status ?? 'not_started',
   )
   if (step.id === 'appeal' && packet?.status === 'released_to_employees') {
+    const subjectId = resolveSubjectEmployeeId(packet, subjectEmployeeId)
     return (
-      viewerEmployeeId != null && viewerEmployeeId === packet.employeeId
+      viewerEmployeeId != null &&
+      subjectId != null &&
+      viewerEmployeeId === subjectId
     )
   }
-  if (state === 'upcoming') return false
+  const parallelManagerReview =
+    step.id === 'manager_review' &&
+    viewerIsKnownNonSubject(viewerEmployeeId, packet, subjectEmployeeId)
+  if (state === 'upcoming' && !parallelManagerReview) return false
   if (
     step.id === 'calibration_hod_hrbp' &&
     !managerReviewIsComplete(packet?.status ?? 'not_started')
   ) {
     return false
   }
-  return viewerCanOpenStage(step.id, packet, viewerEmployeeId)
+  return viewerCanOpenStage(
+    step.id,
+    packet,
+    viewerEmployeeId,
+    subjectEmployeeId,
+  )
 }
 
 export function resolveScorecardViewStage(input: {
@@ -232,6 +315,7 @@ export function resolveScorecardViewStage(input: {
   steps: Array<(typeof SCORECARD_FLOW_STEPS)[number]>
   packet: ReviewPacket | null
   viewerEmployeeId?: number | null
+  subjectEmployeeId?: number | null
 }): ScorecardViewStage {
   const status = input.packet?.status ?? 'not_started'
   const currentIndex = currentScorecardStepIndex(input.steps, status)
@@ -242,6 +326,7 @@ export function resolveScorecardViewStage(input: {
       currentIndex,
       input.packet,
       input.viewerEmployeeId,
+      input.subjectEmployeeId,
     ),
   )
   if (
@@ -249,6 +334,17 @@ export function resolveScorecardViewStage(input: {
     open.some((step) => step.id === input.requested)
   ) {
     return input.requested
+  }
+  if (
+    viewerIsKnownNonSubject(
+      input.viewerEmployeeId,
+      input.packet,
+      input.subjectEmployeeId,
+    ) &&
+    !managerReviewIsComplete(status) &&
+    open.some((step) => step.id === 'manager_review')
+  ) {
+    return 'manager_review'
   }
   const current = input.steps[currentIndex]
   if (
@@ -335,10 +431,7 @@ export function scorecardReviewFormIsEditable(
   if (stage === 'self_review') {
     if (!isSubject) return false
     if (!packet) return true
-    return (
-      packet.status !== 'self_submitted' &&
-      packet.status !== 'manager_submitted'
-    )
+    return !selfReviewSubmitted(packet)
   }
   if (stage === 'manager_review') {
     if (!packet) return true

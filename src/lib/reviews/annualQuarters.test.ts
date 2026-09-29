@@ -173,6 +173,41 @@ describe("buildAnnualQuarterRows", () => {
       goalCount: 1,
     });
   });
+
+  it("marks a linked packet as leave without using its grade", () => {
+    const rows = buildAnnualQuarterRows({
+      links: [
+        { sourceCycleId: "q2-2026", weightPercent: 50, excluded: false },
+        { sourceCycleId: "q3-2026", weightPercent: 50, excluded: false },
+      ],
+      cycles,
+      packetsByCycleId: {
+        "q2-2026": packet({
+          id: "pkt-leave",
+          cycleId: "q2-2026",
+          leaveQuarter: true,
+          managerOverallGrade: "exceptional",
+        }),
+        "q3-2026": packet({
+          id: "pkt-grade",
+          cycleId: "q3-2026",
+          managerOverallGrade: "performing",
+        }),
+      },
+      goalsByCycleId: {},
+    });
+
+    expect(rows[0]).toMatchObject({
+      leave: true,
+      packetId: "pkt-leave",
+      grade: null,
+    });
+    expect(outcomeForAnnualQuarter(rows[0]!)).toEqual({ kind: "leave" });
+    expect(rows[1]).toMatchObject({
+      leave: false,
+      grade: "performing",
+    });
+  });
 });
 
 describe("outcomeForAnnualQuarter", () => {
@@ -180,6 +215,8 @@ describe("outcomeForAnnualQuarter", () => {
     sourceCycleId: "q1-2026",
     label: "Q1",
     excluded: false,
+    leave: false,
+    packetId: null as string | null,
     kind: "graded" as const,
     grade: null as const,
     progressPercent: 0,
@@ -190,6 +227,17 @@ describe("outcomeForAnnualQuarter", () => {
     expect(outcomeForAnnualQuarter({ ...base, goalCount: 0 })).toEqual({
       kind: "zero",
     });
+  });
+
+  it("drops a leave (O) quarter from the average", () => {
+    expect(
+      outcomeForAnnualQuarter({
+        ...base,
+        leave: true,
+        grade: "exceeding",
+        goalCount: 2,
+      }),
+    ).toEqual({ kind: "leave" });
   });
 
   it("drops quarters that have goals but no grade yet", () => {

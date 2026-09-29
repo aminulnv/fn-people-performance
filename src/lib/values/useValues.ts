@@ -28,15 +28,17 @@ export function useValuesLibrary() {
   return { values }
 }
 
-export function useEnabledValues() {
+export function useEnabledValues(options?: { load?: boolean }) {
+  const shouldLoad = options?.load !== false
   const [values, setValues] = useState<CompanyValue[]>(() => getEnabledValues())
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
+    if (!shouldLoad) return
     void ensureValuesLoaded().catch(() => {
       /* values stay empty until retry */
     })
-  }, [])
+  }, [shouldLoad])
 
   useEffect(() => subscribeValuesStore(() => setTick((n) => n + 1)), [])
 

@@ -255,7 +255,7 @@ function ScorecardRoute() {
   const [params] = useSearchParams()
   const location = useLocation()
   if (params.get('mode') === 'edit') {
-    return <ReviewPacketView cycleId={cycleId} employeeId={2} />
+    return <ReviewPacketView cycleId={cycleId} employeeId={2} editing />
   }
   const notice = (
     location.state as { reviewNotice?: { message: string } } | null

@@ -93,6 +93,29 @@ describe('canOverrideCalibrationGrade', () => {
     ).toBe(true)
   })
 
+  it('lets an admin override after the session is locked', () => {
+    expect(
+      canOverrideCalibrationGrade({
+        viewerEmployeeId: 9,
+        subject,
+        assignments: empty,
+        permissions: ['platform.write_all'],
+        sessionLocked: true,
+      }),
+    ).toBe(true)
+  })
+
+  it('blocks calibrators after the session is locked', () => {
+    expect(
+      canOverrideCalibrationGrade({
+        viewerEmployeeId: 2,
+        subject,
+        assignments: empty,
+        sessionLocked: true,
+      }),
+    ).toBe(false)
+  })
+
   it('does not treat read-only admin access as an override', () => {
     expect(
       canOverrideCalibrationGrade({

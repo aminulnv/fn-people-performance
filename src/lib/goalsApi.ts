@@ -2,9 +2,11 @@ import { ApiError } from '@/lib/apiClient'
 import { isEligibleForCycle } from './goals/demoData'
 import {
   getGoalsHydration,
+  isPersonGoalsHydrated,
   listHydratedGoalCycleIds,
   markCycleGoalsHydrated,
   markOwnGoalsHydrated,
+  markPersonGoalsHydrated,
 } from './goals/hydration'
 import {
   approvePersonGoalsRemote,
@@ -254,8 +256,8 @@ export async function ensurePersonGoalsHydrated(
 ): Promise<void> {
   if (!cycleId || employeeId == null || String(employeeId) === '') return
   if (useLocalGoals()) return
-  if (getGoalsHydration(cycleId).cycleReady) return
   const personId = String(employeeId)
+  if (isPersonGoalsHydrated(cycleId, personId)) return
   const key = `${cycleId}:${personId}`
   const pending = personGoalsInFlight.get(key)
   if (pending) {
@@ -269,6 +271,8 @@ export async function ensurePersonGoalsHydrated(
       mergeRemotePersonGoals(cycleId, personId, row)
     } catch {
       // Leave store empty — scorecard cards handle missing goals.
+    } finally {
+      markPersonGoalsHydrated(cycleId, personId)
     }
   })().finally(() => {
     if (personGoalsInFlight.get(key) === request) {

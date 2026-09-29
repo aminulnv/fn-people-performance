@@ -34,6 +34,10 @@ export type AnnualQuarterRow = {
   label: string;
   periodKey?: string;
   excluded: boolean;
+  /** PTR marked this person on leave for the whole quarter (O). */
+  leave: boolean;
+  /** Linked quarter packet id when one exists — used to mark leave. */
+  packetId: string | null;
   kind: AnnualQuarterKind;
   grade: GradeBandId | null;
   progressPercent: number;
@@ -62,7 +66,7 @@ export function usesAnnualLinkedQuarters(
 export function gradeFromLinkedPacket(
   packet: ReviewPacket | null | undefined,
 ): GradeBandId | null {
-  if (!packet) return null;
+  if (!packet || packet.leaveQuarter) return null;
   if (packet.publishedOverallGrade) return packet.publishedOverallGrade;
   if (packet.calibratedOverallGrade) return packet.calibratedOverallGrade;
   if (packet.managerOverallGrade) return packet.managerOverallGrade;
@@ -88,6 +92,8 @@ export function buildAnnualQuarterRows(input: {
       (cycle) => cycle.id === link.sourceCycleId,
     );
     const goals = input.goalsByCycleId[link.sourceCycleId] ?? [];
+    const packet = input.packetsByCycleId[link.sourceCycleId];
+    const leave = Boolean(packet?.leaveQuarter);
     const kind: AnnualQuarterKind = isGoalsOnlyQuarter(source?.periodKey)
       ? "progress"
       : "graded";
@@ -97,11 +103,13 @@ export function buildAnnualQuarterRows(input: {
       label: source ? quarterLabelForCycle(source) : link.sourceCycleId,
       periodKey: source?.periodKey,
       excluded: Boolean(link.excluded),
+      leave,
+      packetId: packet?.id ?? null,
       kind,
       grade:
-        kind === "progress"
+        leave || kind === "progress"
           ? null
-          : gradeFromLinkedPacket(input.packetsByCycleId[link.sourceCycleId]),
+          : gradeFromLinkedPacket(packet),
       progressPercent: Math.round(overallCompletion(goals)),
       goalCount: goals.length,
     };
@@ -111,7 +119,7 @@ export function buildAnnualQuarterRows(input: {
 /**
  * Map a linked annual quarter into a rollup outcome.
  * - Leave / excluded / not yet scored → drop and renormalize
- * - No goals submitted (defaulter) → keep as unsatisfactory (zero)
+ * - No goals submitted (defaulter) → score 0, still counted in the average
  * - Q4 uses the grade set inside the annual review
  */
 export function outcomeForAnnualQuarter(
@@ -119,11 +127,12 @@ export function outcomeForAnnualQuarter(
   q4Grade: GradeBandId | null = null,
 ): QuarterOutcome {
   if (row.excluded) return { kind: "inapplicable" };
+  if (row.leave) return { kind: "leave" };
   if (row.kind === "progress") {
     return q4Grade ? { kind: "grade", grade: q4Grade } : { kind: "inapplicable" };
   }
   if (row.grade) return { kind: "grade", grade: row.grade };
-  // Defaulters stay in the average as unsatisfactory.
+  // Defaulters stay in the average as zero, not Unsatisfactory.
   if (row.goalCount === 0) return { kind: "zero" };
   // Has goals but no quarter grade yet — treat as inactive for now.
   return { kind: "inapplicable" };
