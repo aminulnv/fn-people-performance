@@ -1,8 +1,48 @@
-import { GRADE_BAND_ORDER } from '@/lib/reviews/labels'
+import { bandForScore } from '@/lib/reviews/rollup'
 import type { GradeBandId } from '@/lib/reviews/types'
-import { emptySkillMastery, type Skill } from './types'
+import {
+  emptySkillMastery,
+  SKILL_GRADE_LEVELS,
+  type Skill,
+  type SkillGradeLevel,
+} from './types'
 
 export const SKILL_SCORE_PREFIX = 'skill:'
+
+export { SKILL_GRADE_LEVELS }
+export type { SkillGradeLevel }
+
+const SKILL_GRADE_LABELS: Record<SkillGradeLevel, string> = {
+  poor: 'Poor',
+  basic: 'Basic',
+  intermediate: 'Intermediate',
+  advanced: 'Advanced',
+  expert: 'Expert',
+}
+
+/** Poor=1 … Expert=5 — same weight scale as performance bands for rollup. */
+const SKILL_GRADE_RANK: Record<SkillGradeLevel, number> = {
+  poor: 1,
+  basic: 2,
+  intermediate: 3,
+  advanced: 4,
+  expert: 5,
+}
+
+/** Legacy performance bands once used on skill rows → mastery levels. */
+const LEGACY_BAND_TO_SKILL: Record<string, SkillGradeLevel> = {
+  unsatisfactory: 'poor',
+  developing: 'basic',
+  performing: 'intermediate',
+  exceeding: 'advanced',
+  exceptional: 'expert',
+}
+
+export const SKILL_GRADE_LISTBOX_OPTIONS = SKILL_GRADE_LEVELS.map((id) => ({
+  value: id,
+  label: SKILL_GRADE_LABELS[id],
+  className: `pd-reviews-scorecard__grade-tone--${id}`,
+}))
 
 export function skillScorePillarId(skillId: string): string {
   return `${SKILL_SCORE_PREFIX}${skillId}`
@@ -17,44 +57,69 @@ export function skillIdFromScorePillarId(pillarId: string): string | null {
   return pillarId.slice(SKILL_SCORE_PREFIX.length) || null
 }
 
-/** Midpoint of graded bands — used to roll skill grades into the Skills pillar. */
+export function isSkillGradeLevel(value: unknown): value is SkillGradeLevel {
+  return (
+    typeof value === 'string' &&
+    (SKILL_GRADE_LEVELS as readonly string[]).includes(value)
+  )
+}
+
+/** Normalize stored skill grades (incl. legacy performance bands). */
+export function normalizeSkillGrade(
+  value: string | null | undefined,
+): SkillGradeLevel | '' {
+  if (!value) return ''
+  if (isSkillGradeLevel(value)) return value
+  return LEGACY_BAND_TO_SKILL[value] ?? ''
+}
+
+export function skillGradeLabel(grade: string | null | undefined): string {
+  const normalized = normalizeSkillGrade(grade)
+  if (!normalized) return grade?.trim() || ''
+  return SKILL_GRADE_LABELS[normalized]
+}
+
+export function skillGradeRank(grade: string | null | undefined): number | null {
+  const normalized = normalizeSkillGrade(grade)
+  if (!normalized) return null
+  return SKILL_GRADE_RANK[normalized]
+}
+
+/**
+ * Midpoint of graded skill levels, mapped onto the performance band scale
+ * (Poor=1 → Unsatisfactory … Expert=5 → Exceptional) for the Skills pillar.
+ */
 export function averageSkillGrade(
-  grades: Array<GradeBandId | '' | null | undefined>,
+  grades: Array<string | '' | null | undefined>,
 ): GradeBandId | null {
   const ranks = grades
-    .map((grade) => {
-      if (!grade) return null
-      const index = GRADE_BAND_ORDER.indexOf(grade)
-      return index >= 0 ? index : null
-    })
+    .map((grade) => skillGradeRank(grade))
     .filter((value): value is number => value != null)
   if (ranks.length === 0) return null
   const mean = ranks.reduce((sum, rank) => sum + rank, 0) / ranks.length
-  const nearest = Math.round(mean)
-  return GRADE_BAND_ORDER[nearest] ?? null
+  return bandForScore(mean)
 }
 
 export function hasStoredSkillGrades(
-  grades: Record<string, GradeBandId | '' | null | undefined>,
+  grades: Record<string, string | '' | null | undefined>,
 ): boolean {
-  return Object.values(grades).some((grade) => Boolean(grade))
+  return Object.values(grades).some((grade) => Boolean(normalizeSkillGrade(grade)))
 }
 
 /** Skills that have a saved grade — for the Off / prior-only read view. */
 export function skillsWithStoredGrades(
-  grades: Record<string, GradeBandId | '' | null | undefined>,
+  grades: Record<string, string | '' | null | undefined>,
   catalog: readonly Skill[],
 ): Skill[] {
   const byId = new Map(catalog.map((skill) => [skill.id, skill]))
   return Object.entries(grades)
-    .filter(([, grade]) => Boolean(grade))
+    .filter(([, grade]) => Boolean(normalizeSkillGrade(grade)))
     .map(([skillId]) => {
       const known = byId.get(skillId)
       if (known) return known
       return {
         id: skillId,
         name: 'Previously graded skill',
-        department: '',
         role: '',
         status: 'approved' as const,
         mastery: emptySkillMastery(),

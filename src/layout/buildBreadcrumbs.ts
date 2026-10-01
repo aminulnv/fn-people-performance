@@ -2,6 +2,7 @@ import { matchPath } from 'react-router-dom'
 import type { BreadcrumbItem } from '@/components/ui'
 import { profileNavItem, settingsNavItem } from '@/config/layout'
 import { cycleDetailPath } from '@/lib/reviews/paths'
+import { skillsLibraryPath, valuesLibraryPath } from '@/lib/organisation/paths'
 import type { NavItem } from './types'
 
 export type BreadcrumbContext = {
@@ -114,6 +115,90 @@ export function buildBreadcrumbs({
     ]
   }
 
+  if (pathname === '/organisation/skills/new') {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Skills', href: skillsLibraryPath() },
+      { label: 'Create New Skill' },
+    ]
+  }
+
+  const skillDetail = matchPath(
+    { path: '/organisation/skills/:skillId/edit', end: true },
+    pathname,
+  )
+  if (skillDetail?.params.skillId) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Skills', href: skillsLibraryPath() },
+      { label: 'Edit' },
+    ]
+  }
+
+  const skillView = matchPath(
+    { path: '/organisation/skills/:skillId', end: true },
+    pathname,
+  )
+  if (skillView?.params.skillId) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Skills', href: skillsLibraryPath() },
+      { label: 'Edit' },
+    ]
+  }
+
+  if (
+    pathname === '/organisation/skills' ||
+    pathname.startsWith('/organisation/skills/')
+  ) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Skills' },
+    ]
+  }
+
+  const valueDetail = matchPath(
+    { path: '/organisation/values/:valueId/edit', end: true },
+    pathname,
+  )
+  if (valueDetail?.params.valueId) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Values', href: valuesLibraryPath() },
+      { label: 'Edit' },
+    ]
+  }
+
+  if (pathname === '/organisation/values/new') {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Values', href: valuesLibraryPath() },
+      { label: 'Create value' },
+    ]
+  }
+
+  const valueView = matchPath(
+    { path: '/organisation/values/:valueId', end: true },
+    pathname,
+  )
+  if (valueView?.params.valueId) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Values', href: valuesLibraryPath() },
+      { label: 'Edit' },
+    ]
+  }
+
+  if (
+    pathname === '/organisation/values' ||
+    pathname.startsWith('/organisation/values/')
+  ) {
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Values' },
+    ]
+  }
+
   const departmentEdit = matchPath(
     { path: '/organisation/departments/:departmentId/edit', end: true },
     pathname,
@@ -211,45 +296,6 @@ export function buildBreadcrumbs({
     ]
   }
 
-  if (pathname === '/reviews/skills/new') {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Skills', href: '/reviews/skills' },
-      { label: 'Create New Skill' },
-    ]
-  }
-
-  const skillDetail = matchPath(
-    { path: '/reviews/skills/:skillId/edit', end: true },
-    pathname,
-  )
-  if (skillDetail?.params.skillId) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Skills', href: '/reviews/skills' },
-      { label: 'Edit' },
-    ]
-  }
-
-  const skillView = matchPath(
-    { path: '/reviews/skills/:skillId', end: true },
-    pathname,
-  )
-  if (skillView?.params.skillId) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Skills', href: '/reviews/skills' },
-      { label: 'Edit' },
-    ]
-  }
-
-  if (pathname === '/reviews/skills' || pathname.startsWith('/reviews/skills/')) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Skills' },
-    ]
-  }
-
   const scorecardsLibraryDetail = matchPath(
     { path: '/reviews/scorecards-library/:formId', end: true },
     pathname,
@@ -269,45 +315,6 @@ export function buildBreadcrumbs({
     return [
       { label: 'Reviews', href: '/reviews/scorecards' },
       { label: 'Scorecards Library' },
-    ]
-  }
-
-  const valueDetail = matchPath(
-    { path: '/reviews/values/:valueId/edit', end: true },
-    pathname,
-  )
-  if (valueDetail?.params.valueId) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Values', href: '/reviews/values' },
-      { label: 'Edit' },
-    ]
-  }
-
-  if (pathname === '/reviews/values/new') {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Values', href: '/reviews/values' },
-      { label: 'Create value' },
-    ]
-  }
-
-  const valueView = matchPath(
-    { path: '/reviews/values/:valueId', end: true },
-    pathname,
-  )
-  if (valueView?.params.valueId) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Values', href: '/reviews/values' },
-      { label: 'Edit' },
-    ]
-  }
-
-  if (pathname === '/reviews/values' || pathname.startsWith('/reviews/values/')) {
-    return [
-      { label: 'Reviews', href: '/reviews/scorecards' },
-      { label: 'Values' },
     ]
   }
 

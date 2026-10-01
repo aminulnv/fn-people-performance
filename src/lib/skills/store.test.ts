@@ -23,11 +23,9 @@ describe('skills store', () => {
     resetSkillsStoreForTests()
     const created = await createSkill({
       name: 'Facilitation',
-      department: 'HR',
       role: 'Manager',
     })
     expect(created.name).toBe('Facilitation')
-    expect(created.department).toBe('HR')
     expect(created.status).toBe('approved')
     expect(getSkillsSnapshot().some((skill) => skill.id === created.id)).toBe(
       true,
@@ -47,16 +45,13 @@ describe('skills store', () => {
     resetSkillsStoreForTests()
     const created = await createSkill({
       name: 'Facilitation',
-      department: 'HR',
     })
     const updated = await updateSkill(created.id, {
       name: 'Workshop Facilitation',
-      department: 'People',
       role: 'Manager',
       status: 'draft',
     })
     expect(updated.name).toBe('Workshop Facilitation')
-    expect(updated.department).toBe('People')
     expect(updated.role).toBe('Manager')
     expect(updated.status).toBe('draft')
     expect(

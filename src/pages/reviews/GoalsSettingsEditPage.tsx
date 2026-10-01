@@ -94,7 +94,7 @@ export function GoalsSettingsEditPage({
     settings.goalCountPolicy.recommendedMinimum,
     settings.goalCountPolicy.recommendedMaximum,
   );
-  const progressDays = settings.goalCountPolicy.lateProgressUpdateDays ?? 30;
+  const progressDays = settings.goalCountPolicy.lateProgressUpdateDays ?? 7;
 
   const advancedSummary = [
     allowLateSubmissions ? "Late OK" : "Hard Stop",

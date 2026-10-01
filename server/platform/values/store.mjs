@@ -35,13 +35,19 @@ function mapValue(row) {
 export async function ensureDefaultValues() {
   const ids = SEED_VALUES.map((item) => item.id)
   const { rows: existing } = await getPool().query(
-    `SELECT id FROM platform."values"
+    `SELECT id, behaviours FROM platform."values"
      WHERE id = ANY($1::text[]) AND deleted_at IS NULL`,
     [ids],
   )
-  const have = new Set(existing.map((row) => row.id))
-  const missing = SEED_VALUES.filter((item) => !have.has(item.id))
-  if (missing.length === 0) return
+  const byId = new Map(existing.map((row) => [row.id, row]))
+  const missing = SEED_VALUES.filter((item) => !byId.has(item.id))
+  const needsRubric = SEED_VALUES.filter((item) => {
+    const row = byId.get(item.id)
+    if (!row) return false
+    const behaviours = parseBehaviours(row.behaviours)
+    return !valueHasRubricBands(behaviours)
+  })
+  if (missing.length === 0 && needsRubric.length === 0) return
 
   const client = await getPool().connect()
   try {
@@ -50,9 +56,24 @@ export async function ensureDefaultValues() {
       await client.query(
         `INSERT INTO platform."values" (
            id, name, description, status, playbook_url, behaviours
-         ) VALUES ($1, $2, $3, $4, NULL, '[]'::jsonb)
+         ) VALUES ($1, $2, $3, $4, NULL, $5::jsonb)
          ON CONFLICT (id) DO NOTHING`,
-        [item.id, item.name, item.description, item.status],
+        [
+          item.id,
+          item.name,
+          item.description,
+          item.status,
+          JSON.stringify(item.behaviours ?? []),
+        ],
+      )
+    }
+    for (const item of needsRubric) {
+      await client.query(
+        `UPDATE platform."values"
+         SET behaviours = $2::jsonb,
+             updated_at = NOW()
+         WHERE id = $1 AND deleted_at IS NULL`,
+        [item.id, JSON.stringify(item.behaviours ?? [])],
       )
     }
     await client.query('COMMIT')
@@ -62,6 +83,17 @@ export async function ensureDefaultValues() {
   } finally {
     client.release()
   }
+}
+
+function valueHasRubricBands(behaviours) {
+  if (!Array.isArray(behaviours) || behaviours.length === 0) return false
+  return behaviours.some((behaviour) => {
+    const bands = behaviour?.bands
+    if (!bands || typeof bands !== 'object') return false
+    return ['unsatisfactory', 'developing', 'performing', 'exceeding', 'exceptional'].some(
+      (band) => Array.isArray(bands[band]) && bands[band].length > 0,
+    )
+  })
 }
 
 export async function listValuesCatalog() {

@@ -3,13 +3,21 @@ import { departmentKey } from '@/lib/organisation/fromEmployees'
 
 /** URL helpers for organisation unit detail pages. */
 
-export type OrganisationTabId = 'departments' | 'teams' | 'roles' | 'chart'
+export type OrganisationTabId =
+  | 'departments'
+  | 'teams'
+  | 'roles'
+  | 'chart'
+  | 'skills'
+  | 'values'
 
 const ORGANISATION_TAB_ROOTS = new Set([
   '/organisation/departments',
   '/organisation/teams',
   '/organisation/roles',
   '/organisation/chart',
+  '/organisation/skills',
+  '/organisation/values',
 ])
 
 export function organisationTabPath(
@@ -18,12 +26,62 @@ export function organisationTabPath(
   return `/organisation/${tab}`
 }
 
-/** True on the Organisation tab list roots only — not detail/create subpages. */
+/** True on Organisation tab lists, including library side-panel URLs. */
 export function isOrganisationTabRoot(pathname: string): boolean {
   return (
     ORGANISATION_TAB_ROOTS.has(pathname) ||
-    pathname === '/organisation/roles/new'
+    pathname === '/organisation/roles/new' ||
+    pathname.startsWith('/organisation/skills/') ||
+    pathname.startsWith('/organisation/values/')
   )
+}
+
+export function valuesLibraryPath(): string {
+  return '/organisation/values'
+}
+
+export function valueCreatePath(): string {
+  return '/organisation/values/new'
+}
+
+export function valueDetailPath(valueId: string): string {
+  return `/organisation/values/${encodeURIComponent(valueId)}/edit`
+}
+
+export function valueEditPath(valueId: string): string {
+  return `/organisation/values/${encodeURIComponent(valueId)}/edit`
+}
+
+export function skillsLibraryPath(): string {
+  return '/organisation/skills'
+}
+
+export function skillCreatePath(): string {
+  return '/organisation/skills/new'
+}
+
+export function skillEditPath(skillId: string): string {
+  return `/organisation/skills/${encodeURIComponent(skillId)}/edit`
+}
+
+/** Keep the matching org tab highlighted on panel/create URLs. */
+export function organisationTabsCurrent(
+  pathname: string,
+): OrganisationTabId | undefined {
+  if (pathname === '/organisation/roles/new') return 'roles'
+  if (
+    pathname === '/organisation/skills' ||
+    pathname.startsWith('/organisation/skills/')
+  ) {
+    return 'skills'
+  }
+  if (
+    pathname === '/organisation/values' ||
+    pathname.startsWith('/organisation/values/')
+  ) {
+    return 'values'
+  }
+  return undefined
 }
 
 export function departmentDetailPath(departmentId: string): string {

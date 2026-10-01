@@ -21,11 +21,11 @@ export function ScorecardHero({
   viewerEmployeeId?: number | null
   viewingStage?: ScorecardViewStage
 }) {
-  const viewingGrade = gradeForViewStage(
-    packet,
-    viewingStage,
-    viewerEmployeeId,
-  )
+  const leave = Boolean(packet?.leaveQuarter)
+  const managerMissed = Boolean(packet?.managerMissedDeadline)
+  const viewingGrade = leave
+    ? null
+    : gradeForViewStage(packet, viewingStage, viewerEmployeeId)
 
   return (
     <header className="pd-reviews-scorecard__hero">
@@ -45,7 +45,11 @@ export function ScorecardHero({
                   {detail.employeeName}
                 </Link>
               </h1>
-              {detail.cycleLabel && detail.cycleLabel !== '-' ? (
+              {managerMissed ? (
+                <span className="pd-reviews-score-status pd-reviews-score-status--pending">
+                  Manager missed deadline
+                </span>
+              ) : detail.cycleLabel && detail.cycleLabel !== '-' ? (
                 <span className="pd-reviews-score-status pd-reviews-score-status--pending">
                   {detail.cycleLabel}
                 </span>
@@ -97,11 +101,13 @@ export function ScorecardHero({
         <div className="pd-reviews-scorecard__hero-aside">
           <div className="pd-reviews-scorecard__latest">
             <span className="pd-reviews-scorecard__latest-label">
-              {viewingGrade
-                ? gradeLabelForViewStage(viewingStage)
-                : 'No grade yet'}
+              {leave
+                ? 'Outcome'
+                : viewingGrade
+                  ? gradeLabelForViewStage(viewingStage)
+                  : 'No grade yet'}
             </span>
-            <GradeChip grade={viewingGrade} />
+            <GradeChip grade={viewingGrade} leave={leave} />
           </div>
         </div>
       </div>

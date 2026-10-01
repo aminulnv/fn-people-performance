@@ -35,6 +35,8 @@ type ResizableTableProps = {
    * can sample visible cells. Do not change this on scroll or search.
    */
   fitKey?: string | number
+  /** Give every column an equal share of the table width. */
+  evenColumns?: boolean
 }
 
 type ColumnWidths = Record<string, number>
@@ -229,6 +231,15 @@ function columnSignature(columns: ResizableColumn[]): string {
     .join('|')
 }
 
+function lastColumnFloorOf(
+  columns: ResizableColumn[],
+  natural: ColumnWidths = {},
+): number {
+  const last = columns[columns.length - 1]
+  if (!last) return MIN_COLUMN_WIDTH
+  return Math.max(minWidthOf(last), natural[last.id] ?? 0)
+}
+
 /**
  * Columns auto-fit to their content. Grow columns share leftover width so short
  * columns stay tight; the final column has no resize handle and absorbs slack
@@ -240,6 +251,7 @@ export function ResizableTable({
   className,
   children,
   fitKey,
+  evenColumns = false,
 }: ResizableTableProps) {
   const storedWidths = readStoredWidths(storageKeyFor(storageKey))
   const [manualWidths, setManualWidths] = useState<ColumnWidths>(storedWidths)
@@ -259,10 +271,16 @@ export function ResizableTable({
   const columnsKey = columnSignature(columns)
   const resizableColumns = columns.slice(0, -1)
   const lastColumn = columns[columns.length - 1]
+  const [lastColumnFloor, setLastColumnFloor] = useState(() =>
+    lastColumnFloorOf(columns),
+  )
 
+  const evenShare =
+    evenColumns && !hasManualLayout ? `${100 / Math.max(columns.length, 1)}%` : null
   const activeWidths = hasManualLayout ? manualWidths : (autoLayout?.widths ?? {})
-  const isAutoLaidOut = !hasManualLayout && autoLayout != null
-  const isMeasuring = !hasManualLayout && autoLayout == null
+  const isAutoLaidOut =
+    Boolean(evenShare) || (!hasManualLayout && autoLayout != null)
+  const isMeasuring = !hasManualLayout && !evenColumns && autoLayout == null
 
   useEffect(() => {
     if (!hasManualLayout) return
@@ -318,6 +336,7 @@ export function ResizableTable({
 
     const natural = measureNaturalColumnWidths(table, activeColumns)
     naturalWidthsRef.current = natural
+    setLastColumnFloor(lastColumnFloorOf(activeColumns, natural))
     const available = Math.max(wrap.clientWidth, 1)
     const next = distributeAutoWidths(activeColumns, natural, available)
     setAutoLayout((current) => {
@@ -334,6 +353,29 @@ export function ResizableTable({
       return next
     })
   }, [columnsKey, fitKey, fitPass, hasManualLayout])
+
+  /** Keep the trailing column wide enough for its content under a saved layout. */
+  useLayoutEffect(() => {
+    if (!hasManualLayout) return
+
+    const table = tableRef.current
+    const activeColumns = columnsRef.current
+    const last = activeColumns[activeColumns.length - 1]
+    if (!table || !last || table.rows.length === 0) return
+
+    const grouped = collectCellsByColumn(table, activeColumns.length)
+    const cells = grouped[activeColumns.length - 1] ?? []
+    let floor = minWidthOf(last)
+    const sampleCount = Math.min(cells.length, MEASURE_ROW_CAP)
+    for (let index = 0; index < sampleCount; index += 1) {
+      floor = Math.max(floor, measureCellWidth(cells[index]))
+    }
+    naturalWidthsRef.current = {
+      ...naturalWidthsRef.current,
+      [last.id]: floor,
+    }
+    setLastColumnFloor((current) => (current === floor ? current : floor))
+  }, [columnsKey, fitKey, hasManualLayout])
 
   useEffect(() => {
     if (hasManualLayout) return
@@ -440,17 +482,18 @@ export function ResizableTable({
   }
 
   const manualMinimumWidth =
-    sumWidths(resizableColumns, manualWidths) +
-    (lastColumn ? minWidthOf(lastColumn) : 0)
+    sumWidths(resizableColumns, manualWidths) + lastColumnFloor
 
-  const tableStyle = hasManualLayout
-    ? { width: '100%', minWidth: manualMinimumWidth }
-    : isAutoLaidOut && autoLayout
-      ? {
-          width: autoLayout.tableWidth,
-          minWidth: autoLayout.overflows ? '100%' : autoLayout.tableWidth,
-        }
-      : undefined
+  const tableStyle = evenShare
+    ? { width: '100%', tableLayout: 'fixed' as const }
+    : hasManualLayout
+      ? { width: '100%', minWidth: manualMinimumWidth }
+      : isAutoLaidOut && autoLayout
+        ? {
+            width: autoLayout.tableWidth,
+            minWidth: autoLayout.overflows ? '100%' : autoLayout.tableWidth,
+          }
+        : undefined
 
   return (
     <table
@@ -471,10 +514,14 @@ export function ResizableTable({
           <col
             key={column.id}
             style={{
-              width:
-                hasManualLayout && column === lastColumn
+              width: evenShare
+                ? evenShare
+                : hasManualLayout && column === lastColumn
                   ? undefined
                   : activeWidths[column.id],
+              ...(column === lastColumn && !evenShare
+                ? { minWidth: lastColumnFloor }
+                : null),
             }}
           />
         ))}

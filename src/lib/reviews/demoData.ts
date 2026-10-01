@@ -40,7 +40,7 @@ export const DEFAULT_CYCLE_SETTINGS: CycleSettings = {
     recommendedMinimum: 3,
     recommendedMaximum: 5,
     maximumAllowed: null,
-    lateProgressUpdateDays: 30,
+    lateProgressUpdateDays: 7,
   },
   postWindowGoalPolicy: "two_tier_approval",
   excludedEmployeeIds: [],
@@ -56,6 +56,24 @@ export function reviewTypesOf(
     line_manager: true,
     self: value?.self === true,
   };
+}
+
+export function normalizeGoalCountPolicy(
+  policy?: Partial<CycleSettings["goalCountPolicy"]> | null,
+): CycleSettings["goalCountPolicy"] {
+  const merged = {
+    ...DEFAULT_CYCLE_SETTINGS.goalCountPolicy,
+    ...policy,
+  }
+  // Old product default was 30; migrate to the locked 7-day grace window.
+  const days =
+    merged.lateProgressUpdateDays == null || merged.lateProgressUpdateDays === 30
+      ? 7
+      : merged.lateProgressUpdateDays
+  return {
+    ...merged,
+    lateProgressUpdateDays: days,
+  }
 }
 
 export function normalizeCycleSettings(
@@ -74,10 +92,7 @@ export function normalizeCycleSettings(
     ...DEFAULT_CYCLE_SETTINGS,
     ...settings,
     reviewTypes,
-    goalCountPolicy: {
-      ...DEFAULT_CYCLE_SETTINGS.goalCountPolicy,
-      ...settings?.goalCountPolicy,
-    },
+    goalCountPolicy: normalizeGoalCountPolicy(settings?.goalCountPolicy),
     excludedEmployeeIds: [...(settings?.excludedEmployeeIds ?? [])],
     scorecardFormId: settings?.scorecardFormId ?? null,
     reviewPolicy: normalizeReviewPolicy(settings?.reviewPolicy, purpose, periodKey),

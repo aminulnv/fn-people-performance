@@ -7,9 +7,11 @@ export type SearchKind =
   | 'person'
   | 'department'
   | 'team'
+  | 'role'
   | 'goal'
   | 'cycle'
   | 'scorecard'
+  | 'skill'
   | 'notification'
 
 export type SearchScope =
@@ -73,9 +75,11 @@ export const SEARCH_KIND_GROUP: Record<SearchKind, { id: string; label: string }
     person: { id: 'person', label: 'People' },
     department: { id: 'department', label: 'Departments' },
     team: { id: 'team', label: 'Teams' },
+    role: { id: 'role', label: 'Roles' },
     goal: { id: 'goal', label: 'Goals' },
     cycle: { id: 'cycle', label: 'Cycles' },
     scorecard: { id: 'scorecard', label: 'Reviews' },
+    skill: { id: 'skill', label: 'Skills' },
     notification: { id: 'notification', label: 'Notifications' },
   }
 
@@ -85,8 +89,10 @@ export const SEARCH_KIND_ORDER: SearchKind[] = [
   'person',
   'department',
   'team',
+  'role',
   'goal',
   'cycle',
   'scorecard',
+  'skill',
   'notification',
 ]

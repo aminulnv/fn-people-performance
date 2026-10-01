@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { packetForViewer } from './packetVisibility'
+import {
+  managerIsBlindedFromSelfReview,
+  packetForViewer,
+} from './packetVisibility'
 import type { ReviewPacket } from './types'
 
 const questions = [
@@ -106,6 +109,55 @@ describe('packetForViewer', () => {
     ).toEqual(source.answers)
   })
 
+  it('hides manager-only retain answers from the employee after release', () => {
+    const retentionQuestions = [
+      {
+        id: 'retain',
+        prompt: 'Will we do what it takes to retain this person?',
+        enabled: true,
+        required: true,
+        kind: 'yes_no' as const,
+        visibility: ['manager'] as const,
+        outputVisibility: ['manager'] as const,
+      },
+      {
+        id: 'engaged',
+        prompt: 'Is this person fully engaged in their role?',
+        enabled: true,
+        required: true,
+        kind: 'yes_no' as const,
+        visibility: ['manager'] as const,
+        outputVisibility: ['manager'] as const,
+      },
+      {
+        id: 'delivered',
+        prompt: 'What was delivered?',
+        enabled: true,
+        required: true,
+        kind: 'open_ended' as const,
+        visibility: ['employee', 'manager'] as const,
+        outputVisibility: ['employee', 'manager'] as const,
+      },
+    ]
+    const source = packet({
+      status: 'released_to_employees',
+      answers: [
+        { questionId: 'retain', actorRole: 'manager', body: 'yes' },
+        { questionId: 'engaged', actorRole: 'manager', body: 'no' },
+        { questionId: 'delivered', actorRole: 'manager', body: 'Strong year.' },
+        { questionId: 'delivered', actorRole: 'self', body: 'I shipped.' },
+      ],
+    })
+    const asEmployee = packetForViewer(source, 754, retentionQuestions as never)
+    expect(asEmployee.answers.map((answer) => answer.questionId).sort()).toEqual(
+      ['delivered', 'delivered'],
+    )
+    const asHod = packetForViewer(source, 99, retentionQuestions as never, {
+      canViewAllReviews: true,
+    })
+    expect(asHod.answers).toEqual(source.answers)
+  })
+
   it('does not redact the packet for the real manager', () => {
     const source = packet()
     expect(
@@ -165,5 +217,40 @@ describe('packetForViewer', () => {
     expect(
       packetForViewer(source, 2, [], { canViewAllReviews: true }),
     ).toEqual(source)
+  })
+})
+
+describe('managerIsBlindedFromSelfReview', () => {
+  it('blinds the line manager until both sides have submitted', () => {
+    expect(
+      managerIsBlindedFromSelfReview(
+        packet({ status: 'self_submitted', selfSubmittedAt: '2026-01-01' }),
+        1,
+        { managedEmployeeIds: [754] },
+      ),
+    ).toBe(true)
+  })
+
+  it('does not blind admins who are not the line manager', () => {
+    expect(
+      managerIsBlindedFromSelfReview(
+        packet({ status: 'self_submitted', selfSubmittedAt: '2026-01-01' }),
+        2,
+        { canViewAllReviews: true },
+      ),
+    ).toBe(false)
+  })
+
+  it('clears the blind once both sides have submitted', () => {
+    expect(
+      managerIsBlindedFromSelfReview(
+        packet({
+          status: 'manager_submitted',
+          selfSubmittedAt: '2026-01-01',
+        }),
+        1,
+        { managedEmployeeIds: [754] },
+      ),
+    ).toBe(false)
   })
 })

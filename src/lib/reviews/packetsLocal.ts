@@ -1,10 +1,18 @@
-import { cycleGroupsOf } from './cycleGroups'
+import { overallGradeReasonNeed } from './overallGradeReason'
+import { cycleGroupsOf, resolveCyclePolicyForPerson } from './cycleGroups'
+import {
+  packetNeedsManagerForceMove,
+} from './managerMissedDeadline'
 import {
   calibrationIsEditable,
   nextPacketStatus,
   nextSelfSubmittedAt,
 } from './scorecardStages'
 import { getReviewCycle } from './store'
+import { listScorecardForms } from './scorecardFormsStore'
+import { describeScorecardSubmitBlock } from './submitValidation'
+import { getSkillsForEmployee } from '@/lib/skills/store'
+import { getEnabledValues } from '@/lib/values/store'
 import type {
   ReviewActorRole,
   ReviewPacket,
@@ -25,6 +33,9 @@ function emptyPacket(cycleId: string, employeeId: number): ReviewPacket {
     employeeId,
     managerEmployeeId: null,
     status: 'not_started',
+    leaveQuarter: false,
+    managerMissedDeadline: false,
+    managerForceMovedAt: null,
     selfOverallGrade: null,
     managerOverallGrade: null,
     calibratedOverallGrade: null,
@@ -44,6 +55,20 @@ export function listLocalPackets(cycleId: string): ReviewPacket[] {
   for (const group of cycleGroupsOf(cycle ?? { groups: [] })) {
     for (const employeeId of group.memberIds) {
       getLocalPacket(cycleId, employeeId)
+    }
+  }
+  if (cycle) {
+    for (const [key, packet] of packets) {
+      if (packet.cycleId !== cycleId) continue
+      if (!packetNeedsManagerForceMove(packet, cycle)) continue
+      packets.set(key, {
+        ...packet,
+        status: 'in_calibration',
+        managerMissedDeadline: true,
+        managerForceMovedAt: new Date().toISOString(),
+        managerOverallGrade: null,
+        version: packet.version + 1,
+      })
     }
   }
   return [...packets.values()]
@@ -75,12 +100,77 @@ export function saveLocalPacket(
     }>
     overallGrade?: ReviewPacket['selfOverallGrade']
     overrideReason?: string
+    suggestedGrade?: ReviewPacket['selfOverallGrade']
+    gapCommentTiers?: number
     goalsComponent?: ReviewPacket['goalsComponent']
     submit?: boolean
   },
 ): ReviewPacket {
   const current = [...packets.values()].find((packet) => packet.id === packetId)
   if (!current) throw new Error('Review not found')
+  if (input.submit === true && input.actorRole === 'manager') {
+    const overall = input.overallGrade ?? current.managerOverallGrade
+    const need = overallGradeReasonNeed({
+      actorRole: 'manager',
+      overallGrade: overall,
+      suggestedGrade: input.suggestedGrade ?? null,
+      selfOverallGrade: current.selfOverallGrade,
+      gapCommentTiers: input.gapCommentTiers ?? 0,
+    })
+    if (need?.required && !String(input.overrideReason ?? '').trim()) {
+      throw new Error('Write why this overall grade differs before submitting.')
+    }
+  }
+  if (input.submit === true) {
+    const cycle = getReviewCycle(current.cycleId)
+    const policy = cycle
+      ? resolveCyclePolicyForPerson(
+          cycle,
+          current.employeeId,
+          listScorecardForms(),
+        ).settings.reviewPolicy
+      : null
+    if (policy) {
+      const answersById = Object.fromEntries(
+        (input.answers ?? []).map((answer) => [answer.questionId, answer.body]),
+      )
+      const goalsScore = (input.pillarScores ?? []).find(
+        (score) => score.pillarId === 'goals',
+      )
+      const q4Grade =
+        input.goalsComponent &&
+        Object.prototype.hasOwnProperty.call(input.goalsComponent, 'q4Grade')
+          ? (input.goalsComponent as { q4Grade?: string | null }).q4Grade
+          : null
+      const block = describeScorecardSubmitBlock({
+        policy,
+        actorRole: input.actorRole,
+        leave: Boolean(current.leaveQuarter),
+        overallGrade:
+          input.overallGrade ??
+          (input.actorRole === 'self'
+            ? current.selfOverallGrade
+            : current.managerOverallGrade),
+        goalsGrade: goalsScore?.grade ?? null,
+        q4Grade: q4Grade ?? null,
+        useWeightedSuggest:
+          policy.managerReview.gradeSuggestion === 'weighted_suggest',
+        answersById,
+        pillarScores: input.pillarScores,
+        skillIds: getSkillsForEmployee(current.employeeId).map(
+          (skill) => skill.id,
+        ),
+        valueIds: getEnabledValues().map((value) => value.id),
+        strengths: answersById.strengths,
+        developments: answersById.developments,
+        suggestedGrade: input.suggestedGrade ?? null,
+        selfOverallGrade: current.selfOverallGrade,
+        gapCommentTiers: input.gapCommentTiers,
+        overrideReason: input.overrideReason,
+      })
+      if (block) throw new Error(block)
+    }
+  }
   const next: ReviewPacket = {
     ...current,
     answers: [
@@ -147,6 +237,11 @@ export function calibrateLocalPacket(
   }
   if (!calibrationIsEditable(current.status)) {
     throw new Error('Calibration cannot start until the manager review is submitted.')
+  }
+  if (!current.managerOverallGrade && !current.managerMissedDeadline) {
+    throw new Error(
+      'Calibration cannot start until the manager has set an overall rating.',
+    )
   }
   const next: ReviewPacket = {
     ...current,

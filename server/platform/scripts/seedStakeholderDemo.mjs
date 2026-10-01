@@ -103,9 +103,18 @@ const LEADERSHIP_POLICY = {
         id: 'lead-retain',
         prompt: 'Will we do what it takes to retain this person?',
         enabled: true,
-        required: false,
-        kind: 'open_ended',
-        visibility: ['calibrators'],
+        required: true,
+        kind: 'yes_no',
+        visibility: ['manager'],
+        outputVisibility: ['manager'],
+      },
+      {
+        id: 'lead-engaged',
+        prompt: 'Is this person fully engaged in their role?',
+        enabled: true,
+        required: true,
+        kind: 'yes_no',
+        visibility: ['manager'],
         outputVisibility: ['manager'],
       },
     ],
@@ -1202,6 +1211,103 @@ const DEMO_CALIBRATION = {
   },
 }
 
+/**
+ * One annual packet where the manager missed the deadline so HOD can rate.
+ * Prefer a stable, memorable person when present in the directory.
+ */
+async function seedManagerMissedDeadlineDemo(client) {
+  // Stable demo subject from the HR directory seed — Specialist, has a manager.
+  const preferredNames = ['Shariful Islam', 'Tasnim Jahan', 'Rifat Ahmed']
+  let picked = null
+  for (const name of preferredNames) {
+    const { rows } = await client.query(
+      `SELECT p.id AS packet_id, e.employee_id, e.name
+       FROM platform.review_packets p
+       JOIN platform.employees e ON e.employee_id = p.employee_id
+       WHERE p.cycle_id = 'annual-2026'
+         AND e.status = 'active'
+         AND e.name ILIKE $1
+       ORDER BY e.employee_id
+       LIMIT 1`,
+      [name],
+    )
+    if (rows[0]) {
+      picked = rows[0]
+      break
+    }
+  }
+  if (!picked) {
+    const { rows } = await client.query(
+      `SELECT p.id AS packet_id, e.employee_id, e.name
+       FROM platform.review_packets p
+       JOIN platform.employees e ON e.employee_id = p.employee_id
+       WHERE p.cycle_id = 'annual-2026'
+         AND e.status = 'active'
+         AND e.job_grade IS DISTINCT FROM 'Intern'
+         AND e.reports_to_employee_id IS NOT NULL
+       ORDER BY e.name
+       LIMIT 1`,
+    )
+    picked = rows[0] ?? null
+  }
+  if (!picked) return null
+
+  await client.query(
+    `UPDATE platform.review_packets
+     SET status = 'in_calibration',
+         manager_missed_deadline = true,
+         manager_force_moved_at = now(),
+         manager_overall_grade = NULL,
+         calibrated_overall_grade = NULL,
+         published_overall_grade = NULL,
+         self_submitted_at = COALESCE(self_submitted_at, now()),
+         self_overall_grade = COALESCE(self_overall_grade, 'performing'),
+         manager_override_reason = '',
+         version = version + 1,
+         updated_at = now()
+     WHERE id = $1`,
+    [picked.packet_id],
+  )
+  await client.query(
+    `DELETE FROM platform.review_pillar_scores
+     WHERE packet_id = $1 AND actor_role = 'manager'`,
+    [picked.packet_id],
+  )
+  await client.query(
+    `DELETE FROM platform.review_answers
+     WHERE packet_id = $1 AND actor_role = 'manager'`,
+    [picked.packet_id],
+  )
+  await client.query(
+    `INSERT INTO platform.review_answers (packet_id, actor_role, question_id, body)
+     VALUES
+       ($1, 'self', 'delivered', 'Delivered the year plan and closed the two open risks.'),
+       ($1, 'self', 'values', 'Held the bar in public reviews.'),
+       ($1, 'self', 'improve', 'Need a clearer weekly cadence.'),
+       ($1, 'self', 'support', 'More decision rights on hiring would help.')
+     ON CONFLICT (packet_id, actor_role, question_id)
+     DO UPDATE SET body = EXCLUDED.body, updated_at = now()`,
+    [picked.packet_id],
+  )
+  await client.query(
+    `INSERT INTO platform.review_pillar_scores (
+       packet_id, actor_role, pillar_id, grade, comment
+     ) VALUES
+       ($1, 'self', 'goals', 'performing', 'Self view on goals.'),
+       ($1, 'self', 'skills', 'performing', 'Self view on skills.'),
+       ($1, 'self', 'values', 'exceeding', 'Self view on values.')
+     ON CONFLICT (packet_id, actor_role, pillar_id)
+     DO UPDATE SET grade = EXCLUDED.grade, comment = EXCLUDED.comment, updated_at = now()`,
+    [picked.packet_id],
+  )
+
+  return {
+    packetId: picked.packet_id,
+    employeeId: Number(picked.employee_id),
+    name: picked.name,
+  }
+}
+
 async function clearCycle(pool, cycleId) {
   const client = await pool.connect()
   try {
@@ -1542,6 +1648,15 @@ async function main() {
     for (const cycleId of reviewCycles) {
       console.log(`Seeding reviews for ${cycleId}…`)
       await seedPackets(client, cycleId, byCycle.get(cycleId) ?? [], employeesById)
+    }
+
+    if (!onlyCycle || onlyCycle === 'annual-2026') {
+      const demo = await seedManagerMissedDeadlineDemo(client)
+      if (demo) {
+        console.log(
+          `Demo · manager missed deadline: ${demo.name} (employee ${demo.employeeId}) · open Annual 2026 scorecard`,
+        )
+      }
     }
   } finally {
     client.release()

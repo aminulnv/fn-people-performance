@@ -117,6 +117,12 @@ function addedTab() {
   ).getByRole('button', { name: /^added/i })
 }
 
+function notAddedTab() {
+  return within(
+    screen.getByRole('group', { name: 'People selection view' }),
+  ).getByRole('button', { name: /^not added/i })
+}
+
 function Harness({ initialIds = [] }: { initialIds?: number[] }) {
   const [memberIds, setMemberIds] = useState(initialIds)
   return (
@@ -145,6 +151,39 @@ afterEach(() => {
 })
 
 describe('GroupMembersEditor', () => {
+  it('shows annual eligibility reasons and blocks adding ineligible people', () => {
+    employeesState.employees = [
+      person(1, { fullName: 'Early Joiner', startDate: '2025-01-01' }),
+      person(2, { fullName: 'Late Joiner', startDate: '2026-11-01' }),
+    ]
+
+    renderEditor(
+      <GroupMembersEditor
+        memberIds={[]}
+        onChange={async () => {}}
+        ineligibilityByEmployeeId={{
+          2: 'Joined after 1 Oct 2026, so they’re not eligible for Annual.',
+        }}
+      />,
+    )
+
+    openBrowse()
+    expect(
+      screen.queryByText(
+        /Only people who joined by 1 Oct 2026 and have a rated quarter/i,
+      ),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('checkbox', { name: /Late Joiner/i }),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByLabelText(/Late Joiner cannot be added/i),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('checkbox', { name: /^Select Early Joiner/i }),
+    ).toBeEnabled()
+  })
+
   it('shows people in a table with the cycle people columns', () => {
     employeesState.employees = [
       person(1, { fullName: 'Sheikh Syed Ahmed' }),
@@ -153,6 +192,7 @@ describe('GroupMembersEditor', () => {
 
     renderEditor(<Harness />)
     expect(addedTab()).toHaveTextContent('0')
+    expect(notAddedTab()).toHaveTextContent('2')
     expect(
       within(screen.getByRole('group', { name: 'People selection view' })).getByRole(
         'button',
@@ -187,6 +227,7 @@ describe('GroupMembersEditor', () => {
 
     addPerson('Sheikh Syed Ahmed')
     expect(addedTab()).toHaveTextContent('1')
+    expect(notAddedTab()).toHaveTextContent('1')
 
     openSelected()
     expect(screen.getByText('Sheikh Syed Ahmed')).toBeInTheDocument()

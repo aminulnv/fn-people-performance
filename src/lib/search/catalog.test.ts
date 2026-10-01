@@ -110,6 +110,36 @@ function input(
     goals: emptyGoals,
     cycles: [],
     scorecards: [],
+    skills: [
+      {
+        id: 'skill-admin-support',
+        name: 'Administrative Support',
+        role: '',
+        status: 'approved',
+        mastery: {
+          none: '',
+          poor: '',
+          basic: '',
+          intermediate: '',
+          advanced: '',
+          expert: '',
+        },
+      },
+    ],
+    roles: [
+      {
+        id: 'role-qa',
+        name: 'QA Engineer',
+        departmentId: 1,
+        departmentName: 'Platform',
+        description: 'Quality',
+        archivedAt: null,
+        headcount: 2,
+        skills: [],
+        createdAt: '2020-01-01',
+        updatedAt: '2020-01-01',
+      },
+    ],
     notifications: [],
     ...overrides,
   }
@@ -125,6 +155,17 @@ describe('buildSearchCatalog', () => {
     expect(ids).toContain('team:platform::search')
     expect(ids).toContain('action:create-person')
     expect(ids).toContain('page:/goals')
+    expect(ids).toContain('skill:skill-admin-support')
+    expect(
+      items.find((item) => item.id === 'skill:skill-admin-support')?.path,
+    ).toBe('/organisation/skills/skill-admin-support/edit')
+    expect(
+      items.find((item) => item.id === 'action:skills-library')?.path,
+    ).toBe('/organisation/skills')
+    expect(
+      items.find((item) => item.id === 'action:values-library')?.path,
+    ).toBe('/organisation/values')
+    expect(ids).toContain('role:role-qa')
   })
 
   it('hides create-person without write access', () => {

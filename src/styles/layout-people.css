@@ -1134,6 +1134,11 @@ body>.pd-people-filters__panel {
 }
 
 .pd-people__table-wrap {
+  /* Stay within the panel (min-width:auto would grow with the table and get
+   * clipped by .pd-people__panel--table { overflow: hidden }). */
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: auto;
   max-height: min(70dvh, 40rem);
   scrollbar-gutter: stable;
@@ -1307,6 +1312,21 @@ body>.pd-people-filters__panel {
 .pd-people__table.pd-table-resize--sized td {
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Trailing column holds status pills and similar - never clip them. */
+.pd-people__table.pd-table-resize--laid-out th:last-child,
+.pd-people__table.pd-table-resize--laid-out td:last-child,
+.pd-people__table.pd-table-resize--sized th:last-child,
+.pd-people__table.pd-table-resize--sized td:last-child {
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.pd-people__table.pd-table-resize--laid-out th:last-child .pd-table-resize__heading,
+.pd-people__table.pd-table-resize--sized th:last-child .pd-table-resize__heading {
+  overflow: visible;
+  text-overflow: clip;
 }
 
 .pd-table-resize__heading {
@@ -2576,6 +2596,64 @@ body>.pd-people-filters__panel {
   font-weight: 600;
 }
 
+.pd-profile__history-panel {
+  padding: 0;
+  overflow: hidden;
+}
+
+.pd-profile__history-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem 0.85rem;
+}
+
+.pd-profile__history-head .pd-profile__panel-meta {
+  margin: 0;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.pd-profile__history-panel .pd-people__table-wrap {
+  border-radius: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.pd-profile__history-table th[data-col='cycle-type'],
+.pd-profile__history-table th[data-col='reviewer'],
+.pd-profile__history-table th[data-col='status'],
+.pd-profile__history-table th[data-col='grade'],
+.pd-profile__history-table td:not(:first-child) {
+  text-align: center;
+}
+
+.pd-profile__history-status {
+  white-space: nowrap;
+}
+
+.pd-profile__history-reviewer-person {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  max-width: 100%;
+  text-align: left;
+}
+
+.pd-profile__history-reviewer-person .pd-people__person-name,
+.pd-profile__history-reviewer-person .pd-people__person-link {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pd-profile__history-grade-cell {
+  white-space: nowrap;
+}
+
 .pd-profile__people-list,
 .pd-profile__scorecard-list {
   list-style: none;
@@ -2586,29 +2664,42 @@ body>.pd-people-filters__panel {
 }
 
 .pd-profile__scorecard-list {
+  --pd-profile-tree-gutter: 1.5rem;
+  --pd-profile-tree-gap: 0.35rem;
+  --pd-profile-tree-icon: 2rem;
+  --pd-profile-tree-x: calc(
+    0.75rem + var(--pd-profile-tree-gutter) + var(--pd-profile-tree-gap) +
+      (var(--pd-profile-tree-icon) * 0.5)
+  );
+  --pd-profile-tree-branch: calc(
+    var(--pd-profile-tree-gutter) + var(--pd-profile-tree-gap) +
+      var(--pd-profile-tree-icon) + 0.5rem
+  );
+  --pd-profile-tree-stub: calc((var(--pd-profile-tree-icon) * 0.5) + 0.85rem);
+  --pd-profile-tree-line: color-mix(
+    in srgb,
+    var(--color-text) 22%,
+    var(--color-divider)
+  );
   gap: 0.4rem;
 }
 
 .pd-profile__scorecard-cols,
 .pd-profile__scorecard-row {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr) 7.25rem 6.75rem 1rem;
+  grid-template-columns: minmax(0, 1fr) 7.25rem 7.5rem 1rem;
   align-items: center;
   gap: 0.75rem;
 }
 
 .pd-profile__scorecard-cols {
   margin: 0 0 0.35rem;
-  padding: 0 0.75rem;
+  padding: 0 0.75rem 0 calc(0.75rem + var(--pd-profile-tree-gutter) + var(--pd-profile-tree-gap));
   color: var(--color-text-secondary);
   font-size: 0.68rem;
   font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-.pd-profile__scorecard-cols span:first-child {
-  grid-column: 1 / 3;
 }
 
 .pd-profile__people-row,
@@ -2624,7 +2715,8 @@ body>.pd-people-filters__panel {
 }
 
 .pd-profile__scorecard-row {
-  grid-template-columns: 2rem minmax(0, 1fr) 7.25rem 6.75rem 1rem;
+  position: relative;
+  grid-template-columns: minmax(0, 1fr) 7.25rem 7.5rem 1rem;
   border: 1px solid var(--color-border);
   background: color-mix(in srgb, var(--color-text) 2%, var(--color-surface));
 }
@@ -2642,6 +2734,89 @@ body>.pd-people-filters__panel {
 .pd-profile__scorecard-row:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
+}
+
+.pd-profile__scorecard-name-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--pd-profile-tree-gap);
+  min-width: 0;
+}
+
+.pd-profile__scorecard-expand {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--pd-profile-tree-gutter);
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.pd-profile__scorecard-expand:hover {
+  background: color-mix(in srgb, var(--color-text) 6%, transparent);
+  color: var(--color-text);
+}
+
+.pd-profile__scorecard-expand-spacer {
+  width: var(--pd-profile-tree-gutter);
+  flex: 0 0 auto;
+}
+
+.pd-profile__scorecard-branch {
+  position: relative;
+  width: var(--pd-profile-tree-branch);
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.pd-profile__scorecard-item--child .pd-profile__scorecard-row,
+.pd-profile__scorecard-item--open .pd-profile__scorecard-row {
+  position: relative;
+}
+
+.pd-profile__scorecard-branch::before,
+.pd-profile__scorecard-branch::after,
+.pd-profile__scorecard-item--open > .pd-profile__scorecard-row::after {
+  content: '';
+  position: absolute;
+  background: var(--pd-profile-tree-line);
+  pointer-events: none;
+}
+
+.pd-profile__scorecard-item--open > .pd-profile__scorecard-row::after {
+  left: var(--pd-profile-tree-x);
+  top: calc(50% + (var(--pd-profile-tree-icon) / 2));
+  bottom: -0.4rem;
+  width: 1px;
+}
+
+.pd-profile__scorecard-branch::before {
+  left: var(--pd-profile-tree-x);
+  top: -0.4rem;
+  bottom: -0.4rem;
+  width: 1px;
+}
+
+.pd-profile__scorecard-item--child-last .pd-profile__scorecard-branch::before {
+  bottom: 50%;
+}
+
+.pd-profile__scorecard-branch::after {
+  left: var(--pd-profile-tree-x);
+  top: 50%;
+  width: var(--pd-profile-tree-stub);
+  height: 1px;
+}
+
+.pd-profile__scorecard-row--child .pd-profile__scorecard-cycle {
+  font-weight: 500;
 }
 
 .pd-profile__people-text,
@@ -2665,6 +2840,13 @@ body>.pd-people-filters__panel {
   min-width: 0;
 }
 
+.pd-profile__scorecard-child-count {
+  color: var(--color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
 .pd-profile__scorecard-now {
   flex-shrink: 0;
 }
@@ -2673,11 +2855,12 @@ body>.pd-people-filters__panel {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 2rem;
-  height: 2rem;
+  width: var(--pd-profile-tree-icon);
+  height: var(--pd-profile-tree-icon);
   border-radius: 0.5rem;
   background: var(--color-muted-bg);
   color: var(--color-text-secondary);
+  flex: 0 0 auto;
 }
 
 .pd-profile__scorecard-icon--annual_appraisal {
@@ -2711,18 +2894,21 @@ body>.pd-people-filters__panel {
   justify-self: start;
   min-width: 0;
   color: var(--color-text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
+  font-size: 0.88rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
 }
 
 .pd-profile__scorecard-grade.is-set {
   display: inline-flex;
   align-items: center;
-  min-height: 1.5rem;
-  padding: 0.15rem 0.55rem;
+  min-height: 1.65rem;
+  padding: 0.2rem 0.65rem;
   border-radius: 999px;
   background: var(--color-bg-muted, var(--color-muted-bg));
   color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .pd-profile__scorecard-grade--exceptional,
@@ -2759,22 +2945,24 @@ body>.pd-people-filters__panel {
   }
 
   .pd-profile__scorecard-row {
-    grid-template-columns: 2rem minmax(0, 1fr) 1rem;
+    grid-template-columns: minmax(0, 1fr) 1rem;
     row-gap: 0.45rem;
   }
 
   .pd-profile__scorecard-status {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 2;
+    margin-left: calc(var(--pd-profile-tree-gutter) + var(--pd-profile-tree-gap) + var(--pd-profile-tree-icon) + var(--pd-profile-tree-gap));
   }
 
   .pd-profile__scorecard-grade {
-    grid-column: 2;
+    grid-column: 1;
     grid-row: 3;
+    margin-left: calc(var(--pd-profile-tree-gutter) + var(--pd-profile-tree-gap) + var(--pd-profile-tree-icon) + var(--pd-profile-tree-gap));
   }
 
   .pd-profile__scorecard-chevron {
-    grid-column: 3;
+    grid-column: 2;
     grid-row: 1;
   }
 

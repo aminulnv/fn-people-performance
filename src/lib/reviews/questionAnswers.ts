@@ -1,4 +1,4 @@
-import type { ReviewQuestionKind } from './types'
+import type { ReviewQuestion, ReviewQuestionKind } from './types'
 
 export type DualTextAnswer = { a: string; b: string }
 
@@ -104,4 +104,32 @@ export function formatAnswerForDisplay(
     return lines.join('\n')
   }
   return typeof parsed.value === 'string' ? parsed.value : ''
+}
+
+/** Whether a required question has a usable answer for submit. */
+export function isQuestionAnswerComplete(
+  question: Pick<ReviewQuestion, 'kind' | 'required' | 'enabled'>,
+  body: string | null | undefined,
+): boolean {
+  if (!question.enabled || !question.required) return true
+  const parsed = parseAnswer(question.kind, body)
+  if (parsed.kind === 'yes_no') return parsed.value === 'yes' || parsed.value === 'no'
+  if (parsed.kind === 'multiple_choice') return Boolean(parsed.value.trim())
+  if (parsed.kind === 'dual_text') {
+    return Boolean(parsed.value.a.trim() || parsed.value.b.trim())
+  }
+  return Boolean(parsed.value.trim())
+}
+
+/** Enabled required questions that still need an answer. */
+export function incompleteRequiredQuestions(
+  questions: readonly ReviewQuestion[],
+  answersById: Record<string, string | null | undefined>,
+): ReviewQuestion[] {
+  return questions.filter(
+    (question) =>
+      question.enabled &&
+      question.required &&
+      !isQuestionAnswerComplete(question, answersById[question.id]),
+  )
 }

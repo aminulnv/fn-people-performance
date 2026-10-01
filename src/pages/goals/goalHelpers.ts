@@ -9,6 +9,7 @@ import {
   measurementPanels,
   strategyLabel,
 } from '@/lib/goals/measurements'
+import { formatProgressTimestamp } from '@/lib/goals/progressLog'
 import type { DuplicateCycleOption } from '@/pages/goals/GoalDuplicateCycleDialog'
 
 export const GOALS_MY_GOALS_HASH = 'my-goals'
@@ -267,4 +268,37 @@ export function formatRefreshAge(iso?: string, now = Date.now()): string {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h`
   return `${Math.floor(hours / 24)}d`
+}
+
+/** Whole days since the last progress update (0 = today). */
+export function progressUpdateAgeDays(
+  iso?: string,
+  now = Date.now(),
+): number | null {
+  if (!iso) return null
+  const then = new Date(iso).getTime()
+  if (Number.isNaN(then)) return null
+  return Math.max(0, Math.floor((now - then) / 86_400_000))
+}
+
+/** Spec: surface goals with no progress update for more than 7 days. */
+export const STALE_PROGRESS_UPDATE_DAYS = 7
+
+export function isProgressUpdateStale(
+  iso?: string,
+  thresholdDays = STALE_PROGRESS_UPDATE_DAYS,
+  now = Date.now(),
+): boolean {
+  const days = progressUpdateAgeDays(iso, now)
+  return days != null && days > thresholdDays
+}
+
+export function staleProgressUpdateLabel(
+  iso: string,
+  now = Date.now(),
+): string {
+  const days = progressUpdateAgeDays(iso, now) ?? 0
+  const when = formatProgressTimestamp(iso)
+  const dayLabel = days === 1 ? '1 day' : `${days} days`
+  return `No progress update in ${dayLabel} (Last Updated: ${when})`
 }

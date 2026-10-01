@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatAnswerForDisplay,
+  incompleteRequiredQuestions,
+  isQuestionAnswerComplete,
   parseAnswer,
   serializeAnswer,
 } from './questionAnswers'
@@ -53,5 +55,23 @@ describe('questionAnswers', () => {
         'Improve',
       ]),
     ).toBe('Strengths: A\nImprove: B')
+  })
+
+  it('requires yes/no for mandatory retention flags', () => {
+    const retain = {
+      id: 'retain',
+      prompt: 'Retain?',
+      enabled: true,
+      required: true,
+      kind: 'yes_no' as const,
+      visibility: ['manager'] as const,
+      outputVisibility: ['manager'] as const,
+    }
+    expect(isQuestionAnswerComplete(retain, '')).toBe(false)
+    expect(isQuestionAnswerComplete(retain, 'yes')).toBe(true)
+    expect(
+      incompleteRequiredQuestions([retain], { retain: '' }).map((q) => q.id),
+    ).toEqual(['retain'])
+    expect(incompleteRequiredQuestions([retain], { retain: 'no' })).toEqual([])
   })
 })

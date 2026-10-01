@@ -28,6 +28,7 @@ import {
   setReviewPacketLeave,
 } from '@/lib/reviews/packetsApi'
 import {
+  cachedPacketPlaceholder,
   usePatchReviewPacketCache,
   useReviewPacket,
 } from '@/lib/reviews/useReviewPackets'
@@ -37,6 +38,7 @@ import {
   outcomeForAnnualQuarter,
   readAnnualQ4Grade,
 } from '@/lib/reviews/annualQuarters'
+import { describeScorecardSubmitBlock } from '@/lib/reviews/submitValidation'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   defaultReviewPolicy,
@@ -49,9 +51,14 @@ import {
   scorecardFeedbackOf,
 } from '@/lib/reviews/reviewPolicy'
 import { getReviewStage, isGoalsOnlyQuarter } from '@/lib/reviews/reviewStages'
-import { describeReviewEditWindowLock } from '@/lib/reviews/editWindow'
+import {
+  describeReviewEditLock,
+  describeReviewEditWindowLock,
+} from '@/lib/reviews/editWindow'
+import { managerMissedDeadlineNotice } from '@/lib/reviews/managerMissedDeadline'
 import { ReviewEditLockRibbon } from '@/pages/reviews/ReviewEditLockRibbon'
 import { combinePillarScores, rollupGoalsPillar } from '@/lib/reviews/rollup'
+import { overallGradeReasonNeed } from '@/lib/reviews/overallGradeReason'
 import { getReviewCycle } from '@/lib/reviews/store'
 import {
   useReviewCyclesHydrated,
@@ -66,16 +73,18 @@ import {
   gradeForViewStage,
   managerReviewIsComplete,
   scorecardEditStage,
-  scorecardReviewFormIsEditable,
   stageShowsReviewForm,
 } from '@/lib/reviews/scorecardStages'
 import {
-  managerCanSeeSelfReview,
+  managerIsBlindedFromSelfReview,
   officialReviewReleasedToEmployee,
+  reviewAccessForDirectory,
   selfReviewSubmitted,
+  sessionReviewAccess,
 } from '@/lib/reviews/packetVisibility'
 import { goalsDetailPath } from '@/pages/goals/goalHelpers'
 import { AnnualGoalsQuarters } from '@/pages/reviews/AnnualGoalsQuarters'
+import { GRADE_BAND_META } from '@/lib/reviews/labels'
 import { OverallGradePicker } from '@/pages/reviews/OverallGradePicker'
 import { ReviewQuestionField } from '@/pages/reviews/ReviewQuestionField'
 import { ScorecardFeedbackCard } from '@/pages/reviews/ScorecardFeedbackCard'
@@ -99,9 +108,11 @@ import {
   averageSkillGrade,
   hasStoredSkillGrades,
   isSkillScorePillarId,
+  normalizeSkillGrade,
   skillIdFromScorePillarId,
   skillScorePillarId,
   skillsWithStoredGrades,
+  type SkillGradeLevel,
 } from '@/lib/skills/reviewScores'
 import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
 import {
@@ -119,6 +130,7 @@ type PacketDraft = {
   answers: Array<{ questionId: string; body: string }>
   pillarScores: Array<{ pillarId: string; grade: GradeBandId | null; comment: string }>
   overallGrade: GradeBandId | null
+  overrideReason?: string
   goalsComponent?: ReviewPacket['goalsComponent']
 }
 
@@ -144,6 +156,8 @@ function packetDraftFromPacket(
       actorRole === 'self'
         ? packet.selfOverallGrade
         : packet.managerOverallGrade,
+    overrideReason:
+      actorRole === 'manager' ? packet.managerOverrideReason : undefined,
     goalsComponent: packet.goalsComponent,
   }
 }
@@ -207,11 +221,16 @@ export function ReviewPacketView({
   useManagerDelegationsRevision()
   const { employees, isLoading: employeesLoading } = useEmployees()
   const patchPacketCache = usePatchReviewPacketCache()
+  const packetPlaceholder = cachedPacketPlaceholder(
+    queryClient,
+    cycleId,
+    employeeId,
+  )
   const {
     data: cachedPacket,
     isError: packetQueryError,
     error: packetLoadError,
-  } = useReviewPacket(cycleId, employeeId)
+  } = useReviewPacket(cycleId, employeeId, true, packetPlaceholder)
   const [packet, setPacketState] = useState<ReviewPacket | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -220,13 +239,14 @@ export function ReviewPacketView({
   const [developments, setDevelopments] = useState('')
   const [goalsGrade, setGoalsGrade] = useState<GradeBandId | ''>('')
   const [q4Grade, setQ4Grade] = useState<GradeBandId | ''>('')
-  const [skillGrades, setSkillGrades] = useState<Record<string, GradeBandId | ''>>(
+  const [skillGrades, setSkillGrades] = useState<Record<string, SkillGradeLevel | ''>>(
     {},
   )
   const [valueGrades, setValueGrades] = useState<Record<string, GradeBandId | ''>>(
     {},
   )
   const [packetDraft, setPacketDraft] = useState<PacketDraft | null>(null)
+  const [overrideReason, setOverrideReason] = useState('')
   const [isDirty, setDirty] = useState(false)
   const assignedSkills = useEmployeeSkills(employeeId)
   const { skills: skillsCatalog } = useSkillsLibrary()
@@ -259,6 +279,7 @@ export function ReviewPacketView({
   useEffect(() => {
     if (!cachedPacket || isDirty) return
     setPacketState(cachedPacket)
+    setOverrideReason(cachedPacket.managerOverrideReason ?? '')
     setError(null)
   }, [cachedPacket, isDirty])
 
@@ -288,6 +309,11 @@ export function ReviewPacketView({
     directory: employees,
     permissions: user?.permissions,
   })
+  const reviewAccess = reviewAccessForDirectory(
+    employees.find((person) => person.employeeId === viewerId) ?? null,
+    employees,
+    sessionReviewAccess(),
+  )
   const goalsPillar = enabledPillars(policy).find((pillar) => pillar.id === 'goals')
   const linkedQuarters = useAnnualLinkedQuarters({
     cycle,
@@ -363,12 +389,12 @@ export function ReviewPacketView({
 
   useEffect(() => {
     if (!packet || !goalsGradeRole) return
-    const nextSkills: Record<string, GradeBandId | ''> = {}
+    const nextSkills: Record<string, SkillGradeLevel | ''> = {}
     const nextValues: Record<string, GradeBandId | ''> = {}
     for (const score of packet.pillarScores) {
       if (score.actorRole !== goalsGradeRole) continue
       const skillId = skillIdFromScorePillarId(score.pillarId)
-      if (skillId) nextSkills[skillId] = score.grade ?? ''
+      if (skillId) nextSkills[skillId] = normalizeSkillGrade(score.grade)
       const valueId = valueIdFromScorePillarId(score.pillarId)
       if (valueId) nextValues[valueId] = score.grade ?? ''
     }
@@ -478,8 +504,12 @@ export function ReviewPacketView({
   )
   const selfSubmitted = selfReviewSubmitted(packet)
   const managerSubmitted = managerReviewIsComplete(packet.status)
-  const managerSeesSelf = isManager && managerCanSeeSelfReview(packet)
-  const showSelfForm = selfOn && (isSubject || !isManager || managerSeesSelf)
+  const selfReviewBlinded = managerIsBlindedFromSelfReview(
+    packet,
+    viewerId,
+    reviewAccess,
+  )
+  const showSelfForm = selfOn && (isSubject || !selfReviewBlinded)
   const showManagerForm = managerOn && (isManager || employeeOutputReleased)
   const showCalibrationForm =
     editing && calOn && isManager && calibrationIsEditable(packet.status)
@@ -566,25 +596,39 @@ export function ReviewPacketView({
     packet.status === 'released_to_employees' ||
     packet.status === 'released_to_managers'
   const selfFormLocked = !editing || !isSubject || selfSubmitted
+  const viewingManagerForm = stageView.viewing === 'manager_review'
+  const viewingSelfForm = stageView.viewing === 'self_review'
+  const viewingPublishedForm = stageView.viewing === 'publish_employees'
+  const editStage = scorecardEditStage(stageView.viewing, {
+    selfOn,
+    managerOn,
+    isSubject,
+  })
   const windowLock = describeReviewEditWindowLock({
     cycle,
     stages,
-    formStage:
-      feedbackRole === 'manager'
-        ? 'manager_review'
-        : feedbackRole === 'self'
-          ? 'self_review'
-          : stageView.viewing,
+    formStage: editStage,
   })
   const windowClosed = Boolean(windowLock)
+  const editLock = describeReviewEditLock({
+    cycle,
+    stages,
+    formStage: editStage,
+    packet,
+    isSubject,
+    isManager,
+  })
+  const missedManagerNotice = managerMissedDeadlineNotice(packet)
+  // editLock already owns this copy on the manager form — don't stack a twin.
+  const missedManagerRibbon =
+    missedManagerNotice && editLock?.title !== missedManagerNotice.title
+      ? missedManagerNotice
+      : null
   const goalsGradeLocked =
     !editing ||
     windowClosed ||
     (goalsGradeRole === 'manager' ? managerFormLocked : selfFormLocked)
   const q4GradeLocked = goalsGradeLocked
-  const viewingManagerForm = stageView.viewing === 'manager_review'
-  const viewingSelfForm = stageView.viewing === 'self_review'
-  const viewingPublishedForm = stageView.viewing === 'publish_employees'
   const showReviewForm = stageShowsReviewForm(stageView.viewing)
   const showSelfPacket = editing
     ? showSelfForm && (viewingSelfForm || (viewingPublishedForm && isSubject))
@@ -593,29 +637,64 @@ export function ReviewPacketView({
     ? showManagerForm && (viewingManagerForm || viewingPublishedForm)
     : showReviewForm && viewingFeedbackRole === 'manager'
   const formOwnsOverall =
-    gradeOverall && (showSelfPacket || showManagerPacket)
+    (showSelfPacket || showManagerPacket) &&
+    (gradeOverall || (editing && canMarkLeave))
   const formActorRole = viewingSelfForm && showSelfPacket ? 'self' : 'manager'
   const formLocked =
     !editing ||
     windowClosed ||
     (formActorRole === 'manager' ? managerFormLocked : selfFormLocked)
-  const editStage = scorecardEditStage(stageView.viewing, {
-    selfOn,
-    managerOn,
-    isSubject,
-  })
-  const formStillEditable = scorecardReviewFormIsEditable(
-    editStage,
-    packet,
-    isSubject,
-  )
-  const showEditAction =
-    !editing &&
-    Boolean(packet) &&
-    !windowLock &&
-    formStillEditable &&
-    (editStage === 'self_review' ? isSubject : isManager)
+  const showEditAction = !editing && Boolean(packet) && !editLock
   const viewingGrade = gradeForViewStage(packet, stageView.viewing, viewerId)
+  const managerSuggestedOverall =
+    policy.managerReview.gradeSuggestion === 'weighted_suggest'
+      ? combinePillarScores({
+          policy,
+          pillarGrades: Object.fromEntries(
+            Object.entries(managerExtraGrades).map(([id, grade]) => [
+              id,
+              grade || null,
+            ]),
+          ),
+        }).suggestedGrade
+      : null
+  const draftAnswersById = Object.fromEntries(
+    (packetDraft?.answers ?? []).map((answer) => [
+      answer.questionId,
+      answer.body,
+    ]),
+  )
+  const submitBlock =
+    editing && formActorRole
+      ? describeScorecardSubmitBlock({
+          policy,
+          actorRole: formActorRole,
+          leave: Boolean(packet.leaveQuarter),
+          overallGrade:
+            packetDraft?.overallGrade ??
+            (formActorRole === 'self'
+              ? packet.selfOverallGrade
+              : packet.managerOverallGrade),
+          goalsGrade,
+          q4Grade,
+          useWeightedSuggest:
+            useWeightedSuggest && formActorRole === 'manager',
+          answersById: draftAnswersById,
+          pillarScores: packetDraft?.pillarScores,
+          skillIds: assignedSkills.map((skill) => skill.id),
+          skillGrades,
+          valueIds: enabledValues.map((value) => value.id),
+          valueGrades,
+          strengths,
+          developments,
+          suggestedGrade: managerSuggestedOverall,
+          selfOverallGrade: packet.selfOverallGrade,
+          gapCommentTiers: policy.managerReview.gapCommentTiers,
+          overrideReason,
+        })
+      : null
+  const submitBlocked = Boolean(submitBlock)
+  const submitBlockedTitle = submitBlock ?? undefined
 
   const viewHref = `${scorecardDetailPath(
     detail?.cycleKey ?? cycleId,
@@ -637,6 +716,40 @@ export function ReviewPacketView({
   const savePacket = async (submit: boolean) => {
     const draft =
       packetDraft ?? packetDraftFromPacket(packet, formActorRole)
+    if (submit) {
+      const missing = describeScorecardSubmitBlock({
+        policy,
+        actorRole: formActorRole,
+        leave: Boolean(packet.leaveQuarter),
+        overallGrade: draft.overallGrade,
+        goalsGrade,
+        q4Grade,
+        useWeightedSuggest:
+          useWeightedSuggest && formActorRole === 'manager',
+        answersById: Object.fromEntries(
+          draft.answers.map((answer) => [answer.questionId, answer.body]),
+        ),
+        pillarScores: draft.pillarScores,
+        skillIds: assignedSkills.map((skill) => skill.id),
+        skillGrades,
+        valueIds: enabledValues.map((value) => value.id),
+        valueGrades,
+        strengths,
+        developments,
+        suggestedGrade: managerSuggestedOverall,
+        selfOverallGrade: packet.selfOverallGrade,
+        gapCommentTiers: policy.managerReview.gapCommentTiers,
+        overrideReason,
+      })
+      if (missing) {
+        setSaveNotice({
+          variant: 'error',
+          message: missing,
+          shownAt: Date.now(),
+        })
+        return
+      }
+    }
     setSaving(true)
     setSaveNotice(null)
     try {
@@ -709,6 +822,14 @@ export function ReviewPacketView({
         goalsComponent: useWeightedSuggest
           ? annualGoalsComponent(q4Grade || null)
           : draft.goalsComponent,
+        overrideReason:
+          formActorRole === 'manager' ? overrideReason : undefined,
+        suggestedGrade:
+          formActorRole === 'manager' ? managerSuggestedOverall : undefined,
+        gapCommentTiers:
+          formActorRole === 'manager'
+            ? policy.managerReview.gapCommentTiers
+            : undefined,
         actorRole: formActorRole,
         submit,
       })
@@ -737,7 +858,10 @@ export function ReviewPacketView({
 
   return (
     <>
-      {windowLock ? <ReviewEditLockRibbon lock={windowLock} /> : null}
+      {editLock ? <ReviewEditLockRibbon lock={editLock} /> : null}
+      {missedManagerRibbon ? (
+        <ReviewEditLockRibbon lock={missedManagerRibbon} />
+      ) : null}
       <div
         className="pd-page pd-page--wide pd-reviews pd-reviews-scorecard pd-review-packet"
         aria-label={
@@ -807,46 +931,12 @@ export function ReviewPacketView({
             }
             annualGoalsGradeLocked={goalsGradeLocked}
             goalsWeight={goalsPillar?.weight}
-            canMarkLeave={canMarkLeave}
+            canMarkLeave={editing && canMarkLeave}
             leaveBusyPacketId={leaveBusyPacketId}
-            onLeaveChange={markLeaveQuarter}
+            onLeaveChange={editing && canMarkLeave ? markLeaveQuarter : undefined}
           />
         ) : detail ? (
           <>
-            {packet.leaveQuarter ? (
-              <section className="pd-reviews-edit-card" aria-label="Leave quarter">
-                <h2 className="pd-reviews-edit-card__title">Leave (O)</h2>
-                <p className="pd-reviews-flow__hint">
-                  This person is marked on leave for the whole quarter. The
-                  quarter is excluded from the annual goals average.
-                </p>
-                {canMarkLeave ? (
-                  <Button
-                    variant="secondary"
-                    disabled={leaveBusyPacketId === packet.id}
-                    onClick={() => void markLeaveQuarter(packet.id, false)}
-                  >
-                    Clear leave
-                  </Button>
-                ) : null}
-              </section>
-            ) : canMarkLeave ? (
-              <section className="pd-reviews-edit-card" aria-label="Leave quarter">
-                <h2 className="pd-reviews-edit-card__title">Full-quarter leave</h2>
-                <p className="pd-reviews-flow__hint">
-                  Mark leave (O) when this person was away for the entire
-                  quarter. The quarter will drop out of the annual goals
-                  average.
-                </p>
-                <Button
-                  variant="secondary"
-                  disabled={leaveBusyPacketId === packet.id}
-                  onClick={() => void markLeaveQuarter(packet.id, true)}
-                >
-                  Mark leave (O)
-                </Button>
-              </section>
-            ) : null}
             {isGoalsOnlyQuarter(cycle.periodKey) ? (
               <p className="pd-reviews-flow__hint">
                 Progress only — the manager sets the Goals grade in the annual
@@ -951,16 +1041,25 @@ export function ReviewPacketView({
           />
         ) : null}
 
-        {viewingSelfForm && isManager && !managerSubmitted ? (
+        {viewingSelfForm && selfReviewBlinded && !managerSubmitted ? (
           <p className="pd-reviews-flow__hint">
             Submit your review to see this person&apos;s self-review.
           </p>
         ) : null}
-        {viewingSelfForm && isManager && managerSubmitted && !selfSubmitted ? (
+        {viewingSelfForm &&
+        selfReviewBlinded &&
+        managerSubmitted &&
+        !selfSubmitted ? (
           <p className="pd-reviews-flow__hint">Self-review not submitted.</p>
         ) : null}
+        {viewingManagerForm && packet.managerMissedDeadline ? (
+          <p className="pd-reviews-flow__hint" role="status">
+            Manager missed the review deadline. There is no manager rating —
+            HOD can set the final grade in calibration.
+          </p>
+        ) : null}
 
-        {showSelfPacket ? (
+        {showSelfPacket && !selfReviewBlinded ? (
           <PacketForm
             title="Self-Review"
             locked={
@@ -989,6 +1088,16 @@ export function ReviewPacketView({
             ]}
             showOverall={gradeOverall}
             suggestOverall={editing && useWeightedSuggest}
+            leave={Boolean(packet.leaveQuarter)}
+            allowLeave={editing && canMarkLeave && !showManagerPacket}
+            leaveBusy={leaveBusyPacketId === packet.id}
+            onLeaveChange={
+              editing && canMarkLeave && !showManagerPacket
+                ? (next) => void markLeaveQuarter(packet.id, next)
+                : undefined
+            }
+            overrideReason={overrideReason}
+            onOverrideReasonChange={undefined}
             onDraftChange={setPacketDraft}
             onUserEdit={() => setDirty(true)}
           />
@@ -1024,13 +1133,34 @@ export function ReviewPacketView({
                 : []),
             ]}
             showOverall={gradeOverall}
-            suggestOverall={editing && useWeightedSuggest}
+            suggestOverall={
+              policy.managerReview.gradeSuggestion === 'weighted_suggest'
+            }
+            leave={Boolean(packet.leaveQuarter)}
+            allowLeave={editing && canMarkLeave}
+            leaveBusy={leaveBusyPacketId === packet.id}
+            onLeaveChange={
+              editing && canMarkLeave
+                ? (next) => void markLeaveQuarter(packet.id, next)
+                : undefined
+            }
+            overrideReason={overrideReason}
+            onOverrideReasonChange={
+              editing
+                ? (next) => {
+                    setOverrideReason(next)
+                    setDirty(true)
+                  }
+                : undefined
+            }
             onDraftChange={setPacketDraft}
             onUserEdit={() => setDirty(true)}
           />
         ) : null}
 
-        {gradeOverall && !formOwnsOverall ? (
+        {(gradeOverall || (editing && canMarkLeave)) &&
+        !formOwnsOverall &&
+        !(viewingSelfForm && selfReviewBlinded) ? (
           <section className="pd-reviews-edit-card" aria-label="Overall Grading">
             <OverallGradePicker
               name="scorecard-overall-grade-readonly"
@@ -1042,11 +1172,30 @@ export function ReviewPacketView({
                 ''
               }
               disabled
+              leave={Boolean(packet.leaveQuarter)}
+              allowLeave={editing && canMarkLeave}
+              leaveBusy={leaveBusyPacketId === packet.id}
+              onLeaveChange={
+                editing && canMarkLeave
+                  ? (next) => void markLeaveQuarter(packet.id, next)
+                  : undefined
+              }
+              reasonNeed={
+                packet.managerOverrideReason
+                  ? {
+                      required: false,
+                      title: 'Why this overall grade?',
+                      hint: 'Recorded when this overall grade was set.',
+                    }
+                  : null
+              }
+              reason={packet.managerOverrideReason}
             />
           </section>
         ) : null}
 
         {stageShowsReviewForm(stageView.viewing) &&
+        !(viewingSelfForm && selfReviewBlinded) &&
           feedbackEnabledForVisibility(
             policy,
             feedbackRole === 'self' ? 'employee' : 'manager',
@@ -1119,7 +1268,8 @@ export function ReviewPacketView({
                     <Button
                       variant="primary"
                       pill
-                      disabled={saving}
+                      disabled={saving || submitBlocked}
+                      title={submitBlockedTitle}
                       onClick={() => void savePacket(true)}
                     >
                       Submit
@@ -1304,6 +1454,12 @@ function PacketForm({
   hidePillarIds = [],
   showOverall = true,
   suggestOverall = false,
+  leave = false,
+  allowLeave = false,
+  leaveBusy = false,
+  onLeaveChange,
+  overrideReason = '',
+  onOverrideReasonChange,
   onDraftChange,
   onUserEdit,
 }: {
@@ -1320,6 +1476,12 @@ function PacketForm({
   hidePillarIds?: string[]
   showOverall?: boolean
   suggestOverall?: boolean
+  leave?: boolean
+  allowLeave?: boolean
+  leaveBusy?: boolean
+  onLeaveChange?: (leave: boolean) => void
+  overrideReason?: string
+  onOverrideReasonChange?: (value: string) => void
   onDraftChange: (draft: PacketDraft) => void
   onUserEdit: () => void
 }) {
@@ -1339,6 +1501,7 @@ function PacketForm({
   })
   const [overallGrade, setOverallGrade] = useState<GradeBandId | ''>(overall ?? '')
   const [overallTouched, setOverallTouched] = useState(Boolean(overall))
+  const [reason, setReason] = useState(overrideReason)
   const lastDraftJson = useRef('')
   const lastAppliedSuggestion = useRef<GradeBandId | null>(null)
 
@@ -1349,7 +1512,7 @@ function PacketForm({
   const formQuestions = questions.filter(
     (question) => !isScorecardFeedbackQuestion(question.id),
   )
-  const suggestedOverall = suggestOverall
+  const overallCalculation = suggestOverall
     ? combinePillarScores({
       policy,
       pillarGrades: Object.fromEntries(
@@ -1358,8 +1521,23 @@ function PacketForm({
           grade || null,
         ]),
       ),
-    }).suggestedGrade
+    })
     : null
+  const suggestedOverall = overallCalculation?.suggestedGrade ?? null
+  const calculationRows =
+    overallCalculation?.used.map((row) => ({
+      label: row.pillar.label,
+      weight: row.pillar.weight,
+      gradeLabel: GRADE_BAND_META[row.grade].label,
+    })) ?? undefined
+  const reasonNeed = overallGradeReasonNeed({
+    actorRole,
+    overallGrade,
+    leave,
+    suggestedGrade: suggestedOverall,
+    selfOverallGrade: packet.selfOverallGrade,
+    gapCommentTiers: policy.managerReview.gapCommentTiers,
+  })
 
   useEffect(() => {
     if (!suggestOverall || !suggestedOverall || locked) return
@@ -1400,6 +1578,7 @@ function PacketForm({
         comment: '',
       })),
       overallGrade: (overallGrade || null) as GradeBandId | null,
+      overrideReason: actorRole === 'manager' ? reason : undefined,
     }
     const serialized = JSON.stringify(draft)
     if (serialized === lastDraftJson.current) return
@@ -1414,6 +1593,8 @@ function PacketForm({
     overallGrade,
     pillars,
     questions,
+    reason,
+    actorRole,
   ])
 
   const hasQuestionCard = formPillars.length > 0 || formQuestions.length > 0
@@ -1456,13 +1637,29 @@ function PacketForm({
           ))}
         </section>
       ) : null}
-      {showOverall ? (
+      {showOverall || allowLeave ? (
         <section className="pd-reviews-edit-card" aria-label="Overall Grading">
           <OverallGradePicker
             name={`packet-grade-${actorRole}-overall`}
             value={overallGrade}
-            disabled={locked}
-            suggestedGrade={suggestedOverall}
+            disabled={locked || !showOverall}
+            suggestedGrade={showOverall ? suggestedOverall : null}
+            calculationRows={showOverall ? calculationRows : undefined}
+            leave={leave}
+            allowLeave={allowLeave}
+            leaveBusy={leaveBusy}
+            onLeaveChange={onLeaveChange}
+            reasonNeed={reasonNeed}
+            reason={reason}
+            onReasonChange={
+              onOverrideReasonChange
+                ? (next) => {
+                    setReason(next)
+                    onOverrideReasonChange(next)
+                    onUserEdit()
+                  }
+                : undefined
+            }
             onChange={(next) => {
               setOverallTouched(true)
               setOverallGrade(next)

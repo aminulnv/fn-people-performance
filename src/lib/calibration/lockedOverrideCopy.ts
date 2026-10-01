@@ -9,7 +9,7 @@ export const LOCKED_OVERRIDE_ACK_LABEL =
 export const LOCK_SESSION_TITLE = 'Lock this calibration session?'
 
 export const LOCK_SESSION_DESCRIPTION =
-  'Locking freezes calibrated ratings and session notes for this cycle. Calibrators will no longer be able to edit. Platform administrators can unlock the session later, or change a rating with justification while it stays locked.'
+  'Ratings and notes freeze. Calibrators can’t edit. Admins can unlock later, or change a rating with justification.'
 
 export const LOCK_SESSION_CONFIRM = 'Lock session'
 

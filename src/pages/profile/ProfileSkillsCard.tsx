@@ -67,10 +67,6 @@ export function ProfileSkillsCard({
                 <span className="pd-profile__skill-chip-meta">
                   {skill.expectedHint}
                 </span>
-              ) : skill.department ? (
-                <span className="pd-profile__skill-chip-meta">
-                  {skill.department}
-                </span>
               ) : null}
             </li>
           ))}

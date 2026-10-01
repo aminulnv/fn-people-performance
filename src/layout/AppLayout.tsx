@@ -23,7 +23,10 @@ import { getGoalsSnapshot } from '@/lib/goals/store'
 import { displayGoalTitle } from '@/lib/goals/weightage'
 import { cycleLabelFromKey } from '@/lib/reviews/scorecards'
 import { isCalibrationTabRoot } from '@/lib/calibration/paths'
-import { isOrganisationTabRoot } from '@/lib/organisation/paths'
+import {
+  isOrganisationTabRoot,
+  organisationTabsCurrent,
+} from '@/lib/organisation/paths'
 import { isReviewsTabRoot } from '@/lib/reviews/paths'
 import { CalibrationTabs } from './CalibrationTabs'
 import { OrganisationTabs } from './OrganisationTabs'
@@ -233,11 +236,7 @@ export function AppLayout({
   const sectionTabs = isReviewsTabRoot(pathname) ? (
     <ReviewsTabs />
   ) : isOrganisationTabRoot(pathname) ? (
-    <OrganisationTabs
-      current={
-        pathname === '/organisation/roles/new' ? 'roles' : undefined
-      }
-    />
+    <OrganisationTabs current={organisationTabsCurrent(pathname)} />
   ) : isCalibrationTabRoot(pathname) ? (
     <CalibrationTabs />
   ) : undefined

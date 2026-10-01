@@ -8,7 +8,6 @@ import { emptySkillMastery } from '@/lib/skills/types'
 const skill: Skill = {
   id: 'skill-ai-fluency',
   name: 'AI Fluency',
-  department: 'Engineering',
   role: '',
   status: 'approved',
   mastery: emptySkillMastery(),
@@ -47,8 +46,8 @@ describe('ScorecardSkillsGradeCard', () => {
       </MemoryRouter>,
     )
     fireEvent.click(screen.getByRole('button', { name: 'AI Fluency grade' }))
-    fireEvent.click(screen.getByRole('option', { name: 'Performing' }))
-    expect(onGradeChange).toHaveBeenCalledWith('skill-ai-fluency', 'performing')
+    fireEvent.click(screen.getByRole('option', { name: 'Intermediate' }))
+    expect(onGradeChange).toHaveBeenCalledWith('skill-ai-fluency', 'intermediate')
   })
 
   it('shows the expected level from the role matrix', () => {
@@ -63,7 +62,47 @@ describe('ScorecardSkillsGradeCard', () => {
     expect(screen.getByText('Expected: Expert for IC2')).toBeTruthy()
   })
 
+  it('shows mastery rubric bands when mastery text is set', () => {
+    render(
+      <MemoryRouter>
+        <ScorecardSkillsGradeCard
+          skills={[
+            {
+              ...skill,
+              mastery: {
+                ...emptySkillMastery(),
+                intermediate: 'Applies the skill reliably on day-to-day work.',
+                expert: 'Sets the bar for the org on this skill.',
+              },
+            },
+          ]}
+          grades={{ 'skill-ai-fluency': 'intermediate' }}
+        />
+      </MemoryRouter>,
+    )
+    expect(
+      screen.getByText('Applies the skill reliably on day-to-day work.'),
+    ).toBeTruthy()
+    expect(
+      screen.getByText('Sets the bar for the org on this skill.'),
+    ).toBeTruthy()
+    expect(screen.queryByText('Poor')).toBeNull()
+  })
+
   it('shows read-only grades on the view scorecard', () => {
+    render(
+      <MemoryRouter>
+        <ScorecardSkillsGradeCard
+          skills={[skill]}
+          grades={{ 'skill-ai-fluency': 'advanced' }}
+        />
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Advanced')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'AI Fluency grade' })).toBeNull()
+  })
+
+  it('maps legacy performance bands to mastery labels', () => {
     render(
       <MemoryRouter>
         <ScorecardSkillsGradeCard
@@ -72,8 +111,7 @@ describe('ScorecardSkillsGradeCard', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByText('Exceeding')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: 'AI Fluency grade' })).toBeNull()
+    expect(screen.getByText('Advanced')).toBeTruthy()
   })
 
   it('shows a quiet prior note when Skills is off but grades remain', () => {
@@ -92,7 +130,7 @@ describe('ScorecardSkillsGradeCard', () => {
     expect(
       screen.getByText('Saved grades. Not counted while Skills is off.'),
     ).toBeTruthy()
-    expect(screen.getByText('Performing')).toBeTruthy()
+    expect(screen.getByText('Intermediate')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'AI Fluency grade' })).toBeNull()
   })
 })

@@ -35,7 +35,7 @@ export function GoalApprovalCard({
       className={`pd-goal-view__approval pd-goal-view__approval--${approval.tone}`}
     >
       <span className="pd-goal-view__approval-icon" aria-hidden>
-        <Check size={16} strokeWidth={2.5} />
+        <Check size={13} strokeWidth={2.25} />
       </span>
       <div className="pd-goal-view__approval-copy">
         <p className="pd-goal-view__approval-title">{approval.title}</p>

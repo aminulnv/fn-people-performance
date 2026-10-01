@@ -7,6 +7,8 @@ import { fetchNotifications, watchNotifications } from '@/lib/notificationsApi'
 import { queryKeys } from '@/lib/queryClient'
 import { buildEmployeeScorecardHistory } from '@/lib/reviews/scorecards'
 import { listReviewCycles, subscribeReviewsStore } from '@/lib/reviews/store'
+import { listRoles, subscribeRolesStore } from '@/lib/roles/store'
+import { getSkillsSnapshot, subscribeSkillsStore } from '@/lib/skills/store'
 import { useAuth } from '@/lib/useAuth'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { buildSearchCatalog } from './catalog'
@@ -24,9 +26,13 @@ export function useSearchCatalog(): SearchItem[] {
   )
   const [goalsTick, setGoalsTick] = useState(0)
   const [reviewsTick, setReviewsTick] = useState(0)
+  const [skillsTick, setSkillsTick] = useState(0)
+  const [rolesTick, setRolesTick] = useState(0)
 
   useEffect(() => subscribeGoalsStore(() => setGoalsTick((n) => n + 1)), [])
   useEffect(() => subscribeReviewsStore(() => setReviewsTick((n) => n + 1)), [])
+  useEffect(() => subscribeSkillsStore(() => setSkillsTick((n) => n + 1)), [])
+  useEffect(() => subscribeRolesStore(() => setRolesTick((n) => n + 1)), [])
   useEffect(
     () =>
       watchNotifications(() => {
@@ -46,6 +52,8 @@ export function useSearchCatalog(): SearchItem[] {
   return useMemo(() => {
     void goalsTick
     void reviewsTick
+    void skillsTick
+    void rolesTick
 
     const goals = getGoalsSnapshot()
     const userEmail = user?.email.trim().toLowerCase() ?? ''
@@ -77,7 +85,18 @@ export function useSearchCatalog(): SearchItem[] {
       scorecards: me
         ? buildEmployeeScorecardHistory(me, employees, user?.email)
         : [],
+      skills: getSkillsSnapshot(),
+      roles: listRoles(),
       notifications: feed?.items ?? [],
     })
-  }, [employees, feed?.items, goalsTick, organisation, reviewsTick, user])
+  }, [
+    employees,
+    feed?.items,
+    goalsTick,
+    organisation,
+    reviewsTick,
+    rolesTick,
+    skillsTick,
+    user,
+  ])
 }

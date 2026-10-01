@@ -23,6 +23,17 @@ describe('parseSearchQuery', () => {
     })
   })
 
+  it('reads skill and role prefixes', () => {
+    expect(parseSearchQuery('skill: administrative')).toEqual({
+      scope: 'organisation',
+      text: 'administrative',
+    })
+    expect(parseSearchQuery('role: QA')).toEqual({
+      scope: 'organisation',
+      text: 'QA',
+    })
+  })
+
   it('leaves unprefixed text in the all scope', () => {
     expect(parseSearchQuery('reviews')).toEqual({
       scope: 'all',

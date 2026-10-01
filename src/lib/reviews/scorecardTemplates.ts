@@ -184,12 +184,63 @@ export const DEFAULT_ANNUAL_QUESTIONS: ReviewQuestion[] = [
     id: 'retain',
     prompt: 'Will we do what it takes to retain this person?',
     enabled: true,
-    required: false,
-    kind: 'open_ended',
-    visibility: ['calibrators'],
+    required: true,
+    kind: 'yes_no',
+    visibility: ['manager'],
+    outputVisibility: ['manager'],
+  },
+  {
+    id: 'engaged',
+    prompt: 'Is this person fully engaged in their role?',
+    enabled: true,
+    required: true,
+    kind: 'yes_no',
+    visibility: ['manager'],
     outputVisibility: ['manager'],
   },
 ]
+
+/** Locked Session #5 manager flags — LM answers; employee never sees; HOD reads via calibration. */
+export const MANAGER_RETENTION_QUESTION_IDS = ['retain', 'engaged'] as const
+
+function lockedManagerRetentionQuestion(
+  base: ReviewQuestion,
+): ReviewQuestion {
+  return {
+    ...base,
+    enabled: true,
+    required: true,
+    kind: 'yes_no',
+    visibility: ['manager'],
+    outputVisibility: ['manager'],
+  }
+}
+
+/**
+ * Annual policies always carry mandatory retain + engagement Yes/No flags
+ * on the manager review only (not published to the employee).
+ */
+export function ensureManagerRetentionQuestions(
+  questions: ReviewQuestion[],
+): ReviewQuestion[] {
+  const defaults = DEFAULT_ANNUAL_QUESTIONS.filter((question) =>
+    (MANAGER_RETENTION_QUESTION_IDS as readonly string[]).includes(question.id),
+  )
+  const byId = new Map(questions.map((question) => [question.id, question]))
+  const without = questions.filter(
+    (question) =>
+      !(MANAGER_RETENTION_QUESTION_IDS as readonly string[]).includes(question.id),
+  )
+  const ensured = defaults.map((fallback) => {
+    const existing = byId.get(fallback.id)
+    if (!existing) return { ...fallback }
+    return lockedManagerRetentionQuestion({
+      ...existing,
+      prompt: existing.prompt.trim() || fallback.prompt,
+    })
+  })
+  return [...without, ...ensured]
+}
 
 /** Q1–Q3 manager check-in: one comment. No self-review question bank. */
 export const DEFAULT_QUARTERLY_QUESTIONS: ReviewQuestion[] = [
@@ -378,9 +429,18 @@ export const SCORECARD_TEMPLATES: ScorecardTemplate[] = [
         id: 'lead-retain',
         prompt: 'Will we do what it takes to retain this person?',
         enabled: true,
-        required: false,
-        kind: 'open_ended',
-        visibility: ['calibrators'],
+        required: true,
+        kind: 'yes_no',
+        visibility: ['manager'],
+        outputVisibility: ['manager'],
+      },
+      {
+        id: 'lead-engaged',
+        prompt: 'Is this person fully engaged in their role?',
+        enabled: true,
+        required: true,
+        kind: 'yes_no',
+        visibility: ['manager'],
         outputVisibility: ['manager'],
       },
     ],

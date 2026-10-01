@@ -389,6 +389,13 @@ export type ReviewPacket = {
    * The quarter is dropped from the annual goals average.
    */
   leaveQuarter?: boolean;
+  /**
+   * Manager review deadline passed with no (complete) manager submission.
+   * Packet was force-moved so HOD can set the final rating.
+   */
+  managerMissedDeadline?: boolean;
+  /** When the packet was force-moved past the missed manager deadline. */
+  managerForceMovedAt?: string | null;
   selfOverallGrade: GradeBandId | null;
   managerOverallGrade: GradeBandId | null;
   calibratedOverallGrade: GradeBandId | null;

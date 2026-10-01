@@ -1,8 +1,12 @@
 export type SkillStatus = 'approved' | 'draft'
 
-/** Skill mastery bands (Not Applicable → Expert). `none` is Not Applicable. */
+/**
+ * Skill mastery bands (Not Applicable → Expert).
+ * `none` is Not Applicable on the role matrix; grading uses Poor…Expert.
+ */
 export const SKILL_MASTERY_LEVELS = [
   'none',
+  'poor',
   'basic',
   'intermediate',
   'advanced',
@@ -11,12 +15,24 @@ export const SKILL_MASTERY_LEVELS = [
 
 export type SkillMasteryLevel = (typeof SKILL_MASTERY_LEVELS)[number]
 
+/** Gradable skill levels (excludes Not Applicable). Weights: Poor=1 … Expert=5. */
+export const SKILL_GRADE_LEVELS = [
+  'poor',
+  'basic',
+  'intermediate',
+  'advanced',
+  'expert',
+] as const
+
+export type SkillGradeLevel = (typeof SKILL_GRADE_LEVELS)[number]
+
 /** What each mastery level means for this skill. */
 export type SkillMastery = Record<SkillMasteryLevel, string>
 
 export function emptySkillMastery(): SkillMastery {
   return {
     none: '',
+    poor: '',
     basic: '',
     intermediate: '',
     advanced: '',
@@ -28,8 +44,6 @@ export function emptySkillMastery(): SkillMastery {
 export type Skill = {
   id: string
   name: string
-  /** Department the skill is most used in. Empty = company-wide. */
-  department: string
   /**
    * Legacy free-text tag. Not used for inheritance or grading — roles that
    * use a skill come from the role competency matrix (`rolesForSkill`).

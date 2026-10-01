@@ -47,7 +47,7 @@ export function ValueFormFields({
       name: title,
       description,
       status,
-      behaviours: [],
+      behaviours: existing?.behaviours ?? [],
     }
     const save =
       mode === 'edit' && existing

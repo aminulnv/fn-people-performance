@@ -13,7 +13,6 @@ export async function fetchSkillsSnapshotRemote(): Promise<{
 
 export async function createSkillRemote(body: {
   name: string
-  department?: string
   role?: string
   status?: Skill['status']
   mastery?: SkillMastery
@@ -29,7 +28,6 @@ export async function updateSkillRemote(
   skillId: string,
   body: {
     name: string
-    department?: string
     role?: string
     status?: Skill['status']
     mastery?: SkillMastery

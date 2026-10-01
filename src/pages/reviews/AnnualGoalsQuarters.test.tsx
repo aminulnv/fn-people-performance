@@ -151,7 +151,28 @@ describe("AnnualGoalsQuarters", () => {
       onQ4GradeChange: () => undefined,
     });
 
-    expect(screen.getByRole("button", { name: "Q4 Goals Grading" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Q4 2026 grade or leave" })).toBeTruthy();
     expect(screen.queryByLabelText("Goals (50%)")).toBeNull();
+  });
+
+  it("shows grade badges in view mode instead of leave dropdowns", () => {
+    renderQuarters({
+      canMarkLeave: false,
+      onLeaveChange: () => undefined,
+    });
+
+    expect(screen.queryByRole("button", { name: /grade or leave/ })).toBeNull();
+    expect(screen.getByLabelText("Q1 2026 grade")).toHaveTextContent("Performing");
+    expect(screen.getByLabelText("Q2 2026 grade")).toHaveTextContent("Exceeding");
+  });
+
+  it("shows leave-capable grade dropdowns only when leave editing is enabled", () => {
+    renderQuarters({
+      canMarkLeave: true,
+      onLeaveChange: () => undefined,
+    });
+
+    expect(screen.getByRole("button", { name: "Q1 2026 grade or leave" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Q2 2026 grade or leave" })).toBeTruthy();
   });
 });

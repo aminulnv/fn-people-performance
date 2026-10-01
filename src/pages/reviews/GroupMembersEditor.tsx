@@ -11,6 +11,7 @@ import {
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import {
+  CircleAlert,
   ListFilter,
   Search,
   UserCheck,
@@ -21,6 +22,7 @@ import {
   Button,
   ConfirmDialog,
   SegmentedControl,
+  Tooltip,
 } from '@/components/ui'
 import { avatarStyle } from '@/lib/employees/avatar'
 import type { PlatformEmployee } from '@/lib/employees/types'
@@ -56,6 +58,8 @@ type GroupMembersEditorProps = {
   /** Controlled Added / Not added segment (hash-linked by the parent). */
   pane?: Pane
   onPaneChange?: (pane: Pane) => void
+  /** Why a person cannot be added — tooltip on the error icon; blocks selection. */
+  ineligibilityByEmployeeId?: Record<number, string>
 }
 
 type ListRow = {
@@ -66,6 +70,10 @@ type ListRow = {
   ids: number[]
   person: PlatformEmployee
   score: number
+  /** Not selectable for add (e.g. annual eligibility). */
+  disabled?: boolean
+  /** Shown in a tooltip on the error icon that replaces the checkbox. */
+  ineligibleReason?: string
 }
 
 function personMatchesQuery(employee: PlatformEmployee, query: string): boolean {
@@ -157,27 +165,47 @@ function PersonTableRow({
   onToggle: () => void
 }) {
   const reviewerName = row.person.reportsToName.trim()
+  const ineligibleReason = row.ineligibleReason?.trim() || null
   return (
-    <tr className={checked ? 'is-selected' : undefined}>
+    <tr
+      className={[
+        checked ? 'is-selected' : '',
+        ineligibleReason ? 'is-ineligible' : '',
+      ]
+        .filter(Boolean)
+        .join(' ') || undefined}
+    >
       <td className="pd-cycle-setup__people-select-cell">
-        <label className="pd-cycle-setup__people-select">
-          <input
-            type="checkbox"
-            className="pd-sr-only"
-            checked={checked}
-            aria-label={`Select ${row.label}`}
-            onChange={onToggle}
-          />
-          <span
-            className={[
-              'pd-cycle-extensions__search-check',
-              checked ? 'is-checked' : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-            aria-hidden
-          />
-        </label>
+        {ineligibleReason ? (
+          <Tooltip content={ineligibleReason} side="right" portal delayMs={80}>
+            <span
+              className="pd-cycle-groups-members__ineligible"
+              tabIndex={0}
+              aria-label={`${row.label} cannot be added. ${ineligibleReason}`}
+            >
+              <CircleAlert size={16} strokeWidth={2} aria-hidden />
+            </span>
+          </Tooltip>
+        ) : (
+          <label className="pd-cycle-setup__people-select">
+            <input
+              type="checkbox"
+              className="pd-sr-only"
+              checked={checked}
+              aria-label={`Select ${row.label}`}
+              onChange={onToggle}
+            />
+            <span
+              className={[
+                'pd-cycle-extensions__search-check',
+                checked ? 'is-checked' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              aria-hidden
+            />
+          </label>
+        )}
       </td>
       <td className="pd-people__name-cell">
         <span
@@ -755,10 +783,12 @@ function PeopleTable({
   onToggle: (row: ListRow) => void
 }) {
   const scrollRef = useRef<HTMLDivElement>(null)
-  const checkedRowCount = rows.filter((row) =>
+  const selectableRows = rows.filter((row) => !row.disabled)
+  const checkedRowCount = selectableRows.filter((row) =>
     row.ids.every((id) => checkedIds.has(id)),
   ).length
-  const allRowsChecked = rows.length > 0 && checkedRowCount === rows.length
+  const allRowsChecked =
+    selectableRows.length > 0 && checkedRowCount === selectableRows.length
   const someRowsChecked = checkedRowCount > 0 && !allRowsChecked
   const shouldVirtualize = rows.length >= VIRTUALIZE_AFTER
   const virtualizer = useVirtualizer({
@@ -914,6 +944,7 @@ export function GroupMembersEditor({
   placeholder = 'Search by name, department, team, or role…',
   pane: paneProp,
   onPaneChange,
+  ineligibilityByEmployeeId = {},
 }: GroupMembersEditorProps) {
   const { employees } = useEmployees()
   const [query, setQuery] = useState('')
@@ -1090,6 +1121,7 @@ export function GroupMembersEditor({
         }
 
         if (!buildAvailable || !employee.isActive || !matches) continue
+        const ineligible = ineligibilityByEmployeeId[employee.employeeId]
         const hint = moveHint(
           employee.employeeId,
           claimedElsewhere,
@@ -1099,11 +1131,15 @@ export function GroupMembersEditor({
           key: `person:${employee.employeeId}`,
           label: employee.fullName,
           description: personDescription(hint),
-          actionLabel: hint
-            ? `Include ${employee.fullName}. ${hint}`
-            : `Include ${employee.fullName}`,
+          actionLabel: ineligible
+            ? `${employee.fullName} cannot be added. ${ineligible}`
+            : hint
+              ? `Include ${employee.fullName}. ${hint}`
+              : `Include ${employee.fullName}`,
           ids: [employee.employeeId],
           person: employee,
+          disabled: Boolean(ineligible),
+          ineligibleReason: ineligible,
           score: filtering
             ? nameRelevanceScore(
               employee.fullName,
@@ -1134,6 +1170,7 @@ export function GroupMembersEditor({
       employeeFilters,
       employees,
       filtering,
+      ineligibilityByEmployeeId,
       otherGroups,
       pane,
       reviewerFilters,
@@ -1146,8 +1183,13 @@ export function GroupMembersEditor({
     () => new Set(members.flatMap((row) => row.ids)),
     [members],
   )
-  const availableVisibleIds = useMemo(
-    () => new Set(availablePeople.flatMap((row) => row.ids)),
+  const selectableAvailableIds = useMemo(
+    () =>
+      new Set(
+        availablePeople
+          .filter((row) => !row.disabled)
+          .flatMap((row) => row.ids),
+      ),
     [availablePeople],
   )
 
@@ -1155,7 +1197,7 @@ export function GroupMembersEditor({
     memberVisibleIds.has(id),
   )
   const selectedToAdd = [...checkedIds].filter((id) =>
-    availableVisibleIds.has(id),
+    selectableAvailableIds.has(id),
   )
 
   const emptyAvailable = availablePeople.length === 0
@@ -1203,14 +1245,17 @@ export function GroupMembersEditor({
   }
 
   const toggleIds = (ids: number[]) => {
-    if (ids.length === 0) return
+    const selectable = ids.filter(
+      (id) => pane === 'selected' || selectableAvailableIds.has(id),
+    )
+    if (selectable.length === 0) return
     setCheckedIds((prev) => {
       const next = new Set(prev)
-      const allChecked = ids.every((id) => next.has(id))
+      const allChecked = selectable.every((id) => next.has(id))
       if (allChecked) {
-        for (const id of ids) next.delete(id)
+        for (const id of selectable) next.delete(id)
       } else {
-        for (const id of ids) next.add(id)
+        for (const id of selectable) next.add(id)
       }
       return next
     })
@@ -1218,7 +1263,7 @@ export function GroupMembersEditor({
 
   const toggleAllVisible = () => {
     const visibleIds =
-      pane === 'selected' ? memberVisibleIds : availableVisibleIds
+      pane === 'selected' ? memberVisibleIds : selectableAvailableIds
     setCheckedIds((current) => {
       const allChecked =
         visibleIds.size > 0 &&
@@ -1236,9 +1281,13 @@ export function GroupMembersEditor({
     type: PendingPeopleChange['type'],
     ids: number[],
   ) => {
-    if (ids.length === 0) return
+    const nextIds =
+      type === 'add'
+        ? ids.filter((id) => !ineligibilityByEmployeeId[id])
+        : ids
+    if (nextIds.length === 0) return
     setSaveError(null)
-    setPendingChange({ type, ids })
+    setPendingChange({ type, ids: nextIds })
   }
 
   const pendingCount = pendingChange?.ids.length ?? 0
@@ -1246,6 +1295,14 @@ export function GroupMembersEditor({
     pendingChange?.type === 'add'
       ? pendingChange.ids.filter((id) => claimedElsewhere.has(id)).length
       : 0
+  const notAddedCount = useMemo(
+    () =>
+      employees.filter(
+        (employee) =>
+          employee.isActive && !draftIds.has(employee.employeeId),
+      ).length,
+    [draftIds, employees],
+  )
 
   const paneOptions = [
     {
@@ -1266,6 +1323,9 @@ export function GroupMembersEditor({
         <>
           <UsersRound size={15} strokeWidth={1.75} aria-hidden />
           Not added
+          <span className="pd-cycle-groups-members__tab-badge">
+            {notAddedCount}
+          </span>
         </>
       ),
     },

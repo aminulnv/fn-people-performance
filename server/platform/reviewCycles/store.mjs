@@ -18,6 +18,7 @@ import {
   validateCycleDateRange,
   validateCycleStagesConfig,
   validateGoalCountPolicy,
+  normalizeGoalCountPolicy,
   normalizeStagesConfig,
 } from './validation.mjs'
 
@@ -77,7 +78,7 @@ function mapCycle(row, excludedEmployeeIds = [], sourceLinks = []) {
     }),
     settings: {
       reviewTypes: normalizeReviewTypes(row.review_types),
-      goalCountPolicy: row.goal_count_policy,
+      goalCountPolicy: normalizeGoalCountPolicy(row.goal_count_policy),
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,

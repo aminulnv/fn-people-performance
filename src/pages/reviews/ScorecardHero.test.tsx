@@ -150,4 +150,23 @@ describe('ScorecardHero', () => {
     expect(screen.getByText('Manager grade')).toBeTruthy()
     expect(screen.getByText('Exceeding')).toBeTruthy()
   })
+
+  it('shows Leave (O) instead of a grade when the quarter is on leave', () => {
+    render(
+      <MemoryRouter>
+        <ScorecardHero
+          detail={detail()}
+          packet={packet({
+            leaveQuarter: true,
+            publishedOverallGrade: 'exceeding',
+          })}
+          viewingStage="publish_employees"
+        />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getByText('Outcome')).toBeTruthy()
+    expect(screen.getByLabelText('Leave (O)')).toBeTruthy()
+    expect(screen.queryByText('Exceeding')).toBeNull()
+  })
 })

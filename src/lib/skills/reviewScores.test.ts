@@ -3,6 +3,8 @@ import {
   averageSkillGrade,
   hasStoredSkillGrades,
   isSkillScorePillarId,
+  normalizeSkillGrade,
+  skillGradeLabel,
   skillIdFromScorePillarId,
   skillScorePillarId,
   skillsWithStoredGrades,
@@ -20,16 +22,36 @@ describe('skill review scores', () => {
     expect(skillIdFromScorePillarId('skills')).toBeNull()
   })
 
-  it('averages graded bands to the nearest label', () => {
-    expect(averageSkillGrade(['exceeding', 'performing'])).toBe('performing')
-    expect(averageSkillGrade(['exceptional', 'exceeding'])).toBe('exceeding')
-    expect(averageSkillGrade(['performing', 'performing'])).toBe('performing')
+  it('normalizes mastery and legacy performance bands', () => {
+    expect(normalizeSkillGrade('poor')).toBe('poor')
+    expect(normalizeSkillGrade('expert')).toBe('expert')
+    expect(normalizeSkillGrade('unsatisfactory')).toBe('poor')
+    expect(normalizeSkillGrade('developing')).toBe('basic')
+    expect(normalizeSkillGrade('performing')).toBe('intermediate')
+    expect(normalizeSkillGrade('exceeding')).toBe('advanced')
+    expect(normalizeSkillGrade('exceptional')).toBe('expert')
+    expect(skillGradeLabel('basic')).toBe('Basic')
+    expect(skillGradeLabel('performing')).toBe('Intermediate')
+  })
+
+  it('averages graded levels onto the performance band scale', () => {
+    expect(averageSkillGrade(['advanced', 'intermediate'])).toBe('exceeding')
+    expect(averageSkillGrade(['expert', 'advanced'])).toBe('exceptional')
+    expect(averageSkillGrade(['intermediate', 'intermediate'])).toBe(
+      'performing',
+    )
+    expect(averageSkillGrade(['poor', 'poor'])).toBe('unsatisfactory')
     expect(averageSkillGrade(['', null, undefined])).toBeNull()
+    // Legacy bands normalize then average
+    expect(averageSkillGrade(['exceeding', 'performing'])).toBe('exceeding')
   })
 
   it('detects stored skill grades for the prior-only view', () => {
     expect(hasStoredSkillGrades({})).toBe(false)
     expect(hasStoredSkillGrades({ 'skill-ai-fluency': '' })).toBe(false)
+    expect(hasStoredSkillGrades({ 'skill-ai-fluency': 'intermediate' })).toBe(
+      true,
+    )
     expect(hasStoredSkillGrades({ 'skill-ai-fluency': 'performing' })).toBe(
       true,
     )
@@ -38,15 +60,14 @@ describe('skill review scores', () => {
   it('lists only skills that still have a grade', () => {
     const rows = skillsWithStoredGrades(
       {
-        'skill-ai-fluency': 'performing',
+        'skill-ai-fluency': 'intermediate',
         'skill-accuracy': '',
-        'skill-gone': 'exceeding',
+        'skill-gone': 'advanced',
       },
       [
         {
           id: 'skill-ai-fluency',
           name: 'AI Fluency',
-          department: '',
           role: '',
           status: 'approved',
           mastery: emptySkillMastery(),

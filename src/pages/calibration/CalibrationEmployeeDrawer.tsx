@@ -471,7 +471,9 @@ export function CalibrationEmployeeDrawer({
   const selfGrade = packet?.selfOverallGrade ?? row.selfGrade
   const managerGrade = packet?.managerOverallGrade ?? null
   const finalGrade = calibrationFinalGrade(packet) ?? row.annualGrade
-  const canOverrideNow = canOverride && Boolean(managerGrade)
+  const managerMissed = Boolean(packet?.managerMissedDeadline)
+  const canOverrideNow =
+    canOverride && (Boolean(managerGrade) || managerMissed)
   const selfNarratives = narrativesFromPacket(packet, 'self', questions)
   const managerNarratives = narrativesFromPacket(packet, 'manager', questions)
   const q4Quarter = row.quarters.find((quarter) =>
@@ -1081,6 +1083,12 @@ export function CalibrationEmployeeDrawer({
 
         {tab === 'calibration' ? (
           <div className="pd-cal-drawer__stack">
+            {packet?.managerMissedDeadline ? (
+              <p className="pd-cal-drawer__empty-flags" role="status">
+                Manager missed deadline — no manager rating was submitted. Set
+                the final rating here as HOD/calibrator.
+              </p>
+            ) : null}
             {row.flags.length === 0 ? (
               <p className="pd-cal-drawer__empty-flags">
                 No Calibration Flags For This Employee.

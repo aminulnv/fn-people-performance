@@ -64,7 +64,9 @@ import {
   cascadeToTableLabel,
   formatRefreshAge,
   isCascadedGoal,
+  isProgressUpdateStale,
   metricCountLabel,
+  staleProgressUpdateLabel,
 } from '@/pages/goals/goalHelpers'
 import { GoalStatusBadge } from '@/pages/goals/GoalStatusBadge'
 import {
@@ -212,15 +214,27 @@ function compactUpdateAge(iso?: string): string | null {
 export function GoalProgressAge({ at }: { at?: string }) {
   const age = compactUpdateAge(at)
   if (!age || !at) return null
+  const stale = isProgressUpdateStale(at)
+  const tip = stale
+    ? staleProgressUpdateLabel(at)
+    : formatProgressTimestamp(at)
   return (
-    <span
-      className="pd-goals-progress-age"
-      title={formatProgressTimestamp(at)}
-      aria-label={`Updated ${age}`}
-    >
-      <History size={12} strokeWidth={1.75} aria-hidden />
-      {age}
-    </span>
+    <Tooltip content={tip} side="top" portal delayMs={80}>
+      <span
+        className={
+          stale
+            ? 'pd-goals-progress-age is-stale'
+            : 'pd-goals-progress-age'
+        }
+        aria-label={
+          stale ? tip : `Updated ${age}`
+        }
+        tabIndex={0}
+      >
+        <History size={12} strokeWidth={1.75} aria-hidden />
+        {age}
+      </span>
+    </Tooltip>
   )
 }
 

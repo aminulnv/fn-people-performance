@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { ChevronLeft, Scale, Star, Target, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { Badge, Button, ConfirmDialog, Modal, SegmentedControl } from '@/components/ui'
+import { useEmployees } from '@/lib/employees/useEmployees'
+import {
+  annualEligibilityForEmployee,
+  employeeIdsWithRatedQuarter,
+} from '@/lib/reviews/annualEligibility'
+import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
+import { quarterlyEligibilityForEmployee } from '@/lib/reviews/quarterlyEligibility'
 import {
   cycleOverlayFromHash,
   groupSettingsFromHash,
@@ -17,7 +24,8 @@ import { locationWithHash } from '@/lib/routing/urlHash'
 import { peopleCountLabel } from '@/lib/reviews/groupSummary'
 import { cyclePurposeOf, cycleSupportsCalibration } from '@/lib/reviews/purpose'
 import { applyCycleModules, cycleModulesOf } from '@/lib/reviews/reviewStages'
-import { updateCycleGroup } from '@/lib/reviews/store'
+import { listReviewCycles, updateCycleGroup } from '@/lib/reviews/store'
+import { useReviewPacketsForCycles } from '@/lib/reviews/useReviewPackets'
 import { useScorecardFormsSnapshot } from '@/lib/reviews/useReviews'
 import type { CycleGroup, CycleModules, ReviewCycle } from '@/lib/reviews/types'
 import { CalibrationEditPage } from './CalibrationEditPage'
@@ -164,6 +172,43 @@ export function GroupSettingsView({
     parsedHash.job === 'people' ? parsedHash : { ...parsedHash, peoplePane: 'added' },
   )
   const claimedIds = (cycle.groups ?? []).flatMap((item) => item.memberIds)
+  const { employees } = useEmployees()
+  const isAnnual = cyclePurposeOf(cycle) === 'annual_appraisal'
+  const isQuarterly = cyclePurposeOf(cycle) === 'quarterly_checkin'
+  const sourceCycleIds = useMemo(() => {
+    if (!isAnnual) return [] as string[]
+    return annualSourceLinks(cycle, listReviewCycles()).map(
+      (link) => link.sourceCycleId,
+    )
+  }, [cycle, isAnnual])
+  const { packets: sourcePackets, isPending: sourcePacketsPending } =
+    useReviewPacketsForCycles(sourceCycleIds)
+  const ratedEmployeeIds = useMemo(() => {
+    if (!isAnnual || sourceCycleIds.length === 0) return null
+    if (sourcePacketsPending) return null
+    return employeeIdsWithRatedQuarter(sourcePackets)
+  }, [isAnnual, sourceCycleIds.length, sourcePackets, sourcePacketsPending])
+  const ineligibilityByEmployeeId = useMemo(() => {
+    if (!isAnnual && !isQuarterly) return {}
+    const next: Record<number, string> = {}
+    for (const employee of employees) {
+      const result = isAnnual
+        ? annualEligibilityForEmployee({
+            cycle,
+            startDate: employee.startDate,
+            employeeId: employee.employeeId,
+            ratedEmployeeIds,
+          })
+        : quarterlyEligibilityForEmployee({
+            cycle,
+            startDate: employee.startDate,
+          })
+      if (result && !result.eligible && result.message) {
+        next[employee.employeeId] = result.message
+      }
+    }
+    return next
+  }, [cycle, employees, isAnnual, isQuarterly, ratedEmployeeIds])
   const jobOptions = jobsForModules(modules, showCalibration)
   const reviewDraft = useReviewSettingsDraft(cycle, group, onClose, true)
   const forms = useScorecardFormsSnapshot()
@@ -378,6 +423,7 @@ export function GroupSettingsView({
           reviewFormOpen: false,
         })
       }}
+      ineligibilityByEmployeeId={ineligibilityByEmployeeId}
       onChange={(memberIds) =>
         updateCycleGroup(cycle.id, group.id, { memberIds }).then(() => {
           onSuccess?.('People updated.')

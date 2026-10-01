@@ -5,7 +5,12 @@ import { permissionsForPlatformUser } from '../auth.mjs'
 import { listActiveDelegatedManagerIds } from '../delegations.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
+import { getScorecardForm } from '../reviewCycles/scorecardForms.mjs'
 import { publicationExclusionClause } from './publicationFilter.mjs'
+import {
+  describeScorecardSubmitBlock,
+  packedFeedbackFromAnswers,
+} from './submitValidation.mjs'
 import {
   calibrationIsEditable,
   managerReviewWriteAllowed,
@@ -30,6 +35,45 @@ function actorFromUser(platformUser) {
     actorEmployeeId: platformUser?.employeeId ?? null,
     actorEmail: platformUser?.email ?? '',
     actorName: platformUser?.name ?? '',
+  }
+}
+
+async function resolvePacketPolicy(row) {
+  const cycle = await getReviewCycle(row.cycle_id)
+  const group = (cycle?.groups ?? []).find((item) => item.id === row.group_id)
+  const formId = group?.settings?.scorecardFormId
+  if (formId) {
+    const form = await getScorecardForm(formId)
+    if (form?.policy) return form.policy
+  }
+  return (
+    group?.settings?.reviewPolicy ??
+    cycle?.settings?.reviewPolicy ??
+    {}
+  )
+}
+
+async function listEmployeeRoleSkillIds(client, employeeId) {
+  const { rows } = await client.query(
+    `SELECT rs.skill_id
+     FROM platform.employees e
+     JOIN platform.role_skills rs ON rs.role_id = e.role_id
+     WHERE e.employee_id = $1`,
+    [employeeId],
+  )
+  return rows.map((row) => row.skill_id)
+}
+
+async function listEnabledValueIds(client) {
+  try {
+    const { rows } = await client.query(
+      `SELECT id
+       FROM platform."values"
+       WHERE deleted_at IS NULL AND status = 'enabled'`,
+    )
+    return rows.map((row) => row.id)
+  } catch {
+    return []
   }
 }
 
@@ -59,6 +103,10 @@ function mapPacket(row, extras = {}) {
     status: row.status,
     selfSubmittedAt: row.self_submitted_at ? iso(row.self_submitted_at) : null,
     leaveQuarter: Boolean(row.leave_quarter),
+    managerMissedDeadline: Boolean(row.manager_missed_deadline),
+    managerForceMovedAt: row.manager_force_moved_at
+      ? iso(row.manager_force_moved_at)
+      : null,
     selfOverallGrade: row.self_overall_grade,
     managerOverallGrade: row.manager_overall_grade,
     calibratedOverallGrade: row.calibrated_overall_grade,
@@ -234,12 +282,59 @@ async function ensurePacketForEmployee(client, cycleId, employeeId) {
   )
 }
 
+function managerReviewDeadlineDate(cycle) {
+  const stages = cycle?.stagesConfig?.reviewStages ?? []
+  const managerStage = stages.find((stage) => stage.id === 'manager_review')
+  const fromStage = managerStage?.end?.date?.trim?.() || managerStage?.end?.date
+  if (fromStage) return String(fromStage).trim()
+  const fromPerf = cycle?.stagesConfig?.performance?.managerEnd?.date
+  return fromPerf ? String(fromPerf).trim() : null
+}
+
+function managerReviewDeadlinePassed(cycle, now = new Date()) {
+  const deadline = managerReviewDeadlineDate(cycle)
+  if (!deadline) return false
+  const [year, month, day] = deadline.split('-').map(Number)
+  if (!year || !month || !day) return false
+  const endMs = new Date(year, month - 1, day, 23, 59, 59, 999).getTime()
+  return now.getTime() > endMs
+}
+
+/**
+ * No extensions: once the manager review window closes, unfinished packets
+ * move to calibration so the HOD can set the final rating.
+ */
+async function forceMoveMissedManagerReviews(client, cycle, now = new Date()) {
+  if (!managerReviewDeadlinePassed(cycle, now)) return 0
+  const { rowCount } = await client.query(
+    `UPDATE platform.review_packets
+     SET status = 'in_calibration',
+         manager_missed_deadline = true,
+         manager_force_moved_at = COALESCE(manager_force_moved_at, now()),
+         manager_overall_grade = NULL,
+         version = version + 1,
+         updated_at = now()
+     WHERE cycle_id = $1
+       AND COALESCE(leave_quarter, false) = false
+       AND COALESCE(manager_missed_deadline, false) = false
+       AND status IN (
+         'not_started',
+         'self_in_progress',
+         'self_submitted',
+         'manager_in_progress'
+       )`,
+    [cycle.id],
+  )
+  return rowCount ?? 0
+}
+
 async function listPacketRows(cycleId, { includeChildren = true } = {}) {
   const cycle = await getReviewCycle(cycleId)
   if (!cycle) throw new HttpError(404, 'Cycle not found')
   const client = await getPool().connect()
   try {
     await ensurePacketsForCycle(client, cycle)
+    await forceMoveMissedManagerReviews(client, cycle)
     const { rows } = await client.query(
       `SELECT * FROM platform.review_packets
        WHERE cycle_id = $1
@@ -297,9 +392,29 @@ export async function getReviewPacket(
     }
     const row = rows[0]
     if (!row) return null
-    if (!includeChildren) return mapPacket(row)
-    const children = await loadChildren(client, [row.id])
-    return withChildren(row, children)
+    if (
+      !Boolean(row.manager_missed_deadline) &&
+      !Boolean(row.leave_quarter) &&
+      ['not_started', 'self_in_progress', 'self_submitted', 'manager_in_progress'].includes(
+        row.status,
+      )
+    ) {
+      const cycle = await getReviewCycle(cycleId)
+      if (cycle && managerReviewDeadlinePassed(cycle)) {
+        await forceMoveMissedManagerReviews(client, cycle)
+        ;({ rows } = await client.query(
+          `SELECT * FROM platform.review_packets
+           WHERE cycle_id = $1 AND employee_id = $2
+           LIMIT 1`,
+          [cycleId, eid],
+        ))
+      }
+    }
+    const nextRow = rows[0]
+    if (!nextRow) return null
+    if (!includeChildren) return mapPacket(nextRow)
+    const children = await loadChildren(client, [nextRow.id])
+    return withChildren(nextRow, children)
   } finally {
     client.release()
   }
@@ -360,6 +475,74 @@ export async function saveReviewDraft(packetId, input, platformUser) {
           'Only this person’s manager, or the person covering them, can write the manager review.',
         )
       }
+    }
+
+    if (input.submit === true && actorRole === 'manager') {
+      const overall = input.overallGrade ?? row.manager_overall_grade
+      const suggested =
+        typeof input.suggestedGrade === 'string' ? input.suggestedGrade : null
+      const gapTiers = Number(input.gapCommentTiers ?? 2)
+      const selfGrade = row.self_overall_grade
+      const reason = String(input.overrideReason ?? '').trim()
+      const differsFromSuggested =
+        Boolean(suggested) && suggested !== overall
+      const selfGap = (() => {
+        const order = [
+          'unsatisfactory',
+          'developing',
+          'performing',
+          'exceeding',
+          'exceptional',
+        ]
+        const left = order.indexOf(overall)
+        const right = order.indexOf(selfGrade)
+        if (left < 0 || right < 0) return 0
+        return Math.abs(left - right)
+      })()
+      const differsFromSelf =
+        Boolean(selfGrade) && gapTiers > 0 && selfGap >= gapTiers
+      if ((differsFromSuggested || differsFromSelf) && !reason) {
+        throw new HttpError(
+          400,
+          'Write why this overall grade differs before submitting.',
+        )
+      }
+    }
+
+    if (input.submit === true) {
+      const policy = await resolvePacketPolicy(row)
+      const skillIds = await listEmployeeRoleSkillIds(client, row.employee_id)
+      const valueIds = await listEnabledValueIds(client)
+      const feedback = packedFeedbackFromAnswers(input.answers)
+      const goalsScore = (input.pillarScores ?? []).find(
+        (score) => score.pillarId === 'goals',
+      )
+      const q4Grade =
+        input.goalsComponent &&
+        Object.prototype.hasOwnProperty.call(input.goalsComponent, 'q4Grade')
+          ? input.goalsComponent.q4Grade
+          : null
+      const block = describeScorecardSubmitBlock({
+        policy,
+        actorRole,
+        leave: Boolean(row.leave_quarter),
+        overallGrade:
+          input.overallGrade ??
+          (actorRole === 'self'
+            ? row.self_overall_grade
+            : row.manager_overall_grade),
+        goalsGrade: goalsScore?.grade ?? null,
+        q4Grade,
+        useWeightedSuggest:
+          policy?.managerReview?.gradeSuggestion === 'weighted_suggest',
+        answers: input.answers,
+        pillarScores: input.pillarScores,
+        skillIds,
+        valueIds,
+        strengths: feedback.strengths,
+        developments: feedback.developments,
+      })
+      if (block) throw new HttpError(400, block)
     }
 
     if (Array.isArray(input.answers)) {
@@ -489,7 +672,7 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
         'Calibration cannot start until the manager review is submitted.',
       )
     }
-    if (!row.manager_overall_grade) {
+    if (!row.manager_overall_grade && !row.manager_missed_deadline) {
       throw new HttpError(
         409,
         'Calibration cannot start until the manager has set an overall rating.',

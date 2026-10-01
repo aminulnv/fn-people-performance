@@ -372,12 +372,47 @@ const ANNUAL_QUESTIONS = [
     id: 'retain',
     prompt: 'Will we do what it takes to retain this person?',
     enabled: true,
-    required: false,
-    kind: 'open_ended',
-    visibility: ['calibrators'],
+    required: true,
+    kind: 'yes_no',
+    visibility: ['manager'],
+    outputVisibility: ['manager'],
+  },
+  {
+    id: 'engaged',
+    prompt: 'Is this person fully engaged in their role?',
+    enabled: true,
+    required: true,
+    kind: 'yes_no',
+    visibility: ['manager'],
     outputVisibility: ['manager'],
   },
 ]
+
+const MANAGER_RETENTION_QUESTION_IDS = new Set(['retain', 'engaged'])
+
+function ensureManagerRetentionQuestions(questions) {
+  const defaults = ANNUAL_QUESTIONS.filter((question) =>
+    MANAGER_RETENTION_QUESTION_IDS.has(question.id),
+  )
+  const byId = new Map(questions.map((question) => [question.id, question]))
+  const without = questions.filter(
+    (question) => !MANAGER_RETENTION_QUESTION_IDS.has(question.id),
+  )
+  const ensured = defaults.map((fallback) => {
+    const existing = byId.get(fallback.id)
+    if (!existing) return { ...fallback }
+    return {
+      ...existing,
+      prompt: String(existing.prompt ?? '').trim() || fallback.prompt,
+      enabled: true,
+      required: true,
+      kind: 'yes_no',
+      visibility: ['manager'],
+      outputVisibility: ['manager'],
+    }
+  })
+  return [...without, ...ensured]
+}
 
 const QUARTERLY_QUESTIONS = [
   {
@@ -537,28 +572,33 @@ export function normalizeReviewPolicy(policy, purpose = 'quarterly_checkin', per
         : defaults.scorecard.pillars,
       questions: Array.isArray(policy.scorecard?.questions) &&
         (policy.scorecard.questions.length > 0 || purpose === 'custom')
-        ? policy.scorecard.questions.map((question) => {
-            const kind = question.kind ?? 'open_ended'
-            return {
-              ...question,
-              kind,
-              options:
-                kind === 'multiple_choice'
-                  ? question.options?.length
-                    ? question.options
-                    : ['Option 1', 'Option 2']
-                  : question.options,
-              dualLabels:
-                kind === 'dual_text'
-                  ? question.dualLabels?.length === 2
-                    ? question.dualLabels
-                    : ['Field 1', 'Field 2']
-                  : question.dualLabels,
-              outputVisibility: question.outputVisibility?.length
-                ? question.outputVisibility
-                : ['employee', 'manager'],
-            }
-          })
+        ? (() => {
+            const normalized = policy.scorecard.questions.map((question) => {
+              const kind = question.kind ?? 'open_ended'
+              return {
+                ...question,
+                kind,
+                options:
+                  kind === 'multiple_choice'
+                    ? question.options?.length
+                      ? question.options
+                      : ['Option 1', 'Option 2']
+                    : question.options,
+                dualLabels:
+                  kind === 'dual_text'
+                    ? question.dualLabels?.length === 2
+                      ? question.dualLabels
+                      : ['Field 1', 'Field 2']
+                    : question.dualLabels,
+                outputVisibility: question.outputVisibility?.length
+                  ? question.outputVisibility
+                  : ['employee', 'manager'],
+              }
+            })
+            return purpose === 'annual_appraisal'
+              ? ensureManagerRetentionQuestions(normalized)
+              : normalized
+          })()
         : defaults.scorecard.questions,
       bands: policy.scorecard?.bands?.length
         ? policy.scorecard.bands

@@ -1,54 +1,30 @@
 import type { CycleSectionId } from './types'
 
-export type ReviewsTabId =
-  | 'scorecards'
-  | 'scorecards-library'
-  | 'skills'
-  | 'values'
+export type ReviewsTabId = 'scorecards' | 'scorecards-library'
 
 const REVIEWS_TAB_ROOTS = new Set([
   '/reviews/scorecards',
   '/reviews/scorecards-library',
-  '/reviews/skills',
-  '/reviews/values',
 ])
 
 export function reviewsTabPath(tab: ReviewsTabId = 'scorecards'): string {
   return `/reviews/${tab}`
 }
 
-/** True on the Reviews tab list roots only — not scorecard/value detail subpages. */
+/** True on the Reviews tab list roots only — not scorecard detail subpages. */
 export function isReviewsTabRoot(pathname: string): boolean {
   return REVIEWS_TAB_ROOTS.has(pathname)
 }
 
-export function valuesLibraryPath(): string {
-  return '/reviews/values'
-}
-
-export function valueCreatePath(): string {
-  return '/reviews/values/new'
-}
-
-export function valueDetailPath(valueId: string): string {
-  return `/reviews/values/${encodeURIComponent(valueId)}/edit`
-}
-
-export function valueEditPath(valueId: string): string {
-  return `/reviews/values/${encodeURIComponent(valueId)}/edit`
-}
-
-export function skillsLibraryPath(): string {
-  return '/reviews/skills'
-}
-
-export function skillCreatePath(): string {
-  return '/reviews/skills/new'
-}
-
-export function skillEditPath(skillId: string): string {
-  return `/reviews/skills/${encodeURIComponent(skillId)}/edit`
-}
+export {
+  skillCreatePath,
+  skillEditPath,
+  skillsLibraryPath,
+  valueCreatePath,
+  valueDetailPath,
+  valueEditPath,
+  valuesLibraryPath,
+} from '@/lib/organisation/paths'
 
 export function cyclesListPath(): string {
   return '/cycles'

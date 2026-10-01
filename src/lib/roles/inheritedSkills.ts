@@ -29,7 +29,6 @@ export function getInheritedSkillsForEmployee(
     const skill = byId.get(row.skillId) ?? {
       id: row.skillId,
       name: row.skillName,
-      department: '',
       role: '',
       status: 'approved' as const,
       mastery: emptySkillMastery(),

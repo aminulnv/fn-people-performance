@@ -60,15 +60,15 @@ function parseState(raw: string): SkillsState | null {
       skills: parsed.skills.map(normalizeSkill),
       assignments: Array.isArray(parsed.assignments)
         ? parsed.assignments
-            .filter(
-              (item): item is EmployeeSkillAssignment =>
-                typeof item?.employeeId === 'number' &&
-                Array.isArray(item.skillIds),
-            )
-            .map((item) => ({
-              employeeId: item.employeeId,
-              skillIds: item.skillIds.filter((id) => typeof id === 'string'),
-            }))
+          .filter(
+            (item): item is EmployeeSkillAssignment =>
+              typeof item?.employeeId === 'number' &&
+              Array.isArray(item.skillIds),
+          )
+          .map((item) => ({
+            employeeId: item.employeeId,
+            skillIds: item.skillIds.filter((id) => typeof id === 'string'),
+          }))
         : [],
     }
   } catch {
@@ -138,13 +138,11 @@ function normalizeMastery(value: unknown): SkillMastery {
 }
 
 export function normalizeSkill(
-  skill: Partial<Skill> &
-    Pick<Skill, 'name'> & { function?: string; department?: string },
+  skill: Partial<Skill> & Pick<Skill, 'name'>,
 ): Skill {
   return {
     id: skill.id?.trim() || newSkillId(),
     name: skill.name.trim(),
-    department: (skill.department ?? skill.function)?.trim() ?? '',
     role: skill.role?.trim() ?? '',
     status: skill.status === 'draft' ? 'draft' : 'approved',
     mastery: normalizeMastery(skill.mastery),
@@ -237,7 +235,6 @@ export async function removeSkillFromEmployee(
 
 export async function createSkill(input: {
   name: string
-  department?: string
   role?: string
   status?: Skill['status']
   mastery?: SkillMastery
@@ -249,7 +246,6 @@ export async function createSkill(input: {
   if (useLocalSkills()) {
     const skill = normalizeSkill({
       name,
-      department: input.department,
       role: input.role,
       status: input.status ?? 'approved',
       mastery: input.mastery,
@@ -263,7 +259,6 @@ export async function createSkill(input: {
   }
   const created = await createSkillRemote({
     name,
-    department: input.department,
     role: input.role,
     status: input.status,
     mastery: input.mastery,
@@ -309,7 +304,6 @@ export async function updateSkill(
   id: string,
   input: {
     name: string
-    department?: string
     role?: string
     status?: Skill['status']
     mastery?: SkillMastery
@@ -326,7 +320,6 @@ export async function updateSkill(
     const next = normalizeSkill({
       ...existing,
       name,
-      department: input.department,
       role: input.role,
       status: input.status ?? existing.status,
       mastery: input.mastery ?? existing.mastery,
@@ -339,7 +332,6 @@ export async function updateSkill(
   }
   const updated = await updateSkillRemote(id, {
     name,
-    department: input.department,
     role: input.role,
     status: input.status,
     mastery: input.mastery,

@@ -28,7 +28,7 @@ describe('ScorecardValuesGradeCard', () => {
     expect(onGradeChange).toHaveBeenCalledWith('move-fast', 'unsatisfactory')
   })
 
-  it('shows the value description without a behaviour rubric', () => {
+  it('keeps the list compact and shows the grading guide on hover', () => {
     render(
       <ScorecardValuesGradeCard
         values={CORE_VALUES.slice(0, 1)}
@@ -36,9 +36,54 @@ describe('ScorecardValuesGradeCard', () => {
       />,
     )
     expect(screen.getByText(/We're all about excellence/)).toBeTruthy()
-    expect(screen.queryByText('Developing')).toBeNull()
     expect(
       screen.queryByText(/Moves quickly on reversible work/),
     ).toBeNull()
+
+    const tip = screen
+      .getByRole('button', {
+        name: 'Move Fast, Chase Excellence grading guide',
+      })
+      .closest('.pd-tooltip')
+    expect(tip).toBeTruthy()
+    fireEvent.mouseEnter(tip!)
+
+    expect(screen.getByText('Unsatisfactory')).toBeTruthy()
+    expect(screen.getByText('Developing')).toBeTruthy()
+    expect(screen.getAllByText('Performing').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('Exceeding')).toBeTruthy()
+    expect(screen.getByText('Exceptional')).toBeTruthy()
+    expect(
+      screen.getByText(/Moves quickly on reversible work/),
+    ).toBeTruthy()
+  })
+
+  it('shows catalog rubrics when the live value has empty behaviours', () => {
+    render(
+      <ScorecardValuesGradeCard
+        values={[
+          {
+            id: 'debate-commit',
+            name: 'Debate Openly, Commit Fully',
+            description: 'At NEXT, every voice matters.',
+            status: 'enabled',
+            playbookUrl: null,
+            behaviours: [],
+          },
+        ]}
+        grades={{}}
+        editing
+        onGradeChange={() => {}}
+      />,
+    )
+    const tip = screen
+      .getByRole('button', {
+        name: 'Debate Openly, Commit Fully grading guide',
+      })
+      .closest('.pd-tooltip')
+    fireEvent.mouseEnter(tip!)
+    expect(
+      screen.getByText(/Challenges ideas respectfully before decisions/),
+    ).toBeTruthy()
   })
 })

@@ -3,6 +3,7 @@ import {
   applyScorecardTemplate,
   DEFAULT_GRADE_BANDS,
   DEFAULT_SCORECARD_FEEDBACK,
+  ensureManagerRetentionQuestions,
   mergePillarCatalog,
   normalizeReviewQuestion,
   normalizeScorecardFeedback,
@@ -166,13 +167,18 @@ export function normalizeReviewPolicy(
       questions:
         Array.isArray(policy.scorecard?.questions) &&
         (policy.scorecard.questions.length > 0 || purpose === 'custom')
-          ? policy.scorecard.questions.map((question) =>
-              normalizeReviewQuestion({
-                ...question,
-                id: question.id,
-                prompt: question.prompt ?? '',
-              }),
-            )
+          ? (() => {
+              const normalized = policy.scorecard.questions.map((question) =>
+                normalizeReviewQuestion({
+                  ...question,
+                  id: question.id,
+                  prompt: question.prompt ?? '',
+                }),
+              )
+              return purpose === 'annual_appraisal'
+                ? ensureManagerRetentionQuestions(normalized)
+                : normalized
+            })()
           : defaults.scorecard.questions,
       bands:
         policy.scorecard?.bands?.length

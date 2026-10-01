@@ -1,5 +1,6 @@
 import {
   Bell,
+  Briefcase,
   Building2,
   CalendarCog,
   Network,
@@ -20,10 +21,14 @@ import { displayGoalTitle } from '@/lib/goals/weightage'
 import type { NotificationRecord } from '@/lib/notifications/types'
 import {
   departmentDetailPath,
+  roleDetailPath,
   teamDetailPath,
 } from '@/lib/organisation/paths'
+import type { PlatformRole } from '@/lib/roles/types'
 import type { OrganisationSnapshot } from '@/lib/organisation/types'
 import { cycleDetailPath } from '@/lib/reviews/paths'
+import { skillEditPath } from '@/lib/organisation/paths'
+import type { Skill } from '@/lib/skills/types'
 import { cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
   SCORECARD_STATUS_LIST_LABEL,
@@ -66,6 +71,8 @@ export type SearchCatalogInput = {
   extraCycleGoals?: ExtraCycleGoals[]
   cycles: ReviewCycle[]
   scorecards: ScorecardRow[]
+  skills?: Skill[]
+  roles?: PlatformRole[]
   notifications: NotificationRecord[]
 }
 
@@ -195,19 +202,29 @@ function actionItems(
       kind: 'action',
       scope: 'actions',
       label: 'Open Skills Library',
-      description: 'Reviews',
+      description: 'Organisation',
       keywords: uniqueKeywords(['skills', 'competencies', 'library']),
-      path: '/reviews/skills',
+      path: '/organisation/skills',
       icon: Sparkles,
+    },
+    {
+      id: 'action:roles',
+      kind: 'action',
+      scope: 'actions',
+      label: 'Open Roles',
+      description: 'Organisation',
+      keywords: uniqueKeywords(['roles', 'jobs', 'competency matrix']),
+      path: '/organisation/roles',
+      icon: Briefcase,
     },
     {
       id: 'action:values-library',
       kind: 'action',
       scope: 'actions',
       label: 'Open Core Values',
-      description: 'Reviews',
+      description: 'Organisation',
       keywords: uniqueKeywords(['values', 'culture', 'behaviours', 'library']),
-      path: '/reviews/values',
+      path: '/organisation/values',
       icon: Star,
     },
     {
@@ -255,6 +272,8 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
     extraCycleGoals = [],
     cycles,
     scorecards,
+    skills = [],
+    roles = [],
     notifications,
   } = input
   const write = canWrite(user)
@@ -347,6 +366,27 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
     })
   }
 
+  for (const role of roles) {
+    if (role.archivedAt) continue
+    items.push({
+      id: `role:${role.id}`,
+      kind: 'role',
+      scope: 'organisation',
+      label: role.name,
+      description:
+        [role.departmentName, `${role.headcount} ${role.headcount === 1 ? 'person' : 'people'}`]
+          .filter(Boolean)
+          .join(' · ') || 'Role',
+      keywords: uniqueKeywords([
+        role.departmentName,
+        role.description,
+        ...role.skills.map((skill) => skill.skillName),
+      ]),
+      path: roleDetailPath(role.id),
+      icon: Briefcase,
+    })
+  }
+
   items.push(
     ...personGoalsItems(
       goals.cycle.id,
@@ -410,6 +450,26 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
           : row.status === 'in_progress'
             ? 'in-progress'
             : 'neutral',
+    })
+  }
+
+  for (const skill of skills) {
+    items.push({
+      id: `skill:${skill.id}`,
+      kind: 'skill',
+      scope: 'organisation',
+      label: skill.name,
+      description: skill.status === 'draft' ? 'Draft skill' : 'Skill',
+      keywords: uniqueKeywords([
+        skill.role,
+        skill.status,
+        'skill',
+        'competency',
+      ]),
+      path: skillEditPath(skill.id),
+      icon: Sparkles,
+      status: skill.status === 'draft' ? 'Draft' : 'Approved',
+      statusVariant: skill.status === 'draft' ? 'pending' : 'completed',
     })
   }
 

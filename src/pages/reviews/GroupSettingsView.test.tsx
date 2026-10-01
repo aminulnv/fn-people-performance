@@ -1,10 +1,22 @@
+import type { ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter } from 'react-router-dom'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
 import type { CycleGroup, ReviewCycle } from '@/lib/reviews/types'
 import { GroupSettingsView } from './GroupSettingsView'
+
+vi.mock('@/lib/employees/useEmployees', () => ({
+  useEmployees: () => ({
+    employees: [],
+    loadState: 'ready',
+    loadError: null,
+    isLoading: false,
+    reload: async () => {},
+  }),
+}))
 
 vi.mock('./GroupMembersEditor', () => ({
   GroupMembersEditor: ({
@@ -57,6 +69,28 @@ afterEach(() => {
   document.body.style.overflow = ''
   resetReviewsStoreForTests()
 })
+
+function renderView(ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
+
+function renderViewAt(path: string, ui: ReactElement) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  return render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={[path]}>{ui}</MemoryRouter>
+    </QueryClientProvider>,
+  )
+}
 
 function sample(): { cycle: ReviewCycle; group: CycleGroup } {
   const settings = {
@@ -116,10 +150,8 @@ describe('GroupSettingsView', () => {
     group.memberIds = []
     cycle.groups = [group]
 
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     expect(screen.getByLabelText('Group name')).toHaveValue('Everyone')
@@ -129,10 +161,8 @@ describe('GroupSettingsView', () => {
 
   it('warns before leaving unsaved people changes', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Stage people change' }))
@@ -157,10 +187,8 @@ describe('GroupSettingsView', () => {
   it('warns before closing with unsaved people changes', () => {
     const { cycle, group } = sample()
     const onClose = vi.fn()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Stage people change' }))
@@ -180,10 +208,8 @@ describe('GroupSettingsView', () => {
 
   it('opens review settings without a full-view link', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
@@ -219,16 +245,16 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.queryByLabelText('Preset')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /Builder/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Scorecards Library|Edit in Library/i }),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Allocated form')).toBeInTheDocument()
   })
 
   it('keeps publish dates on the release stages', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
@@ -264,10 +290,8 @@ describe('GroupSettingsView', () => {
 
   it('hides the review form tab until Reviews is open', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     expect(screen.queryByRole('button', { name: 'Review Form' })).toBeNull()
@@ -275,16 +299,12 @@ describe('GroupSettingsView', () => {
 
   it('opens the review form tab on the full page Reviews job', async () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter initialEntries={['/cycles/cycle-1/groups/group-1#review']}>
-        <GroupSettingsView
+    renderViewAt('/cycles/cycle-1/groups/group-1#review', <GroupSettingsView
           cycle={cycle}
           group={group}
           variant="page"
           onClose={() => { }}
-        />
-      </MemoryRouter>,
-    )
+        />)
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reviews' })).toHaveAttribute(
@@ -296,24 +316,20 @@ describe('GroupSettingsView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Review Form' }))
 
     expect(screen.queryByRole('button', { name: 'Preset' })).toBeNull()
-    expect(screen.getByRole('link', { name: /Builder/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('link', { name: /Scorecards Library|Edit in Library/i }),
+    ).toBeInTheDocument()
     expect(await screen.findByRole('button', { name: 'Reviews' })).toBeInTheDocument()
   })
 
   it('opens people panes from the hash on the full page', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter
-        initialEntries={['/cycles/cycle-1/groups/group-1#people/added']}
-      >
-        <GroupSettingsView
+    renderViewAt('/cycles/cycle-1/groups/group-1#people/added', <GroupSettingsView
           cycle={cycle}
           group={group}
           variant="page"
           onClose={() => { }}
-        />
-      </MemoryRouter>,
-    )
+        />)
 
     const peopleView = screen.getByRole('group', {
       name: 'People selection view',
@@ -328,16 +344,12 @@ describe('GroupSettingsView', () => {
 
   it('opens a job from the hash on the full page', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter initialEntries={['/cycles/cycle-1/groups/group-1#goals']}>
-        <GroupSettingsView
+    renderViewAt('/cycles/cycle-1/groups/group-1#goals', <GroupSettingsView
           cycle={cycle}
           group={group}
           variant="page"
           onClose={() => { }}
-        />
-      </MemoryRouter>,
-    )
+        />)
 
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Group name')).toHaveValue('Everyone')
@@ -361,10 +373,8 @@ describe('GroupSettingsView', () => {
     cycle.periodKey = 'annual-2028'
     cycle.stagesConfig = group.stagesConfig
 
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Goals' }))
@@ -390,10 +400,8 @@ describe('GroupSettingsView', () => {
     cycle.periodKey = 'q4-2026'
     cycle.stagesConfig = group.stagesConfig
 
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
@@ -421,10 +429,8 @@ describe('GroupSettingsView', () => {
 
   it('keeps the top nav when switching sections', () => {
     const { cycle, group } = sample()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Reviews' }))
@@ -439,10 +445,8 @@ describe('GroupSettingsView', () => {
   it('shows the group grade mix on the calibration section', () => {
     const { cycle, group } = sample()
     cycle.periodKey = 'annual-2026'
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
@@ -462,10 +466,8 @@ describe('GroupSettingsView', () => {
     const { cycle, group } = sample()
     cycle.periodKey = 'annual-2026'
     const onClose = vi.fn()
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={onClose} />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'Calibration' }))
@@ -493,10 +495,8 @@ describe('GroupSettingsView', () => {
     cycle.periodKey = 'annual-2028'
     cycle.stagesConfig = group.stagesConfig
 
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     expect(screen.getByRole('button', { name: 'People' })).toBeInTheDocument()
@@ -521,10 +521,8 @@ describe('GroupSettingsView', () => {
     cycle.periodKey = 'q4-2026'
     cycle.stagesConfig = group.stagesConfig
 
-    render(
-      <MemoryRouter>
-        <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />
-      </MemoryRouter>,
+    renderView(
+      <GroupSettingsView cycle={cycle} group={group} onClose={() => { }} />,
     )
 
     expect(screen.getByRole('button', { name: 'Goals' })).toBeInTheDocument()

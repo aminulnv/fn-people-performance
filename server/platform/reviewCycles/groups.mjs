@@ -8,10 +8,12 @@ import { HttpError } from '../../errors.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import {
   cyclePurposeOf,
+  inferYearKey,
   normalizeReviewPolicy,
   normalizeReviewTypes,
 } from './reviewConfig.mjs'
 import {
+  normalizeGoalCountPolicy,
   normalizeStagesConfig,
   validateCalibration,
   validateCycleStagesConfig,
@@ -40,6 +42,146 @@ function uniqueEmployeeIds(employeeIds) {
   return [...new Set((employeeIds ?? []).map(Number).filter(Number.isInteger))]
 }
 
+function dateOnly(value) {
+  if (value == null || value === '') return ''
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return ''
+    const year = value.getUTCFullYear()
+    const month = String(value.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(value.getUTCDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+  const raw = String(value).trim()
+  return raw.slice(0, 10)
+}
+
+function annualJoinCutoffDate(cycle) {
+  const purpose = cyclePurposeOf({
+    periodKey: cycle?.period_key ?? cycle?.periodKey,
+    type: cycle?.cycle_type ?? cycle?.type,
+  })
+  if (purpose !== 'annual_appraisal') return null
+  const year = inferYearKey(
+    cycle?.period_key ?? cycle?.periodKey,
+    dateOnly(cycle?.start_date ?? cycle?.startDate),
+  )
+  if (!year || !/^\d{4}$/.test(year)) return null
+  return `${year}-10-01`
+}
+
+function addCalendarDays(dateOnlyValue, days) {
+  const [year, month, day] = dateOnlyValue.split('-').map(Number)
+  if (!year || !month || !day) return null
+  const next = new Date(Date.UTC(year, month - 1, day))
+  if (Number.isNaN(next.getTime())) return null
+  next.setUTCDate(next.getUTCDate() + days)
+  return next.toISOString().slice(0, 10)
+}
+
+/** Day 25 of a quarterly cycle (join on/after this date → not eligible). */
+function quarterlyDay25Date(cycle) {
+  const purpose = cyclePurposeOf({
+    periodKey: cycle?.period_key ?? cycle?.periodKey,
+    type: cycle?.cycle_type ?? cycle?.type,
+  })
+  if (purpose !== 'quarterly_checkin') return null
+  const start = dateOnly(cycle?.start_date ?? cycle?.startDate)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return null
+  return addCalendarDays(start, 24)
+}
+
+/**
+ * Annual: joined on/before Oct 1 + ≥1 rated linked quarter (when sources exist).
+ * Quarterly: joined before day 25 of the quarter.
+ */
+async function assertCycleEligibleMembers(client, cycle, employeeIds) {
+  const unique = uniqueEmployeeIds(employeeIds)
+  if (unique.length === 0) return
+
+  const annualCutoff = annualJoinCutoffDate(cycle)
+  if (annualCutoff) {
+    const { rows: lateJoiners } = await client.query(
+      `SELECT employee_id, name, joining_date
+       FROM platform.employees
+       WHERE employee_id = ANY($1::int[])
+         AND joining_date IS NOT NULL
+         AND to_char(joining_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') > $2
+       ORDER BY name
+       LIMIT 5`,
+      [unique, annualCutoff],
+    )
+    if (lateJoiners.length > 0) {
+      const [year] = annualCutoff.split('-')
+      const names = lateJoiners.map((row) => row.name).join(', ')
+      throw new HttpError(
+        400,
+        `Not eligible for Annual (joined after 1 Oct ${year}): ${names}.`,
+      )
+    }
+
+    const { rows: sourceRows } = await client.query(
+      `SELECT source_cycle_id
+       FROM platform.review_cycle_sources
+       WHERE cycle_id = $1 AND COALESCE(excluded, false) = false
+       ORDER BY source_cycle_id`,
+      [cycle.id],
+    )
+    const sourceIds = sourceRows.map((row) => row.source_cycle_id).filter(Boolean)
+    if (sourceIds.length > 0) {
+      const { rows: ratedRows } = await client.query(
+        `SELECT DISTINCT employee_id
+         FROM platform.review_packets
+         WHERE cycle_id = ANY($1::text[])
+           AND COALESCE(leave_quarter, false) = false
+           AND (
+             manager_overall_grade IS NOT NULL
+             OR calibrated_overall_grade IS NOT NULL
+             OR published_overall_grade IS NOT NULL
+           )`,
+        [sourceIds],
+      )
+      const rated = new Set(ratedRows.map((row) => Number(row.employee_id)))
+      const missing = unique.filter((id) => !rated.has(id))
+      if (missing.length > 0) {
+        const { rows: missingPeople } = await client.query(
+          `SELECT name FROM platform.employees
+           WHERE employee_id = ANY($1::int[])
+           ORDER BY name
+           LIMIT 5`,
+          [missing],
+        )
+        const names =
+          missingPeople.map((row) => row.name).join(', ') || missing.join(', ')
+        throw new HttpError(
+          400,
+          `Not eligible for Annual (no rated quarter yet): ${names}.`,
+        )
+      }
+    }
+    return
+  }
+
+  const day25 = quarterlyDay25Date(cycle)
+  if (!day25) return
+
+  const { rows: lateJoiners } = await client.query(
+    `SELECT employee_id, name, joining_date
+     FROM platform.employees
+     WHERE employee_id = ANY($1::int[])
+       AND joining_date IS NOT NULL
+       AND to_char(joining_date AT TIME ZONE 'UTC', 'YYYY-MM-DD') >= $2
+     ORDER BY name
+     LIMIT 5`,
+    [unique, day25],
+  )
+  if (lateJoiners.length === 0) return
+  const names = lateJoiners.map((row) => row.name).join(', ')
+  throw new HttpError(
+    400,
+    `Not eligible for this quarter (joined on or after day 25): ${names}.`,
+  )
+}
+
 export function mapCycleGroup(
   row,
   memberIds = [],
@@ -64,7 +206,7 @@ export function mapCycleGroup(
     }),
     settings: {
       reviewTypes: normalizeReviewTypes(row.review_types),
-      goalCountPolicy: row.goal_count_policy,
+      goalCountPolicy: normalizeGoalCountPolicy(row.goal_count_policy),
       postWindowGoalPolicy: row.post_window_goal_policy,
       excludedEmployeeIds,
       autoScorecardGeneration: row.auto_scorecard_generation,
@@ -206,6 +348,16 @@ export async function insertCycleGroup(client, cycleId, input, actor) {
       input.settings.scorecardFormId ?? null,
       actor.actorEmployeeId,
     ],
+  )
+  await assertCycleEligibleMembers(
+    client,
+    {
+      id: cycleId,
+      period_key: input.periodKey,
+      cycle_type: input.type,
+      start_date: input.startDate,
+    },
+    input.memberIds,
   )
   const memberIds = await replaceGroupMembers(
     client,
@@ -445,7 +597,10 @@ export async function updateCycleGroup(cycleId, groupId, patch, platformUser) {
     )
     const memberIds =
       patch.memberIds != null
-        ? await replaceGroupMembers(client, cycleId, groupId, patch.memberIds)
+        ? await (async () => {
+            await assertCycleEligibleMembers(client, row, patch.memberIds)
+            return replaceGroupMembers(client, cycleId, groupId, patch.memberIds)
+          })()
         : before.memberIds
     if (patch.excludedEmployeeIds != null) {
       const excludedEmployeeIds = uniqueEmployeeIds(patch.excludedEmployeeIds)

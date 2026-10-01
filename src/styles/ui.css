@@ -1439,6 +1439,8 @@ a.pd-btn--secondary:visited {
 
 .pd-table-wrap {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow-x: auto;
   border: 0.0625rem solid var(--color-border);
   border-radius: 0.75rem;

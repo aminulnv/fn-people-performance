@@ -29,6 +29,8 @@ describe('ReviewsTabs', () => {
     expect(
       screen.queryByRole('link', { name: 'Scorecards Library' }),
     ).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Skills' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Values' })).not.toBeInTheDocument()
   })
 
   it('shows Scorecards Library when the person can edit forms', () => {

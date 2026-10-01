@@ -4,6 +4,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
   useParams,
 } from 'react-router-dom'
 import { useAuth } from '@/lib/auth'
@@ -69,6 +70,14 @@ function CatchAllRedirect() {
   )
 }
 
+/** Legacy `/reviews/skills|values/...` URLs → Organisation libraries. */
+function LegacyReviewsLibraryRedirect({ toPrefix }: { toPrefix: string }) {
+  const { '*': rest } = useParams()
+  const { search, hash } = useLocation()
+  const suffix = rest ? `/${rest}` : ''
+  return <Navigate to={`${toPrefix}${suffix}${search}${hash}`} replace />
+}
+
 /** Legacy `/reviews/cycles/...` URLs → standalone `/cycles/...`. */
 function LegacyCycleRedirect() {
   const { cycleId = '', section } = useParams()
@@ -132,6 +141,9 @@ function App() {
               />
               <Route path="organisation/roles" element={<OrganisationPage />} />
               <Route path="organisation/chart" element={<OrgChartPage />} />
+              {/* Splat keeps the library mounted when opening create/edit panels. */}
+              <Route path="organisation/skills/*" element={<SkillsPage />} />
+              <Route path="organisation/values/*" element={<ValuesPage />} />
               <Route
                 path="organisation/departments/new"
                 element={
@@ -219,9 +231,18 @@ function App() {
                   </RequirePlatformWrite>
                 }
               />
-              {/* Splat keeps SkillsPage mounted when opening create/edit panels. */}
-              <Route path="reviews/skills/*" element={<SkillsPage />} />
-              <Route path="reviews/values/*" element={<ValuesPage />} />
+              <Route
+                path="reviews/skills/*"
+                element={
+                  <LegacyReviewsLibraryRedirect toPrefix="/organisation/skills" />
+                }
+              />
+              <Route
+                path="reviews/values/*"
+                element={
+                  <LegacyReviewsLibraryRedirect toPrefix="/organisation/values" />
+                }
+              />
               <Route
                 path="scorecards-builder/:formId"
                 element={<LegacyScorecardsBuilderRedirect />}

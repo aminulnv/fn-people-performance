@@ -61,7 +61,7 @@ export function reviewCycleToGoalsCycle(
         : resolveGoalPhase(resolved, manualPhase, today),
     goalCountPolicy: policy.settings.goalCountPolicy,
     lateProgressUpdateDays:
-      policy.settings.goalCountPolicy.lateProgressUpdateDays ?? 30,
+      policy.settings.goalCountPolicy.lateProgressUpdateDays ?? 7,
     postWindowGoalPolicy: policy.settings.postWindowGoalPolicy,
     goalWindow: { ...policy.stagesConfig.goals.employee },
     goalExtensions: structuredClone(

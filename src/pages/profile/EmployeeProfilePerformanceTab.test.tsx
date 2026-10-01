@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { PlatformEmployee } from '@/lib/employees/types'
 import type { ReviewCycle } from '@/lib/reviews/types'
@@ -7,6 +7,7 @@ import { fetchReviewCyclesRemote } from '@/lib/reviews/remoteApi'
 import * as packetsApi from '@/lib/reviews/packetsApi'
 import {
   createCycleGroup,
+  createReviewCycle,
   ensureReviewCyclesLoaded,
   listReviewCycles,
   resetReviewsStoreForTests,
@@ -118,9 +119,11 @@ describe('EmployeeProfilePerformanceTab', () => {
     ).toBeInTheDocument()
     expect(screen.getByText(/1 cycle/)).toBeInTheDocument()
     expect(
-      screen.getByRole('link', { name: /Not Started/i }),
+      screen.getByRole('row', { name: /Not Started/i }),
     ).toBeInTheDocument()
-    expect(screen.getByText('No grade')).toBeInTheDocument()
+    expect(
+      screen.getByRole('row', { name: /Not Started.*—/i }),
+    ).toBeInTheDocument()
     expect(screen.getByText(/Quarterly|Annual|Custom/)).toBeInTheDocument()
   })
 
@@ -150,15 +153,52 @@ describe('EmployeeProfilePerformanceTab', () => {
       appeals: [],
       version: 1,
     }
-    vi.spyOn(packetsApi, 'fetchReviewPacket').mockResolvedValue(packet)
+    vi.spyOn(packetsApi, 'fetchReviewPacketSummary').mockResolvedValue(packet)
 
     renderTab()
 
     expect(
-      await screen.findByRole('link', { name: /Completed/i }),
+      await screen.findByRole('row', { name: /Completed/i }),
     ).toBeInTheDocument()
     expect(screen.getByText('Performing')).toBeInTheDocument()
     expect(screen.queryByText('Not started')).not.toBeInTheDocument()
-    expect(screen.queryByText('No grade')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('row', { name: /No grade|Ungraded|Pending/i }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('nests linked quarters under the annual with expand/collapse', async () => {
+    await createReviewCycle({ type: 'regular', periodKey: 'q1-2026' })
+    await createReviewCycle({ type: 'regular', periodKey: 'annual-2026' })
+
+    for (const cycle of listReviewCycles()) {
+      await createCycleGroup(cycle.id, {
+        name: 'Everyone',
+        memberIds: [employee.employeeId],
+      })
+    }
+
+    renderTab()
+
+    expect(
+      await screen.findByRole('button', { name: 'Collapse Annual 2026' }),
+    ).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getByRole('link', { name: /Q1 2026/ })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Q3 2026/ })).toBeInTheDocument()
+    expect(
+      document.querySelectorAll('.pd-reviews-cycles__branch'),
+    ).toHaveLength(2)
+    expect(
+      document.querySelector('.pd-reviews-cycles__row--open'),
+    ).toBeTruthy()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Collapse Annual 2026' }),
+    )
+    expect(
+      screen.getByRole('button', { name: 'Expand Annual 2026' }),
+    ).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('link', { name: /Q1 2026/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Q3 2026/ })).not.toBeInTheDocument()
   })
 })

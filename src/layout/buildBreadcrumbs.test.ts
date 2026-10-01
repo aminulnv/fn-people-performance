@@ -158,32 +158,32 @@ describe('buildBreadcrumbs', () => {
     ])
   })
 
-  it('builds Reviews > Skills for the skills library', () => {
+  it('builds Organisation > Skills for the skills library', () => {
     expect(
       buildBreadcrumbs({
-        pathname: '/reviews/skills',
+        pathname: '/organisation/skills',
         navItems: [
           ...navItems,
-          { path: '/reviews', label: 'Reviews', icon: Home },
+          { path: '/organisation', label: 'Organisation', icon: Home },
         ],
       }),
     ).toEqual([
-      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Skills' },
     ])
   })
 
-  it('builds Reviews > Values for the core values library', () => {
+  it('builds Organisation > Values for the core values library', () => {
     expect(
       buildBreadcrumbs({
-        pathname: '/reviews/values',
+        pathname: '/organisation/values',
         navItems: [
           ...navItems,
-          { path: '/reviews', label: 'Reviews', icon: Home },
+          { path: '/organisation', label: 'Organisation', icon: Home },
         ],
       }),
     ).toEqual([
-      { label: 'Reviews', href: '/reviews/scorecards' },
+      { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Values' },
     ])
   })

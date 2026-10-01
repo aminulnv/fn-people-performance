@@ -1,7 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import type { PlatformDepartment } from '@/lib/employees/types'
 import { getSkillsSnapshot, resetSkillsStoreForTests } from '@/lib/skills/store'
 import { resetRolesStoreForTests } from '@/lib/roles/store'
 import { SkillsLibrary } from './SkillsLibrary'
@@ -15,63 +14,11 @@ vi.mock('@/lib/useAuth', () => ({
     status: 'authenticated',
     user: { permissions: authState.permissions },
     session: null,
-    signInWithGoogle: async () => {},
-    signInWithEmailPassword: async () => {},
-    signOut: async () => {},
+    signInWithGoogle: async () => { },
+    signInWithEmailPassword: async () => { },
+    signOut: async () => { },
   }),
 }))
-
-const catalogDepartments: PlatformDepartment[] = [
-  {
-    id: 1,
-    name: 'Sales',
-    headEmployeeId: null,
-    headName: null,
-    headEmail: null,
-    hrbpEmployeeId: null,
-    hrbpName: null,
-    hrbpEmail: null,
-    headcount: 0,
-    teamCount: 0,
-  },
-  {
-    id: 2,
-    name: 'Finance',
-    headEmployeeId: null,
-    headName: null,
-    headEmail: null,
-    hrbpEmployeeId: null,
-    hrbpName: null,
-    hrbpEmail: null,
-    headcount: 0,
-    teamCount: 0,
-  },
-  {
-    id: 3,
-    name: 'Engineering',
-    headEmployeeId: null,
-    headName: null,
-    headEmail: null,
-    hrbpEmployeeId: null,
-    hrbpName: null,
-    hrbpEmail: null,
-    headcount: 0,
-    teamCount: 0,
-  },
-]
-
-vi.mock('@/lib/employees/useEmployees', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('@/lib/employees/useEmployees')>()
-  return {
-    ...actual,
-    useOrganisationCatalogs: () => ({
-      departments: catalogDepartments,
-      teams: [],
-      ready: true,
-    }),
-  }
-})
 
 beforeAll(() => {
   Element.prototype.scrollIntoView = vi.fn()
@@ -89,22 +36,22 @@ beforeEach(() => {
   resetRolesStoreForTests()
 })
 
-function renderSkills(path = '/reviews/skills') {
+function renderSkills(path = '/organisation/skills') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/reviews/skills/*" element={<SkillsLibrary />} />
+        <Route path="/organisation/skills/*" element={<SkillsLibrary />} />
       </Routes>
     </MemoryRouter>,
   )
 }
 
 describe('SkillsLibrary', () => {
-  it('lists seeded skills without an owner column', () => {
+  it('lists seeded skills without a department column', () => {
     renderSkills()
 
     expect(screen.getByRole('columnheader', { name: /^Skill/ })).toBeInTheDocument()
-    expect(screen.getByRole('columnheader', { name: /^Department/ })).toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: /^Department/ })).not.toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: /^Used by/ })).toBeInTheDocument()
     expect(screen.queryByText('Owner')).not.toBeInTheDocument()
     expect(screen.getByText('AI Fluency')).toBeInTheDocument()
@@ -146,7 +93,7 @@ describe('SkillsLibrary', () => {
   })
 
   it('opens edit from a skill direct link', async () => {
-    renderSkills('/reviews/skills/skill-ai-fluency')
+    renderSkills('/organisation/skills/skill-ai-fluency')
     expect(
       await screen.findByRole('dialog', { name: 'Edit skill' }),
     ).toBeInTheDocument()
@@ -163,7 +110,7 @@ describe('SkillsLibrary', () => {
   })
 
   it('creates a skill in the right panel', async () => {
-    renderSkills('/reviews/skills/new')
+    renderSkills('/organisation/skills/new')
     expect(
       screen.getByRole('dialog', { name: 'Create New Skill' }),
     ).toBeInTheDocument()
@@ -178,21 +125,23 @@ describe('SkillsLibrary', () => {
   })
 
   it('edits a skill in the right panel', async () => {
-    renderSkills('/reviews/skills/skill-account-planning/edit')
+    renderSkills('/organisation/skills/skill-account-planning/edit')
     expect(screen.getByRole('dialog', { name: 'Edit skill' })).toBeInTheDocument()
     expect(screen.getByLabelText('Skill name')).toHaveValue('Account Planning')
     expect(screen.getByRole('group', { name: 'Skill sections' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Role$/)).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Department' }))
-    fireEvent.click(await screen.findByRole('option', { name: 'Engineering' }))
+    expect(screen.queryByLabelText('Department')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Skill name'), {
+      target: { value: 'Account Planning Plus' },
+    })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     })
     expect(
       getSkillsSnapshot().find((skill) => skill.id === 'skill-account-planning')
-        ?.department,
-    ).toBe('Engineering')
+        ?.name,
+    ).toBe('Account Planning Plus')
   })
 
   it('hides skill editing when the user cannot write', () => {
@@ -203,17 +152,5 @@ describe('SkillsLibrary', () => {
     ).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Account Planning'))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('rejects free-text departments that are not in the catalog', async () => {
-    renderSkills('/reviews/skills/new')
-    fireEvent.change(screen.getByLabelText('Skill name'), {
-      target: { value: 'Negotiation' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Department' }))
-    expect(
-      screen.queryByRole('option', { name: 'Enterprise Sales' }),
-    ).not.toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Sales' })).toBeInTheDocument()
   })
 })

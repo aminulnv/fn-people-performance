@@ -1,25 +1,34 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  Building2,
   CalendarDays,
+  CalendarFold,
+  ChevronDown,
   ChevronRight,
   Layers,
   Star,
-  type LucideIcon,
 } from 'lucide-react'
-import { Badge, EmptyState, type BadgeVariant } from '@/components/ui'
+import {
+  Avatar,
+  Badge,
+  EmptyState,
+  ResizableTable,
+  type BadgeVariant,
+  type ResizableColumn,
+} from '@/components/ui'
 import { ApiError } from '@/lib/apiClient'
 import { cx } from '@/lib/cx'
+import { avatarStyle } from '@/lib/employees/avatar'
 import { useEmployees } from '@/lib/employees/useEmployees'
 import type { PlatformEmployee } from '@/lib/employees/types'
-import { formatLocalDateRange } from '@/lib/dates/timezone'
 import { ensurePersonGoalsHydrated } from '@/lib/goalsApi'
 import { PACKET_STALE_MS, queryClient, queryKeys } from '@/lib/queryClient'
 import { findCycleGroupForPerson } from '@/lib/reviews/cycleGroups'
+import { nestCyclesForList } from '@/lib/reviews/cycleList'
 import { annualSourceLinks } from '@/lib/reviews/annualQuarters'
 import { fetchReviewPacketSummary } from '@/lib/reviews/packetsApi'
 import { cyclePurposeOf, cycleTypeLabel } from '@/lib/reviews/purpose'
+import { GradeChip } from '@/pages/reviews/GradeChip'
 import {
   SCORECARD_STATUS_LIST_LABEL,
   buildEmployeeScorecardHistory,
@@ -28,8 +37,7 @@ import {
   type ScorecardRow,
   type ScorecardStatus,
 } from '@/lib/reviews/scorecards'
-import { cycleStatusLabel, resolveCycleStatus } from '@/lib/reviews/status'
-import type { CyclePurpose, ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
+import type { ReviewCycle, ReviewPacket } from '@/lib/reviews/types'
 import { prefetchReviewPacket } from '@/lib/reviews/useReviewPackets'
 import {
   useReviewCyclesHydrated,
@@ -37,12 +45,6 @@ import {
 } from '@/lib/reviews/useReviews'
 import { useLiveTopic } from '@/lib/realtime/useLiveTopic'
 import { useAuth } from '@/lib/useAuth'
-
-const PURPOSE_ICON: Record<CyclePurpose, LucideIcon> = {
-  quarterly_checkin: CalendarDays,
-  annual_appraisal: Layers,
-  custom: Building2,
-}
 
 function statusVariant(status: ScorecardStatus): BadgeVariant {
   if (status === 'completed') return 'completed'
@@ -52,9 +54,7 @@ function statusVariant(status: ScorecardStatus): BadgeVariant {
 
 function gradeCopy(row: ScorecardRow): string {
   if (row.grade) return gradeLabel(row.grade)
-  if (row.status === 'in_progress') return 'Pending'
-  if (row.status === 'completed') return 'Ungraded'
-  return 'No grade'
+  return '—'
 }
 
 function cycleForRow(
@@ -65,6 +65,28 @@ function cycleForRow(
     (cycle) => cycle.id === cycleKey || cycle.periodKey === cycleKey,
   )
 }
+
+function iconForCycle(cycle: ReviewCycle) {
+  const purpose = cyclePurposeOf(cycle)
+  if (purpose === 'annual_appraisal') return Layers
+  if (purpose === 'custom') return CalendarFold
+  return CalendarDays
+}
+
+const HISTORY_COLUMNS: ResizableColumn[] = [
+  {
+    id: 'cycle-name',
+    label: 'Cycle Name',
+    name: 'Cycle Name',
+    grow: true,
+    growWeight: 3,
+    minWidth: 280,
+  },
+  { id: 'cycle-type', label: 'Type', minWidth: 116 },
+  { id: 'reviewer', label: 'Reviewer', grow: true, minWidth: 140 },
+  { id: 'status', label: 'Status', minWidth: 120 },
+  { id: 'grade', label: 'Grade', minWidth: 120 },
+]
 
 export function EmployeeProfilePerformanceTab({
   employee,
@@ -77,20 +99,23 @@ export function EmployeeProfilePerformanceTab({
   const { employees } = useEmployees({ load: false })
   const { cycles } = useReviewsSnapshot()
   const cyclesHydrated = useReviewCyclesHydrated()
-  const memberCycleIds = useMemo(
+  const memberCycles = useMemo(
     () =>
-      cycles
-        .filter(
-          (cycle) => findCycleGroupForPerson(cycle, employee.employeeId) != null,
-        )
-        .map((cycle) => cycle.id),
+      cycles.filter(
+        (cycle) => findCycleGroupForPerson(cycle, employee.employeeId) != null,
+      ),
     [cycles, employee.employeeId],
+  )
+  const memberCycleIds = useMemo(
+    () => memberCycles.map((cycle) => cycle.id),
+    [memberCycles],
   )
   const memberCycleKey = memberCycleIds.join('\0')
   const [packetLoad, setPacketLoad] = useState<{
     key: string
     packets: ReviewPacket[]
   } | null>(null)
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
 
   const loadPackets = useCallback(async (cycleIds: string[], employeeId: number) => {
     const loaded = await Promise.all(
@@ -161,6 +186,28 @@ export function EmployeeProfilePerformanceTab({
       buildEmployeeScorecardHistory(employee, employees, user?.email, packets),
     [employee, employees, packets, user?.email],
   )
+  const rowByCycleId = useMemo(() => {
+    const map = new Map<string, ScorecardRow>()
+    for (const row of rows) {
+      map.set(row.cycleKey, row)
+      const cycle = cycleForRow(cycles, row.cycleKey)
+      if (cycle) {
+        map.set(cycle.id, row)
+        if (cycle.periodKey) map.set(cycle.periodKey, row)
+      }
+    }
+    return map
+  }, [cycles, rows])
+  const tree = useMemo(() => nestCyclesForList(memberCycles), [memberCycles])
+
+  function toggleCollapsed(cycleId: string) {
+    setCollapsed((current) => {
+      const next = new Set(current)
+      if (next.has(cycleId)) next.delete(cycleId)
+      else next.add(cycleId)
+      return next
+    })
+  }
 
   if (!cyclesHydrated || !packetsReady) {
     return (
@@ -190,31 +237,75 @@ export function EmployeeProfilePerformanceTab({
   }
 
   return (
-    <section className="pd-profile__panel" aria-label="Performance history">
-      <header className="pd-profile__panel-head pd-profile__panel-head--stack">
-        <h2 className="pd-profile__panel-title">Performance History</h2>
-        <p className="pd-profile__panel-lede">
-          Review status and grades across recent cycles
-        </p>
+    <section
+      className="pd-people__panel pd-people__panel--table pd-profile__history-panel"
+      aria-labelledby="profile-performance-heading"
+    >
+      <header className="pd-profile__history-head">
+        <h2
+          id="profile-performance-heading"
+          className="pd-profile__panel-title"
+        >
+          Performance History
+        </h2>
         <p className="pd-profile__panel-meta">
           {rows.length} {rows.length === 1 ? 'cycle' : 'cycles'}
         </p>
       </header>
-      <p className="pd-profile__scorecard-cols" aria-hidden>
-        <span>Cycle</span>
-        <span>Status</span>
-        <span>Grade</span>
-      </p>
-      <ul className="pd-profile__scorecard-list">
-        {rows.map((row) => (
-          <ScorecardHistoryRow
-            key={row.id}
-            row={row}
-            cycle={cycleForRow(cycles, row.cycleKey)}
-            cycles={cycles}
-          />
-        ))}
-      </ul>
+      <div className="pd-people__table-wrap">
+        <ResizableTable
+          className="pd-people__table pd-reviews-cycles__table pd-profile__history-table"
+          storageKey="profile-performance-history-widths-v1"
+          columns={HISTORY_COLUMNS}
+        >
+          <tbody>
+            {tree.map((node) => {
+              const parentRow = rowByCycleId.get(node.cycle.id)
+              if (!parentRow) return null
+              const isOpen = !collapsed.has(node.cycle.id)
+              const childRows = node.children
+                .map((child) => ({
+                  cycle: child,
+                  row: rowByCycleId.get(child.id),
+                }))
+                .filter(
+                  (
+                    item,
+                  ): item is { cycle: ReviewCycle; row: ScorecardRow } =>
+                    item.row != null,
+                )
+              return (
+                <Fragment key={node.cycle.id}>
+                  <ScorecardHistoryRow
+                    row={parentRow}
+                    cycle={node.cycle}
+                    cycles={cycles}
+                    childCount={childRows.length}
+                    isOpen={isOpen}
+                    onToggle={
+                      childRows.length > 0
+                        ? () => toggleCollapsed(node.cycle.id)
+                        : undefined
+                    }
+                  />
+                  {isOpen
+                    ? childRows.map((child, index) => (
+                        <ScorecardHistoryRow
+                          key={child.cycle.id}
+                          row={child.row}
+                          cycle={child.cycle}
+                          cycles={cycles}
+                          nested
+                          isLastChild={index === childRows.length - 1}
+                        />
+                      ))
+                    : null}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </ResizableTable>
+      </div>
     </section>
   )
 }
@@ -225,10 +316,8 @@ function warmScorecardNavigation(
   cycles: readonly ReviewCycle[],
 ) {
   const cycleId = cycle?.id ?? row.cycleKey
-  // Full packet for the destination scorecard only.
   prefetchReviewPacket(queryClient, cycleId, row.employeeId)
   void ensurePersonGoalsHydrated(cycleId, row.employeeId)
-  // Linked quarters only need grade summaries + the Q4 goals hydrate.
   for (const link of annualSourceLinks(cycle, [...cycles])) {
     void queryClient.prefetchQuery({
       queryKey: queryKeys.reviewPacketSummary(
@@ -251,79 +340,132 @@ function ScorecardHistoryRow({
   row,
   cycle,
   cycles,
+  nested = false,
+  isLastChild = false,
+  childCount = 0,
+  isOpen = false,
+  onToggle,
 }: {
   row: ScorecardRow
-  cycle?: ReviewCycle
+  cycle: ReviewCycle
   cycles: readonly ReviewCycle[]
+  nested?: boolean
+  isLastChild?: boolean
+  childCount?: number
+  isOpen?: boolean
+  onToggle?: () => void
 }) {
+  const navigate = useNavigate()
   const purpose = cyclePurposeOf(cycle)
-  const Icon = PURPOSE_ICON[purpose]
-  const windowLabel = cycle
-    ? formatLocalDateRange(cycle.startDate, cycle.endDate)
-    : ''
-  const cycleWindow = cycle ? resolveCycleStatus(cycle) : null
-  const reviewer =
-    row.reviewerName && row.reviewerName !== '-' ? row.reviewerName : ''
+  const Icon = iconForCycle(cycle)
+  const to = scorecardDetailPath(row.cycleKey, row.employeeId)
   const grade = gradeCopy(row)
   const statusLabel = SCORECARD_STATUS_LIST_LABEL[row.status]
-  const meta = [
-    cycleTypeLabel(cycle),
-    windowLabel,
-    reviewer && `Reviewer ${reviewer}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const hasReviewer = Boolean(
+    row.reviewerName && row.reviewerName !== '-',
+  )
 
   return (
-    <li>
-      <Link
-        to={scorecardDetailPath(row.cycleKey, row.employeeId)}
-        className="pd-profile__scorecard-row"
-        aria-label={`${row.cycleLabel}, ${statusLabel}, ${grade}`}
-        onMouseEnter={() => warmScorecardNavigation(cycle, row, cycles)}
-        onFocus={() => warmScorecardNavigation(cycle, row, cycles)}
-      >
-        <span
-          className={`pd-profile__scorecard-icon pd-profile__scorecard-icon--${purpose}`}
-          aria-hidden
-        >
-          <Icon size={16} strokeWidth={1.75} />
-        </span>
-        <span className="pd-profile__scorecard-main">
-          <span className="pd-profile__scorecard-cycle">
-            {row.cycleLabel}
-            {cycleWindow === 'current' ? (
-              <Badge variant="in-progress" className="pd-profile__scorecard-now">
-                {cycleStatusLabel(cycleWindow)}
-              </Badge>
-            ) : null}
-          </span>
-          {meta ? (
-            <span className="pd-profile__scorecard-meta">{meta}</span>
-          ) : null}
-        </span>
-        <Badge
-          variant={statusVariant(row.status)}
-          className="pd-profile__scorecard-status"
-        >
-          {statusLabel}
-        </Badge>
-        <span
-          className={cx(
-            'pd-profile__scorecard-grade',
-            row.grade && `pd-profile__scorecard-grade--${row.grade}`,
-            row.grade ? 'is-set' : 'is-empty',
+    <tr
+      className={cx(
+        'pd-people__row-link',
+        nested && 'pd-reviews-cycles__row--child',
+        nested && isLastChild && 'pd-reviews-cycles__row--child-last',
+        !nested && childCount > 0 && isOpen && 'pd-reviews-cycles__row--open',
+      )}
+      tabIndex={0}
+      aria-level={nested ? 2 : 1}
+      aria-label={`${row.cycleLabel}, ${statusLabel}, ${grade}`}
+      onMouseEnter={() => warmScorecardNavigation(cycle, row, cycles)}
+      onFocus={() => warmScorecardNavigation(cycle, row, cycles)}
+      onClick={(event) => {
+        const target = event.target as HTMLElement
+        if (target.closest('a, button')) return
+        navigate(to)
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        navigate(to)
+      }}
+    >
+      <td>
+        <span className="pd-reviews-cycles__name-cell">
+          {onToggle ? (
+            <button
+              type="button"
+              className="pd-reviews-cycles__expand"
+              aria-expanded={isOpen}
+              aria-label={
+                isOpen
+                  ? `Collapse ${row.cycleLabel}`
+                  : `Expand ${row.cycleLabel}`
+              }
+              onClick={onToggle}
+              onKeyDown={(event) => event.stopPropagation()}
+            >
+              {isOpen ? (
+                <ChevronDown size={16} strokeWidth={1.75} aria-hidden />
+              ) : (
+                <ChevronRight size={16} strokeWidth={1.75} aria-hidden />
+              )}
+            </button>
+          ) : nested ? (
+            <span className="pd-reviews-cycles__branch" aria-hidden />
+          ) : (
+            <span className="pd-reviews-cycles__expand-spacer" aria-hidden />
           )}
-        >
-          {grade}
+          <Link to={to} className="pd-reviews-cycle-link" draggable={false}>
+            <span
+              className={`pd-reviews-cycle-link__icon pd-reviews-cycle-link__icon--${purpose}`}
+              aria-hidden
+            >
+              <Icon size={16} strokeWidth={1.75} />
+            </span>
+            <span className="pd-reviews-cycle-link__name">{row.cycleLabel}</span>
+            {childCount > 0 ? (
+              <span className="pd-people__th-count">{childCount}</span>
+            ) : null}
+          </Link>
         </span>
-        <ChevronRight
-          className="pd-profile__scorecard-chevron"
-          size={16}
-          strokeWidth={1.75}
-          aria-hidden
-        />
-      </Link>
-    </li>
+      </td>
+      <td className="pd-reviews-cycles__muted">{cycleTypeLabel(cycle)}</td>
+      <td className="pd-profile__history-reviewer">
+        {hasReviewer ? (
+          <span className="pd-people__person pd-profile__history-reviewer-person">
+            <Avatar
+              name={row.reviewerName}
+              src={row.reviewerAvatarUrl || undefined}
+              size="sm"
+              className="pd-people__avatar"
+              style={avatarStyle(row.reviewerName)}
+            />
+            {row.reviewerId != null ? (
+              <Link
+                to={`/people/${row.reviewerId}`}
+                className="pd-people__person-link"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {row.reviewerName}
+              </Link>
+            ) : (
+              <span className="pd-people__person-name">{row.reviewerName}</span>
+            )}
+          </span>
+        ) : (
+          <span className="pd-reviews-cycles__muted">—</span>
+        )}
+      </td>
+      <td className="pd-profile__history-status">
+        <Badge variant={statusVariant(row.status)}>{statusLabel}</Badge>
+      </td>
+      <td className="pd-profile__history-grade-cell">
+        {row.grade ? (
+          <GradeChip grade={row.grade} />
+        ) : (
+          <span className="pd-reviews-cycles__muted">—</span>
+        )}
+      </td>
+    </tr>
   )
 }

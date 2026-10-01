@@ -6,8 +6,6 @@ import { useAuth } from '@/lib/useAuth'
 const TABS: Array<{ id: ReviewsTabId; label: string }> = [
   { id: 'scorecards', label: 'Scorecards' },
   { id: 'scorecards-library', label: 'Scorecards Library' },
-  { id: 'skills', label: 'Skills' },
-  { id: 'values', label: 'Values' },
 ]
 
 export function ReviewsTabs({ current }: { current?: ReviewsTabId }) {

@@ -31,14 +31,56 @@ const detailQueryOptions = {
   refetchOnMount: true as const,
 }
 
+/** Grades/status only — never write these into the full-packet detail key. */
+export function seedReviewPacketSummaries(
+  client: QueryClient,
+  packets: readonly ReviewPacket[],
+): void {
+  for (const packet of packets) {
+    client.setQueryData(
+      queryKeys.reviewPacketSummary(packet.cycleId, packet.employeeId),
+      packet,
+    )
+  }
+}
+
+/** Cached summary/full row for instant scorecard paint while the full packet loads. */
+export function cachedPacketPlaceholder(
+  client: QueryClient,
+  cycleId: string,
+  employeeId: number,
+): ReviewPacket | null {
+  if (!cycleId || !Number.isInteger(employeeId) || employeeId <= 0) return null
+  return (
+    client.getQueryData<ReviewPacket>(
+      queryKeys.reviewPacket(cycleId, employeeId),
+    ) ??
+    client.getQueryData<ReviewPacket>(
+      queryKeys.reviewPacketSummary(cycleId, employeeId),
+    ) ??
+    client
+      .getQueryData<ReviewPacket[]>(queryKeys.reviewPacketSummaries(cycleId))
+      ?.find((packet) => packet.employeeId === employeeId) ??
+    client
+      .getQueryData<ReviewPacket[]>(queryKeys.reviewPackets(cycleId))
+      ?.find((packet) => packet.employeeId === employeeId) ??
+    null
+  )
+}
+
 export function useReviewPacketSummaries(
   cycleId: string | null | undefined,
   enabled = true,
 ) {
+  const client = useQueryClient()
   const active = Boolean(cycleId) && enabled
   return useQuery({
     queryKey: queryKeys.reviewPacketSummaries(cycleId ?? ''),
-    queryFn: () => fetchReviewPacketSummaries(cycleId!),
+    queryFn: async () => {
+      const packets = await fetchReviewPacketSummaries(cycleId!)
+      seedReviewPacketSummaries(client, packets)
+      return packets
+    },
     enabled: active,
     ...listQueryOptions,
   })
@@ -57,12 +99,20 @@ export function useReviewPackets(
   })
 }
 
-/** Full packets for one or more cycles, flattened in cycleKeys order. */
+/**
+ * Directory / eligibility lists for one or more cycles.
+ * Uses grade+status summaries — never the full answers/events payload.
+ */
 export function useReviewPacketsForCycles(cycleKeys: readonly string[]) {
+  const client = useQueryClient()
   const queries = useQueries({
     queries: cycleKeys.map((cycleId) => ({
-      queryKey: queryKeys.reviewPackets(cycleId),
-      queryFn: () => fetchReviewPackets(cycleId),
+      queryKey: queryKeys.reviewPacketSummaries(cycleId),
+      queryFn: async () => {
+        const packets = await fetchReviewPacketSummaries(cycleId)
+        seedReviewPacketSummaries(client, packets)
+        return packets
+      },
       enabled: Boolean(cycleId),
       ...listQueryOptions,
     })),
@@ -117,10 +167,15 @@ export function useReviewPacket(
 export function useReviewPacketSummariesForCycles(
   cycleIds: readonly string[],
 ) {
+  const client = useQueryClient()
   const queries = useQueries({
     queries: cycleIds.map((cycleId) => ({
       queryKey: queryKeys.reviewPacketSummaries(cycleId),
-      queryFn: () => fetchReviewPacketSummaries(cycleId),
+      queryFn: async () => {
+        const packets = await fetchReviewPacketSummaries(cycleId)
+        seedReviewPacketSummaries(client, packets)
+        return packets
+      },
       enabled: Boolean(cycleId),
       ...listQueryOptions,
     })),

@@ -53,6 +53,7 @@ vi.mock('@/lib/useAuth', () => ({
 
 vi.mock('@/lib/reviews/packetsApi', () => ({
   fetchReviewPackets: async () => packetsState.packets,
+  fetchReviewPacketSummaries: async () => packetsState.packets,
 }))
 
 function employee(

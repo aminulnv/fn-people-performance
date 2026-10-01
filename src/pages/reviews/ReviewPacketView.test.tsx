@@ -363,6 +363,49 @@ describe('ScorecardDetailPage', () => {
 
     await screen.findByRole('heading', { name: 'Riley Report' })
     expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
+    expect(
+      screen.getByRole('status', {
+        name: 'Read Only. Grades have been released. This form is read-only.',
+      }),
+    ).toBeTruthy()
+  })
+
+  it('shows a read-only ribbon after the self-review is submitted', async () => {
+    authState.user = {
+      id: '2',
+      email: 'riley.report@example.com',
+      name: 'Riley Report',
+      personId: '2',
+      employeeId: 2,
+      permissions: [],
+    }
+    packetState.packet = packet(cycleId, {
+      status: 'self_submitted',
+      selfSubmittedAt: '2026-08-01T00:00:00.000Z',
+      selfOverallGrade: 'performing',
+    })
+    render(
+      withQuery(
+        <MemoryRouter
+          initialEntries={[`/reviews/scorecards/${cycleId}/2?stage=self_review`]}
+        >
+          <Routes>
+            <Route
+              path="/reviews/scorecards/:cycleKey/:employeeId"
+              element={<ScorecardDetailPage />}
+            />
+          </Routes>
+        </MemoryRouter>,
+      ),
+    )
+
+    await screen.findByRole('heading', { name: 'Riley Report' })
+    expect(screen.queryByRole('link', { name: 'Edit' })).toBeNull()
+    expect(
+      screen.getByRole('status', {
+        name: 'Read Only. You already submitted this self-review. This form is read-only.',
+      }),
+    ).toBeTruthy()
   })
 })
 
@@ -406,7 +449,7 @@ describe('ReviewPacketView', () => {
     expect(
       screen.getByText('Saved grades. Not counted while Skills is off.'),
     ).toBeTruthy()
-    expect(screen.getByText('Performing')).toBeTruthy()
+    expect(screen.getByText('Intermediate')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'AI Fluency grade' })).toBeNull()
   })
 
@@ -670,6 +713,12 @@ describe('ReviewPacketView', () => {
 
   it('leaves edit mode after Submit', async () => {
     renderEdit()
+    const comment = await screen.findByLabelText(
+      /How did this person perform against their goals this quarter/i,
+    )
+    fireEvent.change(comment, { target: { value: 'Solid quarter delivery.' } })
+    fireEvent.click(await screen.findByRole('button', { name: /Goals \(/ }))
+    fireEvent.click(screen.getByRole('option', { name: 'Performing' }))
     const submit = await screen.findByRole('button', { name: 'Submit' })
     await waitFor(() => expect(submit).toBeEnabled())
 

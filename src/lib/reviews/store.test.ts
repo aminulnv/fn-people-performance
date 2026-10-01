@@ -326,6 +326,7 @@ describe("reviews store", () => {
       recommendedMinimum: 2,
       recommendedMaximum: 7,
       maximumAllowed: 8,
+      lateProgressUpdateDays: 7,
     });
 
     await expect(

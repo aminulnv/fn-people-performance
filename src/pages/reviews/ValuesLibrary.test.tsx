@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { resetValuesStoreForTests } from '@/lib/values/store'
 import { ValuesLibrary } from './ValuesLibrary'
 
@@ -29,17 +29,11 @@ beforeEach(() => {
   resetValuesStoreForTests()
 })
 
-function renderValues(path = '/reviews/values') {
+function renderValues(path = '/organisation/values') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/reviews/values/new" element={<ValuesLibrary />} />
-        <Route path="/reviews/values/:valueId/edit" element={<ValuesLibrary />} />
-        <Route
-          path="/reviews/values/:valueId"
-          element={<Navigate to="edit" replace />}
-        />
-        <Route path="/reviews/values" element={<ValuesLibrary />} />
+        <Route path="/organisation/values/*" element={<ValuesLibrary />} />
       </Routes>
     </MemoryRouter>,
   )
@@ -61,7 +55,7 @@ describe('ValuesLibrary', () => {
   })
 
   it('opens edit from a value direct link', async () => {
-    renderValues('/reviews/values/move-fast')
+    renderValues('/organisation/values/move-fast')
     expect(
       await screen.findByRole('dialog', { name: 'Edit value' }),
     ).toBeInTheDocument()
@@ -80,7 +74,7 @@ describe('ValuesLibrary', () => {
   })
 
   it('creates a value in the right panel', async () => {
-    renderValues('/reviews/values/new')
+    renderValues('/organisation/values/new')
     expect(screen.getByRole('dialog', { name: 'Create value' })).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/Move Fast/), {
       target: { value: 'Customer Obsession' },
@@ -96,7 +90,7 @@ describe('ValuesLibrary', () => {
   })
 
   it('edits a value in the right panel', async () => {
-    renderValues('/reviews/values/product-first/edit')
+    renderValues('/organisation/values/product-first/edit')
     expect(screen.getByRole('dialog', { name: 'Edit value' })).toBeInTheDocument()
     expect(screen.getByLabelText('Title')).toHaveValue('Product First')
     const description = screen.getByLabelText('Description')

@@ -5,7 +5,7 @@ import '@/styles/layout-people.css'
 export default function ValuesPage() {
   return (
     <div
-      className="pd-page pd-page--pane pd-page--wide pd-reviews"
+      className="pd-page pd-page--pane pd-page--wide pd-reviews pd-org"
       aria-label="Core Values library"
     >
       <ValuesLibrary />

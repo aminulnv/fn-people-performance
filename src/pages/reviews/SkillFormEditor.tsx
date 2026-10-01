@@ -1,6 +1,5 @@
-import { useId, useMemo, useState } from 'react'
-import { Button, ListboxSelect, Switch } from '@/components/ui'
-import { useOrganisationCatalogs } from '@/lib/employees/useEmployees'
+import { useId, useState } from 'react'
+import { Button, Switch } from '@/components/ui'
 import { expectedLevelLabel } from '@/lib/roles/labels'
 import { archiveSkill, createSkill, updateSkill } from '@/lib/skills/store'
 import {
@@ -25,34 +24,16 @@ export function SkillFormFields({
   onArchived?: () => void
 }) {
   const nameId = useId()
-  const departmentId = useId()
-  const catalogs = useOrganisationCatalogs()
   const [approved, setApproved] = useState(
     mode === 'edit' ? existing?.status !== 'draft' : true,
   )
   const [name, setName] = useState(existing?.name ?? '')
-  const [department, setDepartment] = useState(existing?.department ?? '')
   const [mastery, setMastery] = useState<SkillMastery>(
     () => existing?.mastery ?? emptySkillMastery(),
   )
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [archiving, setArchiving] = useState(false)
-
-  const departmentOptions = useMemo(() => {
-    const byKey = new Map<string, string>()
-    const add = (raw: string) => {
-      const trimmed = raw.trim()
-      if (!trimmed) return
-      const key = trimmed.toLowerCase()
-      if (!byKey.has(key)) byKey.set(key, trimmed)
-    }
-    for (const row of catalogs.departments) add(row.name)
-    if (existing?.department) add(existing.department)
-    return [...byKey.values()]
-      .sort((left, right) => left.localeCompare(right))
-      .map((label) => ({ value: label, label }))
-  }, [catalogs.departments, existing?.department])
 
   if (mode === 'edit' && !existing) {
     return (
@@ -67,22 +48,11 @@ export function SkillFormFields({
 
   const submit = () => {
     if (saving) return
-    const trimmedDepartment = department.trim()
-    if (
-      trimmedDepartment &&
-      !departmentOptions.some((option) => option.value === trimmedDepartment)
-    ) {
-      setError(
-        'Pick a department from the list, or leave blank for company-wide.',
-      )
-      return
-    }
     setSaving(true)
     setError(null)
     const status: SkillStatus = approved ? 'approved' : 'draft'
     const payload = {
       name,
-      department: trimmedDepartment,
       role: '',
       status,
       mastery,
@@ -124,26 +94,6 @@ export function SkillFormFields({
           required
           autoFocus
         />
-      </div>
-      <div className="pd-field">
-        <label className="pd-reviews-question__dual-label" htmlFor={departmentId}>
-          Department
-        </label>
-        <ListboxSelect
-          id={departmentId}
-          aria-label="Department"
-          value={department}
-          onValueChange={setDepartment}
-          placeholder="Select department"
-          emptyLabel="Company-wide"
-          options={departmentOptions}
-          searchable={departmentOptions.length > 8}
-          searchPlaceholder="Search departments"
-          noResultsText="No departments found"
-        />
-        <p className="pd-field__hint">
-          Optional. Leave blank if this skill is company-wide.
-        </p>
       </div>
 
       <section

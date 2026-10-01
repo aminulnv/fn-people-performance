@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { ChevronDown, Target } from "lucide-react";
-import { Button, ListboxSelect } from "@/components/ui";
+import { ListboxSelect } from "@/components/ui";
 import { ensurePersonGoalsHydrated, type Goal } from "@/lib/goalsApi";
 import { gradeLabel } from "@/lib/reviews/scorecards";
 import { goalsDetailPath } from "@/pages/goals/goalHelpers";
@@ -11,10 +11,20 @@ import {
   ScorecardGoalsCard,
 } from "./ScorecardGoalsCard";
 
-function gradeSelectClass(grade: GradeBandId | null | "") {
+const LEAVE_OPTION_VALUE = "leave";
+
+const GRADE_OR_LEAVE_OPTIONS = [
+  ...GRADE_LISTBOX_OPTIONS,
+  { value: LEAVE_OPTION_VALUE, label: "Leave (O)" },
+];
+
+function gradeSelectClass(grade: GradeBandId | null | "" | typeof LEAVE_OPTION_VALUE) {
   return [
     "pd-reviews-scorecard__goals-grade",
-    grade ? `pd-reviews-scorecard__grade-select--${grade}` : "",
+    grade && grade !== LEAVE_OPTION_VALUE
+      ? `pd-reviews-scorecard__grade-select--${grade}`
+      : "",
+    grade === LEAVE_OPTION_VALUE ? "pd-reviews-scorecard__grade-select--leave" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -36,6 +46,17 @@ function GradeBadge({
       aria-label={label}
     >
       {gradeLabel(grade)}
+    </span>
+  );
+}
+
+function LeaveBadge({ label }: { label?: string }) {
+  return (
+    <span
+      className="pd-reviews-scorecard__band pd-reviews-scorecard__band--leave"
+      aria-label={label}
+    >
+      Leave (O)
     </span>
   );
 }
@@ -161,12 +182,18 @@ export function AnnualGoalsQuarters({
                 ? goalsDetailPath(cycleId, subjectId)
                 : undefined;
           const showQ4GradeEditor =
-            isProgress && Boolean(onQ4GradeChange) && !row.leave;
+            isProgress && Boolean(onQ4GradeChange);
           const quarterGrade = isProgress ? q4Grade : row.grade;
           const leaveBusy =
             row.packetId != null && leaveBusyPacketId === row.packetId;
           const canToggleLeave =
             canMarkLeave && Boolean(row.packetId) && Boolean(onLeaveChange);
+          const outcomeValue = row.leave
+            ? LEAVE_OPTION_VALUE
+            : (quarterGrade ?? "");
+          const outcomeOptions = canToggleLeave
+            ? GRADE_OR_LEAVE_OPTIONS
+            : GRADE_LISTBOX_OPTIONS;
 
           return (
             <article
@@ -213,27 +240,36 @@ export function AnnualGoalsQuarters({
                   ) : null}
                 </button>
                 <div className="pd-reviews-quarters__bar-grade">
-                  {row.leave ? (
-                    <span
-                      className="pd-reviews-quarters__leave-badge"
-                      aria-label={`${row.label} leave`}
-                    >
-                      Leave (O)
-                    </span>
-                  ) : showQ4GradeEditor ? (
+                  {(canToggleLeave && row.packetId) || showQ4GradeEditor ? (
                     <ListboxSelect
-                      className={gradeSelectClass(quarterGrade)}
+                      className={gradeSelectClass(outcomeValue)}
                       id={`scorecard-goals-grade-${row.sourceCycleId}`}
-                      aria-label="Q4 Goals Grading"
-                      value={quarterGrade ?? ""}
-                      disabled={q4GradeLocked}
-                      placeholder="Select a grade"
-                      emptyLabel="Select a grade"
-                      onValueChange={(next) =>
-                        onQ4GradeChange?.(next as GradeBandId | "")
+                      aria-label={`${row.label} grade or leave`}
+                      value={outcomeValue}
+                      disabled={
+                        leaveBusy ||
+                        (showQ4GradeEditor && q4GradeLocked && !canToggleLeave)
                       }
-                      options={GRADE_LISTBOX_OPTIONS}
+                      placeholder="Select grade"
+                      emptyLabel="Select grade"
+                      onValueChange={(next) => {
+                        if (next === LEAVE_OPTION_VALUE) {
+                          if (row.packetId) {
+                            void onLeaveChange?.(row.packetId, true);
+                          }
+                          return;
+                        }
+                        if (row.leave && row.packetId) {
+                          void onLeaveChange?.(row.packetId, false);
+                        }
+                        if (showQ4GradeEditor) {
+                          onQ4GradeChange?.(next as GradeBandId | "");
+                        }
+                      }}
+                      options={outcomeOptions}
                     />
+                  ) : row.leave ? (
+                    <LeaveBadge label={`${row.label} leave`} />
                   ) : quarterGrade ? (
                     <GradeBadge
                       grade={quarterGrade}
@@ -242,18 +278,6 @@ export function AnnualGoalsQuarters({
                   ) : (
                     <span className="pd-reviews-quarters__grade-empty">—</span>
                   )}
-                  {canToggleLeave && row.packetId ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={leaveBusy}
-                      onClick={() =>
-                        void onLeaveChange?.(row.packetId!, !row.leave)
-                      }
-                    >
-                      {row.leave ? "Clear leave" : "Mark leave (O)"}
-                    </Button>
-                  ) : null}
                 </div>
               </div>
               <div

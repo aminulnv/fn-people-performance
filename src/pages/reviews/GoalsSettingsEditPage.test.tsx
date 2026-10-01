@@ -171,10 +171,10 @@ describe('GoalsSettingsEditPage', () => {
     expect(
       screen.getByRole('heading', { name: 'Progress Updates' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Days after deadline')).toHaveValue('30')
+    expect(screen.getByLabelText('Days after deadline')).toHaveValue('7')
     expect(
-      screen.getByRole('button', { name: 'Increase Days after deadline' }),
-    ).toBeDisabled()
+      screen.getByRole('button', { name: 'Decrease Days after deadline' }),
+    ).toBeEnabled()
 
     fireEvent.click(
       screen.getByRole('button', { name: 'Decrease Days after deadline' }),
@@ -185,7 +185,7 @@ describe('GoalsSettingsEditPage', () => {
       const saved = getReviewCycle(cycle.id)?.groups?.find(
         (item) => item.id === group.id,
       )
-      expect(saved?.settings.goalCountPolicy.lateProgressUpdateDays).toBe(29)
+      expect(saved?.settings.goalCountPolicy.lateProgressUpdateDays).toBe(6)
     })
   })
 })

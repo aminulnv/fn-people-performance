@@ -6,7 +6,7 @@ import {
   useNavigate,
   useSearchParams,
 } from 'react-router-dom'
-import { Briefcase, Building2, CircleDot, Plus, Search, Sparkles } from 'lucide-react'
+import { Briefcase, CircleDot, Plus, Search, Sparkles } from 'lucide-react'
 import {
   AttributeFilters,
   EmptyState,
@@ -28,7 +28,7 @@ import {
   skillCreatePath,
   skillEditPath,
   skillsLibraryPath,
-} from '@/lib/reviews/paths'
+} from '@/lib/organisation/paths'
 import {
   useSkill,
   useSkillRoleUsage,
@@ -42,7 +42,6 @@ import { SkillRolesMatrix } from './SkillRolesMatrix'
 import '@/styles/layout-organisation.css'
 
 const SKILL_ATTRIBUTES = [
-  { id: 'department', label: 'Department', icon: Building2 },
   { id: 'role', label: 'Used by', icon: Briefcase },
   { id: 'status', label: 'Status', icon: CircleDot },
 ]
@@ -84,9 +83,9 @@ export function SkillsLibrary() {
   )
   const panelTab = parseSkillPanelTab(searchParams.get('tab'))
 
-  const createMatch = useMatch('/reviews/skills/new')
-  const editMatch = useMatch('/reviews/skills/:skillId/edit')
-  const bareMatch = useMatch({ path: '/reviews/skills/:skillId', end: true })
+  const createMatch = useMatch('/organisation/skills/new')
+  const editMatch = useMatch('/organisation/skills/:skillId/edit')
+  const bareMatch = useMatch({ path: '/organisation/skills/:skillId', end: true })
   const panel = panelModeFromRoute(
     Boolean(createMatch),
     editMatch?.params.skillId,
@@ -94,7 +93,7 @@ export function SkillsLibrary() {
   const panelSkill = useSkill(
     panel && panel.kind === 'edit' ? panel.skillId : '',
   )
-  // Legacy `/reviews/skills/:id` → edit panel (App uses a splat so the
+  // Legacy `/organisation/skills/:id` → edit panel (App uses a splat so the
   // library stays mounted when opening create/edit).
   const redirectToEdit =
     !createMatch && !editMatch && bareMatch?.params.skillId
@@ -125,7 +124,6 @@ export function SkillsLibrary() {
   )
   const attributeValues = useMemo(
     () => ({
-      department: uniqueAttributeValues(skills.map((skill) => skill.department)),
       role: uniqueAttributeValues(
         skills.flatMap((skill) => {
           const names = (roleUsage[skill.id] ?? []).map((role) => role.name)
@@ -144,7 +142,6 @@ export function SkillsLibrary() {
       const roleNames = roles.map((role) => role.name)
       if (
         !matchesAttributeFilters(attributeFilters, {
-          department: skill.department,
           role: roleNames.length > 0 ? roleNames : [''],
           status: statusLabel(skill.status),
         })
@@ -152,7 +149,7 @@ export function SkillsLibrary() {
         return false
       }
       if (!q) return true
-      return [skill.name, skill.department, ...roleNames]
+      return [skill.name, ...roleNames]
         .join(' ')
         .toLowerCase()
         .includes(q)
@@ -179,7 +176,7 @@ export function SkillsLibrary() {
         role="group"
         aria-label="Skills totals"
       >
-        <div className="pd-people__summary-btn is-active" aria-current="true">
+        <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">
             <Sparkles size={14} strokeWidth={1.75} aria-hidden />
             Skills
@@ -262,10 +259,10 @@ export function SkillsLibrary() {
           <div className="pd-people__table-wrap">
             <ResizableTable
               className="pd-people__table pd-reviews-skills__table"
-              storageKey="reviews-skills"
+              storageKey="reviews-skills-v4"
+              evenColumns
               columns={[
-                { id: 'skill', label: 'Skill', grow: true },
-                { id: 'department', label: 'Department' },
+                { id: 'skill', label: 'Skill' },
                 { id: 'role', label: 'Used by' },
                 { id: 'talent', label: 'Talent' },
                 { id: 'status', label: 'Status' },
@@ -373,8 +370,8 @@ function SkillRow({
       className={
         interactive
           ? ['pd-people__row-link', selected ? 'is-selected' : '']
-              .filter(Boolean)
-              .join(' ')
+            .filter(Boolean)
+            .join(' ')
           : undefined
       }
       data-selected={interactive && selected ? true : undefined}
@@ -384,16 +381,15 @@ function SkillRow({
       onKeyDown={
         interactive
           ? (event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                onOpen()
-              }
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault()
+              onOpen()
             }
+          }
           : undefined
       }
     >
       <td>{skill.name}</td>
-      <td>{skill.department || '—'}</td>
       <td title={roles.map((role) => role.name).join(', ') || undefined}>
         {usedBy || '—'}
       </td>

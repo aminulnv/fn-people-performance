@@ -27,7 +27,7 @@ const TIPS_BY_PATH: Record<string, AssistantTip> = {
   },
   '/organisation': {
     title: 'See the structure',
-    body: 'Use the Departments, Teams, and Roles tabs to browse structure, then open a unit for detail.',
+    body: 'Use the Departments, Teams, Roles, Skills, and Values tabs to browse structure and competency libraries, then open a unit for detail.',
   },
   '/organisation/chart': {
     title: 'Follow the reporting line',

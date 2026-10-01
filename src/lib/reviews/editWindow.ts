@@ -1,4 +1,6 @@
 import { formatShortDate } from './periods'
+import { managerMissedDeadlineNotice } from './managerMissedDeadline'
+import { selfReviewSubmitted } from './packetVisibility'
 import { stageProgress } from './stageProgress'
 import { resolveCycleStatus } from './status'
 import {
@@ -7,6 +9,7 @@ import {
 } from './reviewStages'
 import type {
   ReviewCycle,
+  ReviewPacket,
   ReviewStageConfig,
   ReviewStageId,
 } from './types'
@@ -16,6 +19,8 @@ export type ReviewEditWindowLock = {
   title: string
   message: string
 }
+
+const READ_ONLY = 'Read Only' as const
 
 function stageEndDate(stage: ReviewStageConfig | undefined): string | null {
   return stage?.end?.date?.trim() || null
@@ -55,7 +60,7 @@ export function describeReviewEditWindowLock(input: {
   if (resolveCycleStatus(cycle, today) === 'previous') {
     const endedOn = formatShortDate(cycle.endDate)
     return {
-      title: 'Read Only',
+      title: READ_ONLY,
       message: `This cycle ended on ${endedOn}. Reviews are read-only.`,
     }
   }
@@ -71,7 +76,74 @@ export function describeReviewEditWindowLock(input: {
   if (stageProgress(stageAsTimeline(stage), today) !== 'done') return null
 
   return {
-    title: 'Read Only',
+    title: READ_ONLY,
     message: `The ${REVIEW_STAGE_LABEL[formStage]} window closed on ${formatShortDate(endDate)}. This form is read-only.`,
   }
+}
+
+/**
+ * Why this scorecard form is read-only for the current viewer — window,
+ * submit/release state, or role. Null when Edit should still be available.
+ */
+export function describeReviewEditLock(input: {
+  cycle: Pick<ReviewCycle, 'startDate' | 'endDate' | 'name'> | null | undefined
+  stages?: ReviewStageConfig[]
+  formStage?: ScorecardViewStage | ReviewStageId | null
+  packet?: Pick<
+    ReviewPacket,
+    | 'status'
+    | 'selfSubmittedAt'
+    | 'managerMissedDeadline'
+    | 'managerOverallGrade'
+  > | null
+  isSubject?: boolean
+  isManager?: boolean
+  today?: Date
+}): ReviewEditWindowLock | null {
+  const windowLock = describeReviewEditWindowLock(input)
+  if (windowLock) return windowLock
+
+  const formStage = reviewFormStageId(input.formStage)
+  if (!formStage) return null
+
+  const { packet, isSubject = false, isManager = false } = input
+
+  if (formStage === 'self_review') {
+    if (!isSubject) {
+      return {
+        title: READ_ONLY,
+        message: 'Only the employee can edit this self-review.',
+      }
+    }
+    if (selfReviewSubmitted(packet)) {
+      return {
+        title: READ_ONLY,
+        message:
+          'You already submitted this self-review. This form is read-only.',
+      }
+    }
+    return null
+  }
+
+  if (!isManager) {
+    return {
+      title: READ_ONLY,
+      message: 'Only the line manager can edit this review.',
+    }
+  }
+  if (formStage === 'manager_review') {
+    const missed = managerMissedDeadlineNotice(packet)
+    if (missed) return missed
+  }
+  if (
+    packet &&
+    (packet.status === 'released_to_managers' ||
+      packet.status === 'released_to_employees')
+  ) {
+    return {
+      title: READ_ONLY,
+      message: 'Grades have been released. This form is read-only.',
+    }
+  }
+  return null
 }

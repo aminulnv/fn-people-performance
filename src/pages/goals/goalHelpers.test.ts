@@ -11,6 +11,7 @@ import {
   cascadeToTableLabel,
   goalTitle,
   isCascadedGoal,
+  isProgressUpdateStale,
   goalsMyReportsPath,
   goalsMyGoalsPath,
   hashForManagerTab,
@@ -21,6 +22,7 @@ import {
   metricSummary,
   metricTipDetails,
   personMatchesScope,
+  staleProgressUpdateLabel,
 } from './goalHelpers'
 import type { Goal } from '@/lib/goals/types'
 
@@ -411,5 +413,27 @@ describe('formatRefreshAge', () => {
   it('formats whole days as a compact age', () => {
     const now = Date.parse('2026-08-20T12:00:00.000Z')
     expect(formatRefreshAge('2026-08-13T12:00:00.000Z', now)).toBe('7d')
+  })
+})
+
+describe('stale progress update', () => {
+  const now = Date.parse('2026-09-30T12:00:00.000Z')
+
+  it('is not stale at exactly 7 days', () => {
+    expect(
+      isProgressUpdateStale('2026-09-23T12:00:00.000Z', 7, now),
+    ).toBe(false)
+  })
+
+  it('is stale after more than 7 days', () => {
+    expect(
+      isProgressUpdateStale('2026-09-21T12:00:00.000Z', 7, now),
+    ).toBe(true)
+  })
+
+  it('explains the gap in the hover label', () => {
+    expect(
+      staleProgressUpdateLabel('2026-09-21T12:00:00.000Z', now),
+    ).toMatch(/^No progress update in 9 days \(Last Updated: /)
   })
 })

@@ -39,9 +39,11 @@ function clone<T>(value: T): T {
 
 function emptyBands(): ValueBehaviour['bands'] {
   return {
+    unsatisfactory: [],
     developing: [],
     performing: [],
     exceeding: [],
+    exceptional: [],
   }
 }
 

@@ -80,6 +80,28 @@ export function managerCanSeeSelfReview(
   return managerReviewIsComplete(packet.status) && selfReviewSubmitted(packet)
 }
 
+/**
+ * True when this viewer is the line manager (or covering manager) and must
+ * not see self-review content yet. Admins who are not the line manager are
+ * not blinded.
+ */
+export function managerIsBlindedFromSelfReview(
+  packet:
+    | Pick<
+        ReviewPacket,
+        'status' | 'selfSubmittedAt' | 'employeeId' | 'managerEmployeeId'
+      >
+    | null
+    | undefined,
+  viewerEmployeeId: number | null | undefined,
+  access: ReviewViewerAccess = {},
+): boolean {
+  if (!packet || viewerEmployeeId == null) return false
+  if (viewerEmployeeId === packet.employeeId) return false
+  if (!viewerIsLineManager(packet, viewerEmployeeId, access)) return false
+  return !managerCanSeeSelfReview(packet)
+}
+
 /** Official manager / calibration result is visible to the subject after this. */
 export function officialReviewReleasedToEmployee(
   status: ReviewPacketStatus,
@@ -151,7 +173,7 @@ function stripSelfReview(packet: ReviewPacket): ReviewPacket {
 }
 
 function viewerIsLineManager(
-  packet: ReviewPacket,
+  packet: Pick<ReviewPacket, 'employeeId' | 'managerEmployeeId'>,
   viewerEmployeeId: number | null | undefined,
   access: ReviewViewerAccess,
 ): boolean {

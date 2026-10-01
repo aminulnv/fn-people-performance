@@ -280,6 +280,17 @@ export function validateCycleDateRange(startDate, endDate) {
   }
 }
 
+export function normalizeGoalCountPolicy(policy) {
+  const source = policy && typeof policy === 'object' ? policy : {}
+  const rawDays = source.lateProgressUpdateDays
+  const lateProgressUpdateDays =
+    rawDays == null || rawDays === 30 ? 7 : rawDays
+  return {
+    ...source,
+    lateProgressUpdateDays,
+  }
+}
+
 export function validateGoalCountPolicy(policy) {
   const values = [
     policy.minimumRequired,

@@ -138,11 +138,11 @@ describe("deriveGoalCapabilities", () => {
     expect(caps.canUpdateProgress).toBe(false);
   });
 
-  it("allows progress updates for 30 days after the quarter ends", () => {
+  it("allows progress updates for 7 days after the quarter ends", () => {
     const lateCycle = {
       ...cycle,
       quarterEndDate: "2027-06-30",
-      lateProgressUpdateDays: 30,
+      lateProgressUpdateDays: 7,
     };
 
     expect(
@@ -152,7 +152,7 @@ describe("deriveGoalCapabilities", () => {
         row: row("e1", "approved"),
         cycle: lateCycle,
         cycleStatus: "previous",
-        now: new Date("2027-07-30T12:00:00Z"),
+        now: new Date("2027-07-07T12:00:00Z"),
       }).canUpdateProgress,
     ).toBe(true);
     expect(
@@ -162,7 +162,7 @@ describe("deriveGoalCapabilities", () => {
         row: row("e1", "approved"),
         cycle: lateCycle,
         cycleStatus: "previous",
-        now: new Date("2027-07-31T12:00:00Z"),
+        now: new Date("2027-07-08T12:00:00Z"),
       }).canUpdateProgress,
     ).toBe(false);
   });

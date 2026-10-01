@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Link, useMatch, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useMatch, useNavigate } from 'react-router-dom'
 import { Heart, Plus } from 'lucide-react'
 import { EmptyState, ResizableTable, Switch } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
@@ -8,7 +8,7 @@ import {
   valueCreatePath,
   valueEditPath,
   valuesLibraryPath,
-} from '@/lib/reviews/paths'
+} from '@/lib/organisation/paths'
 import { useCompanyValue, useValuesLibrary } from '@/lib/values/useValues'
 import { SettingsSidePanel } from './SettingsSidePanel'
 import { ValueFormFields } from './ValueFormEditor'
@@ -33,12 +33,17 @@ export function ValuesLibrary() {
   const { values } = useValuesLibrary()
   const [hideDisabled, setHideDisabled] = useState(true)
 
-  const createMatch = useMatch('/reviews/values/new')
-  const editMatch = useMatch('/reviews/values/:valueId/edit')
+  const createMatch = useMatch('/organisation/values/new')
+  const editMatch = useMatch('/organisation/values/:valueId/edit')
+  const bareMatch = useMatch({ path: '/organisation/values/:valueId', end: true })
   const panel = panelModeFromRoute(
     Boolean(createMatch),
     editMatch?.params.valueId,
   )
+  const redirectToEdit =
+    !createMatch && !editMatch && bareMatch?.params.valueId
+      ? valueEditPath(bareMatch.params.valueId)
+      : null
   const panelValue = useCompanyValue(
     panel && panel.kind === 'edit' ? panel.valueId : '',
   )
@@ -60,6 +65,10 @@ export function ValuesLibrary() {
   const panelTitle =
     panel?.kind === 'create' ? 'Create value' : 'Edit value'
 
+  if (redirectToEdit) {
+    return <Navigate to={redirectToEdit} replace />
+  }
+
   return (
     <div className="pd-reviews-skills">
       <div
@@ -67,7 +76,7 @@ export function ValuesLibrary() {
         role="group"
         aria-label="Values totals"
       >
-        <div className="pd-people__summary-btn is-active" aria-current="true">
+        <div className="pd-people__summary-card">
           <span className="pd-people__summary-label">Values</span>
           <span className="pd-people__summary-value">{values.length}</span>
         </div>
@@ -149,11 +158,11 @@ export function ValuesLibrary() {
                       className={
                         canWrite
                           ? [
-                              'pd-people__row-link',
-                              isSelected ? 'is-selected' : '',
-                            ]
-                              .filter(Boolean)
-                              .join(' ')
+                            'pd-people__row-link',
+                            isSelected ? 'is-selected' : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ')
                           : undefined
                       }
                       data-selected={canWrite && isSelected ? true : undefined}
@@ -163,11 +172,11 @@ export function ValuesLibrary() {
                       onKeyDown={
                         canWrite
                           ? (event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault()
-                                openValue()
-                              }
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              openValue()
                             }
+                          }
                           : undefined
                       }
                     >

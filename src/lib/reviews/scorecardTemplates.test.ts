@@ -29,13 +29,67 @@ describe('scorecard templates', () => {
       ['values', 25],
     ])
     expect(pillarWeightTotal(policy)).toBe(100)
-    expect(policy.scorecard.questions.map((question) => question.id)).toContain(
-      'retain',
+    expect(policy.scorecard.questions.map((question) => question.id)).toEqual(
+      expect.arrayContaining(['retain', 'engaged']),
+    )
+    const retain = policy.scorecard.questions.find(
+      (question) => question.id === 'retain',
+    )
+    const engaged = policy.scorecard.questions.find(
+      (question) => question.id === 'engaged',
+    )
+    expect(retain).toMatchObject({
+      required: true,
+      kind: 'yes_no',
+      visibility: ['manager'],
+      outputVisibility: ['manager'],
+    })
+    expect(engaged).toMatchObject({
+      required: true,
+      kind: 'yes_no',
+      visibility: ['manager'],
+      outputVisibility: ['manager'],
+    })
+  })
+
+  it('repairs legacy retain settings on annual normalize', () => {
+    const policy = normalizeReviewPolicy(
+      {
+        scorecard: {
+          questions: [
+            {
+              id: 'retain',
+              prompt: 'Will we do what it takes to retain this person?',
+              enabled: true,
+              required: false,
+              kind: 'open_ended',
+              visibility: ['calibrators'],
+              outputVisibility: ['manager'],
+            },
+          ],
+          pillars: [],
+          bands: [],
+          extraGradeFields: [],
+        },
+      },
+      'annual_appraisal',
     )
     expect(
-      policy.scorecard.questions.find((question) => question.id === 'retain')
-        ?.visibility,
-    ).toEqual(['calibrators'])
+      policy.scorecard.questions.find((question) => question.id === 'retain'),
+    ).toMatchObject({
+      required: true,
+      kind: 'yes_no',
+      visibility: ['manager'],
+      outputVisibility: ['manager'],
+    })
+    expect(
+      policy.scorecard.questions.find((question) => question.id === 'engaged'),
+    ).toMatchObject({
+      required: true,
+      kind: 'yes_no',
+      visibility: ['manager'],
+      outputVisibility: ['manager'],
+    })
   })
 
   it('gives quarterly a goals-only form with the manager comment question', () => {

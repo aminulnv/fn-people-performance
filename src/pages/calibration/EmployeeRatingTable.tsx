@@ -995,7 +995,7 @@ export function EmployeeRatingTable({
             onClick={exportCsv}
           >
             <Download size={16} strokeWidth={1.75} aria-hidden />
-            Export CSV
+            Export
           </button>
         </div>
       </div>

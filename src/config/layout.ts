@@ -62,14 +62,12 @@ export const layoutConfig: AppLayoutConfig = {
       icon: BarChart3,
       allowedEmails: ANALYTICS_ALLOWED_EMAILS,
     },
+    settingsNavItem,
   ],
 }
 
-/** Pages available in global search (nav + account pages for now). */
-export const searchablePages: NavItem[] = [
-  ...layoutConfig.navItems,
-  settingsNavItem,
-]
+/** Pages available in global search (sidebar nav items for now). */
+export const searchablePages: NavItem[] = [...layoutConfig.navItems]
 
 export function navItemsForPermissions(
   items: NavItem[],

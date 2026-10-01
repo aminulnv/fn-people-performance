@@ -1,10 +1,9 @@
 import type { CompanyValue } from './types'
+import { VALUE_BEHAVIOUR_BANDS } from './types'
 
 /**
- * Company Core Values — same 7 cultural values Revolut grades on the
- * annual scorecard. The public People API has no /values catalog, so this
- * list is the source of truth (one behaviour each, Developing / Performing /
- * Exceeding).
+ * Company Core Values — seven cultural values on the annual scorecard.
+ * Each value has one behaviour with Unsatisfactory → Exceptional anchors.
  */
 export const CORE_VALUES: CompanyValue[] = [
   {
@@ -19,6 +18,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'move-fast-behaviour',
         name: 'Move Fast, Chase Excellence',
         bands: {
+          unsatisfactory: [
+            'Chronically misses deadlines and SLAs with little recovery.',
+            'Speed comes at the cost of repeated quality failures.',
+            'Ignores feedback about pace or delivery standards.',
+          ],
           developing: [
             'Struggles to balance speed and quality appropriately.',
             'Does not improve execution speed after setbacks.',
@@ -36,6 +40,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Improves team velocity through structured experimentation.',
             'Consistently delivers high-quality results at speed and sets the standard for meeting deadlines and SLAs.',
           ],
+          exceptional: [
+            'Sets the org standard for high-quality speed and judgement.',
+            'Unblocks others so whole teams move faster without cutting corners.',
+            'Turns setbacks into durable process improvements others adopt.',
+          ],
         },
       },
     ],
@@ -52,6 +61,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'take-ownership-behaviour',
         name: 'Take Ownership, Deliver Outcomes',
         bands: {
+          unsatisfactory: [
+            'Drops commitments and requires constant chase to finish work.',
+            'Blames others when outcomes miss; does not own the result.',
+            'Leaves problems unattended until they become crises.',
+          ],
           developing: [
             'Requires follow-up to ensure responsibilities are completed.',
             'Deflects responsibility when results fall short.',
@@ -70,6 +84,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Ensures commitments translate into tangible outcomes.',
             'Proactively identifies problems, defines root causes, proposes viable solutions, and takes full ownership through resolution.',
           ],
+          exceptional: [
+            'Owns outcomes end-to-end and raises the bar for the team.',
+            'Anticipates risks early and drives resolution without being asked.',
+            'Turns ownership into measurable impact others rely on.',
+          ],
         },
       },
     ],
@@ -86,6 +105,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'invent-simplify-behaviour',
         name: 'Invent & Simplify',
         bands: {
+          unsatisfactory: [
+            'Adds complexity without improving outcomes.',
+            'Resists simpler approaches even when current ways clearly fail.',
+            'Makes decisions without using available evidence.',
+          ],
           developing: [
             'Accepts inefficient systems without proposing improvements.',
             'Introduces unnecessary complexity into solutions.',
@@ -104,6 +128,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Creates structural improvements that reduce recurring inefficiencies.',
             'Builds solutions that scale impact without proportional resource growth.',
           ],
+          exceptional: [
+            'Creates simple systems that scale and remove recurring pain.',
+            'Inventiveness becomes a team advantage others reuse.',
+            'Cuts through ambiguity with clear frameworks and data.',
+          ],
         },
       },
     ],
@@ -120,6 +149,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'dream-team-behaviour',
         name: 'The Dream Team',
         bands: {
+          unsatisfactory: [
+            'Works in isolation and undermines team cohesion.',
+            'Ignores underperformance that hurts collective results.',
+            'Rarely supports or develops others.',
+          ],
           developing: [
             'Works independently without integrating team input.',
             'Rarely recognises contributions of others.',
@@ -138,6 +172,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Protects high standards through accountability.',
             'Strengthens overall team talent and cohesion.',
           ],
+          exceptional: [
+            'Builds stronger teams through mentoring and clear standards.',
+            'Raises collective performance and protects high bar hiring.',
+            'Makes collaboration the default path to better outcomes.',
+          ],
         },
       },
     ],
@@ -154,6 +193,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'honesty-integrity-behaviour',
         name: 'Have Honesty & Integrity',
         bands: {
+          unsatisfactory: [
+            'Withholds material information or misrepresents facts.',
+            'Breaks commitments without accountability.',
+            'Avoids ownership of mistakes; trust erodes.',
+          ],
           developing: [
             'Withholds relevant information or avoids transparency when uncomfortable.',
             'Fails to follow through consistently on stated commitments.',
@@ -172,6 +216,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Protects trust, confidentiality, and company reputation proactively.',
             'Holds self and others accountable to high integrity standards.',
           ],
+          exceptional: [
+            'Is the reference point for ethical judgement under pressure.',
+            'Builds trust across stakeholders through radical transparency.',
+            'Holds self and others to integrity standards that protect the company.',
+          ],
         },
       },
     ],
@@ -188,6 +237,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'debate-commit-behaviour',
         name: 'Debate Openly, Commit Fully',
         bands: {
+          unsatisfactory: [
+            'Avoids necessary debate or turns disagreement personal.',
+            'Re-litigates decisions after alignment and stalls execution.',
+            'Undermines agreed plans through inconsistent follow-through.',
+          ],
           developing: [
             'Avoids constructively challenging ideas when misalignment exists.',
             'Continues resisting or second-guessing decisions after alignment.',
@@ -206,6 +260,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Drives disciplined execution after alignment.',
             'Prevents re-litigation of agreed decisions and keeps teams focused.',
           ],
+          exceptional: [
+            'Creates healthy debate that improves decisions, then drives full commit.',
+            'Keeps teams aligned through ambiguity without reopening settled calls.',
+            'Models disagree-and-commit so others execute with clarity.',
+          ],
         },
       },
     ],
@@ -222,6 +281,11 @@ export const CORE_VALUES: CompanyValue[] = [
         id: 'product-first-behaviour',
         name: 'Product First',
         bands: {
+          unsatisfactory: [
+            'Shows little product or user understanding in daily work.',
+            'Makes decisions disconnected from product impact.',
+            'Does not invest in learning the product.',
+          ],
           developing: [
             'Demonstrates limited knowledge of product features or user needs.',
             'Relies primarily on secondhand understanding of customer experience.',
@@ -240,6 +304,11 @@ export const CORE_VALUES: CompanyValue[] = [
             'Influences product improvements through informed insight.',
             'Operates with full accountability for product impact and success.',
           ],
+          exceptional: [
+            'Deep product expertise shapes better decisions across functions.',
+            'Anticipates user needs and drives high-leverage product improvements.',
+            'Holds full accountability for product outcomes others follow.',
+          ],
         },
       },
     ],
@@ -248,4 +317,35 @@ export const CORE_VALUES: CompanyValue[] = [
 
 export function coreValueById(id: string): CompanyValue | undefined {
   return CORE_VALUES.find((value) => value.id === id)
+}
+
+function behaviourHasAnyBand(behaviour: CompanyValue['behaviours'][number]): boolean {
+  return VALUE_BEHAVIOUR_BANDS.some((band) => behaviour.bands[band]?.length > 0)
+}
+
+/** Prefer live behaviours; fill any missing grade bands from the catalog. */
+export function withCatalogBehaviours(value: CompanyValue): CompanyValue {
+  const catalog = coreValueById(value.id)
+  if (!catalog) return value
+
+  if (value.behaviours.length === 0 || !value.behaviours.some(behaviourHasAnyBand)) {
+    return { ...value, behaviours: structuredClone(catalog.behaviours) }
+  }
+
+  const catalogBehaviour = catalog.behaviours[0]
+  if (!catalogBehaviour) return value
+
+  return {
+    ...value,
+    behaviours: value.behaviours.map((behaviour, index) => {
+      const seed = catalog.behaviours[index] ?? catalogBehaviour
+      const bands = { ...behaviour.bands } as CompanyValue['behaviours'][number]['bands']
+      for (const band of VALUE_BEHAVIOUR_BANDS) {
+        if (!bands[band]?.length) {
+          bands[band] = structuredClone(seed.bands[band] ?? [])
+        }
+      }
+      return { ...behaviour, bands }
+    }),
+  }
 }

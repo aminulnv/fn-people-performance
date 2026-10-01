@@ -996,6 +996,15 @@
   border-color: transparent;
 }
 
+.pd-org-role-matrix__level--poor,
+.pd-org-role-matrix__level-select.pd-org-role-matrix__level--poor .pd-listbox__trigger,
+.pd-org-role-matrix__level-select.pd-org-role-matrix__level--poor.is-open .pd-listbox__trigger,
+.pd-listbox__option.pd-org-role-matrix__level--poor {
+  background: color-mix(in srgb, var(--color-red, #d92d20) 14%, transparent);
+  color: var(--color-red, #b42318);
+  border-color: transparent;
+}
+
 .pd-org-role-matrix__level--basic,
 .pd-org-role-matrix__level-select.pd-org-role-matrix__level--basic .pd-listbox__trigger,
 .pd-org-role-matrix__level-select.pd-org-role-matrix__level--basic.is-open .pd-listbox__trigger,
@@ -1034,6 +1043,8 @@
 
 .pd-listbox__option.pd-org-role-matrix__level--none:hover,
 .pd-listbox__option.pd-org-role-matrix__level--none.is-active,
+.pd-listbox__option.pd-org-role-matrix__level--poor:hover,
+.pd-listbox__option.pd-org-role-matrix__level--poor.is-active,
 .pd-listbox__option.pd-org-role-matrix__level--basic:hover,
 .pd-listbox__option.pd-org-role-matrix__level--basic.is-active,
 .pd-listbox__option.pd-org-role-matrix__level--intermediate:hover,

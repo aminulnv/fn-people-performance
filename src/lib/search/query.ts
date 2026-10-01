@@ -6,7 +6,8 @@ const PREFIXES: Array<{ pattern: RegExp; scope: SearchScope }> = [
   { pattern: /^(goal:|goals:|g:)\s*/i, scope: 'goals' },
   { pattern: /^(cycle:|cycles:|c:)\s*/i, scope: 'reviews' },
   { pattern: /^(review:|reviews:|r:)\s*/i, scope: 'reviews' },
-  { pattern: /^(dept:|department:|team:|org:|d:|t:)\s*/i, scope: 'organisation' },
+  { pattern: /^(dept:|department:|team:|org:|role:|roles:|d:|t:)\s*/i, scope: 'organisation' },
+  { pattern: /^(skill:|skills:|value:|values:)\s*/i, scope: 'organisation' },
   { pattern: /^(page:|pages:|#)\s*/i, scope: 'pages' },
   { pattern: /^(action:|actions:|>)\s*/i, scope: 'actions' },
 ]

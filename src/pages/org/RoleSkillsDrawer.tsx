@@ -73,7 +73,7 @@ export function RoleSkillsDrawer({
       .filter((skill) => !attachedIds.has(skill.id))
       .filter((skill) => {
         if (!q) return true
-        return [skill.name, skill.department]
+        return [skill.name]
           .join(' ')
           .toLowerCase()
           .includes(q)
@@ -278,11 +278,6 @@ export function RoleSkillsDrawer({
                       <span className="pd-reviews-drawer__row-name">
                         {skill.name}
                       </span>
-                      {skill.department ? (
-                        <span className="pd-reviews-drawer__row-meta">
-                          {skill.department}
-                        </span>
-                      ) : null}
                     </span>
                   </button>
                 </li>
