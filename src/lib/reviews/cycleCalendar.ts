@@ -138,22 +138,13 @@ export function extractCycleCalendarMarkers(
           endDate: stagesConfig.performance.managerEnd.date,
         })
       }
-      const hod = stages.find((stage) => stage.id === 'calibration_hod_hrbp' && stage.enabled)
-      const slt = stages.find((stage) => stage.id === 'calibration_slt' && stage.enabled)
-      if (hod?.start && hod.end) {
+      const calibration = stages.find((stage) => stage.id === 'calibration' && stage.enabled)
+      if (calibration?.start && calibration.end) {
         ranges.push({
           kind: 'calibration',
-          label: 'HOD / HRBP Calibration',
-          startDate: hod.start.date,
-          endDate: hod.end.date,
-        })
-      }
-      if (slt?.start && slt.end) {
-        ranges.push({
-          kind: 'calibration',
-          label: 'SLT Calibration',
-          startDate: slt.start.date,
-          endDate: slt.end.date,
+          label: 'Calibration',
+          startDate: calibration.start.date,
+          endDate: calibration.end.date,
         })
       }
       if (stages.length === 0 && stagesConfig.calibration.enabled) {

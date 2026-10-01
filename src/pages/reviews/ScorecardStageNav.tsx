@@ -24,7 +24,7 @@ import type {
 const STAGE_ICONS: Record<ScorecardViewStage, LucideIcon> = {
   self_review: User,
   manager_review: UserCheck,
-  calibration_hod_hrbp: ClipboardList,
+  calibration: ClipboardList,
   publish_employees: Megaphone,
   appeal: Gavel,
 }

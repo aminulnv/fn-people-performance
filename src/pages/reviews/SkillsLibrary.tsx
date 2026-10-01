@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react'
-import {
-  Link,
-  Navigate,
-  useMatch,
-  useNavigate,
-  useSearchParams,
-} from 'react-router-dom'
+import { Link, useMatch, useNavigate } from 'react-router-dom'
 import { Briefcase, CircleDot, Plus, Search, Sparkles } from 'lucide-react'
 import {
   AttributeFilters,
+  Badge,
   EmptyState,
   ResizableTable,
-  SegmentedControl,
 } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
 import { useAuth } from '@/lib/useAuth'
@@ -26,11 +20,10 @@ import {
 } from '@/lib/roles/inheritedSkills'
 import {
   skillCreatePath,
-  skillEditPath,
+  skillDetailPath,
   skillsLibraryPath,
 } from '@/lib/organisation/paths'
 import {
-  useSkill,
   useSkillRoleUsage,
   useSkillTalentCounts,
   useSkillsLibrary,
@@ -38,7 +31,6 @@ import {
 import type { Skill, SkillStatus } from '@/lib/skills/types'
 import { SettingsSidePanel } from './SettingsSidePanel'
 import { SkillFormFields } from './SkillFormEditor'
-import { SkillRolesMatrix } from './SkillRolesMatrix'
 import '@/styles/layout-organisation.css'
 
 const SKILL_ATTRIBUTES = [
@@ -46,34 +38,14 @@ const SKILL_ATTRIBUTES = [
   { id: 'status', label: 'Status', icon: CircleDot },
 ]
 
-type PanelMode =
-  | { kind: 'create' }
-  | { kind: 'edit'; skillId: string }
-
-type SkillPanelTab = 'overview' | 'roles'
-
-function panelModeFromRoute(
-  isCreate: boolean,
-  skillId: string | undefined,
-): PanelMode | null {
-  if (isCreate) return { kind: 'create' }
-  if (skillId) return { kind: 'edit', skillId }
-  return null
-}
-
 function statusLabel(status: SkillStatus): string {
   return status === 'draft' ? 'Draft' : 'Approved'
-}
-
-function parseSkillPanelTab(raw: string | null): SkillPanelTab {
-  return raw === 'roles' ? 'roles' : 'overview'
 }
 
 export function SkillsLibrary() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const canWrite = hasSystemPermission(user?.permissions, 'platform.write_all')
-  const [searchParams, setSearchParams] = useSearchParams()
   const { skills } = useSkillsLibrary()
   const talentCounts = useSkillTalentCounts()
   const roleUsage = useSkillRoleUsage()
@@ -81,47 +53,10 @@ export function SkillsLibrary() {
   const [attributeFilters, setAttributeFilters] = useState<AttributeFilterMap>(
     {},
   )
-  const panelTab = parseSkillPanelTab(searchParams.get('tab'))
 
   const createMatch = useMatch('/organisation/skills/new')
-  const editMatch = useMatch('/organisation/skills/:skillId/edit')
-  const bareMatch = useMatch({ path: '/organisation/skills/:skillId', end: true })
-  const panel = panelModeFromRoute(
-    Boolean(createMatch),
-    editMatch?.params.skillId,
-  )
-  const panelSkill = useSkill(
-    panel && panel.kind === 'edit' ? panel.skillId : '',
-  )
-  // Legacy `/organisation/skills/:id` → edit panel (App uses a splat so the
-  // library stays mounted when opening create/edit).
-  const redirectToEdit =
-    !createMatch && !editMatch && bareMatch?.params.skillId
-      ? skillEditPath(bareMatch.params.skillId)
-      : null
+  const isCreateOpen = Boolean(createMatch)
 
-  const roleCount =
-    panel?.kind === 'edit' && panelSkill
-      ? (roleUsage[panelSkill.id] ?? []).length
-      : 0
-
-  const skillPanelTabs = useMemo(
-    () => [
-      { id: 'overview' as const, label: 'Overview' },
-      {
-        id: 'roles' as const,
-        label: (
-          <span className="pd-org-role__tab-label">
-            Roles
-            {roleCount > 0 ? (
-              <span className="pd-org-role__tab-badge">{roleCount}</span>
-            ) : null}
-          </span>
-        ),
-      },
-    ],
-    [roleCount],
-  )
   const attributeValues = useMemo(
     () => ({
       role: uniqueAttributeValues(
@@ -130,7 +65,9 @@ export function SkillsLibrary() {
           return names.length > 0 ? names : ['']
         }),
       ),
-      status: uniqueAttributeValues(skills.map((skill) => statusLabel(skill.status))),
+      status: uniqueAttributeValues(
+        skills.map((skill) => statusLabel(skill.status)),
+      ),
     }),
     [roleUsage, skills],
   )
@@ -149,24 +86,12 @@ export function SkillsLibrary() {
         return false
       }
       if (!q) return true
-      return [skill.name, ...roleNames]
-        .join(' ')
-        .toLowerCase()
-        .includes(q)
+      return [skill.name, ...roleNames].join(' ').toLowerCase().includes(q)
     })
   }, [attributeFilters, query, roleUsage, skills])
 
-  const selectedId = panel?.kind === 'edit' ? panel.skillId : null
-
   const closePanel = () => {
     navigate(skillsLibraryPath())
-  }
-
-  const panelTitle =
-    panel?.kind === 'create' ? 'Create New Skill' : 'Edit skill'
-
-  if (redirectToEdit) {
-    return <Navigate to={redirectToEdit} replace />
   }
 
   return (
@@ -276,10 +201,8 @@ export function SkillsLibrary() {
                     skill={skill}
                     roles={roleUsage[skill.id] ?? []}
                     talent={talentCounts[skill.id] ?? 0}
-                    selected={selectedId === skill.id}
-                    interactive={canWrite}
                     onOpen={() => {
-                      navigate(skillEditPath(skill.id))
+                      navigate(skillDetailPath(skill.id))
                     }}
                   />
                 ))}
@@ -289,58 +212,22 @@ export function SkillsLibrary() {
         )}
       </section>
 
-      {panel ? (
+      {isCreateOpen ? (
         <SettingsSidePanel
-          label={panelTitle}
+          label="Create New Skill"
           closeLabel="Close skill panel"
-          defaultWidth={panel.kind === 'edit' ? 880 : 480}
+          defaultWidth={480}
           onClose={closePanel}
-          subnav={
-            panel.kind === 'edit' ? (
-              <SegmentedControl
-                className="pd-org-role__tabs"
-                buttonClassName="pd-org-role__tab"
-                options={skillPanelTabs}
-                value={panelTab}
-                onChange={(next) => {
-                  const params = new URLSearchParams(searchParams)
-                  if (next === 'overview') params.delete('tab')
-                  else params.set('tab', next)
-                  setSearchParams(params, { replace: true })
-                }}
-                aria-label="Skill sections"
-              />
-            ) : undefined
-          }
         >
-          {panel.kind === 'create' ? (
-            canWrite ? (
-              <SkillFormFields
-                mode="create"
-                onCancel={closePanel}
-                onSaved={closePanel}
-              />
-            ) : (
-              <p className="pd-reviews-flow__hint">
-                Only an admin with write access can add skills.
-              </p>
-            )
-          ) : panelTab === 'roles' && panelSkill ? (
-            <SkillRolesMatrix
-              skillId={panelSkill.id}
-              skillName={panelSkill.name}
-            />
-          ) : canWrite ? (
+          {canWrite ? (
             <SkillFormFields
-              key={panel.skillId}
-              mode="edit"
-              existing={panelSkill}
+              mode="create"
               onCancel={closePanel}
-              onSaved={closePanel}
+              onSaved={(saved) => navigate(skillDetailPath(saved.id))}
             />
           ) : (
             <p className="pd-reviews-flow__hint">
-              Only an admin with write access can change skills.
+              Only an admin with write access can add skills.
             </p>
           )}
         </SettingsSidePanel>
@@ -353,41 +240,25 @@ function SkillRow({
   skill,
   roles,
   talent,
-  selected,
-  interactive,
   onOpen,
 }: {
   skill: Skill
   roles: SkillRoleRef[]
   talent: number
-  selected: boolean
-  interactive: boolean
   onOpen: () => void
 }) {
   const usedBy = formatRoleUsageLabel(roles)
   return (
     <tr
-      className={
-        interactive
-          ? ['pd-people__row-link', selected ? 'is-selected' : '']
-            .filter(Boolean)
-            .join(' ')
-          : undefined
-      }
-      data-selected={interactive && selected ? true : undefined}
-      tabIndex={interactive ? 0 : undefined}
-      aria-selected={interactive ? selected : undefined}
-      onClick={interactive ? onOpen : undefined}
-      onKeyDown={
-        interactive
-          ? (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              onOpen()
-            }
-          }
-          : undefined
-      }
+      className="pd-people__row-link"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpen()
+        }
+      }}
     >
       <td>{skill.name}</td>
       <td title={roles.map((role) => role.name).join(', ') || undefined}>
@@ -395,15 +266,11 @@ function SkillRow({
       </td>
       <td>{talent}</td>
       <td>
-        <span
-          className={
-            skill.status === 'approved'
-              ? 'pd-people__status pd-people__status--active'
-              : 'pd-people__status pd-people__status--inactive'
-          }
+        <Badge
+          variant={skill.status === 'approved' ? 'completed' : 'draft'}
         >
           {statusLabel(skill.status)}
-        </span>
+        </Badge>
       </td>
     </tr>
   )

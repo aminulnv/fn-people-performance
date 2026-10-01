@@ -251,7 +251,7 @@ export function calibrateLocalPacket(
       ...current.calibrationEvents,
       {
         id: `cal-${current.version + 1}`,
-        stageId: (input.stageId ?? 'calibration_hod_hrbp') as ReviewPacket['calibrationEvents'][number]['stageId'],
+        stageId: (input.stageId ?? 'calibration') as ReviewPacket['calibrationEvents'][number]['stageId'],
         fromGrade: current.calibratedOverallGrade ?? current.managerOverallGrade,
         toGrade: input.toGrade!,
         reason: input.reason,

@@ -19,6 +19,18 @@ describe('skills store', () => {
     expect(talentCountForSkill(skills[0]!.id)).toBe(0)
   })
 
+  it('seeds mastery rubric text for Poor through Expert', () => {
+    resetSkillsStoreForTests()
+    const skills = getSkillsSnapshot()
+    for (const skill of skills) {
+      expect(skill.mastery.poor.trim().length).toBeGreaterThan(0)
+      expect(skill.mastery.basic.trim().length).toBeGreaterThan(0)
+      expect(skill.mastery.intermediate.trim().length).toBeGreaterThan(0)
+      expect(skill.mastery.advanced.trim().length).toBeGreaterThan(0)
+      expect(skill.mastery.expert.trim().length).toBeGreaterThan(0)
+    }
+  })
+
   it('persists library skills in localStorage', async () => {
     resetSkillsStoreForTests()
     const created = await createSkill({

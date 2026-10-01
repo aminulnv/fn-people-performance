@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { buildDefaultStagesConfig } from './demoData'
 import {
   applyCycleModules,
+  collapseCalibrationToSingleWindow,
   cycleModulesOf,
   isPublishStage,
   isRequiredReviewStage,
@@ -42,13 +43,16 @@ describe('cycle module presets', () => {
       'goals',
     )
     expect(presetEnabledStages('annual_appraisal', 'annual-2026')).toEqual(
-      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+      expect.arrayContaining(['calibration']),
+    )
+    expect(presetEnabledStages('annual_appraisal', 'annual-2026')).not.toContain(
+      'calibration_slt',
     )
     expect(presetEnabledStages('quarterly_checkin', 'q3-2026')).not.toEqual(
-      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+      expect.arrayContaining(['calibration']),
     )
     expect(presetEnabledStages('custom')).not.toEqual(
-      expect.arrayContaining(['calibration_hod_hrbp', 'calibration_slt']),
+      expect.arrayContaining(['calibration']),
     )
   })
 
@@ -67,6 +71,63 @@ describe('publish stages', () => {
     expect(isPublishStage('manager_review')).toBe(false)
     expect(isRequiredReviewStage('publish_employees')).toBe(true)
     expect(isRequiredReviewStage('publish_managers')).toBe(false)
+  })
+})
+
+describe('collapseCalibrationToSingleWindow', () => {
+  it('wipes HOD/HRBP + SLT rows into one calibration stage', () => {
+    const next = collapseCalibrationToSingleWindow([
+      {
+        id: 'calibration_hod_hrbp' as never,
+        enabled: true,
+        start: { date: '2027-02-01', time: '06:00' },
+        end: { date: '2027-02-07', time: '06:00' },
+      },
+      {
+        id: 'calibration_slt' as never,
+        enabled: true,
+        start: { date: '2027-02-08', time: '06:00' },
+        end: { date: '2027-02-14', time: '06:00' },
+      },
+    ])
+    expect(next.map((stage) => stage.id)).toEqual([
+      'goals',
+      'self_review',
+      'manager_review',
+      'calibration',
+      'publish_managers',
+      'publish_employees',
+      'appeal',
+    ])
+    expect(next.find((stage) => stage.id === 'calibration')).toEqual({
+      id: 'calibration',
+      enabled: true,
+      start: { date: '2027-02-01', time: '06:00' },
+      end: { date: '2027-02-07', time: '06:00' },
+    })
+    expect(next.some((stage) => String(stage.id).includes('slt'))).toBe(false)
+    expect(next.some((stage) => String(stage.id).includes('hod'))).toBe(false)
+  })
+
+  it('keeps calibration on when only the legacy SLT row was enabled', () => {
+    const next = collapseCalibrationToSingleWindow([
+      {
+        id: 'calibration_hod_hrbp' as never,
+        enabled: false,
+        start: { date: '2027-02-01', time: '06:00' },
+        end: { date: '2027-02-07', time: '06:00' },
+      },
+      {
+        id: 'calibration_slt' as never,
+        enabled: true,
+        start: { date: '2027-02-08', time: '06:00' },
+        end: { date: '2027-02-14', time: '06:00' },
+      },
+    ])
+    const calibration = next.find((stage) => stage.id === 'calibration')
+    expect(calibration?.enabled).toBe(true)
+    expect(calibration?.start).toEqual({ date: '2027-02-08', time: '06:00' })
+    expect(calibration?.end).toEqual({ date: '2027-02-14', time: '06:00' })
   })
 })
 
@@ -121,8 +182,7 @@ describe('applyCycleModules', () => {
       next.reviewStages?.find((stage) => stage.id === 'self_review')?.enabled,
     ).toBe(false)
     expect(
-      next.reviewStages?.find((stage) => stage.id === 'calibration_hod_hrbp')
-        ?.enabled,
+      next.reviewStages?.find((stage) => stage.id === 'calibration')?.enabled,
     ).toBe(false)
   })
 

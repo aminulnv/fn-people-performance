@@ -14,6 +14,7 @@ import { normalizeCycleSettings } from '@/lib/reviews/demoData'
 import { cyclePurposeOf } from '@/lib/reviews/purpose'
 import {
   enabledReviewStages,
+  isAppealStage,
   isCalibrationStage,
   isPublishStage,
   isRequiredReviewStage,
@@ -225,7 +226,8 @@ export function ReviewSettingsEditPage({
     () =>
       enabledReviewStages(
         stagesConfig.reviewStages?.filter(
-          (stage) => !isCalibrationStage(stage.id),
+          (stage) =>
+            !isCalibrationStage(stage.id) && !isAppealStage(stage.id),
         ),
       ).filter((stage) => stage.id !== 'goals'),
     [stagesConfig.reviewStages],

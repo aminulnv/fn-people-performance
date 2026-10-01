@@ -168,31 +168,18 @@ function collectWindows(
     })
   }
 
-  const hod = stagesList.find(
-    (stage) => stage.id === 'calibration_hod_hrbp' && stage.enabled,
+  const calibration = stagesList.find(
+    (stage) => stage.id === 'calibration' && stage.enabled,
   )
-  const slt = stagesList.find(
-    (stage) => stage.id === 'calibration_slt' && stage.enabled,
-  )
-  if (hod?.start?.date && hod.end?.date) {
+  if (calibration?.start?.date && calibration.end?.date) {
     windows.push({
       phase: 'calibrate',
-      label: 'HOD / HRBP calibration',
-      start: hod.start.date,
-      end: hod.end.date,
+      label: 'Calibration',
+      start: calibration.start.date,
+      end: calibration.end.date,
       href: calibrateHref,
     })
-  }
-  if (slt?.start?.date && slt.end?.date) {
-    windows.push({
-      phase: 'calibrate',
-      label: 'SLT calibration',
-      start: slt.start.date,
-      end: slt.end.date,
-      href: calibrateHref,
-    })
-  }
-  if (
+  } else if (
     stagesList.length === 0 &&
     stages.calibration.enabled &&
     stages.calibration.start.date &&

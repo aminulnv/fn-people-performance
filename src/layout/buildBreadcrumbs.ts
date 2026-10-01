@@ -123,34 +123,33 @@ export function buildBreadcrumbs({
     ]
   }
 
-  const skillDetail = matchPath(
+  const skillEdit = matchPath(
     { path: '/organisation/skills/:skillId/edit', end: true },
+    pathname,
+  )
+  if (skillEdit?.params.skillId) {
+    const id = skillEdit.params.skillId
+    return [
+      { label: 'Organisation', href: '/organisation/departments' },
+      { label: 'Skills', href: skillsLibraryPath() },
+      { label: 'Skill', href: `/organisation/skills/${id}` },
+      { label: 'Edit' },
+    ]
+  }
+
+  const skillDetail = matchPath(
+    { path: '/organisation/skills/:skillId', end: true },
     pathname,
   )
   if (skillDetail?.params.skillId) {
     return [
       { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Skills', href: skillsLibraryPath() },
-      { label: 'Edit' },
+      { label: 'Skill' },
     ]
   }
 
-  const skillView = matchPath(
-    { path: '/organisation/skills/:skillId', end: true },
-    pathname,
-  )
-  if (skillView?.params.skillId) {
-    return [
-      { label: 'Organisation', href: '/organisation/departments' },
-      { label: 'Skills', href: skillsLibraryPath() },
-      { label: 'Edit' },
-    ]
-  }
-
-  if (
-    pathname === '/organisation/skills' ||
-    pathname.startsWith('/organisation/skills/')
-  ) {
+  if (pathname === '/organisation/skills') {
     return [
       { label: 'Organisation', href: '/organisation/departments' },
       { label: 'Skills' },

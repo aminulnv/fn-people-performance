@@ -12,20 +12,26 @@ export const REVIEW_STAGE_ORDER: ReviewStageId[] = [
   'goals',
   'self_review',
   'manager_review',
-  'calibration_hod_hrbp',
-  'calibration_slt',
+  'calibration',
   'publish_managers',
   'publish_employees',
   'appeal',
 ]
+
+/** Old dual-window ids wiped on normalize — kept only for reading damaged configs. */
+const LEGACY_CALIBRATION_IDS = new Set([
+  'calibration',
+  'calibration_hod_hrbp',
+  'calibration_slt',
+])
 
 /** Review-module stages. Goal setting belongs to the Goals module, not this list. */
 export const REVIEW_FLOW_STAGE_ORDER: ReviewStageId[] = REVIEW_STAGE_ORDER.filter(
   (id) => id !== 'goals',
 )
 
-export function isCalibrationStage(id: ReviewStageId): boolean {
-  return id === 'calibration_hod_hrbp' || id === 'calibration_slt'
+export function isCalibrationStage(id: string): boolean {
+  return LEGACY_CALIBRATION_IDS.has(id)
 }
 
 /** Appeal is retained in types/history but is not configurable — no in-system appeals. */
@@ -33,13 +39,14 @@ export function isAppealStage(id: ReviewStageId): boolean {
   return id === 'appeal'
 }
 
+/** Review settings list: self/manager/publish (calibration lives on Calibration tab). */
 export const REVIEW_ONLY_STAGE_ORDER: ReviewStageId[] =
   REVIEW_FLOW_STAGE_ORDER.filter(
     (id) => !isCalibrationStage(id) && !isAppealStage(id),
   )
 
-export const CALIBRATION_STAGE_ORDER: ReviewStageId[] =
-  REVIEW_FLOW_STAGE_ORDER.filter(isCalibrationStage)
+/** Settings UI: the single Calibration window. */
+export const CALIBRATION_STAGE_ORDER: ReviewStageId[] = ['calibration']
 
 /** Milestone stages: one visible-from date, not an open/close window. */
 export function isPublishStage(id: ReviewStageId): boolean {
@@ -55,8 +62,7 @@ export const REVIEW_STAGE_LABEL: Record<ReviewStageId, string> = {
   goals: 'Goal Setting',
   self_review: 'Self-Review',
   manager_review: 'Manager Review',
-  calibration_hod_hrbp: 'HOD / HRBP Calibration',
-  calibration_slt: 'SLT Calibration',
+  calibration: 'Calibration',
   publish_managers: 'Publish to Managers First',
   publish_employees: 'Publish to Everyone',
   appeal: 'Appeal',
@@ -66,8 +72,8 @@ export const REVIEW_STAGE_HINT: Record<ReviewStageId, string> = {
   goals: 'Employees write and submit goals for this cycle.',
   self_review: 'Employees rate themselves and write a year narrative.',
   manager_review: 'The line manager rates the person and submits a grade.',
-  calibration_hod_hrbp: 'HOD and HRBP align grades across the department.',
-  calibration_slt: 'SLT reviews the department outcome with the HOD.',
+  calibration:
+    'When grades are aligned across the department. One window covers the whole calibration sitting.',
   publish_managers:
     'Optional head start. Publish the official grade to managers before employees, so they can prepare 1:1s.',
   publish_employees:
@@ -98,8 +104,7 @@ export function presetEnabledStages(
     return [
       'self_review',
       'manager_review',
-      'calibration_hod_hrbp',
-      'calibration_slt',
+      'calibration',
       'publish_managers',
       'publish_employees',
     ]
@@ -243,7 +248,7 @@ export function deriveReviewStagesFromLegacy(
     if (id === 'goals') return { ...base, enabled: !annual }
     if (id === 'self_review') return { ...base, enabled: annual }
     if (id === 'manager_review') return { ...base, enabled: true }
-    if (id === 'calibration_hod_hrbp' || id === 'calibration_slt') {
+    if (id === 'calibration') {
       return { ...base, enabled: annual && config.calibration.enabled }
     }
     if (id === 'publish_managers' || id === 'publish_employees') {
@@ -283,14 +288,7 @@ export function defaultReviewStages(
           start: { ...config.performance.managerStart },
           end: { ...config.performance.managerEnd },
         }
-      case 'calibration_hod_hrbp':
-        return {
-          id,
-          enabled: enabled.has(id) && config.calibration.enabled,
-          start: { ...config.calibration.start },
-          end: { ...config.calibration.end },
-        }
-      case 'calibration_slt':
+      case 'calibration':
         return {
           id,
           enabled: enabled.has(id) && config.calibration.enabled,
@@ -349,23 +347,60 @@ export function getReviewStage(
   return stages?.find((stage) => stage.id === id)
 }
 
+/**
+ * Wipe HOD/HRBP + SLT stage rows into a single `calibration` stage.
+ * Old dual-window configs are overwritten — no careful migration.
+ */
+export function collapseCalibrationToSingleWindow(
+  stages: ReviewStageConfig[] | undefined,
+): ReviewStageConfig[] {
+  const list = (stages ?? []) as Array<{
+    id: string
+    enabled: boolean
+    start?: DateTimeValue
+    end?: DateTimeValue
+  }>
+  const calibRows = list.filter((stage) => LEGACY_CALIBRATION_IDS.has(stage.id))
+  const enabled = calibRows.some((stage) => stage.enabled)
+  const source =
+    calibRows.find((stage) => stage.enabled) ?? calibRows[0] ?? null
+
+  return REVIEW_STAGE_ORDER.map((id) => {
+    if (id === 'calibration') {
+      return {
+        id,
+        enabled,
+        start: source?.start,
+        end: source?.end,
+      }
+    }
+    const found = list.find((stage) => stage.id === id)
+    return {
+      id,
+      enabled: found?.enabled ?? false,
+      start: found?.start,
+      end: found?.end,
+    }
+  })
+}
+
 /** Keep the legacy nested windows in sync so Goals keeps reading the same fields. */
 export function syncLegacyStageWindows(
   config: CycleStagesConfig,
 ): CycleStagesConfig {
-  const stages = config.reviewStages ?? []
+  const stages = collapseCalibrationToSingleWindow(config.reviewStages)
   const byId = new Map(stages.map((stage) => [stage.id, stage]))
   const goals = byId.get('goals')
   const selfReview = byId.get('self_review')
   const manager = byId.get('manager_review')
-  const hod = byId.get('calibration_hod_hrbp')
-  const slt = byId.get('calibration_slt')
+  const calibration = byId.get('calibration')
   const pubMgr = byId.get('publish_managers')
   const pubEmp = byId.get('publish_employees')
-  const anyCalibration = Boolean(hod?.enabled || slt?.enabled)
+  const anyCalibration = Boolean(calibration?.enabled)
 
   return {
     ...config,
+    reviewStages: stages,
     goals: {
       ...config.goals,
       employee: {
@@ -382,9 +417,9 @@ export function syncLegacyStageWindows(
     calibration: {
       ...config.calibration,
       enabled: anyCalibration,
-      start: hod?.start ?? slt?.start ?? config.calibration.start,
-      end: slt?.end ?? hod?.end ?? config.calibration.end,
-      manualStart: hod?.start ?? config.calibration.manualStart,
+      start: calibration?.start ?? config.calibration.start,
+      end: calibration?.end ?? config.calibration.end,
+      manualStart: calibration?.start ?? config.calibration.manualStart,
     },
     publish: {
       toManager: pubMgr?.start ?? config.publish.toManager,
@@ -427,8 +462,7 @@ export function applyNestedWindowsToReviewStages(
             start: config.performance.managerStart,
             end: config.performance.managerEnd,
           }
-        case 'calibration_hod_hrbp':
-        case 'calibration_slt':
+        case 'calibration':
           return {
             ...stage,
             start: config.calibration.start,
@@ -458,8 +492,9 @@ export function mergeReviewStages(
   incoming: ReviewStageConfig[] | undefined,
   fallback: ReviewStageConfig[],
 ): ReviewStageConfig[] {
+  const collapsed = collapseCalibrationToSingleWindow(incoming)
   return REVIEW_STAGE_ORDER.map((id) => {
-    const next = incoming?.find((stage) => stage.id === id)
+    const next = collapsed.find((stage) => stage.id === id)
     const base = fallback.find((stage) => stage.id === id)
     if (!next && !base) {
       return { id, enabled: false }

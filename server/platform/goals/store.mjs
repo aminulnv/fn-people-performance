@@ -13,6 +13,12 @@ import {
 } from './deadline.mjs'
 import { assertGoalSubmission } from './submissionValidation.mjs'
 import { normalizeMilestoneWeightsInGoal } from './measurementWeights.mjs'
+import {
+  notifyGoalApproved,
+  notifyGoalSentBack,
+  notifyGoalSubmitted,
+  notifyGoalsEditedByManager,
+} from '../notifications/goalNotifications.mjs'
 
 function isoTimestamp(value) {
   if (!value) return undefined
@@ -121,6 +127,7 @@ async function postWindowApprovalStage(client, cycleId, employeeId) {
   return {
     cycle,
     isLate,
+    deadline: goalWindowEnd ?? null,
     approvalStage:
       isLate && cycle.post_window_goal_policy === 'two_tier_approval'
         ? 'manager'
@@ -1113,6 +1120,12 @@ export async function savePersonGoalsDraft(
         summary: 'Manager edited goals',
         source: 'api',
       })
+      await notifyGoalsEditedByManager(client, {
+        cycleId,
+        employeeId,
+        actorEmployeeId: actor.actorEmployeeId,
+        actorName: actor.actorName,
+      })
     }
 
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
@@ -1185,7 +1198,7 @@ export async function submitPersonGoals(
       employeeId,
     )
     const submittedGoals = Array.isArray(goals) ? goals : previousGoals
-    const { cycle, isLate, approvalStage } =
+    const { cycle, isLate, approvalStage, deadline } =
       await postWindowApprovalStage(client, cycleId, employeeId)
     if (isLate && cycle.post_window_goal_policy === 'hard_stop') {
       throw new HttpError(409, 'The goal submission window is closed.')
@@ -1267,6 +1280,16 @@ export async function submitPersonGoals(
           ]
         : [],
       source: 'api',
+    })
+    await notifyGoalSubmitted(client, {
+      cycleId,
+      employeeId,
+      actorEmployeeId: actor.actorEmployeeId,
+      actorName: actor.actorName,
+      goalCount: submittedGoals.length,
+      previousStatus,
+      isLate,
+      dueAt: deadline,
     })
     const nextGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
@@ -1686,6 +1709,23 @@ export async function approvePersonGoals(
       },
       source: 'api',
     })
+    if (Array.isArray(editedGoals)) {
+      await notifyGoalsEditedByManager(client, {
+        cycleId,
+        employeeId,
+        actorEmployeeId: actor.actorEmployeeId,
+        actorName: actor.actorName,
+      })
+    }
+    await notifyGoalApproved(client, {
+      cycleId,
+      employeeId,
+      actorEmployeeId: actor.actorEmployeeId,
+      actorName: actor.actorName,
+      previousStage: stage,
+      nextStatus,
+      nextStage,
+    })
     const loadedGoals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')
     return mapSubmissionRow(client, rows[0], loadedGoals, null)
@@ -1763,6 +1803,14 @@ export async function sendBackPersonGoals(
         reason: reason?.trim() ? String(reason).trim().slice(0, 500) : undefined,
       },
       source: 'api',
+    })
+    await notifyGoalSentBack(client, {
+      cycleId,
+      employeeId,
+      actorEmployeeId: actor.actorEmployeeId,
+      actorName: actor.actorName,
+      previousStage: locked[0].post_window_approval_stage,
+      reason: String(reason ?? ''),
     })
     const goals = await loadGoalsForSubmission(client, cycleId, employeeId)
     await client.query('COMMIT')

@@ -469,8 +469,7 @@ export function ReviewPacketView({
   }
 
   const calOn = Boolean(
-    getReviewStage(stages, 'calibration_hod_hrbp')?.enabled ||
-    getReviewStage(stages, 'calibration_slt')?.enabled,
+    getReviewStage(stages, 'calibration')?.enabled,
   )
   // No in-system appeals — offline HR process + admin post-lock override only.
   const appealOn = false
@@ -1311,7 +1310,7 @@ export function ReviewPacketView({
           confirmVariant="danger"
         />
 
-        {showCalibrationForm && stageView.viewing === 'calibration_hod_hrbp' ? (
+        {showCalibrationForm && stageView.viewing === 'calibration' ? (
           <CalibrationBlock
             packet={packet}
             onSave={async (toGrade, reason) => {
@@ -1319,7 +1318,7 @@ export function ReviewPacketView({
                 const next = await calibrateReviewPacket(packet.id, {
                   toGrade,
                   reason,
-                  stageId: 'calibration_hod_hrbp',
+                  stageId: 'calibration',
                 })
                 setPacket(next)
                 setSaveNotice({
@@ -1339,7 +1338,7 @@ export function ReviewPacketView({
               }
             }}
           />
-        ) : !editing && stageView.viewing === 'calibration_hod_hrbp' ? (
+        ) : !editing && stageView.viewing === 'calibration' ? (
           <section
             className="pd-reviews-scorecard__card"
             aria-label="Calibration"

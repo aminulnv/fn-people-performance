@@ -621,7 +621,7 @@ describe('ReviewPacketView', () => {
       withQuery(
         <MemoryRouter
           initialEntries={[
-            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration`,
           ]}
         >
           <Routes>
@@ -742,7 +742,7 @@ describe('ReviewPacketView', () => {
         ...group.stagesConfig,
         calibration: { ...group.stagesConfig.calibration, enabled: true },
         reviewStages: (group.stagesConfig.reviewStages ?? []).map((stage) =>
-          stage.id === 'calibration_hod_hrbp'
+          stage.id === 'calibration'
             ? { ...stage, enabled: true }
             : stage,
         ),
@@ -761,7 +761,7 @@ describe('ReviewPacketView', () => {
       withQuery(
         <MemoryRouter
           initialEntries={[
-            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration_hod_hrbp`,
+            `/reviews/scorecards/${cycleId}/2?mode=edit&stage=calibration`,
           ]}
         >
           <Routes>

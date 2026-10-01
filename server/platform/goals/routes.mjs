@@ -16,6 +16,10 @@ import {
   submitPersonGoals,
 } from './store.mjs'
 import {
+  listGoalNonSubmitters,
+  sendManualGoalReminders,
+} from './manualBlast.mjs'
+import {
   assertGoalAccess,
   listVisibleGoalSubjectIds,
 } from './policy.mjs'
@@ -287,6 +291,44 @@ export function registerGoalRoutes(app) {
           employeeId,
         })
         res.json({ submission })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.get(
+    '/api/platform/goal-cycles/:cycleId/non-submitters',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const people = await listGoalNonSubmitters(
+          req.params.cycleId,
+          req.platformUser,
+        )
+        res.json({ people })
+      } catch (err) {
+        throw toHttp(err)
+      }
+    }),
+  )
+
+  app.post(
+    '/api/platform/goal-cycles/:cycleId/remind',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      try {
+        const result = await sendManualGoalReminders(req.params.cycleId, {
+          employeeIds: Array.isArray(req.body?.employeeIds)
+            ? req.body.employeeIds
+            : [],
+          message: req.body?.message,
+          platformUser: req.platformUser,
+        })
+        await publishWrite(req, ['notifications'], {
+          cycleId: req.params.cycleId,
+        })
+        res.json(result)
       } catch (err) {
         throw toHttp(err)
       }

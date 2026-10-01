@@ -1,5 +1,6 @@
 import { getPool } from '../db.mjs'
 import { getNotificationRule } from './notificationRules/store.mjs'
+import { initialDeliveryStatus } from './notifications/deliveryConfig.mjs'
 
 function isoTimestamp(value) {
   if (!value) return undefined
@@ -125,13 +126,26 @@ export async function createPlatformNotification(client, input) {
   )
   const row = rows[0]
   for (const channel of channels) {
-    if (channel === 'in_app') {
+    const initial = initialDeliveryStatus(channel)
+    if (initial.status === 'delivered') {
       await client.query(
         `INSERT INTO platform.notification_deliveries (
            notification_id, channel, status, attempts, delivered_at
-         ) VALUES ($1, 'in_app', 'delivered', 1, now())
+         ) VALUES ($1, $2, 'delivered', 1, now())
          ON CONFLICT (notification_id, channel) DO NOTHING`,
-        [row.id],
+        [row.id, channel],
+      )
+      continue
+    }
+    if (initial.status === 'not_configured') {
+      // Record intent without queuing a send — avoids a backlog that would
+      // spam inboxes the moment SMTP/ClickUp credentials are added later.
+      await client.query(
+        `INSERT INTO platform.notification_deliveries (
+           notification_id, channel, status, attempts, next_attempt_at, last_error
+         ) VALUES ($1, $2, 'not_configured', 0, NULL, $3)
+         ON CONFLICT (notification_id, channel) DO NOTHING`,
+        [row.id, channel, initial.reason],
       )
       continue
     }

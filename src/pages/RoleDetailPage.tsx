@@ -1,37 +1,44 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import {
+  Link,
+  Navigate,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom'
 import {
   Archive,
   ArrowLeft,
   Briefcase,
   Building2,
   Copy,
+  FileText,
   Pencil,
+  Tag,
 } from 'lucide-react'
 import {
-  Button,
   EmptyState,
+  ListboxSelect,
   PageSkeleton,
   PageStatus,
   PageStatusLink,
   SegmentedControl,
 } from '@/components/ui'
 import { hasSystemPermission } from '@/lib/accessControl/types'
-import { useEmployees } from '@/lib/employees/useEmployees'
+import { useOrganisationCatalogs, useEmployees } from '@/lib/employees/useEmployees'
 import {
   departmentPathForName,
   organisationTabPath,
   roleDetailPath,
-  roleEditPath,
 } from '@/lib/organisation/paths'
-import {
-  membersForRole,
-} from '@/lib/roles/inheritedSkills'
+import { membersForRole } from '@/lib/roles/inheritedSkills'
 import { duplicateRole, loadRole, updateRole } from '@/lib/roles/store'
 import type { RoleTabId } from '@/lib/roles/types'
 import { useRole } from '@/lib/roles/useRoles'
 import { useAuth } from '@/lib/auth'
 import { OrgMembersTable } from '@/pages/org/OrgMembersTable'
+import { OrgDetailRow } from '@/pages/org/OrgDetailRow'
 import { RoleCompetencyMatrix } from '@/pages/org/RoleCompetencyMatrix'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
@@ -47,23 +54,61 @@ function parseTab(raw: string | null): RoleTabId {
   return 'preview'
 }
 
+type LocationEditState = { editDetails?: boolean }
+
 export default function RoleDetailPage() {
   const { roleId: rawId = '' } = useParams()
   const roleId = decodeURIComponent(rawId)
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
+  const catalogs = useOrganisationCatalogs()
   const { employees, isLoading } = useEmployees()
   const { role, ready } = useRole(roleId)
   const canEdit = hasSystemPermission(user?.permissions, 'platform.write_all')
   const tab = parseTab(searchParams.get('tab'))
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [name, setName] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+  const [description, setDescription] = useState('')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!roleId) return
-    void loadRole(roleId).catch(() => { })
+    void loadRole(roleId).catch(() => {})
   }, [roleId])
+
+  useEffect(() => {
+    const state = location.state as LocationEditState | null
+    if (!state?.editDetails || !canEdit || !role) return
+    setName(role.name)
+    setDepartmentId(role.departmentId != null ? String(role.departmentId) : '')
+    setDescription(role.description)
+    setSaveError(null)
+    setEditingDetails(true)
+    if (tab !== 'preview') {
+      const params = new URLSearchParams(searchParams)
+      params.delete('tab')
+      setSearchParams(params, { replace: true })
+    }
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: {},
+    })
+  }, [
+    canEdit,
+    location.pathname,
+    location.search,
+    location.state,
+    navigate,
+    role,
+    searchParams,
+    setSearchParams,
+    tab,
+  ])
 
   const members = useMemo(
     () =>
@@ -79,6 +124,18 @@ export default function RoleDetailPage() {
   )
 
   const headcount = activeMembers.length
+
+  const departmentOptions = useMemo(
+    () =>
+      catalogs.departments
+        .slice()
+        .sort((left, right) => left.name.localeCompare(right.name))
+        .map((department) => ({
+          value: String(department.id),
+          label: department.name,
+        })),
+    [catalogs.departments],
+  )
 
   const tabOptions = useMemo(
     () =>
@@ -104,9 +161,7 @@ export default function RoleDetailPage() {
             label: (
               <span className="pd-org-role__tab-label">
                 Talent
-                <span className="pd-org-role__tab-badge">
-                  {headcount}
-                </span>
+                <span className="pd-org-role__tab-badge">{headcount}</span>
               </span>
             ),
           }
@@ -115,6 +170,51 @@ export default function RoleDetailPage() {
       }),
     [headcount, role],
   )
+
+  function beginEditing() {
+    if (!role || !canEdit) return
+    setName(role.name)
+    setDepartmentId(role.departmentId != null ? String(role.departmentId) : '')
+    setDescription(role.description)
+    setSaveError(null)
+    setEditingDetails(true)
+    if (tab !== 'preview') {
+      const params = new URLSearchParams(searchParams)
+      params.delete('tab')
+      setSearchParams(params, { replace: true })
+    }
+  }
+
+  function cancelEditing() {
+    setEditingDetails(false)
+    setSaveError(null)
+  }
+
+  async function saveDetails() {
+    if (!role || busy) return
+    const trimmed = name.trim()
+    if (!trimmed) {
+      setSaveError('Role name is required.')
+      return
+    }
+    setBusy(true)
+    setSaveError(null)
+    setActionError(null)
+    try {
+      await updateRole(role.id, {
+        name: trimmed,
+        departmentId: departmentId ? Number(departmentId) : null,
+        description,
+      })
+      setEditingDetails(false)
+      setBusy(false)
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : 'Could not save role.',
+      )
+      setBusy(false)
+    }
+  }
 
   async function onDuplicate() {
     if (!role || busy) return
@@ -163,13 +263,26 @@ export default function RoleDetailPage() {
         aria-label="Role not found"
         title="Role not found"
         description="This role may have been archived or the link is outdated."
-        action={<PageStatusLink to={organisationTabPath('roles')} label="Back to Organisation" />}
+        action={
+          <PageStatusLink
+            to={organisationTabPath('roles')}
+            label="Back to Organisation"
+          />
+        }
       />
     )
   }
 
   return (
-    <div className="pd-page pd-people pd-org pd-org-detail" aria-label={role.name}>
+    <div
+      className={[
+        'pd-page pd-people pd-org pd-org-detail',
+        editingDetails ? 'pd-profile--editing' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      aria-label={role.name}
+    >
       <div className="pd-org-detail__crumbs">
         <Link to={organisationTabPath('roles')} className="pd-org-detail__back">
           <ArrowLeft size={16} strokeWidth={1.75} aria-hidden />
@@ -184,42 +297,67 @@ export default function RoleDetailPage() {
           </span>
           <div className="pd-org-detail__hero-text">
             <p className="pd-org-detail__eyebrow">Role</p>
-            <h1 className="pd-org-detail__title">{role.name}</h1>
+            <h1 className="pd-org-detail__title">
+              {editingDetails ? name.trim() || role.name : role.name}
+            </h1>
           </div>
         </div>
         {canEdit ? (
           <div className="pd-org-detail__hero-actions">
-            <Button
-              variant="secondary"
-              size="sm"
-              pill
-              disabled={busy}
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              disabled={busy || editingDetails}
               onClick={() => {
                 void onDuplicate()
               }}
             >
-              <Copy size={14} strokeWidth={1.75} aria-hidden />
+              <Copy size={16} strokeWidth={1.75} aria-hidden />
               Duplicate
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              pill
-              disabled={busy}
+            </button>
+            <button
+              type="button"
+              className="pd-people__ghost-btn"
+              disabled={busy || editingDetails}
               onClick={() => {
                 void onArchive()
               }}
             >
-              <Archive size={14} strokeWidth={1.75} aria-hidden />
+              <Archive size={16} strokeWidth={1.75} aria-hidden />
               Archive
-            </Button>
-            <Link
-              to={roleEditPath(role.id)}
-              className="pd-btn pd-btn--primary pd-btn--sm pd-btn--pill"
-            >
-              <Pencil size={14} strokeWidth={1.75} aria-hidden />
-              Edit
-            </Link>
+            </button>
+            {editingDetails ? (
+              <>
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn"
+                  disabled={busy}
+                  onClick={cancelEditing}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="pd-people__ghost-btn pd-people__ghost-btn--primary"
+                  disabled={busy}
+                  onClick={() => {
+                    void saveDetails()
+                  }}
+                >
+                  Save
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="pd-people__ghost-btn pd-people__ghost-btn--outline"
+                disabled={busy}
+                onClick={beginEditing}
+              >
+                <Pencil size={16} strokeWidth={1.75} aria-hidden />
+                Edit
+              </button>
+            )}
           </div>
         ) : null}
       </section>
@@ -236,6 +374,9 @@ export default function RoleDetailPage() {
         options={tabOptions}
         value={tab}
         onChange={(next) => {
+          if (editingDetails && next !== 'preview') {
+            cancelEditing()
+          }
           const params = new URLSearchParams(searchParams)
           if (next === 'preview') params.delete('tab')
           else params.set('tab', next)
@@ -246,47 +387,84 @@ export default function RoleDetailPage() {
 
       {tab === 'preview' ? (
         <section
-          className="pd-people__panel pd-org-role-preview"
+          className="pd-profile__card pd-org-role-preview"
           aria-label="Role details"
         >
-          <header className="pd-org-detail__panel-head">
-            <h2 className="pd-org-detail__panel-title">Role details</h2>
-            {canEdit ? (
-              <Link to={roleEditPath(role.id)} className="pd-org-role__edit-link">
-                Edit
-              </Link>
+          <header className="pd-profile__card-head">
+            <h2 className="pd-profile__card-title">Role details</h2>
+            {canEdit && !editingDetails ? (
+              <button
+                type="button"
+                className="pd-profile__icon-action"
+                aria-label="Edit role details"
+                title="Edit"
+                onClick={beginEditing}
+              >
+                <Pencil size={14} strokeWidth={1.75} aria-hidden />
+              </button>
             ) : null}
           </header>
-          <dl className="pd-org-role-preview__details">
-            <div className="pd-org-role-preview__row">
-              <dt>Name</dt>
-              <dd>{role.name}</dd>
-            </div>
-            <div className="pd-org-role-preview__row">
-              <dt>Department</dt>
-              <dd>
-                {role.departmentName ? (
-                  <Link
-                    to={
-                      departmentPathForName(role.departmentName) ??
-                      organisationTabPath('departments')
-                    }
-                    className="pd-org-detail__inline-link"
-                  >
-                    <Building2 size={15} strokeWidth={1.75} aria-hidden />
-                    {role.departmentName}
-                  </Link>
-                ) : (
-                  '—'
-                )}
-              </dd>
-            </div>
-            <div className="pd-org-role-preview__row">
-              <dt>Description</dt>
-              <dd className="pd-org-role-preview__description">
-                {role.description || '—'}
-              </dd>
-            </div>
+          {saveError ? (
+            <p className="pd-people__message pd-people__message--error" role="alert">
+              {saveError}
+            </p>
+          ) : null}
+          <dl className="pd-profile__details">
+            <OrgDetailRow label="Name" icon={Tag}>
+              {editingDetails ? (
+                <input
+                  className="pd-profile__inline-input"
+                  aria-label="Role name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  required
+                  autoFocus
+                />
+              ) : (
+                role.name
+              )}
+            </OrgDetailRow>
+            <OrgDetailRow label="Department" icon={Building2}>
+              {editingDetails ? (
+                <ListboxSelect
+                  aria-label="Department"
+                  value={departmentId}
+                  onValueChange={setDepartmentId}
+                  placeholder="Select department"
+                  options={departmentOptions}
+                />
+              ) : role.departmentName ? (
+                <Link
+                  to={
+                    departmentPathForName(role.departmentName) ??
+                    organisationTabPath('departments')
+                  }
+                  className="pd-org-detail__inline-link"
+                >
+                  {role.departmentName}
+                </Link>
+              ) : (
+                <span className="pd-profile__muted">—</span>
+              )}
+            </OrgDetailRow>
+            <OrgDetailRow label="Description" icon={FileText} align="start">
+              {editingDetails ? (
+                <textarea
+                  className="pd-profile__inline-input pd-org-role-preview__description-input"
+                  aria-label="Description"
+                  rows={3}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  placeholder="A short summary of this role."
+                />
+              ) : role.description ? (
+                <span className="pd-org-role-preview__description">
+                  {role.description}
+                </span>
+              ) : (
+                <span className="pd-profile__muted">—</span>
+              )}
+            </OrgDetailRow>
           </dl>
         </section>
       ) : null}
@@ -312,10 +490,7 @@ export default function RoleDetailPage() {
               title="No one linked to this role"
               description="People appear here when their profile has this role assigned. Job titles alone do not count."
               action={
-                <Link
-                  to="/people"
-                  className="pd-btn pd-btn--secondary pd-btn--sm pd-btn--pill"
-                >
+                <Link to="/people" className="pd-people__ghost-btn">
                   Open People
                 </Link>
               }
@@ -326,5 +501,18 @@ export default function RoleDetailPage() {
         </section>
       ) : null}
     </div>
+  )
+}
+
+/** Legacy `/organisation/roles/:id/edit` → detail page with inline edit. */
+export function EditRoleRedirect() {
+  const { roleId: rawId = '' } = useParams()
+  const roleId = decodeURIComponent(rawId)
+  return (
+    <Navigate
+      to={roleDetailPath(roleId)}
+      replace
+      state={{ editDetails: true } satisfies LocationEditState}
+    />
   )
 }

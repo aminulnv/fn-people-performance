@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState, type MutableRefObject } from 'react'
-import { Star } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react'
+import { ClipboardList, Star } from 'lucide-react'
 import { updateCycleGroup } from '@/lib/reviews/store'
 import { GRADE_BAND_META, GRADE_BAND_ORDER } from '@/lib/reviews/labels'
-import type { CycleGroup, GradeBandId, ReviewCycle } from '@/lib/reviews/types'
+import { CALIBRATION_STAGE_ORDER } from '@/lib/reviews/reviewStages'
+import type {
+  CycleGroup,
+  CycleStagesConfig,
+  GradeBandId,
+  ReviewCycle,
+  ReviewStageId,
+} from '@/lib/reviews/types'
 import { CountStepperField } from './CountStepperField'
 import { EditPageShell } from './EditPageShell'
+import { ReviewStageList } from './ReviewStageList'
 
 type CalibrationEditPageProps = {
   cycle: ReviewCycle
@@ -14,6 +22,28 @@ type CalibrationEditPageProps = {
   onSuccess?: (message: string) => void
   onDirtyChange?: (dirty: boolean) => void
   saveRef?: MutableRefObject<(() => Promise<boolean>) | null>
+  /** Shared with Reviews so stage dates stay one source of truth. */
+  stagesConfig: CycleStagesConfig
+  setStageEnabled: (id: ReviewStageId, enabled: boolean) => void
+  setStageDate: (
+    id: ReviewStageId,
+    field: 'start' | 'end',
+    date: string,
+  ) => void
+}
+
+function calibrationStagesDirty(
+  draft: CycleStagesConfig,
+  saved: CycleStagesConfig,
+): boolean {
+  for (const id of CALIBRATION_STAGE_ORDER) {
+    const left = draft.reviewStages?.find((stage) => stage.id === id)
+    const right = saved.reviewStages?.find((stage) => stage.id === id)
+    if (JSON.stringify(left ?? null) !== JSON.stringify(right ?? null)) {
+      return true
+    }
+  }
+  return false
 }
 
 export function CalibrationEditPage({
@@ -24,13 +54,23 @@ export function CalibrationEditPage({
   onSuccess,
   onDirtyChange,
   saveRef,
+  stagesConfig,
+  setStageEnabled,
+  setStageDate,
 }: CalibrationEditPageProps) {
   const [bands, setBands] = useState(group.calibration.gradeDistribution)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const total = GRADE_BAND_ORDER.reduce((sum, id) => sum + (bands[id] ?? 0), 0)
   const saved = group.calibration.gradeDistribution
-  const dirty = GRADE_BAND_ORDER.some((id) => (bands[id] ?? 0) !== (saved[id] ?? 0))
+  const bandsDirty = GRADE_BAND_ORDER.some(
+    (id) => (bands[id] ?? 0) !== (saved[id] ?? 0),
+  )
+  const stagesDirty = useMemo(
+    () => calibrationStagesDirty(stagesConfig, group.stagesConfig),
+    [stagesConfig, group.stagesConfig],
+  )
+  const dirty = bandsDirty || stagesDirty
   const mismatch =
     total === 100 ? null : 'The expected shares must add up to 100%.'
 
@@ -53,15 +93,16 @@ export function CalibrationEditPage({
     setSaving(true)
     return updateCycleGroup(cycle.id, group.id, {
       calibration: { gradeDistribution: { ...bands } },
+      stagesConfig,
     })
       .then(() => {
-        onSuccess?.('Calibration guideline saved.')
+        onSuccess?.('Calibration settings saved.')
         if (!embedded) onClose()
         return true
       })
       .catch((err: unknown) => {
         setError(
-          err instanceof Error ? err.message : 'Could not save the guideline.',
+          err instanceof Error ? err.message : 'Could not save calibration.',
         )
         return false
       })
@@ -81,6 +122,7 @@ export function CalibrationEditPage({
   return (
     <EditPageShell
       title={`${group.name} · Calibration`}
+      description="When calibration runs, and the expected grade mix for this group."
       onBack={onClose}
       onSave={save}
       saving={saving}
@@ -89,6 +131,24 @@ export function CalibrationEditPage({
       actionsPlacement="top"
     >
       <div className="pd-settings-stack">
+        <section className="pd-settings-stack__block pd-settings-stack__block--flush">
+          <div className="pd-settings-stack__block-head">
+            <h3 className="pd-settings-stack__eyebrow">
+              <ClipboardList size={15} strokeWidth={1.75} aria-hidden />
+              Calibration window
+            </h3>
+          </div>
+          <ReviewStageList
+            cycle={cycle}
+            groupId={group.id}
+            stageIds={CALIBRATION_STAGE_ORDER}
+            stagesConfig={stagesConfig}
+            moduleEnabled
+            setStageEnabled={setStageEnabled}
+            setStageDate={setStageDate}
+          />
+        </section>
+
         <section className="pd-settings-stack__block">
           <div className="pd-settings-stack__block-head">
             <h3 className="pd-settings-stack__eyebrow">

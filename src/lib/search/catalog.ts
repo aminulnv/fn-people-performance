@@ -27,7 +27,7 @@ import {
 import type { PlatformRole } from '@/lib/roles/types'
 import type { OrganisationSnapshot } from '@/lib/organisation/types'
 import { cycleDetailPath } from '@/lib/reviews/paths'
-import { skillEditPath } from '@/lib/organisation/paths'
+import { skillDetailPath } from '@/lib/organisation/paths'
 import type { Skill } from '@/lib/skills/types'
 import { cycleTypeLabel } from '@/lib/reviews/purpose'
 import {
@@ -466,7 +466,7 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
         'skill',
         'competency',
       ]),
-      path: skillEditPath(skill.id),
+      path: skillDetailPath(skill.id),
       icon: Sparkles,
       status: skill.status === 'draft' ? 'Draft' : 'Approved',
       statusVariant: skill.status === 'draft' ? 'pending' : 'completed',

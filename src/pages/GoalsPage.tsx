@@ -162,6 +162,7 @@ import { GoalDetailView } from "./goals/GoalDetailView";
 import type { CascadeTarget } from "./goals/GoalCascadeTargetDialog";
 import { ReportGoalsCard, ReportGoalsEmpty } from "./goals/ReportGoalsCard";
 import { GoalsCycleSelect } from "./goals/GoalsCycleSelect";
+import { GoalReminderBlastButton } from "./goals/GoalReminderBlastButton";
 import { useGoalsController } from "./goals/useGoalsController";
 import {
   goalTitle,
@@ -1309,6 +1310,16 @@ function GoalsOverview() {
         </div>
 
         <div className="pd-people__toolbar">
+          <GoalReminderBlastButton
+            cycleId={selectedCycleIds[0] ?? snapshot.cycle.id ?? null}
+            cycleLabel={
+              snapshot.availableCycles.find(
+                (cycle) =>
+                  cycle.id === (selectedCycleIds[0] ?? snapshot.cycle.id),
+              )?.label
+            }
+            disabled={!hasGoalCycles}
+          />
           <AttributeFilters
             attributes={goalAttributes}
             valuesFor={(id) => goalAttributeValues[id] ?? []}

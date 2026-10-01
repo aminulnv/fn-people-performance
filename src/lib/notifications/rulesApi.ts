@@ -75,13 +75,31 @@ function writeLocalOverrides(
 function applyLocalOverride(rule: NotificationRule): NotificationRule {
   const override = readLocalOverrides()[rule.eventKey]
   if (!override) return { ...rule, channels: [...rule.channels] }
+  const channels = Array.isArray(override.channels)
+    ? [...override.channels]
+    : [...rule.channels]
+  // Required rules stay on and keep in-app (local demo mirror of server lock).
+  if (rule.required) {
+    if (!channels.includes('in_app')) channels.unshift('in_app')
+    return {
+      ...rule,
+      enabled: true,
+      channels,
+      titleTemplate:
+        typeof override.titleTemplate === 'string'
+          ? override.titleTemplate
+          : rule.titleTemplate,
+      bodyTemplate:
+        typeof override.bodyTemplate === 'string'
+          ? override.bodyTemplate
+          : rule.bodyTemplate,
+    }
+  }
   return {
     ...rule,
     enabled:
       typeof override.enabled === 'boolean' ? override.enabled : rule.enabled,
-    channels: Array.isArray(override.channels)
-      ? [...override.channels]
-      : [...rule.channels],
+    channels,
     titleTemplate:
       typeof override.titleTemplate === 'string'
         ? override.titleTemplate

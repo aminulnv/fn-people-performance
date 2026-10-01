@@ -7,6 +7,7 @@ import {
 } from '@/lib/roles/inheritedSkills'
 import { ensureRolesLoaded, subscribeRolesStore } from '@/lib/roles/store'
 import {
+  areSkillsHydrated,
   ensureSkillsLoaded,
   getSkillById,
   getSkillsForEmployee,
@@ -40,7 +41,7 @@ export function useSkillsLibrary(options?: { load?: boolean }) {
     setSkills(getSkillsSnapshot())
   }, [tick])
 
-  return { skills }
+  return { skills, ready: areSkillsHydrated() }
 }
 
 export function useSkill(skillId: string) {
@@ -52,7 +53,10 @@ export function useSkill(skillId: string) {
   }, [])
 
   void tick
-  return skillId ? getSkillById(skillId) : null
+  return {
+    skill: skillId ? getSkillById(skillId) : null,
+    ready: areSkillsHydrated(),
+  }
 }
 
 export function useEmployeeSkills(

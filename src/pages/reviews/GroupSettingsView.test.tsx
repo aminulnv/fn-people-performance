@@ -224,6 +224,9 @@ describe('GroupSettingsView', () => {
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeInTheDocument()
     expect(
+      screen.queryByRole('switch', { name: 'Enable Calibration' }),
+    ).not.toBeInTheDocument()
+    expect(
       screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
     ).not.toBeInTheDocument()
     expect(
@@ -266,8 +269,8 @@ describe('GroupSettingsView', () => {
       screen.getByRole('switch', { name: 'Enable Publish to Managers First' }),
     ).not.toBeChecked()
     expect(
-      screen.queryByLabelText('Publish to managers from'),
-    ).not.toBeInTheDocument()
+      screen.getByLabelText('Publish to managers from'),
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole('switch', {
         name: 'Enable Publish to Everyone',
@@ -423,7 +426,7 @@ describe('GroupSettingsView', () => {
     expect(
       screen.getByRole('switch', { name: 'Enable Manager Review' }),
     ).toBeEnabled()
-    expect(screen.getByText('Goes live')).toBeInTheDocument()
+    expect(screen.getAllByText('Goes live').length).toBeGreaterThan(0)
     expect(screen.queryByRole('button', { name: 'Calibration' })).not.toBeInTheDocument()
   })
 
@@ -455,11 +458,15 @@ describe('GroupSettingsView', () => {
     expect(screen.getByRole('textbox', { name: 'Performing' })).toHaveValue('60')
     expect(screen.queryByText('Under development')).not.toBeInTheDocument()
     expect(
+      screen.getByRole('switch', { name: 'Enable Calibration' }),
+    ).toBeInTheDocument()
+    expect(
       screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
     ).not.toBeInTheDocument()
     expect(
       screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
     ).not.toBeInTheDocument()
+    expect(screen.getByText('Calibration window')).toBeInTheDocument()
   })
 
   it('asks to save or discard an unsaved grade mix before closing', () => {

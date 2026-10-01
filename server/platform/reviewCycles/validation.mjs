@@ -266,8 +266,9 @@ function validationError(message) {
 }
 
 const EXTRA_STAGE_LABELS = {
-  calibration_hod_hrbp: 'HOD / HRBP calibration',
-  calibration_slt: 'SLT calibration',
+  calibration: 'Calibration',
+  calibration_hod_hrbp: 'Calibration',
+  calibration_slt: 'Calibration',
   appeal: 'Appeal',
 }
 

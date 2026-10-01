@@ -18,6 +18,7 @@ export function isReviewsTabRoot(pathname: string): boolean {
 
 export {
   skillCreatePath,
+  skillDetailPath,
   skillEditPath,
   skillsLibraryPath,
   valueCreatePath,

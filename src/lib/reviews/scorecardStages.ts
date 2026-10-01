@@ -18,7 +18,7 @@ export type ScorecardViewStage = Extract<
   ReviewStageId,
   | 'self_review'
   | 'manager_review'
-  | 'calibration_hod_hrbp'
+  | 'calibration'
   | 'publish_employees'
   | 'appeal'
 >
@@ -36,7 +36,7 @@ export const SCORECARD_FLOW_STEPS: Array<{
       until: ['self_submitted', 'manager_in_progress'],
     },
     {
-      id: 'calibration_hod_hrbp',
+      id: 'calibration',
       until: ['manager_submitted', 'in_calibration'],
     },
     {
@@ -121,7 +121,7 @@ export function calibrationIsEditable(status: ReviewPacketStatus) {
 }
 
 export function scorecardStepLabel(id: ScorecardViewStage) {
-  if (id === 'calibration_hod_hrbp') return 'Calibration'
+  if (id === 'calibration') return 'Calibration'
   if (id === 'publish_employees') return 'Published Review'
   return REVIEW_STAGE_LABEL[id]
 }
@@ -131,10 +131,9 @@ export function visibleScorecardSteps(
   packet: ReviewPacket | null,
 ) {
   return SCORECARD_FLOW_STEPS.filter((step) => {
-    if (step.id === 'calibration_hod_hrbp') {
+    if (step.id === 'calibration') {
       return Boolean(
-        getReviewStage(stages, 'calibration_hod_hrbp')?.enabled ||
-        getReviewStage(stages, 'calibration_slt')?.enabled ||
+        getReviewStage(stages, 'calibration')?.enabled ||
         packet?.calibratedOverallGrade ||
         (packet?.calibrationEvents.length ?? 0) > 0,
       )
@@ -231,7 +230,7 @@ export function viewerCanOpenStage(
   subjectEmployeeId?: number | null,
 ) {
   if (stage === 'self_review') return true
-  if (stage === 'manager_review' || stage === 'calibration_hod_hrbp') {
+  if (stage === 'manager_review' || stage === 'calibration') {
     return viewerIsKnownNonSubject(
       viewerEmployeeId,
       packet,
@@ -266,7 +265,7 @@ export function visibleScorecardStepsForViewer(
   }
   return steps.filter(
     (step) =>
-      step.id !== 'manager_review' && step.id !== 'calibration_hod_hrbp',
+      step.id !== 'manager_review' && step.id !== 'calibration',
   )
 }
 
@@ -297,7 +296,7 @@ export function scorecardStageIsOpen(
     viewerIsKnownNonSubject(viewerEmployeeId, packet, subjectEmployeeId)
   if (state === 'upcoming' && !parallelManagerReview) return false
   if (
-    step.id === 'calibration_hod_hrbp' &&
+    step.id === 'calibration' &&
     !managerReviewIsComplete(packet?.status ?? 'not_started')
   ) {
     return false
@@ -371,7 +370,7 @@ export function gradeForViewStage(
   if (!visible) return null
   if (stage === 'self_review') return visible.selfOverallGrade
   if (stage === 'manager_review') return visible.managerOverallGrade
-  if (stage === 'calibration_hod_hrbp') {
+  if (stage === 'calibration') {
     return visible.calibratedOverallGrade ?? visible.managerOverallGrade
   }
   return (
@@ -384,7 +383,7 @@ export function gradeForViewStage(
 export function gradeLabelForViewStage(stage: ScorecardViewStage) {
   if (stage === 'self_review') return 'Self-Review Grade'
   if (stage === 'manager_review') return 'Manager grade'
-  if (stage === 'calibration_hod_hrbp') return 'Calibrated grade'
+  if (stage === 'calibration') return 'Calibrated grade'
   return 'Overall Grading'
 }
 

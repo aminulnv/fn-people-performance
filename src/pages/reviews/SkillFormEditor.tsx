@@ -1,4 +1,4 @@
-import { useId, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { Button, Switch } from '@/components/ui'
 import { expectedLevelLabel } from '@/lib/roles/labels'
 import { archiveSkill, createSkill, updateSkill } from '@/lib/skills/store'
@@ -34,6 +34,19 @@ export function SkillFormFields({
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [archiving, setArchiving] = useState(false)
+
+  const existingMasteryKey = existing
+    ? SKILL_MASTERY_LEVELS.map((level) => existing.mastery[level] ?? '').join('\0')
+    : ''
+
+  // Keep fields in sync when store fills seed rubrics after first paint.
+  useEffect(() => {
+    if (mode !== 'edit' || !existing) return
+    setApproved(existing.status !== 'draft')
+    setName(existing.name)
+    setMastery(existing.mastery ?? emptySkillMastery())
+    // Content keys only — not `existing` identity — so typing isn’t reset.
+  }, [mode, existing?.id, existing?.name, existing?.status, existingMasteryKey])
 
   if (mode === 'edit' && !existing) {
     return (
@@ -142,7 +155,7 @@ export function SkillFormFields({
           onChange={(event) => setApproved(event.target.checked)}
         />
         <div className="pd-reviews-value-panel__actions-end">
-          {mode === 'edit' && existing ? (
+          {mode === 'edit' && existing && onArchived ? (
             <Button
               type="button"
               variant="secondary"
@@ -155,7 +168,7 @@ export function SkillFormFields({
                 setError(null)
                 void archiveSkill(existing.id)
                   .then(() => {
-                    onArchived?.()
+                    onArchived()
                     onCancel()
                   })
                   .catch((err: unknown) => {

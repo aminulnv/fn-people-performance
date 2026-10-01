@@ -57,6 +57,8 @@ const TeamDetailPage = lazy(() => import('@/pages/TeamDetailPage'))
 const TeamFormPage = lazy(() => import('@/pages/TeamFormPage'))
 const EditRolePage = lazy(() => import('@/pages/EditRolePage'))
 const RoleDetailPage = lazy(() => import('@/pages/RoleDetailPage'))
+const EditSkillPage = lazy(() => import('@/pages/EditSkillPage'))
+const SkillDetailPage = lazy(() => import('@/pages/SkillDetailPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 const TestPage = lazy(() => import('@/pages/TestPage'))
 
@@ -141,8 +143,11 @@ function App() {
               />
               <Route path="organisation/roles" element={<OrganisationPage />} />
               <Route path="organisation/chart" element={<OrgChartPage />} />
-              {/* Splat keeps the library mounted when opening create/edit panels. */}
-              <Route path="organisation/skills/*" element={<SkillsPage />} />
+              <Route
+                path="organisation/skills/new"
+                element={<SkillsPage />}
+              />
+              <Route path="organisation/skills" element={<SkillsPage />} />
               <Route path="organisation/values/*" element={<ValuesPage />} />
               <Route
                 path="organisation/departments/new"
@@ -195,6 +200,18 @@ function App() {
               <Route
                 path="organisation/roles/:roleId"
                 element={<RoleDetailPage />}
+              />
+              <Route
+                path="organisation/skills/:skillId/edit"
+                element={
+                  <RequirePlatformWrite description="You do not have permission to edit skills. Contact an administrator if you need access.">
+                    <EditSkillPage />
+                  </RequirePlatformWrite>
+                }
+              />
+              <Route
+                path="organisation/skills/:skillId"
+                element={<SkillDetailPage />}
               />
               <Route path="goals" element={<GoalsPage />} />
               <Route

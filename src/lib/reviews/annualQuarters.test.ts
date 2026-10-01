@@ -7,6 +7,7 @@ import {
 import {
   buildAnnualQuarterRows,
   gradeFromLinkedPacket,
+  isQ12026TransitionQuarter,
   outcomeForAnnualQuarter,
   readAnnualQ4Grade,
   usesAnnualLinkedQuarters,
@@ -294,5 +295,18 @@ describe("readAnnualQ4Grade", () => {
         }),
       ),
     ).toBe("developing");
+  });
+});
+
+describe("isQ12026TransitionQuarter", () => {
+  it("matches q1-2026 by periodKey or sourceCycleId", () => {
+    expect(isQ12026TransitionQuarter({ periodKey: "q1-2026" })).toBe(true);
+    expect(isQ12026TransitionQuarter({ sourceCycleId: "q1-2026" })).toBe(true);
+    expect(isQ12026TransitionQuarter({ periodKey: "q2-2026" })).toBe(false);
+  });
+
+  it("matches Q1 2026 labels as a fallback", () => {
+    expect(isQ12026TransitionQuarter({ label: "Q1 2026" })).toBe(true);
+    expect(isQ12026TransitionQuarter({ label: "Q3 2026" })).toBe(false);
   });
 });

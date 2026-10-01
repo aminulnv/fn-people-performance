@@ -54,6 +54,10 @@ function testVariablesForEvent(eventKey) {
 }
 
 function mapRule(row) {
+  const definition = NOTIFICATION_RULE_DEFAULTS_BY_KEY.get(row.event_key)
+  const required = Boolean(
+    row.required ?? definition?.required ?? false,
+  )
   return {
     eventKey: row.event_key,
     name: row.name,
@@ -62,7 +66,8 @@ function mapRule(row) {
     audienceLabel: row.audience_label,
     whenLabel: row.when_label,
     timingKind: row.timing_kind,
-    enabled: Boolean(row.enabled),
+    enabled: required ? true : Boolean(row.enabled),
+    required,
     channels: Array.isArray(row.channels) ? [...row.channels] : ['in_app'],
     titleTemplate: row.title_template,
     bodyTemplate: row.body_template,
@@ -87,6 +92,7 @@ function defaultAsRow(definition) {
     when_label: definition.whenLabel,
     timing_kind: definition.timingKind,
     enabled: definition.enabled,
+    required: Boolean(definition.required),
     channels: definition.channels,
     title_template: definition.titleTemplate,
     body_template: definition.bodyTemplate,
@@ -113,14 +119,25 @@ async function ensureSeeded() {
              when_label,
              timing_kind,
              enabled,
+             required,
              channels,
              title_template,
              body_template,
              sort_order
            ) VALUES (
-             $1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11, $12
+             $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12, $13
            )
-           ON CONFLICT (event_key) DO NOTHING`,
+           ON CONFLICT (event_key) DO UPDATE SET
+             required = EXCLUDED.required,
+             name = EXCLUDED.name,
+             audience_label = EXCLUDED.audience_label,
+             when_label = EXCLUDED.when_label,
+             timing_kind = EXCLUDED.timing_kind,
+             sort_order = EXCLUDED.sort_order,
+             enabled = CASE
+               WHEN EXCLUDED.required THEN TRUE
+               ELSE platform.notification_rules.enabled
+             END`,
           [
             definition.eventKey,
             definition.name,
@@ -130,6 +147,7 @@ async function ensureSeeded() {
             definition.whenLabel,
             definition.timingKind,
             definition.enabled,
+            Boolean(definition.required),
             definition.channels,
             definition.titleTemplate,
             definition.bodyTemplate,
@@ -215,9 +233,28 @@ export async function updateNotificationRule(eventKey, patch, actor) {
     throw error
   }
 
-  const enabled =
-    typeof patch.enabled === 'boolean' ? patch.enabled : existing.enabled
-  const channels = normalizeChannels(patch.channels, existing.channels)
+  if (
+    existing.required &&
+    typeof patch.enabled === 'boolean' &&
+    patch.enabled === false
+  ) {
+    const error = new Error(
+      'This notification is required by the platform and cannot be turned off.',
+    )
+    error.statusCode = 400
+    throw error
+  }
+
+  const enabled = existing.required
+    ? true
+    : typeof patch.enabled === 'boolean'
+      ? patch.enabled
+      : existing.enabled
+  let channels = normalizeChannels(patch.channels, existing.channels)
+  // Required workflow alerts always keep in-app so the product cannot go dark.
+  if (existing.required && !channels.includes('in_app')) {
+    channels = ['in_app', ...channels]
+  }
   const titleTemplate =
     typeof patch.titleTemplate === 'string'
       ? patch.titleTemplate.trim()
@@ -252,6 +289,7 @@ export async function updateNotificationRule(eventKey, patch, actor) {
        when_label,
        timing_kind,
        enabled,
+       required,
        channels,
        title_template,
        body_template,
@@ -259,10 +297,11 @@ export async function updateNotificationRule(eventKey, patch, actor) {
        updated_at,
        updated_by_employee_id
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9::text[], $10, $11, $12, now(), $13
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text[], $11, $12, $13, now(), $14
      )
      ON CONFLICT (event_key) DO UPDATE SET
        enabled = EXCLUDED.enabled,
+       required = EXCLUDED.required,
        channels = EXCLUDED.channels,
        title_template = EXCLUDED.title_template,
        body_template = EXCLUDED.body_template,
@@ -278,6 +317,7 @@ export async function updateNotificationRule(eventKey, patch, actor) {
       existing.whenLabel,
       existing.timingKind,
       enabled,
+      Boolean(existing.required),
       channels,
       titleTemplate,
       bodyTemplate,
@@ -308,8 +348,8 @@ export async function resetNotificationRule(eventKey, actor) {
 }
 
 /**
- * Sends a one-off in-app notification to the signed-in admin so they can
- * preview copy + delivery without waiting for a real domain event.
+ * Sends a one-off in-app (+ browser) notification to the signed-in admin so
+ * they can preview copy without email/ClickUp spam during testing.
  */
 export async function sendTestNotificationRule(eventKey, actor) {
   const rule = await getNotificationRule(eventKey)

@@ -478,6 +478,9 @@ export function GroupSettingsView({
             onSuccess={onSuccess}
             onDirtyChange={setCalibrationDirty}
             saveRef={calibrationSaveRef}
+            stagesConfig={reviewDraft.stagesConfig}
+            setStageEnabled={reviewDraft.setStageEnabled}
+            setStageDate={reviewDraft.setStageDate}
           />
         ) : null}
       </div>

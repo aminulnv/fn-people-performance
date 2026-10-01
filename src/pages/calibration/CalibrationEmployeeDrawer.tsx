@@ -54,7 +54,14 @@ import {
   useReviewPacket,
 } from '@/lib/reviews/useReviewPackets'
 import { scoreForBand } from '@/lib/reviews/rollup'
+import { feedbackEnabledForVisibility, enabledQuestions, scorecardFeedbackOf } from '@/lib/reviews/reviewPolicy'
+import {
+  feedbackTextForRole,
+  SCORECARD_DEVELOPMENTS_ANSWER_ID,
+  SCORECARD_STRENGTHS_ANSWER_ID,
+} from '@/lib/reviews/scorecards'
 import { listScorecardForms } from '@/lib/reviews/scorecardFormsStore'
+import { MANAGER_RETENTION_QUESTION_IDS } from '@/lib/reviews/scorecardTemplates'
 import type {
   GradeBandId,
   ReviewCycle,
@@ -63,9 +70,32 @@ import type {
   ReviewQuestion,
   ScorecardPillar,
 } from '@/lib/reviews/types'
+import {
+  normalizeSkillGrade,
+  skillGradeLabel,
+  skillIdFromScorePillarId,
+  type SkillGradeLevel,
+} from '@/lib/skills/reviewScores'
+import { useEmployeeSkills, useSkillsLibrary } from '@/lib/skills/useSkills'
+import { valueIdFromScorePillarId } from '@/lib/values/reviewScores'
+import { useEnabledValues } from '@/lib/values/useValues'
 import { GRADE_LISTBOX_OPTIONS } from '@/pages/reviews/ScorecardGoalsCard'
 import { SettingsSidePanel } from '@/pages/reviews/SettingsSidePanel'
 import '@/styles/layout-reviews.css'
+
+const MANAGER_GLANCE_EXCLUDED_ANSWER_IDS = new Set<string>([
+  ...MANAGER_RETENTION_QUESTION_IDS,
+  SCORECARD_STRENGTHS_ANSWER_ID,
+  SCORECARD_DEVELOPMENTS_ANSWER_ID,
+])
+
+const SKILL_GRADE_TO_BAND: Record<SkillGradeLevel, GradeBandId> = {
+  poor: 'unsatisfactory',
+  basic: 'developing',
+  intermediate: 'performing',
+  advanced: 'exceeding',
+  expert: 'exceptional',
+}
 
 function overrideGradeSelectClass(grade: GradeBandId | null | '') {
   return [
@@ -139,6 +169,38 @@ function GradePill({ grade }: { grade: GradeBandId | null | undefined }) {
   )
 }
 
+function SkillGradePill({ grade }: { grade: string | null | undefined }) {
+  const normalized = normalizeSkillGrade(grade)
+  if (!normalized) return <span className="pd-cal-drawer__muted">—</span>
+  const tone = SKILL_GRADE_TO_BAND[normalized]
+  return (
+    <span
+      className={cx('pd-cal-rt__grade', `is-${tone}`)}
+      title={skillGradeLabel(normalized)}
+    >
+      {skillGradeLabel(normalized)}
+    </span>
+  )
+}
+
+function YesNoPill({ value }: { value: string | null | undefined }) {
+  const normalized = value?.trim().toLowerCase() ?? ''
+  if (normalized !== 'yes' && normalized !== 'no') {
+    return <span className="pd-cal-drawer__muted">—</span>
+  }
+  const isYes = normalized === 'yes'
+  return (
+    <span
+      className={cx(
+        'pd-cal-drawer__yn',
+        isYes ? 'is-yes' : 'is-no',
+      )}
+    >
+      {isYes ? 'Yes' : 'No'}
+    </span>
+  )
+}
+
 function bandBarWidth(grade: GradeBandId | null | undefined): string {
   if (!grade) return '0%'
   return `${(scoreForBand(grade) / 5) * 100}%`
@@ -195,11 +257,18 @@ function narrativesFromPacket(
   packet: ReviewPacket | null,
   actor: 'self' | 'manager',
   questions: readonly ReviewQuestion[],
+  options?: { excludeAnswerIds?: ReadonlySet<string> },
 ): NarrativeBlock[] {
   if (!packet) return []
+  const exclude = options?.excludeAnswerIds
   const questionById = new Map(questions.map((question) => [question.id, question]))
   const blocks: NarrativeBlock[] = packet.answers
-    .filter((answer) => answer.actorRole === actor && answer.body.trim())
+    .filter(
+      (answer) =>
+        answer.actorRole === actor &&
+        answer.body.trim() &&
+        !exclude?.has(answer.questionId),
+    )
     .map((answer) => ({
       id: `answer:${answer.questionId}`,
       label:
@@ -209,6 +278,12 @@ function narrativesFromPacket(
     }))
   for (const score of packet.pillarScores) {
     if (score.actorRole !== actor || !score.comment.trim()) continue
+    if (
+      skillIdFromScorePillarId(score.pillarId) ||
+      valueIdFromScorePillarId(score.pillarId)
+    ) {
+      continue
+    }
     blocks.push({
       id: `pillar:${score.pillarId}`,
       label:
@@ -220,7 +295,7 @@ function narrativesFromPacket(
   return blocks
 }
 
-/** Policy pillars plus any scored pillars on the packet (skills/values etc.). */
+/** Policy pillars only — skill:/value: rows are shown in their own glance lists. */
 function displayPillarsFor(
   policyPillars: readonly ScorecardPillar[],
   scores: readonly ReviewPillarScore[],
@@ -237,6 +312,12 @@ function displayPillarsFor(
   }
   for (const score of scores) {
     if (byId.has(score.pillarId) || !score.grade) continue
+    if (
+      skillIdFromScorePillarId(score.pillarId) ||
+      valueIdFromScorePillarId(score.pillarId)
+    ) {
+      continue
+    }
     byId.set(score.pillarId, {
       id: score.pillarId,
       label: PILLAR_FALLBACK_LABEL[score.pillarId] ?? score.pillarId,
@@ -251,6 +332,18 @@ function displayPillarsFor(
     })
   }
   return [...byId.values()]
+}
+
+function answerBodyFor(
+  packet: ReviewPacket | null,
+  actor: 'self' | 'manager',
+  questionId: string,
+): string | null {
+  const body = packet?.answers.find(
+    (answer) =>
+      answer.actorRole === actor && answer.questionId === questionId,
+  )?.body.trim()
+  return body || null
 }
 
 function NarrativeBlocks({
@@ -330,6 +423,9 @@ export function CalibrationEmployeeDrawer({
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [overrideOpen, setOverrideOpen] = useState(false)
   const [lockedOverrideAck, setLockedOverrideAck] = useState(false)
+  const assignedSkills = useEmployeeSkills(row.employeeId)
+  const { skills: skillsCatalog } = useSkillsLibrary()
+  const enabledValues = useEnabledValues()
 
   useEffect(() => {
     setTab('overview')
@@ -475,7 +571,96 @@ export function CalibrationEmployeeDrawer({
   const canOverrideNow =
     canOverride && (Boolean(managerGrade) || managerMissed)
   const selfNarratives = narrativesFromPacket(packet, 'self', questions)
-  const managerNarratives = narrativesFromPacket(packet, 'manager', questions)
+  const managerNarratives = narrativesFromPacket(packet, 'manager', questions, {
+    excludeAnswerIds: MANAGER_GLANCE_EXCLUDED_ANSWER_IDS,
+  })
+  const reviewPolicy = policy.settings.reviewPolicy
+  const managerFeedbackEnabled = reviewPolicy
+    ? feedbackEnabledForVisibility(reviewPolicy, 'manager')
+    : false
+  const managerFeedbackConfig = reviewPolicy
+    ? scorecardFeedbackOf(reviewPolicy)
+    : null
+  const managerFeedback = managerFeedbackEnabled
+    ? feedbackTextForRole(packet?.answers ?? [], 'manager')
+    : { strengths: '', developments: '' }
+  const managerScorecardQuestions = useMemo(
+    () => (reviewPolicy ? enabledQuestions(reviewPolicy, 'manager') : []),
+    [reviewPolicy],
+  )
+  const retentionGlanceQuestions = useMemo(
+    () =>
+      managerScorecardQuestions.filter((question) =>
+        (MANAGER_RETENTION_QUESTION_IDS as readonly string[]).includes(
+          question.id,
+        ),
+      ),
+    [managerScorecardQuestions],
+  )
+  const managerOverrideReason = packet?.managerOverrideReason?.trim() || null
+  const skillsById = useMemo(
+    () => new Map(skillsCatalog.map((skill) => [skill.id, skill])),
+    [skillsCatalog],
+  )
+  const managerSkillRows = useMemo(() => {
+    const fromPacket = new Map<string, SkillGradeLevel | ''>()
+    for (const score of packet?.pillarScores ?? []) {
+      if (score.actorRole !== 'manager') continue
+      const skillId = skillIdFromScorePillarId(score.pillarId)
+      if (!skillId) continue
+      fromPacket.set(skillId, normalizeSkillGrade(score.grade))
+    }
+    const ids = new Set<string>([
+      ...assignedSkills.map((skill) => skill.id),
+      ...fromPacket.keys(),
+    ])
+    return [...ids]
+      .map((skillId) => {
+        const skill = skillsById.get(skillId) ?? assignedSkills.find((s) => s.id === skillId)
+        return {
+          id: skillId,
+          name: skill?.name ?? skillId,
+          grade: fromPacket.get(skillId) ?? '',
+        }
+      })
+      .filter((row) => row.grade || assignedSkills.some((skill) => skill.id === row.id))
+      .sort((left, right) =>
+        left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+      )
+  }, [assignedSkills, packet?.pillarScores, skillsById])
+  const managerValueRows = useMemo(() => {
+    const fromPacket = new Map<string, GradeBandId | null>()
+    for (const score of packet?.pillarScores ?? []) {
+      if (score.actorRole !== 'manager') continue
+      const valueId = valueIdFromScorePillarId(score.pillarId)
+      if (!valueId) continue
+      fromPacket.set(valueId, score.grade)
+    }
+    const ids = new Set<string>([
+      ...enabledValues.map((value) => value.id),
+      ...fromPacket.keys(),
+    ])
+    const valueById = new Map(enabledValues.map((value) => [value.id, value]))
+    return [...ids]
+      .map((valueId) => ({
+        id: valueId,
+        name: valueById.get(valueId)?.name ?? valueId,
+        grade: fromPacket.get(valueId) ?? null,
+      }))
+      .filter(
+        (row) =>
+          row.grade || enabledValues.some((value) => value.id === row.id),
+      )
+      .sort((left, right) =>
+        left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+      )
+  }, [enabledValues, packet?.pillarScores])
+  const showSkillsGlance =
+    pillars.some((pillar) => pillar.id === 'skills' || pillar.kind === 'skills') ||
+    managerSkillRows.some((row) => row.grade)
+  const showValuesGlance =
+    pillars.some((pillar) => pillar.id === 'values' || pillar.kind === 'values') ||
+    managerValueRows.some((row) => row.grade)
   const q4Quarter = row.quarters.find((quarter) =>
     /q\s*4/i.test(quarter.shortLabel) || /q\s*4/i.test(quarter.label),
   )
@@ -725,11 +910,14 @@ export function CalibrationEmployeeDrawer({
                     </li>
                   )
                 })}
+                <li>
+                  <div>
+                    <strong>Final Annual Rating</strong>
+                    <span>Weighted Combination</span>
+                  </div>
+                  <GradePill grade={finalGrade} />
+                </li>
               </ul>
-              <div className="pd-cal-drawer__final-row">
-                <span>Final Annual Rating</span>
-                <GradePill grade={finalGrade} />
-              </div>
             </section>
 
             <section className="pd-cal-drawer__card" aria-label="Self Vs Manager">
@@ -751,7 +939,7 @@ export function CalibrationEmployeeDrawer({
                   <GradePill grade={selfGrade} />
                 </li>
                 <li>
-                  <span>Mgr Rating</span>
+                  <span>Manager Rating</span>
                   <div className="pd-cal-drawer__track">
                     <span
                       className={cx(
@@ -846,8 +1034,13 @@ export function CalibrationEmployeeDrawer({
             <section className="pd-cal-drawer__card pd-cal-drawer__card--accent">
               <div className="pd-cal-drawer__final-row">
                 <span>Final Rating Given By Manager</span>
-                <GradePill grade={managerGrade ?? finalGrade} />
+                <GradePill grade={managerGrade} />
               </div>
+              {managerMissed && !managerGrade ? (
+                <p className="pd-cal-drawer__hint">
+                  Manager Missed The Deadline — No Manager Rating Submitted.
+                </p>
+              ) : null}
             </section>
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">Ratings By Pillar</h3>
@@ -877,6 +1070,104 @@ export function CalibrationEmployeeDrawer({
                 })}
               </ul>
             </section>
+            {showSkillsGlance ? (
+              <section className="pd-cal-drawer__card" aria-label="Skills">
+                <h3 className="pd-cal-drawer__section-title">Skills</h3>
+                {managerSkillRows.length === 0 ? (
+                  <p className="pd-cal-drawer__hint">No Skills Graded Yet.</p>
+                ) : (
+                  <ul className="pd-cal-drawer__glance-list">
+                    {managerSkillRows.map((skill) => (
+                      <li key={skill.id}>
+                        <span>{skill.name}</span>
+                        <SkillGradePill grade={skill.grade} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+            {showValuesGlance ? (
+              <section className="pd-cal-drawer__card" aria-label="Core Values">
+                <h3 className="pd-cal-drawer__section-title">Core Values</h3>
+                {managerValueRows.length === 0 ? (
+                  <p className="pd-cal-drawer__hint">No Values Graded Yet.</p>
+                ) : (
+                  <ul className="pd-cal-drawer__glance-list">
+                    {managerValueRows.map((value) => (
+                      <li key={value.id}>
+                        <span>{value.name}</span>
+                        <GradePill grade={value.grade} />
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            ) : null}
+            {retentionGlanceQuestions.length > 0 ? (
+              <section
+                className="pd-cal-drawer__card"
+                aria-label="Retention And Engagement"
+              >
+                <h3 className="pd-cal-drawer__section-title">
+                  Retention & Engagement
+                </h3>
+                <ul className="pd-cal-drawer__glance-list">
+                  {retentionGlanceQuestions.map((question) => (
+                    <li key={question.id}>
+                      <span>{question.prompt}</span>
+                      <YesNoPill
+                        value={answerBodyFor(packet, 'manager', question.id)}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {managerFeedbackEnabled && managerFeedbackConfig ? (
+              <section
+                className="pd-cal-drawer__card"
+                aria-label={managerFeedbackConfig.title}
+              >
+                <h3 className="pd-cal-drawer__section-title">
+                  {managerFeedbackConfig.title}
+                </h3>
+                <div className="pd-cal-drawer__feedback-fields">
+                  <div className="pd-cal-drawer__feedback-field">
+                    <p className="pd-cal-drawer__eyebrow">
+                      {managerFeedbackConfig.labels[0]}
+                    </p>
+                    <blockquote className="pd-cal-drawer__quote">
+                      {managerFeedback.strengths.trim() || '—'}
+                    </blockquote>
+                  </div>
+                  <div className="pd-cal-drawer__feedback-field">
+                    <p className="pd-cal-drawer__eyebrow">
+                      {managerFeedbackConfig.labels[1]}
+                    </p>
+                    <blockquote className="pd-cal-drawer__quote">
+                      {managerFeedback.developments.trim() || '—'}
+                    </blockquote>
+                  </div>
+                </div>
+              </section>
+            ) : null}
+            {managerOverrideReason ? (
+              <section
+                className="pd-cal-drawer__card"
+                aria-label="Manager Override Reason"
+              >
+                <h3 className="pd-cal-drawer__section-title">
+                  Override Reason
+                </h3>
+                <p className="pd-cal-drawer__hint">
+                  Manager Changed The Suggested Overall Grade.
+                </p>
+                <blockquote className="pd-cal-drawer__quote">
+                  {managerOverrideReason}
+                </blockquote>
+              </section>
+            ) : null}
             <section className="pd-cal-drawer__card">
               <h3 className="pd-cal-drawer__section-title">Manager Comment</h3>
               <p className="pd-cal-drawer__eyebrow">
@@ -884,7 +1175,7 @@ export function CalibrationEmployeeDrawer({
               </p>
               <NarrativeBlocks
                 blocks={managerNarratives}
-                emptyLabel="No Manager Comment Submitted Yet."
+                emptyLabel="No Additional Manager Comments."
               />
             </section>
             <section className="pd-cal-drawer__card">
@@ -906,7 +1197,7 @@ export function CalibrationEmployeeDrawer({
                   <GradePill grade={selfGrade} />
                 </li>
                 <li>
-                  <span>Mgr Rating</span>
+                  <span>Manager Rating</span>
                   <div className="pd-cal-drawer__track">
                     <span
                       className={cx(

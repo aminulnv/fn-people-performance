@@ -68,7 +68,7 @@ export function PeopleProfileDrawer({
           aria-label="Employee load error"
           description={loadError || 'Failed to load this person.'}
           action={
-            <PageStatusRetry onClick={() => void reload().catch(() => {})} />
+            <PageStatusRetry onClick={() => void reload().catch(() => { })} />
           }
         />
       ) : !employee ? (

@@ -41,7 +41,7 @@ function packet(partial: Partial<ReviewPacket> = {}): ReviewPacket {
     calibrationEvents: [
       {
         id: 'cal-1',
-        stageId: 'calibration_hod_hrbp',
+        stageId: 'calibration',
         fromGrade: 'exceeding',
         toGrade: 'exceptional',
         reason: 'Company impact',

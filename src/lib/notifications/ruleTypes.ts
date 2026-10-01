@@ -17,6 +17,8 @@ export type NotificationRule = {
   whenLabel: string
   timingKind: NotificationRuleTimingKind
   enabled: boolean
+  /** Platform-required: cannot be turned off in Settings. */
+  required?: boolean
   channels: NotificationChannel[]
   titleTemplate: string
   bodyTemplate: string
@@ -52,5 +54,6 @@ export function channelLabel(channel: NotificationChannel): string {
 
 export function ruleSummary(rule: NotificationRule): string {
   const channelLabels = rule.channels.map(channelLabel).join(' + ')
-  return `${rule.whenLabel} → ${rule.audienceLabel} · ${channelLabels}`
+  const required = rule.required ? ' · Required' : ''
+  return `${rule.whenLabel} → ${rule.audienceLabel} · ${channelLabels}${required}`
 }

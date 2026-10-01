@@ -1,5 +1,6 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import * as sessionApi from '@/lib/calibration/sessionApi'
 import * as packetsApi from '@/lib/reviews/packetsApi'
 import { PublishStageControls } from './PublishStageControls'
 
@@ -139,5 +140,59 @@ describe('PublishStageControls', () => {
 
     expect(onDateChange).toHaveBeenCalled()
     expect(release).not.toHaveBeenCalled()
+  })
+
+  it('blocks Publish now until calibration is locked when required', async () => {
+    vi.spyOn(sessionApi, 'fetchCalibrationSitting').mockResolvedValue({
+      cycleId: 'cycle-1',
+      cleanConfirmedAt: null,
+      lockedAt: null,
+      employees: [],
+    })
+
+    renderControls({ requireCalibrationLock: true })
+
+    expect(
+      await screen.findByText('Lock calibration before publishing grades.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Publish to Managers First Now' }),
+    ).toBeDisabled()
+  })
+
+  it('allows Publish now after calibration is locked when required', async () => {
+    const release = vi
+      .spyOn(packetsApi, 'releaseReviewGroup')
+      .mockResolvedValue([])
+    vi.spyOn(sessionApi, 'fetchCalibrationSitting').mockResolvedValue({
+      cycleId: 'cycle-1',
+      cleanConfirmedAt: null,
+      lockedAt: '2026-02-07T12:00:00.000Z',
+      employees: [],
+    })
+
+    renderControls({ requireCalibrationLock: true })
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: 'Publish to Managers First Now' }),
+      ).toBeEnabled()
+    })
+    expect(
+      screen.queryByText('Lock calibration before publishing grades.'),
+    ).not.toBeInTheDocument()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Publish to Managers First Now' }),
+    )
+    fireEvent.click(
+      within(
+        screen.getByRole('dialog', { name: 'Publish to Managers First Now?' }),
+      ).getByRole('button', { name: 'Publish Now' }),
+    )
+
+    await waitFor(() => {
+      expect(release).toHaveBeenCalledWith('cycle-1', 'group-1', 'managers')
+    })
   })
 })

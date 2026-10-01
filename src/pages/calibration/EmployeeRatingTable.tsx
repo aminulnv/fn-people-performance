@@ -1117,14 +1117,24 @@ export function EmployeeRatingTable({
               <tbody>
                 {filteredRows.map((row) => {
                   const isSelected = selectedIds.has(row.employeeId)
+                  const openEmployee = () => {
+                    prefetchReviewPacket(
+                      queryClient,
+                      cycle.id,
+                      row.employeeId,
+                    )
+                    setSelectedEmployeeId(row.employeeId)
+                  }
                   return (
                     <tr
                       key={row.employeeId}
                       className={cx(
+                        'pd-people__row-link',
                         row.isFlagged && 'is-flagged',
                         row.isAdjusted && 'is-adjusted',
                         isSelected && 'is-selected',
                       )}
+                      tabIndex={0}
                       onMouseEnter={() =>
                         prefetchReviewPacket(
                           queryClient,
@@ -1132,6 +1142,18 @@ export function EmployeeRatingTable({
                           row.employeeId,
                         )
                       }
+                      onClick={(event) => {
+                        const target = event.target as HTMLElement
+                        if (target.closest('a, button, input, label')) return
+                        openEmployee()
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter' && event.key !== ' ') return
+                        const target = event.target as HTMLElement
+                        if (target.closest('a, button, input, label')) return
+                        event.preventDefault()
+                        openEmployee()
+                      }}
                     >
                       {canAssignCalibrators ? (
                         <td className="pd-cal-rt__select-cell">
@@ -1180,14 +1202,7 @@ export function EmployeeRatingTable({
                                   row.employeeId,
                                 )
                               }
-                              onClick={() => {
-                                prefetchReviewPacket(
-                                  queryClient,
-                                  cycle.id,
-                                  row.employeeId,
-                                )
-                                setSelectedEmployeeId(row.employeeId)
-                              }}
+                              onClick={openEmployee}
                             >
                               {row.fullName}
                             </button>

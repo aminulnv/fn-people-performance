@@ -12,8 +12,10 @@ import {
   Switch,
   Textarea,
 } from '@/components/ui'
-import { ApiError } from '@/lib/apiClient'
+import { apiFetch, ApiError } from '@/lib/apiClient'
 import { hasSystemPermission } from '@/lib/accessControl/types'
+import { fetchGoalsSnapshot } from '@/lib/goalsApi'
+import { GoalReminderBlastButton } from '@/pages/goals/GoalReminderBlastButton'
 import {
   getBrowserNotificationPermission,
   likelyMissingOsBanners,
@@ -50,6 +52,17 @@ import {
 import '@/styles/layout-settings.css'
 
 type CategoryFilter = 'all' | NotificationRuleCategory
+
+type DeliveryChannelStatus = {
+  configured: boolean
+  enabled: boolean
+  reason: string | null
+}
+
+type NotificationDeliveryStatus = {
+  email: DeliveryChannelStatus
+  clickup: DeliveryChannelStatus
+}
 
 const CATEGORY_OPTIONS: { id: CategoryFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -173,16 +186,34 @@ function RuleRows({
             role="listitem"
           >
             <div className="pd-notify-rules__copy">
-              <strong className="pd-notify-rules__row-name">{rule.name}</strong>
+              <strong className="pd-notify-rules__row-name">
+                {rule.name}
+                {rule.required ? (
+                  <span className="pd-notify-rules__required-badge">
+                    Required
+                  </span>
+                ) : null}
+              </strong>
               <span className="pd-notify-rules__summary">
                 {ruleSummary(rule)}
               </span>
             </div>
             <div className="pd-notify-rules__actions">
               <Switch
-                label={rule.enabled ? 'On' : 'Off'}
-                checked={rule.enabled}
-                disabled={!canWrite || busy}
+                label={
+                  rule.required
+                    ? 'On (required)'
+                    : rule.enabled
+                      ? 'On'
+                      : 'Off'
+                }
+                checked={rule.required ? true : rule.enabled}
+                disabled={!canWrite || busy || Boolean(rule.required)}
+                title={
+                  rule.required
+                    ? 'Required by the platform — cannot be turned off'
+                    : undefined
+                }
                 onChange={(event) => onToggle(rule, event.target.checked)}
               />
               {canWrite ? (
@@ -292,6 +323,11 @@ export function NotificationRulesPanel() {
       getBrowserNotificationPermission(),
     )
   const [requestingBrowser, setRequestingBrowser] = useState(false)
+  const [deliveryStatus, setDeliveryStatus] =
+    useState<NotificationDeliveryStatus | null>(null)
+  const [blastCycles, setBlastCycles] = useState<
+    { id: string; label: string }[]
+  >([])
 
   const loadRules = useCallback(() => {
     return fetchNotificationRules()
@@ -309,6 +345,42 @@ export function NotificationRulesPanel() {
   useEffect(() => {
     void loadRules()
   }, [loadRules])
+
+  useEffect(() => {
+    void apiFetch<{ notificationDelivery?: NotificationDeliveryStatus }>(
+      '/api/platform/health',
+    )
+      .then((health) => {
+        if (health.notificationDelivery) {
+          setDeliveryStatus(health.notificationDelivery)
+        }
+      })
+      .catch(() => {
+        // Health is best-effort; rules UI still works without it.
+      })
+  }, [])
+
+  useEffect(() => {
+    void fetchGoalsSnapshot()
+      .then((snapshot) => {
+        const cycles = snapshot.availableCycles.map((cycle) => ({
+          id: cycle.id,
+          label: cycle.label,
+        }))
+        if (cycles.length > 0) {
+          setBlastCycles(cycles)
+          return
+        }
+        if (snapshot.cycle?.id) {
+          setBlastCycles([
+            { id: snapshot.cycle.id, label: snapshot.cycle.label },
+          ])
+        }
+      })
+      .catch(() => {
+        // Blast control is optional if goals snapshot fails.
+      })
+  }, [])
 
   // One-shot: /settings?browserNotification=1#notifications
   useEffect(() => {
@@ -399,7 +471,7 @@ export function NotificationRulesPanel() {
 
   const toggleEnabled = useCallback(
     async (rule: NotificationRule, enabled: boolean) => {
-      if (!canWrite) return
+      if (!canWrite || rule.required) return
       setSavingKey(rule.eventKey)
       setError(null)
       try {
@@ -430,10 +502,14 @@ export function NotificationRulesPanel() {
     setSavingKey(editing.eventKey)
     setError(null)
     try {
+      const channels =
+        editing.required && !draftChannels.includes('in_app')
+          ? (['in_app', ...draftChannels] as NotificationChannel[])
+          : draftChannels
       const next = await updateNotificationRule(editing.eventKey, {
         titleTemplate: draftTitle,
         bodyTemplate: draftBody,
-        channels: draftChannels,
+        channels,
       })
       setRules((current) => {
         const updated = current.map((item) =>
@@ -559,6 +635,12 @@ export function NotificationRulesPanel() {
             <h2 id="notify-rules-heading" className="pd-settings-section__title">
               Notification rules
             </h2>
+            <p className="pd-settings-section__lede">
+              Manage every notification and reminder the platform sends — goals,
+              reviews, organisation, and access. People see them in the bell;
+              email/ClickUp use the same rules once credentials are configured.
+              Required items stay on and cannot be disabled.
+            </p>
           </div>
         </div>
         <div className="pd-notify-rules__header-actions">
@@ -621,6 +703,52 @@ export function NotificationRulesPanel() {
 
       {!canWrite ? (
         <p className="pd-notify-rules__notice">Read-only — you can’t change rules.</p>
+      ) : null}
+
+      <div className="pd-notify-rules__channels-help" role="status">
+        <p>
+          <strong>This page controls every notification and reminder</strong>{' '}
+          the platform can send (goals, reviews, organisation, access). People
+          receive them in the bell; email and ClickUp follow the same rules once
+          credentials are on the API.
+        </p>
+        <p>
+          <strong>Required</strong> items (workflow must-sends like submit /
+          approve / send-back) stay on and cannot be disabled. Cadence reminders
+          (day 7 / 14 / 25, etc.) can still be turned off.
+        </p>
+        <p className="pd-notify-rules__channels-tip">
+          Email:{' '}
+          {deliveryStatus?.email.enabled
+            ? 'sending'
+            : deliveryStatus?.email.configured
+              ? 'SMTP set but delivery disabled'
+              : 'waiting for SMTP (PLATFORM_SMTP_*)'}
+          {' · '}
+          ClickUp:{' '}
+          {deliveryStatus?.clickup.enabled
+            ? 'sending'
+            : deliveryStatus?.clickup.configured
+              ? 'token set but delivery disabled'
+              : 'waiting for ClickUp token + list id'}
+          . Test sends stay in-app + browser only.
+        </p>
+      </div>
+
+      {canWrite && blastCycles.length > 0 ? (
+        <div className="pd-notify-rules__manual-blast">
+          <div>
+            <p className="pd-notify-rules__manual-blast-title">
+              Manual reminder blast
+            </p>
+            <p className="pd-notify-rules__manual-blast-copy">
+              Send the required “Manual reminder from manager” notification to
+              people who still need to submit goals for a cycle. Also available
+              on Goals.
+            </p>
+          </div>
+          <GoalReminderBlastButton cycles={blastCycles} />
+        </div>
       ) : null}
 
       <SegmentedControl
@@ -691,18 +819,33 @@ export function NotificationRulesPanel() {
           <div className="pd-notify-rules__editor">
             <Field label="Channels">
               <div className="pd-notify-rules__channels">
-                {(['in_app', 'browser', 'email'] as const).map((channel) => (
-                  <Checkbox
-                    key={channel}
-                    label={channelLabel(channel)}
-                    checked={draftChannels.includes(channel)}
-                    disabled={!canWrite}
-                    onChange={(event) =>
-                      toggleChannel(channel, event.target.checked)
-                    }
-                  />
-                ))}
+                {(
+                  ['in_app', 'browser', 'email', 'clickup'] as const
+                ).map((channel) => {
+                  const lockInApp =
+                    Boolean(editing.required) && channel === 'in_app'
+                  return (
+                    <Checkbox
+                      key={channel}
+                      label={
+                        lockInApp
+                          ? `${channelLabel(channel)} (required)`
+                          : channelLabel(channel)
+                      }
+                      checked={draftChannels.includes(channel) || lockInApp}
+                      disabled={!canWrite || lockInApp}
+                      onChange={(event) =>
+                        toggleChannel(channel, event.target.checked)
+                      }
+                    />
+                  )
+                })}
               </div>
+              <p className="pd-notify-rules__channels-tip">
+                {editing.required
+                  ? 'Required alerts stay on. In-app cannot be removed; email/ClickUp still wait for credentials.'
+                  : 'Email / ClickUp stay silent until the API has credentials. Old “not configured” rows are not replayed when you turn SMTP on.'}
+              </p>
             </Field>
             <Field label="Title">
               <Input

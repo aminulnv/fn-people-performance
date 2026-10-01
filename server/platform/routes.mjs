@@ -72,11 +72,15 @@ export function registerPlatformRoutes(app) {
         process.env.PLATFORM_GOOGLE_CLIENT_ID?.trim() &&
           process.env.PLATFORM_GOOGLE_CLIENT_SECRET?.trim(),
       )
+      const { notificationDeliveryStatus } = await import(
+        './notifications/deliveryConfig.mjs'
+      )
       res.json({
         ok: true,
         schema: 'platform',
         auth: 'platform',
         googleOAuthConfigured: googleConfigured,
+        notificationDelivery: notificationDeliveryStatus(),
       })
     }),
   )

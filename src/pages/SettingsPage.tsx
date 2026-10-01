@@ -55,30 +55,30 @@ const SIDEBAR_MODE_OPTIONS: {
   title: string
   icon: typeof PanelLeftOpen
 }[] = [
-  {
-    value: 'auto',
-    label: 'Auto',
-    title: 'Sidebar expands when you hover, and collapses when you leave.',
-    icon: PanelLeftOpen,
-  },
-  {
-    value: 'manual',
-    label: 'Click',
-    title:
-      'Use the button at the bottom of the sidebar to expand or collapse.',
-    icon: MousePointerClick,
-  },
-]
+    {
+      value: 'auto',
+      label: 'Auto',
+      title: 'Sidebar expands when you hover, and collapses when you leave.',
+      icon: PanelLeftOpen,
+    },
+    {
+      value: 'manual',
+      label: 'Click',
+      title:
+        'Use the button at the bottom of the sidebar to expand or collapse.',
+      icon: MousePointerClick,
+    },
+  ]
 
 const APPEARANCE_OPTIONS: {
   value: AppearanceMode
   label: string
   icon: typeof Sun
 }[] = [
-  { value: 'light', label: 'Light', icon: Sun },
-  { value: 'dark', label: 'Dark', icon: Moon },
-  { value: 'system', label: 'System', icon: Monitor },
-]
+    { value: 'light', label: 'Light', icon: Sun },
+    { value: 'dark', label: 'Dark', icon: Moon },
+    { value: 'system', label: 'System', icon: Monitor },
+  ]
 
 function formatHex(hex: string): string {
   return hex.toUpperCase()

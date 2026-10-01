@@ -36,13 +36,7 @@ export function OrgMembersTable({
     const next: ResizableColumn[] = [
       {
         id: 'person',
-        label: (
-          <span className="pd-people__th">
-            Person
-            <span className="pd-people__th-count">{members.length}</span>
-          </span>
-        ),
-        name: 'Person',
+        label: 'Person',
         grow: true,
       },
     ]
@@ -67,7 +61,7 @@ export function OrgMembersTable({
       { id: 'email', label: 'Email' },
     )
     return next
-  }, [extraColumn, isTalent, members.length])
+  }, [extraColumn, isTalent])
 
   if (members.length === 0) {
     return <p className="pd-people__empty">No members in this unit yet.</p>

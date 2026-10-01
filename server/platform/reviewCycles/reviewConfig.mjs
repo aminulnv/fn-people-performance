@@ -4,12 +4,21 @@ export const REVIEW_STAGE_ORDER = [
   'goals',
   'self_review',
   'manager_review',
-  'calibration_hod_hrbp',
-  'calibration_slt',
+  'calibration',
   'publish_managers',
   'publish_employees',
   'appeal',
 ]
+
+const LEGACY_CALIBRATION_IDS = new Set([
+  'calibration',
+  'calibration_hod_hrbp',
+  'calibration_slt',
+])
+
+export function isCalibrationStage(id) {
+  return LEGACY_CALIBRATION_IDS.has(id)
+}
 
 export function inferPurpose(periodKey, fallback = 'custom') {
   if (!periodKey) return fallback
@@ -44,8 +53,7 @@ export function presetEnabledStages(purpose, periodKey) {
     return [
       'self_review',
       'manager_review',
-      'calibration_hod_hrbp',
-      'calibration_slt',
+      'calibration',
       'publish_managers',
       'publish_employees',
     ]
@@ -87,10 +95,7 @@ export function applyCycleModules(config, modules, purpose, periodKey) {
     if (stage.id === 'appeal') return { ...stage, enabled: false }
     if (stage.id === 'goals') return { ...stage, enabled: modules.goals }
     if (!modules.reviews) return { ...stage, enabled: false }
-    if (
-      (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') &&
-      purpose !== 'annual_appraisal'
-    ) {
+    if (isCalibrationStage(stage.id) && purpose !== 'annual_appraisal') {
       return { ...stage, enabled: false }
     }
     if (stage.id === 'publish_employees') return { ...stage, enabled: true }
@@ -114,9 +119,7 @@ export function withoutUnsupportedCalibration(config, purpose) {
   return syncLegacyStageWindows({
     ...config,
     reviewStages: (config.reviewStages ?? []).map((stage) =>
-      stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt'
-        ? { ...stage, enabled: false }
-        : stage,
+      isCalibrationStage(stage.id) ? { ...stage, enabled: false } : stage,
     ),
   })
 }
@@ -132,7 +135,7 @@ export function deriveReviewStagesFromLegacy(purpose, config) {
     if (stage.id === 'goals') return { ...stage, enabled: !annual }
     if (stage.id === 'self_review') return { ...stage, enabled: annual }
     if (stage.id === 'manager_review') return { ...stage, enabled: true }
-    if (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') {
+    if (stage.id === 'calibration') {
       return { ...stage, enabled: annual && Boolean(config.calibration.enabled) }
     }
     if (stage.id === 'publish_managers' || stage.id === 'publish_employees') {
@@ -170,7 +173,7 @@ export function defaultReviewStages(purpose, config, periodKey) {
         end: { ...config.performance.managerEnd },
       }
     }
-    if (id === 'calibration_hod_hrbp' || id === 'calibration_slt') {
+    if (id === 'calibration') {
       return {
         id,
         enabled: enabled.has(id) && config.calibration.enabled,
@@ -249,7 +252,7 @@ export function applyNestedWindowsToReviewStages(config) {
           end: config.performance.managerEnd,
         }
       }
-      if (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') {
+      if (stage.id === 'calibration') {
         return {
           ...stage,
           start: config.calibration.start,
@@ -273,8 +276,9 @@ export function applyNestedWindowsToReviewStages(config) {
 }
 
 export function mergeReviewStages(incoming, fallback) {
+  const collapsed = collapseCalibrationToSingleWindow(incoming)
   return REVIEW_STAGE_ORDER.map((id) => {
-    const next = incoming?.find((stage) => stage.id === id)
+    const next = collapsed.find((stage) => stage.id === id)
     const base = fallback.find((stage) => stage.id === id)
     return {
       id,
@@ -285,17 +289,43 @@ export function mergeReviewStages(incoming, fallback) {
   })
 }
 
+/** Wipe HOD/HRBP + SLT into a single `calibration` stage. */
+export function collapseCalibrationToSingleWindow(stages) {
+  const list = stages ?? []
+  const calibRows = list.filter((stage) => LEGACY_CALIBRATION_IDS.has(stage.id))
+  const enabled = calibRows.some((stage) => stage.enabled)
+  const source = calibRows.find((stage) => stage.enabled) ?? calibRows[0] ?? null
+  return REVIEW_STAGE_ORDER.map((id) => {
+    if (id === 'calibration') {
+      return {
+        id,
+        enabled,
+        start: source?.start,
+        end: source?.end,
+      }
+    }
+    const found = list.find((stage) => stage.id === id)
+    return {
+      id,
+      enabled: found?.enabled ?? false,
+      start: found?.start,
+      end: found?.end,
+    }
+  })
+}
+
 export function syncLegacyStageWindows(config) {
-  const byId = new Map((config.reviewStages ?? []).map((stage) => [stage.id, stage]))
+  const stages = collapseCalibrationToSingleWindow(config.reviewStages)
+  const byId = new Map(stages.map((stage) => [stage.id, stage]))
   const goals = byId.get('goals')
   const selfReview = byId.get('self_review')
   const manager = byId.get('manager_review')
-  const hod = byId.get('calibration_hod_hrbp')
-  const slt = byId.get('calibration_slt')
+  const calibration = byId.get('calibration')
   const pubMgr = byId.get('publish_managers')
   const pubEmp = byId.get('publish_employees')
   return {
     ...config,
+    reviewStages: stages,
     goals: {
       ...config.goals,
       employee: {
@@ -311,10 +341,10 @@ export function syncLegacyStageWindows(config) {
     },
     calibration: {
       ...config.calibration,
-      enabled: Boolean(hod?.enabled || slt?.enabled),
-      start: hod?.start ?? slt?.start ?? config.calibration.start,
-      end: slt?.end ?? hod?.end ?? config.calibration.end,
-      manualStart: hod?.start ?? config.calibration.manualStart,
+      enabled: Boolean(calibration?.enabled),
+      start: calibration?.start ?? config.calibration.start,
+      end: calibration?.end ?? config.calibration.end,
+      manualStart: calibration?.start ?? config.calibration.manualStart,
     },
     publish: {
       toManager: pubMgr?.start ?? config.publish.toManager,

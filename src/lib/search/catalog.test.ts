@@ -158,7 +158,7 @@ describe('buildSearchCatalog', () => {
     expect(ids).toContain('skill:skill-admin-support')
     expect(
       items.find((item) => item.id === 'skill:skill-admin-support')?.path,
-    ).toBe('/organisation/skills/skill-admin-support/edit')
+    ).toBe('/organisation/skills/skill-admin-support')
     expect(
       items.find((item) => item.id === 'action:skills-library')?.path,
     ).toBe('/organisation/skills')

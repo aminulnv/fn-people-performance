@@ -6,7 +6,12 @@ import { listActiveDelegatedManagerIds } from '../delegations.mjs'
 import { appendActivityEvent } from '../activity.mjs'
 import { getReviewCycle } from '../reviewCycles/store.mjs'
 import { getScorecardForm } from '../reviewCycles/scorecardForms.mjs'
+import { getCalibrationSitting } from '../calibrationSession.mjs'
 import { publicationExclusionClause } from './publicationFilter.mjs'
+import {
+  CALIBRATION_LOCK_BEFORE_PUBLISH_MESSAGE,
+  calibrationPublishGateRequired,
+} from './publishGate.mjs'
 import {
   describeScorecardSubmitBlock,
   packedFeedbackFromAnswers,
@@ -304,28 +309,45 @@ function managerReviewDeadlinePassed(cycle, now = new Date()) {
  * No extensions: once the manager review window closes, unfinished packets
  * move to calibration so the HOD can set the final rating.
  */
-async function forceMoveMissedManagerReviews(client, cycle, now = new Date()) {
+export async function forceMoveMissedManagerReviewsForCycle(
+  cycle,
+  now = new Date(),
+  client = null,
+) {
   if (!managerReviewDeadlinePassed(cycle, now)) return 0
-  const { rowCount } = await client.query(
-    `UPDATE platform.review_packets
-     SET status = 'in_calibration',
-         manager_missed_deadline = true,
-         manager_force_moved_at = COALESCE(manager_force_moved_at, now()),
-         manager_overall_grade = NULL,
-         version = version + 1,
-         updated_at = now()
-     WHERE cycle_id = $1
-       AND COALESCE(leave_quarter, false) = false
-       AND COALESCE(manager_missed_deadline, false) = false
-       AND status IN (
-         'not_started',
-         'self_in_progress',
-         'self_submitted',
-         'manager_in_progress'
-       )`,
-    [cycle.id],
-  )
-  return rowCount ?? 0
+  const run = async (db) => {
+    const { rowCount } = await db.query(
+      `UPDATE platform.review_packets
+       SET status = 'in_calibration',
+           manager_missed_deadline = true,
+           manager_force_moved_at = COALESCE(manager_force_moved_at, now()),
+           manager_overall_grade = NULL,
+           version = version + 1,
+           updated_at = now()
+       WHERE cycle_id = $1
+         AND COALESCE(leave_quarter, false) = false
+         AND COALESCE(manager_missed_deadline, false) = false
+         AND status IN (
+           'not_started',
+           'self_in_progress',
+           'self_submitted',
+           'manager_in_progress'
+         )`,
+      [cycle.id],
+    )
+    return rowCount ?? 0
+  }
+  if (client) return run(client)
+  const poolClient = await getPool().connect()
+  try {
+    return await run(poolClient)
+  } finally {
+    poolClient.release()
+  }
+}
+
+async function forceMoveMissedManagerReviews(client, cycle, now = new Date()) {
+  return forceMoveMissedManagerReviewsForCycle(cycle, now, client)
 }
 
 async function listPacketRows(cycleId, { includeChildren = true } = {}) {
@@ -702,7 +724,7 @@ export async function calibrateReviewPacket(packetId, input, platformUser) {
       [
         eventId,
         packetId,
-        input.stageId ?? 'calibration_hod_hrbp',
+        input.stageId ?? 'calibration',
         row.calibrated_overall_grade ?? row.manager_overall_grade,
         input.toGrade,
         eventReason,
@@ -942,6 +964,16 @@ export async function releaseReviewPackets(
   if (!cycle) throw new HttpError(404, 'Cycle not found')
   const group = (cycle.groups ?? []).find((item) => item.id === groupId)
   if (!group) throw new HttpError(404, 'Group not found')
+  if (calibrationPublishGateRequired(group.stagesConfig)) {
+    const sitting = await getCalibrationSitting(cycleId)
+    if (!sitting.lockedAt) {
+      throw new HttpError(400, CALIBRATION_LOCK_BEFORE_PUBLISH_MESSAGE)
+    }
+  }
+  const statusFilter = toManagers
+    ? `AND status NOT IN ('released_to_managers', 'released_to_employees', 'appealed')`
+    : `AND status NOT IN ('released_to_employees', 'appealed')`
+  const scheduled = Boolean(platformUser?.scheduled)
   const client = await getPool().connect()
   try {
     await client.query('BEGIN')
@@ -954,12 +986,14 @@ export async function releaseReviewPackets(
            version = version + 1,
            updated_at = now()
        WHERE cycle_id = $1
-         AND manager_overall_grade IS NOT NULL
+         AND COALESCE(calibrated_overall_grade, manager_overall_grade) IS NOT NULL
          AND employee_id IN (
            SELECT employee_id
            FROM platform.review_cycle_group_members
            WHERE group_id = $4 AND cycle_id = $1
-         )${publicationExclusionClause(target)}
+         )
+         ${statusFilter}
+         ${publicationExclusionClause(target)}
        RETURNING id, employee_id, cycle_id, published_overall_grade`,
       [
         cycleId,
@@ -980,8 +1014,12 @@ export async function releaseReviewPackets(
       summary: toManagers
         ? `Released grades to managers (${rows.length})`
         : `Released grades to employees (${rows.length})`,
-      metadata: { packetCount: rows.length, groupId },
-      source: 'api',
+      metadata: {
+        packetCount: rows.length,
+        groupId,
+        scheduled,
+      },
+      source: scheduled ? 'scheduler' : 'api',
     })
     for (const packet of rows) {
       await appendActivityEvent(client, {
@@ -1003,7 +1041,7 @@ export async function releaseReviewPackets(
             to: packet.published_overall_grade,
           },
         ],
-        source: 'api',
+        source: scheduled ? 'scheduler' : 'api',
       })
     }
     await client.query('COMMIT')

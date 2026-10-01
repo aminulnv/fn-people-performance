@@ -23,22 +23,41 @@ describe('notification rules api (local)', () => {
   })
 
   it('persists toggle and channel edits', async () => {
-    await updateNotificationRule(NOTIFICATION_EVENTS.GOAL_SUBMITTED, {
+    await updateNotificationRule(NOTIFICATION_EVENTS.GOAL_DAY_7_REMINDER, {
       enabled: false,
       channels: ['in_app'],
       titleTemplate: 'Custom title for {{employee}}',
     })
     const rules = await fetchNotificationRules()
-    const submitted = rules.find(
-      (rule) => rule.eventKey === NOTIFICATION_EVENTS.GOAL_SUBMITTED,
+    const reminder = rules.find(
+      (rule) => rule.eventKey === NOTIFICATION_EVENTS.GOAL_DAY_7_REMINDER,
     )
-    expect(submitted?.enabled).toBe(false)
-    expect(submitted?.channels).toEqual(['in_app'])
-    expect(submitted?.titleTemplate).toBe('Custom title for {{employee}}')
+    expect(reminder?.enabled).toBe(false)
+    expect(reminder?.channels).toEqual(['in_app'])
+    expect(reminder?.titleTemplate).toBe('Custom title for {{employee}}')
 
-    const reset = await resetNotificationRule(NOTIFICATION_EVENTS.GOAL_SUBMITTED)
+    const reset = await resetNotificationRule(
+      NOTIFICATION_EVENTS.GOAL_DAY_7_REMINDER,
+    )
     expect(reset.enabled).toBe(true)
     expect(reset.channels).toContain('email')
     expect(reset.channels).toContain('browser')
+  })
+
+  it('keeps required rules enabled even if a disable patch is stored', async () => {
+    const submitted = (await fetchNotificationRules()).find(
+      (rule) => rule.eventKey === NOTIFICATION_EVENTS.GOAL_SUBMITTED,
+    )
+    expect(submitted?.required).toBe(true)
+
+    await updateNotificationRule(NOTIFICATION_EVENTS.GOAL_SUBMITTED, {
+      enabled: false,
+      channels: ['email'],
+    })
+    const after = (await fetchNotificationRules()).find(
+      (rule) => rule.eventKey === NOTIFICATION_EVENTS.GOAL_SUBMITTED,
+    )
+    expect(after?.enabled).toBe(true)
+    expect(after?.channels).toContain('in_app')
   })
 })

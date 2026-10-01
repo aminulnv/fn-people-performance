@@ -233,7 +233,7 @@ function enableStages(stagesConfig, stageIds) {
   )
   const calibrationOn = next.reviewStages.some(
     (stage) =>
-      (stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') &&
+      (stage.id === 'calibration' || stage.id === 'calibration_hod_hrbp' || stage.id === 'calibration_slt') &&
       stage.enabled,
   )
   next.calibration = { ...next.calibration, enabled: calibrationOn }
@@ -1052,7 +1052,7 @@ async function seedPackets(client, cycleId, members, employeesById) {
       calibrations.push({
         id: `cal-${packetId}`,
         packetId,
-        stageId: 'calibration_slt',
+        stageId: 'calibration',
         fromGrade: managerGrade,
         toGrade: calibratedGrade,
         reason: 'Aligned to the department distribution and peer set.',

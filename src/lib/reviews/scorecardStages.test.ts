@@ -40,7 +40,7 @@ function packet(partial: Partial<ReviewPacket> = {}): ReviewPacket {
 const stages: ReviewStageConfig[] = [
   { id: 'self_review', enabled: true },
   { id: 'manager_review', enabled: true },
-  { id: 'calibration_hod_hrbp', enabled: true },
+  { id: 'calibration', enabled: true },
   { id: 'publish_employees', enabled: true },
   { id: 'appeal', enabled: true },
 ]
@@ -55,7 +55,7 @@ describe('scorecard stage viewing', () => {
         packet: packet(),
         viewerEmployeeId: 1,
       }),
-    ).toBe('calibration_hod_hrbp')
+    ).toBe('calibration')
   })
 
   it('honors a requested stage the viewer is allowed to open', () => {
@@ -122,7 +122,7 @@ describe('scorecard stage viewing', () => {
   it('does not open calibration before the manager review is submitted', () => {
     const source = packet({ status: 'manager_in_progress' })
     const steps = visibleScorecardSteps(stages, source)
-    const calibration = steps.find((step) => step.id === 'calibration_hod_hrbp')
+    const calibration = steps.find((step) => step.id === 'calibration')
     expect(calibration).toBeTruthy()
     expect(managerReviewIsComplete('manager_in_progress')).toBe(false)
     expect(calibrationIsEditable('manager_in_progress')).toBe(false)
@@ -130,7 +130,7 @@ describe('scorecard stage viewing', () => {
     expect(
       scorecardStageIsOpen(
         calibration!,
-        steps.findIndex((step) => step.id === 'calibration_hod_hrbp'),
+        steps.findIndex((step) => step.id === 'calibration'),
         steps.findIndex((step) => step.id === 'manager_review'),
         source,
         1,
@@ -138,7 +138,7 @@ describe('scorecard stage viewing', () => {
     ).toBe(false)
     expect(
       resolveScorecardViewStage({
-        requested: 'calibration_hod_hrbp',
+        requested: 'calibration',
         steps,
         packet: source,
         viewerEmployeeId: 1,
@@ -150,7 +150,7 @@ describe('scorecard stage viewing', () => {
     const source = packet()
     expect(gradeForViewStage(source, 'self_review', 1, { managedEmployeeIds: [871] })).toBe('performing')
     expect(gradeForViewStage(source, 'manager_review', 1, { managedEmployeeIds: [871] })).toBe('exceeding')
-    expect(gradeForViewStage(source, 'calibration_hod_hrbp', 1, { managedEmployeeIds: [871] })).toBe(
+    expect(gradeForViewStage(source, 'calibration', 1, { managedEmployeeIds: [871] })).toBe(
       'exceptional',
     )
   })
@@ -178,7 +178,7 @@ describe('scorecard stage viewing', () => {
       publishedOverallGrade: 'performing',
     })
     expect(viewerCanOpenStage('manager_review', source, 871)).toBe(false)
-    expect(viewerCanOpenStage('calibration_hod_hrbp', source, 871)).toBe(false)
+    expect(viewerCanOpenStage('calibration', source, 871)).toBe(false)
     expect(viewerCanOpenStage('publish_employees', source, 871)).toBe(true)
     const steps = visibleScorecardStepsForViewer(stages, source, 871)
     expect(steps.map((step) => step.id)).toEqual([
@@ -218,7 +218,7 @@ describe('scorecard stage viewing', () => {
     ).toEqual([
       'self_review',
       'manager_review',
-      'calibration_hod_hrbp',
+      'calibration',
       'publish_employees',
     ])
     expect(viewerCanOpenStage('manager_review', null, 1, 871)).toBe(true)

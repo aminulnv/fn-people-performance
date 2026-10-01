@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Plus } from 'lucide-react'
 import { Button, EmptyState, ListboxSelect } from '@/components/ui'
-import { skillEditPath } from '@/lib/organisation/paths'
+import { skillDetailPath } from '@/lib/organisation/paths'
 import { expectedLevelLabel, roleWeightTotal } from '@/lib/roles/labels'
 import { matrixGrades } from '@/lib/roles/inheritedSkills'
 import { updateRoleMatrix } from '@/lib/roles/store'
@@ -179,7 +179,7 @@ export function RoleCompetencyMatrix({
                 <tr key={row.skillId}>
                   <td className="pd-org-role-matrix__col-skill">
                     <Link
-                      to={skillEditPath(row.skillId)}
+                      to={skillDetailPath(row.skillId)}
                       className="pd-org-role-matrix__skill-name pd-org-role-matrix__skill-link"
                     >
                       {row.skillName}

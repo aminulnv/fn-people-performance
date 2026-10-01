@@ -112,7 +112,7 @@ describe('formatGapLabel', () => {
   it('labels self-higher and manager-higher gaps', () => {
     expect(formatGapLabel(0)).toBe('')
     expect(formatGapLabel(-2)).toBe('−2 Self')
-    expect(formatGapLabel(1)).toBe('+1 Mgr')
+    expect(formatGapLabel(1)).toBe('+1 Manager')
   })
 })
 

@@ -7,7 +7,10 @@ const inApp = ['in_app', 'browser']
 const inAppAndEmail = ['in_app', 'email', 'browser']
 
 function rule(definition) {
-  return definition
+  return {
+    required: false,
+    ...definition,
+  }
 }
 
 /** @type {ReadonlyArray<ReturnType<typeof rule>>} */
@@ -70,6 +73,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.deadline.exceptions',
+    required: true,
     name: 'Goal deadline passed (late still open)',
     category: 'goals',
     audienceKey: 'employee',
@@ -84,6 +88,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.deadline.closed',
+    required: true,
     name: 'Goal submission closed',
     category: 'goals',
     audienceKey: 'employee',
@@ -98,6 +103,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.reminder.manual',
+    required: true,
     name: 'Manual reminder from manager',
     category: 'goals',
     audienceKey: 'employee',
@@ -112,6 +118,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.team.pending_summary',
+    required: true,
     name: 'Team still needs to submit',
     category: 'goals',
     audienceKey: 'manager',
@@ -126,6 +133,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.submitted',
+    required: true,
     name: 'Goals need approval',
     category: 'goals',
     audienceKey: 'manager',
@@ -140,6 +148,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.resubmitted',
+    required: true,
     name: 'Goals resubmitted',
     category: 'goals',
     audienceKey: 'manager',
@@ -154,6 +163,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.manager_edited',
+    required: true,
     name: 'Manager edited goals',
     category: 'goals',
     audienceKey: 'employee',
@@ -168,6 +178,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.sent_back',
+    required: true,
     name: 'Goals sent back',
     category: 'goals',
     audienceKey: 'employee',
@@ -182,6 +193,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.approved',
+    required: true,
     name: 'Goals approved by manager',
     category: 'goals',
     audienceKey: 'employee',
@@ -196,6 +208,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.late_submitted',
+    required: true,
     name: 'Late goals need approval',
     category: 'goals',
     audienceKey: 'manager',
@@ -210,6 +223,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.final_approval_requested',
+    required: true,
     name: 'Final approval needed',
     category: 'goals',
     audienceKey: 'skip_level',
@@ -224,6 +238,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.pending_final_approval',
+    required: true,
     name: 'Waiting on final approval',
     category: 'goals',
     audienceKey: 'employee',
@@ -238,6 +253,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.final_approved',
+    required: true,
     name: 'Goals fully approved',
     category: 'goals',
     audienceKey: 'employee',
@@ -252,6 +268,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.final_approved.manager',
+    required: true,
     name: 'Report’s goals fully approved',
     category: 'goals',
     audienceKey: 'manager',
@@ -266,6 +283,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.final_sent_back',
+    required: true,
     name: 'Final approver requested changes',
     category: 'goals',
     audienceKey: 'employee',
@@ -280,6 +298,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.final_sent_back.manager',
+    required: true,
     name: 'Report’s goals sent back by final approver',
     category: 'goals',
     audienceKey: 'manager',
@@ -294,6 +313,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'goal.changes_require_approval',
+    required: true,
     name: 'Goal changes need approval',
     category: 'goals',
     audienceKey: 'manager',
@@ -449,6 +469,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.self.submitted',
+    required: true,
     name: 'Self-review submitted',
     category: 'reviews',
     audienceKey: 'manager',
@@ -533,6 +554,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.results_for_managers',
+    required: true,
     name: 'Results available to managers',
     category: 'reviews',
     audienceKey: 'manager',
@@ -547,6 +569,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.results_published',
+    required: true,
     name: 'Results published to employee',
     category: 'reviews',
     audienceKey: 'employee',
@@ -561,6 +584,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'review.result_corrected',
+    required: true,
     name: 'Result corrected',
     category: 'reviews',
     audienceKey: 'employee',
@@ -633,6 +657,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
 
   rule({
     eventKey: 'access.granted',
+    required: true,
     name: 'Admin access granted',
     category: 'access',
     audienceKey: 'employee',
@@ -647,6 +672,7 @@ export const NOTIFICATION_RULE_DEFAULTS = [
   }),
   rule({
     eventKey: 'access.removed',
+    required: true,
     name: 'Admin access removed',
     category: 'access',
     audienceKey: 'employee',

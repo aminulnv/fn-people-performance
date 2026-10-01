@@ -111,6 +111,8 @@ describe("AnnualGoalsQuarters", () => {
     expect(screen.getByLabelText("Q3 2026 grade")).toHaveTextContent(
       "Unsatisfactory",
     );
+    expect(screen.getByText("Transition Quarter")).toBeTruthy();
+    expect(screen.queryAllByText("Transition Quarter")).toHaveLength(1);
 
     expect(screen.getByText("Finish the year plan")).toBeTruthy();
     expect(screen.queryByText("Ship Q1 foundation")).toBeNull();

@@ -9,6 +9,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { toUtcIso } from '@/lib/dates/timezone'
+import { calibrationPublishGateRequired } from '@/lib/reviews/publishGate'
 import {
   isPublishStage,
   isRequiredReviewStage,
@@ -30,8 +31,7 @@ const STAGE_ICONS: Partial<Record<ReviewStageId, LucideIcon>> = {
   publish_managers: Users,
   publish_employees: Megaphone,
   appeal: Gavel,
-  calibration_hod_hrbp: ClipboardList,
-  calibration_slt: ClipboardList,
+  calibration: ClipboardList,
 }
 
 type ReviewStageListProps = {
@@ -67,6 +67,8 @@ export function ReviewStageList({
   excludedEmployeeIds,
   onExcludedEmployeeIdsChange,
 }: ReviewStageListProps) {
+  const requireCalibrationLock =
+    calibrationPublishGateRequired(stagesConfig)
   return (
     <ul className="pd-reviews-stage-list">
       {stageIds.map((id) => {
@@ -75,7 +77,8 @@ export function ReviewStageList({
         )
         if (!stage) return null
         const required = isRequiredReviewStage(id)
-        const active = moduleEnabled && (stage.enabled || required)
+        const stageOn = stage.enabled || required
+        const active = moduleEnabled && stageOn
         const StageIcon = STAGE_ICONS[id]
         return (
           <li
@@ -118,7 +121,7 @@ export function ReviewStageList({
                 />
               )}
             </div>
-            {active ? (
+            {moduleEnabled ? (
               <div className="pd-reviews-stage-list__window">
                 {isPublishStage(id) ? (
                   <PublishStageControls
@@ -155,6 +158,7 @@ export function ReviewStageList({
                         ? onExcludedEmployeeIdsChange
                         : undefined
                     }
+                    requireCalibrationLock={requireCalibrationLock}
                   />
                 ) : (
                   <StageWindowFields

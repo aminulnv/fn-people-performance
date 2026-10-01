@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   departmentPathForName,
   orgChartPath,
+  skillDetailPath,
   skillEditPath,
   teamPathForNames,
   valueEditPath,
@@ -43,7 +44,13 @@ describe('orgChartPath', () => {
 })
 
 describe('skills and values library paths', () => {
-  it('points skill and value editors at organisation URLs', () => {
+  it('points skill detail and edit at organisation URLs', () => {
+    expect(skillDetailPath('skill-ai-fluency')).toBe(
+      '/organisation/skills/skill-ai-fluency',
+    )
+    expect(skillDetailPath('skill-ai-fluency', 'roles')).toBe(
+      '/organisation/skills/skill-ai-fluency?tab=roles',
+    )
     expect(skillEditPath('skill-ai-fluency')).toBe(
       '/organisation/skills/skill-ai-fluency/edit',
     )

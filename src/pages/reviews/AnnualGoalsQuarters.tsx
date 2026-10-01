@@ -1,10 +1,15 @@
 import { useEffect, useId, useState } from "react";
 import { ChevronDown, Target } from "lucide-react";
-import { ListboxSelect } from "@/components/ui";
+import { ListboxSelect, Tooltip } from "@/components/ui";
 import { ensurePersonGoalsHydrated, type Goal } from "@/lib/goalsApi";
 import { gradeLabel } from "@/lib/reviews/scorecards";
 import { goalsDetailPath } from "@/pages/goals/goalHelpers";
-import type { AnnualQuarterRow } from "@/lib/reviews/annualQuarters";
+import {
+  isQ12026TransitionQuarter,
+  TRANSITION_QUARTER_BADGE,
+  TRANSITION_QUARTER_TOOLTIP,
+  type AnnualQuarterRow,
+} from "@/lib/reviews/annualQuarters";
 import type { GradeBandId } from "@/lib/reviews/types";
 import {
   GRADE_LISTBOX_OPTIONS,
@@ -228,6 +233,13 @@ export function AnnualGoalsQuarters({
                   <span className="pd-reviews-quarters__quarter-label">
                     {row.label}
                   </span>
+                  {isQ12026TransitionQuarter(row) ? (
+                    <Tooltip content={TRANSITION_QUARTER_TOOLTIP} side="top">
+                      <span className="pd-reviews-quarters__quarter-meta pd-reviews-quarters__quarter-meta--transition">
+                        {TRANSITION_QUARTER_BADGE}
+                      </span>
+                    </Tooltip>
+                  ) : null}
                   {row.excluded ? (
                     <span className="pd-reviews-quarters__quarter-meta">
                       Excluded

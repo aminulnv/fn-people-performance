@@ -117,11 +117,11 @@ function measurementsFromOkrPayload(payload: OkrGoalDropPayload): Measurement[] 
       ...(index === 0
         ? seed
         : blankMilestone(0, {
-            listId,
-            measureGroupId,
-            listTitle: DEFAULT_TASK_LIST_TITLE,
-            measureTitle,
-          })),
+          listId,
+          measureGroupId,
+          listTitle: DEFAULT_TASK_LIST_TITLE,
+          measureTitle,
+        })),
       title: milestone.title.trim(),
       complete: okrMilestoneIsComplete(milestone.status),
     })),
@@ -182,18 +182,18 @@ export function readOkrGoalDropPayload(
           : null,
       milestones: Array.isArray(parsed.milestones)
         ? parsed.milestones.flatMap((milestone) => {
-            if (!milestone || typeof milestone !== "object") return [];
-            const title =
-              typeof milestone.title === "string" ? milestone.title.trim() : "";
-            if (!title) return [];
-            return [
-              {
-                title,
-                status:
-                  typeof milestone.status === "string" ? milestone.status : "",
-              },
-            ];
-          })
+          if (!milestone || typeof milestone !== "object") return [];
+          const title =
+            typeof milestone.title === "string" ? milestone.title.trim() : "";
+          if (!title) return [];
+          return [
+            {
+              title,
+              status:
+                typeof milestone.status === "string" ? milestone.status : "",
+            },
+          ];
+        })
         : [],
     };
   } catch {

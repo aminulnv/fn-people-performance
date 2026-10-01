@@ -119,9 +119,9 @@ export default function PeoplePage() {
         employees,
         catalogs.ready && !catalogs.error
           ? {
-              departments: catalogs.departments,
-              teams: catalogs.teams,
-            }
+            departments: catalogs.departments,
+            teams: catalogs.teams,
+          }
           : undefined,
       ),
     [

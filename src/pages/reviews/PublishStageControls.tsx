@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Send } from 'lucide-react'
 import { Button, ConfirmDialog, Input } from '@/components/ui'
+import { fetchCalibrationSitting } from '@/lib/calibration/sessionApi'
+import {
+  CALIBRATION_LOCK_BEFORE_PUBLISH_MESSAGE,
+} from '@/lib/reviews/publishGate'
 import {
   ReviewSaveBanner,
   successNotice,
@@ -41,6 +45,8 @@ type PublishStageControlsProps = {
   cycleName?: string
   excludedEmployeeIds?: number[]
   onExcludedEmployeeIdsChange?: (ids: number[]) => void
+  /** When true, Publish now stays off until calibration sitting is locked. */
+  requireCalibrationLock?: boolean
 }
 
 export function PublishStageControls({
@@ -54,18 +60,50 @@ export function PublishStageControls({
   cycleName = '',
   excludedEmployeeIds = [],
   onExcludedEmployeeIdsChange,
+  requireCalibrationLock = false,
 }: PublishStageControlsProps) {
   const [pending, setPending] = useState(false)
   const [exceptionsOpen, setExceptionsOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [toastNotice, setToastNotice] = useState<ReviewSaveNotice | null>(null)
+  const [calibrationLocked, setCalibrationLocked] = useState(
+    !requireCalibrationLock,
+  )
+  const [lockCheckPending, setLockCheckPending] = useState(requireCalibrationLock)
   const confirm = CONFIRM[target]
   const confirmationDescription =
     target === 'employees' && excludedEmployeeIds.length > 0
       ? `${confirm.description} ${exclusionsLabel(excludedEmployeeIds.length)} from automatic publication.`
       : confirm.description
   const hasExceptions = excludedEmployeeIds.length > 0
+  const publishBlocked =
+    requireCalibrationLock && (!calibrationLocked || lockCheckPending)
+
+  useEffect(() => {
+    if (!requireCalibrationLock) {
+      setCalibrationLocked(true)
+      setLockCheckPending(false)
+      return
+    }
+    let cancelled = false
+    setLockCheckPending(true)
+    void fetchCalibrationSitting(cycleId)
+      .then((sitting) => {
+        if (cancelled) return
+        setCalibrationLocked(Boolean(sitting.lockedAt))
+      })
+      .catch(() => {
+        if (cancelled) return
+        setCalibrationLocked(false)
+      })
+      .finally(() => {
+        if (!cancelled) setLockCheckPending(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [cycleId, requireCalibrationLock])
 
   const runRelease = () => {
     setBusy(true)
@@ -115,8 +153,11 @@ export function PublishStageControls({
           size="sm"
           pill
           className="pd-reviews-publish__now-btn"
-          disabled={busy}
+          disabled={busy || publishBlocked}
           aria-label={releaseLabel}
+          title={
+            publishBlocked ? CALIBRATION_LOCK_BEFORE_PUBLISH_MESSAGE : undefined
+          }
           onClick={() => {
             setError(null)
             setPending(true)
@@ -126,6 +167,11 @@ export function PublishStageControls({
           Publish now
         </Button>
       </div>
+      {publishBlocked ? (
+        <p className="pd-reviews-flow__hint" role="status">
+          {CALIBRATION_LOCK_BEFORE_PUBLISH_MESSAGE}
+        </p>
+      ) : null}
       {target === 'employees' && onExcludedEmployeeIdsChange ? (
         <div className="pd-reviews-publish__exceptions">
           <div className="pd-reviews-publish__exceptions-copy">
@@ -156,7 +202,7 @@ export function PublishStageControls({
           if (!busy) setPending(false)
         }}
         onConfirm={() => {
-          if (busy) return
+          if (busy || publishBlocked) return
           setPending(false)
           runRelease()
         }}

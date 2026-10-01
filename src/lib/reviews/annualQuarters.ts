@@ -157,3 +157,24 @@ export function readAnnualQ4Grade(
 export function annualGoalsComponent(q4Grade: GradeBandId | null) {
   return { q4Grade };
 }
+
+/** Q1 2026 transition year — everyone pre-marked Performing (not a real evaluation). */
+export const TRANSITION_QUARTER_BADGE = "Transition Quarter";
+export const TRANSITION_QUARTER_TOOLTIP =
+  "Transition Quarter — Standard Grade.";
+
+export function isQ12026TransitionQuarter(row: {
+  periodKey?: string | null;
+  sourceCycleId?: string | null;
+  label?: string | null;
+}): boolean {
+  const key = String(row.periodKey ?? row.sourceCycleId ?? "")
+    .trim()
+    .toLowerCase();
+  if (key === "q1-2026") return true;
+  const label = String(row.label ?? "")
+    .trim()
+    .toLowerCase();
+  return /\bq1\b/.test(label) && label.includes("2026");
+}
+

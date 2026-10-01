@@ -26,12 +26,12 @@ export function organisationTabPath(
   return `/organisation/${tab}`
 }
 
-/** True on Organisation tab lists, including library side-panel URLs. */
+/** True on Organisation tab lists, including library create/edit side-panel URLs. */
 export function isOrganisationTabRoot(pathname: string): boolean {
   return (
     ORGANISATION_TAB_ROOTS.has(pathname) ||
     pathname === '/organisation/roles/new' ||
-    pathname.startsWith('/organisation/skills/') ||
+    pathname === '/organisation/skills/new' ||
     pathname.startsWith('/organisation/values/')
   )
 }
@@ -58,6 +58,12 @@ export function skillsLibraryPath(): string {
 
 export function skillCreatePath(): string {
   return '/organisation/skills/new'
+}
+
+export function skillDetailPath(skillId: string, tab?: string): string {
+  const base = `/organisation/skills/${encodeURIComponent(skillId)}`
+  if (!tab || tab === 'overview') return base
+  return `${base}?tab=${encodeURIComponent(tab)}`
 }
 
 export function skillEditPath(skillId: string): string {

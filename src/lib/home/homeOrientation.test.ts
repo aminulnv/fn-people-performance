@@ -124,7 +124,7 @@ function stages(): CycleStagesConfig {
         end: { date: '2026-08-20', time: '23:59' },
       },
       {
-        id: 'calibration_hod_hrbp',
+        id: 'calibration',
         enabled: true,
         start: { date: '2026-09-01', time: '00:00' },
         end: { date: '2026-09-10', time: '23:59' },

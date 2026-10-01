@@ -127,9 +127,7 @@ describe('gradesJobSummary', () => {
         'annual-2028',
       ),
     })
-    expect(gradesJobSummary(group)).toBe(
-      'HOD / HRBP Calibration → SLT Calibration',
-    )
+    expect(gradesJobSummary(group)).toBe('Calibration')
   })
 })
 

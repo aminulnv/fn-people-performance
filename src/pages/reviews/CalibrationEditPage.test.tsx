@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { buildDefaultStagesConfig } from '@/lib/reviews/demoData'
 import { resetReviewsStoreForTests } from '@/lib/reviews/store'
@@ -32,7 +32,12 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     name: 'Everyone',
     memberIds: [1],
     settings,
-    stagesConfig: buildDefaultStagesConfig('2026-07-01', '2026-09-30'),
+    stagesConfig: buildDefaultStagesConfig(
+      '2026-01-01',
+      '2026-12-31',
+      'annual_appraisal',
+      'annual-2026',
+    ),
     calibration: {
       gradeDistribution: {
         exceptional: 5,
@@ -49,10 +54,11 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
     group,
     cycle: {
       id: 'cycle-1',
-      name: 'Q3 2026',
+      name: 'Annual 2026',
       type: 'regular',
-      startDate: '2026-07-01',
-      endDate: '2026-09-30',
+      periodKey: 'annual-2026',
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
       stagesConfig: group.stagesConfig,
       settings,
       calibration: group.calibration,
@@ -63,7 +69,7 @@ function sample(): { cycle: ReviewCycle; group: CycleGroup } {
 }
 
 describe('CalibrationEditPage', () => {
-  it('lets an admin set the expected share of each grade', () => {
+  it('shows calibration windows and the expected grade mix', () => {
     const { cycle, group } = sample()
 
     render(
@@ -71,15 +77,25 @@ describe('CalibrationEditPage', () => {
         cycle={cycle}
         group={group}
         onClose={() => {}}
+        stagesConfig={group.stagesConfig}
+        setStageEnabled={vi.fn()}
+        setStageDate={vi.fn()}
       />,
     )
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Performing' })).toHaveValue('60')
-    expect(screen.queryByText('Under development')).not.toBeInTheDocument()
+    expect(screen.getByText('Calibration window')).toBeInTheDocument()
+    expect(
+      screen.getByRole('switch', { name: 'Enable Calibration' }),
+    ).toBeInTheDocument()
     expect(
       screen.queryByRole('switch', { name: 'Enable HOD / HRBP Calibration' }),
     ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('switch', { name: 'Enable SLT Calibration' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('textbox', { name: 'Performing' })).toHaveValue('60')
+    expect(screen.queryByText('Under development')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Increase Exceptional' }))
 

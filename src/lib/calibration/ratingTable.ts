@@ -631,7 +631,7 @@ export function formatGapLabel(gapTiers: number | null): string {
   const magnitude = Math.abs(gapTiers)
   // gapTiers = annual − self. Negative ⇒ self higher than annual.
   if (gapTiers < 0) return `−${magnitude} Self`
-  return `+${magnitude} Mgr`
+  return `+${magnitude} Manager`
 }
 
 export function ratingTableCsv(rows: readonly RatingTableRow[]): string {

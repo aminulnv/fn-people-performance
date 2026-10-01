@@ -61,8 +61,6 @@ export type CycleStageId =
   | "self_review"
   | "manager_review"
   | "calibration"
-  | "calibration_hod_hrbp"
-  | "calibration_slt"
   | "publish_managers"
   | "publish_employees"
   | "appeal";
@@ -71,8 +69,7 @@ export type ReviewStageId =
   | "goals"
   | "self_review"
   | "manager_review"
-  | "calibration_hod_hrbp"
-  | "calibration_slt"
+  | "calibration"
   | "publish_managers"
   | "publish_employees"
   | "appeal";

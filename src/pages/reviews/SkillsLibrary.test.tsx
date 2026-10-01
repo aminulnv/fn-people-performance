@@ -4,6 +4,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { getSkillsSnapshot, resetSkillsStoreForTests } from '@/lib/skills/store'
 import { resetRolesStoreForTests } from '@/lib/roles/store'
 import { SkillsLibrary } from './SkillsLibrary'
+import SkillDetailPage from '@/pages/SkillDetailPage'
+import EditSkillPage from '@/pages/EditSkillPage'
 
 const authState = vi.hoisted(() => ({
   permissions: ['platform.write_all'] as string[],
@@ -40,7 +42,16 @@ function renderSkills(path = '/organisation/skills') {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/organisation/skills/*" element={<SkillsLibrary />} />
+        <Route path="/organisation/skills/new" element={<SkillsLibrary />} />
+        <Route path="/organisation/skills" element={<SkillsLibrary />} />
+        <Route
+          path="/organisation/skills/:skillId/edit"
+          element={<EditSkillPage />}
+        />
+        <Route
+          path="/organisation/skills/:skillId"
+          element={<SkillDetailPage />}
+        />
       </Routes>
     </MemoryRouter>,
   )
@@ -61,7 +72,7 @@ describe('SkillsLibrary', () => {
     ).toBeInTheDocument()
   })
 
-  it('shows roles that attach a skill on the matrix', async () => {
+  it('opens skill detail with roles matrix from a table row', async () => {
     const { createRole, updateRoleMatrix } = await import('@/lib/roles/store')
     const skill = getSkillsSnapshot().find((row) => row.name === 'AI Fluency')!
     const role = await createRole({ name: 'Design Manager' })
@@ -79,7 +90,7 @@ describe('SkillsLibrary', () => {
 
     fireEvent.click(screen.getByText('AI Fluency'))
     expect(
-      await screen.findByRole('dialog', { name: 'Edit skill' }),
+      await screen.findByRole('heading', { name: 'AI Fluency' }),
     ).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /Roles/ }))
     expect(
@@ -92,24 +103,26 @@ describe('SkillsLibrary', () => {
     expect(screen.getByText('Expert')).toBeInTheDocument()
   })
 
-  it('opens edit from a skill direct link', async () => {
+  it('opens skill detail from a direct link', async () => {
     renderSkills('/organisation/skills/skill-ai-fluency')
     expect(
-      await screen.findByRole('dialog', { name: 'Edit skill' }),
+      await screen.findByRole('heading', { name: 'AI Fluency' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Skill name')).toHaveValue('AI Fluency')
+    expect(screen.getByRole('group', { name: 'Skill sections' })).toBeInTheDocument()
   })
 
-  it('opens edit from a table row click', async () => {
-    renderSkills()
-    fireEvent.click(screen.getByText('Account Planning'))
+  it('opens edit page from the skill detail', async () => {
+    renderSkills('/organisation/skills/skill-account-planning')
     expect(
-      await screen.findByRole('dialog', { name: 'Edit skill' }),
+      await screen.findByRole('heading', { name: 'Account Planning' }),
     ).toBeInTheDocument()
-    expect(screen.getByLabelText('Skill name')).toHaveValue('Account Planning')
+    fireEvent.click(screen.getAllByRole('link', { name: /^Edit$/ })[0]!)
+    expect(
+      await screen.findByLabelText('Skill name'),
+    ).toHaveValue('Account Planning')
   })
 
-  it('creates a skill in the right panel', async () => {
+  it('creates a skill in the right panel then opens detail', async () => {
     renderSkills('/organisation/skills/new')
     expect(
       screen.getByRole('dialog', { name: 'Create New Skill' }),
@@ -118,17 +131,14 @@ describe('SkillsLibrary', () => {
       target: { value: 'Facilitation' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Create skill' }))
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    })
-    expect(screen.getByText('Facilitation')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Facilitation' }),
+    ).toBeInTheDocument()
   })
 
-  it('edits a skill in the right panel', async () => {
+  it('edits a skill on the dedicated edit page', async () => {
     renderSkills('/organisation/skills/skill-account-planning/edit')
-    expect(screen.getByRole('dialog', { name: 'Edit skill' })).toBeInTheDocument()
     expect(screen.getByLabelText('Skill name')).toHaveValue('Account Planning')
-    expect(screen.getByRole('group', { name: 'Skill sections' })).toBeInTheDocument()
     expect(screen.queryByLabelText(/^Role$/)).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Department')).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Skill name'), {
@@ -136,7 +146,9 @@ describe('SkillsLibrary', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }))
     await waitFor(() => {
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(
+        screen.getByRole('heading', { name: 'Account Planning Plus' }),
+      ).toBeInTheDocument()
     })
     expect(
       getSkillsSnapshot().find((skill) => skill.id === 'skill-account-planning')
@@ -144,13 +156,16 @@ describe('SkillsLibrary', () => {
     ).toBe('Account Planning Plus')
   })
 
-  it('hides skill editing when the user cannot write', () => {
+  it('lets viewers open skill detail without edit controls', async () => {
     authState.permissions = []
     renderSkills()
     expect(
       screen.queryByRole('link', { name: 'Create New Skill' }),
     ).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('Account Planning'))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Account Planning' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /^Edit$/ })).not.toBeInTheDocument()
   })
 })

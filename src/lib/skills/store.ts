@@ -107,13 +107,82 @@ function notify() {
   listeners.forEach((listener) => listener())
 }
 
+/** Fill blank seed rubrics from SEED_SKILLS without overwriting custom text. */
+function fillEmptySeedMastery(skills: Skill[]): {
+  skills: Skill[]
+  filledIds: string[]
+} {
+  const seedById = new Map(SEED_SKILLS.map((skill) => [skill.id, skill]))
+  const filledIds: string[] = []
+  const next = skills.map((skill) => {
+    const seed = seedById.get(skill.id)
+    if (!seed) return skill
+    const hasText = SKILL_MASTERY_LEVELS.some((level) =>
+      skill.mastery[level]?.trim(),
+    )
+    if (hasText) return skill
+    filledIds.push(skill.id)
+    return { ...skill, mastery: { ...seed.mastery } }
+  })
+  return {
+    skills: filledIds.length > 0 ? next : skills,
+    filledIds,
+  }
+}
+
+let seedMasteryPersistPromise: Promise<void> | null = null
+
+/** Write filled seed rubrics back to the API so refresh keeps them. */
+function persistFilledSeedMastery(skills: Skill[], filledIds: string[]) {
+  if (useLocalSkills() || filledIds.length === 0 || seedMasteryPersistPromise) {
+    return
+  }
+  const byId = new Map(skills.map((skill) => [skill.id, skill]))
+  seedMasteryPersistPromise = Promise.all(
+    filledIds.map((id) => {
+      const skill = byId.get(id)
+      if (!skill) return Promise.resolve()
+      return updateSkillRemote(id, {
+        name: skill.name,
+        role: skill.role,
+        status: skill.status,
+        mastery: skill.mastery,
+      }).catch(() => {
+        /* keep UI fill even if one write fails */
+      })
+    }),
+  ).then(() => {
+    /* done */
+  }).finally(() => {
+    seedMasteryPersistPromise = null
+  })
+}
+
+function applySeedMasteryFill(state: SkillsState): SkillsState {
+  const { skills, filledIds } = fillEmptySeedMastery(state.skills)
+  if (filledIds.length === 0) return state
+  const next = { ...state, skills }
+  persistFilledSeedMastery(skills, filledIds)
+  return next
+}
+
 function getState(): SkillsState {
   if (!memory) {
     memory = useLocalSkills()
       ? (readStorage() ?? emptyState())
       : { skills: [], assignments: [] }
-    if (useLocalSkills()) writeStorage(memory)
   }
+  return memory
+}
+
+/** Apply seed rubric fill once; notify after this snapshot read finishes. */
+function ensureSeedMasteryFilled(): SkillsState {
+  const state = getState()
+  const filled = applySeedMasteryFill(state)
+  if (filled === state) return state
+  memory = filled
+  if (useLocalSkills()) writeStorage(memory)
+  queueMicrotask(() => notify())
   return memory
 }
 
@@ -157,13 +226,13 @@ export function subscribeSkillsStore(listener: () => void) {
 }
 
 export function getSkillsSnapshot(): Skill[] {
-  return clone(getState().skills)
+  return clone(ensureSeedMasteryFilled().skills)
 }
 
 export function getSkillById(skillId: string): Skill | null {
   const id = skillId.trim()
   if (!id) return null
-  const skill = getState().skills.find((item) => item.id === id)
+  const skill = ensureSeedMasteryFilled().skills.find((item) => item.id === id)
   return skill ? clone(skill) : null
 }
 
@@ -181,13 +250,15 @@ export async function ensureSkillsLoaded(): Promise<void> {
   if (hydratePromise) return hydratePromise
   hydratePromise = fetchSkillsSnapshotRemote()
     .then((snapshot) => {
-      memory = {
+      const hydrated: SkillsState = {
         skills: snapshot.skills.map(normalizeSkill),
         assignments: snapshot.assignments.map((item) => ({
           employeeId: item.employeeId,
           skillIds: [...item.skillIds],
         })),
       }
+      memory = applySeedMasteryFill(hydrated)
+      if (useLocalSkills()) writeStorage(memory)
       remoteHydrated = true
       notify()
     })

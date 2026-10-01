@@ -849,6 +849,18 @@
   font-weight: 600;
 }
 
+.pd-reviews-quarters__quarter-meta--transition {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-theme, #2563eb) 12%, transparent);
+  color: var(--color-theme, #2563eb);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
 .pd-reviews-quarters__bar-grade {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1384,6 +1396,7 @@
   padding: 0;
   width: 100%;
   max-width: none;
+  background: #fff;
 }
 
 .pd-reviews-value-panel__form .pd-field {
@@ -1497,7 +1510,7 @@
   gap: var(--spacing-2, 0.5rem);
   padding: var(--spacing-4, 1rem);
   border-radius: var(--radius-lg, 1rem);
-  background: color-mix(in srgb, var(--color-text) 3.5%, transparent);
+  background: #fff;
 }
 
 .pd-reviews-value-panel__section-title {
@@ -1511,15 +1524,119 @@
 
 .pd-skill-mastery__list {
   display: grid;
-  gap: var(--spacing-3, 0.75rem);
+  gap: var(--spacing-2, 0.5rem);
+}
+
+.pd-skill-detail__overview {
+  display: grid;
+  gap: var(--spacing-4, 1rem);
+}
+
+.pd-skill-mastery-preview.pd-profile__card {
+  box-shadow: var(--shadow-card);
+}
+
+.pd-skill-mastery-preview__head {
+  align-items: flex-start;
+}
+
+.pd-skill-mastery-preview__head-copy {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.pd-skill-mastery-preview__hint {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.pd-skill-mastery-preview__list {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--spacing-2);
+}
+
+.pd-skill-mastery-preview__row {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  gap: 0;
+  align-items: stretch;
+  min-height: 2.75rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md, 0.65rem);
+  background: var(--color-surface);
+}
+
+.pd-skill-mastery-preview__row > .pd-skill-mastery-preview__level {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  border-right: 1px solid var(--color-border);
+  padding: 0.55rem 0.65rem;
+  font-size: var(--people-table-status-font, 0.8125rem);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.pd-skill-mastery-preview__text {
+  margin: 0;
+  padding: 0.65rem 0.85rem;
+  align-self: center;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--color-text-primary);
+}
+
+.pd-skill-mastery-preview__text--empty {
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+@media (max-width: 720px) {
+  .pd-skill-mastery-preview__row {
+    grid-template-columns: 1fr;
+  }
+
+  .pd-skill-mastery-preview__row > .pd-skill-mastery-preview__level {
+    min-height: 2.35rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border);
+  }
 }
 
 .pd-skill-mastery__item {
   margin: 0;
+  gap: 0.3rem;
 }
 
 .pd-skill-mastery__item .pd-field__label {
   font-weight: 650;
+}
+
+/* Compact mastery rubrics — shorter than other value-panel textareas. */
+.pd-skill-mastery__item textarea.pd-field__control.pd-reviews-scorecard__feedback-box,
+.pd-settings-panel .pd-skill-mastery__item textarea.pd-field__control.pd-reviews-scorecard__feedback-box {
+  min-height: calc(0.8125rem * 1.4 * 2 + 0.9rem);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  resize: vertical;
 }
 
 .pd-reviews-value-panel__description {
@@ -3132,7 +3249,15 @@
 .pd-cycle-setup__facts {
   margin: 0;
   display: grid;
-  gap: 0.55rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 2rem;
+  row-gap: 0.55rem;
+}
+
+@media (max-width: 36rem) {
+  .pd-cycle-setup__facts {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pd-cycle-setup__fact {

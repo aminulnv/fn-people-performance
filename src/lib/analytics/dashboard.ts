@@ -6,6 +6,7 @@ import { guidelineForEmployees } from '@/lib/reviews/calibrationGuideline'
 import { GRADE_BAND_META, GRADE_BAND_ORDER } from '@/lib/reviews/labels'
 import { PACKET_STATUS_LABEL } from '@/lib/reviews/scorecards'
 import {
+  isCalibrationStage,
   isGoalsModuleEnabled,
   isReviewsModuleEnabled,
 } from '@/lib/reviews/reviewStages'
@@ -454,10 +455,7 @@ export function buildAnalyticsDashboard(input: {
           enabledStatuses.add('manager_in_progress')
           enabledStatuses.add('manager_submitted')
         }
-        if (
-          stage.id === 'calibration_hod_hrbp' ||
-          stage.id === 'calibration_slt'
-        ) {
+        if (isCalibrationStage(stage.id)) {
           enabledStatuses.add('in_calibration')
           enabledStatuses.add('calibrated')
         }
