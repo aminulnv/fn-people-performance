@@ -833,7 +833,9 @@ function CycleRow({
             </span>
             <span className="pd-reviews-cycle-link__name">{cycle.name}</span>
             {childCount > 0 ? (
-              <span className="pd-people__th-count">{childCount}</span>
+              <span className="pd-reviews-cycle-link__child-count">
+                ({childCount})
+              </span>
             ) : null}
           </Link>
         </span>

@@ -3,10 +3,14 @@ import {
   LOCAL_USER,
   clearSession,
   getAccessToken,
+  isImpersonatingSession,
   isSignedIn,
   readSession,
+  sessionActor,
   signInWithGoogle,
   signOut,
+  startImpersonation,
+  stopImpersonation,
   writeSession,
 } from '@/lib/authApi'
 import { clearEmployees, createEmployee } from '@/lib/employees/store'
@@ -109,5 +113,55 @@ describe('authApi session', () => {
     expect(getAccessToken()).toBe('tok')
     clearSession()
     expect(getAccessToken()).toBeNull()
+  })
+
+  it('impersonates an active employee and restores the actor', async () => {
+    await createEmployee({
+      employeeId: 201,
+      fullName: 'Admin Person',
+      email: 'admin.person@nextventures.io',
+      startDate: '2026-01-01',
+      jobTitle: 'Admin',
+      department: 'People',
+      team: 'HR',
+      division: 'FundedNext',
+      reportsToName: '',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: 'M2',
+      site: '',
+      managerEmail: '',
+    })
+    await createEmployee({
+      employeeId: 202,
+      fullName: 'Report Person',
+      email: 'report.person@nextventures.io',
+      startDate: '2026-01-01',
+      jobTitle: 'Engineer',
+      department: 'Product',
+      team: 'Core',
+      division: 'FundedNext',
+      reportsToName: 'Admin Person',
+      departmentHeadName: '',
+      hrbpName: '',
+      jobGrade: 'IC2',
+      site: '',
+      managerEmail: 'admin.person@nextventures.io',
+    })
+
+    const signedIn = await signInWithGoogle()
+    expect(signedIn.user.email).toBe('admin.person@nextventures.io')
+
+    const asReport = await startImpersonation(202)
+    expect(asReport.user.email).toBe('report.person@nextventures.io')
+    expect(asReport.actor?.email).toBe('admin.person@nextventures.io')
+    expect(isImpersonatingSession(asReport)).toBe(true)
+    expect(sessionActor(asReport)?.email).toBe('admin.person@nextventures.io')
+    expect(readSession()?.user.email).toBe('report.person@nextventures.io')
+
+    const restored = await stopImpersonation()
+    expect(restored.user.email).toBe('admin.person@nextventures.io')
+    expect(restored.actor).toBeUndefined()
+    expect(isImpersonatingSession(restored)).toBe(false)
   })
 })

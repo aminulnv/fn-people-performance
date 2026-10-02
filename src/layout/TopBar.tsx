@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Menu } from 'lucide-react'
 import { Breadcrumbs, type BreadcrumbItem } from '@/components/ui'
 import { TopBarDarkMode } from './TopBarDarkMode'
+import { TopBarImpersonation } from './TopBarImpersonation'
 import { TopBarSearch } from './TopBarSearch'
 import { NotificationDrawer } from './NotificationDrawer'
 import { ProfileDropdown } from './ProfileDropdown'
@@ -27,6 +28,7 @@ export function TopBar({
 }: TopBarProps) {
   const actions = (
     <div className="pd-topbar__actions">
+      <TopBarImpersonation isMobile={isMobile} />
       <TopBarDarkMode />
       <TopBarSearch />
       <NotificationDrawer isMobile={isMobile} />

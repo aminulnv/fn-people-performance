@@ -1,10 +1,14 @@
 import { ApiError, apiFetch } from '@/lib/apiClient'
-import { listEmployees } from '@/lib/employees/store'
-import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
 import {
+  ACCESS_PROFILES,
+  hasSystemPermission,
   permissionsForEmail,
+  type EmployeeAccessAssignment,
   type SystemPermission,
 } from '@/lib/accessControl/types'
+import { getEmployee, listEmployees } from '@/lib/employees/store'
+import type { PlatformEmployee } from '@/lib/employees/types'
+import { employeeToDemoPerson } from '@/lib/goals/peopleFromEmployees'
 
 export type AuthUser = {
   id: string
@@ -35,9 +39,15 @@ export const LOCAL_USER: AuthUser = {
 
 const AUTH_SESSION_KEY = 'pd-auth-session'
 const LEGACY_AUTH_KEY = 'pd-demo-auth'
+const LOCAL_ASSIGNMENTS_KEY = 'pd-access-assignments'
 
 export type AuthSession = {
   user: AuthUser
+  /**
+   * Real signed-in admin while `user` is an impersonation target.
+   * Absent when not impersonating.
+   */
+  actor?: AuthUser
   /** ISO timestamp when the session was established. */
   signedInAt: string
   /**
@@ -59,6 +69,73 @@ type PlatformAuthUser = {
 type PlatformAuthMeResponse = {
   authenticated: boolean
   user?: PlatformAuthUser
+  actor?: PlatformAuthUser
+  impersonating?: boolean
+}
+
+function readLocalAssignments(): EmployeeAccessAssignment[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ASSIGNMENTS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    return Array.isArray(parsed) ? (parsed as EmployeeAccessAssignment[]) : []
+  } catch {
+    return []
+  }
+}
+
+function assignedPermissionsForEmployee(
+  employeeId: number,
+): SystemPermission[] {
+  const assignment = readLocalAssignments().find(
+    (row) => row.employeeId === employeeId,
+  )
+  if (!assignment) return []
+  const profile = ACCESS_PROFILES.find((row) => row.key === assignment.profileKey)
+  return profile ? [...profile.permissions] : []
+}
+
+function authUserFromEmployee(employee: PlatformEmployee): AuthUser {
+  const person = employeeToDemoPerson(employee, listEmployees())
+  return {
+    id: person.id,
+    email: person.email,
+    name: person.name,
+    personId: person.id,
+    employeeId: employee.employeeId,
+    permissions: permissionsForEmail(
+      person.email,
+      assignedPermissionsForEmployee(employee.employeeId),
+    ),
+    title: person.title,
+  }
+}
+
+function normalizeAuthUser(user: AuthUser): AuthUser {
+  return {
+    ...user,
+    permissions: permissionsForEmail(user.email, user.permissions),
+  }
+}
+
+function sessionFromMeResponse(
+  data: PlatformAuthMeResponse,
+  previous?: AuthSession | null,
+): AuthSession {
+  if (!data.user) {
+    throw new Error('Sign-in failed.')
+  }
+  const user = authUserFromPlatform(data.user)
+  const actor =
+    data.impersonating && data.actor
+      ? authUserFromPlatform(data.actor)
+      : undefined
+  return {
+    user,
+    ...(actor ? { actor } : {}),
+    signedInAt: previous?.signedInAt ?? new Date().toISOString(),
+    ...(previous?.accessToken ? { accessToken: previous.accessToken } : {}),
+  }
 }
 
 /**
@@ -122,6 +199,7 @@ function resolveLocalSignInUser(): AuthUser {
     email: person.email,
     name: person.name,
     personId: person.id,
+    employeeId: primary.employeeId,
     permissions: LOCAL_USER.permissions,
     title: person.title,
   }
@@ -139,18 +217,25 @@ function migrateLegacySession(): AuthSession | null {
   }
 }
 
-function isValidSession(value: unknown): value is AuthSession {
+function isValidAuthUser(value: unknown): value is AuthUser {
   if (!value || typeof value !== 'object') return false
-  const parsed = value as AuthSession
-  const user = parsed.user
+  const user = value as AuthUser
   return (
-    !!user &&
     typeof user.id === 'string' &&
     typeof user.email === 'string' &&
     typeof user.name === 'string' &&
     typeof user.personId === 'string' &&
     (user.permissions === undefined || Array.isArray(user.permissions)) &&
-    typeof user.title === 'string' &&
+    typeof user.title === 'string'
+  )
+}
+
+function isValidSession(value: unknown): value is AuthSession {
+  if (!value || typeof value !== 'object') return false
+  const parsed = value as AuthSession
+  return (
+    isValidAuthUser(parsed.user) &&
+    (parsed.actor === undefined || isValidAuthUser(parsed.actor)) &&
     typeof parsed.signedInAt === 'string' &&
     (parsed.accessToken === undefined || typeof parsed.accessToken === 'string')
   )
@@ -164,13 +249,10 @@ export function readSession(): AuthSession | null {
     if (isValidSession(parsed)) {
       return {
         ...parsed,
-        user: {
-          ...parsed.user,
-          permissions: permissionsForEmail(
-            parsed.user.email,
-            parsed.user.permissions,
-          ),
-        },
+        user: normalizeAuthUser(parsed.user),
+        ...(parsed.actor
+          ? { actor: normalizeAuthUser(parsed.actor) }
+          : {}),
       }
     }
   } catch {
@@ -182,6 +264,16 @@ export function readSession(): AuthSession | null {
     return session
   }
   return migrateLegacySession()
+}
+
+/** Real signed-in identity (admin), even while impersonating. */
+export function sessionActor(session: AuthSession | null): AuthUser | null {
+  if (!session) return null
+  return session.actor ?? session.user
+}
+
+export function isImpersonatingSession(session: AuthSession | null): boolean {
+  return Boolean(session?.actor)
 }
 
 export function getAccessToken(): string | null {
@@ -207,7 +299,7 @@ export async function fetchAuthSession(): Promise<AuthSession | null> {
       { skipAuth: true },
     )
     if (me.authenticated && me.user) {
-      const session = sessionFromUser(authUserFromPlatform(me.user))
+      const session = sessionFromMeResponse(me, readSession())
       writeSession(session)
       return session
     }
@@ -224,6 +316,114 @@ export async function fetchAuthSession(): Promise<AuthSession | null> {
 
   clearSession()
   return null
+}
+
+/**
+ * Admin-only: act as another active employee for the rest of the session.
+ * Server cookie (or local session) keeps the real admin as `actor`.
+ */
+export async function startImpersonation(
+  employeeId: number,
+): Promise<AuthSession> {
+  const current = readSession()
+  const actor = sessionActor(current)
+  if (!current || !actor) {
+    throw new Error('Sign-in required.')
+  }
+  if (!hasSystemPermission(actor.permissions, 'platform.write_all')) {
+    throw new Error('Insufficient access')
+  }
+
+  if (useSessionStorageAuth()) {
+    const employee = getEmployee(employeeId)
+    if (!employee?.isActive) {
+      throw new Error('Employee not found or inactive.')
+    }
+    if (employee.employeeId === actor.employeeId) {
+      const restored: AuthSession = {
+        user: actor,
+        signedInAt: current.signedInAt,
+        ...(current.accessToken ? { accessToken: current.accessToken } : {}),
+      }
+      writeSession(restored)
+      return restored
+    }
+    const session: AuthSession = {
+      user: authUserFromEmployee(employee),
+      actor,
+      signedInAt: current.signedInAt,
+      ...(current.accessToken ? { accessToken: current.accessToken } : {}),
+    }
+    writeSession(session)
+    return session
+  }
+
+  try {
+    const me = await apiFetch<PlatformAuthMeResponse>(
+      '/api/platform/auth/impersonate',
+      {
+        method: 'POST',
+        skipAuth: true,
+        body: { employeeId },
+      },
+    )
+    const session = sessionFromMeResponse(me, current)
+    writeSession(session)
+    return session
+  } catch (err) {
+    throw rewriteImpersonationApiError(err, 'start')
+  }
+}
+
+/** Return to the real admin identity. */
+export async function stopImpersonation(): Promise<AuthSession> {
+  const current = readSession()
+  const actor = sessionActor(current)
+  if (!current || !actor) {
+    throw new Error('Sign-in required.')
+  }
+
+  if (useSessionStorageAuth()) {
+    const session: AuthSession = {
+      user: actor,
+      signedInAt: current.signedInAt,
+      ...(current.accessToken ? { accessToken: current.accessToken } : {}),
+    }
+    writeSession(session)
+    return session
+  }
+
+  try {
+    const me = await apiFetch<PlatformAuthMeResponse>(
+      '/api/platform/auth/impersonate/stop',
+      {
+        method: 'POST',
+        skipAuth: true,
+      },
+    )
+    const session = sessionFromMeResponse(me, current)
+    writeSession(session)
+    return session
+  } catch (err) {
+    throw rewriteImpersonationApiError(err, 'stop')
+  }
+}
+
+function rewriteImpersonationApiError(
+  err: unknown,
+  action: 'start' | 'stop',
+): Error {
+  if (err instanceof ApiError && err.status === 404) {
+    return new Error(
+      action === 'start'
+        ? 'Profile switch is not available on the server yet. Deploy the platform API, then try again.'
+        : 'Could not exit profile switch. Deploy the platform API, then try again.',
+    )
+  }
+  if (err instanceof Error) return err
+  return new Error(
+    action === 'start' ? 'Could not switch profile.' : 'Could not stop viewing.',
+  )
 }
 
 /** Platform app path for OAuth return (includes /platform in production). */
@@ -301,7 +501,7 @@ export async function signInWithEmailPassword(
     throw new Error('Sign-in failed.')
   }
 
-  const session = sessionFromUser(authUserFromPlatform(data.user))
+  const session = sessionFromMeResponse(data)
   writeSession(session)
   return session
 }

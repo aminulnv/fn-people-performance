@@ -2,7 +2,7 @@
 
 Share this with an engineer building notifications on another platform. It describes **how notices are produced, stored, delivered, and opened** in NEXT OKR, and the rules that keep a blast from reaching the wrong people.
 
-**Live app:** https://okr.nextventures.io
+**Live app:** https://okr.nextventures.io 
 
 ---
 

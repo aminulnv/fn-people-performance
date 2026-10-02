@@ -255,8 +255,9 @@ export function EmployeeProfilePerformanceTab({
       <div className="pd-people__table-wrap">
         <ResizableTable
           className="pd-people__table pd-reviews-cycles__table pd-profile__history-table"
-          storageKey="profile-performance-history-widths-v1"
+          storageKey="profile-performance-history-widths-v2"
           columns={HISTORY_COLUMNS}
+          fitKey={memberCycleKey}
         >
           <tbody>
             {tree.map((node) => {
@@ -424,7 +425,9 @@ function ScorecardHistoryRow({
             </span>
             <span className="pd-reviews-cycle-link__name">{row.cycleLabel}</span>
             {childCount > 0 ? (
-              <span className="pd-people__th-count">{childCount}</span>
+              <span className="pd-reviews-cycle-link__child-count">
+                ({childCount})
+              </span>
             ) : null}
           </Link>
         </span>

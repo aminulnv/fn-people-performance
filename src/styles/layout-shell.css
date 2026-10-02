@@ -1018,8 +1018,15 @@ html.pd-motion-paused .pd-app-sidebar--mobile.is-open::before {
 
 .pd-topbar__search-btn,
 .pd-topbar__dark-btn,
-.pd-topbar__notif-btn {
+.pd-topbar__notif-btn,
+.pd-topbar__impersonate-btn {
   border-radius: 50%;
+}
+
+.pd-topbar__impersonate-btn.is-active {
+  border-color: var(--color-cta);
+  background: color-mix(in srgb, var(--color-cta) 16%, transparent);
+  color: var(--color-cta);
 }
 
 /* Circular light↔dark reveal from the top-bar toggle (View Transitions API). */
@@ -1155,10 +1162,60 @@ body>.pd-topbar__dropdown-panel {
   color: var(--color-text-muted);
 }
 
+.pd-topbar__impersonate {
+  position: relative;
+}
+
+.pd-topbar__dropdown-panel--impersonate {
+  width: min(22rem, calc(100vw - 1.5rem));
+  max-height: min(28rem, calc(100vh - 4rem));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pd-topbar__impersonate-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0.75rem 0.35rem;
+  padding: 0.45rem 0.65rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  color: var(--color-text-secondary);
+}
+
+.pd-topbar__impersonate-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 0.8125rem;
+}
+
+.pd-topbar__impersonate-error,
+.pd-topbar__impersonate-empty {
+  margin: 0;
+  padding: 0.5rem 0.85rem 0.65rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.pd-topbar__impersonate-error {
+  color: var(--color-red);
+}
+
 .pd-topbar__act-as {
   display: flex;
   flex-direction: column;
   padding: 0.15rem 0 0.35rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .pd-topbar__act-as-item {
@@ -1170,7 +1227,13 @@ body>.pd-topbar__dropdown-panel {
   color: var(--color-theme-darker);
 }
 
+.pd-topbar__act-as-item:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
 .pd-topbar__act-as-avatar {
+  position: relative;
   flex: 0 0 auto;
   width: 1.5rem;
   height: 1.5rem;
@@ -1179,7 +1242,16 @@ body>.pd-topbar__dropdown-panel {
   place-items: center;
   font-size: 0.62rem;
   font-weight: 700;
-  color: #fff;
+  color: var(--color-white);
+  overflow: hidden;
+}
+
+.pd-topbar__act-as-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .pd-topbar__act-as-text {
@@ -1210,6 +1282,42 @@ body>.pd-topbar__dropdown-panel {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.pd-impersonation-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding: 0.4rem 1rem;
+  background: color-mix(in srgb, var(--color-cta) 14%, var(--color-surface));
+  border-bottom: 0.0625rem solid color-mix(in srgb, var(--color-cta) 28%, var(--color-border));
+  color: var(--color-text);
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  text-align: center;
+}
+
+.pd-impersonation-banner strong {
+  font-weight: 700;
+}
+
+.pd-impersonation-banner__action {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-cta);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  padding: 0;
+}
+
+.pd-impersonation-banner__action:hover {
+  color: var(--color-theme-darker);
 }
 
 .pd-topbar__dropdown-divider {

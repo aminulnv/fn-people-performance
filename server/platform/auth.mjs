@@ -226,6 +226,36 @@ async function employeeForSession(email) {
   return rows[0] ?? null
 }
 
+async function employeeById(employeeId) {
+  const id = Number(employeeId)
+  if (!Number.isFinite(id)) return null
+  const { rows } = await getPool().query(
+    `SELECT employee_id, email, name, job_title, status
+     FROM platform.employees
+     WHERE employee_id = $1
+     LIMIT 1`,
+    [id],
+  )
+  return rows[0] ?? null
+}
+
+function impersonateIdFromPayload(payload) {
+  const raw = payload?.impersonateEmployeeId
+  if (raw == null || raw === '') return null
+  const id = Number(raw)
+  return Number.isFinite(id) ? id : null
+}
+
+function sessionPayloadWithoutImpersonation(payload) {
+  const next = { ...payload }
+  delete next.impersonateEmployeeId
+  return next
+}
+
+function rewritePlatformSession(req, res, payload) {
+  setPlatformCookie(req, res, signPayload(payload))
+}
+
 function rejectInactiveSession(req, res) {
   clearPlatformCookie(req, res)
   res.status(401).json({
@@ -300,17 +330,119 @@ export async function permissionsForPlatformUser(user) {
 
 async function toPublicUser(payload, employee) {
   const employeeId = employee?.employee_id ?? payload.employeeId ?? null
+  const email = employee?.email || payload.email
   const permissions = await permissionsForPlatformUser({
-    email: payload.email,
+    email,
     employeeId,
   })
   return {
-    id: payload.sub || payload.email,
-    email: payload.email,
-    name: employee?.name || payload.name || payload.email,
+    id: payload.sub || email,
+    email,
+    name: employee?.name || payload.name || email,
     employeeId,
     title: employee?.job_title || '',
     permissions,
+  }
+}
+
+function actorFromEmployee(payload, employee) {
+  return {
+    email: payload.email,
+    name: employee?.name || payload.name || payload.email,
+    sub: payload.sub,
+    employeeId: employee?.employee_id ?? payload.employeeId ?? null,
+  }
+}
+
+/**
+ * Resolve actor (real signed-in admin) and effective user (impersonation target
+ * when active). Clears stale impersonation from the cookie when needed.
+ */
+async function resolveEffectiveSession(req, res, payload) {
+  const actorEmployee = await employeeForSession(payload.email)
+  if (!actorEmployee || actorEmployee.status !== 'active') {
+    return { inactive: true }
+  }
+
+  const actor = actorFromEmployee(payload, actorEmployee)
+  const actorPublic = await toPublicUser(payload, actorEmployee)
+  let impersonateId = impersonateIdFromPayload(payload)
+
+  if (impersonateId != null) {
+    const actorPermissions = await permissionsForPlatformUser(actor)
+    if (!actorPermissions.includes('platform.write_all')) {
+      rewritePlatformSession(
+        req,
+        res,
+        sessionPayloadWithoutImpersonation(payload),
+      )
+      impersonateId = null
+    }
+  }
+
+  if (impersonateId != null) {
+    if (impersonateId === Number(actor.employeeId)) {
+      rewritePlatformSession(
+        req,
+        res,
+        sessionPayloadWithoutImpersonation(payload),
+      )
+      return {
+        inactive: false,
+        actor,
+        actorPublic,
+        user: actor,
+        userPublic: actorPublic,
+        impersonating: false,
+      }
+    }
+
+    const target = await employeeById(impersonateId)
+    if (!target || target.status !== 'active') {
+      rewritePlatformSession(
+        req,
+        res,
+        sessionPayloadWithoutImpersonation(payload),
+      )
+      return {
+        inactive: false,
+        actor,
+        actorPublic,
+        user: actor,
+        userPublic: actorPublic,
+        impersonating: false,
+      }
+    }
+
+    const targetPayload = {
+      sub: `emp:${target.employee_id}`,
+      email: target.email,
+      name: target.name,
+      employeeId: target.employee_id,
+    }
+    const user = {
+      email: target.email,
+      name: target.name,
+      sub: targetPayload.sub,
+      employeeId: target.employee_id,
+    }
+    return {
+      inactive: false,
+      actor,
+      actorPublic,
+      user,
+      userPublic: await toPublicUser(targetPayload, target),
+      impersonating: true,
+    }
+  }
+
+  return {
+    inactive: false,
+    actor,
+    actorPublic,
+    user: actor,
+    userPublic: actorPublic,
+    impersonating: false,
   }
 }
 
@@ -334,22 +466,23 @@ export function requirePlatformAuth(req, res, next) {
   if (!payload) {
     return res.status(401).json({ error: 'Authentication required' })
   }
-  req.platformUser = {
-    email: payload.email,
-    name: payload.name,
-    sub: payload.sub,
-    employeeId: payload.employeeId ?? null,
-  }
+  req.platformSession = payload
   void endSessionUnlessActive(req, res, next)
 }
 
 async function endSessionUnlessActive(req, res, next) {
   try {
-    const employee = await employeeForSession(req.platformUser.email)
-    if (!employee || employee.status !== 'active') {
+    const resolved = await resolveEffectiveSession(
+      req,
+      res,
+      req.platformSession,
+    )
+    if (resolved.inactive) {
       return rejectInactiveSession(req, res)
     }
-    req.platformUser.employeeId = employee.employee_id
+    req.platformActor = resolved.actor
+    req.platformUser = resolved.user
+    req.isImpersonating = resolved.impersonating
     next()
   } catch (error) {
     next(error)
@@ -485,13 +618,86 @@ export function registerPlatformAuthRoutes(app) {
       if (!payload) {
         return res.status(401).json({ authenticated: false })
       }
-      const employee = await employeeForSession(payload.email)
-      if (!employee || employee.status !== 'active') {
+      const resolved = await resolveEffectiveSession(req, res, payload)
+      if (resolved.inactive) {
         return rejectInactiveSession(req, res)
       }
       res.json({
         authenticated: true,
-        user: await toPublicUser(payload, employee),
+        user: resolved.userPublic,
+        impersonating: resolved.impersonating,
+        ...(resolved.impersonating ? { actor: resolved.actorPublic } : {}),
+      })
+    }),
+  )
+
+  /**
+   * Admin-only: view the platform exactly as another active employee.
+   * Body: { employeeId }
+   * Keeps the real admin in the cookie; API auth uses the target identity.
+   */
+  app.post(
+    '/api/platform/auth/impersonate',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const actor = req.platformActor ?? req.platformUser
+      const actorPermissions = await permissionsForPlatformUser(actor)
+      if (!actorPermissions.includes('platform.write_all')) {
+        throw new HttpError(403, 'Insufficient access')
+      }
+
+      const employeeId = Number(req.body?.employeeId)
+      if (!Number.isFinite(employeeId)) {
+        throw new HttpError(400, 'employeeId is required.')
+      }
+
+      const target = await employeeById(employeeId)
+      if (!target || target.status !== 'active') {
+        throw new HttpError(404, 'Employee not found or inactive.')
+      }
+
+      const payload = {
+        ...req.platformSession,
+        employeeId: actor.employeeId,
+        impersonateEmployeeId: target.employee_id,
+      }
+      rewritePlatformSession(req, res, payload)
+
+      const resolved = await resolveEffectiveSession(req, res, payload)
+      if (resolved.inactive) {
+        return rejectInactiveSession(req, res)
+      }
+      res.json({
+        authenticated: true,
+        user: resolved.userPublic,
+        impersonating: resolved.impersonating,
+        ...(resolved.impersonating ? { actor: resolved.actorPublic } : {}),
+      })
+    }),
+  )
+
+  app.post(
+    '/api/platform/auth/impersonate/stop',
+    requirePlatformAuth,
+    asyncHandler(async (req, res) => {
+      const actor = req.platformActor ?? req.platformUser
+      const payload = sessionPayloadWithoutImpersonation({
+        ...req.platformSession,
+        employeeId: actor.employeeId,
+        email: actor.email,
+        name: actor.name,
+        sub: actor.sub,
+      })
+      rewritePlatformSession(req, res, payload)
+
+      const resolved = await resolveEffectiveSession(req, res, payload)
+      if (resolved.inactive) {
+        return rejectInactiveSession(req, res)
+      }
+      res.json({
+        authenticated: true,
+        user: resolved.userPublic,
+        impersonating: false,
       })
     }),
   )

@@ -2499,11 +2499,26 @@
       var(--color-divider));
 }
 
+/*
+ * Fixed-layout tables clip cells with overflow:hidden. Chrome then paints
+ * flex children (expand, icon, label) on top of each other. Clip only the
+ * cycle name, not the cell.
+ */
+.pd-people__table.pd-reviews-cycles__table.pd-table-resize--laid-out td,
+.pd-people__table.pd-reviews-cycles__table.pd-table-resize--sized td,
+.pd-people__table.pd-reviews-cycles__table.pd-table-resize--laid-out .pd-table-resize__heading,
+.pd-people__table.pd-reviews-cycles__table.pd-table-resize--sized .pd-table-resize__heading {
+  overflow: visible;
+  text-overflow: clip;
+}
+
 .pd-reviews-cycles__name-cell {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: var(--pd-reviews-tree-gap, 0.35rem);
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
 }
 
 .pd-reviews-cycles__expand {
@@ -2599,10 +2614,12 @@
 }
 
 .pd-reviews-cycle-link {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.55rem;
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: visible;
   color: inherit;
   text-decoration: none;
   font-weight: 600;
@@ -2635,9 +2652,20 @@
 }
 
 .pd-reviews-cycle-link__name {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pd-reviews-cycle-link__child-count {
+  flex: 0 0 auto;
+  margin-left: 0.35rem;
+  color: var(--color-text-muted, var(--color-text-secondary));
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 .pd-reviews-status {

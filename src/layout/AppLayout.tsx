@@ -1,5 +1,5 @@
-import { Suspense, useState, useEffect, useMemo } from 'react'
-import { useLocation, matchPath } from 'react-router-dom'
+import { Suspense, useCallback, useState, useEffect, useMemo } from 'react'
+import { useLocation, matchPath, useNavigate } from 'react-router-dom'
 import { APP_VERSION_LABEL } from '@/lib/appVersion'
 import { installTableScrollbarReveal } from '@/lib/tableScrollbarReveal'
 import {
@@ -48,8 +48,13 @@ export function AppLayout({
   onSignOut,
 }: AppLayoutProps) {
   const { pathname } = useLocation()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, actor, isImpersonating, stopImpersonation } = useAuth()
   const { isMobile } = useBreakpoint()
+  const handleStopImpersonation = useCallback(async () => {
+    await stopImpersonation()
+    navigate('/', { replace: true })
+  }, [navigate, stopImpersonation])
   const { enabled: assistantEnabled } = useAssistantPrefs()
   const { employees } = useEmployees({ load: false })
   const { cycles } = useReviewsSnapshot()
@@ -270,6 +275,21 @@ export function AppLayout({
                 onMobileMenuOpen={() => setIsMobileOpen(true)}
                 isMobile={isMobile}
               />
+              {isImpersonating ? (
+                <div className="pd-impersonation-banner" role="status">
+                  <span>
+                    Viewing as <strong>{user?.name ?? 'user'}</strong>
+                    {actor?.name ? ` · signed in as ${actor.name}` : null}
+                  </span>
+                  <button
+                    type="button"
+                    className="pd-impersonation-banner__action"
+                    onClick={() => void handleStopImpersonation()}
+                  >
+                    Exit
+                  </button>
+                </div>
+              ) : null}
               {/*
              * The only scroll container for page content. It sits below the top
              * bar, so page-level `position: sticky` chrome pins to this box and

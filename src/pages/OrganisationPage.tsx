@@ -680,12 +680,42 @@ export default function OrganisationPage() {
                     })
                     const isOpen =
                       expanded.has(department.id) || selectedTeams.length > 0
+                    const canExpand = department.teams.length > 0
                     return (
                       <Fragment key={department.id}>
                         <tr
-                          className={
+                          className={[
+                            canExpand ? 'pd-people__row-link' : '',
                             isOpen && teamsInView.length > 0
                               ? 'pd-org__row--open'
+                              : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' ') || undefined}
+                          tabIndex={canExpand ? 0 : undefined}
+                          onClick={
+                            canExpand
+                              ? (event) => {
+                                  const target = event.target as HTMLElement
+                                  if (target.closest('a, button')) return
+                                  toggleExpanded(department.id)
+                                }
+                              : undefined
+                          }
+                          onKeyDown={
+                            canExpand
+                              ? (event) => {
+                                  if (
+                                    event.key !== 'Enter' &&
+                                    event.key !== ' '
+                                  ) {
+                                    return
+                                  }
+                                  const target = event.target as HTMLElement
+                                  if (target.closest('a, button')) return
+                                  event.preventDefault()
+                                  toggleExpanded(department.id)
+                                }
                               : undefined
                           }
                         >
@@ -702,6 +732,9 @@ export default function OrganisationPage() {
                                 }
                                 onClick={() =>
                                   toggleExpanded(department.id)
+                                }
+                                onKeyDown={(event) =>
+                                  event.stopPropagation()
                                 }
                               >
                                 {isOpen ? (

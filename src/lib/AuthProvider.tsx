@@ -9,13 +9,18 @@ import {
   type AuthSession,
   clearSession,
   fetchAuthSession,
+  isImpersonatingSession,
+  sessionActor,
   signInWithEmailPassword as apiSignInWithEmailPassword,
   signInWithGoogle as apiSignInWithGoogle,
   signOut as apiSignOut,
+  startImpersonation as apiStartImpersonation,
+  stopImpersonation as apiStopImpersonation,
 } from '@/lib/authApi'
 import { loadEmployees } from '@/lib/employees/store'
 import { fetchGoalsSnapshot } from '@/lib/goalsApi'
 import { setActivePerson, setSignedInPerson } from '@/lib/goals/store'
+import { queryClient } from '@/lib/queryClient'
 import { ensureReviewCyclesLoaded } from '@/lib/reviews/store'
 import { ensureSkillsLoaded } from '@/lib/skills/store'
 import { ensureRolesLoaded } from '@/lib/roles/store'
@@ -49,6 +54,12 @@ async function hydratePlatformCaches() {
   void fetchGoalsSnapshot().catch(() => {
     /* Goals surfaces retry via useSharedGoalsSnapshot */
   })
+}
+
+function applySession(next: AuthSession | null) {
+  syncGoalsPersona(next?.user.personId)
+  queryClient.clear()
+  if (next) void hydratePlatformCaches()
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -111,7 +122,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await apiSignOut()
+    queryClient.clear()
     setSession(null)
+  }, [])
+
+  const startImpersonation = useCallback(async (employeeId: number) => {
+    const next = await apiStartImpersonation(employeeId)
+    applySession(next)
+    setSession(next)
+  }, [])
+
+  const stopImpersonation = useCallback(async () => {
+    const next = await apiStopImpersonation()
+    applySession(next)
+    setSession(next)
   }, [])
 
   const value = useMemo<AuthContextValue>(() => {
@@ -119,19 +143,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         status: 'loading',
         user: null,
+        actor: null,
+        isImpersonating: false,
         session: null,
         signInWithGoogle,
         signInWithEmailPassword,
         signOut,
+        startImpersonation,
+        stopImpersonation,
       }
     }
     return {
       status: session ? 'authenticated' : 'anonymous',
       user: session?.user ?? null,
+      actor: sessionActor(session),
+      isImpersonating: isImpersonatingSession(session),
       session,
       signInWithGoogle,
       signInWithEmailPassword,
       signOut,
+      startImpersonation,
+      stopImpersonation,
     }
   }, [
     bootstrapped,
@@ -139,6 +171,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithGoogle,
     signInWithEmailPassword,
     signOut,
+    startImpersonation,
+    stopImpersonation,
   ])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

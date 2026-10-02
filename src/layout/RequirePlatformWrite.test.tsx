@@ -43,7 +43,7 @@ describe('RequirePlatformWrite', () => {
     )
     expect(
       await screen.findByText(
-        /do not have permission to manage cycles/i,
+        /do not have permission to make this change/i,
       ),
     ).toBeInTheDocument()
     expect(screen.queryByText('Cycle admin content')).not.toBeInTheDocument()
