@@ -24,6 +24,7 @@ import {
   type NotificationRecord,
   watchNotifications,
 } from '@/lib/notificationsApi'
+import { sanitizeNotificationDestination } from '@/lib/notifications/sanitizeDestination'
 import { queryKeys } from '@/lib/queryClient'
 import { useCurrentPerson } from '@/lib/useCurrentPerson'
 import { useFloatingPanel } from '@/components/ui/useFloatingPanel'
@@ -133,7 +134,8 @@ export function NotificationDrawer({ isMobile }: { isMobile?: boolean }) {
     if (!recipientId) return
     await readNotification(recipientId, id)
     refreshFeed()
-    if (destination) navigate(destination)
+    const safe = sanitizeNotificationDestination(destination)
+    if (safe?.startsWith('/')) navigate(safe)
   }
 
   const dismissNotification = (id: string) => {

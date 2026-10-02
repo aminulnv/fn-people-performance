@@ -15,6 +15,7 @@ import { assertGoalSubmission } from './submissionValidation.mjs'
 import { normalizeMilestoneWeightsInGoal } from './measurementWeights.mjs'
 import {
   notifyGoalApproved,
+  notifyGoalCascaded,
   notifyGoalSentBack,
   notifyGoalSubmitted,
   notifyGoalsEditedByManager,
@@ -1578,6 +1579,13 @@ export async function cascadeGoalToEmployees(
         summary: 'Created a cascaded goal',
         metadata: { cascadedFromGoalId: sourceGoalId },
         source: 'api',
+      })
+      await notifyGoalCascaded(client, {
+        cycleId,
+        recipientEmployeeId: recipients[index],
+        actorEmployeeId: actor.actorEmployeeId,
+        actorName: actor.actorName,
+        goalId: childGoalIds[index],
       })
     }
     await client.query('COMMIT')

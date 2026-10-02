@@ -1,5 +1,6 @@
 import { getPool } from '../../db.mjs'
 import { resolveEffectiveGoalDeadline } from './deadline.mjs'
+import { restrictBroadcastRecipients } from '../notifications/broadcastGuard.mjs'
 import {
   emitRuleNotification,
   supersedeNotification,
@@ -110,10 +111,23 @@ export async function runGoalReminderJob({ today = new Date() } = {}) {
         [group.cycle_id, group.group_id],
       )
 
+      const eligibleMemberIds = []
+      const memberById = new Map()
       for (const member of members) {
         const joinDate = datePart(member.join_date)
         const cycleDay1 = datePart(group.start_date)
         if (joinDate && cycleDay1 && joinDate > cycleDay1) continue
+        eligibleMemberIds.push(member.employee_id)
+        memberById.set(Number(member.employee_id), member)
+      }
+
+      const allowedIds = new Set(
+        await restrictBroadcastRecipients(client, eligibleMemberIds),
+      )
+
+      for (const memberId of allowedIds) {
+        const member = memberById.get(Number(memberId))
+        if (!member) continue
 
         const windowEnd =
           datePart(

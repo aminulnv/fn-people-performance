@@ -1,4 +1,5 @@
 import { publicUrl } from '@/lib/publicUrl'
+import { sanitizeNotificationDestination } from '@/lib/notifications/sanitizeDestination'
 
 const SHOWN_KEY = 'pd-browser-notifications-shown-v1'
 const SW_PATH = 'sw-notifications.js'
@@ -36,9 +37,10 @@ export async function requestBrowserNotificationPermission(): Promise<BrowserNot
 export function notificationAppUrl(destination?: string): string {
   const origin = window.location.origin
   const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '')
-  if (!destination) return `${origin}${base || ''}/`
-  if (/^https?:\/\//i.test(destination)) return destination
-  const path = destination.startsWith('/') ? destination : `/${destination}`
+  const safe = sanitizeNotificationDestination(destination)
+  if (!safe) return `${origin}${base || ''}/`
+  if (/^https:\/\//i.test(safe)) return safe
+  const path = safe.startsWith('/') ? safe : `/${safe}`
   return `${origin}${base}${path}`
 }
 

@@ -2,6 +2,10 @@ import {
   appPublicBaseUrl,
   emailDeliveryConfig,
 } from './deliveryConfig.mjs'
+import {
+  absoluteNotificationUrl,
+  sanitizeNotificationDestination,
+} from './sanitizeDestination.mjs'
 
 /**
  * Sends one notification email. No-ops / throws clearly when SMTP is off so
@@ -35,14 +39,13 @@ export async function sendNotificationEmail({
       : undefined,
   })
 
-  const link = destination
-    ? `${appPublicBaseUrl()}${destination.startsWith('/') ? '' : '/'}${destination}`
-    : appPublicBaseUrl()
+  const safeDestination = sanitizeNotificationDestination(destination)
+  const link = absoluteNotificationUrl(safeDestination, appPublicBaseUrl())
 
   const text = [
     body,
     '',
-    destination ? `Open in People Performance: ${link}` : null,
+    safeDestination ? `Open in People Performance: ${link}` : null,
   ]
     .filter(Boolean)
     .join('\n')
@@ -52,7 +55,7 @@ export async function sendNotificationEmail({
       ${escapeHtml(body)}
     </p>
     ${
-      destination
+      safeDestination
         ? `<p style="font-family:sans-serif;font-size:14px">
             <a href="${escapeHtml(link)}">Open in People Performance</a>
           </p>`

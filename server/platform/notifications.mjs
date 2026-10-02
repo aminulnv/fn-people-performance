@@ -1,6 +1,7 @@
 import { getPool } from '../db.mjs'
 import { getNotificationRule } from './notificationRules/store.mjs'
 import { initialDeliveryStatus } from './notifications/deliveryConfig.mjs'
+import { sanitizeNotificationDestination } from './notifications/sanitizeDestination.mjs'
 
 function isoTimestamp(value) {
   if (!value) return undefined
@@ -21,7 +22,8 @@ function mapNotification(row) {
     icon: row.icon,
     kind: row.kind,
     state: row.state,
-    destination: row.destination ?? undefined,
+    destination:
+      sanitizeNotificationDestination(row.destination) ?? undefined,
     channels: row.channels ?? ['in_app'],
     dedupeKey: row.dedupe_key,
     cycleId: row.cycle_id ?? undefined,
@@ -50,6 +52,27 @@ function databaseId(notificationId) {
 }
 
 export async function createPlatformNotification(client, input) {
+  const recipientId = Number(input.recipientEmployeeId)
+  if (!Number.isInteger(recipientId) || recipientId <= 0) return null
+
+  const actorId =
+    input.actorEmployeeId == null ? null : Number(input.actorEmployeeId)
+  // Never notify yourself.
+  if (
+    Number.isInteger(actorId) &&
+    actorId > 0 &&
+    actorId === recipientId &&
+    !input.allowSelfNotify
+  ) {
+    return null
+  }
+
+  const { rows: recipientRows } = await client.query(
+    `SELECT status FROM platform.employees WHERE employee_id = $1`,
+    [recipientId],
+  )
+  if (!recipientRows[0] || recipientRows[0].status !== 'active') return null
+
   const rule = await getNotificationRule(input.eventKey, client)
   if (!input.bypassRuleGate && rule && !rule.enabled) return null
 
@@ -60,6 +83,8 @@ export async function createPlatformNotification(client, input) {
         ? rule.channels
         : ['in_app']
   if (channels.length === 0) return null
+
+  const destination = sanitizeNotificationDestination(input.destination)
 
   const { rows } = await client.query(
     `INSERT INTO platform.notifications (
@@ -109,13 +134,13 @@ export async function createPlatformNotification(client, input) {
      RETURNING *`,
     [
       input.eventKey,
-      input.recipientEmployeeId,
-      input.actorEmployeeId ?? null,
+      recipientId,
+      Number.isInteger(actorId) && actorId > 0 ? actorId : null,
       input.title,
       input.body,
       input.icon ?? 'target',
       input.kind,
-      input.destination ?? null,
+      destination,
       input.dedupeKey,
       input.cycleId ?? null,
       employeeIdOrNull(input.personId),
@@ -173,8 +198,15 @@ export async function listPlatformNotifications(recipientEmployeeId) {
        FROM platform.notifications n
        LEFT JOIN platform.notification_deliveries d
          ON d.notification_id = n.id
+       LEFT JOIN platform.employees person
+         ON person.employee_id = n.person_id
+       LEFT JOIN platform.goals goal
+         ON goal.goal_id = n.goal_id
        WHERE n.recipient_employee_id = $1
          AND n.state <> 'superseded'
+         -- Dead targets: drop rows whose person/goal no longer exists.
+         AND (n.person_id IS NULL OR person.employee_id IS NOT NULL)
+         AND (n.goal_id IS NULL OR goal.goal_id IS NOT NULL)
        GROUP BY n.id
        ORDER BY
          CASE

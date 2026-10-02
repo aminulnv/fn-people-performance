@@ -1,6 +1,7 @@
 import { getPool } from '../../db.mjs'
 import { HttpError } from '../../errors.mjs'
 import { resolveEffectiveGoalDeadline } from './deadline.mjs'
+import { restrictBroadcastRecipients } from '../notifications/broadcastGuard.mjs'
 import { emitRuleNotification } from '../notifications/emitFromRule.mjs'
 import { assertGoalAccess } from './policy.mjs'
 
@@ -90,11 +91,27 @@ export async function sendManualGoalReminders(
       )
     }
 
+    const allowedIds = new Set(
+      await restrictBroadcastRecipients(
+        client,
+        eligible.map((person) => person.employee_id),
+      ),
+    )
+    const recipients = eligible.filter((person) =>
+      allowedIds.has(Number(person.employee_id)),
+    )
+    if (recipients.length === 0) {
+      throw new HttpError(
+        403,
+        'Broadcast is restricted outside production. Add recipients to PLATFORM_DEVELOPER_EMAILS to test.',
+      )
+    }
+
     const actorId = Number(platformUser?.employeeId) || null
     const actorName = platformUser?.name || 'Administrator'
     const dayKey = new Date().toISOString().slice(0, 10)
     let sent = 0
-    for (const person of eligible) {
+    for (const person of recipients) {
       const deadline = datePart(
         resolveEffectiveGoalDeadline(person.stages_config, {
           employeeId: person.employee_id,
@@ -125,7 +142,7 @@ export async function sendManualGoalReminders(
     return {
       sent,
       skipped: ids.length - sent,
-      recipientIds: eligible.map((person) => person.employee_id),
+      recipientIds: recipients.map((person) => person.employee_id),
     }
   } catch (error) {
     await client.query('ROLLBACK')

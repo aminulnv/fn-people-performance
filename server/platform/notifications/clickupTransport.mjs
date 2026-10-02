@@ -1,4 +1,11 @@
-import { clickupDeliveryConfig } from './deliveryConfig.mjs'
+import {
+  appPublicBaseUrl,
+  clickupDeliveryConfig,
+} from './deliveryConfig.mjs'
+import {
+  absoluteNotificationUrl,
+  sanitizeNotificationDestination,
+} from './sanitizeDestination.mjs'
 
 /**
  * ClickUp delivery stub. Ready for credentials; does not call the API until
@@ -22,12 +29,15 @@ export async function sendNotificationClickup({
     throw error
   }
 
+  const safeDestination = sanitizeNotificationDestination(destination)
+  const appUrl = absoluteNotificationUrl(safeDestination, appPublicBaseUrl())
+
   const description = [
     body,
     '',
     recipientName ? `For: ${recipientName}` : null,
     recipientEmail ? `Email: ${recipientEmail}` : null,
-    destination ? `App path: ${destination}` : null,
+    safeDestination ? `Open: ${appUrl}` : null,
   ]
     .filter(Boolean)
     .join('\n')

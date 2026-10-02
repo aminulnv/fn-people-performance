@@ -1,5 +1,6 @@
 import { renderNotificationTemplate } from './catalogue'
 import { getCachedNotificationRule } from './rulesCache'
+import { sanitizeNotificationDestination } from './sanitizeDestination'
 import type {
   NotificationFeed,
   NotificationRecord,
@@ -9,6 +10,16 @@ import type {
 
 const STORAGE_KEY = 'pd-notifications-v2'
 const listeners = new Set<() => void>()
+
+/** Client inbox writes only for local/demo — production uses the server API. */
+function allowLocalNotificationWrites(): boolean {
+  return (
+    import.meta.env.MODE === 'test' ||
+    import.meta.env.VITE_AUTH_MODE === 'local' ||
+    import.meta.env.VITE_GOALS_BACKEND === 'local' ||
+    import.meta.env.VITE_EMPLOYEES_BACKEND === 'local'
+  )
+}
 
 type NotificationStateSnapshot = {
   version: 2
@@ -167,7 +178,7 @@ function applyEmit(
           : duplicate.state === 'completed'
             ? 'completed'
             : 'unread',
-      destination: input.destination,
+      destination: sanitizeNotificationDestination(input.destination),
       channels: template.channels,
       cycleId: input.cycleId,
       personId: input.personId,
@@ -198,7 +209,7 @@ function applyEmit(
     icon: template.icon,
     kind: template.kind,
     state: 'unread',
-    destination: input.destination,
+    destination: sanitizeNotificationDestination(input.destination),
     channels: template.channels,
     dedupeKey: input.dedupeKey,
     cycleId: input.cycleId,
@@ -220,6 +231,49 @@ export function emitNotification(
   input: NotificationTemplateInput,
   options: EmitNotificationOptions = {},
 ): NotificationRecord {
+  if (
+    !allowLocalNotificationWrites() &&
+    !options.bypassRuleGate
+  ) {
+    // Production path writes via the server; keep client emits as no-ops.
+    return {
+      id: `server-only-${input.dedupeKey}`,
+      eventKey: input.eventKey,
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      title: '',
+      body: '',
+      icon: 'target',
+      kind: 'info',
+      state: 'superseded',
+      channels: [],
+      dedupeKey: input.dedupeKey,
+      createdAt: (options.now ?? new Date()).toISOString(),
+      updatedAt: (options.now ?? new Date()).toISOString(),
+    }
+  }
+  // Never notify yourself.
+  if (
+    input.actorId &&
+    input.recipientId &&
+    String(input.actorId) === String(input.recipientId)
+  ) {
+    return {
+      id: `skipped-self-${input.dedupeKey}`,
+      eventKey: input.eventKey,
+      recipientId: input.recipientId,
+      actorId: input.actorId,
+      title: '',
+      body: '',
+      icon: 'target',
+      kind: 'info',
+      state: 'superseded',
+      channels: [],
+      dedupeKey: input.dedupeKey,
+      createdAt: (options.now ?? new Date()).toISOString(),
+      updatedAt: (options.now ?? new Date()).toISOString(),
+    }
+  }
   const result = applyEmit(readState(), input, options)
   if (result.changed) writeState(result.state)
   return result.record

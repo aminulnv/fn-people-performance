@@ -318,6 +318,32 @@ export async function notifyGoalSentBack(client, {
   }
 }
 
+export async function notifyGoalCascaded(client, {
+  cycleId,
+  recipientEmployeeId,
+  actorEmployeeId,
+  actorName,
+  goalId,
+  sourceEmployeeName,
+}) {
+  if (Number(actorEmployeeId) === Number(recipientEmployeeId)) return
+  const cycleLabel = await loadCycleLabel(client, cycleId)
+  await emitRuleNotification(client, {
+    eventKey: 'goal.cascaded',
+    recipientEmployeeId,
+    actorEmployeeId,
+    dedupeKey: `goal-cascaded:${cycleId}:${recipientEmployeeId}:${goalId}`,
+    destination: `/goals/${encodeURIComponent(cycleId)}/${encodeURIComponent(recipientEmployeeId)}/${encodeURIComponent(goalId)}`,
+    cycleId,
+    personId: recipientEmployeeId,
+    goalId,
+    variables: {
+      manager: actorName ?? sourceEmployeeName ?? 'A manager',
+      cycle: cycleLabel,
+    },
+  })
+}
+
 export async function listWriteAllAdminEmployeeIds(client) {
   const { rows } = await client.query(
     `SELECT DISTINCT eap.employee_id

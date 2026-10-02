@@ -1,6 +1,7 @@
 import { appendActivityEvent } from '../activity.mjs'
 import { getPool } from '../../db.mjs'
 import { resolveEffectiveGoalDeadline } from './deadline.mjs'
+import { restrictBroadcastRecipients } from '../notifications/broadcastGuard.mjs'
 import { emitRuleNotification } from '../notifications/emitFromRule.mjs'
 import {
   listWriteAllAdminEmployeeIds,
@@ -93,6 +94,19 @@ export async function applyHardLockIncompletes({ today = new Date() } = {}) {
       )
 
       const pendingAfterDeadline = []
+      const notifyAllowed = new Set(
+        await restrictBroadcastRecipients(
+          client,
+          [
+            ...members.map((member) => member.employee_id),
+            ...admins,
+            ...members
+              .map((member) => member.reports_to_employee_id)
+              .filter(Boolean),
+            ...members.map((member) => member.skip_level_id).filter(Boolean),
+          ],
+        ),
+      )
 
       for (const member of members) {
         const joinDate = datePart(member.join_date)
@@ -154,44 +168,48 @@ export async function applyHardLockIncompletes({ today = new Date() } = {}) {
           })
           summary.markedIncomplete += 1
 
-          await emitRuleNotification(client, {
-            eventKey: 'goal.deadline.closed',
-            recipientEmployeeId: member.employee_id,
-            dedupeKey: `goal-deadline-closed:${cycle.id}:${member.employee_id}`,
-            destination: goalDestination(cycle.id, member.employee_id),
-            cycleId: cycle.id,
-            personId: member.employee_id,
-            variables: {
-              cycle: cycle.name,
-              deadline: formatDate(deadline),
-            },
-          })
-          summary.notifiedEmployees += 1
+          if (notifyAllowed.has(Number(member.employee_id))) {
+            await emitRuleNotification(client, {
+              eventKey: 'goal.deadline.closed',
+              recipientEmployeeId: member.employee_id,
+              dedupeKey: `goal-deadline-closed:${cycle.id}:${member.employee_id}`,
+              destination: goalDestination(cycle.id, member.employee_id),
+              cycleId: cycle.id,
+              personId: member.employee_id,
+              variables: {
+                cycle: cycle.name,
+                deadline: formatDate(deadline),
+              },
+            })
+            summary.notifiedEmployees += 1
+          }
         } else if (
           status === 'draft' ||
           status === 'sent_back' ||
           status === 'incomplete'
         ) {
           // two_tier: notify employee that deadline passed but late still open.
-          await emitRuleNotification(client, {
-            eventKey:
-              policy === 'two_tier_approval'
-                ? 'goal.deadline.exceptions'
-                : 'goal.deadline.closed',
-            recipientEmployeeId: member.employee_id,
-            dedupeKey: `goal-deadline:${cycle.id}:${member.employee_id}`,
-            destination: goalDestination(cycle.id, member.employee_id),
-            cycleId: cycle.id,
-            personId: member.employee_id,
-            variables: {
-              cycle: cycle.name,
-              deadline: formatDate(deadline),
-              manager: member.manager_name ?? 'your manager',
-              skipLevelManager:
-                member.skip_level_name ?? 'your skip-level manager',
-            },
-          })
-          summary.notifiedEmployees += 1
+          if (notifyAllowed.has(Number(member.employee_id))) {
+            await emitRuleNotification(client, {
+              eventKey:
+                policy === 'two_tier_approval'
+                  ? 'goal.deadline.exceptions'
+                  : 'goal.deadline.closed',
+              recipientEmployeeId: member.employee_id,
+              dedupeKey: `goal-deadline:${cycle.id}:${member.employee_id}`,
+              destination: goalDestination(cycle.id, member.employee_id),
+              cycleId: cycle.id,
+              personId: member.employee_id,
+              variables: {
+                cycle: cycle.name,
+                deadline: formatDate(deadline),
+                manager: member.manager_name ?? 'your manager',
+                skipLevelManager:
+                  member.skip_level_name ?? 'your skip-level manager',
+              },
+            })
+            summary.notifiedEmployees += 1
+          }
         }
       }
 
@@ -206,21 +224,27 @@ export async function applyHardLockIncompletes({ today = new Date() } = {}) {
         byManager.get(managerId).push(member)
       }
       for (const [managerId, people] of byManager) {
-        await emitRuleNotification(client, {
-          eventKey: 'goal.team.pending_summary',
-          recipientEmployeeId: managerId,
-          dedupeKey: `goal-team-pending:${cycle.id}:${managerId}`,
-          destination: goalDestination(cycle.id, managerId),
-          cycleId: cycle.id,
-          personId: managerId,
-          variables: {
-            count: people.length,
-            cycle: cycle.name,
-          },
-          metadata: { pendingCount: people.length, escalation: true },
-        })
+        if (notifyAllowed.has(Number(managerId))) {
+          await emitRuleNotification(client, {
+            eventKey: 'goal.team.pending_summary',
+            recipientEmployeeId: managerId,
+            dedupeKey: `goal-team-pending:${cycle.id}:${managerId}`,
+            destination: goalDestination(cycle.id, managerId),
+            cycleId: cycle.id,
+            personId: managerId,
+            variables: {
+              count: people.length,
+              cycle: cycle.name,
+            },
+            metadata: { pendingCount: people.length, escalation: true },
+          })
+        }
         const skipId = Number(people[0]?.skip_level_id)
-        if (Number.isInteger(skipId) && skipId > 0) {
+        if (
+          Number.isInteger(skipId) &&
+          skipId > 0 &&
+          notifyAllowed.has(skipId)
+        ) {
           await emitRuleNotification(client, {
             eventKey: 'goal.team.pending_summary',
             recipientEmployeeId: skipId,
@@ -244,6 +268,7 @@ export async function applyHardLockIncompletes({ today = new Date() } = {}) {
 
       // PTR admins
       for (const adminId of admins) {
+        if (!notifyAllowed.has(Number(adminId))) continue
         await emitRuleNotification(client, {
           eventKey: 'goal.team.pending_summary',
           recipientEmployeeId: adminId,
