@@ -459,7 +459,7 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
       kind: 'skill',
       scope: 'organisation',
       label: skill.name,
-      description: skill.status === 'draft' ? 'Draft skill' : 'Skill',
+      description: skill.status === 'inactive' ? 'Inactive skill' : 'Skill',
       keywords: uniqueKeywords([
         skill.role,
         skill.status,
@@ -468,8 +468,8 @@ export function buildSearchCatalog(input: SearchCatalogInput): SearchItem[] {
       ]),
       path: skillDetailPath(skill.id),
       icon: Sparkles,
-      status: skill.status === 'draft' ? 'Draft' : 'Approved',
-      statusVariant: skill.status === 'draft' ? 'pending' : 'completed',
+      status: skill.status === 'inactive' ? 'Inactive' : 'Active',
+      statusVariant: skill.status === 'inactive' ? 'pending' : 'completed',
     })
   }
 

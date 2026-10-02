@@ -30,7 +30,7 @@ export function getInheritedSkillsForEmployee(
       id: row.skillId,
       name: row.skillName,
       role: '',
-      status: 'approved' as const,
+      status: 'active' as const,
       mastery: emptySkillMastery(),
     }
     const expectedLevel = grade ? row.expectations[grade] : undefined

@@ -19,11 +19,11 @@ describe('skills store', () => {
     expect(talentCountForSkill(skills[0]!.id)).toBe(0)
   })
 
-  it('seeds mastery rubric text for Poor through Expert', () => {
+  it('seeds mastery rubric text for Unsatisfactory through Expert', () => {
     resetSkillsStoreForTests()
     const skills = getSkillsSnapshot()
     for (const skill of skills) {
-      expect(skill.mastery.poor.trim().length).toBeGreaterThan(0)
+      expect(skill.mastery.unsatisfactory.trim().length).toBeGreaterThan(0)
       expect(skill.mastery.basic.trim().length).toBeGreaterThan(0)
       expect(skill.mastery.intermediate.trim().length).toBeGreaterThan(0)
       expect(skill.mastery.advanced.trim().length).toBeGreaterThan(0)
@@ -38,7 +38,7 @@ describe('skills store', () => {
       role: 'Manager',
     })
     expect(created.name).toBe('Facilitation')
-    expect(created.status).toBe('approved')
+    expect(created.status).toBe('active')
     expect(getSkillsSnapshot().some((skill) => skill.id === created.id)).toBe(
       true,
     )
@@ -61,11 +61,11 @@ describe('skills store', () => {
     const updated = await updateSkill(created.id, {
       name: 'Workshop Facilitation',
       role: 'Manager',
-      status: 'draft',
+      status: 'inactive',
     })
     expect(updated.name).toBe('Workshop Facilitation')
     expect(updated.role).toBe('Manager')
-    expect(updated.status).toBe('draft')
+    expect(updated.status).toBe('inactive')
     expect(
       getSkillsSnapshot().find((skill) => skill.id === created.id)?.name,
     ).toBe('Workshop Facilitation')

@@ -39,7 +39,7 @@ const SKILL_ATTRIBUTES = [
 ]
 
 function statusLabel(status: SkillStatus): string {
-  return status === 'draft' ? 'Draft' : 'Approved'
+  return status === 'inactive' ? 'Inactive' : 'Active'
 }
 
 export function SkillsLibrary() {
@@ -267,7 +267,7 @@ function SkillRow({
       <td>{talent}</td>
       <td>
         <Badge
-          variant={skill.status === 'approved' ? 'completed' : 'draft'}
+          variant={skill.status === 'active' ? 'completed' : 'draft'}
         >
           {statusLabel(skill.status)}
         </Badge>

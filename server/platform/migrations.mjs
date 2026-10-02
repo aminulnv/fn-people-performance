@@ -64,6 +64,8 @@ export const REQUIRED_MIGRATIONS = [
   '00056_review_manager_missed_deadline.sql',
   '00057_notification_rules_required.sql',
   '00058_notification_goal_cascade.sql',
+  '00059_skills_status_active_inactive.sql',
+  '00060_skills_poor_to_unsatisfactory.sql',
 ]
 
 export async function assertPlatformMigrations() {

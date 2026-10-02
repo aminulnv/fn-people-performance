@@ -115,10 +115,10 @@ function input(
         id: 'skill-admin-support',
         name: 'Administrative Support',
         role: '',
-        status: 'approved',
+        status: 'active',
         mastery: {
           none: '',
-          poor: '',
+          unsatisfactory: '',
           basic: '',
           intermediate: '',
           advanced: '',

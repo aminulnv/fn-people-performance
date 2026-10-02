@@ -9,7 +9,7 @@ const skill: Skill = {
   id: 'skill-ai-fluency',
   name: 'AI Fluency',
   role: '',
-  status: 'approved',
+  status: 'active',
   mastery: emptySkillMastery(),
 }
 
@@ -86,7 +86,7 @@ describe('ScorecardSkillsGradeCard', () => {
     expect(
       screen.getByText('Sets the bar for the org on this skill.'),
     ).toBeTruthy()
-    expect(screen.queryByText('Poor')).toBeNull()
+    expect(screen.queryByText('Unsatisfactory')).toBeNull()
   })
 
   it('shows read-only grades on the view scorecard', () => {

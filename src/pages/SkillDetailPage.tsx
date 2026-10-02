@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { Archive, ArrowLeft, CircleDot, Pencil, Sparkles, Tag } from 'lucide-react'
+import { Archive, ArrowLeft, Pencil, Sparkles } from 'lucide-react'
 import {
   Badge,
   PageSkeleton,
@@ -22,7 +22,6 @@ import {
   type SkillStatus,
 } from '@/lib/skills/types'
 import { useSkill, useSkillRoleUsage } from '@/lib/skills/useSkills'
-import { OrgDetailRow } from '@/pages/org/OrgDetailRow'
 import { SkillRolesMatrix } from '@/pages/reviews/SkillRolesMatrix'
 import '@/styles/layout-people.css'
 import '@/styles/layout-organisation.css'
@@ -40,11 +39,11 @@ function parseTab(raw: string | null): SkillTabId {
 }
 
 function statusLabel(status: SkillStatus): string {
-  return status === 'draft' ? 'Draft' : 'Approved'
+  return status === 'inactive' ? 'Inactive' : 'Active'
 }
 
 function statusVariant(status: SkillStatus): 'draft' | 'completed' {
-  return status === 'draft' ? 'draft' : 'completed'
+  return status === 'inactive' ? 'draft' : 'completed'
 }
 
 export default function SkillDetailPage() {
@@ -201,35 +200,6 @@ export default function SkillDetailPage() {
 
       {tab === 'overview' ? (
         <div className="pd-skill-detail__overview">
-          <section
-            className="pd-profile__card pd-org-role-preview"
-            aria-label="Skill details"
-          >
-            <header className="pd-profile__card-head">
-              <h2 className="pd-profile__card-title">Skill details</h2>
-              {canEdit ? (
-                <Link
-                  to={skillEditPath(skill.id)}
-                  className="pd-profile__icon-action"
-                  aria-label="Edit skill details"
-                  title="Edit"
-                >
-                  <Pencil size={14} strokeWidth={1.75} aria-hidden />
-                </Link>
-              ) : null}
-            </header>
-            <dl className="pd-profile__details">
-              <OrgDetailRow label="Name" icon={Tag}>
-                {skill.name}
-              </OrgDetailRow>
-              <OrgDetailRow label="Status" icon={CircleDot}>
-                <Badge variant={statusVariant(skill.status)}>
-                  {statusLabel(skill.status)}
-                </Badge>
-              </OrgDetailRow>
-            </dl>
-          </section>
-
           <section
             className="pd-profile__card pd-skill-mastery-preview"
             aria-label="Skill mastery"

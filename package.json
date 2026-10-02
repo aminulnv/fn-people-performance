@@ -12,7 +12,8 @@
     "deploy:ec2": "bash scripts/deploy-to-ec2.sh",
     "db:migrate:platform": "bash scripts/apply-platform-migrations.sh",
     "db:provision-platform-role": "bash scripts/provision-platform-db-role.sh",
-    "deploy:platform-api": "bash scripts/deploy-platform-api.sh"
+    "deploy:platform-api": "bash scripts/deploy-platform-api.sh",
+    "deploy:all": "npm run db:migrate:platform && npm run deploy:platform-api && npm run deploy:ec2"
   },
   "dependencies": {
     "@astryxdesign/core": "^0.4.5",

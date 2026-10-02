@@ -1699,9 +1699,7 @@
 }
 
 .pd-reviews-scorecard__grade-select--unsatisfactory .pd-listbox__trigger,
-.pd-listbox__option.pd-reviews-scorecard__grade-tone--unsatisfactory,
-.pd-reviews-scorecard__grade-select--poor .pd-listbox__trigger,
-.pd-listbox__option.pd-reviews-scorecard__grade-tone--poor {
+.pd-listbox__option.pd-reviews-scorecard__grade-tone--unsatisfactory {
   background: var(--color-red-light);
   border-color: transparent;
   color: var(--color-red);
@@ -1741,7 +1739,6 @@
 .pd-reviews-scorecard__grade-select--performing .pd-listbox__chevron,
 .pd-reviews-scorecard__grade-select--developing .pd-listbox__chevron,
 .pd-reviews-scorecard__grade-select--unsatisfactory .pd-listbox__chevron,
-.pd-reviews-scorecard__grade-select--poor .pd-listbox__chevron,
 .pd-reviews-scorecard__grade-select--basic .pd-listbox__chevron,
 .pd-reviews-scorecard__grade-select--intermediate .pd-listbox__chevron,
 .pd-reviews-scorecard__grade-select--advanced .pd-listbox__chevron,
@@ -1770,9 +1767,7 @@
 }
 
 .pd-listbox__option.pd-reviews-scorecard__grade-tone--unsatisfactory:hover,
-.pd-listbox__option.pd-reviews-scorecard__grade-tone--unsatisfactory.is-active,
-.pd-listbox__option.pd-reviews-scorecard__grade-tone--poor:hover,
-.pd-listbox__option.pd-reviews-scorecard__grade-tone--poor.is-active {
+.pd-listbox__option.pd-reviews-scorecard__grade-tone--unsatisfactory.is-active {
   background: color-mix(in srgb, var(--color-red) 16%, var(--color-red-light));
 }
 
@@ -1934,8 +1929,7 @@
   color: var(--color-status-pending, var(--color-text-secondary));
 }
 
-.pd-reviews-scorecard__band--unsatisfactory,
-.pd-reviews-scorecard__band--poor {
+.pd-reviews-scorecard__band--unsatisfactory {
   background: var(--color-red-light);
   color: var(--color-red);
 }

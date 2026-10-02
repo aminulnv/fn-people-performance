@@ -90,7 +90,7 @@ const MANAGER_GLANCE_EXCLUDED_ANSWER_IDS = new Set<string>([
 ])
 
 const SKILL_GRADE_TO_BAND: Record<SkillGradeLevel, GradeBandId> = {
-  poor: 'unsatisfactory',
+  unsatisfactory: 'unsatisfactory',
   basic: 'developing',
   intermediate: 'performing',
   advanced: 'exceeding',

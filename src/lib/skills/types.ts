@@ -1,12 +1,12 @@
-export type SkillStatus = 'approved' | 'draft'
+export type SkillStatus = 'active' | 'inactive'
 
 /**
  * Skill mastery bands (Not Applicable → Expert).
- * `none` is Not Applicable on the role matrix; grading uses Poor…Expert.
+ * `none` is Not Applicable on the role matrix; grading uses Unsatisfactory…Expert.
  */
 export const SKILL_MASTERY_LEVELS = [
   'none',
-  'poor',
+  'unsatisfactory',
   'basic',
   'intermediate',
   'advanced',
@@ -15,9 +15,9 @@ export const SKILL_MASTERY_LEVELS = [
 
 export type SkillMasteryLevel = (typeof SKILL_MASTERY_LEVELS)[number]
 
-/** Gradable skill levels (excludes Not Applicable). Weights: Poor=1 … Expert=5. */
+/** Gradable skill levels (excludes Not Applicable). Weights: Unsatisfactory=1 … Expert=5. */
 export const SKILL_GRADE_LEVELS = [
-  'poor',
+  'unsatisfactory',
   'basic',
   'intermediate',
   'advanced',
@@ -32,7 +32,7 @@ export type SkillMastery = Record<SkillMasteryLevel, string>
 export function emptySkillMastery(): SkillMastery {
   return {
     none: '',
-    poor: '',
+    unsatisfactory: '',
     basic: '',
     intermediate: '',
     advanced: '',

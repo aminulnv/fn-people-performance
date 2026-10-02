@@ -24,8 +24,8 @@ export function SkillFormFields({
   onArchived?: () => void
 }) {
   const nameId = useId()
-  const [approved, setApproved] = useState(
-    mode === 'edit' ? existing?.status !== 'draft' : true,
+  const [active, setActive] = useState(
+    mode === 'edit' ? existing?.status !== 'inactive' : true,
   )
   const [name, setName] = useState(existing?.name ?? '')
   const [mastery, setMastery] = useState<SkillMastery>(
@@ -42,7 +42,7 @@ export function SkillFormFields({
   // Keep fields in sync when store fills seed rubrics after first paint.
   useEffect(() => {
     if (mode !== 'edit' || !existing) return
-    setApproved(existing.status !== 'draft')
+    setActive(existing.status !== 'inactive')
     setName(existing.name)
     setMastery(existing.mastery ?? emptySkillMastery())
     // Content keys only — not `existing` identity — so typing isn’t reset.
@@ -63,7 +63,7 @@ export function SkillFormFields({
     if (saving) return
     setSaving(true)
     setError(null)
-    const status: SkillStatus = approved ? 'approved' : 'draft'
+    const status: SkillStatus = active ? 'active' : 'inactive'
     const payload = {
       name,
       role: '',
@@ -150,9 +150,9 @@ export function SkillFormFields({
 
       <div className="pd-reviews-value-panel__actions">
         <Switch
-          label="Approved"
-          checked={approved}
-          onChange={(event) => setApproved(event.target.checked)}
+          label="Active"
+          checked={active}
+          onChange={(event) => setActive(event.target.checked)}
         />
         <div className="pd-reviews-value-panel__actions-end">
           {mode === 'edit' && existing && onArchived ? (

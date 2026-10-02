@@ -10,6 +10,7 @@ import { appendActivityEvent } from '../activity.mjs'
 /** Stored keys. `none` is the Not Applicable band (not a scored level). */
 const EXPECTED_LEVELS = new Set([
   'none',
+  'unsatisfactory',
   'basic',
   'intermediate',
   'advanced',

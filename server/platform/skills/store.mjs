@@ -10,7 +10,7 @@ import { appendActivityEvent } from '../activity.mjs'
 function seedMastery(bands) {
   return {
     none: '',
-    poor: bands.poor,
+    unsatisfactory: bands.unsatisfactory,
     basic: bands.basic,
     intermediate: bands.intermediate,
     advanced: bands.advanced,
@@ -23,9 +23,9 @@ const SEED_SKILLS = [
     id: 'skill-account-planning',
     name: 'Account Planning',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Has no clear plan for accounts; reacts only when problems appear.',
+      unsatisfactory: 'Has no clear plan for accounts; reacts only when problems appear.',
       basic: 'Keeps a simple account list but plans are thin or rarely updated.',
       intermediate:
         'Builds workable account plans with goals, next steps, and owners.',
@@ -39,9 +39,9 @@ const SEED_SKILLS = [
     id: 'skill-accuracy',
     name: 'Accuracy',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Work often has errors that others must catch and fix.',
+      unsatisfactory: 'Work often has errors that others must catch and fix.',
       basic: 'Usually accurate on simple tasks; mistakes rise with complexity.',
       intermediate:
         'Delivers accurate work consistently and checks before handing off.',
@@ -55,9 +55,9 @@ const SEED_SKILLS = [
     id: 'skill-financial-accuracy',
     name: 'Accuracy in Financial Processing',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Financial entries or checks frequently contain material mistakes.',
+      unsatisfactory: 'Financial entries or checks frequently contain material mistakes.',
       basic: 'Completes routine financial tasks with supervision and rework.',
       intermediate:
         'Processes financial work accurately within policy and deadlines.',
@@ -71,9 +71,9 @@ const SEED_SKILLS = [
     id: 'skill-acquisition-negotiation',
     name: 'Acquisition and Negotiation',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Avoids negotiation or accepts weak terms without clear trade-offs.',
+      unsatisfactory: 'Avoids negotiation or accepts weak terms without clear trade-offs.',
       basic: 'Can negotiate simple deals with guidance on targets and limits.',
       intermediate:
         'Negotiates fair outcomes that protect value and keep relationships intact.',
@@ -87,9 +87,9 @@ const SEED_SKILLS = [
     id: 'skill-admin-support',
     name: 'Administrative Support',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Admin tasks are late, incomplete, or need constant chasing.',
+      unsatisfactory: 'Admin tasks are late, incomplete, or need constant chasing.',
       basic: 'Handles routine admin when given clear instructions.',
       intermediate:
         'Keeps calendars, docs, and follow-ups organised without reminders.',
@@ -103,9 +103,9 @@ const SEED_SKILLS = [
     id: 'skill-ai-fluency',
     name: 'AI Fluency',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Avoids AI tools or uses them in ways that create risk or noise.',
+      unsatisfactory: 'Avoids AI tools or uses them in ways that create risk or noise.',
       basic: 'Uses simple AI prompts for drafts with heavy manual cleanup.',
       intermediate:
         'Uses AI effectively to speed quality work while checking outputs.',
@@ -119,9 +119,9 @@ const SEED_SKILLS = [
     id: 'skill-analytical-methods',
     name: 'Analytical and Statistical Methods',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Cannot apply basic analysis methods; conclusions are unsupported.',
+      unsatisfactory: 'Cannot apply basic analysis methods; conclusions are unsupported.',
       basic: 'Runs simple stats or summaries with help choosing the method.',
       intermediate:
         'Chooses suitable methods and explains findings clearly to stakeholders.',
@@ -135,9 +135,9 @@ const SEED_SKILLS = [
     id: 'skill-analytical-thinking',
     name: 'Analytical Thinking',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Jumps to conclusions without separating facts from opinions.',
+      unsatisfactory: 'Jumps to conclusions without separating facts from opinions.',
       basic: 'Breaks simple problems into parts with coaching.',
       intermediate:
         'Structures problems, weighs evidence, and reaches sound recommendations.',
@@ -151,9 +151,9 @@ const SEED_SKILLS = [
     id: 'skill-stakeholder-comms',
     name: 'Stakeholder Communication',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Updates are missing, late, or confusing for stakeholders.',
+      unsatisfactory: 'Updates are missing, late, or confusing for stakeholders.',
       basic: 'Shares updates when asked; tone and clarity still uneven.',
       intermediate:
         'Keeps stakeholders informed with clear, timely, audience-fit messages.',
@@ -167,9 +167,9 @@ const SEED_SKILLS = [
     id: 'skill-delivery-ownership',
     name: 'Delivery Ownership',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Drops commitments; needs chasing to finish work.',
+      unsatisfactory: 'Drops commitments; needs chasing to finish work.',
       basic: 'Delivers assigned work when priorities stay stable.',
       intermediate:
         'Owns outcomes end-to-end and flags risks early with a recovery plan.',
@@ -183,9 +183,9 @@ const SEED_SKILLS = [
     id: 'skill-people-leadership',
     name: 'People Leadership',
     role: 'Manager',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Avoids people issues; team is unclear on priorities or support.',
+      unsatisfactory: 'Avoids people issues; team is unclear on priorities or support.',
       basic: 'Leads day-to-day tasks but struggles with harder people moments.',
       intermediate:
         'Sets clear expectations, supports the team, and follows through fairly.',
@@ -199,9 +199,9 @@ const SEED_SKILLS = [
     id: 'skill-coaching',
     name: 'Coaching and Feedback',
     role: 'Manager',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Rarely gives feedback, or feedback is vague and unhelpful.',
+      unsatisfactory: 'Rarely gives feedback, or feedback is vague and unhelpful.',
       basic: 'Gives occasional feedback when prompted by reviews or issues.',
       intermediate:
         'Gives timely, specific feedback that helps people improve.',
@@ -215,9 +215,9 @@ const SEED_SKILLS = [
     id: 'skill-data-storytelling',
     name: 'Analytical Insight and Context Building',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Shares numbers without meaning; stakeholders stay confused.',
+      unsatisfactory: 'Shares numbers without meaning; stakeholders stay confused.',
       basic: 'Reports data points but struggles to explain “so what”.',
       intermediate:
         'Turns analysis into a clear story with context and a recommended action.',
@@ -231,9 +231,9 @@ const SEED_SKILLS = [
     id: 'skill-risk-judgement',
     name: 'Risk Judgement',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Misses obvious risks or escalates everything without judgement.',
+      unsatisfactory: 'Misses obvious risks or escalates everything without judgement.',
       basic: 'Spots basic risks but needs help deciding severity and response.',
       intermediate:
         'Assesses risk vs impact and chooses a proportionate next step.',
@@ -247,9 +247,9 @@ const SEED_SKILLS = [
     id: 'skill-process-design',
     name: 'Process Design',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Work stays ad hoc; repeats the same friction without fixing it.',
+      unsatisfactory: 'Work stays ad hoc; repeats the same friction without fixing it.',
       basic: 'Documents simple steps when asked; processes stay brittle.',
       intermediate:
         'Designs clear processes that reduce errors and handoff confusion.',
@@ -263,9 +263,9 @@ const SEED_SKILLS = [
     id: 'skill-written-comms',
     name: 'Written Communication',
     role: '',
-    status: 'approved',
+    status: 'active',
     mastery: seedMastery({
-      poor: 'Writing is unclear, error-heavy, or hard to act on.',
+      unsatisfactory: 'Writing is unclear, error-heavy, or hard to act on.',
       basic: 'Writes understandable notes for simple topics with editing help.',
       intermediate:
         'Writes clear, structured messages that people can act on quickly.',
@@ -277,10 +277,10 @@ const SEED_SKILLS = [
   },
 ]
 
-/** Rubric keys. `none` is Not Applicable; grading uses Poor…Expert. */
+/** Rubric keys. `none` is Not Applicable; grading uses Unsatisfactory…Expert. */
 const MASTERY_LEVELS = [
   'none',
-  'poor',
+  'unsatisfactory',
   'basic',
   'intermediate',
   'advanced',
@@ -298,7 +298,7 @@ function actorFromUser(platformUser) {
 function emptyMastery() {
   return {
     none: '',
-    poor: '',
+    unsatisfactory: '',
     basic: '',
     intermediate: '',
     advanced: '',
@@ -312,6 +312,10 @@ function normalizeMastery(value) {
   for (const level of MASTERY_LEVELS) {
     next[level] = String(value[level] ?? '').trim()
   }
+  // Legacy mastery key before Unsatisfactory rename.
+  if (!next.unsatisfactory && value.poor != null) {
+    next.unsatisfactory = String(value.poor).trim()
+  }
   return next
 }
 
@@ -320,7 +324,10 @@ function mapSkill(row) {
     id: row.id,
     name: row.name,
     role: row.role_name ?? '',
-    status: row.status === 'draft' ? 'draft' : 'approved',
+    status:
+      row.status === 'inactive' || row.status === 'draft'
+        ? 'inactive'
+        : 'active',
     mastery: normalizeMastery(row.mastery),
   }
 }
@@ -428,7 +435,10 @@ export async function createSkill(input, platformUser) {
   const actor = actorFromUser(platformUser)
   const id = input.id || `skill-${crypto.randomUUID()}`
   const roleName = String(input.role ?? '').trim()
-  const status = input.status === 'draft' ? 'draft' : 'approved'
+  const status =
+    input.status === 'inactive' || input.status === 'draft'
+      ? 'inactive'
+      : 'active'
   const mastery = normalizeMastery(input.mastery)
 
   const client = await getPool().connect()
@@ -513,7 +523,10 @@ export async function updateSkill(skillId, input, platformUser) {
   if (!name) throw new HttpError(400, 'Give the skill a name.')
   const actor = actorFromUser(platformUser)
   const roleName = String(input.role ?? '').trim()
-  const status = input.status === 'draft' ? 'draft' : 'approved'
+  const status =
+    input.status === 'inactive' || input.status === 'draft'
+      ? 'inactive'
+      : 'active'
 
   const client = await getPool().connect()
   try {

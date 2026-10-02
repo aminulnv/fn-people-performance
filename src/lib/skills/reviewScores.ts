@@ -13,25 +13,25 @@ export { SKILL_GRADE_LEVELS }
 export type { SkillGradeLevel }
 
 const SKILL_GRADE_LABELS: Record<SkillGradeLevel, string> = {
-  poor: 'Poor',
+  unsatisfactory: 'Unsatisfactory',
   basic: 'Basic',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
   expert: 'Expert',
 }
 
-/** Poor=1 … Expert=5 — same weight scale as performance bands for rollup. */
+/** Unsatisfactory=1 … Expert=5 — same weight scale as performance bands for rollup. */
 const SKILL_GRADE_RANK: Record<SkillGradeLevel, number> = {
-  poor: 1,
+  unsatisfactory: 1,
   basic: 2,
   intermediate: 3,
   advanced: 4,
   expert: 5,
 }
 
-/** Legacy performance bands once used on skill rows → mastery levels. */
-const LEGACY_BAND_TO_SKILL: Record<string, SkillGradeLevel> = {
-  unsatisfactory: 'poor',
+/** Legacy stored values → mastery levels. */
+const LEGACY_TO_SKILL: Record<string, SkillGradeLevel> = {
+  poor: 'unsatisfactory',
   developing: 'basic',
   performing: 'intermediate',
   exceeding: 'advanced',
@@ -64,13 +64,13 @@ export function isSkillGradeLevel(value: unknown): value is SkillGradeLevel {
   )
 }
 
-/** Normalize stored skill grades (incl. legacy performance bands). */
+/** Normalize stored skill grades (incl. legacy keys and performance bands). */
 export function normalizeSkillGrade(
   value: string | null | undefined,
 ): SkillGradeLevel | '' {
   if (!value) return ''
   if (isSkillGradeLevel(value)) return value
-  return LEGACY_BAND_TO_SKILL[value] ?? ''
+  return LEGACY_TO_SKILL[value] ?? ''
 }
 
 export function skillGradeLabel(grade: string | null | undefined): string {
@@ -87,7 +87,7 @@ export function skillGradeRank(grade: string | null | undefined): number | null 
 
 /**
  * Midpoint of graded skill levels, mapped onto the performance band scale
- * (Poor=1 → Unsatisfactory … Expert=5 → Exceptional) for the Skills pillar.
+ * (Unsatisfactory=1 … Expert=5 → Exceptional) for the Skills pillar.
  */
 export function averageSkillGrade(
   grades: Array<string | '' | null | undefined>,
@@ -121,7 +121,7 @@ export function skillsWithStoredGrades(
         id: skillId,
         name: 'Previously graded skill',
         role: '',
-        status: 'approved' as const,
+        status: 'active' as const,
         mastery: emptySkillMastery(),
       }
     })

@@ -23,15 +23,16 @@ describe('skill review scores', () => {
   })
 
   it('normalizes mastery and legacy performance bands', () => {
-    expect(normalizeSkillGrade('poor')).toBe('poor')
+    expect(normalizeSkillGrade('unsatisfactory')).toBe('unsatisfactory')
     expect(normalizeSkillGrade('expert')).toBe('expert')
-    expect(normalizeSkillGrade('unsatisfactory')).toBe('poor')
+    expect(normalizeSkillGrade('poor')).toBe('unsatisfactory')
     expect(normalizeSkillGrade('developing')).toBe('basic')
     expect(normalizeSkillGrade('performing')).toBe('intermediate')
     expect(normalizeSkillGrade('exceeding')).toBe('advanced')
     expect(normalizeSkillGrade('exceptional')).toBe('expert')
     expect(skillGradeLabel('basic')).toBe('Basic')
     expect(skillGradeLabel('performing')).toBe('Intermediate')
+    expect(skillGradeLabel('poor')).toBe('Unsatisfactory')
   })
 
   it('averages graded levels onto the performance band scale', () => {
@@ -39,6 +40,9 @@ describe('skill review scores', () => {
     expect(averageSkillGrade(['expert', 'advanced'])).toBe('exceptional')
     expect(averageSkillGrade(['intermediate', 'intermediate'])).toBe(
       'performing',
+    )
+    expect(averageSkillGrade(['unsatisfactory', 'unsatisfactory'])).toBe(
+      'unsatisfactory',
     )
     expect(averageSkillGrade(['poor', 'poor'])).toBe('unsatisfactory')
     expect(averageSkillGrade(['', null, undefined])).toBeNull()
@@ -69,7 +73,7 @@ describe('skill review scores', () => {
           id: 'skill-ai-fluency',
           name: 'AI Fluency',
           role: '',
-          status: 'approved',
+          status: 'active',
           mastery: emptySkillMastery(),
         },
       ],

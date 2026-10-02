@@ -60,7 +60,11 @@ echo "[platform] Uploading → $HOST:$REMOTE_WEB_DIR/"
 "${SSH[@]}" bash -s <<REMOTE
 set -euo pipefail
 sudo mkdir -p '$REMOTE_WEB_DIR'
-sudo rsync -a --delete '$REMOTE_STAGING/' '$REMOTE_WEB_DIR/'
+# Keep previous hashed assets so open tabs after deploy can still load old chunks.
+# Replace everything else (index.html, etc.) so clients pick up the new entry.
+sudo rsync -a --delete --exclude 'assets/' '$REMOTE_STAGING/' '$REMOTE_WEB_DIR/'
+sudo mkdir -p '$REMOTE_WEB_DIR/assets'
+sudo rsync -a '$REMOTE_STAGING/assets/' '$REMOTE_WEB_DIR/assets/'
 sudo chown -R root:www-data '$REMOTE_WEB_DIR'
 sudo find '$REMOTE_WEB_DIR' -type d -exec chmod 755 {} \;
 sudo find '$REMOTE_WEB_DIR' -type f -exec chmod 644 {} \;
@@ -75,8 +79,7 @@ if [[ ! -f "$NGINX_SITE" ]]; then
   exit 1
 fi
 
-if ! grep -q 'location /platform/' "$NGINX_SITE"; then
-  sudo python3 - <<'PY'
+sudo python3 - <<'PY'
 from pathlib import Path
 path = Path("/etc/nginx/sites-available/next-performance")
 text = path.read_text()
@@ -84,22 +87,62 @@ needle = "    location / {"
 block = """    location = /platform {
         return 301 /platform/;
     }
+    location /platform/assets/ {
+        root /var/www;
+        try_files $uri =404;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+    location = /platform/index.html {
+        root /var/www;
+        add_header Cache-Control "no-cache";
+    }
     location /platform/ {
+        root /var/www;
+        try_files $uri $uri/ /platform/index.html;
+        add_header Cache-Control "no-cache";
+    }
+"""
+changed = False
+if "location /platform/" not in text:
+    if needle not in text:
+        raise SystemExit("Could not find catch-all location / in nginx config")
+    text = text.replace(needle, block + needle, 1)
+    changed = True
+    print("Inserted /platform locations")
+elif "location /platform/assets/" not in text:
+    old = """    location /platform/ {
         root /var/www;
         try_files $uri $uri/ /platform/index.html;
     }
 """
-if needle not in text:
-    raise SystemExit("Could not find catch-all location / in nginx config")
-path.write_text(text.replace(needle, block + needle, 1))
-print("Inserted /platform locations")
+    old_home = """    location /platform/ {
+        root /home/ubuntu/fn-people-performance;
+        try_files $uri $uri/ /platform/index.html;
+    }
+"""
+    if old in text:
+        text = text.replace(old, block, 1)
+        changed = True
+        print("Upgraded /platform nginx (assets 404 + no-cache index)")
+    elif old_home in text:
+        text = text.replace(old_home, block, 1)
+        changed = True
+        print("Upgraded /platform nginx (fixed root + assets 404)")
+    else:
+        print("nginx /platform present but unexpected shape - left unchanged")
+elif "root /home/ubuntu/fn-people-performance;" in text:
+    text = text.replace(
+        "root /home/ubuntu/fn-people-performance;",
+        "root /var/www;",
+    )
+    changed = True
+    print("Fixed /platform root → /var/www")
+else:
+    print("nginx /platform already configured")
+
+if changed:
+    path.write_text(text)
 PY
-elif grep -q 'root /home/ubuntu/fn-people-performance;' "$NGINX_SITE"; then
-  sudo sed -i 's|root /home/ubuntu/fn-people-performance;|root /var/www;|' "$NGINX_SITE"
-  echo "Fixed /platform root → /var/www"
-else
-  echo "nginx /platform already configured"
-fi
 
 sudo nginx -t
 sudo systemctl reload nginx

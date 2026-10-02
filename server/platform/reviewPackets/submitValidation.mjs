@@ -7,7 +7,7 @@ const PERFORMANCE_GRADES = new Set([
 ])
 
 const SKILL_GRADES = new Set([
-  'poor',
+  'unsatisfactory',
   'basic',
   'intermediate',
   'advanced',
@@ -15,7 +15,7 @@ const SKILL_GRADES = new Set([
 ])
 
 const LEGACY_SKILL_BANDS = new Set([
-  'unsatisfactory',
+  'poor',
   'developing',
   'performing',
   'exceeding',

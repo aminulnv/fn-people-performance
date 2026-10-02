@@ -203,6 +203,10 @@ function normalizeMastery(value: unknown): SkillMastery {
   for (const level of SKILL_MASTERY_LEVELS) {
     next[level] = String(raw[level] ?? '').trim()
   }
+  // Legacy mastery key before Unsatisfactory rename.
+  if (!next.unsatisfactory && raw.poor != null) {
+    next.unsatisfactory = String(raw.poor).trim()
+  }
   return next
 }
 
@@ -213,7 +217,11 @@ export function normalizeSkill(
     id: skill.id?.trim() || newSkillId(),
     name: skill.name.trim(),
     role: skill.role?.trim() ?? '',
-    status: skill.status === 'draft' ? 'draft' : 'approved',
+    status:
+      skill.status === 'inactive' ||
+      (skill.status as string | undefined) === 'draft'
+        ? 'inactive'
+        : 'active',
     mastery: normalizeMastery(skill.mastery),
   }
 }
@@ -318,7 +326,7 @@ export async function createSkill(input: {
     const skill = normalizeSkill({
       name,
       role: input.role,
-      status: input.status ?? 'approved',
+      status: input.status ?? 'active',
       mastery: input.mastery,
     })
     const state = getState()

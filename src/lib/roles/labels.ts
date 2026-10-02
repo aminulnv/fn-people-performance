@@ -3,17 +3,17 @@ import { EXPECTED_SKILL_LEVELS } from './types'
 
 const LEVEL_LABELS: Record<ExpectedSkillLevel, string> = {
   none: 'Not Applicable',
-  poor: 'Poor',
+  unsatisfactory: 'Unsatisfactory',
   basic: 'Basic',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
   expert: 'Expert',
 }
 
-/** Weights match scorecard skill grades: Poor=1 … Expert=5. */
+/** Weights match scorecard skill grades: Unsatisfactory=1 … Expert=5. */
 const LEVEL_RANK: Record<ExpectedSkillLevel, number> = {
   none: 0,
-  poor: 1,
+  unsatisfactory: 1,
   basic: 2,
   intermediate: 3,
   advanced: 4,
