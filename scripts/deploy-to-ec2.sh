@@ -110,12 +110,30 @@ if "location /platform/" not in text:
     changed = True
     print("Inserted /platform locations")
 elif "location /platform/assets/" not in text:
-    old = """    location /platform/ {
+    # Prefer replacing redirect + /platform/ together so we don't duplicate
+    # location = /platform when the site already has the 301.
+    old = """    location = /platform {
+        return 301 /platform/;
+    }
+    location /platform/ {
         root /var/www;
         try_files $uri $uri/ /platform/index.html;
     }
 """
-    old_home = """    location /platform/ {
+    old_no_redirect = """    location /platform/ {
+        root /var/www;
+        try_files $uri $uri/ /platform/index.html;
+    }
+"""
+    old_home = """    location = /platform {
+        return 301 /platform/;
+    }
+    location /platform/ {
+        root /home/ubuntu/fn-people-performance;
+        try_files $uri $uri/ /platform/index.html;
+    }
+"""
+    old_home_no_redirect = """    location /platform/ {
         root /home/ubuntu/fn-people-performance;
         try_files $uri $uri/ /platform/index.html;
     }
@@ -126,6 +144,14 @@ elif "location /platform/assets/" not in text:
         print("Upgraded /platform nginx (assets 404 + no-cache index)")
     elif old_home in text:
         text = text.replace(old_home, block, 1)
+        changed = True
+        print("Upgraded /platform nginx (fixed root + assets 404)")
+    elif old_no_redirect in text:
+        text = text.replace(old_no_redirect, block, 1)
+        changed = True
+        print("Upgraded /platform nginx (assets 404 + no-cache index)")
+    elif old_home_no_redirect in text:
+        text = text.replace(old_home_no_redirect, block, 1)
         changed = True
         print("Upgraded /platform nginx (fixed root + assets 404)")
     else:
