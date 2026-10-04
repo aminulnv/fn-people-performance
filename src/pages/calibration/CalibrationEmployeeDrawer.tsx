@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowDownRight,
@@ -140,6 +140,8 @@ const PILLAR_FALLBACK_LABEL: Record<string, string> = {
   leadership: 'Leadership',
 }
 
+export type CalibrationDrawerFocusTarget = 'session-notes'
+
 type CalibrationEmployeeDrawerProps = {
   row: RatingTableRow
   employee: PlatformEmployee | undefined
@@ -155,6 +157,10 @@ type CalibrationEmployeeDrawerProps = {
   canOverride: boolean
   onSittingSaved: (sitting: CalibrationSitting) => void
   onRatingAdjusted: () => void
+  /** Open a specific drawer section (e.g. session notes from the rating table). */
+  focusTarget?: CalibrationDrawerFocusTarget | null
+  /** Bump to re-run scroll/highlight when the same employee is focused again. */
+  focusNonce?: number
 }
 
 function GradePill({ grade }: { grade: GradeBandId | null | undefined }) {
@@ -383,8 +389,12 @@ export function CalibrationEmployeeDrawer({
   canOverride,
   onSittingSaved,
   onRatingAdjusted,
+  focusTarget = null,
+  focusNonce = 0,
 }: CalibrationEmployeeDrawerProps) {
-  const [tab, setTab] = useState<DrawerTabId>('overview')
+  const [tab, setTab] = useState<DrawerTabId>(
+    focusTarget === 'session-notes' ? 'calibration' : 'overview',
+  )
   const patchPacketCache = usePatchReviewPacketCache()
   const {
     data: fullPacket,
@@ -423,18 +433,41 @@ export function CalibrationEmployeeDrawer({
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [overrideOpen, setOverrideOpen] = useState(false)
   const [lockedOverrideAck, setLockedOverrideAck] = useState(false)
+  const [notesHighlighted, setNotesHighlighted] = useState(false)
+  const sessionNotesRef = useRef<HTMLSectionElement | null>(null)
   const assignedSkills = useEmployeeSkills(row.employeeId)
   const { skills: skillsCatalog } = useSkillsLibrary()
   const enabledValues = useEnabledValues()
 
   useEffect(() => {
-    setTab('overview')
     setOverrideGrade(row.annualGrade ?? '')
     setOverrideReason('')
     setOverrideError(null)
     setOverrideOpen(false)
     setLockedOverrideAck(false)
   }, [row.employeeId, row.annualGrade])
+
+  useEffect(() => {
+    setTab(focusTarget === 'session-notes' ? 'calibration' : 'overview')
+    if (focusTarget !== 'session-notes') setNotesHighlighted(false)
+  }, [row.employeeId, focusTarget, focusNonce])
+
+  useEffect(() => {
+    if (focusTarget !== 'session-notes' || tab !== 'calibration') return
+    const node = sessionNotesRef.current
+    if (!node) return
+    const frame = window.requestAnimationFrame(() => {
+      node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+    setNotesHighlighted(true)
+    const clearHighlight = window.setTimeout(() => {
+      setNotesHighlighted(false)
+    }, 2200)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.clearTimeout(clearHighlight)
+    }
+  }, [focusTarget, focusNonce, tab, row.employeeId])
 
   useEffect(() => {
     setSessionStatus(sittingEmployee?.status ?? 'not_reviewed')
@@ -528,6 +561,11 @@ export function CalibrationEmployeeDrawer({
 
   const historyRows = useMemo(() => {
     const previousCycles = previousCyclesOfSamePurpose(cycle, cycles, 3)
+    const cycleLabelOf = (item: typeof cycle) =>
+      item.name?.trim() ||
+      item.yearKey ||
+      item.startDate?.slice(0, 4) ||
+      '—'
     const entries: Array<{
       cycleId: string
       yearLabel: string
@@ -537,7 +575,7 @@ export function CalibrationEmployeeDrawer({
     const currentGrade = officialGrade(packet) ?? row.annualGrade
     entries.push({
       cycleId: cycle.id,
-      yearLabel: cycle.yearKey ?? cycle.startDate.slice(0, 4) ?? cycle.name,
+      yearLabel: cycleLabelOf(cycle),
       grade: currentGrade,
       delta: null,
     })
@@ -550,7 +588,7 @@ export function CalibrationEmployeeDrawer({
       const newerGrade = entries[entries.length - 1]?.grade ?? null
       entries.push({
         cycleId: prev.id,
-        yearLabel: prev.yearKey ?? prev.startDate.slice(0, 4) ?? prev.name,
+        yearLabel: cycleLabelOf(prev),
         grade,
         delta: gradeTierDelta(grade, newerGrade),
       })
@@ -1440,7 +1478,14 @@ export function CalibrationEmployeeDrawer({
               ) : null}
             </section>
 
-            <section className="pd-cal-drawer__card">
+            <section
+              ref={sessionNotesRef}
+              className={cx(
+                'pd-cal-drawer__card',
+                notesHighlighted && 'is-highlighted',
+              )}
+              aria-label="Session Notes"
+            >
               <h3 className="pd-cal-drawer__section-title">Session Notes</h3>
               <Textarea
                 value={sessionNotes}

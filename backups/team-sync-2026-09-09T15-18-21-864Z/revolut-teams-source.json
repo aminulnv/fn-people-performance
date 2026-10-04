@@ -1,0 +1,3574 @@
+[
+  {
+    "id": 1,
+    "name": "Default",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 1,
+      "full_name": "Bidyut Sengupta"
+    },
+    "department": {
+      "id": 1,
+      "name": "NEXT | Senior Leadership Team"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:12:14.587736Z"
+  },
+  {
+    "id": 2,
+    "name": "IT | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 356,
+      "full_name": "Tofayel Hossain"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:02:21.586529Z"
+  },
+  {
+    "id": 3,
+    "name": "Design | Product & BI | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 453,
+      "full_name": "Kanchon Sarker"
+    },
+    "department": {
+      "id": 135,
+      "name": "Product"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:57:39.399691Z"
+  },
+  {
+    "id": 4,
+    "name": "Media & Strategy | Marketing | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 335,
+      "full_name": "Tanvir Zaman"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T04:08:55.002607Z"
+  },
+  {
+    "id": 5,
+    "name": "Technical Support | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:04:06.230749Z"
+  },
+  {
+    "id": 6,
+    "name": "Operations | Product & BI | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 19,
+      "name": "FNmarkets | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:54:49.879072Z"
+  },
+  {
+    "id": 7,
+    "name": "Live Chat | Client Experience | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:06:24.050456Z"
+  },
+  {
+    "id": 8,
+    "name": "Risk & Operational | TRO | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 6,
+      "name": "FNmarkets | Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:52.397179Z"
+  },
+  {
+    "id": 9,
+    "name": "Business Operations | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 79,
+      "full_name": "Fatima Tuz-Zahra"
+    },
+    "department": {
+      "id": 137,
+      "name": "Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:10:22.787331Z"
+  },
+  {
+    "id": 10,
+    "name": "Regional HR | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 53,
+      "full_name": "Bidyut Sen Gupta"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T07:23:25.005454Z"
+  },
+  {
+    "id": 11,
+    "name": "Core",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 322,
+      "full_name": "Syed Abdullah Jayed"
+    },
+    "department": {
+      "id": 155,
+      "name": "LT Teams"
+    },
+    "mission": null,
+    "updated_date_time": "2026-09-09T10:42:29.383075Z"
+  },
+  {
+    "id": 12,
+    "name": "CFDs Investigation | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 9,
+      "name": "FundedNext | Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:16:14.256162Z"
+  },
+  {
+    "id": 13,
+    "name": "Community Operations | CPM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 209,
+      "full_name": "Niloy Julious Rozario"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:44:57.644450Z"
+  },
+  {
+    "id": 15,
+    "name": "Payments R&D | Payments & Treasury | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 432,
+      "full_name": "Md Jibran Hossain"
+    },
+    "department": {
+      "id": 11,
+      "name": "NEXT | Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:15:28.594310Z"
+  },
+  {
+    "id": 16,
+    "name": "Internal Audit | F&A | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:48:23.637016Z"
+  },
+  {
+    "id": 18,
+    "name": "Partner Management | CPM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 152,
+      "full_name": "Md. Shariar Reza"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:45:12.918808Z"
+  },
+  {
+    "id": 19,
+    "name": "Business Analyst| Product & BI | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 391,
+      "full_name": "Kazi Nadimul Haque"
+    },
+    "department": {
+      "id": 3,
+      "name": "FundedNext | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:12:44.727419Z"
+  },
+  {
+    "id": 20,
+    "name": "Brand & Creative | Marketing | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 110,
+      "full_name": "Md. Ariful Islam"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T04:04:52.781009Z"
+  },
+  {
+    "id": 21,
+    "name": "Data, Automation & Research | QPT | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 38,
+      "full_name": "Api Singha"
+    },
+    "department": {
+      "id": 13,
+      "name": "NEXT | Quality, Performance & Training"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:14:55.712476Z"
+  },
+  {
+    "id": 22,
+    "name": "Case Resolution | Operations | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 50,
+      "full_name": "B M Tauhid Hasan Rifat"
+    },
+    "department": {
+      "id": 137,
+      "name": "Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:11:11.490233Z"
+  },
+  {
+    "id": 25,
+    "name": "Financial Planning and Analysis | F&A | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 179,
+      "full_name": "Mohammad Hasanur Rahaman"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:47:23.178424Z"
+  },
+  {
+    "id": 26,
+    "name": "Payment Ops | Payments & Treasury | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 432,
+      "full_name": "Md Jibran Hossain"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:15:02.787927Z"
+  },
+  {
+    "id": 27,
+    "name": "Platform Operations | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 9,
+      "name": "FundedNext | Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:16:27.941411Z"
+  },
+  {
+    "id": 28,
+    "name": "Frontend | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 444,
+      "full_name": "Sajjad Hossain Ripon"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:01:22.026101Z"
+  },
+  {
+    "id": 29,
+    "name": "Backend | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:59:15.441169Z"
+  },
+  {
+    "id": 32,
+    "name": "Admin Operations | ACCA | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 140,
+      "full_name": "MD. REFAETUL ISLAM"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:08:38.126601Z"
+  },
+  {
+    "id": 33,
+    "name": "Social Media | Marketing | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 398,
+      "full_name": "Saima Karim"
+    },
+    "department": {
+      "id": 4,
+      "name": "FundedNext | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:17:23.379730Z"
+  },
+  {
+    "id": 34,
+    "name": "Learning & Development | QPT | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 165,
+      "full_name": "Mehedi Hasan Aunim"
+    },
+    "department": {
+      "id": 13,
+      "name": "NEXT | Quality, Performance & Training"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:15:00.874590Z"
+  },
+  {
+    "id": 35,
+    "name": "Dealing Desk | TRO | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 6,
+      "name": "FNmarkets | Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:40.937064Z"
+  },
+  {
+    "id": 36,
+    "name": "Product Management | Product & BI | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 295,
+      "full_name": "Sheikh Rokya Sumana"
+    },
+    "department": {
+      "id": 3,
+      "name": "FundedNext | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:12:49.852962Z"
+  },
+  {
+    "id": 37,
+    "name": "Quality, Performance & Training | NEXT-Lanka",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 412,
+      "full_name": "Mahamudul Hoque Shovho"
+    },
+    "department": {
+      "id": 15,
+      "name": "NEXT-Lanka Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:53:26.706503Z"
+  },
+  {
+    "id": 38,
+    "name": "Revenue Ops | Payments & Treasury | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 432,
+      "full_name": "Md Jibran Hossain"
+    },
+    "department": {
+      "id": 11,
+      "name": "NEXT | Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:15:40.118732Z"
+  },
+  {
+    "id": 39,
+    "name": "Project Management | CEO's Office | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 2,
+      "full_name": "Nazbir Ahmed Nabil"
+    },
+    "department": {
+      "id": 16,
+      "name": "CEO's Office"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:13:35.059456Z"
+  },
+  {
+    "id": 40,
+    "name": "Risk Monitoring & Control | TRO | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 6,
+      "name": "FNmarkets | Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:46.872956Z"
+  },
+  {
+    "id": 41,
+    "name": "Corporate Affairs | ACCA | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 108,
+      "full_name": "Md. Alif Hasan"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:09:19.883419Z"
+  },
+  {
+    "id": 42,
+    "name": "SQA | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 471,
+      "full_name": "Sazzad Ahmmed"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:03:41.904039Z"
+  },
+  {
+    "id": 43,
+    "name": "Copy & Content | Marketing | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 228,
+      "full_name": "Rabea Basri Riha"
+    },
+    "department": {
+      "id": 4,
+      "name": "FundedNext | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:17:14.712217Z"
+  },
+  {
+    "id": 44,
+    "name": "DevOps | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 131,
+      "full_name": "Md. Nazmul Ahasan"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:00:55.585688Z"
+  },
+  {
+    "id": 46,
+    "name": "Solution Architect | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 155,
+      "full_name": "MD. TANJIM UR RAHMAN ESTY"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:02:52.165200Z"
+  },
+  {
+    "id": 47,
+    "name": "C++ | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 155,
+      "full_name": "MD. TANJIM UR RAHMAN ESTY"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:59:23.481366Z"
+  },
+  {
+    "id": 48,
+    "name": "Data | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 441,
+      "full_name": "Md. Abu Saleh Ovi"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:00:21.526212Z"
+  },
+  {
+    "id": 51,
+    "name": "Communications Quality & Assurance | QPT | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 330,
+      "full_name": "Tajrian Rahman"
+    },
+    "department": {
+      "id": 13,
+      "name": "NEXT | Quality, Performance & Training"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:14:22.102703Z"
+  },
+  {
+    "id": 52,
+    "name": "Futures Investigation | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 9,
+      "name": "FundedNext | Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:16:22.644088Z"
+  },
+  {
+    "id": 54,
+    "name": "Data Analytics & Reporting | TRO | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 6,
+      "name": "FNmarkets | Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:32.230724Z"
+  },
+  {
+    "id": 57,
+    "name": "Compliance | ACCA | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 294,
+      "full_name": "Sheikh Rafiq Ahmed"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:09:10.349935Z"
+  },
+  {
+    "id": 58,
+    "name": "Content Quality and Editorial | QPT | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 342,
+      "full_name": "Tashfeen Sara"
+    },
+    "department": {
+      "id": 13,
+      "name": "NEXT | Quality, Performance & Training"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:14:50.477739Z"
+  },
+  {
+    "id": 59,
+    "name": "PSTF | Client Experience | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:06:39.932178Z"
+  },
+  {
+    "id": 60,
+    "name": "Reputation Management | CPM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 209,
+      "full_name": "Niloy Julious Rozario"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:46:56.546183Z"
+  },
+  {
+    "id": 61,
+    "name": "Strategic Coordination | CEO's Office | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 2,
+      "full_name": "Nazbir Ahmed Nabil"
+    },
+    "department": {
+      "id": 16,
+      "name": "CEO's Office"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:14:15.292861Z"
+  },
+  {
+    "id": 62,
+    "name": "Data & RnD | Product & BI | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 391,
+      "full_name": "Kazi Nadimul Haque"
+    },
+    "department": {
+      "id": 135,
+      "name": "Product"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:57:33.904183Z"
+  },
+  {
+    "id": 63,
+    "name": "HRBP | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 105,
+      "full_name": "A F M Asraful Goni"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:22:45.449177Z"
+  },
+  {
+    "id": 64,
+    "name": "Talent Acquisition & Employer Branding | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 574,
+      "full_name": "Ong Choon Khai"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:30:11.014208Z"
+  },
+  {
+    "id": 65,
+    "name": "OD & PMS | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 1,
+      "full_name": "Bidyut Sengupta"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:23:15.746283Z"
+  },
+  {
+    "id": 66,
+    "name": "People Analytics & HR Technology | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:27:06.038456Z"
+  },
+  {
+    "id": 67,
+    "name": "People Operations | P&C | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 1,
+      "full_name": "Bidyut Sengupta"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:29:41.075279Z"
+  },
+  {
+    "id": 69,
+    "name": "Operations | ACCA | NEXT",
+    "team_function": {
+      "id": "service",
+      "name": "Services"
+    },
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 294,
+      "full_name": "Sheikh Rafiq Ahmed"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:09:46.390063Z"
+  },
+  {
+    "id": 72,
+    "name": "Email Support | Client Experience | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 287,
+      "full_name": "Shakib Akhter Dhrubo"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:06:03.619435Z"
+  },
+  {
+    "id": 73,
+    "name": "Operations | Client Experience | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:06:32.270995Z"
+  },
+  {
+    "id": 77,
+    "name": "Back Office | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 137,
+      "name": "Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:10:30.051607Z"
+  },
+  {
+    "id": 79,
+    "name": "Social Media Management | CPM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:46:35.585365Z"
+  },
+  {
+    "id": 80,
+    "name": "Client Support | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:05:54.117778Z"
+  },
+  {
+    "id": 81,
+    "name": "Risk Management | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 9,
+      "name": "FundedNext | Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:16:34.340277Z"
+  },
+  {
+    "id": 83,
+    "name": "Risk Monitoring & Data | TRM | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 9,
+      "name": "FundedNext | Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:16:39.514450Z"
+  },
+  {
+    "id": 84,
+    "name": "Media & Performance | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 22,
+      "name": "FNmarkets | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:55:48.232538Z"
+  },
+  {
+    "id": 85,
+    "name": "Brand & Creative | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 22,
+      "name": "FNmarkets | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:55:31.922348Z"
+  },
+  {
+    "id": 86,
+    "name": "Copy & Content Writer | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T04:05:33.272566Z"
+  },
+  {
+    "id": 87,
+    "name": "SEO | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 22,
+      "name": "FNmarkets | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:55:56.305971Z"
+  },
+  {
+    "id": 89,
+    "name": "Internal Audit | FundedNext | F&A (#89 Merged)",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 12,
+      "name": "NEXT | Finance & Audit (#12 Merged)"
+    },
+    "mission": null,
+    "updated_date_time": "2025-09-01T12:41:07.920189Z"
+  },
+  {
+    "id": 90,
+    "name": "Revenue Assurance | F&A (#90 Merged)",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 12,
+      "name": "NEXT | Finance & Audit (#12 Merged)"
+    },
+    "mission": null,
+    "updated_date_time": "2025-09-01T12:28:24.100859Z"
+  },
+  {
+    "id": 91,
+    "name": "Global Accounting | F&A | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:48:15.074541Z"
+  },
+  {
+    "id": 93,
+    "name": "Business Operations | Project Management | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 137,
+      "name": "Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:11:05.080768Z"
+  },
+  {
+    "id": 94,
+    "name": "Design | Technology | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:00:31.749286Z"
+  },
+  {
+    "id": 95,
+    "name": "Product Management | Product & BI | FNmarkets",
+    "team_function": {
+      "id": "service",
+      "name": "Services"
+    },
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 19,
+      "name": "FNmarkets | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:54:55.753469Z"
+  },
+  {
+    "id": 96,
+    "name": "Research & Development | Client Experience | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:06:50.369573Z"
+  },
+  {
+    "id": 97,
+    "name": "Software Engineer (Frontend) | Technology | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:03:15.853173Z"
+  },
+  {
+    "id": 98,
+    "name": "Software Engineer (Backend) | Technology | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:03:08.058386Z"
+  },
+  {
+    "id": 99,
+    "name": "Business Development | BDev | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 17,
+      "name": "Business Development"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T12:55:25.454286Z"
+  },
+  {
+    "id": 100,
+    "name": "BD Operations | F&A | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:47:08.378276Z"
+  },
+  {
+    "id": 101,
+    "name": "Sales | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 27,
+      "name": "FNmarkets | Sales"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:53:58.587306Z"
+  },
+  {
+    "id": 102,
+    "name": "Operations | NEXT-Lanka",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 412,
+      "full_name": "Mahamudul Hoque Shovho"
+    },
+    "department": {
+      "id": 15,
+      "name": "NEXT-Lanka Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:53:19.236802Z"
+  },
+  {
+    "id": 103,
+    "name": "Business Intelligence | Product & BI | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 19,
+      "name": "FNmarkets | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:54:35.775949Z"
+  },
+  {
+    "id": 104,
+    "name": "Social Media Management | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 22,
+      "name": "FNmarkets | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:02.483668Z"
+  },
+  {
+    "id": 105,
+    "name": "Internal Audit | FNmarkets | F&A (#105 Merged)",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 12,
+      "name": "NEXT | Finance & Audit (#12 Merged)"
+    },
+    "mission": null,
+    "updated_date_time": "2025-09-01T12:41:08.371050Z"
+  },
+  {
+    "id": 106,
+    "name": "Design | Product & BI | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 19,
+      "name": "FNmarkets | Product & BI"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:54:44.362465Z"
+  },
+  {
+    "id": 107,
+    "name": "Treasury Ops | Payments & Treasury | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 432,
+      "full_name": "Md Jibran Hossain"
+    },
+    "department": {
+      "id": 11,
+      "name": "NEXT | Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:15:46.473372Z"
+  },
+  {
+    "id": 109,
+    "name": "Trading Platform & Engineering | TRO | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 6,
+      "name": "FNmarkets | Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:56:59.920884Z"
+  },
+  {
+    "id": 110,
+    "name": "Media & Strategy | Marketing | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 28,
+      "name": "NEXT | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-11T15:01:31.851149Z"
+  },
+  {
+    "id": 111,
+    "name": "Copy & Content | Marketing | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 28,
+      "name": "NEXT | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-11T15:01:24.906704Z"
+  },
+  {
+    "id": 112,
+    "name": "Social Media | Marketing | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 28,
+      "name": "NEXT | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-11T15:01:38.422338Z"
+  },
+  {
+    "id": 114,
+    "name": "Brand & Creative | Marketing | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 28,
+      "name": "NEXT | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-11T15:01:15.505945Z"
+  },
+  {
+    "id": 116,
+    "name": "PT General OPS | Payments & Treasury | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 11,
+      "name": "NEXT | Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T11:15:34.663374Z"
+  },
+  {
+    "id": 120,
+    "name": "Regulatory Compliance | F&A | NEXT",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:48:31.370825Z"
+  },
+  {
+    "id": 123,
+    "name": "The Trial Team",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 292,
+      "full_name": "Shariful Islam"
+    },
+    "department": {
+      "id": 30,
+      "name": "Trial Purposes Demo Department"
+    },
+    "mission": null,
+    "updated_date_time": "2025-09-09T06:05:08.873683Z"
+  },
+  {
+    "id": 124,
+    "name": "Core | Marketing | FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 22,
+      "name": "FNmarkets | Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-22T10:55:40.534079Z"
+  },
+  {
+    "id": 157,
+    "name": "Mobile App | Technology | FundedNext",
+    "team_function": {
+      "id": "product",
+      "name": "Product"
+    },
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:03:00.283529Z"
+  },
+  {
+    "id": 158,
+    "name": "Cyber Security | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:59:48.723590Z"
+  },
+  {
+    "id": 161,
+    "name": "Leadership Team",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 322,
+      "full_name": "Syed Abdullah Jayed"
+    },
+    "department": {
+      "id": 131,
+      "name": "Legal & Compliance"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T03:54:28.620406Z"
+  },
+  {
+    "id": 194,
+    "name": "Services · Demo Product · Sales",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": null,
+    "department": {
+      "id": 96,
+      "name": "Demo Product"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-14T15:05:09.969373Z"
+  },
+  {
+    "id": 227,
+    "name": "Applied Machine Learning  | Technology | FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": null,
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T05:58:53.993164Z"
+  },
+  {
+    "id": 228,
+    "name": "Payroll",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-06-15T06:41:23.385277Z"
+  },
+  {
+    "id": 229,
+    "name": "Product Design",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 575,
+      "full_name": "Darren Lau"
+    },
+    "department": {
+      "id": 141,
+      "name": "Product - Product Design"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:12.066516Z"
+  },
+  {
+    "id": 230,
+    "name": "Live Chat",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-10T12:51:45.932586Z"
+  },
+  {
+    "id": 231,
+    "name": "Copywriting",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:00.408571Z"
+  },
+  {
+    "id": 232,
+    "name": "People Experience",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T07:40:54.679986Z"
+  },
+  {
+    "id": 233,
+    "name": "HRBP",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:02.418417Z"
+  },
+  {
+    "id": 234,
+    "name": "Dealing Desk",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 143,
+      "name": "Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:05.139835Z"
+  },
+  {
+    "id": 235,
+    "name": "Performance & Total Rewards",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T04:46:02.922475Z"
+  },
+  {
+    "id": 236,
+    "name": "DevOps",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:03.529660Z"
+  },
+  {
+    "id": 237,
+    "name": "Product Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 295,
+      "full_name": "Sheikh Rokya Sumana"
+    },
+    "department": {
+      "id": 151,
+      "name": "Product - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-09-01T00:21:46.701435Z"
+  },
+  {
+    "id": 238,
+    "name": "Finance",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-14T05:34:45.979684Z"
+  },
+  {
+    "id": 239,
+    "name": "CQC",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:06.944776Z"
+  },
+  {
+    "id": 240,
+    "name": "Business Intelligence",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 458,
+      "full_name": "Md. Abdullah Al Monaem"
+    },
+    "department": {
+      "id": 154,
+      "name": "Business Intelligence"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-21T12:26:16.970542Z"
+  },
+  {
+    "id": 241,
+    "name": "Case Resolution",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 458,
+      "full_name": "Md. Abdullah Al Monaem"
+    },
+    "department": {
+      "id": 146,
+      "name": "Operations - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-09-01T00:21:47.098126Z"
+  },
+  {
+    "id": 242,
+    "name": "Talent Acquisition",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 505,
+      "full_name": "Elvira Moey Moey"
+    },
+    "department": {
+      "id": 8,
+      "name": "People & Culture"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:14.581552Z"
+  },
+  {
+    "id": 243,
+    "name": "Global Accounting - NEXT Lanka",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:09.586260Z"
+  },
+  {
+    "id": 244,
+    "name": "Community Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T05:58:12.633412Z"
+  },
+  {
+    "id": 245,
+    "name": "Email Marketing",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T05:58:11.660341Z"
+  },
+  {
+    "id": 246,
+    "name": "Operations",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 147,
+      "name": "Operations - FNmarkets"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-31T12:28:38.294001Z"
+  },
+  {
+    "id": 247,
+    "name": "Investigation",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 148,
+      "name": "Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-17T04:22:56.206561Z"
+  },
+  {
+    "id": 248,
+    "name": "Data",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-22T11:19:39.473835Z"
+  },
+  {
+    "id": 249,
+    "name": "SQA",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-17T00:12:28.271338Z"
+  },
+  {
+    "id": 250,
+    "name": "Brand & Creative",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-31T12:28:37.959813Z"
+  },
+  {
+    "id": 251,
+    "name": "Admin Operations",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 294,
+      "full_name": "Sheikh Rafiq Ahmed"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-14T12:23:11.914562Z"
+  },
+  {
+    "id": 252,
+    "name": "Cyber Security",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:03.166701Z"
+  },
+  {
+    "id": 253,
+    "name": "Internal Audit",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:08.980648Z"
+  },
+  {
+    "id": 254,
+    "name": "Pro Solution Task Force (PSTF)",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-03T04:52:01.331225Z"
+  },
+  {
+    "id": 255,
+    "name": "Technical Support",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:04.504934Z"
+  },
+  {
+    "id": 256,
+    "name": "Business Operations",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 458,
+      "full_name": "Md. Abdullah Al Monaem"
+    },
+    "department": {
+      "id": 146,
+      "name": "Operations - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:01.496585Z"
+  },
+  {
+    "id": 257,
+    "name": "External Affairs",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 294,
+      "full_name": "Sheikh Rafiq Ahmed"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:06.224264Z"
+  },
+  {
+    "id": 258,
+    "name": "Compliance - ACCA",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 294,
+      "full_name": "Sheikh Rafiq Ahmed"
+    },
+    "department": {
+      "id": 136,
+      "name": "Admin, Compliance & Corporate Affairs"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-06T08:48:30.919270Z"
+  },
+  {
+    "id": 259,
+    "name": "Business Development - FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 17,
+      "name": "Business Development"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:13.957165Z"
+  },
+  {
+    "id": 260,
+    "name": "Partner Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-09-09T08:46:44.909510Z"
+  },
+  {
+    "id": 261,
+    "name": "IT",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:03.945027Z"
+  },
+  {
+    "id": 262,
+    "name": "Mobile App",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:04.137876Z"
+  },
+  {
+    "id": 263,
+    "name": "Media & Performance",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-30T12:19:10.409355Z"
+  },
+  {
+    "id": 264,
+    "name": "Backend",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:13.436012Z"
+  },
+  {
+    "id": 265,
+    "name": "Payment Ops",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:02.746215Z"
+  },
+  {
+    "id": 266,
+    "name": "Global Accounting",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-30T12:19:11.058658Z"
+  },
+  {
+    "id": 267,
+    "name": "Treasury Ops",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:02.192694Z"
+  },
+  {
+    "id": 268,
+    "name": "AI & Automation",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-24T12:22:45.093535Z"
+  },
+  {
+    "id": 269,
+    "name": "Platform Operations",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 148,
+      "name": "Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-09-07T06:11:38.294534Z"
+  },
+  {
+    "id": 270,
+    "name": "Reputation Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T05:58:13.350770Z"
+  },
+  {
+    "id": 271,
+    "name": "Revenue Ops",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-03T00:09:14.130269Z"
+  },
+  {
+    "id": 272,
+    "name": "Sales & Account Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 152,
+      "name": "Sales"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-24T07:09:51.652807Z"
+  },
+  {
+    "id": 273,
+    "name": "Back Office",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": null,
+    "department": {
+      "id": 137,
+      "name": "Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T04:56:47.400595Z"
+  },
+  {
+    "id": 274,
+    "name": "Regulatory Reporting",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:09.958494Z"
+  },
+  {
+    "id": 275,
+    "name": "Platform",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 143,
+      "name": "Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:05.406266Z"
+  },
+  {
+    "id": 276,
+    "name": "Payments Research & Development",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:02.946834Z"
+  },
+  {
+    "id": 277,
+    "name": "Social Media Management",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-31T12:28:38.588423Z"
+  },
+  {
+    "id": 278,
+    "name": "Email",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-24T12:22:45.676466Z"
+  },
+  {
+    "id": 279,
+    "name": "Frontend",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:03.742827Z"
+  },
+  {
+    "id": 280,
+    "name": "Quality, Performance & Training",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 412,
+      "full_name": "Mahamudul Hoque Shovho"
+    },
+    "department": {
+      "id": 149,
+      "name": "Sri Lanka Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:44:40.236236Z"
+  },
+  {
+    "id": 281,
+    "name": "General Ops",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 297,
+      "full_name": "Sheikh Syed Ahmed"
+    },
+    "department": {
+      "id": 140,
+      "name": "Payments & Treasury"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:01.852873Z"
+  },
+  {
+    "id": 282,
+    "name": "Reporting & Analysis",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:10.140893Z"
+  },
+  {
+    "id": 283,
+    "name": "Legal",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 322,
+      "full_name": "Syed Abdullah Jayed"
+    },
+    "department": {
+      "id": 131,
+      "name": "Legal & Compliance"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:14.833065Z"
+  },
+  {
+    "id": 284,
+    "name": "Risk Monitoring & Data",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 143,
+      "name": "Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:05.595571Z"
+  },
+  {
+    "id": 285,
+    "name": "SEO",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:00.894788Z"
+  },
+  {
+    "id": 286,
+    "name": "Accounts",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:09.375434Z"
+  },
+  {
+    "id": 287,
+    "name": "Strategic Execution Lead",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 2,
+      "full_name": "Nazbir Ahmed Nabil"
+    },
+    "department": {
+      "id": 16,
+      "name": "CEO's Office"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:14:27.954636Z"
+  },
+  {
+    "id": 288,
+    "name": "Content Writer",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:00.193260Z"
+  },
+  {
+    "id": 289,
+    "name": "Revenue Assurance",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 157,
+      "full_name": "Md. Tariqul Islam"
+    },
+    "department": {
+      "id": 134,
+      "name": "Finance & Audit"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:09.771926Z"
+  },
+  {
+    "id": 290,
+    "name": "AI",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 337,
+      "full_name": "Tanzim Hasan Fahim"
+    },
+    "department": {
+      "id": 21,
+      "name": "Technology"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:11.884534Z"
+  },
+  {
+    "id": 291,
+    "name": "Risk & Operational",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 143,
+      "name": "Trading & Risk Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-24T03:45:37.998923Z"
+  },
+  {
+    "id": 292,
+    "name": "Strategic Coordination",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 2,
+      "full_name": "Nazbir Ahmed Nabil"
+    },
+    "department": {
+      "id": 16,
+      "name": "CEO's Office"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:14:05.061937Z"
+  },
+  {
+    "id": 293,
+    "name": "Analytics & MarTech",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 16,
+      "full_name": "Afrina Aziz Priti"
+    },
+    "department": {
+      "id": 132,
+      "name": "Marketing"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T13:33:09.995219Z"
+  },
+  {
+    "id": 294,
+    "name": "Project Management Office",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 2,
+      "full_name": "Nazbir Ahmed Nabil"
+    },
+    "department": {
+      "id": 16,
+      "name": "CEO's Office"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-31T04:44:44.121614Z"
+  },
+  {
+    "id": 296,
+    "name": "Operations - FN",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T14:22:24.456926Z"
+  },
+  {
+    "id": 297,
+    "name": "Back Office - FundedNext",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-24T12:22:39.851360Z"
+  },
+  {
+    "id": 299,
+    "name": "Compliance",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 322,
+      "full_name": "Syed Abdullah Jayed"
+    },
+    "department": {
+      "id": 131,
+      "name": "Legal & Compliance"
+    },
+    "mission": null,
+    "updated_date_time": "2026-06-15T12:57:59.320989Z"
+  },
+  {
+    "id": 301,
+    "name": "Business Operations - OPM",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 153,
+      "name": "Office of Project Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:01.142672Z"
+  },
+  {
+    "id": 303,
+    "name": "Operations - FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 152,
+      "name": "Sales"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-28T05:49:33.360649Z"
+  },
+  {
+    "id": 304,
+    "name": "Operations - TRM",
+    "team_function": null,
+    "status": {
+      "id": "archived",
+      "name": "Archived"
+    },
+    "team_owner": {
+      "id": 142,
+      "full_name": "Md. Ruhul Amin Siraji"
+    },
+    "department": {
+      "id": 148,
+      "name": "Trading & Risk Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-05-23T06:05:56.068719Z"
+  },
+  {
+    "id": 305,
+    "name": "Operations - SL",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 412,
+      "full_name": "Mahamudul Hoque Shovho"
+    },
+    "department": {
+      "id": 149,
+      "name": "Sri Lanka Operations"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:10.322461Z"
+  },
+  {
+    "id": 307,
+    "name": "Product Management - FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 585,
+      "full_name": "Ruchi Gupta"
+    },
+    "department": {
+      "id": 144,
+      "name": "Product - FNmarkets"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-20T04:08:15.831609Z"
+  },
+  {
+    "id": 308,
+    "name": "Case Resolution - FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 17,
+      "name": "Business Development"
+    },
+    "mission": null,
+    "updated_date_time": "2026-06-30T05:05:44.742870Z"
+  },
+  {
+    "id": 310,
+    "name": "Business Intelligence - FNmarkets",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 148,
+      "full_name": "MD. Selim Mahmud"
+    },
+    "department": {
+      "id": 158,
+      "name": "Product - BI | FNmarkets"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T14:22:24.811541Z"
+  },
+  {
+    "id": 311,
+    "name": "CEx Insights & Analytics",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T13:19:25.683809Z"
+  },
+  {
+    "id": 312,
+    "name": "PSTF + Email",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T14:12:24.730258Z"
+  },
+  {
+    "id": 313,
+    "name": "R&D",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T14:12:47.095036Z"
+  },
+  {
+    "id": 314,
+    "name": "Special Project",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 147,
+      "full_name": "Md. Salman Wahid"
+    },
+    "department": {
+      "id": 129,
+      "name": "Client Experience - FundedNext"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-27T14:13:09.773334Z"
+  },
+  {
+    "id": 315,
+    "name": "Partner Operation",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:15:36.743904Z"
+  },
+  {
+    "id": 316,
+    "name": "Partner Acqusition",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:16:52.977825Z"
+  },
+  {
+    "id": 317,
+    "name": "Partner Relationship",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-08-03T08:55:04.201777Z"
+  },
+  {
+    "id": 318,
+    "name": "Social & Community",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:18:21.428973Z"
+  },
+  {
+    "id": 319,
+    "name": "Content & Events",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:14:56.428591Z"
+  },
+  {
+    "id": 320,
+    "name": "Email Team",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:15:16.263705Z"
+  },
+  {
+    "id": 321,
+    "name": "Reputation Operations",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:17:50.671789Z"
+  },
+  {
+    "id": 322,
+    "name": "PR & Awards",
+    "team_function": null,
+    "status": {
+      "id": "active",
+      "name": "Active"
+    },
+    "team_owner": {
+      "id": 247,
+      "full_name": "Rifat Ahmed"
+    },
+    "department": {
+      "id": 10,
+      "name": "Community & Partner Management"
+    },
+    "mission": null,
+    "updated_date_time": "2026-07-28T07:17:32.718519Z"
+  }
+]

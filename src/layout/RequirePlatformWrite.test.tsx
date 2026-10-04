@@ -61,28 +61,17 @@ describe('RequirePlatformWrite', () => {
 })
 
 describe('RequirePlatformRead', () => {
-  it('blocks users who are not on the analytics allowlist', async () => {
+  it('blocks everyone from Analytics', async () => {
     renderWithPermissions(
       ['platform.read_all', 'platform.write_all'],
       <RequirePlatformRead>
         <p>Analytics content</p>
       </RequirePlatformRead>,
-      'other@nextventures.io',
+      'aminul.islam@nextventures.io',
     )
     expect(
       await screen.findByText(/available to a limited set of users/i),
     ).toBeInTheDocument()
     expect(screen.queryByText('Analytics content')).not.toBeInTheDocument()
-  })
-
-  it('allows aminul.islam@nextventures.io', async () => {
-    renderWithPermissions(
-      [],
-      <RequirePlatformRead>
-        <p>Analytics content</p>
-      </RequirePlatformRead>,
-      'aminul.islam@nextventures.io',
-    )
-    expect(await screen.findByText('Analytics content')).toBeInTheDocument()
   })
 })

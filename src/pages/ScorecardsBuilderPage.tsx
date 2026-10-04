@@ -10,7 +10,6 @@ import {
 } from '@/components/ui'
 import { PURPOSE_SHORT_LABEL } from '@/lib/reviews/purpose'
 import {
-  ALLOCATED_FORM_POLICY_LOCK,
   countScorecardFormUsage,
 } from '@/lib/reviews/scorecardForms'
 import {
@@ -332,9 +331,6 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
   const form = getScorecardForm(formId) ?? forms.find((item) => item.id === formId)
 
   const [name, setName] = useState(form?.name ?? '')
-  const [cycleType, setCycleType] = useState<CyclePurpose>(
-    form?.cycleType ?? 'custom',
-  )
   const [policy, setPolicy] = useState<ReviewPolicy | null>(form?.policy ?? null)
   const [saving, setSaving] = useState(false)
   const [duplicating, setDuplicating] = useState(false)
@@ -350,7 +346,6 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
       return
     }
     setName(form.name)
-    setCycleType(form.cycleType)
     setPolicy(structuredClone(form.policy))
     setError(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- init per form id
@@ -358,6 +353,7 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
 
   const usage = form ? countScorecardFormUsage(form.id, cycles) : 0
   const allocated = usage > 0
+  const cycleType = form?.cycleType ?? 'custom'
 
   if (!formsHydrated) {
     return (
@@ -469,37 +465,28 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
             <ChevronLeft size={20} strokeWidth={2} aria-hidden />
           </button>
           <div className="pd-scorecards-builder__titles">
-            <label className="pd-scorecards-builder__name-field">
-              <span className="pd-sr-only">Form name</span>
-              <input
-                className="pd-scorecards-builder__name-input"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Form name"
-              />
-            </label>
-            <p className="pd-scorecards-builder__lede">
-              {allocated
-                ? `Allocated to ${usage} cycle group${usage === 1 ? '' : 's'} — scorecard is locked. Duplicate to edit.`
-                : 'Not allocated to any cycle group yet.'}
-            </p>
-            <div className="pd-scorecards-builder__cycle-type">
-              <span className="pd-field__label" id="scorecard-cycle-type-label">
-                Cycle Type
+            <div className="pd-scorecards-builder__name-row">
+              <label className="pd-scorecards-builder__name-field">
+                <span className="pd-sr-only">Form name</span>
+                <input
+                  className="pd-scorecards-builder__name-input"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Form name"
+                />
+              </label>
+              <span className="pd-scorecards-builder__row-type">
+                {PURPOSE_SHORT_LABEL[cycleType]}
               </span>
-              <SegmentedControl
-                aria-labelledby="scorecard-cycle-type-label"
-                value={cycleType}
-                onChange={setCycleType}
-                options={CYCLE_TYPE_OPTIONS.map((option) => ({
-                  ...option,
-                  disabled: allocated,
-                  title: allocated
-                    ? 'Duplicate this form to change the cycle type.'
-                    : undefined,
-                }))}
-              />
             </div>
+            <p
+              className="pd-scorecards-builder__lede"
+              role={allocated ? 'status' : undefined}
+            >
+              {allocated
+                ? `Locked · used by ${usage} group${usage === 1 ? '' : 's'}. Duplicate to edit.`
+                : 'Not allocated yet.'}
+            </p>
           </div>
         </div>
         <div className="pd-scorecards-builder__actions">
@@ -553,11 +540,6 @@ function ScorecardsBuilderEditor({ formId }: { formId: string }) {
           </Button>
         </div>
       </header>
-      {allocated ? (
-        <p className="pd-scorecards-builder__lock-banner" role="status">
-          {ALLOCATED_FORM_POLICY_LOCK}
-        </p>
-      ) : null}
       {error ? (
         <p className="pd-reviews-edit__error" role="alert">
           {error}

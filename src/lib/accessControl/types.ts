@@ -104,15 +104,9 @@ export function canViewAllReviews(
   )
 }
 
-/** Analytics stays private until a broader rollout. */
-export const ANALYTICS_ALLOWED_EMAILS = [
-  'aminul.islam@nextventures.io',
-] as const
+/** Analytics stays private until a broader rollout. Empty = hidden for everyone. */
+export const ANALYTICS_ALLOWED_EMAILS = [] as const
 
-export function canViewAnalytics(email: string | undefined): boolean {
-  const normalized = (email ?? '').trim().toLowerCase()
-  return (
-    Boolean(normalized) &&
-    ANALYTICS_ALLOWED_EMAILS.some((candidate) => candidate === normalized)
-  )
+export function canViewAnalytics(_email: string | undefined): boolean {
+  return false
 }

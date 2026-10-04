@@ -76,7 +76,7 @@ export function navItemsForPermissions(
 ): NavItem[] {
   const normalizedEmail = (email ?? '').trim().toLowerCase()
   return items.filter((item) => {
-    if (item.allowedEmails?.length) {
+    if (item.allowedEmails) {
       return item.allowedEmails.some(
         (candidate) => candidate.trim().toLowerCase() === normalizedEmail,
       )

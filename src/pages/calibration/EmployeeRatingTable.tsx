@@ -86,7 +86,10 @@ import {
   ColumnMultiSelectFilter,
   type ColumnFilterOption,
 } from '@/pages/reviews/GroupMembersEditor'
-import { CalibrationEmployeeDrawer } from '@/pages/calibration/CalibrationEmployeeDrawer'
+import {
+  CalibrationEmployeeDrawer,
+  type CalibrationDrawerFocusTarget,
+} from '@/pages/calibration/CalibrationEmployeeDrawer'
 import { PipDisplayOnlyMark } from '@/pages/profile/PipDisplayOnlyMark'
 import { GRADE_LISTBOX_OPTIONS } from '@/pages/reviews/ScorecardGoalsCard'
 import '@/styles/layout-reviews.css'
@@ -203,6 +206,9 @@ export function EmployeeRatingTable({
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<number | null>(
     null,
   )
+  const [drawerFocusTarget, setDrawerFocusTarget] =
+    useState<CalibrationDrawerFocusTarget | null>(null)
+  const [drawerFocusNonce, setDrawerFocusNonce] = useState(0)
   const {
     data: sitting = null,
     isFetched: sittingFetched,
@@ -529,6 +535,7 @@ export function EmployeeRatingTable({
 
   function openAssignCalibrators(personId: number | null = null) {
     setSelectedEmployeeId(null)
+    setDrawerFocusTarget(null)
     setCalibratorsPersonId(personId)
     setCalibratorsOpen(true)
   }
@@ -1117,13 +1124,19 @@ export function EmployeeRatingTable({
               <tbody>
                 {filteredRows.map((row) => {
                   const isSelected = selectedIds.has(row.employeeId)
-                  const openEmployee = () => {
+                  const openEmployee = (
+                    focusTarget: CalibrationDrawerFocusTarget | null = null,
+                  ) => {
                     prefetchReviewPacket(
                       queryClient,
                       cycle.id,
                       row.employeeId,
                     )
                     setSelectedEmployeeId(row.employeeId)
+                    setDrawerFocusTarget(focusTarget)
+                    if (focusTarget) {
+                      setDrawerFocusNonce((nonce) => nonce + 1)
+                    }
                   }
                   return (
                     <tr
@@ -1290,13 +1303,16 @@ export function EmployeeRatingTable({
                       {visibleSet.has('notes') ? (
                         <td className="pd-cal-rt__center">
                           {row.sessionNotes ? (
-                            <span
+                            <button
+                              type="button"
                               className="pd-cal-rt__notes"
                               title={row.sessionNotes}
+                              aria-label={`Open Session Notes For ${row.fullName}`}
+                              onClick={() => openEmployee('session-notes')}
                             >
                               <StickyNote size={14} strokeWidth={2.25} aria-hidden />
                               <span className="pd-sr-only">Has Notes</span>
-                            </span>
+                            </button>
                           ) : (
                             <span className="pd-cal-rt__muted">—</span>
                           )}
@@ -1580,7 +1596,10 @@ export function EmployeeRatingTable({
           cycles={cycles}
           summaryPacket={selectedPacket}
           historyPackets={historyPackets}
-          onClose={() => setSelectedEmployeeId(null)}
+          onClose={() => {
+            setSelectedEmployeeId(null)
+            setDrawerFocusTarget(null)
+          }}
           onPacketUpdated={onPacketUpdated}
           sittingEmployee={
             sitting?.employees.find(
@@ -1611,6 +1630,8 @@ export function EmployeeRatingTable({
             }
             void rememberAdjusted(selectedRow.employeeId)
           }}
+          focusTarget={drawerFocusTarget}
+          focusNonce={drawerFocusNonce}
         />
       ) : null}
     </section>

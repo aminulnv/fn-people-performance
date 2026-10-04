@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar, ResizableTable, type ResizableColumn } from '@/components/ui'
+import { datePart } from '@/lib/dates/timestamp'
 import { avatarStyle } from '@/lib/employees/avatar'
 import { listEmployees } from '@/lib/employees/store'
 import type { PlatformEmployee } from '@/lib/employees/types'
@@ -111,7 +112,7 @@ export function OrgMembersTable({
                       managersByName={managersByName}
                     />
                   </td>
-                  <td>{member.startDate || '-'}</td>
+                  <td>{datePart(member.startDate) || '-'}</td>
                   <td>{member.site || '-'}</td>
                   <td>
                     <span

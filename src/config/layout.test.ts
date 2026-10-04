@@ -16,11 +16,11 @@ describe('navItemsForPermissions', () => {
     expect(visible.some((item) => item.path === '/cycles')).toBe(true)
   })
 
-  it('hides Analytics for everyone except the allowlisted email', () => {
+  it('hides Analytics for everyone', () => {
     const visible = navItemsForPermissions(
       layoutConfig.navItems,
       ['platform.read_all', 'platform.write_all'],
-      'other@nextventures.io',
+      'aminul.islam@nextventures.io',
     )
     expect(visible.some((item) => item.path === '/analytics')).toBe(false)
   })
@@ -35,14 +35,5 @@ describe('navItemsForPermissions', () => {
       'platform.read_all',
     ])
     expect(visible.some((item) => item.path === '/calibration')).toBe(true)
-  })
-
-  it('shows Analytics only to aminul.islam@nextventures.io', () => {
-    const visible = navItemsForPermissions(
-      layoutConfig.navItems,
-      [],
-      'aminul.islam@nextventures.io',
-    )
-    expect(visible.some((item) => item.path === '/analytics')).toBe(true)
   })
 })
